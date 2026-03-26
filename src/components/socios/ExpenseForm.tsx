@@ -59,6 +59,7 @@ export const EXPENSE_CATEGORIES = [
   { id: "COMPRAS / AQUISIÇÕES", label: "COMPRAS / AQUISIÇÕES", icon: "🛒" },
   { id: "CONTABILIDADE", label: "CONTABILIDADE", icon: "📊" },
   { id: "DECEA", label: "DECEA", icon: "🛬" },
+  { id: "IMPOSTOS", label: "IMPOSTOS", icon: "🏦" },
   { id: "DESPESAS DE VIAGEM", label: "DESPESAS DE VIAGEM", icon: "🧳" },
   { id: "HANGARAGEM", label: "HANGARAGEM", icon: "🏠" },
   { id: "INFRAERO", label: "INFRAERO", icon: "🛬" },
@@ -82,6 +83,28 @@ export const IMPOSTOS_SUBTYPES = [
 
 export type ExpenseCategoryId = (typeof EXPENSE_CATEGORIES)[number]["id"];
 
+// ─── Helpers para lógica de campos condicionais ───────────────────────────────
+// Categorias que ocultam Descrição e Fornecedor e mostram campo "doc"
+const CATEGORIES_WITH_DOC_FIELD = ["IMPOSTOS", "DECEA", "INFRAERO"] as const;
+type DocFieldCategory = (typeof CATEGORIES_WITH_DOC_FIELD)[number];
+
+function isDocFieldCategory(cat: string): cat is DocFieldCategory {
+  return (CATEGORIES_WITH_DOC_FIELD as readonly string[]).includes(cat);
+}
+
+function getDocFieldLabel(category: string): string {
+  if (category === "IMPOSTOS") return "Número do Documento";
+  if (category === "DECEA" || category === "INFRAERO") return "Número Demonstrativo";
+  return "Número do Documento";
+}
+
+function getDocFieldPlaceholder(category: string): string {
+  if (category === "IMPOSTOS") return "Ex: DARF-2025-001";
+  if (category === "DECEA") return "Ex: DECEA-2025-001";
+  if (category === "INFRAERO") return "Ex: INFRAERO-2025-001";
+  return "Ex: DOC-001";
+}
+
 const EMPTY_FORM = {
   description: "",
   totalAmount: "",
@@ -98,6 +121,10 @@ const EMPTY_FORM = {
   status: "pago",
   abastecimentoId: "",
   criarNovoAbastecimento: false,
+  // Campo doc (usado por IMPOSTOS, DECEA, INFRAERO)
+  doc: "",
+  boletoUrl: "",
+  demonstrativoUrl: "",
   // Campos para novo abastecimento
   novoAbastVincularDiario: false,
   novoAbastData: format(new Date(), "yyyy-MM-dd"),
@@ -118,7 +145,6 @@ const EMPTY_FORM = {
   novoAbastObservacoes: "",
   novoAbastValorUnitario: "",
   novoAbastBoleto: "",
-  // Não incluir valor unitário - será calculado a partir do totalAmount
   bankName: "",
   prazo: "extra" as "mensal" | "extra",
   isInstallment: false,
@@ -188,6 +214,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [selectedManutencaoId, setSelectedManutencaoId] = useState<string>("");
   const [manutencaoTipoRateio, setManutencaoTipoRateio] = useState<"igual" | "por_uso" | "manual">("igual");
   const [manualRateios, setManualRateios] = useState<Record<string, number>>({});
+  const [vincularAManutencao, setVincularAManutencao] = useState(false);
 
   const addExpense = useCreateExpense(false);
   const createMaintenanceExpense = useCreateMaintenanceExpense();
@@ -244,7 +271,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       ? partners.find((p) => p.cpf === form.assignedPartnerCpf)
       : null;
 
-  // when category changes, reset link states
+  // when category changes, reset link states and doc field
   useEffect(() => {
     if (form.category !== "DESPESAS DE VIAGEM") {
       setLinkOption(null);
@@ -256,12 +283,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       setManutencaoTipoRateio("igual");
       setManualRateios({});
     }
+    // Reset doc field when category changes
+    setForm((prev) => ({ ...prev, doc: "" }));
   }, [form.category]);
 
   // Auto-fill valor unitário when supplier and combustível are selected
   useEffect(() => {
     if (form.category === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
-      // Find supplier in fuelSuppliers
       const selectedSupplier = fuelSuppliers.find(s => s.supplier_name === form.supplierName);
       if (selectedSupplier && form.novoAbastCombustivel) {
         let valorUnitario = "";
@@ -271,10 +299,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           valorUnitario = selectedSupplier.fuel_price_jet.toString();
         }
         if (valorUnitario) {
-          setForm(prev => ({
-            ...prev,
-            novoAbastValorUnitario: valorUnitario
-          }));
+          setForm(prev => ({ ...prev, novoAbastValorUnitario: valorUnitario }));
         }
       }
     }
@@ -286,7 +311,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       setLoadingReports(true);
       try {
         if (partnerId) {
-          // Se tem um sócio selecionado, buscar relatórios dele OU sem sócio (deste cliente)
           const { data, error } = await supabase
             .from("travel_expense_reports")
             .select("id, report_number, status")
@@ -294,15 +318,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             .or(`client_partner.eq.${partnerId},client_partner.is.null`)
             .in("status", ["Finalizado", "Rascunho", "Enviado"])
             .order("created_at", { ascending: false });
-
-          if (error) {
-            console.error("Erro ao carregar relatórios para sócio:", error);
-            setExistingReports([]);
-          } else {
-            setExistingReports(data || []);
-          }
+          if (error) { setExistingReports([]); } else { setExistingReports(data || []); }
         } else {
-          // Se NÃO tem sócio selecionado, buscar apenas relatórios sem sócio deste cliente
           const { data, error } = await supabase
             .from("travel_expense_reports")
             .select("id, report_number, status")
@@ -310,27 +327,30 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             .is("client_partner", null)
             .in("status", ["Finalizado", "Rascunho", "Enviado"])
             .order("created_at", { ascending: false });
-
-          if (error) {
-            console.error("Erro ao carregar relatórios sem sócio:", error);
-            setExistingReports([]);
-          } else {
-            setExistingReports(data || []);
-          }
+          if (error) { setExistingReports([]); } else { setExistingReports(data || []); }
         }
       } finally {
         setLoadingReports(false);
       }
     };
-
     if (linkOption === "existing") {
       fetchReportsForPartner(assignedPartner?.id || null);
     }
   }, [linkOption, assignedPartner?.id, clienteId]);
 
+  // Derived flags
+  const isDocCategory = isDocFieldCategory(form.category as string);
+  const hideDescriptionAndSupplier = isDocCategory;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.description || !form.totalAmount || !form.category) return;
+
+    // Validation differs by category
+    if (isDocCategory) {
+      if (!form.doc || !form.totalAmount || !form.category) return;
+    } else {
+      if (!form.description || !form.totalAmount || !form.category) return;
+    }
 
     if (form.category === "DESPESAS DE VIAGEM" && linkOption === "existing" && !selectedReport) {
       toast.error("Selecione um relatório de viagem para vincular");
@@ -340,14 +360,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     const assignedPartnerCpf =
       form.assignedPartnerCpf === "none" ? null : form.assignedPartnerCpf;
 
-    // Resolve bank name from ID
     const selectedConta = contasBancarias.find((c) => c.id === form.bankName);
     const bankNameResolved = selectedConta ? selectedConta.banco : form.bankName || null;
-
-    // Fetch aircraft_id
     const aircraftId = await getAircraftId();
 
-    // Determine reference information for travel report linking
+    // For doc-field categories, use doc as description
+    const effectiveDescription = isDocCategory ? form.doc : form.description;
+
     let referenceType: string | null = null;
     let referenceId: string | null = null;
 
@@ -367,7 +386,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           const today = format(new Date(), "yyyy-MM-dd");
           const expenseItem = {
             category: selectedCategory?.label || "Desconhecido",
-            description: form.description,
+            description: effectiveDescription,
             amount: parseFloat(form.totalAmount),
             paid_by: "Cliente",
             expense_date: today,
@@ -455,12 +474,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
     const basePayload = {
       clientId: clienteId,
-      description: form.description,
+      description: effectiveDescription,
       totalAmount: parseFloat(form.totalAmount),
       category: form.category,
       expenseType: form.expenseType || form.category,
       dueDate: form.dueDate,
-      supplierName: form.supplierName || null,
+      supplierName: isDocCategory ? null : (form.supplierName || null),
       invoiceNumber: form.invoiceNumber || null,
       invoiceUrl: form.invoiceUrl || null,
       paymentMethod:
@@ -482,9 +501,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       referenceType,
       referenceId,
       abastecimentoId: abastecimentoId,
+      // Salvar o campo doc na coluna doc do banco
+      doc: isDocCategory ? form.doc : null,
+      boletoUrl: isDocCategory ? form.boletoUrl || null : null,
+      demonstrativoUrl: isDocCategory ? form.demonstrativoUrl || null : null,
     };
 
-    // If no partner assigned, split equally among all partners
     if (!assignedPartnerCpf && partners.length > 1) {
       const splitAmount = parseFloat(form.totalAmount) / partners.length;
       const splitAmountRounded = Math.round(splitAmount * 100) / 100;
@@ -496,7 +518,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           ? parseFloat(form.totalAmount) - alreadyAssigned
           : splitAmountRounded;
 
-        // Para viagens sem parceiro, manter o referenceId do relatório em todas as divisões
         const finalPayload = form.category === "DESPESAS DE VIAGEM" && referenceId
           ? {
               ...basePayload,
@@ -523,7 +544,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       });
     }
 
-    // If MANUTENCAO category with a selected maintenance, create despesa_manutencao record
     if (form.category === "MANUTENÇÃO" && selectedManutencaoId) {
       try {
         const valor = parseFloat(form.totalAmount);
@@ -538,7 +558,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             valor: partVal,
           }));
         } else if (manutencaoTipoRateio === "por_uso" && partners.length > 0) {
-          // Use share_percentage or equal if not set
           const totalPct = partners.reduce((s, p) => s + (p.share_percentage || 0), 0);
           if (totalPct > 0) {
             rateios = partners.map((p) => {
@@ -550,7 +569,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               };
             });
           } else {
-            // Fallback to equal
             const pct = 100 / partners.length;
             rateios = partners.map((p) => ({
               clientPartnerId: p.id,
@@ -573,44 +591,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           manutencaoId: selectedManutencaoId,
           aircraftId: clientAircraftId,
           clientId: clienteId,
-          descricao: form.description,
+          descricao: effectiveDescription,
           valor,
           tipoRateio: manutencaoTipoRateio,
           rateios,
         });
       } catch (err) {
         console.error("Erro ao criar despesa de manutenção:", err);
-      }
-    }
-
-    // If DESPESAS DE VIAGEM without client_partner, create despesa_manutencao record
-    if (form.category === "DESPESAS DE VIAGEM" && !assignedPartnerCpf && vincularAManutencao && selectedManutencaoId) {
-      try {
-        const valor = parseFloat(form.totalAmount);
-        let rateios: Array<{ clientPartnerId: string; percentual: number; valor: number }> = [];
-
-        // Split equally among all partners
-        if (partners.length > 0) {
-          const pct = 100 / partners.length;
-          const partVal = Math.round((valor / partners.length) * 100) / 100;
-          rateios = partners.map((p) => ({
-            clientPartnerId: p.id,
-            percentual: Math.round(pct * 100) / 100,
-            valor: partVal,
-          }));
-        }
-
-        await createMaintenanceExpense.mutateAsync({
-          manutencaoId: selectedManutencaoId,
-          aircraftId: clientAircraftId,
-          clientId: clienteId,
-          descricao: `Despesa de Viagem: ${form.description}`,
-          valor,
-          tipoRateio: "igual",
-          rateios,
-        });
-      } catch (err) {
-        console.error("Erro ao criar despesa de viagem como manutenção:", err);
       }
     }
 
@@ -632,11 +619,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     if (!bankForm.category || !bankForm.amount || !bankForm.description) return;
 
     const aircraftId = await getAircraftId();
-
-    // Resolve bank name from ID
     const selectedConta = contasBancarias.find((c) => c.id === bankForm.bankName);
     const bankNameResolved = selectedConta ? selectedConta.banco : bankForm.bankName || null;
-    // Convert bank name to uppercase
     const bankNameUppercase = bankNameResolved ? bankNameResolved.toUpperCase() : null;
 
     const basePayload = {
@@ -695,7 +679,11 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
   const selectedCategory = EXPENSE_CATEGORIES.find((c) => c.id === form.category);
   const isAbastecimento = form.category === "ABASTECIMENTO";
-  const isValid = !!form.description && !!form.totalAmount && !!form.category;
+
+  // Validation
+  const isValid = isDocCategory
+    ? !!form.doc && !!form.totalAmount && !!form.category
+    : !!form.description && !!form.totalAmount && !!form.category;
 
   return (
     <>
@@ -711,17 +699,18 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           </Button>
         </DialogTrigger>
 
+        {/* ── Dialog maior: max-w-6xl, padding generoso ── */}
         <DialogContent
           className="
-            w-full max-w-5xl
-            max-h-[92vh] overflow-y-auto
+            w-full max-w-6xl
+            max-h-[95vh] overflow-y-auto
             rounded-2xl border border-border/60
             bg-background/95 backdrop-blur-sm
             shadow-2xl p-0
           "
         >
           {/* ── Header ── */}
-          <div className="relative px-8 pt-8 pb-6 border-b border-red-700/40 bg-gradient-to-br from-red-700 to-rose-800 rounded-t-2xl overflow-hidden">
+          <div className="relative px-10 pt-8 pb-6 border-b border-red-700/40 bg-gradient-to-br from-red-700 to-rose-800 rounded-t-2xl overflow-hidden">
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute -top-8 -right-8 w-48 h-48 bg-white/5 rounded-full blur-2xl" />
               <div className="absolute bottom-0 left-0 w-full h-px bg-white/10" />
@@ -743,13 +732,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             </DialogHeader>
           </div>
 
-          {/* ── Body ── */}
-          <div className="px-8 py-6">
+          {/* ── Body com padding maior ── */}
+          <div className="px-10 py-8">
             <Tabs value={tab} onValueChange={(v) => setTab(v as "expense" | "bank")}>
-              <TabsList className="w-full h-11 rounded-xl bg-muted/60 p-1 mb-8">
+              <TabsList className="w-full h-12 rounded-xl bg-muted/60 p-1 mb-8">
                 <TabsTrigger
                   value="expense"
-                  className="flex-1 gap-2 h-9 rounded-lg text-sm font-medium
+                  className="flex-1 gap-2 h-10 rounded-lg text-sm font-medium
                              data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800
                              data-[state=active]:shadow-sm data-[state=active]:text-red-700
                              dark:data-[state=active]:text-red-400 transition-all"
@@ -759,7 +748,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 </TabsTrigger>
                 <TabsTrigger
                   value="bank"
-                  className="flex-1 gap-2 h-9 rounded-lg text-sm font-medium
+                  className="flex-1 gap-2 h-10 rounded-lg text-sm font-medium
                              data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800
                              data-[state=active]:shadow-sm data-[state=active]:text-blue-700
                              dark:data-[state=active]:text-blue-400 transition-all"
@@ -771,74 +760,177 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
               {/* ── TAB: DESPESA NORMAL ── */}
               <TabsContent value="expense">
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-7">
 
-                  {/* ── Sócio Responsável (único, no topo) ── */}
-                  <FormSection label="Sócio Responsável">
-                    <Select
-                      value={form.assignedPartnerCpf}
-                      onValueChange={set("assignedPartnerCpf")}
-                      disabled={loadingPartners}
-                    >
-                      <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                        <SelectValue
-                          placeholder={
-                            loadingPartners
-                              ? "Carregando sócios..."
-                              : "Atribuir a um sócio"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        <SelectItem value="none" className="py-3">
-                          <span className="text-muted-foreground text-sm">— Sem atribuição —</span>
-                        </SelectItem>
-                        {partners.map((partner) => (
-                          <SelectItem key={partner.id} value={partner.cpf} className="py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
-                                {partner.name.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="font-medium text-sm">{partner.name}</div>
-                                <div className="text-xs text-muted-foreground font-mono">
-                                  {formatCPF(partner.cpf)}
-                                  {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                  {/* ── Sócio Responsável + Categoria lado a lado ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <FormSection label="Sócio Responsável">
+                      <Select
+                        value={form.assignedPartnerCpf}
+                        onValueChange={set("assignedPartnerCpf")}
+                        disabled={loadingPartners}
+                      >
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
+                          <SelectValue
+                            placeholder={
+                              loadingPartners ? "Carregando sócios..." : "Atribuir a um sócio"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="none" className="py-3">
+                            <span className="text-muted-foreground text-sm">— Sem atribuição —</span>
+                          </SelectItem>
+                          {partners.map((partner) => (
+                            <SelectItem key={partner.id} value={partner.cpf} className="py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
+                                  {partner.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-sm">{partner.name}</div>
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {formatCPF(partner.cpf)}
+                                    {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormSection>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
 
-                  {/* ── Categoria ── */}
-                  <FormSection label="Categoria" required>
-                    <Select value={form.category} onValueChange={set("category")}>
-                      <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                        <SelectValue placeholder="Selecione a categoria da despesa" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        {EXPENSE_CATEGORIES.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id} className="py-3">
-                            <div className="flex items-center gap-3">
-                              <span className="text-lg leading-none">{cat.icon}</span>
-                              <span className="font-medium text-sm">{cat.label}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormSection label="Categoria" required>
+                      <Select value={form.category} onValueChange={set("category")}>
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
+                          <SelectValue placeholder="Selecione a categoria da despesa" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {EXPENSE_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id} className="py-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-lg leading-none">{cat.icon}</span>
+                                <span className="font-medium text-sm">{cat.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                  </div>
 
-                    {selectedCategory && (
-                      <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm mt-2 bg-red-50 border border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800/50 dark:text-red-300">
-                        <span className="text-base">{selectedCategory.icon}</span>
-                        <span className="font-medium">{selectedCategory.label} selecionada</span>
-                        <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-50" />
+                  {/* Categoria selecionada badge */}
+                  {selectedCategory && (
+                    <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm bg-red-50 border border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800/50 dark:text-red-300">
+                      <span className="text-base">{selectedCategory.icon}</span>
+                      <span className="font-medium">{selectedCategory.label} selecionada</span>
+                      <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-50" />
+                    </div>
+                  )}
+
+                  {/* ── IMPOSTOS: Tipo de Imposto ── */}
+                  {(form.category as string) === "IMPOSTOS" && (
+                    <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-6 space-y-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900/60">
+                          <span className="text-base">🏦</span>
+                        </div>
+                        <p className="font-semibold text-sm text-blue-200">Tipo de Imposto</p>
                       </div>
-                    )}
-                  </FormSection>
+                      <Select value={form.expenseType} onValueChange={set("expenseType")}>
+                        <SelectTrigger className="h-13 rounded-xl border-blue-700/50 bg-zinc-900 text-sm">
+                          <SelectValue placeholder="Selecione o tipo de imposto" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {IMPOSTOS_SUBTYPES.map((imp) => (
+                            <SelectItem key={imp.value} value={imp.value} className="py-3">
+                              <span className="font-medium text-sm">{imp.label}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* ── Campo DOC (IMPOSTOS / DECEA / INFRAERO) ── */}
+                  {isDocCategory && (
+                    <div className={cn(
+                      "rounded-2xl border p-6 space-y-2",
+                      form.category === "IMPOSTOS"
+                        ? "bg-blue-950/30 border-blue-700/40"
+                        : "bg-sky-950/30 border-sky-700/40"
+                    )}>
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <div className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-lg",
+                          form.category === "IMPOSTOS" ? "bg-blue-900/60" : "bg-sky-900/60"
+                        )}>
+                          <span className="text-base">
+                            {form.category === "IMPOSTOS" ? "🏦" : "🛬"}
+                          </span>
+                        </div>
+                        <p className={cn(
+                          "font-semibold text-sm",
+                          form.category === "IMPOSTOS" ? "text-blue-200" : "text-sky-200"
+                        )}>
+                          {getDocFieldLabel(form.category as string)}
+                        </p>
+                      </div>
+                      <Input
+                        value={form.doc}
+                        onChange={(e) => set("doc")(e.target.value)}
+                        placeholder={getDocFieldPlaceholder(form.category as string)}
+                        required
+                        disabled={addExpense.isPending}
+                        className={cn(
+                          "h-13 rounded-xl text-sm",
+                          form.category === "IMPOSTOS"
+                            ? "border-blue-700/40 bg-zinc-900"
+                            : "border-sky-700/40 bg-zinc-900"
+                        )}
+                      />
+                      <p className="text-xs text-muted-foreground pt-1">
+                        {form.category === "IMPOSTOS"
+                          ? "Este número será salvo como identificador do documento fiscal."
+                          : "Este número será salvo como referência do demonstrativo."}
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/30 rounded-2xl border border-dashed border-border mt-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold flex items-center gap-2">
+                            <Receipt className="w-4 h-4 text-red-600" />
+                            Anexar Boleto (PDF/Imagem)
+                          </Label>
+                          <FileUploadField
+                            value={form.boletoUrl}
+                            onChange={set("boletoUrl")}
+                            label="Anexar Boleto"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="boleto"
+                            disabled={addExpense.isPending}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold flex items-center gap-2">
+                            <Landmark className="w-4 h-4 text-blue-600" />
+                            Anexar Demonstrativo (PDF/Imagem)
+                          </Label>
+                          <FileUploadField
+                            value={form.demonstrativoUrl}
+                            onChange={set("demonstrativoUrl")}
+                            label="Anexar Demonstrativo"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="demonstrativo"
+                            disabled={addExpense.isPending}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* ── Vincular Relatório de Viagem ── */}
                   {form.category === "DESPESAS DE VIAGEM" && (
@@ -871,7 +963,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               setSelectedReport(found || null);
                             }}
                           >
-                            <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                            <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                               <SelectValue
                                 placeholder={
                                   loadingReports
@@ -908,7 +1000,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
                   {/* ── Abastecimento ── */}
                   {isAbastecimento && (
-                    <div className="rounded-2xl bg-amber-950/40 border border-amber-700/50 p-5 space-y-4">
+                    <div className="rounded-2xl bg-amber-950/40 border border-amber-700/50 p-6 space-y-5">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-900/60">
                           <Fuel className="h-4 w-4 text-amber-400" />
@@ -924,7 +1016,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             value={form.abastecimentoId}
                             onValueChange={(v) => set("abastecimentoId")(v)}
                           >
-                            <SelectTrigger className="h-12 rounded-xl border-amber-700/50 bg-background text-foreground text-sm">
+                            <SelectTrigger className="h-13 rounded-xl border-amber-700/50 bg-background text-foreground text-sm">
                               <SelectValue placeholder="Selecione um abastecimento registrado" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl">
@@ -956,7 +1048,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="w-full gap-2 text-amber-400 hover:bg-amber-900/30 rounded-xl h-10"
+                            className="w-full gap-2 text-amber-400 hover:bg-amber-900/30 rounded-xl h-11"
                             onClick={() => set("criarNovoAbastecimento")(true)}
                           >
                             <Plus className="h-4 w-4" />
@@ -964,7 +1056,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           </Button>
                         </>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                           {/* STEP 1: Vincular ao Diário de Bordo */}
                           <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4 space-y-3">
                             <div className="flex items-center gap-2">
@@ -980,31 +1072,24 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                 ✈️ Vincular a um trecho do Diário de Bordo?
                               </label>
                             </div>
-                            {form.novoAbastVincularDiario && (
-                              <p className="text-xs text-muted-foreground">
-                                ℹ️ Quando vinculado, a data e trecho serão preenchidos automaticamente do diário.
-                              </p>
-                            )}
                           </div>
 
-                          {/* STEP 2: Data (only if NOT linked to logbook) */}
                           {!form.novoAbastVincularDiario && (
                             <FormSection label="📅 Data do Abastecimento">
                               <Input
                                 type="date"
                                 value={form.novoAbastData}
                                 onChange={(e) => set("novoAbastData")(e.target.value)}
-                                className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                                 disabled={addExpense.isPending}
                               />
                             </FormSection>
                           )}
 
-                          {/* STEP 3: Trecho (only if NOT linked) */}
                           {!form.novoAbastVincularDiario && (
                             <div>
                               <Label className="text-sm font-semibold mb-2 block">✈️ Trecho (Origem x Destino)</Label>
-                              <div className="flex gap-2 items-end">
+                              <div className="flex gap-3 items-end">
                                 <div className="flex-1">
                                   <Label className="text-xs text-muted-foreground mb-1 block">Origem</Label>
                                   <AerodromeCombobox
@@ -1021,7 +1106,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                     placeholder="Origem"
                                   />
                                 </div>
-                                <span className="text-sm text-muted-foreground mb-2">X</span>
+                                <span className="text-sm text-muted-foreground mb-3">X</span>
                                 <div className="flex-1">
                                   <Label className="text-xs text-muted-foreground mb-1 block">Destino</Label>
                                   <AerodromeCombobox
@@ -1042,9 +1127,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             </div>
                           )}
 
-                          {/* STEP 4: Fornecedor + Combustível */}
-                          <div className="space-y-3 pt-2 border-t">
-                            <FormSection label="🛢️ Fornecedor <span className='text-red-500'>*</span>">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t">
+                            <FormSection label="🛢️ Fornecedor">
                               <div className="flex gap-2">
                                 <SearchableCombobox
                                   items={fuelSuppliers.map(s => ({
@@ -1077,13 +1161,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               </div>
                             </FormSection>
 
-                            <FormSection label="⛽ Tipo de Combustível <span className='text-red-500'>*</span>">
+                            <FormSection label="⛽ Tipo de Combustível">
                               <Select
                                 value={form.novoAbastCombustivel}
                                 onValueChange={(v) => set("novoAbastCombustivel")(v as "avgas" | "jet" | "")}
                                 disabled={addExpense.isPending}
                               >
-                                <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                                <SelectTrigger className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
                                   <SelectValue placeholder="Selecione combustível" />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl">
@@ -1094,34 +1178,31 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             </FormSection>
                           </div>
 
-                          {/* STEP 5: Valor Unitário (auto-filled) */}
-                          <FormSection label="💰 Valor Unitário (R$)">
-                            <Input
-                              type="number"
-                              step="0.0001"
-                              value={form.novoAbastValorUnitario}
-                              onChange={(e) => set("novoAbastValorUnitario")(e.target.value)}
-                              placeholder="Auto-preenchido"
-                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                              disabled={addExpense.isPending}
-                            />
-                            {form.novoAbastValorUnitario && (
-                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                ✓ Preço preenchido automaticamente da tabela de fornecedores
-                              </p>
-                            )}
-                          </FormSection>
-
-                          {/* STEP 6: Litros e Cálculo */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <FormSection label="📊 Total em Litros <span className='text-red-500'>*</span>">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <FormSection label="💰 Valor Unitário (R$)">
+                              <Input
+                                type="number"
+                                step="0.0001"
+                                value={form.novoAbastValorUnitario}
+                                onChange={(e) => set("novoAbastValorUnitario")(e.target.value)}
+                                placeholder="Auto-preenchido"
+                                className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                disabled={addExpense.isPending}
+                              />
+                              {form.novoAbastValorUnitario && (
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                  ✓ Preço auto-preenchido
+                                </p>
+                              )}
+                            </FormSection>
+                            <FormSection label="📊 Litros">
                               <Input
                                 type="number"
                                 step="0.01"
                                 placeholder="0,00"
                                 value={form.novoAbastLitros}
                                 onChange={(e) => set("novoAbastLitros")(e.target.value)}
-                                className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                                 disabled={addExpense.isPending}
                               />
                             </FormSection>
@@ -1132,13 +1213,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                 placeholder="0,00"
                                 value={form.novoAbastGaloes}
                                 onChange={(e) => set("novoAbastGaloes")(e.target.value)}
-                                className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                                 disabled={addExpense.isPending}
                               />
                             </FormSection>
                           </div>
 
-                          {/* Calculated values */}
                           {form.novoAbastLitros && form.novoAbastValorUnitario && (
                             <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 p-3 rounded-lg">
                               <p className="text-xs text-muted-foreground mb-1">Cálculo Automático</p>
@@ -1148,15 +1228,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             </div>
                           )}
 
-                          {/* STEP 7: Tipo de Faturamento e Status Pagamento */}
-                          <div className="space-y-3 pt-2 border-t">
-                            <FormSection label="📋 Tipo de Faturamento <span className='text-red-500'>*</span>">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t">
+                            <FormSection label="📋 Tipo de Faturamento">
                               <Select
                                 value={form.novoAbastTipoFaturamento}
                                 onValueChange={(v) => set("novoAbastTipoFaturamento")(v)}
                                 disabled={addExpense.isPending}
                               >
-                                <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                                <SelectTrigger className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
                                   <SelectValue placeholder="Selecione tipo" />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl">
@@ -1169,13 +1248,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               </Select>
                             </FormSection>
 
-                            <FormSection label="💳 Status de Pagamento <span className='text-red-500'>*</span>">
+                            <FormSection label="💳 Status de Pagamento">
                               <Select
                                 value={form.novoAbastStatusPagamento}
                                 onValueChange={(v) => set("novoAbastStatusPagamento")(v as "pago" | "em aberto")}
                                 disabled={addExpense.isPending}
                               >
-                                <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                                <SelectTrigger className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
                                   <SelectValue placeholder="Selecione status" />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl">
@@ -1186,36 +1265,35 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             </FormSection>
                           </div>
 
-                          {/* STEP 8: Payment Details */}
                           {form.novoAbastStatusPagamento === "pago" && (
-                            <div className="space-y-3 pt-2 border-t bg-green-500/5 border-l-4 border-l-green-500 pl-3">
-                              <FormSection label="📅 Data de Pagamento">
-                                <Input
-                                  type="date"
-                                  value={form.novoAbastDataPagamento}
-                                  onChange={(e) => set("novoAbastDataPagamento")(e.target.value)}
-                                  className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm"
-                                  disabled={addExpense.isPending}
-                                />
-                              </FormSection>
-
-                              <FormSection label="🏦 Banco">
-                                <Select
-                                  value={form.novoAbastBanco}
-                                  onValueChange={(v) => set("novoAbastBanco")(v)}
-                                  disabled={addExpense.isPending}
-                                >
-                                  <SelectTrigger className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm">
-                                    <SelectValue placeholder="Selecione banco" />
-                                  </SelectTrigger>
-                                  <SelectContent className="rounded-xl">
-                                    {contasBancarias.map(banco => (
-                                      <SelectItem key={banco.id} value={banco.banco}>{banco.banco}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </FormSection>
-
+                            <div className="space-y-4 pt-2 border-t bg-green-500/5 border-l-4 border-l-green-500 pl-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormSection label="📅 Data de Pagamento">
+                                  <Input
+                                    type="date"
+                                    value={form.novoAbastDataPagamento}
+                                    onChange={(e) => set("novoAbastDataPagamento")(e.target.value)}
+                                    className="h-13 rounded-xl border-green-700/30 bg-background text-foreground text-sm"
+                                    disabled={addExpense.isPending}
+                                  />
+                                </FormSection>
+                                <FormSection label="🏦 Banco">
+                                  <Select
+                                    value={form.novoAbastBanco}
+                                    onValueChange={(v) => set("novoAbastBanco")(v)}
+                                    disabled={addExpense.isPending}
+                                  >
+                                    <SelectTrigger className="h-13 rounded-xl border-green-700/30 bg-background text-foreground text-sm">
+                                      <SelectValue placeholder="Selecione banco" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                      {contasBancarias.map(banco => (
+                                        <SelectItem key={banco.id} value={banco.banco}>{banco.banco}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </FormSection>
+                              </div>
                               <FormSection label="📄 Comprovante de Pagamento">
                                 <FileUploadField
                                   value={form.comprovantePagamento}
@@ -1231,28 +1309,27 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           )}
 
                           {form.novoAbastStatusPagamento === "em aberto" && (
-                            <div className="space-y-3 pt-2 border-t bg-orange-500/5 border-l-4 border-l-orange-500 pl-3">
+                            <div className="space-y-3 pt-2 border-t bg-orange-500/5 border-l-4 border-l-orange-500 pl-4">
                               <FormSection label="📅 Data de Vencimento">
                                 <Input
                                   type="date"
                                   value={form.novoAbastDataVencimento}
                                   onChange={(e) => set("novoAbastDataVencimento")(e.target.value)}
-                                  className="h-12 rounded-xl border-orange-700/30 bg-background text-foreground text-sm"
+                                  className="h-13 rounded-xl border-orange-700/30 bg-background text-foreground text-sm"
                                   disabled={addExpense.isPending}
                                 />
                               </FormSection>
                             </div>
                           )}
 
-                          {/* STEP 9: Attachments */}
                           <div className="space-y-4 pt-2 border-t">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <FormSection label="🧾 Nº Comanda">
                                 <Input
                                   placeholder="Comanda"
                                   value={form.novoAbastComandaNumero}
                                   onChange={(e) => set("novoAbastComandaNumero")(e.target.value)}
-                                  className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                  className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                                   disabled={addExpense.isPending}
                                 />
                               </FormSection>
@@ -1268,14 +1345,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                 />
                               </FormSection>
                             </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <FormSection label="📄 Nº Nota Fiscal">
                                 <Input
                                   placeholder="NF"
                                   value={form.novoAbastNF}
                                   onChange={(e) => set("novoAbastNF")(e.target.value)}
-                                  className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                  className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                                   disabled={addExpense.isPending}
                                 />
                               </FormSection>
@@ -1291,7 +1367,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                 />
                               </FormSection>
                             </div>
-
                             <FormSection label="💰 Boleto (Opcional)">
                               <FileUploadField
                                 value={form.novoAbastBoleto}
@@ -1303,7 +1378,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                 disabled={addExpense.isPending}
                               />
                             </FormSection>
-
                             <FormSection label="📝 Observações">
                               <Textarea
                                 placeholder="Adicione observações sobre este abastecimento..."
@@ -1319,7 +1393,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
+                            className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-11"
                             onClick={() => set("criarNovoAbastecimento")(false)}
                           >
                             <ArrowLeft className="h-4 w-4" />
@@ -1332,7 +1406,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
                   {/* ── Manutenção ── */}
                   {form.category === "MANUTENÇÃO" && (
-                    <div className="rounded-2xl bg-muted/50 border border-border/60 p-5 space-y-4">
+                    <div className="rounded-2xl bg-muted/50 border border-border/60 p-6 space-y-4">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                           <span className="text-base">🔧</span>
@@ -1343,7 +1417,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       </div>
 
                       <Select value={selectedManutencaoId} onValueChange={setSelectedManutencaoId}>
-                        <SelectTrigger className="h-12 rounded-xl border-border/60 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/60 text-sm">
                           <SelectValue placeholder="Selecione a manutenção da aeronave" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
@@ -1361,14 +1435,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                   return dateStr;
                                 }
                               };
-
                               const formatStatus = (status: string) => {
-                                return status
-                                  .toLowerCase()
-                                  .replace(/_/g, " ")
-                                  .replace(/\b\w/g, (char) => char.toUpperCase());
+                                return status.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
                               };
-
                               return (
                                 <SelectItem key={m.id} value={m.id} className="py-3">
                                   <div className="text-sm space-y-0.5">
@@ -1393,7 +1462,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Tipo de Rateio
                           </p>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-3 gap-3">
                             {[
                               { value: "igual" as const, label: "Igual", desc: "Dividido igualmente" },
                               { value: "por_uso" as const, label: "Por Uso", desc: "Proporcional ao uso" },
@@ -1417,7 +1486,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           </div>
 
                           {manutencaoTipoRateio === "manual" && partners.length > 0 && (
-                            <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                            <div className="space-y-2 rounded-xl border border-border/40 p-4">
                               <p className="text-xs font-medium text-muted-foreground">Percentual por sócio</p>
                               {partners.map((p) => (
                                 <div key={p.id} className="flex items-center gap-3">
@@ -1435,7 +1504,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                           [p.id]: parseFloat(e.target.value) || 0,
                                         }))
                                       }
-                                      className="w-20 h-8 text-sm rounded-lg"
+                                      className="w-20 h-9 text-sm rounded-lg"
                                     />
                                     <span className="text-xs text-muted-foreground">%</span>
                                   </div>
@@ -1456,7 +1525,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           )}
 
                           {manutencaoTipoRateio === "por_uso" && partners.length > 0 && (
-                            <div className="rounded-xl border border-border/40 p-3 space-y-1.5">
+                            <div className="rounded-xl border border-border/40 p-4 space-y-2">
                               <p className="text-xs font-medium text-muted-foreground">Rateio estimado por uso</p>
                               {partners.map((p) => {
                                 const totalPct = partners.reduce((s, pp) => s + (pp.share_percentage || 0), 0);
@@ -1475,43 +1544,22 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  <FormSection label="Descrição" required>
-                    <Input
-                      value={form.description}
-                      onChange={(e) => set("description")(e.target.value)}
-                      placeholder={
-                        selectedCategory
-                          ? `Ex: ${selectedCategory.label} - detalhe da despesa`
-                          : "Descreva a despesa"
-                      }
-                      required
-                      disabled={addExpense.isPending}
-                      className="h-12 rounded-xl border-border/70 text-sm"
-                    />
-                  </FormSection>
-
-                  {/* ── Impostos subtype ── */}
-                  {(form.category as string) === "IMPOSTOS" && (
-                    <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-5 space-y-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900/60">
-                          <span className="text-base">🏦</span>
-                        </div>
-                        <p className="font-semibold text-sm text-blue-200">Tipo de Imposto</p>
-                      </div>
-                      <Select value={form.expenseType} onValueChange={set("expenseType")}>
-                        <SelectTrigger className="h-12 rounded-xl border-blue-700/50 bg-zinc-900 text-sm">
-                          <SelectValue placeholder="Selecione o tipo de imposto" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          {IMPOSTOS_SUBTYPES.map((imp) => (
-                            <SelectItem key={imp.value} value={imp.value} className="py-3">
-                              <span className="font-medium text-sm">{imp.label}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  {/* ── Descrição (oculta para IMPOSTOS / DECEA / INFRAERO) ── */}
+                  {!hideDescriptionAndSupplier && (
+                    <FormSection label="Descrição" required>
+                      <Input
+                        value={form.description}
+                        onChange={(e) => set("description")(e.target.value)}
+                        placeholder={
+                          selectedCategory
+                            ? `Ex: ${selectedCategory.label} - detalhe da despesa`
+                            : "Descreva a despesa"
+                        }
+                        required
+                        disabled={addExpense.isPending}
+                        className="h-13 rounded-xl border-border/70 text-sm"
+                      />
+                    </FormSection>
                   )}
 
                   {/* ── Valor + Datas ── */}
@@ -1530,7 +1578,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           placeholder="0,00"
                           required
                           disabled={addExpense.isPending}
-                          className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
+                          className="h-13 rounded-xl border-border/70 text-sm pl-10 font-mono"
                         />
                       </div>
                     </FormSection>
@@ -1542,112 +1590,114 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                   </div>
 
-                  {/* ── Fornecedor + NF ── */}
-                  <div className="space-y-4">
-                    <FormSection label="Fornecedor">
-                      {isAbastecimento ? (
-                        <div className="space-y-2">
-                          <SearchableCombobox
-                            items={fuelSuppliers.map((f) => ({
-                              id: f.id,
-                              label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`,
-                            }))}
-                            value={
-                              fuelSuppliers.find((f) => f.supplier_name === form.supplierName)?.id || ""
-                            }
-                            onChange={(id) => {
-                              const supplier = fuelSuppliers.find((f) => f.id === id);
-                              set("supplierName")(supplier?.supplier_name || "");
-                            }}
-                            placeholder="Selecione um fornecedor de combustível..."
-                            searchPlaceholder="Buscar fornecedor..."
-                            emptyMessage="Nenhum fornecedor cadastrado"
+                  {/* ── Fornecedor + NF (oculto para IMPOSTOS / DECEA / INFRAERO) ── */}
+                  {!hideDescriptionAndSupplier && (
+                    <div className="space-y-5">
+                      <FormSection label="Fornecedor">
+                        {isAbastecimento ? (
+                          <div className="space-y-2">
+                            <SearchableCombobox
+                              items={fuelSuppliers.map((f) => ({
+                                id: f.id,
+                                label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`,
+                              }))}
+                              value={
+                                fuelSuppliers.find((f) => f.supplier_name === form.supplierName)?.id || ""
+                              }
+                              onChange={(id) => {
+                                const supplier = fuelSuppliers.find((f) => f.id === id);
+                                set("supplierName")(supplier?.supplier_name || "");
+                              }}
+                              placeholder="Selecione um fornecedor de combustível..."
+                              searchPlaceholder="Buscar fornecedor..."
+                              emptyMessage="Nenhum fornecedor cadastrado"
+                              disabled={addExpense.isPending}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setNewFuelSupplier({ supplier_name: '', city_name: '', icao_code: '' });
+                                setShowAddFuelSupplier(true);
+                              }}
+                              className="w-full gap-2 h-10 text-xs rounded-lg border-dashed border-border/60 text-muted-foreground hover:text-foreground"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Cadastrar novo fornecedor de combustível
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <SearchableCombobox
+                              items={fornecedoresShare.map((f) => ({
+                                id: f.id,
+                                label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`,
+                              }))}
+                              value={
+                                fornecedoresShare.find((f) => f.nome_completo === form.supplierName)
+                                  ?.id || form.supplierName
+                              }
+                              onChange={(id) => {
+                                const fornecedor = fornecedoresShare.find((f) => f.id === id);
+                                set("supplierName")(fornecedor ? fornecedor.nome_completo : id);
+                              }}
+                              placeholder="Selecione ou digite o fornecedor..."
+                              searchPlaceholder="Buscar fornecedor..."
+                              emptyMessage="Nenhum fornecedor encontrado"
+                              disabled={addExpense.isPending}
+                              allowFreeText={true}
+                            />
+                            {form.supplierName &&
+                              !fornecedoresShare.some((f) => f.nome_completo === form.supplierName) && (
+                                <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg mt-2">
+                                  <p className="text-xs text-amber-600 dark:text-amber-400 flex-1">
+                                    Fornecedor não encontrado nos favoritos.
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setShowAddFornecedor(true)}
+                                    className="h-7 text-xs"
+                                  >
+                                    <UserPlus className="h-3 w-3 mr-1" /> Adicionar
+                                  </Button>
+                                </div>
+                              )}
+                          </>
+                        )}
+                      </FormSection>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <FormSection label="Nº Nota / NF">
+                          <Input
+                            value={form.invoiceNumber}
+                            onChange={(e) => set("invoiceNumber")(e.target.value)}
+                            placeholder="Ex: 2025180"
+                            disabled={addExpense.isPending}
+                            className="h-13 rounded-xl border-border/70 text-sm"
+                          />
+                        </FormSection>
+                        <FormSection label="Nota Fiscal">
+                          <FileUploadField
+                            value={form.invoiceUrl}
+                            onChange={(url) => set("invoiceUrl")(url)}
+                            label="Anexar NF"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="nf_socio"
                             disabled={addExpense.isPending}
                           />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setNewFuelSupplier({ supplier_name: '', city_name: '', icao_code: '' });
-                              setShowAddFuelSupplier(true);
-                            }}
-                            className="w-full gap-2 h-9 text-xs rounded-lg border-dashed border-border/60 text-muted-foreground hover:text-foreground"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Cadastrar novo fornecedor de combustível
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <SearchableCombobox
-                            items={fornecedoresShare.map((f) => ({
-                              id: f.id,
-                              label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`,
-                            }))}
-                            value={
-                              fornecedoresShare.find((f) => f.nome_completo === form.supplierName)
-                                ?.id || form.supplierName
-                            }
-                            onChange={(id) => {
-                              const fornecedor = fornecedoresShare.find((f) => f.id === id);
-                              set("supplierName")(fornecedor ? fornecedor.nome_completo : id);
-                            }}
-                            placeholder="Selecione ou digite o fornecedor..."
-                            searchPlaceholder="Buscar fornecedor..."
-                            emptyMessage="Nenhum fornecedor encontrado"
-                            disabled={addExpense.isPending}
-                            allowFreeText={true}
-                          />
-                          {form.supplierName &&
-                            !fornecedoresShare.some((f) => f.nome_completo === form.supplierName) && (
-                              <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg mt-2">
-                                <p className="text-xs text-amber-600 dark:text-amber-400 flex-1">
-                                  Fornecedor não encontrado nos favoritos.
-                                </p>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setShowAddFornecedor(true)}
-                                  className="h-7 text-xs"
-                                >
-                                  <UserPlus className="h-3 w-3 mr-1" /> Adicionar
-                                </Button>
-                              </div>
-                            )}
-                        </>
-                      )}
-                    </FormSection>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormSection label="Nº Nota / NF">
-                        <Input
-                          value={form.invoiceNumber}
-                          onChange={(e) => set("invoiceNumber")(e.target.value)}
-                          placeholder="Ex: 2025180"
-                          disabled={addExpense.isPending}
-                          className="h-12 rounded-xl border-border/70 text-sm"
-                        />
-                      </FormSection>
-                      <FormSection label="Nota Fiscal">
-                        <FileUploadField
-                          value={form.invoiceUrl}
-                          onChange={(url) => set("invoiceUrl")(url)}
-                          label="Anexar NF"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          bucket="nfs-share-recebidas"
-                          prefix="nf_socio"
-                          disabled={addExpense.isPending}
-                        />
-                      </FormSection>
+                        </FormSection>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* ── Status + Forma de Pagamento ── */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Status da Despesa">
                       <Select value={form.status} onValueChange={set("status")}>
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
@@ -1674,13 +1724,11 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                     <FormSection label="Forma de Pagamento">
                       <Select value={form.paymentMethod} onValueChange={set("paymentMethod")}>
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione (opcional)" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
-                          <SelectItem value="nao_informado" className="py-2">
-                            — Não informado —
-                          </SelectItem>
+                          <SelectItem value="nao_informado" className="py-2">— Não informado —</SelectItem>
                           <SelectItem value="pix" className="py-2">PIX</SelectItem>
                           <SelectItem value="ted" className="py-2">TED</SelectItem>
                           <SelectItem value="boleto" className="py-2">Boleto</SelectItem>
@@ -1694,7 +1742,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
                   {/* ── Parcelamento em Cartão ── */}
                   {form.paymentMethod === "cartao" && (
-                    <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-5 space-y-4">
+                    <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-6 space-y-4">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
                           <span className="text-base">💳</span>
@@ -1716,13 +1764,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       </div>
 
                       {form.isInstallment && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/20 [&_label]:text-white">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2 border-t border-white/20 [&_label]:text-white">
                           <FormSection label="Nº de Parcelas" required>
                             <Select
                               value={form.installmentCount}
                               onValueChange={set("installmentCount")}
                             >
-                              <SelectTrigger className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white">
+                              <SelectTrigger className="h-13 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white">
                                 <SelectValue placeholder="Selecione" />
                               </SelectTrigger>
                               <SelectContent className="rounded-xl">
@@ -1773,14 +1821,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               </div>
                             )}
                           </FormSection>
-
                           <FormSection label="Data 1ª Parcela" required>
                             <Input
                               type="date"
                               value={form.installmentStartDate}
                               onChange={(e) => set("installmentStartDate")(e.target.value)}
                               disabled={addExpense.isPending}
-                              className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white"
+                              className="h-13 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white"
                             />
                           </FormSection>
                         </div>
@@ -1789,14 +1836,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   )}
 
                   {/* ── Conta Bancária + Prazo ── */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Conta Bancaria">
                       <Select
                         value={form.bankName}
                         onValueChange={set("bankName")}
                         disabled={loadingContas}
                       >
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue
                             placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"}
                           />
@@ -1829,7 +1876,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         value={form.prazo}
                         onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}
                       >
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
@@ -1872,13 +1919,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   <Button
                     type="submit"
                     className="
-                  w-full h-12 rounded-xl font-semibold text-sm
-                  bg-gradient-to-r from-red-600 to-rose-600
-                  hover:from-red-500 hover:to-rose-500
-                  text-white shadow-red-500/20
-                  transition-all duration-200 hover:-translate-y-px hover:shadow-md
-                  disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none
-                "
+                      w-full h-13 rounded-xl font-semibold text-sm
+                      bg-gradient-to-r from-red-600 to-rose-600
+                      hover:from-red-500 hover:to-rose-500
+                      text-white shadow-red-500/20
+                      transition-all duration-200 hover:-translate-y-px hover:shadow-md
+                      disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none
+                    "
                     disabled={addExpense.isPending || !isValid}
                   >
                     {addExpense.isPending ? (
@@ -1899,9 +1946,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
               {/* ── TAB: DESPESAS BANCO ── */}
               <TabsContent value="bank">
-                <form onSubmit={handleBankSubmit} className="space-y-6">
+                <form onSubmit={handleBankSubmit} className="space-y-7">
                   {/* Info banner */}
-                  <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-4 text-sm text-blue-800 dark:bg-blue-950/30 dark:border-blue-800/40 dark:text-blue-300">
+                  <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-5 py-4 text-sm text-blue-800 dark:bg-blue-950/30 dark:border-blue-800/40 dark:text-blue-300">
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
                       <Landmark className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     </div>
@@ -1913,9 +1960,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   </div>
 
-                  {/* Atribuição: Geral / Rateio / Sócio Específico */}
+                  {/* Atribuição */}
                   <FormSection label="Atribuição da Despesa" required>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-3">
                       {[
                         { value: "geral", label: "Geral", desc: "Valor a parte do saldo individual dos sócios" },
                         { value: "rateio", label: "Ratear Igual", desc: "Dividir entre todos, entra no saldo de cada sócio por igual" },
@@ -1926,20 +1973,19 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           type="button"
                           onClick={() => setBankForm((p) => ({ ...p, assignMode: opt.value as any, assignedPartnerCpf: "none" }))}
                           className={cn(
-                            "flex flex-col items-center gap-1 p-3 rounded-xl border text-xs font-medium transition-all",
+                            "flex flex-col items-center gap-1 p-4 rounded-xl border text-xs font-medium transition-all",
                             bankForm.assignMode === opt.value
                               ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-500"
                               : "border-border/70 text-muted-foreground hover:border-border"
                           )}
                         >
                           <span className="text-sm font-semibold">{opt.label}</span>
-                          <span className="text-[10px] opacity-70">{opt.desc}</span>
+                          <span className="text-[10px] opacity-70 text-center">{opt.desc}</span>
                         </button>
                       ))}
                     </div>
                   </FormSection>
 
-                  {/* Sócio selector (only when "socio" mode) */}
                   {bankForm.assignMode === "socio" && (
                     <FormSection label="Sócio Responsável" required>
                       <Select
@@ -1947,7 +1993,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         onValueChange={(v) => setBankForm((p) => ({ ...p, assignedPartnerCpf: v }))}
                         disabled={loadingPartners}
                       >
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder={loadingPartners ? "Carregando sócios..." : "Selecione o sócio"} />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
@@ -1979,13 +2025,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* Categoria bancária */}
                   <FormSection label="Tipo de Despesa Bancária" required>
                     <Select
                       value={bankForm.category}
                       onValueChange={(v) => setBankForm((p) => ({ ...p, category: v as BankExpenseCategoryId }))}
                     >
-                      <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                      <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                         <SelectValue placeholder="Selecione o tipo de despesa bancária" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
@@ -2001,7 +2046,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </Select>
                   </FormSection>
 
-                  {/* Descrição */}
                   <FormSection label="Descrição" required>
                     <Input
                       value={bankForm.description}
@@ -2009,19 +2053,18 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       placeholder="Ex: Anuidade cartão Visa, Taxa TED, etc."
                       required
                       disabled={addExpense.isPending}
-                      className="h-12 rounded-xl border-border/70 text-sm"
+                      className="h-13 rounded-xl border-border/70 text-sm"
                     />
                   </FormSection>
 
-                  {/* Conta Bancaria + Prazo */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Instituição Bancária" required>
                       <Select
                         value={bankForm.bankName}
                         onValueChange={(v) => setBankForm((p) => ({ ...p, bankName: v }))}
                         disabled={loadingContas}
                       >
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue
                             placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"}
                           />
@@ -2054,7 +2097,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         value={bankForm.prazo}
                         onValueChange={(v) => setBankForm((p) => ({ ...p, prazo: v as "MENSAL" | "EXTRA" }))}
                       >
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
@@ -2081,8 +2124,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                   </div>
 
-                  {/* Valor + Data */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Valor (R$)" required>
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
@@ -2097,7 +2139,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           placeholder="0,00"
                           required
                           disabled={addExpense.isPending}
-                          className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
+                          className="h-13 rounded-xl border-border/70 text-sm pl-10 font-mono"
                         />
                       </div>
                     </FormSection>
@@ -2109,22 +2151,20 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                   </div>
 
-                  {/* Observação */}
                   <FormSection label="Observação">
                     <Input
                       value={bankForm.notes}
                       onChange={(e) => setBankForm((p) => ({ ...p, notes: e.target.value }))}
                       placeholder="Informações adicionais..."
                       disabled={addExpense.isPending}
-                      className="h-12 rounded-xl border-border/70 text-sm"
+                      className="h-13 rounded-xl border-border/70 text-sm"
                     />
                   </FormSection>
 
-                  {/* Submit */}
                   <Button
                     type="submit"
                     className="
-                      w-full h-12 rounded-xl font-semibold text-sm
+                      w-full h-13 rounded-xl font-semibold text-sm
                       bg-gradient-to-r from-blue-600 to-indigo-600
                       hover:from-blue-500 hover:to-indigo-500
                       text-white shadow-blue-500/20
@@ -2163,7 +2203,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         }}
       />
 
-      {/* Dialog para cadastrar fornecedor de combustível inline */}
       <Dialog open={showAddFuelSupplier} onOpenChange={setShowAddFuelSupplier}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -2209,7 +2248,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 value={newFuelSupplier.supplier_name}
                 onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, supplier_name: e.target.value }))}
                 placeholder="Ex: BR Aviation"
-                className="h-10"
+                className="h-11"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -2219,7 +2258,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   value={newFuelSupplier.city_name}
                   onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, city_name: e.target.value }))}
                   placeholder="Ex: São Paulo"
-                  className="h-10"
+                  className="h-11"
                 />
               </div>
               <div className="space-y-1">
@@ -2228,7 +2267,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   value={newFuelSupplier.icao_code}
                   onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, icao_code: e.target.value }))}
                   placeholder="Ex: SBSP"
-                  className="h-10 uppercase"
+                  className="h-11 uppercase"
                   maxLength={4}
                 />
               </div>
@@ -2313,7 +2352,7 @@ function DateFieldWithInput({
         value={inputValue}
         onChange={handleInputChange}
         placeholder="dd/mm/aaaa"
-        className="h-12 rounded-xl border-border/70 text-sm flex-1"
+        className="h-13 rounded-xl border-border/70 text-sm flex-1"
         maxLength={10}
       />
       <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -2321,7 +2360,7 @@ function DateFieldWithInput({
           <Button
             variant="outline"
             size="icon"
-            className="h-12 w-12 rounded-xl border-border/70 flex-shrink-0"
+            className="h-13 w-13 rounded-xl border-border/70 flex-shrink-0"
           >
             <CalendarIcon className="h-4 w-4" />
           </Button>

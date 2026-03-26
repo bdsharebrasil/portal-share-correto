@@ -61,7 +61,7 @@ export function BenefitCalculatorReal({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [initialBalance, setInitialBalance] = useState(500);
+  const [initialBalance, setInitialBalance] = useState(0);
   const [isEditingBalance, setIsEditingBalance] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     description: "",
@@ -104,14 +104,14 @@ export function BenefitCalculatorReal({
         card_type: cardType,
         month: selectedMonth,
         year: selectedYear,
-        initial_balance: 500
+        initial_balance: 0
       } as any).select().single();
       if (createError) {
         toast.error('Erro ao criar cartão benefício');
         return;
       }
       setCurrentCard(newCard as any);
-      setInitialBalance(500);
+      setInitialBalance(0);
     }
   };
   const loadTransactions = async () => {

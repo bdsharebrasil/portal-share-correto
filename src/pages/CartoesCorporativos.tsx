@@ -143,7 +143,7 @@ export default function CartoesCorporativos() {
                 card_type: cardType,
                 month: month,
                 year: year,
-                initial_balance: cardType === "combustivel" ? 5000.0 : 1500.0,
+                initial_balance: 0,
               },
             ])
             .select()
