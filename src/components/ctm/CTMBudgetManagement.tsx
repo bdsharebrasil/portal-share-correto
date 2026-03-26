@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -106,6 +107,7 @@ interface CTMBudgetManagementProps {
 }
 
 export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBudgetManagementProps) {
+  const queryClient = useQueryClient();
   const [budgets, setBudgets] = useState<CTMBudget[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | "draft" | "submitted" | "approved">("all");
@@ -625,6 +627,8 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
       toast.success("Orçamento deletado!");
       await loadBudgets();
+      // Invalidar cache do dashboard para remover o orçamento das aprovações pendentes
+      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
     } catch (error: any) {
       toast.error("Erro ao deletar orçamento");
     }
