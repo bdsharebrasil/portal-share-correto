@@ -770,31 +770,37 @@ export function useCreateExpense(showToast = true) {
       status?: string | null;
       abastecimentoId?: string | null;
     }) => {
-      // Se for abastecimento com abastecimentoId, APENAS atualizar abastecimentos, não criar partner_expenses
-      if ((data.expenseType === "abastecimento" || data.category === "abastecimento") && data.abastecimentoId) {
-        try {
-          const updatePayload: any = {
-            status_pagamento:
-              data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
-            partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
-            updated_at: new Date().toISOString(),
-          };
+      // Se for abastecimento, NUNCA criar em partner_expenses - apenas atualizar abastecimentos
+      if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
+        if (data.abastecimentoId) {
+          // Atualizar abastecimento existente
+          try {
+            const updatePayload: any = {
+              status_pagamento:
+                data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
+              partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
+              updated_at: new Date().toISOString(),
+            };
 
-          // Se a despesa foi marcada como paga, sincroniza a data_pagamento
-          if ((data.status === "paid" || data.status === "pago") && data.dueDate) {
-            updatePayload.data_pagamento = data.dueDate;
+            // Se a despesa foi marcada como paga, sincroniza a data_pagamento
+            if ((data.status === "paid" || data.status === "pago") && data.dueDate) {
+              updatePayload.data_pagamento = data.dueDate;
+            }
+
+            const { error } = await supabase
+              .from("abastecimentos")
+              .update(updatePayload)
+              .eq("id", data.abastecimentoId);
+
+            if (error) throw error;
+            return data.clientId;
+          } catch (syncErr) {
+            console.error("Erro ao atualizar abastecimento:", syncErr);
+            throw syncErr;
           }
-
-          const { error } = await supabase
-            .from("abastecimentos")
-            .update(updatePayload)
-            .eq("id", data.abastecimentoId);
-
-          if (error) throw error;
-          return data.clientId;
-        } catch (syncErr) {
-          console.error("Erro ao atualizar abastecimento:", syncErr);
-          throw syncErr;
+        } else {
+          // Para abastecimento sem ID, retornar erro - deve ser criado direto na tabela
+          throw new Error("Abastecimento deve ser criado diretamente na tabela abastecimentos, não via partner_expenses");
         }
       }
 

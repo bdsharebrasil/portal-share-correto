@@ -507,41 +507,44 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       demonstrativoUrl: isDocCategory ? form.demonstrativoUrl || null : null,
     };
 
-    if (!assignedPartnerCpf && partners.length > 1) {
-      const splitAmount = parseFloat(form.totalAmount) / partners.length;
-      const splitAmountRounded = Math.round(splitAmount * 100) / 100;
+    // Para abastecimentos, não criar em partner_expenses - apenas abastecimentos foi criado acima
+    if (form.category !== "ABASTECIMENTO") {
+      if (!assignedPartnerCpf && partners.length > 1) {
+        const splitAmount = parseFloat(form.totalAmount) / partners.length;
+        const splitAmountRounded = Math.round(splitAmount * 100) / 100;
 
-      for (const partner of partners) {
-        const isLast = partners.indexOf(partner) === partners.length - 1;
-        const alreadyAssigned = splitAmountRounded * (partners.indexOf(partner));
-        const amount = isLast
-          ? parseFloat(form.totalAmount) - alreadyAssigned
-          : splitAmountRounded;
+        for (const partner of partners) {
+          const isLast = partners.indexOf(partner) === partners.length - 1;
+          const alreadyAssigned = splitAmountRounded * (partners.indexOf(partner));
+          const amount = isLast
+            ? parseFloat(form.totalAmount) - alreadyAssigned
+            : splitAmountRounded;
 
-        const finalPayload = form.category === "DESPESAS DE VIAGEM" && referenceId
-          ? {
-              ...basePayload,
-              totalAmount: amount,
-              assignedPartnerCpf: partner.cpf,
-              assignedPartnerName: partner.name,
-              referenceType: "travel_expense_report",
-              referenceId: referenceId,
-            }
-          : {
-              ...basePayload,
-              totalAmount: amount,
-              assignedPartnerCpf: partner.cpf,
-              assignedPartnerName: partner.name,
-            };
+          const finalPayload = form.category === "DESPESAS DE VIAGEM" && referenceId
+            ? {
+                ...basePayload,
+                totalAmount: amount,
+                assignedPartnerCpf: partner.cpf,
+                assignedPartnerName: partner.name,
+                referenceType: "travel_expense_report",
+                referenceId: referenceId,
+              }
+            : {
+                ...basePayload,
+                totalAmount: amount,
+                assignedPartnerCpf: partner.cpf,
+                assignedPartnerName: partner.name,
+              };
 
-        await addExpense.mutateAsync(finalPayload);
+          await addExpense.mutateAsync(finalPayload);
+        }
+      } else {
+        await addExpense.mutateAsync({
+          ...basePayload,
+          assignedPartnerCpf,
+          assignedPartnerName: assignedPartner?.name || null,
+        });
       }
-    } else {
-      await addExpense.mutateAsync({
-        ...basePayload,
-        assignedPartnerCpf,
-        assignedPartnerName: assignedPartner?.name || null,
-      });
     }
 
     if (form.category === "MANUTENÇÃO" && selectedManutencaoId) {
