@@ -41,10 +41,16 @@ const parseBrazilianCurrency = (value: string): number => {
   return parseFloat(cleaned.replace(/\./g, '')) || 0;
 };
 
-// Helper function to format number to Brazilian currency display
+// Helper function to format number to Brazilian currency display (for table)
 const formatBrazilianCurrencyDisplay = (value: number): string => {
   if (!value && value !== 0) return '';
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// Helper function to format number for input field (no thousands separators)
+const formatBrazilianCurrencyInput = (value: number): string => {
+  if (value === null || value === undefined || Number.isNaN(value)) return '';
+  return value.toFixed(2).replace('.', ',');
 };
 
 export function CTMServiceItemsForm({
@@ -448,6 +454,9 @@ export function CTMServiceItemsForm({
           fornecedor: financialData.oficina_nome,
           fornecedor_id: financialData.oficina_id,
           valor: totalServico,
+          valor_unitario: items.length > 0 ? totalServico / items.length : null,
+          quantidade: items.length,
+          quantidade_items: items.length,
           modelo: serviceHeader.modelo || null,
           p_n: serviceHeader.p_n || null,
           n_s: serviceHeader.n_s || null,
@@ -456,9 +465,6 @@ export function CTMServiceItemsForm({
           condicoes_pagamento: financialData.condicoes_pagamento || null,
           observacoes: financialData.observacoes || null,
           status: "pendente_aprovacao",
-          quantidade: items.length,
-          approval_status: "pendente_aprovacao",
-          submitted_at: new Date().toISOString(),
         }])
         .select()
         .single();
@@ -478,8 +484,33 @@ export function CTMServiceItemsForm({
       await (supabase as any).from("ctm_service_items").insert(itemsToInsert);
 
       // 3. Create budget for approval notification
-      const budgetPayload = {
-        aircraft_id: (serviceData as any).service_order_id ? null : null,
+      let uploadedPdfPath: string | null = null;
+      let uploadedPdfName: string | null = null;
+
+      // Upload PDF if present (before budget insert so path can be saved)
+      if (pdfFile) {
+        try {
+          const fileName = `${serviceData.id}_${Date.now()}_${pdfFile.name}`;
+          const filePath = `ctm_budgets/${serviceData.id}/${fileName}`;
+          const { error: uploadError } = await supabase.storage
+            .from("ctm-pdfs")
+            .upload(filePath, pdfFile, { upsert: true });
+
+          if (uploadError) {
+            console.error("Upload error:", uploadError);
+            toast.error("Erro ao fazer upload do PDF");
+          } else {
+            uploadedPdfPath = filePath;
+            uploadedPdfName = pdfFile.name;
+          }
+        } catch (error) {
+          console.error("PDF upload failed:", error);
+          toast.error("Falha ao enviar PDF");
+        }
+      }
+
+      const budgetPayload: any = {
+        aircraft_id: null,
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
         status: "submitted",
@@ -510,19 +541,27 @@ export function CTMServiceItemsForm({
           notes: financialData.observacoes || null,
           service_id: serviceData.id,
           service_number: financialData.numero_servico,
+          pdf_file_name: uploadedPdfName,
+          pdf_file_path: uploadedPdfPath,
         },
+        pdf_file_name: uploadedPdfName,
+        pdf_file_path: uploadedPdfPath,
         service_order_id: orderId,
+        budget_file_name: uploadedPdfName,
+        budget_file_path: uploadedPdfPath,
       };
 
-      // Get aircraft_id from service order
+      // Get additional service order data
       const { data: orderData } = await (supabase as any)
         .from("ctm_service_orders")
-        .select("aircraft_id")
+        .select("aircraft_id, client_id, client_partner_id")
         .eq("id", orderId)
         .single();
 
       if (orderData) {
-        (budgetPayload as any).aircraft_id = orderData.aircraft_id;
+        if (orderData.aircraft_id) budgetPayload.aircraft_id = orderData.aircraft_id;
+        if (orderData.client_id) budgetPayload.client_id = orderData.client_id;
+        if (orderData.client_partner_id) budgetPayload.client_partner_id = orderData.client_partner_id;
       }
 
       const { error: budgetError } = await (supabase as any)
@@ -806,7 +845,7 @@ export function CTMServiceItemsForm({
                           type="text"
                           inputMode="decimal"
                           placeholder="0,00"
-                          value={formatBrazilianCurrencyDisplay(item.valor_unitario)}
+                          value={formatBrazilianCurrencyInput(item.valor_unitario)}
                           onChange={(e) => {
                             const numValue = parseBrazilianCurrency(e.target.value);
                             handleUpdateItem(idx, "valor_unitario", numValue);
@@ -873,7 +912,7 @@ export function CTMServiceItemsForm({
                   type="text"
                   inputMode="decimal"
                   placeholder="0,00"
-                  value={formatBrazilianCurrencyDisplay(newItem.valor_unitario as unknown as number)}
+                  value={formatBrazilianCurrencyInput(newItem.valor_unitario as unknown as number)}
                   onChange={(e) => {
                     const numValue = parseBrazilianCurrency(e.target.value);
                     setNewItem({ ...newItem, valor_unitario: numValue });

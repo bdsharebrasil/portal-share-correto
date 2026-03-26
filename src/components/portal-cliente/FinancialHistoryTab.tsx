@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DocumentViewer } from "@/components/DocumentViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { DollarSign, AlertCircle, FileText, Receipt, Paperclip } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +45,10 @@ const formatDateCorrectly = (dateString: string): string => {
 export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTabProps) {
   const [records, setRecords] = useState<ReembolsoRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string>("");
+  const [viewerFileName, setViewerFileName] = useState<string>("");
+  const [viewerFileType, setViewerFileType] = useState<string>("application/pdf");
 
   useEffect(() => {
     loadReembolsos();
@@ -185,6 +191,17 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
     }
   };
 
+  const openViewer = (url: string, fileName: string, fileType: string = "application/pdf") => {
+    if (!url) {
+      toast.error("Arquivo não disponível");
+      return;
+    }
+    setViewerUrl(url);
+    setViewerFileName(fileName);
+    setViewerFileType(fileType);
+    setViewerOpen(true);
+  };
+
   if (loading) {
     return (
       <Card className="bg-gradient-card border-border">
@@ -196,136 +213,154 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
   }
 
   return (
-    <Card className="bg-gradient-card border-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-foreground">
-          <DollarSign className="h-5 w-5 text-primary" />
-          Histórico de Reembolsos
-        </CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Recibos de reembolso emitidos
-        </CardDescription>
-      </CardHeader>
+    <>
+      <Card className="bg-gradient-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <DollarSign className="h-5 w-5 text-primary" />
+            Histórico de Reembolsos
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Recibos de reembolso emitidos
+          </CardDescription>
+        </CardHeader>
 
-      <CardContent className="space-y-4">
-        {records.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <AlertCircle className="h-8 w-8" />
-              <p>Nenhum reembolso encontrado</p>
-            </div>
-          </div>
-        ) : (
-          records.map((record) => (
-            <div
-              key={record.id}
-              className="p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
-            >
-              <div className="space-y-3">
-                {/* Cabeçalho com valor e número do recibo */}
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      {record.receipt_number && (
-                        <Badge variant="secondary" className="text-sm font-bold">
-                          {record.receipt_number}
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className="text-xs bg-primary/10 text-primary">
-                        Reembolso
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      📅 {formatDateCorrectly(record.date)}
-                    </p>
-                    {record.prazo_pagamento && (
-                      <p className="text-sm text-amber-400 mt-1">
-                        ⏰ Prazo: {formatDateCorrectly(record.prazo_pagamento)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xl font-bold text-green-400">
-                      R$ {Number(record.amount).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Detalhes */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3 border-t border-border">
-                  <div className="bg-background/50 p-3 rounded">
-                    <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS</p>
-                    <Badge className={`w-full justify-center py-2 ${getStatusColor(record.status)}`}>
-                      {record.status?.charAt(0).toUpperCase() + record.status?.slice(1).toLowerCase()}
-                    </Badge>
-                  </div>
-
-                  {record.category && (
-                    <div className="bg-background/50 p-3 rounded">
-                      <p className="text-xs text-muted-foreground font-semibold mb-1">CATEGORIA</p>
-                      <p className="text-sm text-foreground font-medium">
-                        {record.category.replace(/_/g, " ")}
-                      </p>
-                    </div>
-                  )}
-
-                  {record.percentual !== undefined && record.tem_rateio && (
-                    <div className="bg-background/50 p-3 rounded">
-                      <p className="text-xs text-muted-foreground font-semibold mb-1">RATEIO</p>
-                      <p className="text-sm text-foreground font-medium flex items-center gap-1">
-                        {record.percentual}%
-                        <DollarSign className="h-3 w-3 text-amber-400" />
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Anexos */}
-                  {(record.boleto_url || record.nf_url || record.pdf_url) && (
-                    <div className="bg-background/50 p-3 rounded">
-                      <p className="text-xs text-muted-foreground font-semibold mb-2">ANEXOS</p>
-                      <div className="flex gap-2">
-                        {record.pdf_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 px-2"
-                            onClick={() => downloadFile(record.pdf_url!, `Recibo-${record.receipt_number || record.id}.pdf`)}
-                            title="Baixar Recibo"
-                          >
-                            <FileText className="h-4 w-4 text-cyan-400" />
-                          </Button>
-                        )}
-                        {record.boleto_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 px-2"
-                            onClick={() => downloadFile(record.boleto_url!, `Boleto-${record.id}.pdf`)}
-                            title="Baixar Boleto"
-                          >
-                            <Receipt className="h-4 w-4 text-blue-400" />
-                          </Button>
-                        )}
-                        {record.nf_url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 px-2"
-                            onClick={() => downloadFile(record.nf_url!, `NF-${record.id}.pdf`)}
-                            title="Baixar Nota Fiscal"
-                          >
-                            <Paperclip className="h-4 w-4 text-green-400" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+        <CardContent className="space-y-4">
+          {records.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <AlertCircle className="h-8 w-8" />
+                <p>Nenhum reembolso encontrado</p>
               </div>
             </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+          ) : (
+            records.map((record) => (
+              <div
+                key={record.id}
+                className="p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
+              >
+                <div className="space-y-3">
+                  {/* Cabeçalho com valor e número do recibo */}
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        {record.receipt_number && (
+                          <Badge variant="secondary" className="text-sm font-bold">
+                            {record.receipt_number}
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary">
+                          Reembolso
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        📅 {formatDateCorrectly(record.date)}
+                      </p>
+                      {record.prazo_pagamento && (
+                        <p className="text-sm text-amber-400 mt-1">
+                          ⏰ Prazo: {formatDateCorrectly(record.prazo_pagamento)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xl font-bold text-green-400">
+                        R$ {Number(record.amount).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Detalhes */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3 border-t border-border">
+                    <div className="bg-background/50 p-3 rounded">
+                      <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS</p>
+                      <Badge className={`w-full justify-center py-2 ${getStatusColor(record.status)}`}>
+                        {record.status?.charAt(0).toUpperCase() + record.status?.slice(1).toLowerCase()}
+                      </Badge>
+                    </div>
+
+                    {record.category && (
+                      <div className="bg-background/50 p-3 rounded">
+                        <p className="text-xs text-muted-foreground font-semibold mb-1">CATEGORIA</p>
+                        <p className="text-sm text-foreground font-medium">
+                          {record.category.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                    )}
+
+                    {record.percentual !== undefined && record.tem_rateio && (
+                      <div className="bg-background/50 p-3 rounded">
+                        <p className="text-xs text-muted-foreground font-semibold mb-1">RATEIO</p>
+                        <p className="text-sm text-foreground font-medium flex items-center gap-1">
+                          {record.percentual}%
+                          <DollarSign className="h-3 w-3 text-amber-400" />
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Anexos */}
+                    {(record.boleto_url || record.nf_url || record.pdf_url) && (
+                      <div className="bg-background/50 p-3 rounded">
+                        <p className="text-xs text-muted-foreground font-semibold mb-2">ANEXOS</p>
+                        <div className="flex gap-2">
+                          {record.pdf_url && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2"
+                              onClick={() => openViewer(record.pdf_url!, `Recibo-${record.receipt_number || record.id}.pdf`)}
+                              title="Visualizar Recibo"
+                            >
+                              <FileText className="h-4 w-4 text-cyan-400" />
+                            </Button>
+                          )}
+                          {record.boleto_url && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2"
+                              onClick={() => openViewer(record.boleto_url!, `Boleto-${record.id}.pdf`)}
+                              title="Visualizar Boleto"
+                            >
+                              <Receipt className="h-4 w-4 text-blue-400" />
+                            </Button>
+                          )}
+                          {record.nf_url && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2"
+                              onClick={() => openViewer(record.nf_url!, `NF-${record.id}.pdf`)}
+                              title="Visualizar Nota Fiscal"
+                            >
+                              <Paperclip className="h-4 w-4 text-green-400" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent className="w-[95vw] max-w-[1300px] max-h-[95vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{viewerFileName}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            <DocumentViewer
+              url={viewerUrl}
+              fileName={viewerFileName}
+              fileType={viewerFileType}
+              onDownload={() => downloadFile(viewerUrl, viewerFileName)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

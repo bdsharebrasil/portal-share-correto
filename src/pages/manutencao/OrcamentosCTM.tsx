@@ -39,6 +39,7 @@ export default function OrcamentosCTM() {
 
   const loadBudgetPdf = async (budgetId: string) => {
     try {
+      setLoading(true);
       setPdfLoading(true);
       const { data: budgetData, error } = await (supabase as any)
         .from("ctm_budgets")
@@ -71,6 +72,7 @@ export default function OrcamentosCTM() {
       navigate("/manutencao/ctm");
     } finally {
       setPdfLoading(false);
+      setLoading(false);
     }
   };
 
