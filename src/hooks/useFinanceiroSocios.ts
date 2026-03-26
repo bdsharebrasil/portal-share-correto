@@ -641,6 +641,17 @@ export function usePayExpense() {
       amount: number;
       paymentDate: string;
     }) => {
+      // Validar que a despesa não é um abastecimento
+      const { data: expense } = await supabase
+        .from("partner_expenses")
+        .select("expense_type, category")
+        .eq("id", data.expenseId)
+        .single();
+
+      if (expense && (expense.expense_type === "abastecimento" || expense.category === "abastecimento")) {
+        throw new Error("Abastecimentos devem ser pagos via Controle de Abastecimentos, não aqui.");
+      }
+
       const { data: account, error: accErr } = await supabase
         .from("partner_accounts")
         .select("id, current_balance, total_spent")
@@ -693,39 +704,6 @@ export function usePayExpense() {
         })
         .eq("id", data.expenseId);
       if (expErr) throw expErr;
-
-      // Sincroniza para abastecimentos se for uma despesa de abastecimento
-      try {
-        const { data: expense } = await supabase
-          .from("partner_expenses")
-          .select("*")
-          .eq("id", data.expenseId)
-          .single();
-
-        if (expense && (expense.expense_type === "abastecimento" || expense.category === "abastecimento")) {
-          // Busca abastecimento vinculado
-          const { data: abastecimentos } = await supabase
-            .from("abastecimentos")
-            .select("*")
-            .eq("partner_name", data.partnerName)
-            .eq("status_pagamento", "pendente")
-            .order("created_at", { ascending: false })
-            .limit(1);
-
-          if (abastecimentos && abastecimentos.length > 0) {
-            await supabase
-              .from("abastecimentos")
-              .update({
-                status_pagamento: "pago",
-                data_pagamento: data.paymentDate,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", abastecimentos[0].id);
-          }
-        }
-      } catch (syncErr) {
-        console.warn("Erro ao sincronizar data_pagamento com abastecimento:", syncErr);
-      }
 
       return data.clientId;
     },
