@@ -48,9 +48,11 @@ const formatBrazilianCurrencyDisplay = (value: number): string => {
 };
 
 // Helper function to format number for input field (no thousands separators)
-const formatBrazilianCurrencyInput = (value: number): string => {
-  if (value === null || value === undefined || Number.isNaN(value)) return '';
-  return value.toFixed(2).replace('.', ',');
+const formatBrazilianCurrencyInput = (value: number | string): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (Number.isNaN(numValue)) return '';
+  return numValue.toFixed(2).replace('.', ',');
 };
 
 export function CTMServiceItemsForm({
