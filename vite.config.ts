@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => {
       hmr: {
         // Disable Vite's dev overlay which can fail when serializing certain DOM nodes
         overlay: false,
+        protocol: 'ws',
+        host: undefined,
+        port: undefined,
       },
       middlewareMode: false,
       proxy: {
@@ -34,7 +37,6 @@ export default defineConfig(({ mode }) => {
           return () => {
             server.middlewares.use((req: any, res: any, next: any) => {
               res.setHeader('Permissions-Policy', 'geolocation=*');
-              res.setHeader('Feature-Policy', 'geolocation *');
               next();
             });
           };
