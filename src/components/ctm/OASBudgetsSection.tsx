@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ interface OASBudgetsSectionProps {
 }
 
 export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSectionProps) {
+  const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingOficinas, setLoadingOficinas] = useState(false);
@@ -198,8 +200,14 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
 
   const handleDelete = async (id: string) => {
     const { error } = await (supabase as any).from("oas_budgets").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("Orçamento removido"); onRefetch(); }
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Orçamento removido");
+      onRefetch();
+      // Invalidar cache do dashboard para remover o orçamento das aprovações pendentes
+      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
+    }
   };
 
   const handleEdit = (budget: any) => {
