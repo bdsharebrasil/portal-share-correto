@@ -14,6 +14,18 @@ export interface CTMMaintenanceCategory {
   ativo?: boolean;
 }
 
+export interface Oficina {
+  id: string;
+  razao_social: string;
+  cnpj?: string | null;
+  endereco?: string | null;
+  telefone: string | null;
+  mecanico_responsavel: string | null;
+  tipo_aeronave?: string | null;
+  dados_pagamento?: string | null;  
+  ativo?: boolean;
+}
+
 export interface CTMServiceOrder {
   id: string;
   aircraft_id: string;
@@ -22,7 +34,7 @@ export interface CTMServiceOrder {
   horas_celula?: number;
   tipo_manutencao: 'CORRETIVA' | 'PREVENTIVA' | 'REVISÃO';
   periodo?: string;
-  objetivo?: 'CÉLULA' | 'MOTOR' | 'AVIONICS' | 'ESTRUTURA' | string;
+  objetivo?: string;
   oficina_nome?: string;
   oficina_contato?: string;
   dias_previstos?: number;
@@ -460,6 +472,49 @@ export function useCTMServiceOrders() {
     []
   );
 
+  // Load oficinas (workshops)
+  const loadOficinas = useCallback(async (): Promise<Oficina[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('oficinas')
+        .select('id, razao_social, telefone, mecanico_responsavel, ativo')
+        .eq('ativo', true)
+        .order('razao_social');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error loading oficinas:', errorMessage);
+      return [];
+    }
+  }, []);
+
+  // Create new oficina
+  const createOficina = useCallback(async (oficina: Partial<Oficina>) => {
+    try {
+      const { data: newOficina, error } = await supabase
+        .from('oficinas')
+        .insert([{
+          razao_social: oficina.razao_social,
+          telefone: oficina.telefone || null,
+          mecanico_responsavel: oficina.mecanico_responsavel || null,
+          ativo: true,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Oficina criada com sucesso');
+      return newOficina;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error creating oficina:', errorMessage);
+      toast.error('Erro ao criar oficina');
+      return null;
+    }
+  }, []);
+
   return {
     loadCategories,
     loadServiceOrders,
@@ -470,5 +525,7 @@ export function useCTMServiceOrders() {
     generateBudgetFromOAS,
     linkBudgetToOAS,
     getLinkedBudgets,
+    loadOficinas,
+    createOficina,
   };
 }

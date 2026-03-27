@@ -290,7 +290,15 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
     setFormMonth(budget.month);
     setFormYear(budget.year);
     setFormSupplier(budget.supplier_name || "");
-    setDetails(budget.budget_details ? (budget.budget_details as unknown as BudgetDetails) : emptyDetails(aircraftRegistration));
+    if (budget.budget_details) {
+      const budgetData = budget.budget_details as unknown as BudgetDetails;
+      setDetails({
+        ...budgetData,
+        componentes: budgetData.componentes || [emptyComponent()]
+      });
+    } else {
+      setDetails(emptyDetails(aircraftRegistration));
+    }
     setShowForm(true);
   };
 
@@ -319,7 +327,9 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
   const filteredBudgets = budgets.filter(b => filterStatus === "all" || b.status === filterStatus);
 
-  const fmtCurrency = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+  // ✅ FIX: defensivo contra undefined/null
+  const fmtCurrency = (v: number | undefined | null) =>
+    (v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   const getStatusColor = (s: string) => {
     if (s === "draft") return "bg-muted/50 text-muted-foreground border-border";
@@ -707,7 +717,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                     <td className="px-6 py-4 font-medium">{budget.month}/{budget.year}</td>
                     <td className="px-6 py-4">{budget.supplier_name || "-"}</td>
                     <td className="px-6 py-4 text-right font-bold">
-                      R$ {fmtCurrency(budget.total_value || 0)}
+                      R$ {fmtCurrency(budget.total_value)}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <Badge className={`text-xs font-bold border ${getStatusColor(budget.status)}`}>

@@ -194,7 +194,7 @@ export default function RelatoriosTecnicos() {
           </div>
           <Button className="flex items-center gap-2" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4" />
-            Nova O.S
+            Nova O.A.S
           </Button>
         </div>
 

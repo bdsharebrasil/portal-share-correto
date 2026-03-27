@@ -7,7 +7,7 @@ import { Plane, ArrowLeft, Settings, History, FileText, PieChart } from 'lucide-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CTMServiceOrderList } from '@/components/ctm';
-import { CTMServiceOrderForm } from '@/components/ctm/CTMServiceOrderForm';
+import { NewServiceOrderPage } from '@/components/ctm/NewServiceOrderDialog';
 import { CTMServiceOrderDetails } from '@/components/ctm';
 import { useCTMServiceOrders, CTMServiceOrder, CTMMaintenanceCategory } from '@/hooks/useCTMServiceOrders';
 import AircraftSelection from '@/components/manutencao/AircraftSelection';
@@ -101,12 +101,8 @@ export default function CTMPage() {
     setView('edit');
   };
 
-  const handleSaveOrder = async (data: Partial<CTMServiceOrder>) => {
-    if (selectedOrder) {
-      await updateServiceOrder(selectedOrder.id, data);
-    } else {
-      await createServiceOrder({ ...data, aircraft_id: selectedAircraft!.id });
-    }
+  const handleSaveOrder = async () => {
+    // A chamada é feita dentro do NewServiceOrderPage
     loadOrders();
     setView('list');
   };
@@ -217,12 +213,16 @@ export default function CTMPage() {
         )}
 
         {(view === 'create' || view === 'edit') && (
-          <CTMServiceOrderForm
-            order={view === 'edit' ? selectedOrder : null}
-            categories={categories}
+          <NewServiceOrderPage
             aircraftId={selectedAircraft!.id}
-            onSave={handleSaveOrder}
-            onCancel={() => setView('list')}
+            aircraftRegistration={selectedAircraft!.registration}
+            editingOrder={view === 'edit' ? selectedOrder : null}
+            onBack={() => {
+              handleSaveOrder();
+            }}
+            onServiceOrderCreated={() => {
+              loadOrders();
+            }}
           />
         )}
 

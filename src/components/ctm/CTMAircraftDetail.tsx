@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Wrench, FileText, Scale, Layers, BarChart3, DollarSign, Clock, AlertTriangle, ClipboardList } from "lucide-react";
+import { ArrowLeft, Plus, Wrench, FileText, Scale, Layers, BarChart3, DollarSign, Clock, AlertTriangle, ClipboardList, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCTMServiceOrders, useAircraftCellHours } from "@/hooks/useCTMData";
 import { CTMComponentMap } from "./CTMComponentMap";
@@ -11,7 +11,9 @@ import { CTMRASReports } from "./CTMRASReports";
 import { CTMWeightBalanceComplete } from "./CTMWeightBalanceComplete";
 import { CTMBudgetManagement } from "./CTMBudgetManagement";
 import { CTMAircraftReports } from "./CTMAircraftReports";
-import { NewServiceOrderDialog } from "./NewServiceOrderDialog";
+import { CTMCategoryTab } from "./CTMCategoryTab";
+import { CTMItensNaoControlados } from "./CTMItensNaoControlados";
+import { NewServiceOrderPage } from "./NewServiceOrderDialog";
 import { MAINTENANCE_CATEGORIES, MaintenanceCategory, CTMTab } from "@/types/ctm";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -50,9 +52,9 @@ const CATEGORY_COLORS: Record<string, {
 
 const MAIN_TABS = [
   {
-    value: "os",
+    value: "oas",
     label: "Ordem de Acompanhamento",
-    shortLabel: "O.S.",
+    shortLabel: "OAS",
     icon: FileText,
     color: "primary"
   },
@@ -90,8 +92,34 @@ const MAIN_TABS = [
     shortLabel: "Relat.",
     icon: ClipboardList,
     color: "amber"
+  },
+  {
+    value: "itens-nao-controlados",
+    label: "Itens Não Controlados",
+    shortLabel: "Itens",
+    icon: AlertCircle,
+    color: "yellow"
   }
 ] as const;
+
+// Normalize maintenance type from various formats to standard category
+const normalizeMaintenanceType = (tipo: string | null): MaintenanceCategory => {
+  if (!tipo) return "TUDO";
+
+  const normalized = tipo.toUpperCase();
+
+  if (normalized.includes("CORRET")) return "CORRETIVO";
+  if (normalized.includes("50") && normalized.includes("H")) return "50HORAS";
+  if (normalized.includes("100") && normalized.includes("H")) return "100HORAS";
+  if (normalized.includes("CVA")) return "CVA";
+  if (normalized.includes("HELICE") || normalized.includes("GOVERNADOR")) return "HELICE_GOVERNADOR";
+  if (normalized.includes("OLEO")) return "OLEO";
+  if (normalized.includes("DIREITO")) return "PNEU_DIREITO";
+  if (normalized.includes("ESQUERDO")) return "PNEU_ESQUERDO";
+  if (normalized.includes("NARIZ")) return "PNEU_TREM_NARIZ";
+
+  return "TUDO";
+};
 
 // Hook to fetch ongoing maintenance from manutencoes table
 function useOngoingMaintenance(aircraftId: string) {
@@ -116,7 +144,7 @@ export function CTMAircraftDetail({
   onBack
 }: CTMAircraftDetailProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<CTMTab>("os");
+  const [activeTab, setActiveTab] = useState<CTMTab>("oas");
   const [categoryFilter, setCategoryFilter] = useState<MaintenanceCategory>("TUDO");
   const [showNewOSForm, setShowNewOSForm] = useState(false);
 
@@ -136,7 +164,7 @@ export function CTMAircraftDetail({
 
   const filteredOrders = categoryFilter === "TUDO"
     ? serviceOrders
-    : serviceOrders.filter(o => o.tipo_manutencao === categoryFilter);
+    : serviceOrders.filter(o => normalizeMaintenanceType(o.tipo_manutencao) === categoryFilter);
 
   const handleServiceOrderCreated = () => {
     refetchOrders();
@@ -181,11 +209,11 @@ export function CTMAircraftDetail({
             </div>
           </div>
 
-          {activeTab === "os" && !showNewOSForm && (
+          {activeTab === "oas" && !showNewOSForm && (
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
               <Button onClick={() => setShowNewOSForm(true)} className="gap-2 shadow-lg shadow-primary/20 w-full md:w-auto">
                 <Plus className="h-4 w-4" />
-                NOVA O.S.
+                NOVA O.A.S
               </Button>
             </motion.div>
           )}
@@ -224,20 +252,21 @@ export function CTMAircraftDetail({
       <AnimatePresence mode="wait">
         <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
 
-          {/* OS Tab */}
-          {activeTab === "os" && (
+          {/* OAS Tab */}
+          {activeTab === "oas" && (
             <div className="space-y-6">
 
-              {/* Inline New OS Form */}
+              {/* Inline New OAS Form */}
               {showNewOSForm && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                  <NewServiceOrderDialog
+                  <NewServiceOrderPage
                     open={true}
-                    onOpenChange={(open) => { if (!open) setShowNewOSForm(false); }}
+                    onOpenChange={(open) => { if (!open) setShowNewOSForm(false); } }
                     aircraftId={aircraft.id}
                     aircraftRegistration={aircraft.registration}
-                    onServiceOrderCreated={handleServiceOrderCreated}
-                  />
+                    onServiceOrderCreated={handleServiceOrderCreated} onBack={function (): void {
+                      throw new Error("Function not implemented.");
+                    } }                  />
                 </motion.div>
               )}
 
@@ -327,8 +356,8 @@ export function CTMAircraftDetail({
                       <div className="inline-flex p-4 bg-muted/50 rounded-2xl mb-4">
                         <Wrench className="h-12 w-12 text-muted-foreground/50" />
                       </div>
-                      <p className="text-lg font-medium text-muted-foreground">Nenhuma O.S. encontrada</p>
-                      <p className="text-sm text-muted-foreground/70 mt-1">Crie uma nova ordem de serviço para começar</p>
+                      <p className="text-lg font-medium text-muted-foreground">Nenhuma OAS encontrada</p>
+                      <p className="text-sm text-muted-foreground/70 mt-1">Crie uma nova ordem de acompanhamento para começar</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -351,10 +380,10 @@ export function CTMAircraftDetail({
                                   </div>
                                   <div>
                                     <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
-                                      O.S. #{order.numero}
+                                       {order.numero}
                                     </h3>
                                     <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                                      <span>OFICINA: {order.os_oficina || "-"}</span>
+                                      <span>OFICINA: {order.oficina_nome || "-"}</span>
                                       <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
                                       <span>{order.horas_celula?.toFixed(1) || 0}H CÉLULA</span>
                                       <Badge className={cn("text-xs", colors.bg, colors.text, colors.border)}>
@@ -362,12 +391,6 @@ export function CTMAircraftDetail({
                                       </Badge>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Total da OS</p>
-                                  <p className="text-2xl font-black text-foreground">
-                                    R$ {(order.total_geral || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                  </p>
                                 </div>
                               </div>
                             </div>
@@ -395,6 +418,9 @@ export function CTMAircraftDetail({
 
           {/* Reports Tab */}
           {activeTab === "relatorios" && <CTMAircraftReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+
+          {/* Itens Não Controlados Tab */}
+          {activeTab === "itens-nao-controlados" && <CTMItensNaoControlados aircraftId={aircraft.id} />}
 
         </motion.div>
       </AnimatePresence>

@@ -10,6 +10,26 @@ import { cn } from "@/lib/utils";
 import { formatDateToBR } from "@/lib/date-utils";
 import { CTMOASInlineForm } from "./CTMOASInlineForm";
 import { CTMOASDetail } from "./CTMOASDetail";
+import type { MaintenanceCategory } from "@/types/ctm";
+
+// Normalize maintenance type from various formats to standard category
+const normalizeMaintenanceType = (tipo: string | null): MaintenanceCategory => {
+  if (!tipo) return "TUDO";
+
+  const normalized = tipo.toUpperCase();
+
+  if (normalized.includes("CORRET")) return "CORRETIVO";
+  if (normalized.includes("50") && normalized.includes("H")) return "50HORAS";
+  if (normalized.includes("100") && normalized.includes("H")) return "100HORAS";
+  if (normalized.includes("CVA")) return "CVA";
+  if (normalized.includes("HELICE") || normalized.includes("GOVERNADOR")) return "HELICE_GOVERNADOR";
+  if (normalized.includes("OLEO")) return "OLEO";
+  if (normalized.includes("DIREITO")) return "PNEU_DIREITO";
+  if (normalized.includes("ESQUERDO")) return "PNEU_ESQUERDO";
+  if (normalized.includes("NARIZ")) return "PNEU_TREM_NARIZ";
+
+  return "TUDO";
+};
 
 interface CTMCategoryTabProps {
   aircraftId: string;
@@ -23,20 +43,22 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set());
 
-  // Load OAS for this category
-  const { data: orders = [], refetch } = useQuery({
+  // Load all OAS for this aircraft and filter by normalized category
+  const { data: allOrders = [], refetch } = useQuery({
     queryKey: ["oas-by-category", aircraftId, categoryName],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ctm_service_orders")
         .select("*")
         .eq("aircraft_id", aircraftId)
-        .eq("tipo_manutencao", categoryName)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
   });
+
+  // Filter orders by normalized category
+  const orders = allOrders.filter(o => normalizeMaintenanceType(o.tipo_manutencao) === categoryName);
 
   // Group by year
   const groupedByYear = useMemo(() => {

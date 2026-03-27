@@ -1,5 +1,4 @@
 export { CTMServiceOrderList } from './CTMServiceOrderList';
-export { CTMServiceOrderForm } from './CTMServiceOrderForm';
 export { CTMDashboard } from './CTMDashboard';
 export { CTMBudgetManagement } from './CTMBudgetManagement';
 export { CTMServiceOrderDetails } from './CTMServiceOrderDetails';

@@ -1,5 +1,5 @@
 // Tab types for CTM Aircraft Detail
-export type CTMTab = "os" | "componentes" | "peso" | "ras" | "orcamentos" | "relatorios";
+export type CTMTab = "oas" | "componentes" | "peso" | "ras" | "orcamentos" | "relatorios" | "itens-nao-controlados";
 
 // Maintenance category types
 export type MaintenanceCategory =
