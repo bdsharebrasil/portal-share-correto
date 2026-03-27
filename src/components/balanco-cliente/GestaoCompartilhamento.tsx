@@ -342,17 +342,16 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                         const diferenca = pago - devido;
 
                         return (
-                          <>
-                            <TableCell key={`${p.id}-dev`} className="text-xs text-center border-l border-border/50">
+                          <React.Fragment key={`partner-${p.id}`}>
+                            <TableCell className="text-xs text-center border-l border-border/50">
                               {fmt(devido)}
                             </TableCell>
                             <TableCell
-                              key={`${p.id}-pag`}
                               className={`text-xs text-center font-medium ${diferenca > 0.01 ? 'bg-green-950/20 text-green-500' : diferenca < -0.01 ? 'bg-red-950/20 text-red-500' : ''}`}
                             >
                               {fmt(pago)}
                             </TableCell>
-                          </>
+                          </React.Fragment>
                         );
                       })}
                     </TableRow>
