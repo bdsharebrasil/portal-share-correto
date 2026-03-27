@@ -52,54 +52,59 @@ const CATEGORY_COLORS: Record<string, {
 
 const MAIN_TABS = [
   {
-    value: "oas",
+    value: "oas" as const,
     label: "Ordem de Acompanhamento",
     shortLabel: "OAS",
     icon: FileText,
     color: "primary"
   },
+ 
   {
-    value: "componentes",
+    value: "relatorios" as const,
+    label: "Relatórios de Médias Aeronave",
+    shortLabel: "Relat.",
+    icon: ClipboardList,
+    color: "amber"
+  },
+  {
+    value: "itens-nao-controlados" as const,
+    label: "Itens Não Controlados",
+    shortLabel: "Itens",
+    icon: AlertCircle,
+    color: "yellow"
+  },
+  
+  {
+    value: "ras" as const,
+    label: "RAS",
+    shortLabel: "RAS",
+    icon: BarChart3,
+    color: "purple"
+  },
+  {
+    value: "orcamentos" as const,
+    label: "Orçamentos",
+    shortLabel: "Orçam.",
+    icon: DollarSign,
+    color: "emerald"
+  },
+   {
+    value: "componentes" as const,
     label: "Mapa de Componentes",
     shortLabel: "Comp.",
     icon: Layers,
     color: "blue"
   },
   {
-    value: "peso",
+    value: "peso" as const,
     label: "Peso e Balanceamento",
     shortLabel: "Peso",
     icon: Scale,
     color: "green"
-  },
-  {
-    value: "ras",
-    label: "Relatórios (RAS)",
-    shortLabel: "RAS",
-    icon: BarChart3,
-    color: "purple"
-  },
-  {
-    value: "orcamentos",
-    label: "Orçamentos",
-    shortLabel: "Orçam.",
-    icon: DollarSign,
-    color: "emerald"
-  },
-  {
-    value: "relatorios",
-    label: "Relatórios Aeronave",
-    shortLabel: "Relat.",
-    icon: ClipboardList,
-    color: "amber"
-  },
-  {
-    value: "itens-nao-controlados",
-    label: "Itens Não Controlados",
-    shortLabel: "Itens",
-    icon: AlertCircle,
-    color: "yellow"
   }
+ 
+ 
+  
 ] as const;
 
 // Normalize maintenance type from various formats to standard category
@@ -404,23 +409,29 @@ export function CTMAircraftDetail({
             </div>
           )}
 
-          {/* Components Tab */}
-          {activeTab === "componentes" && <CTMComponentMap aircraftId={aircraft.id} />}
-
-          {/* Weight Balance Tab */}
-          {activeTab === "peso" && <CTMWeightBalanceComplete aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
-
-          {/* RAS Tab */}
-          {activeTab === "ras" && <CTMRASReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
-
-          {/* Budgets Tab */}
-          {activeTab === "orcamentos" && <CTMBudgetManagement aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+       
 
           {/* Reports Tab */}
           {activeTab === "relatorios" && <CTMAircraftReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
 
           {/* Itens Não Controlados Tab */}
           {activeTab === "itens-nao-controlados" && <CTMItensNaoControlados aircraftId={aircraft.id} />}
+          
+          {/* RAS Tab */}
+          {activeTab === "ras" && <CTMRASReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+
+          {/* Budgets Tab */}
+          {activeTab === "orcamentos" && <CTMBudgetManagement aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+
+          {/* Components Tab */}
+          {activeTab === "componentes" && <CTMComponentMap aircraftId={aircraft.id} />}
+          
+          {/* Weight Balance Tab */}
+          {activeTab === "peso" && <CTMWeightBalanceComplete aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+
+          
+
+          
 
         </motion.div>
       </AnimatePresence>

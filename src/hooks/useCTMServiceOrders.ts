@@ -12,6 +12,7 @@ export interface CTMMaintenanceCategory {
   cor?: string;
   icone?: string;
   ativo?: boolean;
+  created_at?: string;
 }
 
 export interface Oficina {
@@ -22,7 +23,7 @@ export interface Oficina {
   telefone: string | null;
   mecanico_responsavel: string | null;
   tipo_aeronave?: string | null;
-  dados_pagamento?: string | null;  
+  dados_pagamento?: string | null;
   ativo?: boolean;
 }
 
@@ -43,12 +44,6 @@ export interface CTMServiceOrder {
   data_saida?: string;
   status?: string;
   observacoes?: string;
-  description?: string;
-  assigned_to?: string;
-  scheduled_date?: string;
-  completion_date?: string;
-  estimated_hours?: number;
-  actual_hours?: number;
   vencimento_id?: string;
   total_mao_obra?: number;
   total_pecas?: number;
@@ -57,56 +52,83 @@ export interface CTMServiceOrder {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // Campos de aprovação
+  approval_status?: 'draft' | 'submitted' | 'approved' | 'rejected';
+  submitted_for_approval_at?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
+  // Período
+  periodo_inicio?: string;
+  periodo_fim?: string;
 }
 
 export interface CTMService {
   id: string;
   service_order_id: string;
   descricao: string;
-  description?: string;
   fornecedor?: string;
   periodo?: string;
   valor?: number;
-  cost?: number;
-  hours?: number;
-  completed?: boolean;
   categoria?: string;
   nota_fiscal?: string;
   data_execucao?: string;
   observacoes?: string;
   created_at: string;
+  modelo?: string;
+  modo_pagamento?: string;
+  dados_pagamento?: string;
+  quantidade?: number;
+  valor_unitario?: number;
+  fornecedor_id?: string;
+  condicoes_pagamento?: string;
+  status?: 'pendente' | 'aprovado' | 'rejeitado' | 'concluido';
+  quantidade_items?: number;
+  p_n?: string;
+  n_s?: string;
+  numero_servico?: string;
+  // Aprovação
+  approval_status?: 'pendente' | 'aprovado' | 'rejeitado';
+  submitted_at?: string;
+  approved_by?: string;
+  approved_by_name?: string;
+  approved_at?: string;
+  // Financeiro
+  payment_status?: string;
+  payment_type?: string;
+  financial_reference_id?: string;
+  financial_reference_table?: string;
+  // Cliente
+  client_id?: string;
+  client_partner_id?: string;
 }
 
 export interface CTMPart {
   id: string;
   service_order_id: string;
   descricao: string;
-  description?: string;
   part_number?: string;
   serial_number?: string;
   fornecedor?: string;
   quantidade?: number;
-  quantity?: number;
   valor_unitario?: number;
-  unit_cost?: number;
   valor_total?: number;
-  total_cost?: number;
   nota_fiscal?: string;
   data_compra?: string;
   garantia_meses?: number;
   observacoes?: string;
   created_at: string;
+  modelo?: string;
+  modo_pagamento?: string;
+  dados_pagamento?: string;
 }
 
 export interface CTMFlightReport {
   id: string;
-  aircraft_id: string;
-  flight_date?: string;
-  date?: string;
-  pilot?: string;
-  pilot_name?: string;
-  flight_hours?: number;
-  observations?: string;
+  service_order_id: string;
+  mes: string;
+  ano: number;
+  horas_oficina?: number;
   created_at: string;
 }
 
@@ -116,9 +138,7 @@ export interface CTMCostSharing {
   client_id: string;
   horas_voadas?: number;
   percentual?: number;
-  percentage?: number;
   valor?: number;
-  amount?: number;
   status_pagamento?: 'pendente' | 'pago' | 'cancelado';
   data_pagamento?: string;
   comprovante_url?: string;
@@ -196,11 +216,11 @@ export function useCTMServiceOrders() {
         if (orderRes.error) throw orderRes.error;
 
         return {
-          order: orderRes.data,
-          services: servicesRes.data || [],
-          parts: partsRes.data || [],
-          flightReports: flightReportsRes.data || [],
-          costSharing: costSharingRes.data || [],
+          order: orderRes.data as CTMServiceOrder | null,
+          services: (servicesRes.data || []) as CTMService[],
+          parts: (partsRes.data || []) as CTMPart[],
+          flightReports: (flightReportsRes.data || []) as CTMFlightReport[],
+          costSharing: (costSharingRes.data || []) as CTMCostSharing[],
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
@@ -220,7 +240,6 @@ export function useCTMServiceOrders() {
 
   const createServiceOrder = useCallback(async (data: Partial<CTMServiceOrder>) => {
     try {
-      // 1. Create in ctm_service_orders
       const { data: newOrder, error } = await supabase
         .from('ctm_service_orders')
         .insert([data as any])
@@ -229,7 +248,7 @@ export function useCTMServiceOrders() {
 
       if (error) throw error;
 
-      // 2. Create synchronization record in manutencoes
+      // Sincronização com manutencoes
       if (newOrder && data.aircraft_id) {
         const maintenanceType = data.tipo_manutencao || data.objetivo || 'MANUTENÇÃO';
         const dataEntrada = data.data_entrada || new Date().toISOString().split('T')[0];
@@ -241,14 +260,14 @@ export function useCTMServiceOrders() {
               aeronave_id: data.aircraft_id,
               tipo: maintenanceType,
               data_programada: dataEntrada,
-              mecanico: data.assigned_to || 'A designar',
+              mecanico: 'A designar',
               etapa: 'em_andamento',
               oficina: data.oficina_nome || null,
               observacoes: data.observacoes || null,
               custo_estimado: data.total_geral || null,
               vencimento_tipo: 'horas',
-              vencimento_horas: data.horas_celula || data.estimated_hours || null,
-            }
+              vencimento_horas: data.horas_celula || null,
+            },
           ]);
 
         if (manutencaoError) {
@@ -256,30 +275,24 @@ export function useCTMServiceOrders() {
         }
       }
 
-      // 3. Create synchronization record in aircraft_maintenance_records
+      // Sincronização com aircraft_maintenance_records
       if (newOrder && data.aircraft_id) {
-        // Map OAS maintenance type to valid aircraft_maintenance_records types (50h, 100h, 150h, 200h)
         const mapMaintenanceType = (tipo?: string, horas?: number): string => {
-          if (!tipo && !horas) return '100h'; // default
-
-          // If tipo contains hour info, extract it
+          if (!tipo && !horas) return '100h';
           if (tipo?.includes('50')) return '50h';
           if (tipo?.includes('100')) return '100h';
           if (tipo?.includes('150')) return '150h';
           if (tipo?.includes('200')) return '200h';
-
-          // If horas is provided, map accordingly
           if (horas) {
             if (horas <= 50) return '50h';
             if (horas <= 100) return '100h';
             if (horas <= 150) return '150h';
             return '200h';
           }
-
-          return '100h'; // default fallback
+          return '100h';
         };
 
-        const performedHours = data.horas_celula || data.estimated_hours || 0;
+        const performedHours = data.horas_celula || 0;
         const maintenanceType = mapMaintenanceType(data.tipo_manutencao, performedHours);
 
         const { error: recordError } = await supabase
@@ -290,13 +303,13 @@ export function useCTMServiceOrders() {
               maintenance_type: maintenanceType,
               performed_at_hours: performedHours,
               performed_date: data.data_entrada || new Date().toISOString().split('T')[0],
-              next_due_hours: performedHours + 50, // próxima manutenção será em 50h a mais
-              mechanic_name: data.assigned_to || 'A designar',
+              next_due_hours: performedHours + 50,
+              mechanic_name: 'A designar',
               maintenance_center: data.oficina_nome || null,
               service_order_number: data.numero || null,
               description: data.observacoes || null,
               cost: data.total_geral || null,
-            }
+            },
           ]);
 
         if (recordError) {
@@ -305,7 +318,7 @@ export function useCTMServiceOrders() {
       }
 
       toast.success('Ordem de serviço criada com sucesso');
-      return newOrder;
+      return newOrder as CTMServiceOrder;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
       console.error('Error creating service order:', errorMessage);
@@ -325,7 +338,7 @@ export function useCTMServiceOrders() {
 
       if (error) throw error;
       toast.success('Ordem de serviço atualizada com sucesso');
-      return updated;
+      return updated as CTMServiceOrder;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
       console.error('Error updating service order:', errorMessage);
@@ -355,7 +368,6 @@ export function useCTMServiceOrders() {
   const generateBudgetFromOAS = useCallback(
     async (oasId: string, userId?: string) => {
       try {
-        // Load OAS details
         const { data: order, error: orderError } = await supabase
           .from('ctm_service_orders')
           .select('*')
@@ -364,7 +376,6 @@ export function useCTMServiceOrders() {
 
         if (orderError) throw orderError;
 
-        // Create new budget with data from OAS
         const { data: newBudget, error: budgetError } = await fromUntyped('ctm_budgets')
           .insert([
             {
@@ -381,7 +392,6 @@ export function useCTMServiceOrders() {
 
         if (budgetError) throw budgetError;
 
-        // Create linking record
         if (newBudget) {
           const { error: linkError } = await fromUntyped('ctm_service_order_budgets')
             .insert([
@@ -412,7 +422,6 @@ export function useCTMServiceOrders() {
   const linkBudgetToOAS = useCallback(
     async (oasId: string, budgetId: string, version: number = 1, userId?: string, notes?: string) => {
       try {
-        // Check if linking already exists
         const { data: existing } = await fromUntyped('ctm_service_order_budgets')
           .select('id')
           .eq('service_order_id', oasId)
@@ -424,7 +433,6 @@ export function useCTMServiceOrders() {
           return null;
         }
 
-        // Create linking record
         const { data, error } = await fromUntyped('ctm_service_order_budgets')
           .insert([
             {
@@ -472,7 +480,6 @@ export function useCTMServiceOrders() {
     []
   );
 
-  // Load oficinas (workshops)
   const loadOficinas = useCallback(async (): Promise<Oficina[]> => {
     try {
       const { data, error } = await supabase
@@ -490,23 +497,24 @@ export function useCTMServiceOrders() {
     }
   }, []);
 
-  // Create new oficina
   const createOficina = useCallback(async (oficina: Partial<Oficina>) => {
     try {
       const { data: newOficina, error } = await supabase
         .from('oficinas')
-        .insert([{
-          razao_social: oficina.razao_social,
-          telefone: oficina.telefone || null,
-          mecanico_responsavel: oficina.mecanico_responsavel || null,
-          ativo: true,
-        }])
+        .insert([
+          {
+            razao_social: oficina.razao_social,
+            telefone: oficina.telefone || null,
+            mecanico_responsavel: oficina.mecanico_responsavel || null,
+            ativo: true,
+          },
+        ])
         .select()
         .single();
 
       if (error) throw error;
       toast.success('Oficina criada com sucesso');
-      return newOficina;
+      return newOficina as Oficina;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
       console.error('Error creating oficina:', errorMessage);
@@ -515,17 +523,257 @@ export function useCTMServiceOrders() {
     }
   }, []);
 
+  // ─── CTMService CRUD ───────────────────────────────────────────────────────
+
+  const createService = useCallback(async (data: Partial<CTMService>) => {
+    try {
+      const { data: newService, error } = await supabase
+        .from('ctm_services')
+        .insert([data as any])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Serviço adicionado com sucesso');
+      return newService as CTMService;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error creating service:', errorMessage);
+      toast.error('Erro ao adicionar serviço');
+      return null;
+    }
+  }, []);
+
+  const updateService = useCallback(async (id: string, data: Partial<CTMService>) => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('ctm_services')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Serviço atualizado com sucesso');
+      return updated as CTMService;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error updating service:', errorMessage);
+      toast.error('Erro ao atualizar serviço');
+      return null;
+    }
+  }, []);
+
+  const deleteService = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from('ctm_services').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Serviço removido com sucesso');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error deleting service:', errorMessage);
+      toast.error('Erro ao remover serviço');
+      return false;
+    }
+  }, []);
+
+  // ─── CTMPart CRUD ──────────────────────────────────────────────────────────
+
+  const createPart = useCallback(async (data: Partial<CTMPart>) => {
+    try {
+      const { data: newPart, error } = await supabase
+        .from('ctm_parts')
+        .insert([data as any])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Peça adicionada com sucesso');
+      return newPart as CTMPart;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error creating part:', errorMessage);
+      toast.error('Erro ao adicionar peça');
+      return null;
+    }
+  }, []);
+
+  const updatePart = useCallback(async (id: string, data: Partial<CTMPart>) => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('ctm_parts')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Peça atualizada com sucesso');
+      return updated as CTMPart;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error updating part:', errorMessage);
+      toast.error('Erro ao atualizar peça');
+      return null;
+    }
+  }, []);
+
+  const deletePart = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from('ctm_parts').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Peça removida com sucesso');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error deleting part:', errorMessage);
+      toast.error('Erro ao remover peça');
+      return false;
+    }
+  }, []);
+
+  // ─── CTMFlightReport CRUD ──────────────────────────────────────────────────
+
+  const createFlightReport = useCallback(async (data: Partial<CTMFlightReport>) => {
+    try {
+      const { data: newReport, error } = await supabase
+        .from('ctm_flight_reports')
+        .insert([data as any])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Relatório de voo adicionado com sucesso');
+      return newReport as CTMFlightReport;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error creating flight report:', errorMessage);
+      toast.error('Erro ao adicionar relatório de voo');
+      return null;
+    }
+  }, []);
+
+  const updateFlightReport = useCallback(async (id: string, data: Partial<CTMFlightReport>) => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('ctm_flight_reports')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Relatório de voo atualizado com sucesso');
+      return updated as CTMFlightReport;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error updating flight report:', errorMessage);
+      toast.error('Erro ao atualizar relatório de voo');
+      return null;
+    }
+  }, []);
+
+  const deleteFlightReport = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from('ctm_flight_reports').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Relatório de voo removido com sucesso');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error deleting flight report:', errorMessage);
+      toast.error('Erro ao remover relatório de voo');
+      return false;
+    }
+  }, []);
+
+  // ─── CTMCostSharing CRUD ───────────────────────────────────────────────────
+
+  const createCostSharing = useCallback(async (data: Partial<CTMCostSharing>) => {
+    try {
+      const { data: newSharing, error } = await supabase
+        .from('ctm_cost_sharing')
+        .insert([data as any])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Rateio adicionado com sucesso');
+      return newSharing as CTMCostSharing;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error creating cost sharing:', errorMessage);
+      toast.error('Erro ao adicionar rateio');
+      return null;
+    }
+  }, []);
+
+  const updateCostSharing = useCallback(async (id: string, data: Partial<CTMCostSharing>) => {
+    try {
+      const { data: updated, error } = await supabase
+        .from('ctm_cost_sharing')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success('Rateio atualizado com sucesso');
+      return updated as CTMCostSharing;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error updating cost sharing:', errorMessage);
+      toast.error('Erro ao atualizar rateio');
+      return null;
+    }
+  }, []);
+
+  const deleteCostSharing = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from('ctm_cost_sharing').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Rateio removido com sucesso');
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error deleting cost sharing:', errorMessage);
+      toast.error('Erro ao remover rateio');
+      return false;
+    }
+  }, []);
+
   return {
+    // Categorias
     loadCategories,
+    // Ordens de serviço
     loadServiceOrders,
     loadServiceOrderDetails,
     createServiceOrder,
     updateServiceOrder,
     deleteServiceOrder,
+    // Orçamentos
     generateBudgetFromOAS,
     linkBudgetToOAS,
     getLinkedBudgets,
+    // Oficinas
     loadOficinas,
     createOficina,
+    // Serviços
+    createService,
+    updateService,
+    deleteService,
+    // Peças
+    createPart,
+    updatePart,
+    deletePart,
+    // Relatórios de voo
+    createFlightReport,
+    updateFlightReport,
+    deleteFlightReport,
+    // Rateio de custos
+    createCostSharing,
+    updateCostSharing,
+    deleteCostSharing,
   };
 }
