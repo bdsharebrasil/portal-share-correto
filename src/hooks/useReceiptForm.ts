@@ -179,7 +179,11 @@ export function useReceiptForm() {
       return null;
     }
 
-    const valorTotal = form.reembolsoValorTotal ? parseFloat(form.reembolsoValorTotal.replace(",", ".")) : 0;
+    // Normalizar valor total: remover ponto (separador de milhares) e substituir vírgula por ponto
+    const valorTotalStr = form.reembolsoValorTotal
+      .replace(/\./g, "")
+      .replace(/,/g, ".");
+    const valorTotal = valorTotalStr ? parseFloat(valorTotalStr) : 0;
     const porcentagem = form.reembolsoPorcentagem ? parseFloat(form.reembolsoPorcentagem) : 0;
     const valorCliente = valorTotal * (porcentagem / 100);
 

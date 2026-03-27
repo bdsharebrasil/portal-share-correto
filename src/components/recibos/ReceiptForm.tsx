@@ -111,7 +111,11 @@ export function ReceiptForm({
   // Cálculo sugerido do valor quando rateado (mas permite edição manual)
   useEffect(() => {
     if (formData.reembolsoRateado && formData.reembolsoValorTotal && formData.reembolsoPorcentagem) {
-      const valorTotal = parseFloat(formData.reembolsoValorTotal) || 0;
+      // Normalizar valor total: remover ponto (separador de milhares) e substituir vírgula por ponto
+      const valorTotalStr = String(formData.reembolsoValorTotal)
+        .replace(/\./g, "")
+        .replace(/,/g, ".");
+      const valorTotal = parseFloat(valorTotalStr) || 0;
       const porcentagem = parseFloat(formData.reembolsoPorcentagem) || 0;
       const valorCalculado = (valorTotal * porcentagem / 100).toFixed(2);
       // Só atualiza se o valor estava vazio (primeira vez) ou igual ao valor calculado anterior
