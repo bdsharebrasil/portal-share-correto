@@ -29,6 +29,9 @@ function ExpenseRow({ exp, accounts, onPay }: { exp: PartnerExpense; accounts: P
         <div className="flex items-center gap-2 mb-1">
           <Badge variant="outline" className="text-xs">{typeLabel}</Badge>
           <Badge variant={st.variant} className="text-xs">{st.label}</Badge>
+          {(exp as any).percentual_socio != null && Number((exp as any).percentual_socio) < 100 && (
+            <Badge variant="secondary" className="text-xs">{Number((exp as any).percentual_socio).toFixed(0)}%</Badge>
+          )}
         </div>
         <p className="text-sm font-medium text-foreground">{exp.description}</p>
         <p className="text-xs text-muted-foreground">

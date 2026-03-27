@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Wrench, FileText, Scale, Layers, BarChart3, DollarSign, Clock, AlertTriangle, ClipboardList, AlertCircle } from "lucide-react";
+import { ArrowLeft, Plus, Wrench, FileText, Scale, Layers, BarChart3, DollarSign, Clock, AlertTriangle, ClipboardList, AlertCircle, Droplets, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCTMServiceOrders, useAircraftCellHours } from "@/hooks/useCTMData";
+import { CTMOASDetailPage } from "@/pages/manutencao/CTMOASDetailPage";
 import { CTMComponentMap } from "./CTMComponentMap";
 import { CTMRASReports } from "./CTMRASReports";
 import { CTMWeightBalanceComplete } from "./CTMWeightBalanceComplete";
@@ -13,6 +14,8 @@ import { CTMBudgetManagement } from "./CTMBudgetManagement";
 import { CTMAircraftReports } from "./CTMAircraftReports";
 import { CTMCategoryTab } from "./CTMCategoryTab";
 import { CTMItensNaoControlados } from "./CTMItensNaoControlados";
+import { CTMOilAnalysisTab } from "./CTMOilAnalysisTab";
+import { CTMMotorExpensesTab } from "./CTMMotorExpensesTab";
 import { NewServiceOrderPage } from "./NewServiceOrderDialog";
 import { MAINTENANCE_CATEGORIES, MaintenanceCategory, CTMTab } from "@/types/ctm";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,7 +61,6 @@ const MAIN_TABS = [
     icon: FileText,
     color: "primary"
   },
- 
   {
     value: "relatorios" as const,
     label: "Relatórios de Médias Aeronave",
@@ -73,7 +75,6 @@ const MAIN_TABS = [
     icon: AlertCircle,
     color: "yellow"
   },
-  
   {
     value: "ras" as const,
     label: "RAS",
@@ -88,7 +89,7 @@ const MAIN_TABS = [
     icon: DollarSign,
     color: "emerald"
   },
-   {
+  {
     value: "componentes" as const,
     label: "Mapa de Componentes",
     shortLabel: "Comp.",
@@ -101,18 +102,26 @@ const MAIN_TABS = [
     shortLabel: "Peso",
     icon: Scale,
     color: "green"
+  },
+  {
+    value: "analise-oleo" as const,
+    label: "Análise de Óleo",
+    shortLabel: "Óleo",
+    icon: Droplets,
+    color: "amber"
+  },
+  {
+    value: "despesas-motor" as const,
+    label: "Despesas Motor",
+    shortLabel: "Motor",
+    icon: Zap,
+    color: "red"
   }
- 
- 
-  
 ] as const;
 
-// Normalize maintenance type from various formats to standard category
 const normalizeMaintenanceType = (tipo: string | null): MaintenanceCategory => {
   if (!tipo) return "TUDO";
-
   const normalized = tipo.toUpperCase();
-
   if (normalized.includes("CORRET")) return "CORRETIVO";
   if (normalized.includes("50") && normalized.includes("H")) return "50HORAS";
   if (normalized.includes("100") && normalized.includes("H")) return "100HORAS";
@@ -122,11 +131,9 @@ const normalizeMaintenanceType = (tipo: string | null): MaintenanceCategory => {
   if (normalized.includes("DIREITO")) return "PNEU_DIREITO";
   if (normalized.includes("ESQUERDO")) return "PNEU_ESQUERDO";
   if (normalized.includes("NARIZ")) return "PNEU_TREM_NARIZ";
-
   return "TUDO";
 };
 
-// Hook to fetch ongoing maintenance from manutencoes table
 function useOngoingMaintenance(aircraftId: string) {
   return useQuery({
     queryKey: ["ongoing-maintenance", aircraftId],
@@ -152,6 +159,7 @@ export function CTMAircraftDetail({
   const [activeTab, setActiveTab] = useState<CTMTab>("oas");
   const [categoryFilter, setCategoryFilter] = useState<MaintenanceCategory>("TUDO");
   const [showNewOSForm, setShowNewOSForm] = useState(false);
+  const [selectedOASId, setSelectedOASId] = useState<string | null>(null);
 
   const {
     data: serviceOrders = [],
@@ -181,6 +189,20 @@ export function CTMAircraftDetail({
     pendente: { label: "Pendente", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
     em_andamento: { label: "Em Andamento", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
   };
+
+  // ✅ CORREÇÃO: Early return quando um OAS estiver selecionado.
+  // Isso evita que o header/tabs do pai sejam renderizados junto com o CTMOASDetailPage,
+  // eliminando a duplicação de layout.
+  if (selectedOASId) {
+    return (
+      <CTMOASDetailPage
+        oasId={selectedOASId}
+        aircraftId={aircraft.id}
+        aircraftRegistration={aircraft.registration}
+        onBack={() => setSelectedOASId(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -260,18 +282,16 @@ export function CTMAircraftDetail({
           {/* OAS Tab */}
           {activeTab === "oas" && (
             <div className="space-y-6">
-
-              {/* Inline New OAS Form */}
               {showNewOSForm && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                   <NewServiceOrderPage
                     open={true}
-                    onOpenChange={(open) => { if (!open) setShowNewOSForm(false); } }
+                    onOpenChange={(open) => { if (!open) setShowNewOSForm(false); }}
                     aircraftId={aircraft.id}
                     aircraftRegistration={aircraft.registration}
-                    onServiceOrderCreated={handleServiceOrderCreated} onBack={function (): void {
-                      throw new Error("Function not implemented.");
-                    } }                  />
+                    onServiceOrderCreated={handleServiceOrderCreated}
+                    onBack={() => setShowNewOSForm(false)}
+                  />
                 </motion.div>
               )}
 
@@ -371,7 +391,9 @@ export function CTMAircraftDetail({
                   {filteredOrders.map((order, index) => {
                     const colors = CATEGORY_COLORS[order.tipo_manutencao] || CATEGORY_COLORS.TUDO;
                     return (
-                      <motion.div key={order.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ scale: 1.01 }}>
+                      <motion.div key={order.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ scale: 1.01 }}
+                        onClick={() => setSelectedOASId(order.id)}
+                      >
                         <Card className="border-border/50 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group">
                           <CardContent className="p-0">
                             <div className="flex">
@@ -385,7 +407,7 @@ export function CTMAircraftDetail({
                                   </div>
                                   <div>
                                     <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
-                                       {order.numero}
+                                      {order.numero}
                                     </h3>
                                     <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                                       <span>OFICINA: {order.oficina_nome || "-"}</span>
@@ -409,14 +431,12 @@ export function CTMAircraftDetail({
             </div>
           )}
 
-       
-
           {/* Reports Tab */}
           {activeTab === "relatorios" && <CTMAircraftReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
 
           {/* Itens Não Controlados Tab */}
           {activeTab === "itens-nao-controlados" && <CTMItensNaoControlados aircraftId={aircraft.id} />}
-          
+
           {/* RAS Tab */}
           {activeTab === "ras" && <CTMRASReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
 
@@ -425,13 +445,15 @@ export function CTMAircraftDetail({
 
           {/* Components Tab */}
           {activeTab === "componentes" && <CTMComponentMap aircraftId={aircraft.id} />}
-          
+
           {/* Weight Balance Tab */}
           {activeTab === "peso" && <CTMWeightBalanceComplete aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
 
-          
+          {/* Oil Analysis Tab */}
+          {activeTab === "analise-oleo" && <CTMOilAnalysisTab aircraftId={aircraft.id} />}
 
-          
+          {/* Motor Expenses Tab */}
+          {activeTab === "despesas-motor" && <CTMMotorExpensesTab aircraftId={aircraft.id} />}
 
         </motion.div>
       </AnimatePresence>

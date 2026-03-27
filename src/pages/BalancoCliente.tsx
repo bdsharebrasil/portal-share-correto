@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User, KeyRound, Share2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -18,6 +18,7 @@ import { PendenciasFinanceiras } from '@/components/balanco-cliente/PendenciasFi
 import { BalancoAeronave } from '@/components/balanco-cliente/BalancoAeronave';
 import { RelatoriosExportacao } from '@/components/balanco-cliente/RelatoriosExportacao';
 import { GerenciarAcessoPortal } from '@/components/balanco-cliente/GerenciarAcessoPortal';
+import { GestaoCompartilhamento } from '@/components/balanco-cliente/GestaoCompartilhamento';
 import { useClientesComSocios, ClienteComSocios, Socio } from '@/hooks/useSocioBalanco';
 
 function BalancoClienteContent() {
@@ -308,6 +309,13 @@ function BalancoClienteContent() {
             <span className="hidden sm:inline">Aeronave</span>
           </TabsTrigger>
           <TabsTrigger
+            value="compartilhamento"
+            className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
+          >
+            <Share2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Compartilhamento</span>
+          </TabsTrigger>
+          <TabsTrigger
             value="acesso-portal"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
           >
@@ -386,6 +394,22 @@ function BalancoClienteContent() {
             <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente e uma aeronave para visualizar o balanço da aeronave
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="compartilhamento" className="space-y-6">
+          {clienteId && aeronaveId ? (
+            <GestaoCompartilhamento
+              clienteId={clienteId}
+              aeronaveId={aeronaveId || undefined}
+              periodo={periodo}
+            />
+          ) : (
+            <Card className="border border-border/50 bg-card/60 rounded-2xl">
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                Selecione um cliente e uma aeronave para visualizar o compartilhamento
               </CardContent>
             </Card>
           )}

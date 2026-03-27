@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Trash2, Plus, Users, Calculator, Percent, DollarSign, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { Trash2, Plus, Users, Calculator, Percent, DollarSign, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,8 @@ interface RateioDialogProps {
   aeronaveRegistro: string;
   aeronaveId?: string;
   lancamentoId?: string;
+  tipoRateio?: "propriedade" | "uso" | "misto";
+  periodo?: { inicio: string; fim: string };
   onSave: (rateios: Socio[], tipoRateio: string) => void;
 }
 
@@ -37,9 +39,13 @@ export function RateioDialog({
   aeronaveRegistro,
   aeronaveId,
   lancamentoId,
+  tipoRateio = "propriedade",
+  periodo,
   onSave,
 }: RateioDialogProps) {
-  const [tipoRateio, setTipoRateio] = useState<"horas" | "percentual" | "valor">("percentual");
+  const [tipoRateoLocal, setTipoRateio] = useState<"horas" | "percentual" | "valor">(
+    tipoRateio === "uso" ? "horas" : "percentual"
+  );
   const [socios, setSocios] = useState<Socio[]>([]);
   const [sociosDisponiveis, setSociosDisponiveis] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,15 +69,45 @@ export function RateioDialog({
 
       if (data && data.length > 0) {
         setSociosDisponiveis(data);
-        
+
         // Inicializa os sócios com os dados carregados
-        const sociosIniciais: Socio[] = data.map((s) => ({
+        let sociosIniciais: Socio[] = data.map((s) => ({
           cliente_id: s.cliente_id || "",
           cliente_nome: s.cliente_nome,
           percentual: s.percentual_participacao || 50,
           valor_rateado: (valorTotal * (s.percentual_participacao || 50)) / 100,
           horas_voadas: 0,
         }));
+
+        // Se tipoRateio === 'uso', buscar horas_voadas do logbook
+        if (tipoRateio === "uso" && aeronaveId && periodo) {
+          sociosIniciais = await Promise.all(
+            sociosIniciais.map(async (socio) => {
+              try {
+                const { data: logbookData, error: logErr } = await (supabase as any)
+                  .from("logbook_entries")
+                  .select("total_time, is_loan, loan_recipient_client_id")
+                  .eq("aircraft_id", aeronaveId)
+                  .eq("client_id", socio.cliente_id)
+                  .gte("entry_date", periodo.inicio)
+                  .lte("entry_date", periodo.fim);
+
+                if (logErr) throw logErr;
+
+                const totalHoras = logbookData?.reduce((sum: number, entry: any) => {
+                  // Se is_loan=true, este voo não conta para este cliente
+                  return entry.is_loan ? sum : sum + (entry.total_time || 0);
+                }, 0) || 0;
+
+                return { ...socio, horas_voadas: Math.round(totalHoras * 100) / 100 };
+              } catch (err) {
+                console.error("Erro ao buscar horas voadas:", err);
+                return socio;
+              }
+            })
+          );
+        }
+
         setSocios(sociosIniciais);
       } else {
         setSociosDisponiveis([]);
@@ -87,12 +123,12 @@ export function RateioDialog({
 
   // Recalcula os valores quando muda o tipo de rateio ou horas
   useEffect(() => {
-    if (tipoRateio === "horas") {
+    if (tipoRateoLocal === "horas") {
       recalcularPorHoras();
-    } else if (tipoRateio === "percentual") {
+    } else if (tipoRateoLocal === "percentual") {
       recalcularPorPercentual();
     }
-  }, [tipoRateio, valorTotal]);
+  }, [tipoRateoLocal, valorTotal]);
 
   const recalcularPorHoras = () => {
     const totalHoras = socios.reduce((acc, s) => acc + (s.horas_voadas || 0), 0);

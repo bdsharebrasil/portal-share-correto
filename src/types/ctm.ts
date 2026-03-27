@@ -1,5 +1,5 @@
 // Tab types for CTM Aircraft Detail
-export type CTMTab = "oas" | "componentes" | "peso" | "ras" | "orcamentos" | "relatorios" | "itens-nao-controlados";
+export type CTMTab = "oas" | "componentes" | "peso" | "ras" | "orcamentos" | "relatorios" | "itens-nao-controlados" | "analise-oleo" | "despesas-motor";
 
 // Maintenance category types
 export type MaintenanceCategory =
@@ -222,16 +222,37 @@ export interface CTMServiceOrder {
   id: string;
   aircraft_id: string;
   numero: string;
-  tipo_manutencao: MaintenanceCategory;
-  data_criacao: string;
-  data_conclusao?: string;
-  status: "pendente" | "em_andamento" | "concluido";
-  mecanico_responsavel?: string;
-  horas_celula?: number;
-  total_geral?: number;
   os_oficina?: string;
-  observacoes?: string;
+  horas_celula?: number;
+  tipo_manutencao: string;
+  periodo?: string;
   objetivo?: string;
+  oficina_nome?: string;
+  oficina_contato?: string;
+  dias_previstos?: number;
+  dias_efetivos?: number;
+  data_entrada?: string;
+  data_saida?: string;
+  status?: string;
+  observacoes?: string;
+  vencimento_id?: string;
+  total_mao_obra?: number;
+  total_pecas?: number;
+  total_geral?: number;
+  tipo_rateio?: 'HORAS' | 'PERCENTUAL';
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string;
+  approval_status?: 'draft' | 'submitted' | 'approved' | 'rejected';
+  submitted_for_approval_at?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
+  periodo_inicio?: string;
+  periodo_fim?: string;
+  mecanico_responsavel?: string;
+  data_criacao?: string;
+  data_conclusao?: string;
   description?: string;
   assigned_to?: string;
   scheduled_date?: string;

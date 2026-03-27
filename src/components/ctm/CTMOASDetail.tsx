@@ -31,11 +31,17 @@ interface CTMOASDetailProps {
   orderId: string;
   onClose: () => void;
   onDeleted?: () => void;
+  forcedSection?: string; // Nova propriedade
+  hideHeader?: boolean;   // Nova propriedade
 }
 
-export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps) {
+export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideHeader }: CTMOASDetailProps) {
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState<string>("info");
+  
+  // Determina se usa a secção forçada pelo pai ou a secção local
+  const currentSection = forcedSection || activeSection;
+
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>(null);
   const [saving, setSaving] = useState(false);
@@ -84,7 +90,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
   const { data: budgets = [], refetch: refetchBudgets } = useQuery({
     queryKey: ["oas-budgets", orderId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("oas_budgets").select("*").eq("service_order_id", orderId).order("created_at");
+      const { data, error } = (await supabase.from("oas_budgets").select("*").eq("service_order_id", orderId).order("created_at")) as any;
       if (error) throw error;
       return data || [];
     },
@@ -250,161 +256,158 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-      <Card className="border-primary/20 bg-gradient-to-br from-background to-muted/10">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-3">
-                OAS #{order?.numero}
-                <Badge className={cn("text-xs", statusColor)}>
-                  {order?.status === "concluido" ? "Concluído" : order?.status === "em_andamento" ? "Em Andamento" : "Pendente"}
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {order?.oficina_nome && `Oficina: ${order.oficina_nome}`}
-                {order?.data_entrada && ` • Entrada: ${formatDateToBR(order.data_entrada)}`}
-                {order?.data_saida && ` • Saída: ${formatDateToBR(order.data_saida)}`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {order?.status !== "concluido" && (
-                <>
-                  <Button variant="outline" size="sm" onClick={startEdit} className="gap-1.5 text-xs">
-                    <Edit2 className="h-3.5 w-3.5" /> Editar
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setShowConcluirDialog(true)}
-                    className="gap-1.5 text-xs bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5" /> Concluir
-                  </Button>
-                </>
-              )}
-              <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5 text-xs">
-                <Download className="h-3.5 w-3.5" /> PDF
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowDeleteDialog(true)} className="text-destructive hover:text-destructive">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex gap-2 mt-4 flex-wrap">
-            {sections.map((s) => {
-              const Icon = s.icon;
-              return (
-                <Button
-                  key={s.key}
-                  variant={activeSection === s.key ? "default" : "outline"}
-                  size="sm"
-                  className="gap-1.5 text-xs"
-                  onClick={() => setActiveSection(s.key)}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {s.label}
-                </Button>
-              );
-            })}
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <AnimatePresence mode="wait">
-            <motion.div key={activeSection} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              {/* Info Section - Edit or View */}
-              {activeSection === "info" && (
-                isEditing ? (
-                  <EditInfoForm form={editForm} setForm={setEditForm} onSave={saveEdit} onCancel={() => setIsEditing(false)} saving={saving} />
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <InfoItem label="Número" value={order?.numero} />
-                    <InfoItem label="Oficina" value={order?.oficina_nome} />
-                    <InfoItem label="Contato" value={order?.oficina_contato} />
-                    <InfoItem label="Horas Célula" value={order?.horas_celula ? `${order.horas_celula}H` : "-"} />
-                    <InfoItem label="Dias Previstos" value={order?.dias_previstos?.toString()} />
-                    <InfoItem label="Dias Efetivos" value={order?.dias_efetivos?.toString()} />
-                    <InfoItem label="Objetivo" value={order?.objetivo} />
-                    <InfoItem label="Observações" value={order?.observacoes} />
-                  </div>
-                )
-              )}
-
-              {activeSection === "servicos" && (
-                <ServicesSection orderId={orderId} services={services} onRefetch={refetchServices} />
-              )}
-
-              {activeSection === "pecas" && (
-                <PartsSection orderId={orderId} parts={parts} onRefetch={refetchParts} />
-              )}
-
-              {activeSection === "ras" && (
-                <OASRASSection
-                  orderId={orderId}
-                  aircraftId={order?.aircraft_id || ""}
-                  aircraftRegistration={(order?.aircraft as any)?.registration || ""}
-                  reports={rasReports}
-                  onRefetch={refetchRAS}
-                />
-              )}
-
-              {activeSection === "oleo" && (
-                <OASOilAnalysisSection
-                  orderId={orderId}
-                  aircraftId={order?.aircraft_id || ""}
-                  analyses={oilAnalyses}
-                  onRefetch={refetchOil}
-                />
-              )}
-
-              {activeSection === "orcamentos" && (
-                <OASBudgetsSection
-                  orderId={orderId}
-                  budgets={budgets}
-                  onRefetch={refetchBudgets}
-                />
-              )}
-
-              {activeSection === "rateio" && (
-                <OASFlightHoursRateio
-                  orderId={orderId}
-                  aircraftId={order?.aircraft_id || ""}
-                  costSharing={costSharing}
-                  totalGeral={totalGeral}
-                  periodoInicio={order?.periodo_inicio || order?.data_entrada}
-                  periodoFim={order?.periodo_fim || order?.data_saida}
-                  onRefetch={refetchCostSharing}
-                />
-              )}
-
-              {activeSection === "despesas" && (
-                <OASMaintenanceExpensesTable orderId={orderId} />
-              )}
-
-              {activeSection === "resumo" && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <SummaryCard label="Total Serviços" value={totalServicos} color="text-blue-400" />
-                    <SummaryCard label="Total Peças" value={totalPecas} color="text-orange-400" />
-                    <SummaryCard label="Total Orçamentos" value={budgets.reduce((s: number, b: any) => s + (b.valor_total || 0), 0)} color="text-purple-400" />
-                    <SummaryCard label="Despesas Manutenção" value={totalDespesas} color="text-amber-400" />
-                    <SummaryCard label="Total Geral" value={totalGeral} color="text-foreground" highlight />
-                  </div>
-
-                  {/* Tabela de Despesas no Resumo */}
-                  {despesasManutencao.length > 0 && (
-                    <div className="mt-6 pt-6 border-t border-white/10">
-                      <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-                        <DollarSign className="h-4 w-4" />
-                        Detalhes de Despesas de Manutenção
-                      </h3>
-                      <OASMaintenanceExpensesTable orderId={orderId} />
-                    </div>
+      <Card className={cn("border-primary/20 bg-gradient-to-br from-background to-muted/10", hideHeader ? "border-0 bg-transparent shadow-none" : "")}>
+        
+        {/* Esconde o cabeçalho e as abas internas se hideHeader for true */}
+        {!hideHeader && (
+          <>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-3">
+                    OAS #{order?.numero}
+                    <Badge className={cn("text-xs", statusColor)}>
+                      {order?.status === "concluido" ? "Concluído" : order?.status === "em_andamento" ? "Em Andamento" : "Pendente"}
+                    </Badge>
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {order?.aircraft?.registration} · {order?.aircraft?.model}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {order?.status !== "concluido" && (
+                    <Button variant="outline" size="sm" onClick={startEdit} className="gap-1.5">
+                      <Edit2 className="h-3.5 w-3.5" /> Editar
+                    </Button>
                   )}
+                  <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> Exportar PDF
+                  </Button>
+                  {order?.status !== "concluido" && (
+                    <Button variant="default" size="sm" onClick={() => setShowConcluirDialog(true)} className="gap-1.5 bg-green-600 hover:bg-green-700">
+                      <CheckCircle className="h-3.5 w-3.5" /> Concluir OAS
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5">
+                    <X className="h-3.5 w-3.5" /> Fechar
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <div className="px-6 pb-0 overflow-x-auto">
+              <div className="flex gap-2 min-w-min">
+                {sections.map((section) => {
+                  const Icon = section.icon;
+                  return (
+                    <Button
+                      key={section.key}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveSection(section.key)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                        activeSection === section.key
+                          ? "bg-primary/20 text-primary border border-primary/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {section.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        <CardContent className={cn(hideHeader ? "p-0" : "pt-6")}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSection}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {currentSection === "info" && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Número</p>
+                    <p className="font-medium">{order?.numero}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <Badge className={cn("text-xs", statusColor)}>{order?.status}</Badge>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Aeronave</p>
+                    <p className="font-medium">{order?.aircraft?.registration}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Modelo</p>
+                    <p className="font-medium">{order?.aircraft?.model}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Oficina</p>
+                    <p className="font-medium">{order?.oficina_nome || "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Contato Oficina</p>
+                    <p className="font-medium">{order?.oficina_contato || "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Data Entrada</p>
+                    <p className="font-medium">{order?.data_entrada ? formatDateToBR(order.data_entrada) : "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Data Saída</p>
+                    <p className="font-medium">{order?.data_saida ? formatDateToBR(order.data_saida) : "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Dias Previstos</p>
+                    <p className="font-medium">{order?.dias_previstos || "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Dias Efetivos</p>
+                    <p className="font-medium">{order?.dias_efetivos || "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Horas Célula</p>
+                    <p className="font-medium">{order?.horas_celula || "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3 col-span-2">
+                    <p className="text-xs text-muted-foreground">Objetivo</p>
+                    <p className="font-medium">{order?.objetivo || "-"}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3 col-span-2">
+                    <p className="text-xs text-muted-foreground">Observações</p>
+                    <p className="font-medium">{order?.observacoes || "-"}</p>
+                  </div>
+                </div>
+              )}
+
+              {currentSection === "servicos" && <ServicesSection orderId={orderId} services={services} onRefetch={refetchServices} />}
+              {currentSection === "pecas" && <PartsSection orderId={orderId} parts={parts} onRefetch={refetchParts} />}
+              {currentSection === "ras" && <OASRASSection orderId={orderId} reports={rasReports} onRefetch={refetchRAS} />}
+              {currentSection === "oleo" && <OASOilAnalysisSection orderId={orderId} analyses={oilAnalyses} onRefetch={refetchOil} />}
+              {currentSection === "orcamentos" && <OASBudgetsSection orderId={orderId} budgets={budgets} onRefetch={refetchBudgets} />}
+              {currentSection === "rateio" && <OASFlightHoursRateio orderId={orderId} costSharing={costSharing} onRefetch={refetchCostSharing} />}
+              {currentSection === "despesas" && <OASMaintenanceExpensesTable orderId={orderId} expenses={despesasManutencao} />}
+              {currentSection === "resumo" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <SummaryCard label="Total Serviços" value={totalServicos} color="text-blue-400" highlight={true} />
+                    <SummaryCard label="Total Peças" value={totalPecas} color="text-green-400" highlight={true} />
+                    <SummaryCard label="Total Despesas" value={totalDespesas} color="text-yellow-400" highlight={true} />
+                  </div>
+                  <div className="bg-primary/20 border border-primary/30 rounded-xl p-4 text-center">
+                    <p className="text-sm text-primary-foreground mb-2">Total Geral da OAS</p>
+                    <p className="text-3xl font-black text-primary-foreground">
+                      R$ {totalGeral.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -412,16 +415,88 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
         </CardContent>
       </Card>
 
+      {/* Edit Dialog */}
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar OAS #{order?.numero}</DialogTitle>
+            <DialogDescription>Faça as alterações necessárias na Ordem de Serviço.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="numero">Número</Label>
+              <Input id="numero" value={editForm?.numero} onChange={e => setEditForm({ ...editForm, numero: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={editForm?.status} onValueChange={value => setEditForm({ ...editForm, status: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                  <SelectItem value="concluido">Concluído</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="oficina_nome">Oficina</Label>
+              <Input id="oficina_nome" value={editForm?.oficina_nome} onChange={e => setEditForm({ ...editForm, oficina_nome: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="oficina_contato">Contato Oficina</Label>
+              <Input id="oficina_contato" value={editForm?.oficina_contato} onChange={e => setEditForm({ ...editForm, oficina_contato: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="data_entrada">Data Entrada</Label>
+              <Input id="data_entrada" type="date" value={editForm?.data_entrada} onChange={e => setEditForm({ ...editForm, data_entrada: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="data_saida">Data Saída</Label>
+              <Input id="data_saida" type="date" value={editForm?.data_saida} onChange={e => setEditForm({ ...editForm, data_saida: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dias_previstos">Dias Previstos</Label>
+              <Input id="dias_previstos" type="number" value={editForm?.dias_previstos} onChange={e => setEditForm({ ...editForm, dias_previstos: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dias_efetivos">Dias Efetivos</Label>
+              <Input id="dias_efetivos" type="number" value={editForm?.dias_efetivos} onChange={e => setEditForm({ ...editForm, dias_efetivos: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="horas_celula">Horas Célula</Label>
+              <Input id="horas_celula" type="number" step="0.1" value={editForm?.horas_celula} onChange={e => setEditForm({ ...editForm, horas_celula: e.target.value })} />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="objetivo">Objetivo</Label>
+              <Textarea id="objetivo" value={editForm?.objetivo} onChange={e => setEditForm({ ...editForm, objetivo: e.target.value })} />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="observacoes">Observações</Label>
+              <Textarea id="observacoes" value={editForm?.observacoes} onChange={e => setEditForm({ ...editForm, observacoes: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditing(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={saving}>
+              {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir OAS #{order?.numero}?</AlertDialogTitle>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Todos os serviços, peças, orçamentos e rateios associados serão excluídos.
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente esta Ordem de Serviço e todos os dados relacionados.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex gap-4 justify-end">
+          <div className="flex justify-end gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
@@ -434,16 +509,16 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
       <AlertDialog open={showConcluirDialog} onOpenChange={setShowConcluirDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Concluir OAS #{order?.numero}?</AlertDialogTitle>
+            <AlertDialogTitle>Concluir Ordem de Serviço?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ao concluir, o status será alterado para "Concluído" e um relatório PDF completo será gerado automaticamente com todos os dados da OAS.
+              Ao concluir esta OAS, a data de saída será definida para hoje e o status será alterado para "concluído".
+              Um relatório PDF será gerado automaticamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex gap-4 justify-end">
+          <div className="flex justify-end gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConcluir} disabled={saving} className="bg-green-600 hover:bg-green-700">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-              Concluir OAS
+            <AlertDialogAction onClick={handleConcluir} disabled={saving}>
+              {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Concluindo...</> : "Concluir"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>
@@ -452,171 +527,215 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
   );
 }
 
-// ===== Edit Info Form =====
-function EditInfoForm({ form, setForm, onSave, onCancel, saving }: any) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div><Label className="text-xs">Número *</Label><Input value={form.numero} onChange={e => setForm((f: any) => ({ ...f, numero: e.target.value }))} /></div>
-        <div><Label className="text-xs">Oficina</Label><Input value={form.oficina_nome} onChange={e => setForm((f: any) => ({ ...f, oficina_nome: e.target.value }))} /></div>
-        <div><Label className="text-xs">Contato</Label><Input value={form.oficina_contato} onChange={e => setForm((f: any) => ({ ...f, oficina_contato: e.target.value }))} /></div>
-        <div><Label className="text-xs">Horas Célula</Label><Input type="number" step="0.1" value={form.horas_celula} onChange={e => setForm((f: any) => ({ ...f, horas_celula: e.target.value }))} /></div>
-        <div><Label className="text-xs">Data Entrada</Label><Input type="date" value={form.data_entrada} onChange={e => setForm((f: any) => ({ ...f, data_entrada: e.target.value }))} /></div>
-        <div><Label className="text-xs">Data Saída</Label><Input type="date" value={form.data_saida} onChange={e => setForm((f: any) => ({ ...f, data_saida: e.target.value }))} /></div>
-        <div><Label className="text-xs">Dias Previstos</Label><Input type="number" value={form.dias_previstos} onChange={e => setForm((f: any) => ({ ...f, dias_previstos: e.target.value }))} /></div>
-        <div><Label className="text-xs">Dias Efetivos</Label><Input type="number" value={form.dias_efetivos} onChange={e => setForm((f: any) => ({ ...f, dias_efetivos: e.target.value }))} /></div>
-        <div>
-          <Label className="text-xs">Status</Label>
-          <Select value={form.status} onValueChange={v => setForm((f: any) => ({ ...f, status: v }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="em_andamento">Em Andamento</SelectItem>
-              <SelectItem value="concluido">Concluído</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="col-span-2 md:col-span-3"><Label className="text-xs">Objetivo</Label><Textarea value={form.objetivo} onChange={e => setForm((f: any) => ({ ...f, objetivo: e.target.value }))} rows={2} /></div>
-        <div className="col-span-2 md:col-span-4"><Label className="text-xs">Observações</Label><Textarea value={form.observacoes} onChange={e => setForm((f: any) => ({ ...f, observacoes: e.target.value }))} rows={2} /></div>
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel}><X className="h-3.5 w-3.5 mr-1" /> Cancelar</Button>
-        <Button size="sm" onClick={onSave} disabled={saving}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />} Salvar</Button>
-      </div>
-    </div>
-  );
-}
+// ===== Helper Components (mantidos do código original) =====
 
-function InfoItem({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="bg-muted/30 rounded-lg p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground">{value || "-"}</p>
-    </div>
-  );
-}
+// ===== Parts Section =====
+function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: any[]; onRefetch: () => void }) {
+  const [showNewPartForm, setShowNewPartForm] = useState(false);
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
 
-function SummaryCard({ label, value, color, highlight }: { label: string; value: number; color: string; highlight?: boolean }) {
-  return (
-    <div className={cn("rounded-xl p-4 text-center", highlight ? "bg-primary/10 border border-primary/20" : "bg-muted/30")}>
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-      <p className={cn("text-xl font-black", color)}>
-        R$ {value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-      </p>
-    </div>
-  );
-}
+  const handleAddPart = async (newPart: any) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("ctm_parts").insert({ ...newPart, service_order_id: orderId });
+      if (error) throw error;
+      toast.success("Peça adicionada com sucesso!");
+      setShowNewPartForm(false);
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-// ===== Expanded Service Item Row =====
-function ExpandedServiceItemRow({ item, onUpdate, onDelete, saving }: any) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({
-    descricao: item.descricao,
-    quantidade: String(item.quantidade),
-    valor_unitario: String(item.valor_unitario),
-  });
+  const handleDeletePart = async (id: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("ctm_parts").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Peça removida com sucesso!");
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const handleSave = async () => {
+  const handleEditPart = (part: any) => {
+    setEditingPartId(part.id);
+    setEditForm({
+      descricao: part.descricao,
+      numero_serie: part.numero_serie || "",
+      quantidade: String(part.quantidade),
+      valor_unitario: String(part.valor_unitario),
+    });
+  };
+
+  const handleSaveEdit = async () => {
     if (!editForm.descricao.trim()) {
       toast.error("Descrição é obrigatória");
       return;
     }
-    const qty = parseFloat(editForm.quantidade) || 1;
-    const unitVal = parseFloat(editForm.valor_unitario) || 0;
-
-    await onUpdate(item.id, {
-      descricao: editForm.descricao,
-      quantidade: qty,
-      valor_unitario: unitVal,
-    });
-    setIsEditing(false);
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("ctm_parts").update({
+        descricao: editForm.descricao,
+        numero_serie: editForm.numero_serie || null,
+        quantidade: parseFloat(editForm.quantidade),
+        valor_unitario: parseFloat(editForm.valor_unitario),
+        valor_total: parseFloat(editForm.quantidade) * parseFloat(editForm.valor_unitario),
+      }).eq("id", editingPartId);
+      if (error) throw error;
+      toast.success("Peça atualizada com sucesso!");
+      setEditingPartId(null);
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (isEditing) {
-    return (
-      <TableRow>
-        <TableCell>{item.ordenacao}</TableCell>
-        <TableCell>
-          <Input
-            size={1}
-            className="text-xs"
-            value={editForm.descricao}
-            onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))}
-          />
-        </TableCell>
-        <TableCell>
-          <Input
-            type="number"
-            min="1"
-            step="0.1"
-            size={1}
-            className="text-xs text-center"
-            value={editForm.quantidade}
-            onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))}
-          />
-        </TableCell>
-        <TableCell>
-          <Input
-            type="number"
-            step="0.01"
-            size={1}
-            className="text-xs text-right"
-            value={editForm.valor_unitario}
-            onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))}
-          />
-        </TableCell>
-        <TableCell className="text-xs text-right font-semibold">
-          R$ {((parseFloat(editForm.quantidade) || 0) * (parseFloat(editForm.valor_unitario) || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-        </TableCell>
-        <TableCell>
-          <div className="flex gap-1">
-            <Button size="sm" variant="ghost" onClick={handleSave} disabled={saving} className="h-7 px-2">
-              <Save className="h-3 w-3" />
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} disabled={saving} className="h-7 px-2">
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-        </TableCell>
-      </TableRow>
-    );
-  }
-
   return (
-    <TableRow>
-      <TableCell className="text-xs">{item.ordenacao}</TableCell>
-      <TableCell className="text-xs">{item.descricao}</TableCell>
-      <TableCell className="text-xs text-center">{item.quantidade}</TableCell>
-      <TableCell className="text-xs text-right">
-        R$ {(item.valor_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-      </TableCell>
-      <TableCell className="text-xs text-right font-semibold">
-        R$ {(item.subtotal || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-      </TableCell>
-      <TableCell>
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setIsEditing(true)}
-            disabled={saving}
-            className="h-7 px-2 text-blue-400 hover:text-blue-300"
-            title="Editar"
-          >
-            <span className="text-sm">✎</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onDelete(item.id)}
-            disabled={saving}
-            className="h-7 px-2"
-          >
-            <Trash2 className="h-3 w-3 text-destructive" />
-          </Button>
+    <div className="space-y-4">
+      {parts.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Nº Série</TableHead>
+              <TableHead>Qtd</TableHead>
+              <TableHead className="text-right">Valor Unitário</TableHead>
+              <TableHead className="text-right">Valor Total</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {parts.map((p: any) => (
+              <TableRow key={p.id}>
+                <TableCell className="font-medium">{p.descricao}</TableCell>
+                <TableCell>{p.numero_serie || "-"}</TableCell>
+                <TableCell>{p.quantidade}</TableCell>
+                <TableCell className="text-right">R$ {(p.valor_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                <TableCell className="text-right">R$ {(p.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
+                <TableCell>
+                  <div className="flex gap-1 justify-end">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditPart(p)}>
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeletePart(p.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {!showNewPartForm && (
+        <Button variant="outline" size="sm" onClick={() => setShowNewPartForm(true)} className="gap-1.5 w-full">
+          <Plus className="h-3.5 w-3.5" /> Adicionar Peça
+        </Button>
+      )}
+
+      {showNewPartForm && (
+        <div className="border-t pt-4 mt-4">
+          <h4 className="text-md font-semibold mb-3">Nova Peça</h4>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.target as HTMLFormElement;
+            const newPart = {
+              descricao: (form.elements.namedItem("descricao") as HTMLInputElement).value,
+              numero_serie: (form.elements.namedItem("numero_serie") as HTMLInputElement).value,
+              quantidade: parseFloat((form.elements.namedItem("quantidade") as HTMLInputElement).value),
+              valor_unitario: parseFloat((form.elements.namedItem("valor_unitario") as HTMLInputElement).value),
+            };
+            await handleAddPart(newPart);
+          }} className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="descricao">Descrição</Label>
+              <Input id="descricao" name="descricao" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="numero_serie">Número de Série</Label>
+              <Input id="numero_serie" name="numero_serie" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quantidade">Quantidade</Label>
+              <Input id="quantidade" name="quantidade" type="number" step="1" defaultValue="1" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="valor_unitario">Valor Unitário</Label>
+              <Input id="valor_unitario" name="valor_unitario" type="number" step="0.01" defaultValue="0" required />
+            </div>
+            <div className="col-span-2 flex justify-end gap-2 mt-2">
+              <Button type="button" variant="outline" onClick={() => setShowNewPartForm(false)} disabled={saving}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adicionando...</> : "Adicionar Peça"}
+              </Button>
+            </div>
+          </form>
         </div>
-      </TableCell>
-    </TableRow>
+      )}
+
+      {/* Edit Part Dialog */}
+      <Dialog open={!!editingPartId} onOpenChange={(open) => !open && setEditingPartId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Peça</DialogTitle>
+            <DialogDescription>Altere os detalhes da peça selecionada.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-descricao">Descrição</Label>
+              <Input id="edit-descricao" value={editForm?.descricao} onChange={e => setEditForm({ ...editForm, descricao: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-numero_serie">Número de Série</Label>
+              <Input id="edit-numero_serie" value={editForm?.numero_serie} onChange={e => setEditForm({ ...editForm, numero_serie: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-quantidade">Quantidade</Label>
+                <Input type="number" step="1" value={editForm?.quantidade} onChange={e => setEditForm({ ...editForm, quantidade: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-valor_unitario">Valor Unitário</Label>
+                <Input type="number" step="0.01" value={editForm?.valor_unitario} onChange={e => setEditForm({ ...editForm, valor_unitario: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditingPartId(null)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={saving || !editForm.descricao.trim()}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -781,9 +900,7 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs">Valor Total</p>
-                    <p className="font-bold text-green-400">
-                      R$ {(expandedService?.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </p>
+                    <p className="font-medium">R$ {(expandedService?.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
                   </div>
                 </div>
               </div>
@@ -791,25 +908,23 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
               {/* Itens do serviço */}
               <div className="space-y-3">
                 <h3 className="font-semibold text-sm">Itens do Serviço</h3>
-                {serviceItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">Nenhum item registrado</p>
-                ) : (
+                {serviceItems.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-xs">Ord.</TableHead>
-                        <TableHead className="text-xs">Descrição</TableHead>
-                        <TableHead className="text-xs text-center">Qtd</TableHead>
-                        <TableHead className="text-xs text-right">Valor Unit.</TableHead>
-                        <TableHead className="text-xs text-right">Subtotal</TableHead>
-                        <TableHead className="text-xs">Ações</TableHead>
+                        <TableHead className="w-[50px]">#</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="w-[100px] text-center">Qtd</TableHead>
+                        <TableHead className="w-[120px] text-right">Valor Unit.</TableHead>
+                        <TableHead className="w-[120px] text-right">Subtotal</TableHead>
+                        <TableHead className="w-[100px]" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {serviceItems.map((item: any) => (
+                      {serviceItems.map((item, index) => (
                         <ExpandedServiceItemRow
                           key={item.id}
-                          item={item}
+                          item={{ ...item, ordenacao: index + 1, subtotal: item.quantidade * item.valor_unitario }}
                           onUpdate={handleUpdateServiceItem}
                           onDelete={handleDeleteServiceItem}
                           saving={saving}
@@ -817,19 +932,24 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
                       ))}
                     </TableBody>
                   </Table>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Nenhum item adicionado a este serviço.</p>
                 )}
+                <CTMServiceItemsForm
+                  serviceId={expandedService?.id}
+                  onSaved={() => {
+                    handleExpandService(expandedService);
+                    onRefetch();
+                  }}
+                  onCancel={() => {}}
+                  buttonText="Adicionar Item"
+                />
               </div>
             </div>
           )}
 
-          <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setExpandingServiceId(null)}
-            >
-              Fechar
-            </Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExpandingServiceId(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -837,197 +957,126 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
   );
 }
 
-// ===== Parts Section =====
-function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: any[]; onRefetch: () => void }) {
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ descricao: "", part_number: "", fornecedor: "", quantidade: "1", valor_unitario: "" });
-  const [editingPartId, setEditingPartId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ descricao: "", part_number: "", fornecedor: "", quantidade: "1", valor_unitario: "" });
-  const [saving, setSaving] = useState(false);
+function SummaryCard({ label, value, color, highlight }: { label: string; value: number; color: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-xl p-4 text-center", highlight ? "bg-primary/10 border border-primary/20" : "bg-muted/30")}>
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <p className={cn("text-xl font-black", color)}>
+        R$ {value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+      </p>
+    </div>
+  );
+}
 
-  const handleAdd = async () => {
-    if (!form.descricao) return toast.error("Descrição é obrigatória");
-    setSaving(true);
-    const qty = parseInt(form.quantidade) || 1;
-    const unitVal = parseFloat(form.valor_unitario) || 0;
-    try {
-      const { error } = await supabase.from("ctm_parts").insert([{
-        service_order_id: orderId, descricao: form.descricao, part_number: form.part_number || null,
-        fornecedor: form.fornecedor || null, quantidade: qty, valor_unitario: unitVal, valor_total: qty * unitVal,
-      }]);
-      if (error) throw error;
-      toast.success("Peça adicionada");
-      setForm({ descricao: "", part_number: "", fornecedor: "", quantidade: "1", valor_unitario: "" });
-      setAdding(false);
-      onRefetch();
-    } catch (err: any) { toast.error(err.message); } finally { setSaving(false); }
-  };
+// ===== Expanded Service Item Row =====
+function ExpandedServiceItemRow({ item, onUpdate, onDelete, saving }: any) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    descricao: item.descricao,
+    quantidade: String(item.quantidade),
+    valor_unitario: String(item.valor_unitario),
+  });
 
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("ctm_parts").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("Peça removida"); onRefetch(); }
-  };
-
-  const handleEdit = (part: any) => {
-    setEditingPartId(part.id);
-    setEditForm({
-      descricao: part.descricao,
-      part_number: part.part_number || "",
-      fornecedor: part.fornecedor || "",
-      quantidade: String(part.quantidade),
-      valor_unitario: String(part.valor_unitario),
-    });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editForm.descricao) return toast.error("Descrição é obrigatória");
-    if (!editForm.valor_unitario) return toast.error("Valor unitário é obrigatório");
-
-    setSaving(true);
-    const qty = parseInt(editForm.quantidade) || 1;
+  const handleSave = async () => {
+    if (!editForm.descricao.trim()) {
+      toast.error("Descrição é obrigatória");
+      return;
+    }
+    const qty = parseFloat(editForm.quantidade) || 1;
     const unitVal = parseFloat(editForm.valor_unitario) || 0;
 
-    try {
-      const { error } = await supabase.from("ctm_parts").update({
-        descricao: editForm.descricao,
-        part_number: editForm.part_number || null,
-        fornecedor: editForm.fornecedor || null,
-        quantidade: qty,
-        valor_unitario: unitVal,
-        valor_total: qty * unitVal,
-      }).eq("id", editingPartId);
-
-      if (error) throw error;
-      toast.success("Peça atualizada com sucesso!");
-      setEditingPartId(null);
-      onRefetch();
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
+    await onUpdate(item.id, {
+      descricao: editForm.descricao,
+      quantidade: qty,
+      valor_unitario: unitVal,
+    });
+    setIsEditing(false);
   };
 
+  if (isEditing) {
+    return (
+      <TableRow>
+        <TableCell>{item.ordenacao}</TableCell>
+        <TableCell>
+          <Input
+            size={1}
+            className="text-xs"
+            value={editForm.descricao}
+            onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))}
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            min="1"
+            step="0.1"
+            size={1}
+            className="text-xs text-center"
+            value={editForm.quantidade}
+            onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))}
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            step="0.01"
+            size={1}
+            className="text-xs text-right"
+            value={editForm.valor_unitario}
+            onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))}
+          />
+        </TableCell>
+        <TableCell className="text-xs text-right font-semibold">
+          R$ {((parseFloat(editForm.quantidade) || 0) * (parseFloat(editForm.valor_unitario) || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+        </TableCell>
+        <TableCell>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost" onClick={handleSave} disabled={saving} className="h-7 px-2">
+              <Save className="h-3 w-3" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} disabled={saving} className="h-7 px-2">
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      {parts.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Descrição</TableHead>
-              <TableHead>P/N</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead>Qtd</TableHead>
-              <TableHead className="text-right">Valor Total</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {parts.map((p: any) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.descricao}</TableCell>
-                <TableCell>{p.part_number || "-"}</TableCell>
-                <TableCell>{p.fornecedor || "-"}</TableCell>
-                <TableCell>{p.quantidade}</TableCell>
-                <TableCell className="text-right">R$ {(p.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(p)} className="text-blue-400 hover:text-blue-300">
-                      <span className="text-lg">✎</span>
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      {adding ? (
-        <div className="bg-muted/30 rounded-lg p-4 space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="col-span-2"><Label className="text-xs">Descrição *</Label><Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} /></div>
-            <div><Label className="text-xs">P/N</Label><Input value={form.part_number} onChange={e => setForm(f => ({ ...f, part_number: e.target.value }))} /></div>
-            <div><Label className="text-xs">Fornecedor</Label><Input value={form.fornecedor} onChange={e => setForm(f => ({ ...f, fornecedor: e.target.value }))} /></div>
-            <div><Label className="text-xs">Qtd</Label><Input type="number" min="1" value={form.quantidade} onChange={e => setForm(f => ({ ...f, quantidade: e.target.value }))} /></div>
-            <div><Label className="text-xs">Valor Unit.</Label><Input type="number" step="0.01" value={form.valor_unitario} onChange={e => setForm(f => ({ ...f, valor_unitario: e.target.value }))} /></div>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" onClick={() => setAdding(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleAdd} disabled={saving}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Salvar</Button>
-          </div>
+    <TableRow>
+      <TableCell className="text-xs">{item.ordenacao}</TableCell>
+      <TableCell className="text-xs">{item.descricao}</TableCell>
+      <TableCell className="text-xs text-center">{item.quantidade}</TableCell>
+      <TableCell className="text-xs text-right">
+        R$ {(item.valor_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+      </TableCell>
+      <TableCell className="text-xs text-right font-semibold">
+        R$ {(item.subtotal || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+      </TableCell>
+      <TableCell>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIsEditing(true)}
+            disabled={saving}
+            className="h-7 px-2 text-blue-400 hover:text-blue-300"
+            title="Editar"
+          >
+            <span className="text-sm">✎</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDelete(item.id)}
+            disabled={saving}
+            className="h-7 px-2"
+          >
+            <Trash2 className="h-3 w-3 text-destructive" />
+          </Button>
         </div>
-      ) : (
-        <Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Adicionar Peça</Button>
-      )}
-
-      {/* Dialog para editar peça */}
-      <Dialog open={!!editingPartId} onOpenChange={(open) => !open && setEditingPartId(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar Peça</DialogTitle>
-            <DialogDescription>
-              Atualize os dados da peça
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs">Descrição *</Label>
-              <Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs">P/N</Label>
-                <Input value={editForm.part_number} onChange={e => setEditForm(f => ({ ...f, part_number: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs">Fornecedor</Label>
-                <Input value={editForm.fornecedor} onChange={e => setEditForm(f => ({ ...f, fornecedor: e.target.value }))} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs">Quantidade</Label>
-                <Input type="number" min="1" value={editForm.quantidade} onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs">Valor Unitário *</Label>
-                <Input type="number" step="0.01" value={editForm.valor_unitario} onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))} />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditingPartId(null)}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={saving || !editForm.descricao.trim()}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar Alterações"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      </TableCell>
+    </TableRow>
   );
 }

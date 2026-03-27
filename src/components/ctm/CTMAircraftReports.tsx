@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
@@ -182,18 +182,28 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
         return s + hours;
       }, 0);
 
+      const pTime = pEntries.reduce((s, e) => s + (Number(e.time) || 0), 0);
+      const pTotalTime = pEntries.reduce((s, e) => s + (Number(e.total_time) || 0), 0);
+
       return {
         id: p.id,
         pousos: pPousos,
         fuel: pFuel,
         hours: pHours,
+        time: pTime,
+        totalTime: pTotalTime,
       };
     });
+
+    const totalTime = monthEntries.reduce((s, e) => s + (Number(e.time) || 0), 0);
+    const totalTotalTime = monthEntries.reduce((s, e) => s + (Number(e.total_time) || 0), 0);
 
     return {
       totalPousos,
       totalFuel,
       totalHours,
+      totalTime,
+      totalTotalTime,
       avgCons,
       participants: participantsData,
     };
@@ -204,7 +214,9 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
     pousos: acc.pousos + m.totalPousos,
     fuel: acc.fuel + m.totalFuel,
     hours: acc.hours + m.totalHours,
-  }), { pousos: 0, fuel: 0, hours: 0 });
+    time: acc.time + m.totalTime,
+    totalTime: acc.totalTime + m.totalTotalTime,
+  }), { pousos: 0, fuel: 0, hours: 0, time: 0, totalTime: 0 });
 
   const yearlyAvgCons = yearlyTotal.hours > 0 ? yearlyTotal.fuel / yearlyTotal.hours : 0;
 
@@ -215,6 +227,8 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
       pousos: pStats.reduce((s, ps) => s + (ps?.pousos || 0), 0),
       fuel: pStats.reduce((s, ps) => s + (ps?.fuel || 0), 0),
       hours: pStats.reduce((s, ps) => s + (ps?.hours || 0), 0),
+      time: pStats.reduce((s, ps) => s + (ps?.time || 0), 0),
+      totalTime: pStats.reduce((s, ps) => s + (ps?.totalTime || 0), 0),
     };
   });
 
@@ -320,12 +334,16 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="bg-muted/40 text-xs uppercase">
-                      <th className="px-4 py-2 text-left border border-border">Mês</th>
-                      <th className="px-4 py-2 text-center border border-border">Total</th>
+                      <th className="px-3 py-2 text-left border border-border">Mês</th>
+                      <th className="px-3 py-2 text-center border border-border">Pousos</th>
+                      <th className="px-3 py-2 text-center border border-border">H Voo</th>
+                      <th className="px-3 py-2 text-center border border-border">H Total</th>
                       {allParticipants.map(p => (
-                        <th key={p.id} className="px-4 py-2 text-center border border-border">
+                        <th key={p.id} className="px-3 py-2 text-center border border-border" colSpan={3}>
                           <div>{p.name}</div>
-                          <div className="text-[10px] font-normal">{p.share.toFixed(1)}%</div>
+                          <div className="text-[10px] font-normal flex justify-center gap-2 mt-1">
+                            <span>Pousos</span><span>H Voo</span><span>H Total</span>
+                          </div>
                         </th>
                       ))}
                     </tr>
@@ -333,18 +351,30 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
                   <tbody>
                     {MONTH_NAMES.map((name, i) => (
                       <tr key={i} className="hover:bg-muted/10">
-                        <td className="px-4 py-2 font-semibold border border-border">{name}</td>
-                        <td className="px-4 py-2 text-center border border-border font-bold">{monthlyStats[i].totalPousos}</td>
+                        <td className="px-3 py-2 font-semibold border border-border">{name}</td>
+                        <td className="px-3 py-2 text-center border border-border font-bold">{monthlyStats[i].totalPousos}</td>
+                        <td className="px-3 py-2 text-center border border-border">{fmt2(monthlyStats[i].totalTime)}</td>
+                        <td className="px-3 py-2 text-center border border-border">{fmt2(monthlyStats[i].totalTotalTime)}</td>
                         {monthlyStats[i].participants.map(p => (
-                          <td key={p.id} className="px-4 py-2 text-center border border-border">{p.pousos}</td>
+                          <React.Fragment key={p.id}>
+                            <td className="px-3 py-2 text-center border border-border">{p.pousos}</td>
+                            <td className="px-3 py-2 text-center border border-border">{fmt2(p.time)}</td>
+                            <td className="px-3 py-2 text-center border border-border">{fmt2(p.totalTime)}</td>
+                          </React.Fragment>
                         ))}
                       </tr>
                     ))}
                     <tr className="bg-primary/10 font-bold">
-                      <td className="px-4 py-2 border border-border">TOTAL</td>
-                      <td className="px-4 py-2 text-center border border-border">{yearlyTotal.pousos}</td>
+                      <td className="px-3 py-2 border border-border">TOTAL</td>
+                      <td className="px-3 py-2 text-center border border-border">{yearlyTotal.pousos}</td>
+                      <td className="px-3 py-2 text-center border border-border">{fmt2(yearlyTotal.time)}</td>
+                      <td className="px-3 py-2 text-center border border-border">{fmt2(yearlyTotal.totalTime)}</td>
                       {yearlyParticipants.map(p => (
-                        <td key={p.id} className="px-4 py-2 text-center border border-border">{p.pousos}</td>
+                        <React.Fragment key={p.id}>
+                          <td className="px-3 py-2 text-center border border-border">{p.pousos}</td>
+                          <td className="px-3 py-2 text-center border border-border">{fmt2(p.time)}</td>
+                          <td className="px-3 py-2 text-center border border-border">{fmt2(p.totalTime)}</td>
+                        </React.Fragment>
                       ))}
                     </tr>
                   </tbody>

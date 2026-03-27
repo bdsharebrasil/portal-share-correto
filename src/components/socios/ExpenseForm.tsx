@@ -147,6 +147,7 @@ const EMPTY_FORM = {
   novoAbastBoleto: "",
   bankName: "",
   prazo: "extra" as "mensal" | "extra",
+  percentualSocio: "" as string,
   isInstallment: false,
   installmentCount: "1",
   installmentStartDate: format(new Date(), "yyyy-MM-dd"),
@@ -270,6 +271,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     form.assignedPartnerCpf && form.assignedPartnerCpf !== "none"
       ? partners.find((p) => p.cpf === form.assignedPartnerCpf)
       : null;
+
+  // Auto-fill percentual when partner changes
+  useEffect(() => {
+    if (assignedPartner?.share_percentage) {
+      setForm(prev => ({ ...prev, percentualSocio: assignedPartner.share_percentage!.toString() }));
+    } else if (form.assignedPartnerCpf === "none") {
+      setForm(prev => ({ ...prev, percentualSocio: "" }));
+    }
+  }, [form.assignedPartnerCpf]);
 
   // when category changes, reset link states and doc field
   useEffect(() => {
@@ -505,6 +515,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       doc: isDocCategory ? form.doc : null,
       boletoUrl: isDocCategory ? form.boletoUrl || null : null,
       demonstrativoUrl: isDocCategory ? form.demonstrativoUrl || null : null,
+      percentualSocio: form.percentualSocio ? parseFloat(form.percentualSocio) : null,
     };
 
     // Para abastecimentos, não criar em partner_expenses - apenas abastecimentos foi criado acima
@@ -822,6 +833,30 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       </Select>
                     </FormSection>
                   </div>
+
+                  {/* Percentual do Sócio - aparece quando sócio é selecionado */}
+                  {assignedPartner && partners.length > 1 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <FormSection label="% Compartilhamento">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={form.percentualSocio}
+                            onChange={(e) => set("percentualSocio")(e.target.value)}
+                            placeholder="Ex: 50"
+                            className="h-13 rounded-xl border-border/70 text-sm"
+                          />
+                          <span className="text-sm text-muted-foreground font-medium">%</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Deixe vazio ou 100% se a despesa é exclusiva deste sócio (não compartilhada)
+                        </p>
+                      </FormSection>
+                    </div>
+                  )}
 
                   {/* Categoria selecionada badge */}
                   {selectedCategory && (

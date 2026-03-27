@@ -44,6 +44,7 @@ export type Database = {
           partner_name: string | null
           prazo: string | null
           status_pagamento: string | null
+          tipo_combustivel: string | null
           tipo_faturamento: string | null
           trecho: string
           updated_at: string | null
@@ -79,6 +80,7 @@ export type Database = {
           partner_name?: string | null
           prazo?: string | null
           status_pagamento?: string | null
+          tipo_combustivel?: string | null
           tipo_faturamento?: string | null
           trecho: string
           updated_at?: string | null
@@ -114,6 +116,7 @@ export type Database = {
           partner_name?: string | null
           prazo?: string | null
           status_pagamento?: string | null
+          tipo_combustivel?: string | null
           tipo_faturamento?: string | null
           trecho?: string
           updated_at?: string | null
@@ -3145,6 +3148,7 @@ export type Database = {
           numero_documento: string | null
           observacao_cliente: string | null
           observacoes: string | null
+          percentual_socio: number | null
           prazo: string | null
           rateio_completo: boolean | null
           rateio_tipo: string | null
@@ -3189,6 +3193,7 @@ export type Database = {
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
+          percentual_socio?: number | null
           prazo?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
@@ -3233,6 +3238,7 @@ export type Database = {
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
+          percentual_socio?: number | null
           prazo?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
@@ -3659,19 +3665,26 @@ export type Database = {
           approval_status: string | null
           approved_at: string | null
           approved_by: string | null
+          approved_by_name: string | null
           budget_details: Json | null
           budget_file_name: string | null
           budget_file_path: string | null
           budget_items: Json | null
+          client_id: string | null
+          client_partner_id: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
+          financial_reference_id: string | null
+          financial_reference_table: string | null
           id: string
           month: number
           notes: string | null
           numero_orcamento: number | null
           oas_file_name: string | null
           oas_file_path: string | null
+          payment_status: string | null
+          payment_type: string | null
           pdf_file_name: string | null
           pdf_file_path: string | null
           rejection_reason: string | null
@@ -3679,6 +3692,7 @@ export type Database = {
           report_file_path: string | null
           service_order_id: string | null
           status: string | null
+          submitted_at: string | null
           supplier_name: string | null
           supplier_type: string | null
           total_value: number | null
@@ -3690,19 +3704,26 @@ export type Database = {
           approval_status?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          approved_by_name?: string | null
           budget_details?: Json | null
           budget_file_name?: string | null
           budget_file_path?: string | null
           budget_items?: Json | null
+          client_id?: string | null
+          client_partner_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          financial_reference_id?: string | null
+          financial_reference_table?: string | null
           id?: string
           month: number
           notes?: string | null
           numero_orcamento?: number | null
           oas_file_name?: string | null
           oas_file_path?: string | null
+          payment_status?: string | null
+          payment_type?: string | null
           pdf_file_name?: string | null
           pdf_file_path?: string | null
           rejection_reason?: string | null
@@ -3710,6 +3731,7 @@ export type Database = {
           report_file_path?: string | null
           service_order_id?: string | null
           status?: string | null
+          submitted_at?: string | null
           supplier_name?: string | null
           supplier_type?: string | null
           total_value?: number | null
@@ -3721,19 +3743,26 @@ export type Database = {
           approval_status?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          approved_by_name?: string | null
           budget_details?: Json | null
           budget_file_name?: string | null
           budget_file_path?: string | null
           budget_items?: Json | null
+          client_id?: string | null
+          client_partner_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          financial_reference_id?: string | null
+          financial_reference_table?: string | null
           id?: string
           month?: number
           notes?: string | null
           numero_orcamento?: number | null
           oas_file_name?: string | null
           oas_file_path?: string | null
+          payment_status?: string | null
+          payment_type?: string | null
           pdf_file_name?: string | null
           pdf_file_path?: string | null
           rejection_reason?: string | null
@@ -3741,6 +3770,7 @@ export type Database = {
           report_file_path?: string | null
           service_order_id?: string | null
           status?: string | null
+          submitted_at?: string | null
           supplier_name?: string | null
           supplier_type?: string | null
           total_value?: number | null
@@ -3748,6 +3778,48 @@ export type Database = {
           year?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft_availability"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
           {
             foreignKeyName: "ctm_budgets_service_order_id_fkey"
             columns: ["service_order_id"]
@@ -3955,6 +4027,109 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ctm_service_orders"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_itens_nao_controlados: {
+        Row: {
+          aircraft_id: string
+          created_at: string
+          data_ultima_troca: string | null
+          horas_apos: number | null
+          horas_restantes: number | null
+          horas_ultima_troca: number | null
+          id: string
+          marca: string | null
+          media_horas: number | null
+          nota_fiscal: string | null
+          observacoes: string | null
+          ordem_servico: string | null
+          posicao: string | null
+          pousos_apos: number | null
+          pousos_restantes: number | null
+          tipo_controle: string
+          updated_at: string
+        }
+        Insert: {
+          aircraft_id: string
+          created_at?: string
+          data_ultima_troca?: string | null
+          horas_apos?: number | null
+          horas_restantes?: number | null
+          horas_ultima_troca?: number | null
+          id?: string
+          marca?: string | null
+          media_horas?: number | null
+          nota_fiscal?: string | null
+          observacoes?: string | null
+          ordem_servico?: string | null
+          posicao?: string | null
+          pousos_apos?: number | null
+          pousos_restantes?: number | null
+          tipo_controle: string
+          updated_at?: string
+        }
+        Update: {
+          aircraft_id?: string
+          created_at?: string
+          data_ultima_troca?: string | null
+          horas_apos?: number | null
+          horas_restantes?: number | null
+          horas_ultima_troca?: number | null
+          id?: string
+          marca?: string | null
+          media_horas?: number | null
+          nota_fiscal?: string | null
+          observacoes?: string | null
+          ordem_servico?: string | null
+          posicao?: string | null
+          pousos_apos?: number | null
+          pousos_restantes?: number | null
+          tipo_controle?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft_availability"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
           },
         ]
       }
@@ -4397,12 +4572,20 @@ export type Database = {
       }
       ctm_services: {
         Row: {
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_name: string | null
           categoria: string | null
+          client_id: string | null
+          client_partner_id: string | null
           condicoes_pagamento: string | null
           created_at: string | null
           dados_pagamento: string | null
           data_execucao: string | null
           descricao: string
+          financial_reference_id: string | null
+          financial_reference_table: string | null
           fornecedor: string | null
           fornecedor_id: string | null
           id: string
@@ -4413,21 +4596,32 @@ export type Database = {
           numero_servico: string | null
           observacoes: string | null
           p_n: string | null
+          payment_status: string | null
+          payment_type: string | null
           periodo: string | null
           quantidade: number | null
           quantidade_items: number | null
           service_order_id: string
           status: string | null
+          submitted_at: string | null
           valor: number | null
           valor_unitario: number | null
         }
         Insert: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           categoria?: string | null
+          client_id?: string | null
+          client_partner_id?: string | null
           condicoes_pagamento?: string | null
           created_at?: string | null
           dados_pagamento?: string | null
           data_execucao?: string | null
           descricao: string
+          financial_reference_id?: string | null
+          financial_reference_table?: string | null
           fornecedor?: string | null
           fornecedor_id?: string | null
           id?: string
@@ -4438,21 +4632,32 @@ export type Database = {
           numero_servico?: string | null
           observacoes?: string | null
           p_n?: string | null
+          payment_status?: string | null
+          payment_type?: string | null
           periodo?: string | null
           quantidade?: number | null
           quantidade_items?: number | null
           service_order_id: string
           status?: string | null
+          submitted_at?: string | null
           valor?: number | null
           valor_unitario?: number | null
         }
         Update: {
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_by_name?: string | null
           categoria?: string | null
+          client_id?: string | null
+          client_partner_id?: string | null
           condicoes_pagamento?: string | null
           created_at?: string | null
           dados_pagamento?: string | null
           data_execucao?: string | null
           descricao?: string
+          financial_reference_id?: string | null
+          financial_reference_table?: string | null
           fornecedor?: string | null
           fornecedor_id?: string | null
           id?: string
@@ -4463,11 +4668,14 @@ export type Database = {
           numero_servico?: string | null
           observacoes?: string | null
           p_n?: string | null
+          payment_status?: string | null
+          payment_type?: string | null
           periodo?: string | null
           quantidade?: number | null
           quantidade_items?: number | null
           service_order_id?: string
           status?: string | null
+          submitted_at?: string | null
           valor?: number | null
           valor_unitario?: number | null
         }
@@ -8929,10 +9137,12 @@ export type Database = {
           assigned_partner_cpf: string | null
           assigned_partner_name: string | null
           bank_name: string | null
+          boleto_url: string | null
           category: string | null
           client_id: string
           created_at: string | null
           created_by: string | null
+          demonstrativo_url: string | null
           description: string
           doc: string | null
           due_date: string | null
@@ -8943,11 +9153,13 @@ export type Database = {
           installment_start_date: string | null
           invoice_number: string | null
           invoice_url: string | null
+          nf_url: string | null
           notes: string | null
           paid_date: string | null
           parent_expense_id: string | null
           payment_method: string | null
-          prazo: string | null
+          percentual_socio: number | null
+          prazo: string
           reference_id: string | null
           reference_type: string | null
           status: string | null
@@ -8960,10 +9172,12 @@ export type Database = {
           assigned_partner_cpf?: string | null
           assigned_partner_name?: string | null
           bank_name?: string | null
+          boleto_url?: string | null
           category?: string | null
           client_id: string
           created_at?: string | null
           created_by?: string | null
+          demonstrativo_url?: string | null
           description: string
           doc?: string | null
           due_date?: string | null
@@ -8974,11 +9188,13 @@ export type Database = {
           installment_start_date?: string | null
           invoice_number?: string | null
           invoice_url?: string | null
+          nf_url?: string | null
           notes?: string | null
           paid_date?: string | null
           parent_expense_id?: string | null
           payment_method?: string | null
-          prazo?: string | null
+          percentual_socio?: number | null
+          prazo: string
           reference_id?: string | null
           reference_type?: string | null
           status?: string | null
@@ -8991,10 +9207,12 @@ export type Database = {
           assigned_partner_cpf?: string | null
           assigned_partner_name?: string | null
           bank_name?: string | null
+          boleto_url?: string | null
           category?: string | null
           client_id?: string
           created_at?: string | null
           created_by?: string | null
+          demonstrativo_url?: string | null
           description?: string
           doc?: string | null
           due_date?: string | null
@@ -9005,11 +9223,13 @@ export type Database = {
           installment_start_date?: string | null
           invoice_number?: string | null
           invoice_url?: string | null
+          nf_url?: string | null
           notes?: string | null
           paid_date?: string | null
           parent_expense_id?: string | null
           payment_method?: string | null
-          prazo?: string | null
+          percentual_socio?: number | null
+          prazo?: string
           reference_id?: string | null
           reference_type?: string | null
           status?: string | null
@@ -9127,6 +9347,7 @@ export type Database = {
           partner_cpf: string
           partner_name: string
           payment_date: string | null
+          payment_method: string | null
           prazo: string | null
           receipt_url: string | null
           reference_id: string | null
@@ -9151,6 +9372,7 @@ export type Database = {
           partner_cpf: string
           partner_name: string
           payment_date?: string | null
+          payment_method?: string | null
           prazo?: string | null
           receipt_url?: string | null
           reference_id?: string | null
@@ -9175,6 +9397,7 @@ export type Database = {
           partner_cpf?: string
           partner_name?: string
           payment_date?: string | null
+          payment_method?: string | null
           prazo?: string | null
           receipt_url?: string | null
           reference_id?: string | null
@@ -9911,15 +10134,19 @@ export type Database = {
           data_vencimento: string | null
           despesa_id: string
           forma_pagamento: string | null
+          horas_voadas: number | null
           id: string
           nota_fiscal: string | null
           observacoes: string | null
           pago_diretamente: boolean | null
           partner_name: string | null
           percentual: number | null
+          percentual_voo: number | null
           recebimento_id: string | null
           status: string | null
+          tipo_rateio: string | null
           valor: number | null
+          valor_por_voo: number | null
           valor_rateado: number
         }
         Insert: {
@@ -9939,15 +10166,19 @@ export type Database = {
           data_vencimento?: string | null
           despesa_id: string
           forma_pagamento?: string | null
+          horas_voadas?: number | null
           id?: string
           nota_fiscal?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
           partner_name?: string | null
           percentual?: number | null
+          percentual_voo?: number | null
           recebimento_id?: string | null
           status?: string | null
+          tipo_rateio?: string | null
           valor?: number | null
+          valor_por_voo?: number | null
           valor_rateado: number
         }
         Update: {
@@ -9967,15 +10198,19 @@ export type Database = {
           data_vencimento?: string | null
           despesa_id?: string
           forma_pagamento?: string | null
+          horas_voadas?: number | null
           id?: string
           nota_fiscal?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
           partner_name?: string | null
           percentual?: number | null
+          percentual_voo?: number | null
           recebimento_id?: string | null
           status?: string | null
+          tipo_rateio?: string | null
           valor?: number | null
+          valor_por_voo?: number | null
           valor_rateado?: number
         }
         Relationships: [
@@ -11645,7 +11880,7 @@ export type Database = {
       weight_balance: {
         Row: {
           aircraft_id: string
-          braço_cg_padrao: number
+          braco_cg_padrao: number
           capacidade_combustivel_total: number | null
           capacidade_combustivel_util: number | null
           cg_limite_dianteiro: number
@@ -11655,7 +11890,7 @@ export type Database = {
           id: string
           lemac_distancia: number
           mac_comprimento: number
-          momento_padrao: number
+          momento_padrao: number | null
           notas: string | null
           peso_maximo_decolagem: number
           peso_maximo_pouso: number
@@ -11668,7 +11903,7 @@ export type Database = {
         }
         Insert: {
           aircraft_id: string
-          braço_cg_padrao: number
+          braco_cg_padrao: number
           capacidade_combustivel_total?: number | null
           capacidade_combustivel_util?: number | null
           cg_limite_dianteiro: number
@@ -11678,7 +11913,7 @@ export type Database = {
           id?: string
           lemac_distancia: number
           mac_comprimento: number
-          momento_padrao: number
+          momento_padrao?: number | null
           notas?: string | null
           peso_maximo_decolagem: number
           peso_maximo_pouso: number
@@ -11691,7 +11926,7 @@ export type Database = {
         }
         Update: {
           aircraft_id?: string
-          braço_cg_padrao?: number
+          braco_cg_padrao?: number
           capacidade_combustivel_total?: number | null
           capacidade_combustivel_util?: number | null
           cg_limite_dianteiro?: number
@@ -11701,7 +11936,7 @@ export type Database = {
           id?: string
           lemac_distancia?: number
           mac_comprimento?: number
-          momento_padrao?: number
+          momento_padrao?: number | null
           notas?: string | null
           peso_maximo_decolagem?: number
           peso_maximo_pouso?: number

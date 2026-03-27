@@ -122,7 +122,7 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
           .neq('status_pagamento', 'pago');
 
         if (aircraftId) {
-          abastecimentoQuery = abastecimentoQuery.eq('aircraft_id', aircraftId);
+          abastecimentoQuery = abastecimentoQuery.eq('aeronave_id', aircraftId);
         }
 
         const { data: abastecimentoData, error: abastecimentoError } = await abastecimentoQuery;
@@ -252,7 +252,7 @@ export function useSaldosDevedoresDetalhes(
             .neq('status_pagamento', 'pago');
 
           if (aircraftId) {
-            abastecimentoQuery = abastecimentoQuery.eq('aircraft_id', aircraftId);
+            abastecimentoQuery = abastecimentoQuery.eq('aeronave_id', aircraftId);
           }
 
           const { data: abastecimentosData, error: abastecimentosError } = await abastecimentoQuery.order('data', { ascending: false });

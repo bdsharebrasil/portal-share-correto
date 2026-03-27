@@ -747,6 +747,7 @@ export function useCreateExpense(showToast = true) {
       aircraftId?: string | null;
       status?: string | null;
       abastecimentoId?: string | null;
+      percentualSocio?: number | null;
     }) => {
       // Se for abastecimento, NUNCA criar em partner_expenses - apenas atualizar abastecimentos
       if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
@@ -823,7 +824,8 @@ export function useCreateExpense(showToast = true) {
           installment_count: installmentCount,
           installment_number: 0,
           installment_start_date: startDate?.toISOString().split("T")[0] || null,
-          parent_expense_id: null,
+           parent_expense_id: null,
+          percentual_socio: data.percentualSocio ?? null,
         };
 
         expenses.push(originalExpense);
@@ -855,6 +857,7 @@ export function useCreateExpense(showToast = true) {
             installment_number: i,
             installment_start_date: startDate?.toISOString().split("T")[0] || null,
             parent_expense_id: null,
+            percentual_socio: data.percentualSocio ?? null,
           });
         }
 
@@ -898,6 +901,7 @@ export function useCreateExpense(showToast = true) {
           reference_id: data.referenceId || null,
           installment_count: 1,
           installment_number: 1,
+          percentual_socio: data.percentualSocio ?? null,
         });
         if (error) throw error;
       }

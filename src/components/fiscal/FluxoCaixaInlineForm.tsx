@@ -140,6 +140,7 @@ export function FluxoCaixaInlineForm({
   const [isReembolsavel, setIsReembolsavel] = useState(false);
   const [temRateio, setTemRateio] = useState(false);
   const [rateioDialogOpen, setRateioDialogOpen] = useState(false);
+  const [tipoRateio, setTipoRateio] = useState<"propriedade" | "uso" | "misto">("propriedade");
   const [dataCalendarOpen, setDataCalendarOpen] = useState(false);
   const [dataVencimentoCalendarOpen, setDataVencimentoCalendarOpen] = useState(false);
 
@@ -515,7 +516,7 @@ export function FluxoCaixaInlineForm({
         fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
         reembolsavel: isReembolsavel,
         tem_rateio: temRateio,
-        rateio_tipo: rateioData?.tipo || null,
+        rateio_tipo: rateioData?.tipo || tipoRateio || null,
         grupo_categoria: grupoCategoria,
         atualizado_por: user.id,
         comprovante_url: comprovanteUrl,
@@ -934,22 +935,40 @@ export function FluxoCaixaInlineForm({
             )}
 
             {isReembolsavel && watch("aeronave") && (
-              <div className="flex items-center gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant={temRateio ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setRateioDialogOpen(true)}
-                  className="gap-2"
-                >
-                  <Split className="h-4 w-4" />
-                  {temRateio ? "Editar Rateio" : "Configurar Rateio"}
-                </Button>
-                {temRateio && rateioData && (
-                  <Badge variant="secondary" className="text-xs">
-                    {rateioData.socios.length} sócios
-                  </Badge>
-                )}
+              <div className="flex flex-col gap-3 pt-2">
+                <div>
+                  <Label htmlFor="tipo_rateio" className="text-sm font-semibold text-foreground mb-2">
+                    Tipo de Rateio *
+                  </Label>
+                  <Select value={tipoRateio} onValueChange={(v) => setTipoRateio(v as any)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="propriedade">Por Propriedade (%)</SelectItem>
+                      <SelectItem value="uso">Por Uso (Horas Voadas)</SelectItem>
+                      <SelectItem value="misto">Misto (Propriedade + Uso)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant={temRateio ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setRateioDialogOpen(true)}
+                    className="gap-2"
+                  >
+                    <Split className="h-4 w-4" />
+                    {temRateio ? "Editar Rateio" : "Configurar Rateio"}
+                  </Button>
+                  {temRateio && rateioData && (
+                    <Badge variant="secondary" className="text-xs">
+                      {rateioData.socios.length} sócios
+                    </Badge>
+                  )}
+                </div>
               </div>
             )}
           </Card>
@@ -1627,6 +1646,8 @@ export function FluxoCaixaInlineForm({
         valorTotal={parseFloat(watch("valor") || "0")}
         aeronaveRegistro={watch("aeronave") || ""}
         aeronaveId={aeronaves?.find(a => a.registration === watch("aeronave"))?.id}
+        tipoRateio={tipoRateio}
+        periodo={{ inicio: watch("data"), fim: watch("data_vencimento") || watch("data") }}
         onSave={handleRateioSave}
       />
     </div>

@@ -16,8 +16,6 @@ import { useCTMServiceOrders } from '@/hooks/useCTMServiceOrders';
 import { useCTMBudgetTracking } from '@/hooks/useCTMBudgetTracking';
 import { useCTMDocumentGeneration } from '@/hooks/useCTMDocumentGeneration';
 import { CTMOASDetail } from '@/components/ctm/CTMOASDetail';
-import { CTMComponentMap } from '@/components/ctm/CTMComponentMap';
-import { CTMWeightBalanceComplete } from '@/components/ctm/CTMWeightBalanceComplete';
 import { CTMBudgetFromOAS } from '@/components/ctm/CTMBudgetFromOAS';
 import { CTMOASDocumentGenerator } from '@/components/ctm/CTMOASDocumentGenerator';
 
@@ -28,7 +26,7 @@ interface CTMOASDetailPageProps {
   onBack?: () => void;
 }
 
-type TabId = 'informacoes' | 'servicos' | 'pecas' | 'rateio' | 'financeiro' | 'componentes' | 'peso' | 'orcamentos' | 'documentos';
+type TabId = 'informacoes' | 'servicos' | 'pecas' | 'rateio' | 'financeiro' | 'orcamentos' | 'documentos';
 
 interface Tab {
   id: TabId;
@@ -64,8 +62,6 @@ export function CTMOASDetailPage({
     { id: 'pecas', label: 'Peças', icon: <Package className="h-4 w-4" />, count: details?.parts?.length || 0 },
     { id: 'rateio', label: 'Rateio', icon: <Users className="h-4 w-4" />, count: details?.costSharing?.length || 0 },
     { id: 'financeiro', label: 'Financeiro', icon: <DollarSign className="h-4 w-4" /> },
-    { id: 'componentes', label: 'Mapa de Componentes', icon: <MapPin className="h-4 w-4" /> },
-    { id: 'peso', label: 'Peso e Balanceamento', icon: <Weight className="h-4 w-4" /> },
     { id: 'orcamentos', label: 'Orçamentos', icon: <TrendingUp className="h-4 w-4" />, count: linkedBudgets.length },
     { id: 'documentos', label: 'Documentos', icon: <FileText className="h-4 w-4" />, count: documents.length },
   ];
@@ -230,7 +226,7 @@ export function CTMOASDetailPage({
                 { label: 'Tipo Rateio', value: oasData.tipo_rateio },
                 { label: 'Data Entrada', value: oasData.data_entrada ? formatDateToBR(oasData.data_entrada) : undefined },
               ].map(({ label, value }) => (
-                <div key={label} className="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+                <div key={label} className="bg-slate-800/40 border border-white/5 rounded-xl p-3">
                   <p className="text-xs text-slate-500 mb-1">{label}</p>
                   <p className="font-semibold text-white">{value || '—'}</p>
                 </div>
@@ -240,17 +236,12 @@ export function CTMOASDetailPage({
 
           {/* Servicos, Pecas, Rateio, Financeiro - Use CTMOASDetail component */}
           {['servicos', 'pecas', 'rateio', 'financeiro'].includes(activeTab) && (
-            <CTMOASDetail orderId={oasId} onClose={() => {}} />
-          )}
-
-          {/* Componentes */}
-          {activeTab === 'componentes' && (
-            <CTMComponentMap aircraftId={aircraftId} />
-          )}
-
-          {/* Peso e Balanceamento */}
-          {activeTab === 'peso' && (
-            <CTMWeightBalanceComplete aircraftId={aircraftId} aircraftRegistration={aircraftRegistration || ''} />
+            <CTMOASDetail 
+              orderId={oasId} 
+              onClose={() => {}} 
+              forcedSection={activeTab === 'financeiro' ? 'resumo' : activeTab}
+              hideHeader={true}
+            />
           )}
 
           {/* Orçamentos */}
