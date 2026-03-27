@@ -22,7 +22,8 @@ interface WeightBalanceData {
   id: string;
   aircraft_id: string;
   peso_vazio_padrao: number;
-  braço_cg_padrao: number;
+  braço_cg_padrao?: number;
+  braco_cg_padrao?: number;
   peso_maximo_decolagem: number;
   peso_maximo_pouso: number;
   cg_limite_dianteiro: number;
