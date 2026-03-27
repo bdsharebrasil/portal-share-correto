@@ -3,9 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRateioDespesas } from "@/hooks/useRateioDespesas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Users, TrendingUp, TrendingDown, CheckCircle, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Users, TrendingUp, TrendingDown, CheckCircle, DollarSign, FileDown, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Props {
   clienteId: string;
@@ -16,7 +19,7 @@ interface Props {
 interface PartnerDebt {
   fromPartner: { id: string; name: string; cpf: string; share_percentage: number };
   toPartner: { id: string; name: string; cpf: string; share_percentage: number };
-  amount: number; // positive = fromPartner owes toPartner
+  amount: number;
 }
 
 function fmt(v: number) {
@@ -25,59 +28,47 @@ function fmt(v: number) {
 
 function getDifferencaColor(diff: number) {
   if (Math.abs(diff) < 0.01) return "text-slate-400";
-  if (diff > 0) return "text-red-500"; // deve pagar mais
-  return "text-green-500"; // tem crédito
+  if (diff > 0) return "text-green-500"; // tem crédito
+  return "text-red-500"; // deve pagar
 }
 
 function getDifferencaBg(diff: number) {
   if (Math.abs(diff) < 0.01) return "bg-slate-900/30";
-  if (diff > 0) return "bg-red-950/30"; // deve pagar mais
-  return "bg-green-950/30"; // tem crédito
+  if (diff > 0) return "bg-green-950/30";
+  return "bg-red-950/30";
 }
 
 export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props) {
-  // Fetch partners from client_aircraft (multiple clients sharing same aircraft)
   const { data: partnersData, isLoading: partsLoading } = useQuery({
     queryKey: ["partners", aeronaveId],
     queryFn: async () => {
       if (!aeronaveId) return [];
-
-      // Get all clients sharing this aircraft
       const { data: aircraftClients, error } = await supabase
         .from("client_aircraft")
         .select("client_id, share_percentage")
         .eq("aircraft_id", aeronaveId);
       if (error) throw error;
-
-      if (!aircraftClients || aircraftClients.length < 2) {
-        return [];
-      }
-
-      // Get client details for each
+      if (!aircraftClients || aircraftClients.length < 2) return [];
       const clientIds = aircraftClients.map((ac: any) => ac.client_id);
       const { data: clients, error: clErr } = await supabase
         .from("clients")
         .select("id, company_name, cnpj")
         .in("id", clientIds);
       if (clErr) throw clErr;
-
-      // Merge data
-      return aircraftClients
-        .map((ac: any) => {
-          const client = clients?.find((c: any) => c.id === ac.client_id);
-          return {
-            id: ac.client_id,
-            name: client?.company_name || "Unknown",
-            cpf: client?.cnpj || "",
-            share_percentage: parseFloat(ac.share_percentage || "0"),
-          };
-        });
+      return aircraftClients.map((ac: any) => {
+        const client = clients?.find((c: any) => c.id === ac.client_id);
+        return {
+          id: ac.client_id,
+          name: client?.company_name || "Unknown",
+          cpf: client?.cnpj || "",
+          share_percentage: parseFloat(ac.share_percentage || "0"),
+        };
+      });
     },
     enabled: !!aeronaveId,
   });
 
-  // Fetch rateio_despesas data
-  const { data: rateioDespesas, isLoading: rateioLoading } = useRateioDespesas({
+  const { data: rateioData, isLoading: rateioLoading } = useRateioDespesas({
     clienteId,
     aeronaveId,
     periodo,
@@ -88,134 +79,183 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
   if (isLoading) {
     return (
       <Card className="border border-border/50 bg-card/80 rounded-2xl">
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
+        <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
         <CardContent className="space-y-4">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" />
         </CardContent>
       </Card>
     );
   }
 
-  if (!partnersData || partnersData.length < 2) {
+  const despesasRaw = rateioData?.despesas || [];
+
+  // Group by despesa_id and collect all rateio records
+  const groupedDespesasMap: Map<string, any> = new Map();
+  despesasRaw.forEach((d: any) => {
+    if (!groupedDespesasMap.has(d.despesa_id)) {
+      groupedDespesasMap.set(d.despesa_id, {
+        despesa_id: d.despesa_id,
+        data: d.data_vencimento,
+        valor_total: d.valor || 0,
+        rateios: [], // Array of all rateio records for this expense
+      });
+    }
+    const group = groupedDespesasMap.get(d.despesa_id);
+    group.rateios.push(d);
+  });
+
+  const groupedDespesas = Array.from(groupedDespesasMap.values());
+
+  // Extract unique partner names from all rateios
+  const rateioPartnerNames = Array.from(
+    new Set(despesasRaw.map((d: any) => (d.partner_name || d.client_name || "").toString().trim()).filter(Boolean))
+  );
+
+  const partners = partnersData && partnersData.length >= 2 
+    ? partnersData 
+    : rateioPartnerNames.map((name, index) => {
+        const exemplar = despesasRaw.find((d: any) => (d.partner_name || d.client_name || "").toString().trim() === name);
+        return { 
+          id: exemplar?.client_id || `rf-${index}`, 
+          name, 
+          cpf: exemplar?.client_id || `rf-${index}`, 
+          share_percentage: exemplar?.percentual || 0 
+        };
+      });
+
+  if (!partners || partners.length < 2) {
     return (
       <Card className="border border-border/50 bg-card/80 rounded-2xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="h-5 w-5 text-primary" />
-            Gestão de Compartilhamento
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-8">
-            Este cliente não possui múltiplos sócios. A gestão de compartilhamento é aplicável apenas para aeronaves compartilhadas entre 2 ou mais sócios.
-          </p>
-        </CardContent>
+        <CardHeader><CardTitle className="text-base">Gestão de Compartilhamento</CardTitle></CardHeader>
+        <CardContent><p className="text-sm text-muted-foreground text-center py-8">Apenas para aeronaves compartilhadas.</p></CardContent>
       </Card>
     );
   }
 
-  const partners = partnersData;
-  const despesas = rateioDespesas?.despesas || [];
+  // Calculate balances: Pago - Devido = Saldo
+  const partnerBalances: Record<string, { totalPago: number; totalDevido: number }> = {};
+  partners.forEach(p => {
+    partnerBalances[p.name] = { totalPago: 0, totalDevido: 0 };
+  });
 
-  // Calculate partner-level summary
-  const partnerSummary: Record<
-    string,
-    {
-      name: string;
-      cpf: string;
-      share_percentage: number;
-      totalPorPropriedade: number;
-      totalPorUso: number;
-      diferenca: number;
-    }
-  > = {};
+  groupedDespesas.forEach(group => {
+    group.rateios.forEach((rateio: any) => {
+      const partnerName = rateio.partner_name || rateio.client_name;
+      if (partnerBalances[partnerName]) {
+        // Valor Devido: valor_por_voo (based on usage/rateio)
+        partnerBalances[partnerName].totalDevido += rateio.valor_por_voo || 0;
+        
+        // Valor Pago: if pago_diretamente is true, they paid the full valor_total
+        // Otherwise, they paid their share (valor_rateado)
+        if (rateio.pago_diretamente) {
+          partnerBalances[partnerName].totalPago += group.valor_total;
+        } else {
+          partnerBalances[partnerName].totalPago += rateio.valor_rateado || 0;
+        }
+      }
+    });
+  });
 
-  partners.forEach((p) => {
-    partnerSummary[p.cpf] = {
-      name: p.name,
-      cpf: p.cpf,
-      share_percentage: p.share_percentage,
-      totalPorPropriedade: 0,
-      totalPorUso: 0,
-      diferenca: 0,
+  const summaryArray = partners.map(p => {
+    const bal = partnerBalances[p.name];
+    const saldo = bal.totalPago - bal.totalDevido; // Positive = credit, Negative = debt
+    return { 
+      ...p, 
+      totalPago: bal.totalPago, 
+      totalDevido: bal.totalDevido, 
+      saldo 
     };
   });
 
-  // Aggregate despesas by partner (client_name or partner_name)
-  despesas.forEach((d) => {
-    const partnerName = d.partner_name || d.client_name;
-    const partner = partners.find((p) => p.name === partnerName);
-
-    if (partner) {
-      partnerSummary[partner.cpf].totalPorPropriedade += d.valor_rateado || 0;
-      partnerSummary[partner.cpf].totalPorUso += d.valor_por_voo || 0;
-      partnerSummary[partner.cpf].diferenca = partnerSummary[partner.cpf].totalPorUso - partnerSummary[partner.cpf].totalPorPropriedade;
-    }
-  });
-
-  const summaryArray = Object.values(partnerSummary);
-  const totalPropriedade = summaryArray.reduce((sum, p) => sum + p.totalPorPropriedade, 0);
-  const totalUso = summaryArray.reduce((sum, p) => sum + p.totalPorUso, 0);
-
-  // Generate debt pairs based on usage-based allocation
+  // Debt resolution
   const debts: PartnerDebt[] = [];
-  const balances: Record<string, number> = {};
-
-  partners.forEach((p) => {
-    const summary = partnerSummary[p.cpf];
-    // Balance = (should pay by usage) - (should pay by property)
-    // Positive = should pay more, negative = should pay less (has credit)
-    balances[p.cpf] = summary.totalPorUso - summary.totalPorPropriedade;
+  const tempBalances = { ...partnerBalances };
+  
+  summaryArray.forEach(s => {
+    tempBalances[s.name] = { totalPago: s.totalPago, totalDevido: s.totalDevido };
   });
 
-  // Simple debt resolution for 2+ partners
-  if (partners.length === 2) {
-    const [p1, p2] = partners;
-    const bal1 = balances[p1.cpf] || 0;
-    if (Math.abs(bal1) > 0.01) {
-      if (bal1 > 0) {
-        debts.push({ fromPartner: p1, toPartner: p2, amount: bal1 });
-      } else {
-        debts.push({ fromPartner: p2, toPartner: p1, amount: -bal1 });
-      }
-    }
-  } else {
-    // For 3+ partners
-    const tempBalances = { ...balances };
-    const debtors = partners.filter((p) => (tempBalances[p.cpf] || 0) > 0.01);
-    const creditors = partners.filter((p) => (tempBalances[p.cpf] || 0) < -0.01);
+  const debtorsData = summaryArray.filter(s => s.saldo < -0.01);
+  const creditorsData = summaryArray.filter(s => s.saldo > 0.01);
 
-    for (const debtor of debtors) {
-      for (const creditor of creditors) {
-        const debtorBal = tempBalances[debtor.cpf] || 0;
-        const creditorBal = tempBalances[creditor.cpf] || 0;
-        if (debtorBal <= 0.01 || creditorBal >= -0.01) continue;
-
-        const transfer = Math.min(debtorBal, -creditorBal);
-        if (transfer > 0.01) {
-          debts.push({ fromPartner: debtor, toPartner: creditor, amount: transfer });
-          tempBalances[debtor.cpf] -= transfer;
-          tempBalances[creditor.cpf] += transfer;
-        }
+  debtorsData.forEach(debtor => {
+    creditorsData.forEach(creditor => {
+      const debtAmount = Math.abs(debtor.saldo);
+      const creditAmount = creditor.saldo;
+      if (debtAmount <= 0.01 || creditAmount <= 0.01) return;
+      
+      const transfer = Math.min(debtAmount, creditAmount);
+      if (transfer > 0.01) {
+        debts.push({ 
+          fromPartner: debtor, 
+          toPartner: creditor, 
+          amount: transfer 
+        });
       }
-    }
-  }
+    });
+  });
+
+  const exportToPDF = () => {
+    const doc = new jsPDF('landscape');
+    doc.setFontSize(16);
+    doc.text("Relatório de Rateio e Compensação Financeira", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Período: ${periodo.inicio} a ${periodo.fim}`, 14, 28);
+
+    const headers = [
+      ["DATA", "VALOR TOTAL", ...partners.flatMap(p => [`${p.name} (Devido)`, `${p.name} (Pago)`])]
+    ];
+
+    const body = groupedDespesas.map(group => [
+      group.data,
+      fmt(group.valor_total),
+      ...partners.flatMap(p => {
+        const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+        return [
+          rateio ? fmt(rateio.valor_por_voo || 0) : "-",
+          rateio ? fmt(rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0)) : "-"
+        ];
+      })
+    ]);
+
+    // Add totals row
+    body.push([
+      "TOTAL",
+      fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0)),
+      ...partners.flatMap(p => [
+        fmt(partnerBalances[p.name].totalDevido),
+        fmt(partnerBalances[p.name].totalPago)
+      ])
+    ]);
+
+    autoTable(doc, { 
+      startY: 35, 
+      head: headers, 
+      body: body, 
+      theme: 'grid', 
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [200, 200, 200], textColor: 0 }
+    });
+
+    doc.save(`rateio_compensacao_${periodo.inicio}_${periodo.fim}.pdf`);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Expense-by-Expense Breakdown */}
+      {/* Main Table: Despesas com Devido vs Pago */}
       <Card className="border border-border/50 bg-card/80 rounded-2xl">
-        <CardHeader className="pb-3">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <DollarSign className="h-5 w-5 text-primary" />
-            Detalhamento de Despesas
+            <Wallet className="h-5 w-5 text-primary" />
+            Conciliação de Despesas (Devido vs Pago)
           </CardTitle>
+          <Button variant="outline" size="sm" onClick={exportToPDF} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            Exportar PDF
+          </Button>
         </CardHeader>
         <CardContent>
-          {despesas.length === 0 ? (
+          {groupedDespesas.length === 0 ? (
             <div className="text-center py-8 text-sm text-muted-foreground">
               Nenhuma despesa registrada neste período.
             </div>
@@ -223,39 +263,69 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border/50">
-                    <TableHead className="text-xs">Sócio</TableHead>
-                    <TableHead className="text-xs">Devia por Propriedade</TableHead>
-                    <TableHead className="text-xs">Deve por Uso</TableHead>
-                    <TableHead className="text-xs">Diferença</TableHead>
+                  <TableRow className="border-border/50 bg-muted/20">
+                    <TableHead className="text-xs font-bold">DATA</TableHead>
+                    <TableHead className="text-xs font-bold">VALOR TOTAL</TableHead>
+                    {partners.map(p => (
+                      <TableHead key={p.id} className="text-xs font-bold text-center border-l border-border/50 col-span-2">
+                        {p.name.toUpperCase()}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                  <TableRow className="border-border/50 bg-muted/10">
+                    <TableHead className="text-[10px]"></TableHead>
+                    <TableHead className="text-[10px]"></TableHead>
+                    {partners.map(p => (
+                      <>
+                        <TableHead key={`${p.id}-devido`} className="text-[10px] text-center border-l border-border/50">DEVIDO</TableHead>
+                        <TableHead key={`${p.id}-pago`} className="text-[10px] text-center">PAGO</TableHead>
+                      </>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {despesas.map((d, i) => {
-                    const dif = (d.valor_por_voo || 0) - (d.valor_rateado || 0);
-                    const shouldPayMore = dif > 0.01;
-                    const hasCredit = dif < -0.01;
+                  {groupedDespesas.map((group, i) => (
+                    <TableRow key={i} className="border-border/50 hover:bg-muted/20">
+                      <TableCell className="text-xs">{group.data}</TableCell>
+                      <TableCell className="text-xs font-medium">{fmt(group.valor_total)}</TableCell>
+                      {partners.map(p => {
+                        const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+                        const devido = rateio ? (rateio.valor_por_voo || 0) : 0;
+                        const pago = rateio 
+                          ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
+                          : 0;
+                        const diferenca = pago - devido;
 
-                    return (
-                      <TableRow key={i} className="border-border/50 hover:bg-muted/20">
-                        <TableCell className="text-xs font-medium">{d.partner_name || d.client_name}</TableCell>
-                        <TableCell className="text-xs">{fmt(d.valor_rateado || 0)}</TableCell>
-                        <TableCell className="text-xs">{fmt(d.valor_por_voo || 0)}</TableCell>
-                        <TableCell className={`text-xs font-semibold ${getDifferencaColor(dif)}`}>
-                          {shouldPayMore && "+"}
-                          {fmt(dif)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                        return (
+                          <>
+                            <TableCell key={`${p.id}-dev`} className="text-xs text-center border-l border-border/50">
+                              {fmt(devido)}
+                            </TableCell>
+                            <TableCell 
+                              key={`${p.id}-pag`} 
+                              className={`text-xs text-center font-medium ${diferenca > 0.01 ? 'bg-green-950/20 text-green-500' : diferenca < -0.01 ? 'bg-red-950/20 text-red-500' : ''}`}
+                            >
+                              {fmt(pago)}
+                            </TableCell>
+                          </>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
                   {/* Totals Row */}
-                  <TableRow className="border-t-2 border-border/50 bg-muted/30 font-semibold">
-                    <TableCell className="text-xs font-bold">TOTAL</TableCell>
-                    <TableCell className="text-xs">{fmt(totalPropriedade)}</TableCell>
-                    <TableCell className="text-xs">{fmt(totalUso)}</TableCell>
-                    <TableCell className={`text-xs font-bold ${getDifferencaColor(totalUso - totalPropriedade)}`}>
-                      {fmt(totalUso - totalPropriedade)}
-                    </TableCell>
+                  <TableRow className="border-t-2 border-border/50 bg-muted/30 font-bold">
+                    <TableCell className="text-xs">TOTAL</TableCell>
+                    <TableCell className="text-xs">{fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0))}</TableCell>
+                    {partners.map(p => (
+                      <>
+                        <TableCell key={`${p.id}-total-dev`} className="text-xs text-center border-l border-border/50">
+                          {fmt(partnerBalances[p.name].totalDevido)}
+                        </TableCell>
+                        <TableCell key={`${p.id}-total-pag`} className="text-xs text-center">
+                          {fmt(partnerBalances[p.name].totalPago)}
+                        </TableCell>
+                      </>
+                    ))}
                   </TableRow>
                 </TableBody>
               </Table>
@@ -264,57 +334,54 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
+      {/* Summary Cards: Saldo Final */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {summaryArray.map((summary) => {
-          const isOwing = summary.diferenca > 0.01;
-          const hasCredit = summary.diferenca < -0.01;
+        {summaryArray.map((s) => {
+          const hasCredit = s.saldo > 0.01;
+          const hasDebt = s.saldo < -0.01;
 
           return (
-            <Card key={summary.cpf} className="border border-border/50 bg-card/80 rounded-2xl">
+            <Card key={s.id} className="border border-border/50 bg-card/80 rounded-2xl">
               <CardContent className="pt-5 pb-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold">
-                      {summary.name.charAt(0).toUpperCase()}
+                      {s.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{summary.name}</p>
-                      <p className="text-xs text-muted-foreground">{summary.share_percentage}% de participação</p>
-                    </div>
+                    <span className="font-medium text-sm">{s.name}</span>
                   </div>
-                  {isOwing && (
-                    <Badge variant="destructive" className="text-xs">
-                      <TrendingDown className="h-3 w-3 mr-1" /> Deve Pagar
-                    </Badge>
-                  )}
                   {hasCredit && (
                     <Badge className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-200">
-                      <TrendingUp className="h-3 w-3 mr-1" /> Tem Crédito
+                      <TrendingUp className="h-3 w-3 mr-1" /> TEM CRÉDITO
                     </Badge>
                   )}
-                  {!isOwing && !hasCredit && (
+                  {hasDebt && (
+                    <Badge variant="destructive" className="text-xs">
+                      <TrendingDown className="h-3 w-3 mr-1" /> DEVE PAGAR
+                    </Badge>
+                  )}
+                  {!hasCredit && !hasDebt && (
                     <Badge variant="secondary" className="text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" /> Equilibrado
+                      <CheckCircle className="h-3 w-3 mr-1" /> QUITADO
                     </Badge>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="p-2 rounded-lg bg-muted/30">
-                    <p className="text-muted-foreground">Por Propriedade</p>
-                    <p className="font-semibold text-foreground">{fmt(summary.totalPorPropriedade)}</p>
+                    <p className="text-muted-foreground">Total Devido</p>
+                    <p className="font-semibold text-foreground">{fmt(s.totalDevido)}</p>
                   </div>
                   <div className="p-2 rounded-lg bg-muted/30">
-                    <p className="text-muted-foreground">Por Uso</p>
-                    <p className="font-semibold text-foreground">{fmt(summary.totalPorUso)}</p>
+                    <p className="text-muted-foreground">Total Pago</p>
+                    <p className="font-semibold text-foreground">{fmt(s.totalPago)}</p>
                   </div>
                 </div>
 
-                {Math.abs(summary.diferenca) > 0.01 && (
-                  <div className={`p-2 rounded-lg text-xs ${getDifferencaBg(summary.diferenca)}`}>
-                    <p className={`font-semibold ${getDifferencaColor(summary.diferenca)}`}>
-                      {isOwing ? `Deve Pagar: ${fmt(summary.diferenca)}` : `Crédito: ${fmt(-summary.diferenca)}`}
+                {Math.abs(s.saldo) > 0.01 && (
+                  <div className={`p-2 rounded-lg text-xs ${getDifferencaBg(s.saldo)}`}>
+                    <p className={`font-semibold ${getDifferencaColor(s.saldo)}`}>
+                      {hasCredit ? `Crédito a Receber: ${fmt(s.saldo)}` : `Débito a Pagar: ${fmt(-s.saldo)}`}
                     </p>
                   </div>
                 )}
@@ -324,12 +391,12 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         })}
       </div>
 
-      {/* Debt Resolution */}
+      {/* Settlements */}
       <Card className="border border-border/50 bg-card/80 rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-5 w-5 text-primary" />
-            Acertos entre Sócios
+            Acertos Financeiros
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -337,7 +404,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <CheckCircle className="h-10 w-10 text-emerald-500 mb-3" />
               <p className="text-sm font-medium text-foreground">Tudo equilibrado!</p>
-              <p className="text-xs text-muted-foreground mt-1">Nenhum acerto necessário entre os sócios no período selecionado.</p>
+              <p className="text-xs text-muted-foreground mt-1">Nenhum acerto necessário entre os sócios.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -347,10 +414,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10 text-destructive text-sm font-bold">
                       {debt.fromPartner.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{debt.fromPartner.name}</p>
-                      <p className="text-xs text-muted-foreground">{debt.fromPartner.share_percentage}%</p>
-                    </div>
+                    <span className="font-medium text-sm">{debt.fromPartner.name}</span>
                   </div>
 
                   <div className="flex flex-col items-center gap-1">
@@ -360,10 +424,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div>
-                      <p className="font-medium text-sm text-right">{debt.toPartner.name}</p>
-                      <p className="text-xs text-muted-foreground text-right">{debt.toPartner.share_percentage}%</p>
-                    </div>
+                    <span className="font-medium text-sm text-right">{debt.toPartner.name}</span>
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 text-sm font-bold">
                       {debt.toPartner.name.charAt(0).toUpperCase()}
                     </div>
