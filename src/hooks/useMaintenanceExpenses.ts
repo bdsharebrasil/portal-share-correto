@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 export interface ManutencaoOption {
   id: string;
   tipo: string;
-  numero_os: string | null;
+  numero_os?: string | null;
+  numero_oas?: string | null;
   data_programada: string;
   etapa: string;
   oficina: string | null;
@@ -34,8 +35,7 @@ export interface DespesaManutencaoRateio {
 }
 
 /**
- * Busca OAS (Ordens de Acompanhamento de Serviço) de uma aeronave para seleção no formulário de despesa.
- * Retorna dados do ctm_service_orders ao invés de manutencoes (tabela legada vazia).
+ * Busca manutenções de uma aeronave para seleção no formulário de despesa
  */
 export function useAircraftMaintenances(aircraftId: string | null) {
   return useQuery({
@@ -43,22 +43,12 @@ export function useAircraftMaintenances(aircraftId: string | null) {
     queryFn: async () => {
       if (!aircraftId) return [];
       const { data, error } = await supabase
-        .from("ctm_service_orders")
-        .select("id, numero, status, tipo_manutencao, oficina_nome, data_entrada, aircraft_id")
-        .eq("aircraft_id", aircraftId)
-        .order("created_at", { ascending: false });
+        .from("manutencoes")
+        .select("id, tipo, numero_oas, data_programada, etapa, oficina, custo_estimado, aeronave_id")
+        .eq("aeronave_id", aircraftId)
+        .order("data_programada", { ascending: false });
       if (error) throw error;
-      // Map to ManutencaoOption-compatible shape
-      return (data || []).map((so: any) => ({
-        id: so.id,
-        tipo: so.tipo_manutencao || "OAS",
-        numero_os: so.numero,
-        data_programada: so.data_entrada || "",
-        etapa: so.status || "pendente",
-        oficina: so.oficina_nome,
-        custo_estimado: null,
-        aeronave_id: so.aircraft_id,
-      })) as ManutencaoOption[];
+      return (data || []) as ManutencaoOption[];
     },
     enabled: !!aircraftId,
   });
@@ -67,21 +57,20 @@ export function useAircraftMaintenances(aircraftId: string | null) {
 /**
  * Busca despesas vinculadas a uma manutenção
  */
-export function useMaintenanceExpenses(serviceOrderId: string | null) {
+export function useMaintenanceExpenses(manutencaoId: string | null) {
   return useQuery({
-    queryKey: ["maintenance-expenses", serviceOrderId],
+    queryKey: ["maintenance-expenses", manutencaoId],
     queryFn: async () => {
-      if (!serviceOrderId) return [];
-      // Query by service_order_id (OAS) or fallback to manutencao_id (legacy)
+      if (!manutencaoId) return [];
       const { data, error } = await supabase
         .from("despesas_manutencao")
         .select("*")
-        .or(`service_order_id.eq.${serviceOrderId},manutencao_id.eq.${serviceOrderId}`)
+        .eq("manutencao_id", manutencaoId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as DespesaManutencao[];
     },
-    enabled: !!serviceOrderId,
+    enabled: !!manutencaoId,
   });
 }
 
@@ -125,12 +114,11 @@ export function useCreateMaintenanceExpense() {
         valor: number;
       }>;
     }) => {
-      // 1. Criar despesa de manutenção (usando service_order_id para OAS)
+      // 1. Criar despesa de manutenção
       const { data: despesa, error: despesaError } = await supabase
         .from("despesas_manutencao")
         .insert({
-          service_order_id: data.manutencaoId,
-          manutencao_id: null,
+          manutencao_id: data.manutencaoId,
           aircraft_id: data.aircraftId,
           client_id: data.clientId,
           descricao: data.descricao,
@@ -288,11 +276,11 @@ export function useMaintenanceReport(manutencaoId: string | null) {
         oilAnalysis = data || [];
       }
 
-      // 9. Fetch despesas_manutencao (by service_order_id or legacy manutencao_id)
+      // 9. Fetch despesas_manutencao
       const { data: despesasData } = await supabase
         .from("despesas_manutencao")
         .select("*")
-        .or(`service_order_id.eq.${manutencaoId},manutencao_id.eq.${manutencaoId}`);
+        .eq("manutencao_id", manutencaoId);
       const despesas = despesasData || [];
 
       // 10. Fetch rateios for each despesa
