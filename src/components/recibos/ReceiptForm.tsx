@@ -98,6 +98,7 @@ export function ReceiptForm({
   const [categoriasReembolsaveis, setCategoriasReembolsaveis] = useState<Categoria[]>([]);
   const [favoriteDescriptions, setFavoriteDescriptions] = useState<FavoriteDescription[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [valorEditadoManualmente, setValorEditadoManualmente] = useState(false);
 
   const isReembolso = formData.receiptType === "reembolso";
 
@@ -108,7 +109,7 @@ export function ReceiptForm({
   const isInfraero = categoriaNome.toUpperCase().includes("INFRAERO");
   const isDECEAorINFRAERO = isDecea || isInfraero;
 
-  // Cálculo sugerido do valor quando rateado (mas permite edição manual)
+  // Cálculo automático do valor quando rateado - SEMPRE atualiza se não foi editado manualmente
   useEffect(() => {
     if (formData.reembolsoRateado && formData.reembolsoValorTotal && formData.reembolsoPorcentagem) {
       // Normalizar valor total: remover ponto (separador de milhares) e substituir vírgula por ponto
@@ -118,12 +119,13 @@ export function ReceiptForm({
       const valorTotal = parseFloat(valorTotalStr) || 0;
       const porcentagem = parseFloat(formData.reembolsoPorcentagem) || 0;
       const valorCalculado = (valorTotal * porcentagem / 100).toFixed(2);
-      // Só atualiza se o valor estava vazio (primeira vez) ou igual ao valor calculado anterior
-      if (!formData.valor || formData.valor === "") {
+
+      // Só atualiza se o usuário não editou manualmente
+      if (!valorEditadoManualmente) {
         setFormData(prev => ({ ...prev, valor: valorCalculado }));
       }
     }
-  }, [formData.reembolsoValorTotal, formData.reembolsoPorcentagem, formData.reembolsoRateado]);
+  }, [formData.reembolsoValorTotal, formData.reembolsoPorcentagem, formData.reembolsoRateado, valorEditadoManualmente]);
 
   const parseLocalDate = (dateString: string): Date => {
     const [y, m, d] = dateString.split("-").map(Number);
@@ -184,6 +186,7 @@ export function ReceiptForm({
         dataVencimentoBoleto: "",
         valorTotalBoleto: "",
       }));
+      setValorEditadoManualmente(false);
     }
   }, [formData.receiptType]);
 
@@ -640,7 +643,7 @@ export function ReceiptForm({
               <Checkbox
                 id="rateio"
                 checked={formData.reembolsoRateado}
-                onCheckedChange={(checked) =>
+                onCheckedChange={(checked) => {
                   setFormData((p) => ({
                     ...p,
                     reembolsoRateado: checked === true,
@@ -648,8 +651,10 @@ export function ReceiptForm({
                       reembolsoValorTotal: "",
                       reembolsoPorcentagem: "",
                     }),
-                  }))
-                }
+                  }));
+                  // Reset estado de edição manual
+                  setValorEditadoManualmente(false);
+                }}
               />
               <Label htmlFor="rateio" className="cursor-pointer">
                 Despesa será rateada entre os sócios
@@ -681,12 +686,14 @@ export function ReceiptForm({
                   min="0"
                   max="100"
                   value={formData.reembolsoPorcentagem}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData((prev) => ({
                       ...prev,
                       reembolsoPorcentagem: e.target.value,
-                    }))
-                  }
+                    }));
+                    // Resetar edição manual quando mudar a porcentagem
+                    setValorEditadoManualmente(false);
+                  }}
                   placeholder="Ex: 40.625"
                   required={formData.reembolsoRateado}
                 />
@@ -695,19 +702,43 @@ export function ReceiptForm({
                 </p>
               </div>
               <div>
-                <Label>Valor do Recibo</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label>Valor do Recibo</Label>
+                  {valorEditadoManualmente && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Recalcular o valor
+                        const valorTotalStr = String(formData.reembolsoValorTotal)
+                          .replace(/\./g, "")
+                          .replace(/,/g, ".");
+                        const valorTotal = parseFloat(valorTotalStr) || 0;
+                        const porcentagem = parseFloat(formData.reembolsoPorcentagem) || 0;
+                        const valorCalculado = (valorTotal * porcentagem / 100).toFixed(2);
+                        setFormData(prev => ({ ...prev, valor: valorCalculado }));
+                        setValorEditadoManualmente(false);
+                      }}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
                 <MoneyInput
                   value={formData.valor}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setFormData((prev) => ({
                       ...prev,
                       valor: e.target.value,
-                    }))
-                  }
+                    }));
+                    setValorEditadoManualmente(true);
+                  }}
                   className="font-semibold"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Valor que este cliente irá pagar (editável; diferenças são ajustadas no balanço entre sócios)
+                  {valorEditadoManualmente
+                    ? "Valor ajustado manualmente"
+                    : "Calculado automaticamente"}
                 </p>
               </div>
             </div>

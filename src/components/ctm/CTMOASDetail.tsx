@@ -155,17 +155,17 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
     setSaving(true);
     try {
       const { error } = await supabase.from("ctm_service_orders").update({
-        numero: editForm.numero,
-        oficina_nome: editForm.oficina_nome || null,
-        oficina_contato: editForm.oficina_contato || null,
-        data_entrada: editForm.data_entrada || null,
-        data_saida: editForm.data_saida || null,
-        dias_previstos: editForm.dias_previstos ? parseInt(editForm.dias_previstos) : null,
-        dias_efetivos: editForm.dias_efetivos ? parseInt(editForm.dias_efetivos) : null,
-        horas_celula: editForm.horas_celula ? parseFloat(editForm.horas_celula) : null,
-        objetivo: editForm.objetivo || null,
-        observacoes: editForm.observacoes || null,
-        status: editForm.status,
+        numero: editForm?.numero,
+        oficina_nome: editForm?.oficina_nome || null,
+        oficina_contato: editForm?.oficina_contato || null,
+        data_entrada: editForm?.data_entrada || null,
+        data_saida: editForm?.data_saida || null,
+        dias_previstos: editForm?.dias_previstos ? parseInt(editForm.dias_previstos) : null,
+        dias_efetivos: editForm?.dias_efetivos ? parseInt(editForm.dias_efetivos) : null,
+        horas_celula: editForm?.horas_celula ? parseFloat(editForm.horas_celula) : null,
+        objetivo: editForm?.objetivo || null,
+        observacoes: editForm?.observacoes || null,
+        status: editForm?.status,
       }).eq("id", orderId);
       if (error) throw error;
       toast.success("OAS atualizada com sucesso!");
@@ -390,11 +390,11 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
 
               {currentSection === "servicos" && <ServicesSection orderId={orderId} services={services} onRefetch={refetchServices} />}
               {currentSection === "pecas" && <PartsSection orderId={orderId} parts={parts} onRefetch={refetchParts} />}
-              {currentSection === "ras" && <OASRASSection orderId={orderId} reports={rasReports} onRefetch={refetchRAS} />}
-              {currentSection === "oleo" && <OASOilAnalysisSection orderId={orderId} analyses={oilAnalyses} onRefetch={refetchOil} />}
+              {currentSection === "ras" && <OASRASSection orderId={orderId} reports={rasReports} onRefetch={refetchRAS} aircraftId={""} aircraftRegistration={""} />}
+              {currentSection === "oleo" && <OASOilAnalysisSection orderId={orderId} analyses={oilAnalyses} onRefetch={refetchOil} aircraftId={""} />}
               {currentSection === "orcamentos" && <OASBudgetsSection orderId={orderId} budgets={budgets} onRefetch={refetchBudgets} />}
-              {currentSection === "rateio" && <OASFlightHoursRateio orderId={orderId} costSharing={costSharing} onRefetch={refetchCostSharing} />}
-              {currentSection === "despesas" && <OASMaintenanceExpensesTable orderId={orderId} expenses={despesasManutencao} />}
+              {currentSection === "rateio" && <OASFlightHoursRateio orderId={orderId} costSharing={costSharing} onRefetch={refetchCostSharing} aircraftId={""} totalGeral={0} />}
+              {currentSection === "despesas" && <OASMaintenanceExpensesTable orderId={orderId} />}
               {currentSection === "resumo" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -576,18 +576,18 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
   };
 
   const handleSaveEdit = async () => {
-    if (!editForm.descricao.trim()) {
+    if (!editForm?.descricao?.trim()) {
       toast.error("Descrição é obrigatória");
       return;
     }
     setSaving(true);
     try {
       const { error } = await supabase.from("ctm_parts").update({
-        descricao: editForm.descricao,
-        numero_serie: editForm.numero_serie || null,
-        quantidade: parseFloat(editForm.quantidade),
-        valor_unitario: parseFloat(editForm.valor_unitario),
-        valor_total: parseFloat(editForm.quantidade) * parseFloat(editForm.valor_unitario),
+        descricao: editForm?.descricao,
+        numero_serie: editForm?.numero_serie || null,
+        quantidade: parseFloat(editForm?.quantidade || "0"),
+        valor_unitario: parseFloat(editForm?.valor_unitario || "0"),
+        valor_total: parseFloat(editForm?.quantidade || "0") * parseFloat(editForm?.valor_unitario || "0"),
       }).eq("id", editingPartId);
       if (error) throw error;
       toast.success("Peça atualizada com sucesso!");
@@ -721,7 +721,7 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
             </Button>
             <Button
               onClick={handleSaveEdit}
-              disabled={saving || !editForm.descricao.trim()}
+              disabled={saving || !editForm?.descricao?.trim()}
             >
               {saving ? (
                 <>
@@ -936,13 +936,12 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
                   <p className="text-muted-foreground text-sm">Nenhum item adicionado a este serviço.</p>
                 )}
                 <CTMServiceItemsForm
-                  serviceId={expandedService?.id}
+                  orderId={orderId}
                   onSaved={() => {
                     handleExpandService(expandedService);
                     onRefetch();
                   }}
                   onCancel={() => {}}
-                  buttonText="Adicionar Item"
                 />
               </div>
             </div>
@@ -978,15 +977,15 @@ function ExpandedServiceItemRow({ item, onUpdate, onDelete, saving }: any) {
   });
 
   const handleSave = async () => {
-    if (!editForm.descricao.trim()) {
+    if (!editForm?.descricao?.trim()) {
       toast.error("Descrição é obrigatória");
       return;
     }
-    const qty = parseFloat(editForm.quantidade) || 1;
-    const unitVal = parseFloat(editForm.valor_unitario) || 0;
+    const qty = parseFloat(editForm?.quantidade || "0") || 1;
+    const unitVal = parseFloat(editForm?.valor_unitario || "0") || 0;
 
     await onUpdate(item.id, {
-      descricao: editForm.descricao,
+      descricao: editForm?.descricao || "",
       quantidade: qty,
       valor_unitario: unitVal,
     });
@@ -1001,7 +1000,7 @@ function ExpandedServiceItemRow({ item, onUpdate, onDelete, saving }: any) {
           <Input
             size={1}
             className="text-xs"
-            value={editForm.descricao}
+            value={editForm?.descricao || ""}
             onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))}
           />
         </TableCell>
@@ -1012,7 +1011,7 @@ function ExpandedServiceItemRow({ item, onUpdate, onDelete, saving }: any) {
             step="0.1"
             size={1}
             className="text-xs text-center"
-            value={editForm.quantidade}
+            value={editForm?.quantidade || ""}
             onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))}
           />
         </TableCell>
@@ -1022,12 +1021,12 @@ function ExpandedServiceItemRow({ item, onUpdate, onDelete, saving }: any) {
             step="0.01"
             size={1}
             className="text-xs text-right"
-            value={editForm.valor_unitario}
+            value={editForm?.valor_unitario || ""}
             onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))}
           />
         </TableCell>
         <TableCell className="text-xs text-right font-semibold">
-          R$ {((parseFloat(editForm.quantidade) || 0) * (parseFloat(editForm.valor_unitario) || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          R$ {((parseFloat(editForm?.quantidade || "0") || 0) * (parseFloat(editForm?.valor_unitario || "0") || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
         </TableCell>
         <TableCell>
           <div className="flex gap-1">

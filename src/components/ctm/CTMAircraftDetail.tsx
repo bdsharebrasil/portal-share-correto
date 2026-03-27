@@ -200,6 +200,7 @@ export function CTMAircraftDetail({
         aircraftId={aircraft.id}
         aircraftRegistration={aircraft.registration}
         onBack={() => setSelectedOASId(null)}
+        isEmbedded={true}
       />
     );
   }

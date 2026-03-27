@@ -24,6 +24,7 @@ interface CTMOASDetailPageProps {
   aircraftId: string;
   aircraftRegistration?: string;
   onBack?: () => void;
+  isEmbedded?: boolean;
 }
 
 type TabId = 'informacoes' | 'servicos' | 'pecas' | 'rateio' | 'financeiro' | 'orcamentos' | 'documentos';
@@ -40,6 +41,7 @@ export function CTMOASDetailPage({
   aircraftId,
   aircraftRegistration = '',
   onBack,
+  isEmbedded = false,
 }: CTMOASDetailPageProps) {
   const navigate = useNavigate();
   const { loadServiceOrderDetails, getLinkedBudgets } = useCTMServiceOrders();
@@ -114,15 +116,15 @@ export function CTMOASDetailPage({
   };
 
   if (loading || !oasData) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin">
-            <Wrench className="w-8 h-8 text-primary" />
-          </div>
+    const loadingContent = (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin">
+          <Wrench className="w-8 h-8 text-primary" />
         </div>
-      </Layout>
+      </div>
     );
+    if (isEmbedded) return loadingContent;
+    return <Layout>{loadingContent}</Layout>;
   }
 
   const getStatusColor = (status: string) => {
@@ -136,195 +138,193 @@ export function CTMOASDetailPage({
     return colors[status] || 'bg-slate-500/20 text-slate-200 border-slate-500/30';
   };
 
-  return (
-    <Layout>
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 px-6">
-          <div className="flex items-start gap-4 flex-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBack}
-              className="mt-1 text-slate-400 hover:text-white hover:bg-white/5"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-white">{oasData.numero}</h1>
-                <Badge className={`${getStatusColor(oasData.status)}`}>
-                  {oasData.status || 'N/A'}
-                </Badge>
-              </div>
-              <p className="text-sm text-slate-400">
-                {aircraftRegistration || aircraft?.registration} · {oasData.tipo_manutencao}
-                {oasData.data_entrada && ` · ${formatDateToBR(oasData.data_entrada)}`}
-              </p>
+  const pageContent = (
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 px-6">
+        <div className="flex items-start gap-4 flex-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleBack}
+            className="mt-1 text-slate-400 hover:text-white hover:bg-white/5"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold text-white">{oasData.numero}</h1>
+              <Badge className={`${getStatusColor(oasData.status)}`}>
+                {oasData.status || 'N/A'}
+              </Badge>
             </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex gap-2 flex-wrap justify-end">
-            <Button
-              onClick={() => setShowBudgetForm(true)}
-              className="bg-cyan-600 hover:bg-cyan-700 gap-2 h-9 text-sm"
-            >
-              <Plus className="h-4 w-4" />
-              Gerar Orçamento
-            </Button>
-            <Button
-              onClick={() => setShowDocumentGenerator(true)}
-              variant="outline"
-              className="gap-2 h-9 text-sm"
-            >
-              <Download className="h-4 w-4" />
-              Gerar Documentos
-            </Button>
+            <p className="text-sm text-slate-400">
+              {aircraftRegistration || aircraft?.registration} · {oasData.tipo_manutencao}
+              {oasData.data_entrada && ` · ${formatDateToBR(oasData.data_entrada)}`}
+            </p>
           </div>
         </div>
 
-        {/* Tabs Navigation */}
-        <div className="px-6 overflow-x-auto pb-2">
-          <div className="flex gap-2 min-w-min">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    activeTab === tab.id ? 'bg-cyan-500/30 text-cyan-300' : 'bg-white/10 text-slate-400'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
+        {/* Quick Actions */}
+        <div className="flex gap-2 flex-wrap justify-end">
+          <Button
+            onClick={() => setShowBudgetForm(true)}
+            className="bg-cyan-600 hover:bg-cyan-700 gap-2 h-9 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Gerar Orçamento
+          </Button>
+          <Button
+            onClick={() => setShowDocumentGenerator(true)}
+            variant="outline"
+            className="gap-2 h-9 text-sm"
+          >
+            <Download className="h-4 w-4" />
+            Gerar Documentos
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="px-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 min-w-min">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                activeTab === tab.id
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  activeTab === tab.id ? 'bg-cyan-500/30 text-cyan-300' : 'bg-white/10 text-slate-400'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-6 py-4">
+        {/* Informações */}
+        {activeTab === 'informacoes' && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Oficina', value: oasData.oficina_nome },
+              { label: 'Contato', value: oasData.oficina_contato },
+              { label: 'Horas Célula', value: oasData.horas_celula ? `${oasData.horas_celula}H` : undefined },
+              { label: 'Dias Previstos', value: oasData.dias_previstos },
+              { label: 'Dias Efetivos', value: oasData.dias_efetivos },
+              { label: 'Objetivo', value: oasData.objetivo },
+              { label: 'Tipo Rateio', value: oasData.tipo_rateio },
+              { label: 'Data Entrada', value: oasData.data_entrada ? formatDateToBR(oasData.data_entrada) : undefined },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-slate-800/40 border border-white/5 rounded-xl p-3">
+                <p className="text-xs text-slate-500 mb-1">{label}</p>
+                <p className="font-semibold text-white">{value || '—'}</p>
+              </div>
             ))}
           </div>
-        </div>
+        )}
 
-        {/* Content */}
-        <div className="px-6 py-4">
-          {/* Informações */}
-          {activeTab === 'informacoes' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'Oficina', value: oasData.oficina_nome },
-                { label: 'Contato', value: oasData.oficina_contato },
-                { label: 'Horas Célula', value: oasData.horas_celula ? `${oasData.horas_celula}H` : undefined },
-                { label: 'Dias Previstos', value: oasData.dias_previstos },
-                { label: 'Dias Efetivos', value: oasData.dias_efetivos },
-                { label: 'Objetivo', value: oasData.objetivo },
-                { label: 'Tipo Rateio', value: oasData.tipo_rateio },
-                { label: 'Data Entrada', value: oasData.data_entrada ? formatDateToBR(oasData.data_entrada) : undefined },
-              ].map(({ label, value }) => (
-                <div key={label} className="bg-slate-800/40 border border-white/5 rounded-xl p-3">
-                  <p className="text-xs text-slate-500 mb-1">{label}</p>
-                  <p className="font-semibold text-white">{value || '—'}</p>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Servicos, Pecas, Rateio, Financeiro - Use CTMOASDetail component */}
+        {['servicos', 'pecas', 'rateio', 'financeiro'].includes(activeTab) && (
+          <CTMOASDetail
+            orderId={oasId}
+            onClose={() => {}}
+            forcedSection={activeTab === 'financeiro' ? 'resumo' : activeTab}
+            hideHeader={true}
+          />
+        )}
 
-          {/* Servicos, Pecas, Rateio, Financeiro - Use CTMOASDetail component */}
-          {['servicos', 'pecas', 'rateio', 'financeiro'].includes(activeTab) && (
-            <CTMOASDetail 
-              orderId={oasId} 
-              onClose={() => {}} 
-              forcedSection={activeTab === 'financeiro' ? 'resumo' : activeTab}
-              hideHeader={true}
-            />
-          )}
-
-          {/* Orçamentos */}
-          {activeTab === 'orcamentos' && (
-            <div className="space-y-4">
-              {linkedBudgets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-800/20 rounded-lg border border-white/5">
-                  <TrendingUp className="h-12 w-12 text-slate-600 mb-3" />
-                  <p className="text-slate-400 text-sm">Nenhum orçamento vinculado</p>
-                  <p className="text-xs text-slate-500 mb-4">Gere um orçamento de forma automática a partir desta OAS</p>
-                  <Button onClick={() => setShowBudgetForm(true)} className="bg-cyan-600 hover:bg-cyan-700 gap-2">
-                    <Plus className="h-4 w-4" />
-                    Gerar Orçamento
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {linkedBudgets.map(link => (
-                    <div key={link.id} className="border border-white/5 rounded-lg p-4 bg-slate-800/20">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold text-white">{link.budget?.titulo || 'Orçamento'}</h3>
-                          <p className="text-xs text-slate-500">Versão {link.version}</p>
-                        </div>
-                        <Badge className={`text-xs ${
-                          link.status === 'approved' ? 'bg-green-500/20 text-green-300' :
-                          link.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
-                          'bg-slate-500/20 text-slate-300'
-                        }`}>
-                          {link.status}
-                        </Badge>
+        {/* Orçamentos */}
+        {activeTab === 'orcamentos' && (
+          <div className="space-y-4">
+            {linkedBudgets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-800/20 rounded-lg border border-white/5">
+                <TrendingUp className="h-12 w-12 text-slate-600 mb-3" />
+                <p className="text-slate-400 text-sm">Nenhum orçamento vinculado</p>
+                <p className="text-xs text-slate-500 mb-4">Gere um orçamento de forma automática a partir desta OAS</p>
+                <Button onClick={() => setShowBudgetForm(true)} className="bg-cyan-600 hover:bg-cyan-700 gap-2">
+                  <Plus className="h-4 w-4" />
+                  Gerar Orçamento
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {linkedBudgets.map(link => (
+                  <div key={link.id} className="border border-white/5 rounded-lg p-4 bg-slate-800/20">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-semibold text-white">{link.budget?.titulo || 'Orçamento'}</h3>
+                        <p className="text-xs text-slate-500">Versão {link.version}</p>
                       </div>
-                      {link.budget?.total_estimado && (
-                        <p className="text-sm text-cyan-400 font-mono">
-                          R$ {link.budget.total_estimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      <Badge className={`text-xs ${
+                        link.status === 'approved' ? 'bg-green-500/20 text-green-300' :
+                        link.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                        'bg-slate-500/20 text-slate-300'
+                      }`}>
+                        {link.status}
+                      </Badge>
+                    </div>
+                    {link.budget?.total_estimado && (
+                      <p className="text-sm text-cyan-400 font-mono">
+                        R$ {link.budget.total_estimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
+                    {link.budget?.id && (
+                      <p className="text-xs text-muted-foreground mt-2">ID: {link.budget.id.slice(0,8)}...</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Documentos */}
+        {activeTab === 'documentos' && (
+          <div className="space-y-4">
+            {documents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-800/20 rounded-lg border border-white/5">
+                <FileText className="h-12 w-12 text-slate-600 mb-3" />
+                <p className="text-slate-400 text-sm">Nenhum documento gerado</p>
+                <p className="text-xs text-slate-500 mb-4">Gere documentos e relatórios desta OAS</p>
+                <Button onClick={() => setShowDocumentGenerator(true)} variant="outline" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Gerar Documento
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {documents.map(doc => (
+                  <div key={doc.id} className="border border-white/5 rounded-lg p-3 bg-slate-800/20 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-4 w-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm font-medium text-white">{doc.file_name}</p>
+                        <p className="text-xs text-slate-500">
+                          {format(new Date(doc.generated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                         </p>
-                      )}
-                      {link.budget?.id && (
-                        <p className="text-xs text-muted-foreground mt-2">ID: {link.budget.id.slice(0,8)}...</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Documentos */}
-          {activeTab === 'documentos' && (
-            <div className="space-y-4">
-              {documents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-800/20 rounded-lg border border-white/5">
-                  <FileText className="h-12 w-12 text-slate-600 mb-3" />
-                  <p className="text-slate-400 text-sm">Nenhum documento gerado</p>
-                  <p className="text-xs text-slate-500 mb-4">Gere documentos e relatórios desta OAS</p>
-                  <Button onClick={() => setShowDocumentGenerator(true)} variant="outline" className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Gerar Documento
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {documents.map(doc => (
-                    <div key={doc.id} className="border border-white/5 rounded-lg p-3 bg-slate-800/20 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-4 w-4 text-slate-500" />
-                        <div>
-                          <p className="text-sm font-medium text-white">{doc.file_name}</p>
-                          <p className="text-xs text-slate-500">
-                            {format(new Date(doc.generated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                          </p>
-                        </div>
                       </div>
-                      <Button size="sm" variant="ghost" className="gap-2">
-                        <Download className="h-4 w-4" />
-                      </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                    <Button size="sm" variant="ghost" className="gap-2">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -347,6 +347,8 @@ export function CTMOASDetailPage({
           onClose={() => setShowDocumentGenerator(false)}
         />
       )}
-    </Layout>
+    </div>
   );
+
+  return isEmbedded ? pageContent : <Layout>{pageContent}</Layout>;
 }

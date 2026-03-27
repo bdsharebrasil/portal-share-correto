@@ -120,6 +120,8 @@ export default function EmissaoRecibo() {
       const nomePagador = originalForm.pagadorNome?.trim();
 
       if (!nomePagador) throw new Error("Nome do pagador não foi preenchido corretamente.");
+
+      // O valor do recibo é o que foi REALMENTE PAGO (formData.valor)
       const valorNumerico = parseFloat(String(formData.valor || "0").replace(",", "."));
       if (!valorNumerico || valorNumerico <= 0) throw new Error("Valor deve ser maior que zero");
       if (!(formData.servicoDescricao || "").trim()) throw new Error("Descrição do serviço é obrigatória");
@@ -208,10 +210,11 @@ export default function EmissaoRecibo() {
           const isDecea = formData.isDecea === true;
           const isInfraero = formData.isInfraero === true;
           const isDECEAorINFRAERO = isDecea || isInfraero;
-          const isRateado = originalForm.reembolsoRateado === true;
           const valorRecibo = valorNumerico;
           const percentual = isRateado ? originalForm.reembolsoPorcentagem : "100";
-          const valorTotalDespesa = isRateado ? parseFloat(originalForm.reembolsoValorTotal) : valorRecibo;
+          // Normalizar valor total: remover ponto (separador de milhares) e substituir vírgula por ponto
+          const valorTotalStr = isRateado ? String(originalForm.reembolsoValorTotal).replace(/\./g, "").replace(/,/g, ".") : String(valorRecibo);
+          const valorTotalDespesa = parseFloat(valorTotalStr);
 
           // Get aircraft registration
           let aeronaveRegistro = "";
@@ -333,27 +336,50 @@ export default function EmissaoRecibo() {
           }
 
           // ===== 3. Rateio if applicable =====
-          if (isRateado) {
-            const rateioPayload = {
-              despesa_id: contaData?.id || receiptData.id,
-              client_id: originalForm.clienteId,
-              client_name: nomePagador,
-              aeronave_id: originalForm.aircraftId || null,
-              aeronave_registro: aeronaveRegistro,
-              percentual: parseFloat(percentual),
-              valor_rateado: valorRecibo,
-              valor: valorTotalDespesa,
-              status: "pendente",
-              data_vencimento: dataVencimento,
-              categoria_id: originalForm.reembolsoCategoriaId || null,
-              boleto: boletoUrl,
-              nota_fiscal: notaFiscalUrl || deceeaUrl || infraeroUrl,
-              observacoes: `Rateio de ${percentual}% do valor total de R$ ${valorTotalDespesa.toFixed(2)}`,
-            };
+          if (isRateado && originalForm.aircraftId) {
+            // Buscar todos os clients que compartilham esta aeronave
+            const { data: aircraftClients, error: acError } = await supabase
+              .from("client_aircraft")
+              .select("client_id, share_percentage, clients(id, company_name)")
+              .eq("aircraft_id", originalForm.aircraftId);
 
-            const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioPayload);
-            if (rateioErr) console.error("❌ Erro ao criar rateio:", rateioErr);
-            else console.log("✅ Rateio criado");
+            if (acError) {
+              console.error("❌ Erro ao buscar clients da aeronave:", acError);
+            } else if (aircraftClients && aircraftClients.length > 0) {
+              // Criar registro em rateio_despesas para CADA client que compartilha a aeronave
+              // Registra quanto DEVERIA PAGAR cada um (valor_rateado é por propriedade, valor_por_voo é por uso)
+              for (const ac of aircraftClients) {
+                const clientData = ac.clients as any;
+                const sharePercentage = parseFloat(ac.share_percentage || "0");
+
+                // Quanto este client DEVERIA pagar
+                const valorPorPropriedade = (valorTotalDespesa * sharePercentage) / 100;
+                const valorPorUso = (valorTotalDespesa * parseFloat(percentual)) / 100;
+
+                const rateioPayload = {
+                  despesa_id: contaData?.id || receiptData.id,
+                  client_id: ac.client_id,
+                  client_name: clientData?.company_name || "Unknown",
+                  aeronave_id: originalForm.aircraftId || null,
+                  aeronave_registro: aeronaveRegistro,
+                  percentual: sharePercentage, // % de propriedade
+                  percentual_voo: parseFloat(percentual), // % de uso/voo
+                  valor_rateado: valorPorPropriedade, // O que deveria pagar por propriedade
+                  valor_por_voo: valorPorUso, // O que deveria pagar por uso
+                  valor: valorTotalDespesa, // Valor total da despesa
+                  status: "pendente",
+                  data_vencimento: dataVencimento,
+                  categoria_id: originalForm.reembolsoCategoriaId || null,
+                  boleto: boletoUrl,
+                  nota_fiscal: notaFiscalUrl || deceeaUrl || infraeroUrl,
+                  observacoes: `Rateio - ${sharePercentage}% propriedade / ${percentual}% uso. ${ac.client_id === originalForm.clienteId ? "Cliente pagou o valor total de" : "Cliente deve"} R$ ${valorTotalDespesa.toFixed(2)}`,
+                };
+
+                const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioPayload);
+                if (rateioErr) console.error(`❌ Erro ao criar rateio para ${clientData?.company_name}:`, rateioErr);
+                else console.log(`✅ Rateio criado para ${clientData?.company_name} (${sharePercentage}% / ${percentual}%)`);
+              }
+            }
           }
         } catch (reembolsoErr) {
           console.error("❌ Erro ao processar reembolso:", reembolsoErr);

@@ -103,7 +103,7 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
 
   const statusColor = (status: string | null) => {
     if (status === "concluido") return "bg-green-500/20 text-green-400 border-green-500/30";
-    if (status === "em_andamento") return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+    if (status === "em andamento") return "bg-blue-500/20 text-blue-400 border-blue-500/30";
     return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
   };
 
