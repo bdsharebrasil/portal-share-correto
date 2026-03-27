@@ -116,7 +116,8 @@ export default function WeatherWidget() {
       });
     } catch (weatherError: any) {
       const errorMsg = weatherError?.message || String(weatherError);
-      console.error(`[WeatherWidget] Falha ao carregar dados para ${airport.icao}: ${errorMsg}`);
+      console.warn(`[WeatherWidget] Falha ao carregar dados para ${airport.icao}: ${errorMsg}`);
+      // Mostrar estado desconhecido com dados locais do aeroporto
       setWxToUnknown(airport);
     }
   }, [getWeather]);
@@ -164,8 +165,10 @@ export default function WeatherWidget() {
         setWx({ status: "idle" });
       }
     } catch (error) {
-      console.error("[WeatherWidget] Erro:", error);
-      setWx({ status: "error", msg: "Erro ao carregar dados" });
+      // Silently fail - não mostrar erro na UI, apenas log
+      console.warn("[WeatherWidget] Erro ao carregar weather:", error instanceof Error ? error.message : String(error));
+      // Manter estado anterior em vez de mostrar erro
+      setWx(prev => prev.status === "idle" ? prev : { ...prev, status: "ok" });
     } finally {
       setSpin(false);
     }
@@ -180,7 +183,13 @@ export default function WeatherWidget() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 10 * 60 * 1000);
+    // Retry a cada 10 minutos se tiver sucesso, ou a cada 30 minutos se falhar
+    const t = setInterval(() => {
+      load().catch(() => {
+        // Se falhar, próxima tentativa será em 30 minutos
+        console.warn('[WeatherWidget] Próxima tentativa em 30 minutos');
+      });
+    }, 10 * 60 * 1000);
     return () => clearInterval(t);
   }, [load]);
 

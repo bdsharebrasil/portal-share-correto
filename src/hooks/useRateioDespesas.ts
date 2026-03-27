@@ -27,6 +27,12 @@ interface RateioDespesaRow {
   categoria_id: string | null;
   forma_pagamento: string | null;
   pago_diretamente: boolean | null;
+  // Receipt info
+  receipt_number?: string | null;
+  receipt_category?: string | null;
+  receipt_nf?: string | null;
+  receipt_boleto?: string | null;
+  doc_number?: string | null;
 }
 
 interface UseRateioDespesasParams {
@@ -135,7 +141,26 @@ export function useRateioDespesas({
         percentualVooPorAeronave.set(aerId, vooData);
       }
 
-      // 3. Enrich rateio_despesas with percentual_voo and valor_por_voo
+      // 3. Fetch receipt information for all despesa_ids
+      const despesaIds = Array.from(
+        new Set(rateioDespesas.map((d: any) => d.despesa_id).filter(Boolean))
+      ) as string[];
+
+      const receiptMap = new Map<string, any>();
+      if (despesaIds.length > 0) {
+        const { data: receipts, error: rcErr } = await supabase
+          .from("receipts")
+          .select("id, receipt_number, category_name, nf_url, boleto_url, doc_number")
+          .in("id", despesaIds);
+
+        if (!rcErr && receipts) {
+          receipts.forEach((receipt: any) => {
+            receiptMap.set(receipt.id, receipt);
+          });
+        }
+      }
+
+      // 4. Enrich rateio_despesas with percentual_voo, valor_por_voo, and receipt info
       const despesasEnriquecidas: RateioDespesaRow[] = rateioDespesas.map((despesa: any) => {
         const vooDataMap = despesa.aeronave_id
           ? percentualVooPorAeronave.get(despesa.aeronave_id)
@@ -148,15 +173,23 @@ export function useRateioDespesas({
           ? Math.round(((despesa.valor || 0) * vooData.percentual_voo) / 100 * 100) / 100
           : despesa.valor_rateado;
 
+        // Get receipt information
+        const receiptInfo = receiptMap.get(despesa.despesa_id);
+
         return {
           ...despesa,
           percentual_voo: vooData?.percentual_voo,
           horas_voadas: vooData?.total_hours,
           valor_por_voo: valorPorVoo,
+          receipt_number: receiptInfo?.receipt_number,
+          receipt_category: receiptInfo?.category_name,
+          receipt_nf: receiptInfo?.nf_url,
+          receipt_boleto: receiptInfo?.boleto_url,
+          doc_number: receiptInfo?.doc_number,
         };
       });
 
-      // 4. Calculate totals
+      // 5. Calculate totals
       const totalPorPropriedade = despesasEnriquecidas.reduce(
         (sum, d) => sum + (d.valor_rateado || 0),
         0

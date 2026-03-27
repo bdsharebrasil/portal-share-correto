@@ -26,6 +26,25 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+// Helper function to get document number (prefers nota_fiscal, then boleto, then doc_number, then receipt_number)
+function getDocNumber(rateio: any): string {
+  return (rateio.nota_fiscal || rateio.boleto || rateio.doc_number || rateio.receipt_number || "-").toString();
+}
+
+// Helper function to get category name
+function getCategoryName(rateio: any): string {
+  return (rateio.receipt_category || "-").toString();
+}
+
+// Helper function to get client initials for rateio display
+function getClientInitials(clientName: string): string {
+  return clientName
+    .split(" ")
+    .slice(0, 2)
+    .map(word => word.charAt(0).toUpperCase())
+    .join("");
+}
+
 function getDifferencaColor(diff: number) {
   if (Math.abs(diff) < 0.01) return "text-slate-400";
   if (diff > 0) return "text-green-500"; // tem crédito
@@ -265,6 +284,9 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                 <TableHeader>
                   <TableRow className="border-border/50 bg-muted/20">
                     <TableHead className="text-xs font-bold">DATA</TableHead>
+                    <TableHead className="text-xs font-bold">CATEGORIA</TableHead>
+                    <TableHead className="text-xs font-bold">Nº DOC</TableHead>
+                    <TableHead className="text-xs font-bold">RATEIO</TableHead>
                     <TableHead className="text-xs font-bold">VALOR TOTAL</TableHead>
                     {partners.map(p => (
                       <TableHead key={p.id} className="text-xs font-bold text-center border-l border-border/50 col-span-2">
@@ -273,6 +295,9 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     ))}
                   </TableRow>
                   <TableRow className="border-border/50 bg-muted/10">
+                    <TableHead className="text-[10px]"></TableHead>
+                    <TableHead className="text-[10px]"></TableHead>
+                    <TableHead className="text-[10px]"></TableHead>
                     <TableHead className="text-[10px]"></TableHead>
                     <TableHead className="text-[10px]"></TableHead>
                     {partners.map(p => (
@@ -287,27 +312,46 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                   {groupedDespesas.map((group, i) => (
                     <TableRow key={i} className="border-border/50 hover:bg-muted/20">
                       <TableCell className="text-xs">{group.data}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {group.rateios.length > 0 ? getCategoryName(group.rateios[0]) : "-"}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {group.rateios.length > 0 ? getDocNumber(group.rateios[0]) : "-"}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        <div className="space-y-1">
+                          {group.rateios.map((rateio: any, idx: number) => {
+                            const initials = getClientInitials(rateio.partner_name || rateio.client_name);
+                            const propriedade = rateio.percentual || 0;
+                            const uso = rateio.percentual_voo || 0;
+                            return (
+                              <div key={idx} className="text-[10px] font-mono">
+                                {initials} {propriedade.toFixed(2)}%/{uso.toFixed(2)}%
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs font-medium">{fmt(group.valor_total)}</TableCell>
                       {partners.map(p => {
                         const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
                         const devido = rateio ? (rateio.valor_por_voo || 0) : 0;
-                        const pago = rateio 
+                        const pago = rateio
                           ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
                           : 0;
                         const diferenca = pago - devido;
 
                         return (
-                          <>
-                            <TableCell key={`${p.id}-dev`} className="text-xs text-center border-l border-border/50">
+                          <React.Fragment key={`partner-${p.id}`}>
+                            <TableCell className="text-xs text-center border-l border-border/50">
                               {fmt(devido)}
                             </TableCell>
-                            <TableCell 
-                              key={`${p.id}-pag`} 
+                            <TableCell
                               className={`text-xs text-center font-medium ${diferenca > 0.01 ? 'bg-green-950/20 text-green-500' : diferenca < -0.01 ? 'bg-red-950/20 text-red-500' : ''}`}
                             >
                               {fmt(pago)}
                             </TableCell>
-                          </>
+                          </React.Fragment>
                         );
                       })}
                     </TableRow>
