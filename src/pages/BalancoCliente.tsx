@@ -73,12 +73,12 @@ function BalancoClienteContent() {
       if (!clienteId) return 0;
       let total = 0;
 
-      // 1) bank_reconciliations pendente/aguardando_reembolso
+      // 1) bank_reconciliations aguardando_reembolso (matching PendenciasFinanceiras)
       let q1 = supabase
         .from('bank_reconciliations')
         .select('id', { count: 'exact', head: true })
         .eq('client_id', clienteId)
-        .in('status', ['pendente', 'aguardando_reembolso']);
+        .eq('status', 'aguardando_reembolso');
       if (aeronaveId) q1 = q1.eq('aircraft_id', aeronaveId);
       const { count: c1 } = await q1;
       total += c1 || 0;
@@ -143,9 +143,9 @@ function BalancoClienteContent() {
             {/* Seletor de Cliente/Sócio */}
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="cliente-filter" className="text-xs font-medium">Cliente / Sócio</Label>
-              <Select 
-                value={socioId ? `${clienteId}:${socioId}` : clienteId} 
-                onValueChange={(val) => { 
+              <Select
+                value={socioId ? `${clienteId}:${socioId}` : clienteId}
+                onValueChange={(val) => {
                   if (val.includes(':')) {
                     const [newClienteId, newSocioId] = val.split(':');
                     if (newClienteId !== clienteId) {
@@ -274,22 +274,22 @@ function BalancoClienteContent() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex w-full gap-1 p-1.5 bg-card/80 border border-border/60 rounded-2xl shadow-lg backdrop-blur-sm h-auto flex-wrap">
-          <TabsTrigger 
-            value="visao-geral" 
+          <TabsTrigger
+            value="visao-geral"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
           >
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="despesas" 
+          <TabsTrigger
+            value="despesas"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
           >
             <Receipt className="h-4 w-4" />
             <span className="hidden sm:inline">Despesas</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="pendencias" 
+          <TabsTrigger
+            value="pendencias"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground data-[state=active]:shadow-md font-medium transition-all relative"
           >
             <AlertCircle className="h-4 w-4" />
@@ -300,22 +300,22 @@ function BalancoClienteContent() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger 
-            value="aeronave" 
+          <TabsTrigger
+            value="aeronave"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
           >
             <Plane className="h-4 w-4" />
             <span className="hidden sm:inline">Aeronave</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="acesso-portal" 
+          <TabsTrigger
+            value="acesso-portal"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
           >
             <KeyRound className="h-4 w-4" />
             <span className="hidden sm:inline">Acesso Portal</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="relatorios" 
+          <TabsTrigger
+            value="relatorios"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
           >
             <FileBarChart className="h-4 w-4" />
