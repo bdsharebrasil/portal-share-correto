@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
       hmr: {
         // Disable Vite's dev overlay which can fail when serializing certain DOM nodes
         overlay: false,
-        protocol: 'ws',
+        protocol: 'wss',
         host: undefined,
         port: undefined,
       },
