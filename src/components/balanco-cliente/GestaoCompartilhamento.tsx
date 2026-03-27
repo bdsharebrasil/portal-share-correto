@@ -36,57 +36,44 @@ function getDifferencaBg(diff: number) {
 }
 
 export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props) {
-  // Fetch partners (client_partners within a client OR client_aircraft sharing same aircraft)
+  // Fetch partners from client_aircraft (multiple clients sharing same aircraft)
   const { data: partnersData, isLoading: partsLoading } = useQuery({
-    queryKey: ["partners", clienteId, aeronaveId],
+    queryKey: ["partners", aeronaveId],
     queryFn: async () => {
-      // First, try to get client_partners within this client
-      const { data: clientPartners, error: cpErr } = await supabase
-        .from("client_partners")
-        .select("id, name, cpf, share_percentage")
-        .eq("client_id", clienteId)
-        .order("created_at");
-      if (cpErr) throw cpErr;
+      if (!aeronaveId) return [];
 
-      // If we have client partners (2+), use them
-      if (clientPartners && clientPartners.length >= 2) {
-        return clientPartners;
+      // Get all clients sharing this aircraft
+      const { data: aircraftClients, error } = await supabase
+        .from("client_aircraft")
+        .select("client_id, share_percentage")
+        .eq("aircraft_id", aeronaveId);
+      if (error) throw error;
+
+      if (!aircraftClients || aircraftClients.length < 2) {
+        return [];
       }
 
-      // Otherwise, if we have aeronaveId, get all clients sharing this aircraft
-      if (aeronaveId) {
-        const { data: aircraftClients, error: acErr } = await supabase
-          .from("client_aircraft")
-          .select("client_id, share_percentage")
-          .eq("aircraft_id", aeronaveId);
-        if (acErr) throw acErr;
+      // Get client details for each
+      const clientIds = aircraftClients.map((ac: any) => ac.client_id);
+      const { data: clients, error: clErr } = await supabase
+        .from("clients")
+        .select("id, company_name, cnpj")
+        .in("id", clientIds);
+      if (clErr) throw clErr;
 
-        if (aircraftClients && aircraftClients.length >= 2) {
-          // Get client details for each
-          const clientIds = aircraftClients.map((ac: any) => ac.client_id);
-          const { data: clients, error: clErr } = await supabase
-            .from("clients")
-            .select("id, company_name, cnpj")
-            .in("id", clientIds);
-          if (clErr) throw clErr;
-
-          // Merge data
-          return aircraftClients
-            .map((ac: any) => {
-              const client = clients?.find((c: any) => c.id === ac.client_id);
-              return {
-                id: ac.client_id,
-                name: client?.company_name || "Unknown",
-                cpf: client?.cnpj || "",
-                share_percentage: parseFloat(ac.share_percentage || "0"),
-              };
-            });
-        }
-      }
-
-      return [];
+      // Merge data
+      return aircraftClients
+        .map((ac: any) => {
+          const client = clients?.find((c: any) => c.id === ac.client_id);
+          return {
+            id: ac.client_id,
+            name: client?.company_name || "Unknown",
+            cpf: client?.cnpj || "",
+            share_percentage: parseFloat(ac.share_percentage || "0"),
+          };
+        });
     },
-    enabled: !!clienteId,
+    enabled: !!aeronaveId,
   });
 
   // Fetch rateio_despesas data

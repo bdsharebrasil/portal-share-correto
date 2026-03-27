@@ -108,13 +108,16 @@ export function ReceiptForm({
   const isInfraero = categoriaNome.toUpperCase().includes("INFRAERO");
   const isDECEAorINFRAERO = isDecea || isInfraero;
 
-  // Cálculo automático do valor quando rateado
+  // Cálculo sugerido do valor quando rateado (mas permite edição manual)
   useEffect(() => {
     if (formData.reembolsoRateado && formData.reembolsoValorTotal && formData.reembolsoPorcentagem) {
       const valorTotal = parseFloat(formData.reembolsoValorTotal) || 0;
       const porcentagem = parseFloat(formData.reembolsoPorcentagem) || 0;
       const valorCalculado = (valorTotal * porcentagem / 100).toFixed(2);
-      setFormData(prev => ({ ...prev, valor: valorCalculado }));
+      // Só atualiza se o valor estava vazio (primeira vez) ou igual ao valor calculado anterior
+      if (!formData.valor || formData.valor === "") {
+        setFormData(prev => ({ ...prev, valor: valorCalculado }));
+      }
     }
   }, [formData.reembolsoValorTotal, formData.reembolsoPorcentagem, formData.reembolsoRateado]);
 
@@ -688,14 +691,19 @@ export function ReceiptForm({
                 </p>
               </div>
               <div>
-                <Label>Valor do Recibo (Calculado)</Label>
+                <Label>Valor do Recibo</Label>
                 <MoneyInput
                   value={formData.valor}
-                  readOnly
-                  className="bg-muted cursor-not-allowed font-semibold"
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      valor: e.target.value,
+                    }))
+                  }
+                  className="font-semibold"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Valor que este cliente irá pagar
+                  Valor que este cliente irá pagar (editável; diferenças são ajustadas no balanço entre sócios)
                 </p>
               </div>
             </div>
