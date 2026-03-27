@@ -9,7 +9,7 @@ const AIS_API_BASE_URL =
 // ─── Timeouts ─────────────────────────────────────────────────────────────────
 // A API do DECEA responde entre 4–7s — nunca use menos que 8s
 const FETCH_TIMEOUT_MS = 8000;
-const WEATHER_TIMEOUT_MS = 30000; // Increased from 20s to 30s for better reliability
+const WEATHER_TIMEOUT_MS = 10000; // 10s timeout for weather API (fail gracefully)
 
 // ─── IDB com timeout (evita travar se IndexedDB estiver corrompido) ───────────
 // O IDB pode ficar corrompido/travado e fazer a promise nunca resolver.
