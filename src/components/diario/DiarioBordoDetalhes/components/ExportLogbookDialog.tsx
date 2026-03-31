@@ -97,21 +97,40 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
         resolvedPartnerName = clientPartners[entry.client_partner_id].partner_name || resolvedPartnerName;
       }
 
-      // Build the "VOO PARA" display: client abbreviation + partner name
-      const clientName = clientMap.get(entry.client_id) || entry.client_company_name || '';
-      let displayVooPara = clientName;
-      if (resolvedPartnerName && clientName) {
-        // Abbreviate client name (first word) + partner first name
-        const clientAbbr = clientName.split(' ')[0];
-        const partnerFirst = resolvedPartnerName.split(' ')[0];
-        displayVooPara = `${clientAbbr} - ${partnerFirst}`;
+      // Determine which client to use: loan recipient if is_loan, otherwise original client
+      let displayVooPara = '';
+
+      if (entry.is_loan && entry.loan_recipient_client_id) {
+        // Resolve loan recipient client name
+        const loanRecipientName = clientMap.get(entry.loan_recipient_client_id) || entry.loan_recipient_client_name || '';
+        const clientName = clientMap.get(entry.client_id) || entry.client_company_name || '';
+
+        if (loanRecipientName && clientName) {
+          // Show format: "OWNER → RECIPIENT"
+          const ownerAbbr = clientName.split(' ')[0];
+          const recipientAbbr = loanRecipientName.split(' ')[0];
+          displayVooPara = `${ownerAbbr} → ${recipientAbbr}`;
+        } else {
+          displayVooPara = loanRecipientName || clientName;
+        }
+      } else {
+        // Regular flight: show client and partner if applicable
+        const clientName = clientMap.get(entry.client_id) || entry.client_company_name || '';
+        displayVooPara = clientName;
+        if (resolvedPartnerName && clientName) {
+          // Abbreviate client name (first word) + partner first name
+          const clientAbbr = clientName.split(' ')[0];
+          const partnerFirst = resolvedPartnerName.split(' ')[0];
+          displayVooPara = `${clientAbbr} - ${partnerFirst}`;
+        }
       }
 
       return {
         ...entry,
         pic_name: crewMap.get(entry.pic_canac) || entry.pic_name || '',
-        client_company_name: displayVooPara || clientName,
+        client_company_name: displayVooPara || '',
         partner_name: resolvedPartnerName,
+        loan_recipient_client_name: entry.is_loan ? (clientMap.get(entry.loan_recipient_client_id) || entry.loan_recipient_client_name || '') : '',
       };
     });
   };

@@ -1654,7 +1654,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         </div>
 
         {/* MENSAGEM QUANDO DIÁRIO NÃO EXISTE */}
-        {!logbookMonth &&
+        {!logbookMonth && !loading &&
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center shadow-2xl">
             <Calendar size={48} className="mx-auto mb-6 text-slate-500" />
             <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Diário de {MONTHS[selectedMonth - 1]} não existe</h2>

@@ -35,15 +35,56 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
   const { data: horasDetalhe = [] } = useQuery({
     queryKey: ['horas-detalhe', clienteId, aeronaveId, periodo],
     queryFn: async () => {
+      // Primeiro, tentar buscar em horas_mensais_consolidadas
+      const anoInicio = new Date(periodo.inicio).getFullYear();
+      const mesInicio = new Date(periodo.inicio).getMonth() + 1;
+      const anoFim = new Date(periodo.fim).getFullYear();
+      const mesFim = new Date(periodo.fim).getMonth() + 1;
+
       let q = supabase
+        .from('horas_mensais_consolidadas')
+        .select('id, ano, mes, horas_voadas, aeronave_registro')
+        .eq('cliente_id', clienteId);
+
+      if (aeronaveId) {
+        q = q.eq('aeronave_id', aeronaveId);
+      }
+
+      const { data: horasConsolidadas } = await q;
+
+      // Filtrar por período
+      const horasFiltradas = (horasConsolidadas || []).filter((h: any) => {
+        const val = h.ano * 100 + h.mes;
+        return val >= anoInicio * 100 + mesInicio && val <= anoFim * 100 + mesFim;
+      });
+
+      // Se encontrou consolidadas, formatar para o mesmo padrão da tabela
+      if (horasFiltradas.length > 0) {
+        return horasFiltradas.map((h: any) => ({
+          id: `${h.id}-${h.ano}-${h.mes}`,
+          entry_date: `${h.ano}-${String(h.mes).padStart(2, '0')}-01`,
+          total_time: h.horas_voadas || 0,
+          departure_aerodrome: '-',
+          arrival_aerodrome: '-',
+          trecho: `${h.ano}-${String(h.mes).padStart(2, '0')}`,
+          partner_name: h.aeronave_registro
+        }));
+      }
+
+      // Fallback para logbook_entries se não houver dados consolidados
+      let qLog = supabase
         .from('logbook_entries')
-        .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, partner_name')
+        .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, partner_name, aircraft_id')
         .eq('client_id', clienteId)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim)
         .order('entry_date', { ascending: false });
-      if (aeronaveId) q = q.eq('aircraft_id', aeronaveId);
-      const { data } = await q;
+
+      if (aeronaveId) {
+        qLog = qLog.eq('aircraft_id', aeronaveId);
+      }
+
+      const { data } = await qLog;
       return data || [];
     },
     enabled: drillDown === 'horas',

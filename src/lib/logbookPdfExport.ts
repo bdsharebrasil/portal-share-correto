@@ -57,6 +57,8 @@ interface LogbookEntry {
   is_equal_split?: boolean;
   is_loan?: boolean;
   daily_rate?: number;
+  loan_recipient_client_id?: string;
+  loan_recipient_client_name?: string;
 }
 
 interface LogbookMonthData {
@@ -231,12 +233,17 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
       partnerTotals[key].hours += entry.total_time || 0;
       partnerTotals[key].voos += 1;
     } else {
-      const clientName = entry.client_company_name || 'Sem Cliente';
-      if (!clientTotals[clientName]) {
-        clientTotals[clientName] = { name: clientName, hours: 0, voos: 0 };
+      // For loans, use the recipient client; otherwise the owner client
+      const clientId = entry.is_loan ? entry.loan_recipient_client_id : entry.client_id;
+      const clientName = entry.is_loan
+        ? (entry.loan_recipient_client_name || entry.client_company_name || 'Sem Cliente')
+        : (entry.client_company_name || 'Sem Cliente');
+
+      if (!clientTotals[clientId]) {
+        clientTotals[clientId] = { name: clientName, hours: 0, voos: 0 };
       }
-      clientTotals[clientName].hours += entry.total_time || 0;
-      clientTotals[clientName].voos += 1;
+      clientTotals[clientId].hours += entry.total_time || 0;
+      clientTotals[clientId].voos += 1;
     }
   });
 

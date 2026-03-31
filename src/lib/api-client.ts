@@ -9,7 +9,7 @@ const AIS_API_BASE_URL =
 // ─── Timeouts ─────────────────────────────────────────────────────────────────
 // A API do DECEA responde entre 4–7s — nunca use menos que 8s
 const FETCH_TIMEOUT_MS = 8000;
-const WEATHER_TIMEOUT_MS = 10000; // 10s timeout for weather API (fail gracefully)
+const WEATHER_TIMEOUT_MS = 15000; // 15s timeout for weather API (API pode ser lenta)
 
 // ─── IDB com timeout (evita travar se IndexedDB estiver corrompido) ───────────
 // O IDB pode ficar corrompido/travado e fazer a promise nunca resolver.
@@ -195,11 +195,20 @@ export const apiClient = {
     } catch (apiError: any) {
       console.warn(`[Weather API Failed] ${upperIcao}: ${apiError.message}`);
 
-      // Mock como fallback
-      const mockData = await loadMockWeatherData(upperIcao);
-      if (mockData) return mockData;
+      // Mock como fallback — retorna silenciosamente sem erro
+      try {
+        const mockData = await loadMockWeatherData(upperIcao);
+        if (mockData) {
+          console.debug(`[Mock Fallback] Using mock data for ${upperIcao}`);
+          return mockData;
+        }
+      } catch (mockError) {
+        console.warn(`[Mock Fallback Failed] ${upperIcao}:`, mockError);
+      }
 
-      throw apiError;
+      // Retorna objeto vazio em vez de lançar erro
+      console.warn(`[Weather] Returning empty data for ${upperIcao}`);
+      return { loc: upperIcao, metar: '', taf: '' };
     }
   },
 

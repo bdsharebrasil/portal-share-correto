@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User, KeyRound, Share2 } from 'lucide-react';
+import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User, KeyRound, Share2, Calendar } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -20,6 +20,9 @@ import { RelatoriosExportacao } from '@/components/balanco-cliente/RelatoriosExp
 import { GerenciarAcessoPortal } from '@/components/balanco-cliente/GerenciarAcessoPortal';
 import { GestaoCompartilhamento } from '@/components/balanco-cliente/GestaoCompartilhamento';
 import { useClientesComSocios, ClienteComSocios, Socio } from '@/hooks/useSocioBalanco';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { DatePickerCalendar } from '@/components/ui/date-picker-calendar';
 
 function BalancoClienteContent() {
   const navigate = useNavigate();
@@ -248,25 +251,53 @@ function BalancoClienteContent() {
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="data-inicio" className="text-xs font-medium">Data Início</Label>
-              <input
-                id="data-inicio"
-                type="date"
-                value={periodo.inicio}
-                onChange={(e) => setPeriodo(p => ({ ...p, inicio: e.target.value }))}
-                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
+              <Label className="text-xs font-medium">Data Início</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl justify-start text-left font-normal"
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {format(new Date(periodo.inicio), 'dd/MM/yyyy', { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0 bg-transparent border-0">
+                  <DatePickerCalendar
+                    value={new Date(periodo.inicio)}
+                    onChange={(date) => {
+                      if (date) {
+                        setPeriodo(p => ({ ...p, inicio: format(date, 'yyyy-MM-dd') }));
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="data-fim" className="text-xs font-medium">Data Fim</Label>
-              <input
-                id="data-fim"
-                type="date"
-                value={periodo.fim}
-                onChange={(e) => setPeriodo(p => ({ ...p, fim: e.target.value }))}
-                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
+              <Label className="text-xs font-medium">Data Fim</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl justify-start text-left font-normal"
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {format(new Date(periodo.fim), 'dd/MM/yyyy', { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0 bg-transparent border-0">
+                  <DatePickerCalendar
+                    value={new Date(periodo.fim)}
+                    onChange={(date) => {
+                      if (date) {
+                        setPeriodo(p => ({ ...p, fim: format(date, 'yyyy-MM-dd') }));
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardContent>

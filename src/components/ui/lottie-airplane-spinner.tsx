@@ -1,7 +1,7 @@
 import React from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import flightAnimation from "@/assets/Flight.lottie";
 import { cn } from "@/lib/utils";
+import FlightLottie from "@/assets/Flight.lottie";
 
 interface LottieAirplaneSpinnerProps {
   size?: "sm" | "md" | "lg";
@@ -34,7 +34,7 @@ export function LottieAirplaneSpinner({
       )}
     >
       <DotLottieReact
-        src={flightAnimation}
+        src={FlightLottie}
         loop
         autoplay
         style={{ width: lottieSize[size], height: lottieSize[size] }}

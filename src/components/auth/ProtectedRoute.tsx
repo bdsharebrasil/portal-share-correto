@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { AirplaneSpinner } from "@/components/ui/airplane-spinner";
+import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -13,7 +13,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <AirplaneSpinner size="md" />
+        <LottieAirplaneSpinner size="md" />
       </div>
     );
   }

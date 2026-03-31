@@ -1,3 +1,4 @@
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRateioDespesas } from "@/hooks/useRateioDespesas";
@@ -130,17 +131,24 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
     new Set(despesasRaw.map((d: any) => (d.partner_name || d.client_name || "").toString().trim()).filter(Boolean))
   );
 
-  const partners = partnersData && partnersData.length >= 2 
-    ? partnersData 
+  const partners = (partnersData && partnersData.length >= 2
+    ? partnersData
     : rateioPartnerNames.map((name, index) => {
         const exemplar = despesasRaw.find((d: any) => (d.partner_name || d.client_name || "").toString().trim() === name);
-        return { 
-          id: exemplar?.client_id || `rf-${index}`, 
-          name, 
-          cpf: exemplar?.client_id || `rf-${index}`, 
-          share_percentage: exemplar?.percentual || 0 
+        return {
+          id: exemplar?.client_id || `rf-${index}`,
+          name,
+          cpf: exemplar?.client_id || `rf-${index}`,
+          share_percentage: exemplar?.percentual || 0
         };
-      });
+      })
+  ).reduce((uniquePartners: any[], p) => {
+    // Remove duplicates by name (case-insensitive)
+    if (!uniquePartners.find(up => up.name.toLowerCase() === p.name.toLowerCase())) {
+      uniquePartners.push(p);
+    }
+    return uniquePartners;
+  }, []);
 
   if (!partners || partners.length < 2) {
     return (
@@ -301,10 +309,10 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     <TableHead className="text-[10px]"></TableHead>
                     <TableHead className="text-[10px]"></TableHead>
                     {partners.map(p => (
-                      <>
-                        <TableHead key={`${p.id}-devido`} className="text-[10px] text-center border-l border-border/50">DEVIDO</TableHead>
-                        <TableHead key={`${p.id}-pago`} className="text-[10px] text-center">PAGO</TableHead>
-                      </>
+                      <React.Fragment key={`header-${p.id}`}>
+                        <TableHead className="text-[10px] text-center border-l border-border/50">DEVIDO</TableHead>
+                        <TableHead className="text-[10px] text-center">PAGO</TableHead>
+                      </React.Fragment>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -342,7 +350,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                         const diferenca = pago - devido;
 
                         return (
-                          <React.Fragment key={`partner-${p.id}`}>
+                          <React.Fragment key={`group-${i}-${p.id}`}>
                             <TableCell className="text-xs text-center border-l border-border/50">
                               {fmt(devido)}
                             </TableCell>
@@ -361,14 +369,14 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     <TableCell className="text-xs">TOTAL</TableCell>
                     <TableCell className="text-xs">{fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0))}</TableCell>
                     {partners.map(p => (
-                      <>
-                        <TableCell key={`${p.id}-total-dev`} className="text-xs text-center border-l border-border/50">
+                      <React.Fragment key={`total-${p.id}`}>
+                        <TableCell className="text-xs text-center border-l border-border/50">
                           {fmt(partnerBalances[p.name].totalDevido)}
                         </TableCell>
-                        <TableCell key={`${p.id}-total-pag`} className="text-xs text-center">
+                        <TableCell className="text-xs text-center">
                           {fmt(partnerBalances[p.name].totalPago)}
                         </TableCell>
-                      </>
+                      </React.Fragment>
                     ))}
                   </TableRow>
                 </TableBody>
