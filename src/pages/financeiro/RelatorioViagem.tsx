@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw, FolderOpen, Send } from 'lucide-react';
+import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw, FolderOpen, Send, Folder } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -891,6 +891,16 @@ export default function RelatorioViagem() {
     'Enviado': 'border-l-4 border-l-green-400',
   };
 
+  // Cyan Folder Icon SVG
+  const CyanFolderIcon = () => (
+    <svg viewBox="0 0 120 100" className="w-full h-full drop-shadow-lg" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Folder tab */}
+      <path d="M10 25 L10 15 Q10 8 17 8 L42 8 Q46 8 48 12 L54 22 Q56 25 60 25 Z" fill="#06b6d4" opacity="0.9" />
+      {/* Folder body */}
+      <rect x="6" y="25" width="108" height="68" rx="8" fill="#06b6d4" />
+    </svg>
+  );
+
   const renderReportCard = (report: TravelReport) => (
     <div
       key={report.id}
@@ -1126,7 +1136,7 @@ export default function RelatorioViagem() {
                         <p className="text-center text-muted-foreground text-sm">Finalize um rascunho para vê-lo aqui</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
                         {Object.entries(
                           reportsWithClient.reduce((acc, report) => {
                             const key = report.client || 'Sem Cliente';
@@ -1139,28 +1149,25 @@ export default function RelatorioViagem() {
                           const clientId = group[0]?.client_id;
 
                           return (
-                            <div
+                            <button
                               key={clientName}
-                              className="flex flex-col items-center gap-3 cursor-pointer"
                               onClick={() => {
                                 if (clientId) {
                                   navigate(`/financeiro/relatorios-cliente/${clientId}`, { state: { clientName } });
                                 }
                               }}
+                              className="group flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 cursor-pointer"
                             >
-                              <div className="w-full flex flex-col items-center gap-3 p-6 rounded-xl bg-gradient-to-b from-blue-500 via-blue-400 to-blue-500 border-2 border-blue-600/40 hover:border-blue-500/60 hover:shadow-xl transition-all duration-200 group">
-                                <div className="p-4 rounded-lg bg-white/10 group-hover:bg-white/20 transition-all shadow-lg">
-                                  <FolderOpen className="h-16 w-16 text-white group-hover:scale-110 transition-transform" />
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-base font-bold text-white">{group.length}</p>
-                                  <p className="text-sm text-white/80">{group.length === 1 ? 'relatório' : 'relatórios'}</p>
-                                </div>
+                              <div className="w-24 h-20 relative group-hover:scale-105 transition-transform duration-200">
+                                <CyanFolderIcon />
                               </div>
                               <div className="text-center w-full">
-                                <p className="text-sm font-semibold text-foreground truncate px-2">{clientName}</p>
+                                <p className="text-sm font-semibold text-foreground truncate">{clientName}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {group.length} {group.length === 1 ? 'relatório' : 'relatórios'}
+                                </p>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>

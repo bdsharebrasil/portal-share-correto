@@ -313,7 +313,6 @@ export default function RelatoriosClienteDetalhes() {
                     <SelectValue placeholder="Todos os meses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os meses</SelectItem>
                     {months.map(month => (
                       <SelectItem key={month} value={month}>
                         {new Date(2024, parseInt(month) - 1).toLocaleString('pt-BR', { month: 'long' })}
