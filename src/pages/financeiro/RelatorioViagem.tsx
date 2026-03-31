@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +67,7 @@ import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
 export default function RelatorioViagem() {
   const location = useLocation();
+  const navigate = useNavigate();
   const navigationState = (location.state as any) || {};
 
   const [activeTab, setActiveTab] = useState<'criar' | 'historico' | 'relatorios'>('relatorios');
@@ -76,7 +77,6 @@ export default function RelatorioViagem() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
-  const [openClientGroups, setOpenClientGroups] = useState<Record<string, boolean>>({});
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [clientPartners, setClientPartners] = useState<any[]>([]);
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
@@ -1134,88 +1134,35 @@ export default function RelatorioViagem() {
                             acc[key].push(report);
                             return acc;
                           }, {} as Record<string, TravelReport[]>)
-                        ).map(([clientName, group]) => (
-                          <div
-                            key={clientName}
-                            className="flex flex-col items-center gap-3"
-                          >
-                            <div
-                              onClick={() => setOpenClientGroups(prev => ({ ...prev, [clientName]: !prev[clientName] }))}
-                              className="w-full flex flex-col items-center gap-3 p-4 rounded-xl bg-gradient-to-b from-sky-200 via-sky-100 to-blue-100 border-2 border-sky-300/60 hover:border-sky-400 hover:shadow-lg transition-all duration-200 cursor-pointer group"
-                            >
-                              <div className="p-3 rounded-lg bg-white/50 group-hover:bg-white/70 transition-all shadow-md">
-                                <FolderOpen className="h-12 w-12 text-sky-500 group-hover:text-sky-600 transition-colors" />
-                              </div>
-                              <div className="text-center">
-                                <p className="text-sm font-bold text-sky-900">{group.length}</p>
-                                <p className="text-xs text-sky-700/70">{group.length === 1 ? 'relatório' : 'relatórios'}</p>
-                              </div>
-                            </div>
-                            <div className="text-center w-full">
-                              <p className="text-sm font-semibold text-foreground truncate px-2">{clientName}</p>
-                            </div>
+                        ).map(([clientName, group]) => {
+                          // Get client_id from first report in group
+                          const clientId = group[0]?.client_id;
 
-                            {openClientGroups[clientName] && (
-                              <div className="w-full mt-2 pt-3 border-t-2 border-sky-200/50 space-y-2">
-                                {group.map(report => (
-                                  <div
-                                    key={report.id}
-                                    className="flex items-center justify-between p-2 rounded-md bg-sky-50 hover:bg-sky-100 transition-all border border-sky-200/60 group/item"
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-sky-900 truncate">{report.report_number}</p>
-                                      <p className="text-xs text-sky-700/70">
-                                        {format(parseISO(report.start_date), 'dd MMM yyyy', { locale: ptBR })}
-                                      </p>
-                                    </div>
-                                    <div className="flex items-center gap-0.5 ml-2 flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                      {report.status === 'Finalizado' && (
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSendReportTarget(report);
-                                            setSendDueDate('');
-                                            setSendDialogOpen(true);
-                                          }}
-                                          title="Enviar ao Cliente"
-                                          className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-100/60"
-                                        >
-                                          <Send className="h-3 w-3" />
-                                        </Button>
-                                      )}
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleViewPDF(report.id!);
-                                        }}
-                                        title="Visualizar"
-                                        className="h-6 w-6 p-0 text-sky-600 hover:bg-sky-200/60"
-                                      >
-                                        <Eye className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          deleteReport(report.id);
-                                        }}
-                                        title="Excluir"
-                                        className="h-6 w-6 p-0 text-red-500 hover:bg-red-100/60"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
+                          return (
+                            <div
+                              key={clientName}
+                              className="flex flex-col items-center gap-3 cursor-pointer"
+                              onClick={() => {
+                                if (clientId) {
+                                  navigate(`/financeiro/relatorios-cliente/${clientId}`, { state: { clientName } });
+                                }
+                              }}
+                            >
+                              <div className="w-full flex flex-col items-center gap-3 p-6 rounded-xl bg-gradient-to-b from-blue-500 via-blue-400 to-blue-500 border-2 border-blue-600/40 hover:border-blue-500/60 hover:shadow-xl transition-all duration-200 group">
+                                <div className="p-4 rounded-lg bg-white/10 group-hover:bg-white/20 transition-all shadow-lg">
+                                  <FolderOpen className="h-16 w-16 text-white group-hover:scale-110 transition-transform" />
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-base font-bold text-white">{group.length}</p>
+                                  <p className="text-sm text-white/80">{group.length === 1 ? 'relatório' : 'relatórios'}</p>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                        ))}
+                              <div className="text-center w-full">
+                                <p className="text-sm font-semibold text-foreground truncate px-2">{clientName}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
