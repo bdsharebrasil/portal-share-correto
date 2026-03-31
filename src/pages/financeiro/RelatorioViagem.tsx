@@ -1145,15 +1145,16 @@ export default function RelatorioViagem() {
                             return acc;
                           }, {} as Record<string, TravelReport[]>)
                         ).map(([clientName, group]) => {
-                          // Get client_id from first report in group
+                          // Get client_id and client_partner from first report in group
                           const clientId = group[0]?.client_id;
+                          const clientPartner = group[0]?.client_partner;
 
                           return (
                             <button
                               key={clientName}
                               onClick={() => {
                                 if (clientId) {
-                                  navigate(`/financeiro/relatorios-cliente/${clientId}`, { state: { clientName } });
+                                  navigate(`/financeiro/relatorios-cliente/${clientId}`, { state: { clientName, clientPartner } });
                                 }
                               }}
                               className="group flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 cursor-pointer"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,12 +58,15 @@ type TravelReport = {
 export default function RelatoriosClienteDetalhes() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navigationState = (location.state as any) || {};
   const [clientName, setClientName] = useState<string>('');
   const [reports, setReports] = useState<TravelReport[]>([]);
   const [searchNumber, setSearchNumber] = useState<string>('');
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [loading, setLoading] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<string>(navigationState.clientPartner || '');
 
   useEffect(() => {
     if (clientId) {
@@ -140,6 +143,11 @@ export default function RelatoriosClienteDetalhes() {
 
   const filteredReports = useMemo(() => {
     return reports.filter(report => {
+      // Filter by partner if one is selected
+      if (selectedPartner && report.client !== selectedPartner) {
+        return false;
+      }
+
       // Filter by report number
       if (searchNumber && !report.report_number.toLowerCase().includes(searchNumber.toLowerCase())) {
         return false;
@@ -162,7 +170,17 @@ export default function RelatoriosClienteDetalhes() {
 
       return true;
     });
-  }, [reports, searchNumber, selectedMonth, selectedYear]);
+  }, [reports, searchNumber, selectedMonth, selectedYear, selectedPartner]);
+
+  const partners = useMemo(() => {
+    const partnerSet = new Set<string>();
+    reports.forEach(report => {
+      if (report.client) {
+        partnerSet.add(report.client);
+      }
+    });
+    return Array.from(partnerSet).sort();
+  }, [reports]);
 
   const months = useMemo(() => {
     const monthSet = new Set<string>();
@@ -303,6 +321,28 @@ export default function RelatoriosClienteDetalhes() {
                 </div>
               </div>
 
+              {/* Filter by partner (if multiple partners) */}
+              {partners.length > 1 && (
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Cotista/Parceiro
+                  </label>
+                  <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos os cotas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Todos os cotas</SelectItem>
+                      {partners.map(partner => (
+                        <SelectItem key={partner} value={partner}>
+                          {partner}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {/* Filter by month */}
               <div className="flex-1">
                 <label className="text-sm font-medium text-foreground mb-2 block">
@@ -348,6 +388,7 @@ export default function RelatoriosClienteDetalhes() {
                   setSearchNumber('');
                   setSelectedMonth('');
                   setSelectedYear(new Date().getFullYear().toString());
+                  setSelectedPartner('');
                 }}
                 className="w-full md:w-auto"
               >
