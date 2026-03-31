@@ -273,7 +273,6 @@ export function HistoricoRateioConsolidado({
                   <SelectValue placeholder="Todas as categorias" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as categorias</SelectItem>
                   {CATEGORIA_GRUPOS.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
