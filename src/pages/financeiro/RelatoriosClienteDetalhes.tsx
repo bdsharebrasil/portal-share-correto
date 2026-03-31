@@ -332,7 +332,6 @@ export default function RelatoriosClienteDetalhes() {
                       <SelectValue placeholder="Todos os cotas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos os cotas</SelectItem>
                       {partners.map(partner => (
                         <SelectItem key={partner} value={partner}>
                           {partner}

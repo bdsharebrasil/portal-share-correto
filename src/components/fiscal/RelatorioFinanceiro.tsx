@@ -211,7 +211,6 @@ export function RelatorioFinanceiro() {
                   <SelectValue placeholder="Todos os dias" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os dias</SelectItem>
                   {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
                     <SelectItem key={day} value={String(day)}>
                       Dia {String(day).padStart(2, "0")}
