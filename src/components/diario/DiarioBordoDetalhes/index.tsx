@@ -766,6 +766,81 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     }
   };
 
+  const recalculateAllMonthCelulas = async () => {
+    if (!logbookMonth) return;
+
+    try {
+      // Buscar todas as entradas do mês ordenadas por sequential_number
+      const { data: monthEntries } = await supabase.
+      from('logbook_entries').
+      select('id, time, sequential_number').
+      eq('aircraft_id', aircraftId).
+      gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
+      lt('entry_date', selectedMonth === 12 ?
+      `${selectedYear + 1}-01-01` :
+      `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`).
+      order('sequential_number', { ascending: true });
+
+      if (!monthEntries || monthEntries.length === 0) {
+        logInfo('✅ Nenhuma entrada de voo para recalcular célula');
+        return;
+      }
+
+      const celulaAnterior = logbookMonth.celula_anterior ?? 0;
+
+      // Calcular células acumuladas progressivas
+      const updates: Array<{ id: string; celula: number }> = [];
+      let acumulado = celulaAnterior;
+
+      for (const entry of monthEntries) {
+        acumulado += (entry.time || 0);
+        const celulaFormatted = parseFloat(acumulado.toFixed(2));
+        updates.push({ id: entry.id, celula: celulaFormatted });
+      }
+
+      logInfo(`🔄 Recalculando célula para ${updates.length} entradas do mês...`);
+
+      // Atualizar cada entrada com sua célula acumulada
+      // Como o Supabase não permite bulk upsert com valores diferentes por linha,
+      // fazer updates individuais em paralelo
+      const updatePromises = updates.map(({ id, celula }) =>
+        supabase.from('logbook_entries').update({ celula }).eq('id', id)
+      );
+
+      const results = await Promise.all(updatePromises);
+      const errors = results.filter(r => r.error);
+
+      if (errors.length > 0) {
+        logError(`⚠️ ${errors.length} entradas falharam ao atualizar célula`, errors);
+      } else {
+        logSuccess(`✅ Células recalculadas com sucesso para ${updates.length} entradas`);
+        // Recarregar as entradas para refletir as mudanças
+        const { data: refreshedEntries } = await supabase.
+        from('logbook_entries').
+        select('*').
+        eq('aircraft_id', aircraftId).
+        gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
+        lt('entry_date', selectedMonth === 12 ?
+        `${selectedYear + 1}-01-01` :
+        `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`).
+        order('sequential_number', { ascending: true });
+
+        if (refreshedEntries) {
+          // Atualizar apenas as entradas do mês selecionado no estado
+          setEntries(prevEntries => {
+            const allOtherMonth = prevEntries.filter(e => {
+              const eDate = new Date(e.entry_date);
+              return eDate.getMonth() + 1 !== selectedMonth || eDate.getFullYear() !== selectedYear;
+            });
+            return [...allOtherMonth, ...refreshedEntries];
+          });
+        }
+      }
+    } catch (error) {
+      logError('Erro ao recalcular células do mês:', error);
+    }
+  };
+
   const goToPreviousMonth = () => {
     let newMonth = selectedMonth - 1;
     let newYear = selectedYear;
@@ -1347,6 +1422,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
 
         await updateCelulaAtual(flightTimeIncrement);
+        // Recalcular células progressivas de todas as entradas do mês
+        await recalculateAllMonthCelulas();
       }
 
       // Resetar formulário
@@ -1556,6 +1633,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         // Subtrair o tempo do voo deletado
         const deletedFlightTime = -(entryToDelete.total_time || 0);
         await updateCelulaAtual(deletedFlightTime);
+        // Recalcular células progressivas de todas as entradas do mês
+        const deletedDate = new Date(entryToDelete.entry_date);
+        if (deletedDate.getMonth() + 1 === selectedMonth && deletedDate.getFullYear() === selectedYear) {
+          await recalculateAllMonthCelulas();
+        }
       }
     } catch (error: any) {
       logError("Erro ao deletar lançamento:", error);
