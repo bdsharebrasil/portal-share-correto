@@ -970,11 +970,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         entry_date: newEntry.entry_date,
         departure_aerodrome: newEntry.departure_aerodrome,
         arrival_aerodrome: newEntry.arrival_aerodrome,
-        crew_checkin_time: newEntry.crew_checkin_time,
-        ac_time: newEntry.ac_time,
-        dep_time: newEntry.dep_time,
-        pou_time: newEntry.pou_time,
-        cor_time: newEntry.cor_time,
+        // Schema: ac_time, dep_time, pou_time, cor_time, crew_checkin_time são TIME WITHOUT TIME ZONE
+        // Devem ser enviados como string HH:MM ou null, NÃO como número
+        crew_checkin_time: newEntry.crew_checkin_time || null,
+        ac_time: newEntry.ac_time || null,
+        dep_time: newEntry.dep_time || null,
+        pou_time: newEntry.pou_time || null,
+        cor_time: newEntry.cor_time || null,
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
@@ -1001,13 +1003,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         celula: toNum(newEntry.celula),
         distance_nm: toNum(newEntry.distance_nm),
         passengers: toNum(newEntry.passengers),
-        cargo_kg: toNum(newEntry.cargo_kg),
+        // Schema: cargo_kg é TEXT NULL, NÃO number
+        cargo_kg: newEntry.cargo_kg || null,
         flight_nature: newEntry.flight_nature,
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
         confirmed: isEdit ? oldEntry?.confirmed || false : false,
-        daily_rate: toNum(dailyValue),
+        // Schema: daily_rate é TEXT NULL, NÃO number
+        daily_rate: dailyValue !== 0 && dailyValue !== null ? String(dailyValue) : null,
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
       };
 

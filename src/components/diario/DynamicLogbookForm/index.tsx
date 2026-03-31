@@ -486,11 +486,16 @@ export function DynamicLogbookForm({
       }
 
       // Determinar natureza do voo
+      // Schema: flight_nature TEXT NOT NULL com CHECK constraint
+      // Valores aceitos: 'AE - Aérea/Regular', 'CQ - Cheque', 'EX - Executivo', 'NR - Não Remunerado',
+      //                  'RE - Retorno/Reposição', 'PV - Privado', 'SA - Serviço Aéreo',
+      //                  'TN - Transporte Não Regular/Táxi Aéreo', 'TR - Traslado', 'VOO_CHECK',
+      //                  'TRANSLADO', 'VOO_TESTE', 'EP'
       const flightNature = flightCategory === 'rateio'
         ? specialFlightType.toUpperCase()
         : flightCategory === 'emprestimo'
           ? 'EP'
-          : 'PV';
+          : 'PV - Privado';
 
       // Determinar campos de cliente/parceiro
       const entryClientId = selectedClient;
@@ -562,10 +567,12 @@ export function DynamicLogbookForm({
           sic_canac: selectedSic || null,
           sic_source: sicSource,
           sic_name: sicName || null,
-          ac_time: formData.ac_time,
-          dep_time: formData.departure_time,
-          pou_time: formData.pou_time,
-          cor_time: formData.cor_time,
+          // Schema: ac_time, dep_time, pou_time, cor_time, crew_checkin_time são TIME WITHOUT TIME ZONE
+          // Devem ser enviados como string HH:MM ou null, NÃO como número
+          ac_time: formData.ac_time || null,
+          dep_time: formData.departure_time || null,
+          pou_time: formData.pou_time || null,
+          cor_time: formData.cor_time || null,
           crew_checkin_time: formData.crew_checkin_time || null,
           time: flightTime,
           total_time: totalBlockTime,
@@ -576,10 +583,12 @@ export function DynamicLogbookForm({
           pousos: toIntOrNull(formData.landings) ?? 1,
           fuel_added: toNumericOrNull(formData.fuel_added) ?? 0,
           celula: parseFloat(entrycelula.toFixed(2)),
-          daily_rate: finalDailyRate,
+          // Schema: daily_rate é TEXT NULL, NÃO number
+          daily_rate: finalDailyRate !== null ? String(finalDailyRate) : null,
           distance_nm: toNumericOrNull(formData.distance_nm) ?? 0,
           passengers: toIntOrNull(passengers) ?? 0,
-          cargo_kg: toNumericOrNull(cargoKg) ?? 0,
+          // Schema: cargo_kg é TEXT NULL, NÃO number
+          cargo_kg: cargoKg || null,
           // ─────────────────────────────────────────────────────────────────
           occurrences: occurrences || null,
           discrepancies: discrepancies || null,

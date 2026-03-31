@@ -275,6 +275,13 @@ export async function createFluxoCaixaEntry(
   userId: string
 ): Promise<boolean> {
   try {
+    // Client partners não devem gerar controle_bancario (fluxo de caixa)
+    // Eles geram partner_expenses em seu próprio fluxo
+    if (reconciliation.client_partner) {
+      console.log('Conciliação é client_partner - não criar controle_bancario');
+      return true;
+    }
+
     const statusLower = status?.toLowerCase() || '';
     const isClientReconciliation = reconciliation.type === 'cliente';
     const isColaboradorReconciliation = reconciliation.type === 'colaborador';
@@ -371,8 +378,7 @@ export async function createFluxoCaixaEntry(
         comprovante_url: comprovanteUrl,
         client_id: clientIdToInsert,
         client_name: clientNameToInsert,
-        aeronave_registro: aeronaveRegistro,
-        bank_reconciliation_id: reconciliation.id
+        aeronave_registro: aeronaveRegistro
       } as any);
 
     if (error) {
