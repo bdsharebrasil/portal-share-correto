@@ -1225,7 +1225,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             departure_aerodrome: newEntry.departure_aerodrome || '',
             arrival_aerodrome: newEntry.arrival_aerodrome || '',
             trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
-            fuel_added: newEntry.fuel_added || null,
+            fuel_added: toNum(newEntry.fuel_added),
             pic_name: picName,
             logbook_entry_id: insertedEntryId,
             status: 'active',
@@ -1260,7 +1260,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             departure_aerodrome: newEntry.departure_aerodrome,
             arrival_aerodrome: newEntry.arrival_aerodrome,
             trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-            fuel_added: newEntry.fuel_added || null,
+            fuel_added: toNum(newEntry.fuel_added),
             pic_name: picName,
             borrower_client_id: newEntry.loan_recipient_client_id
           };
@@ -1303,7 +1303,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           departure_aerodrome: newEntry.departure_aerodrome || '',
           arrival_aerodrome: newEntry.arrival_aerodrome || '',
           trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
-          fuel_added: newEntry.fuel_added || null,
+          fuel_added: toNum(newEntry.fuel_added),
           pic_name: picName,
           logbook_entry_id: insertedEntryId,
           status: 'active',
