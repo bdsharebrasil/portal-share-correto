@@ -1016,6 +1016,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       };
 
       // ==================== SALVAR NO BANCO ====================
+      // 🔍 DEBUG: Identificar campos vazios
+      const suspiciousFields = Object.entries(entryPayload)
+        .filter(([_, v]) => v === '')
+        .map(([k]) => k);
+      if (suspiciousFields.length > 0) {
+        console.error('⚠️ Campos com string vazia sendo enviados:', suspiciousFields);
+      }
+      console.log('📦 Payload completo:', JSON.stringify(entryPayload, null, 2));
+
       let savedEntry: any;
       let insertedEntryId: string;
 
