@@ -27,15 +27,92 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
   const [drillDown, setDrillDown] = useState<DrillDownType>(null);
 
   const { sociosBalanco, socioSelecionado, temMultiplosSocios } = useSocioBalanco(clienteId, socioId, aeronaveId, periodo);
-  const { data: dadosCompletos = [] } = useBalancoClienteCompleto(clienteId, periodo, aeronaveId);
+  const { data: dadosCompletos = [] } = useBalancoClienteCompleto(clienteId, periodo, aeronaveId, socioId);
+
+  // Se é sócio específico, calcular proporção para horas compartilhadas
   const fatorProporcao = socioId && socioSelecionado ? socioSelecionado.percentual / 100 : 1;
-  const resumoHorasCombustivel = calcularResumoHorasCombustivel(dadosCompletos, fatorProporcao);
+
+  // Para sócio específico: buscar horas próprias e compartilhadas separadamente
+  const { data: horasParaCalculo = [] } = useQuery({
+    queryKey: ['horas-calculo-socio', clienteId, aeronaveId, periodo, socioId],
+    queryFn: async () => {
+      if (!socioId || !clienteId) return { horasOwned: 0, horasShared: 0 };
+
+      const qOwned = supabase
+        .from('logbook_entries')
+        .select('total_time')
+        .eq('client_id', clienteId)
+        .eq('client_partner_id', socioId)
+        .gte('entry_date', periodo.inicio)
+        .lte('entry_date', periodo.fim);
+
+      const qShared = supabase
+        .from('logbook_entries')
+        .select('total_time')
+        .eq('client_id', clienteId)
+        .is('client_partner_id', null)
+        .gte('entry_date', periodo.inicio)
+        .lte('entry_date', periodo.fim);
+
+      const [ownedResult, sharedResult] = await Promise.all([
+        qOwned,
+        qShared
+      ]);
+
+      const horasOwned = (ownedResult.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
+      const horasShared = (sharedResult.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
+
+      return { horasOwned, horasShared };
+    },
+    enabled: !!socioId && !!clienteId,
+  });
+
+  // Calcular resumo ajustando a proporção corretamente
+  let resumoHorasCombustivel = calcularResumoHorasCombustivel(dadosCompletos, 1);
+  if (socioId && typeof horasParaCalculo === 'object' && horasParaCalculo.horasOwned !== undefined) {
+    // Próprias + (Compartilhadas × proporção)
+    resumoHorasCombustivel = {
+      ...resumoHorasCombustivel,
+      horasVoadas: horasParaCalculo.horasOwned + (horasParaCalculo.horasShared * fatorProporcao),
+    };
+  } else {
+    resumoHorasCombustivel = calcularResumoHorasCombustivel(dadosCompletos, fatorProporcao);
+  }
 
   // Buscar logbook entries para drill-down de horas
   const { data: horasDetalhe = [] } = useQuery({
-    queryKey: ['horas-detalhe', clienteId, aeronaveId, periodo],
+    queryKey: ['horas-detalhe', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
-      // Primeiro, tentar buscar em horas_mensais_consolidadas
+      // Se há sócio selecionado, buscar voos do sócio E voos compartilhados
+      if (socioId) {
+        let qLog = supabase
+          .from('logbook_entries')
+          .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, partner_name, aircraft_id, client_partner_id, is_equal_split')
+          .eq('client_id', clienteId)
+          .gte('entry_date', periodo.inicio)
+          .lte('entry_date', periodo.fim)
+          .order('entry_date', { ascending: false });
+
+        if (aeronaveId) {
+          qLog = qLog.eq('aircraft_id', aeronaveId);
+        }
+
+        const { data: allEntries } = await qLog;
+
+        // Filtrar: voos do sócio (client_partner_id = socioId) OU voos compartilhados (client_partner_id = NULL)
+        const filtered = (allEntries || []).filter((e: any) =>
+          e.client_partner_id === socioId || e.client_partner_id === null
+        );
+
+        // Adicionar informação de tipo (próprio vs compartilhado)
+        return filtered.map((e: any) => ({
+          ...e,
+          _isSocioOwned: e.client_partner_id === socioId,
+          _isShared: e.client_partner_id === null
+        }));
+      }
+
+      // Sem sócio selecionado: tentar consolidadas primeiro
       const anoInicio = new Date(periodo.inicio).getFullYear();
       const mesInicio = new Date(periodo.inicio).getMonth() + 1;
       const anoFim = new Date(periodo.fim).getFullYear();
@@ -486,41 +563,125 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
 
       {/* Drill-down Dialog */}
       <Dialog open={!!drillDown} onOpenChange={() => setDrillDown(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-6 md:p-8">
           <DialogHeader>
             <DialogTitle>{getDrillDownTitle()}</DialogTitle>
           </DialogHeader>
 
           {drillDown === 'horas' && (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Trecho</TableHead>
-                    <TableHead>De</TableHead>
-                    <TableHead>Para</TableHead>
-                    <TableHead className="text-right">Tempo</TableHead>
-                    <TableHead>Sócio</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {horasDetalhe.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum registro encontrado</TableCell></TableRow>
-                  ) : horasDetalhe.map((h: any) => (
-                    <TableRow key={h.id}>
-                      <TableCell>{format(new Date(h.entry_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                      <TableCell>{h.trecho || '-'}</TableCell>
-                      <TableCell>{h.departure_aerodrome || '-'}</TableCell>
-                      <TableCell>{h.arrival_aerodrome || '-'}</TableCell>
-                      <TableCell className="text-right font-medium">{formatarHoras(h.total_time || 0)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{h.partner_name || '-'}</TableCell>
+            <div className="space-y-4">
+              {/* Info sobre cálculo */}
+              {socioSelecionado && (
+                <div className="rounded-xl border border-blue-/30 bg-blue-500/5 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-foreground">Detalhamento do Cálculo de Horas</p>
+                  {(() => {
+                    const voosProprios = horasDetalhe.filter((h: any) => h._isSocioOwned);
+                    const voosCompartilhados = horasDetalhe.filter((h: any) => h._isShared);
+                    const horasProprias = voosProprios.reduce((s: number, h: any) => s + (h.total_time || 0), 0);
+                    const horasCompartilhadas = voosCompartilhados.reduce((s: number, h: any) => s + (h.total_time || 0), 0);
+                    const fatorSocio = socioSelecionado.percentual / 100;
+                    const horasCompartilhadasAjustadas = horasCompartilhadas * fatorSocio;
+                    const totalAjustado = horasProprias + horasCompartilhadasAjustadas;
+
+                    return (
+                      <div className="text-xs space-y-1.5 text-muted-foreground">
+                        <p>
+                          <span className="font-medium text-cyan-400">Horas Próprias</span>
+                          <span className="float-right">{formatarHoras(horasProprias)} ({voosProprios.length} voos)</span>
+                        </p>
+                        <p className="text-[11px] ml-4">- Voos com client_partner_id = {socioSelecionado.id}</p>
+
+                        <p className="mt-1">
+                          <span className="font-medium text-amber-400">Horas Compartilhadas</span>
+                          <span className="float-right">{formatarHoras(horasCompartilhadas)} ({voosCompartilhados.length} voos)</span>
+                        </p>
+                        <p className="text-[11px] ml-4">
+                          - Proporção: {socioSelecionado.percentual.toFixed(1)}%
+                        </p>
+                        <p className="text-[11px] ml-4">
+                          - Horas ajustadas: {formatarHoras(horasCompartilhadasAjustadas)}
+                        </p>
+
+                        <div className="border-t border-muted/30 pt-1.5 mt-1.5 font-semibold text-foreground">
+                          <p>
+                            Total Ajustado: <span className="float-right text-primary">{formatarHoras(totalAjustado)}</span>
+                          </p>
+                          <p className="text-xs font-normal text-muted-foreground mt-0.5">
+                            = Horas Próprias + (Horas Compartilhadas × {socioSelecionado.percentual.toFixed(1)}%)
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Tabela de voos */}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Trecho</TableHead>
+                      <TableHead>De</TableHead>
+                      <TableHead>Para</TableHead>
+                      <TableHead className="text-right">Tempo</TableHead>
+                      {socioSelecionado && <TableHead>Tipo</TableHead>}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <div className="mt-3 text-right text-sm font-bold text-foreground">
-                Total: {formatarHoras(horasDetalhe.reduce((s: number, h: any) => s + (h.total_time || 0), 0))}
+                  </TableHeader>
+                  <TableBody>
+                    {horasDetalhe.length === 0 ? (
+                      <TableRow><TableCell colSpan={socioSelecionado ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro encontrado</TableCell></TableRow>
+                    ) : horasDetalhe.map((h: any) => (
+                      <TableRow key={h.id} className={h._isShared ? 'opacity-75' : ''}>
+                        <TableCell>{format(new Date(h.entry_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                        <TableCell>{h.trecho || '-'}</TableCell>
+                        <TableCell>{h.departure_aerodrome || '-'}</TableCell>
+                        <TableCell>{h.arrival_aerodrome || '-'}</TableCell>
+                        <TableCell className="text-right font-medium">{formatarHoras(h.total_time || 0)}</TableCell>
+                        {socioSelecionado && (
+                          <TableCell>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              h._isSocioOwned
+                                ? 'bg-cyan-500/20 text-cyan-400'
+                                : 'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {h._isSocioOwned ? 'Próprio' : 'Compartilhado'}
+                            </span>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Total */}
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Horas Exibidas:</span>
+                    <span className="font-semibold text-foreground">
+                      {formatarHoras(horasDetalhe.reduce((s: number, h: any) => s + (h.total_time || 0), 0))}
+                    </span>
+                  </div>
+                  {socioSelecionado && (() => {
+                    const voosProprios = horasDetalhe.filter((h: any) => h._isSocioOwned);
+                    const voosCompartilhados = horasDetalhe.filter((h: any) => h._isShared);
+                    const horasProprias = voosProprios.reduce((s: number, h: any) => s + (h.total_time || 0), 0);
+                    const horasCompartilhadas = voosCompartilhados.reduce((s: number, h: any) => s + (h.total_time || 0), 0);
+                    const fatorSocio = socioSelecionado.percentual / 100;
+                    const horasCompartilhadasAjustadas = horasCompartilhadas * fatorSocio;
+                    const totalAjustado = horasProprias + horasCompartilhadasAjustadas;
+
+                    return (
+                      <div className="flex justify-between text-sm pt-1.5 border-t border-border/50">
+                        <span className="text-muted-foreground">Total Ajustado (com proporção):</span>
+                        <span className="font-bold text-primary">{formatarHoras(totalAjustado)}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           )}

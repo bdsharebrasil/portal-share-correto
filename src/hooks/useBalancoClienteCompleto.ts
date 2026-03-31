@@ -10,24 +10,105 @@ export interface DadosBalancoCompleto {
 
 /**
  * Hook para buscar dados completos do balanço do cliente (horas voadas e combustível)
- * Usa horas_mensais_consolidadas para horas e abastecimentos para combustível
+ * Se socioId for fornecido, filtra por sócio específico
  */
 export function useBalancoClienteCompleto(
   clienteId: string | undefined,
   periodo: { inicio: string; fim: string },
-  aeronaveId?: string
+  aeronaveId?: string,
+  socioId?: string
 ) {
   return useQuery({
-    queryKey: ["balanco-cliente-completo", clienteId, periodo, aeronaveId],
+    queryKey: ["balanco-cliente-completo", clienteId, periodo, aeronaveId, socioId],
     queryFn: async (): Promise<DadosBalancoCompleto[]> => {
       if (!clienteId) return [];
 
-      // Fonte 1: horas_mensais_consolidadas
       const anoInicio = new Date(periodo.inicio).getFullYear();
       const mesInicio = new Date(periodo.inicio).getMonth() + 1;
       const anoFim = new Date(periodo.fim).getFullYear();
       const mesFim = new Date(periodo.fim).getMonth() + 1;
 
+      // Se sócio específico: buscar diretamente do logbook_entries
+      if (socioId) {
+        // Voos do sócio
+        let qOwned = supabase
+          .from("logbook_entries")
+          .select("total_time")
+          .eq("client_id", clienteId)
+          .eq("client_partner_id", socioId)
+          .gte("entry_date", periodo.inicio)
+          .lte("entry_date", periodo.fim);
+
+        if (aeronaveId) {
+          qOwned = qOwned.eq("aircraft_id", aeronaveId);
+        }
+
+        // Voos compartilhados (client_partner_id = NULL)
+        let qShared = supabase
+          .from("logbook_entries")
+          .select("total_time")
+          .eq("client_id", clienteId)
+          .is("client_partner_id", null)
+          .gte("entry_date", periodo.inicio)
+          .lte("entry_date", periodo.fim);
+
+        if (aeronaveId) {
+          qShared = qShared.eq("aircraft_id", aeronaveId);
+        }
+
+        const [{ data: ownedData }, { data: sharedData }] = await Promise.all([
+          qOwned,
+          qShared
+        ]);
+
+        const horasOwned = (ownedData || []).reduce(
+          (sum: number, e: any) => sum + (e.total_time || 0),
+          0
+        );
+
+        const horasShared = (sharedData || []).reduce(
+          (sum: number, e: any) => sum + (e.total_time || 0),
+          0
+        );
+
+        // Converter percentual para decimal (precisa buscar do cliente/parceiro)
+        // Fallback: passar como total, será ajustado em calcularResumoHorasCombustivel
+        const horasVoadas = horasOwned + horasShared;
+
+        // Abastecimentos: voos do sócio + compartilhados
+        let abastQuery = supabase
+          .from("abastecimentos")
+          .select("litros, valor_total")
+          .eq("client_id", clienteId)
+          .gte("data", periodo.inicio)
+          .lte("data", periodo.fim);
+
+        if (aeronaveId) {
+          abastQuery = abastQuery.eq("aeronave_id", aeronaveId);
+        }
+
+        const { data: abastData } = await abastQuery;
+
+        const litrosConsumidos = (abastData || []).reduce(
+          (sum: number, a: any) => sum + (a.litros || 0),
+          0
+        );
+
+        const valorCombustivel = (abastData || []).reduce(
+          (sum: number, a: any) => sum + (a.valor_total || 0),
+          0
+        );
+
+        return [
+          {
+            horasVoadas,
+            litrosConsumidos,
+            valorCombustivel,
+          },
+        ];
+      }
+
+      // Sem sócio específico: usar consolidadas
       let horasQuery = supabase
         .from("horas_mensais_consolidadas")
         .select("horas_voadas, aeronave_registro, ano, mes")
@@ -40,13 +121,12 @@ export function useBalancoClienteCompleto(
       const { data: horasData, error: horasError } = await horasQuery;
       if (horasError) throw horasError;
 
-      // Filtrar por período no JS (mais confiável que filtros OR complexos)
       const horasFiltradas = (horasData || []).filter((h: any) => {
         const val = h.ano * 100 + h.mes;
         return val >= anoInicio * 100 + mesInicio && val <= anoFim * 100 + mesFim;
       });
 
-      // Fonte 2: abastecimentos (para litros e valor combustível)
+      // Fonte 2: abastecimentos
       let abastQuery = supabase
         .from("abastecimentos")
         .select("litros, valor_total")
@@ -61,7 +141,6 @@ export function useBalancoClienteCompleto(
       const { data: abastData, error: abastError } = await abastQuery;
       if (abastError) throw abastError;
 
-      // Fallback: se não há dados consolidados, tentar logbook_entries
       let horasVoadas = horasFiltradas.reduce(
         (sum: number, h: any) => sum + (h.horas_voadas || 0),
         0

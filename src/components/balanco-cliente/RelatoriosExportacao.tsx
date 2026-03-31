@@ -45,7 +45,7 @@ function mapearGrupoParaColuna(categoriaOuGrupo: string | null): string {
 
 type InlineViewType = 'mensal' | 'despesas' | 'pendencias' | 'completo' | null;
 
-export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: RelatoriosExportacaoProps) {
+export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }: RelatoriosExportacaoProps) {
   const [gerando, setGerando] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewState>({ tipo: null, pdfBlob: null, pdfUrl: null });
   const [inlineView, setInlineView] = useState<InlineViewType>(null);
@@ -60,6 +60,17 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
     enabled: !!clienteId,
   });
 
+  const { data: socioInfo } = useQuery({
+    queryKey: ['socio-info', socioId],
+    queryFn: async () => {
+      if (!socioId) return null;
+      const { data, error } = await supabase.from('client_partners').select('*').eq('id', socioId).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!socioId,
+  });
+
   const { data: aeronaveInfo } = useQuery({
     queryKey: ['aeronave-info-relatorio', aeronaveId],
     queryFn: async () => {
@@ -71,7 +82,7 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
   });
 
   const { data: despesas = [] } = useQuery({
-    queryKey: ['despesas-relatorio', clienteId, aeronaveId, periodo],
+    queryKey: ['despesas-relatorio', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
       let query = supabase
         .from('bank_reconciliations')
@@ -89,8 +100,65 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
   });
 
   const { data: horasConsolidadas = [] } = useQuery({
-    queryKey: ['horas-relatorio', clienteId, aeronaveId, periodo],
+    queryKey: ['horas-relatorio', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
+      // Se há sócio específico, buscar do logbook_entries
+      if (socioId) {
+        // Voos do sócio
+        let qOwned = supabase
+          .from('logbook_entries')
+          .select('entry_date, total_time, aircraft_id')
+          .eq('client_id', clienteId)
+          .eq('client_partner_id', socioId)
+          .gte('entry_date', periodo.inicio)
+          .lte('entry_date', periodo.fim);
+
+        if (aeronaveId) {
+          qOwned = qOwned.eq('aircraft_id', aeronaveId);
+        }
+
+        // Voos compartilhados
+        let qShared = supabase
+          .from('logbook_entries')
+          .select('entry_date, total_time, aircraft_id')
+          .eq('client_id', clienteId)
+          .is('client_partner_id', null)
+          .gte('entry_date', periodo.inicio)
+          .lte('entry_date', periodo.fim);
+
+        if (aeronaveId) {
+          qShared = qShared.eq('aircraft_id', aeronaveId);
+        }
+
+        const [ownedRes, sharedRes] = await Promise.all([qOwned, qShared]);
+        const ownedHoras = (ownedRes.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
+        const sharedHoras = (sharedRes.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
+
+        // Calcular mês a mês
+        const result = [];
+        const anoInicio = new Date(periodo.inicio).getFullYear();
+        const mesInicio = new Date(periodo.inicio).getMonth() + 1;
+        const anoFim = new Date(periodo.fim).getFullYear();
+        const mesFim = new Date(periodo.fim).getMonth() + 1;
+
+        for (let ano = anoInicio; ano <= anoFim; ano++) {
+          const mIni = ano === anoInicio ? mesInicio : 1;
+          const mFim = ano === anoFim ? mesFim : 12;
+          for (let mes = mIni; mes <= mFim; mes++) {
+            const fator = socioInfo?.share_percentage ? socioInfo.share_percentage / 100 : 0.333;
+            result.push({
+              ano,
+              mes,
+              horas_voadas: ownedHoras + (sharedHoras * fator),
+              percentual_uso: 100,
+              aeronave_registro: '-'
+            });
+          }
+        }
+        return result;
+      }
+
+      // Sem sócio: usar consolidadas
       let query = supabase
         .from('horas_mensais_consolidadas')
         .select('ano, mes, horas_voadas, percentual_uso, aeronave_registro')
@@ -104,7 +172,7 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
   });
 
   const { data: abastecimentos = [] } = useQuery({
-    queryKey: ['abast-relatorio', clienteId, aeronaveId, periodo],
+    queryKey: ['abast-relatorio', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
       let query = supabase
         .from('abastecimentos')
@@ -115,13 +183,23 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
       if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
+
+      // Se há sócio, aplicar proporção
+      if (socioId && data) {
+        const fator = socioInfo?.share_percentage ? socioInfo.share_percentage / 100 : 0.333;
+        return data.map((a: any) => ({
+          ...a,
+          litros: a.litros * fator,
+          valor_total: a.valor_total * fator
+        }));
+      }
       return data || [];
     },
     enabled: !!clienteId,
   });
 
   const { data: despesasControle = [] } = useQuery({
-    queryKey: ['despesas-controle-relatorio', clienteId, aeronaveId, periodo],
+    queryKey: ['despesas-controle-relatorio', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
       let aeronaveRegistro: string | null = null;
       if (aeronaveId) {
@@ -137,6 +215,16 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
       if (aeronaveRegistro) query = query.eq('aeronave_registro', aeronaveRegistro);
       const { data, error } = await query;
       if (error) throw error;
+
+      // Se há sócio, aplicar proporção
+      if (socioId && data) {
+        const fator = socioInfo?.share_percentage ? socioInfo.share_percentage / 100 : 0.333;
+        return (data || []).map((d: any) => ({
+          ...d,
+          valor: d.valor ? d.valor * fator : d.valor,
+          valor_total: d.valor_total ? d.valor_total * fator : d.valor_total
+        }));
+      }
       return data || [];
     },
     enabled: !!clienteId,
@@ -186,16 +274,24 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
     return mesesData;
   };
 
+  // Helper para obter nome exibição (cliente ou sócio)
+  const getNomeExibicao = () => {
+    if (socioId && socioInfo?.name) {
+      return `${cliente?.company_name || cliente?.proprietario || '-'} - Sócio: ${socioInfo.name}`;
+    }
+    return cliente?.company_name || cliente?.proprietario || '-';
+  };
+
   const gerarPDFMensalCompleto = (): jsPDF => {
     const ano = new Date(periodo.inicio).getFullYear();
     const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
-    const clienteNome = cliente?.company_name || cliente?.proprietario || '-';
+    const nomeExibicao = getNomeExibicao();
     const aeronaveReg = aeronaveInfo?.registration || horasConsolidadas[0]?.aeronave_registro || '-';
 
     doc.setFontSize(14); doc.setFont('helvetica', 'bold');
     doc.text('RESUMO GERAL', 148, 12, { align: 'center' });
     doc.setFontSize(11);
-    doc.text(`${clienteNome}     ${aeronaveReg}     ${ano}`, 148, 19, { align: 'center' });
+    doc.text(`${nomeExibicao}     ${aeronaveReg}     ${ano}`, 148, 19, { align: 'center' });
 
     const mesesData = buildMensalData();
     const totais = { admTrip: 0, hangaragem: 0, manutFixa: 0, combustivel: 0, manutHora: 0, taxasVoo: 0, hoteisAlim: 0, extras: 0, litros: 0, horasVoadas: 0 };
@@ -236,7 +332,7 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
       const pageW = doc.internal.pageSize.getWidth(); const pageH = doc.internal.pageSize.getHeight();
-      doc.text(`${clienteNome} | ${aeronaveReg} | Período: ${format(new Date(periodo.inicio), 'dd/MM/yyyy')} a ${format(new Date(periodo.fim), 'dd/MM/yyyy')}`, 14, pageH - 8);
+      doc.text(`${nomeExibicao} | ${aeronaveReg} | Período: ${format(new Date(periodo.inicio), 'dd/MM/yyyy')} a ${format(new Date(periodo.fim), 'dd/MM/yyyy')}`, 14, pageH - 8);
       doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, pageW / 2, pageH - 8, { align: 'center' });
       doc.text(`Página ${i} de ${pageCount}`, pageW - 14, pageH - 8, { align: 'right' });
     }
@@ -246,9 +342,9 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
   const gerarPDFDocumento = (tipo: string): jsPDF => {
     if (tipo === 'mensal') return gerarPDFMensalCompleto();
     const doc = new jsPDF();
-    const clienteNome = cliente?.company_name || cliente?.proprietario || '-';
+    const nomeExibicao = getNomeExibicao();
     doc.setFontSize(20); doc.text('Balanço Cliente', 14, 20);
-    doc.setFontSize(12); doc.text(`Cliente: ${clienteNome}`, 14, 30);
+    doc.setFontSize(12); doc.text(`Cliente: ${nomeExibicao}`, 14, 30);
     doc.text(`Período: ${format(new Date(periodo.inicio), 'dd/MM/yyyy')} a ${format(new Date(periodo.fim), 'dd/MM/yyyy')}`, 14, 36);
     doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 42);
     let yPos = 55;
