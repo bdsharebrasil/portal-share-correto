@@ -38,6 +38,7 @@ import {
   calculateCelulaDisponivel,
   calculateRunningCelula } from
 '@/utils/flightTime';
+import { draftStorage, useLogbookDraftAutoSave } from '@/lib/logbookEntryDraft';
 
 // ===================== CONSTANTES LOCAIS =====================
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -212,6 +213,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     ifr_time: 0,
     pousos: 1,
     fuel_added: 0,
+    fuel_consu: 0,
     fuel_liters: 0,
     fuel_type: '',
     fuel_location: '',
@@ -227,6 +229,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     corrective_actions: '',
     daily_quantity: 0
   });
+
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [hasPendingDraft, setHasPendingDraft] = useState(false);
 
   const calculatePerDiemInfo = useMemo(() => {
     if (!logbookMonth?.has_daily_rate || !logbookMonth?.base_aerodrome || !logbookMonth?.daily_rate) {
@@ -469,6 +474,53 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   useEffect(() => {
     localStorage.setItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`, JSON.stringify(markedDailies));
   }, [markedDailies, aircraftId, selectedMonth, selectedYear]);
+
+  // ================== CARREGAR RASCUNHO ==================
+  useEffect(() => {
+    if (!aircraftId || draftLoaded) return;
+
+    const draft = draftStorage.getDraft(aircraftId);
+    if (draft && draft.entry) {
+      setHasPendingDraft(true);
+      setDraftLoaded(true);
+
+      toast.success(
+        <div className="flex flex-col gap-2">
+          <p className="font-semibold">📝 Rascunho encontrado</p>
+          <p className="text-sm">Salvo às {new Date(draft.savedAt || '').toLocaleTimeString('pt-BR')}</p>
+          <div className="flex gap-2 mt-2">
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+              onClick={() => {
+                setNewEntry(draft.entry);
+                setHasPendingDraft(false);
+                toast.success('✅ Rascunho restaurado!');
+              }}
+            >
+              Restaurar
+            </button>
+            <button
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+              onClick={() => {
+                draftStorage.clearDraft(aircraftId);
+                setHasPendingDraft(false);
+                toast.info('🗑️ Rascunho descartado');
+              }}
+            >
+              Descartar
+            </button>
+          </div>
+        </div>,
+        {
+          duration: 10000,
+          position: 'top-right'
+        }
+      );
+    }
+  }, [aircraftId, draftLoaded]);
+
+  // ================== AUTO-SAVE RASCUNHO ==================
+  useLogbookDraftAutoSave(newEntry, aircraftId, showAddForm);
 
   useEffect(() => {
     if (newEntry.ac_time) {
@@ -931,27 +983,30 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       let dailyCount = 0;
       let dailyValue = 0;
 
+      // Validação segura para taxa_diaria
+      const safeDailyRate = logbookMonth?.daily_rate ? Number(logbookMonth.daily_rate) : 0;
+
       if (newEntry.daily_quantity > 0) {
         dailyCount = newEntry.daily_quantity;
-        dailyValue = dailyCount * (logbookMonth.daily_rate || 0);
+        dailyValue = dailyCount * safeDailyRate;
         logInfo('Diárias (Manual):', {
           quantidade: dailyCount,
-          taxa_diaria: logbookMonth.daily_rate,
+          taxa_diaria: safeDailyRate,
           total: dailyValue
         });
       } else {
         dailyCount = calculateDailyAllowanceForEntry(
           newEntry,
-          logbookMonth.base_aerodrome || '',
+          logbookMonth?.base_aerodrome || '',
           allEntriesForCalc
         );
-        dailyValue = dailyCount * (logbookMonth.daily_rate || 0);
+        dailyValue = dailyCount * safeDailyRate;
         logInfo('Diárias (Automático):', {
-          base: logbookMonth.base_aerodrome,
+          base: logbookMonth?.base_aerodrome,
           origem: newEntry.departure_aerodrome,
           destino: newEntry.arrival_aerodrome,
           quantidade: dailyCount,
-          taxa_diaria: logbookMonth.daily_rate,
+          taxa_diaria: safeDailyRate,
           total: dailyValue
         });
       }
@@ -995,6 +1050,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         ifr_time: toNum(newEntry.ifr_time),
         pousos: toNum(newEntry.pousos),
         fuel_added: toNum(newEntry.fuel_added),
+        fuel_consu: toNum(0),
         fuel_liters: toNum(newEntry.fuel_liters),
         fuel_type: newEntry.fuel_type || null,
         fuel_location: newEntry.fuel_location || null,
@@ -1003,8 +1059,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         celula: toNum(newEntry.celula),
         distance_nm: toNum(newEntry.distance_nm),
         passengers: toNum(newEntry.passengers),
-        // Schema: cargo_kg é TEXT NULL, NÃO number
-        cargo_kg: newEntry.cargo_kg || null,
+        cargo_kg: newEntry.cargo_kg ? String(newEntry.cargo_kg) : null,
         flight_nature: newEntry.flight_nature,
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
@@ -1012,17 +1067,27 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         confirmed: isEdit ? oldEntry?.confirmed || false : false,
         // Schema: daily_rate é TEXT NULL, NÃO number
         daily_rate: dailyValue !== 0 && dailyValue !== null ? String(dailyValue) : null,
+        pic_source: 'crew_members',
+        sic_source: 'crew_members',
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
       };
 
       // ==================== SALVAR NO BANCO ====================
-      // 🔍 DEBUG: Identificar campos vazios
+      // 🔍 DEBUG: Identificar campos vazios ou inválidos
       const suspiciousFields = Object.entries(entryPayload)
-        .filter(([_, v]) => v === '')
-        .map(([k]) => k);
+        .filter(([_, v]) => v === '' || v === 'NaN')
+        .map(([k, v]) => ({ field: k, value: v }));
+
+      const numericFields = Object.entries(entryPayload)
+        .filter(([k, v]) => ['total_time', 'time', 'day_time', 'night_hours', 'ifr_time',
+                             'pousos', 'fuel_added', 'fuel_consu', 'fuel_liters',
+                             'fuel_price_per_liter', 'celula', 'distance_nm', 'passengers'].includes(k))
+        .map(([k, v]) => ({ field: k, value: v, type: typeof v }));
+
       if (suspiciousFields.length > 0) {
-        console.error('⚠️ Campos com string vazia sendo enviados:', suspiciousFields);
+        console.error('⚠️ Campos com valor inválido:', suspiciousFields);
       }
+      console.log('📊 Campos NUMERIC:', numericFields);
       console.log('📦 Payload completo:', JSON.stringify(entryPayload, null, 2));
 
       let savedEntry: any;
@@ -1329,6 +1394,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       setFlightType('cliente');
       setEditingEntryIdForm(null);
       setShowAddForm(false);
+
+      // ================== LIMPAR RASCUNHO ==================
+      draftStorage.clearDraft(aircraftId);
+      setDraftLoaded(false);
 
     } catch (error: any) {
       logError(`Erro ao ${isEdit ? 'atualizar' : 'criar'} voo:`, error);

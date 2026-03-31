@@ -7468,7 +7468,7 @@ export type Database = {
           aircraft_id: string
           airframe_hours_next_maintenance: number | null
           arrival_aerodrome: string
-          cargo_kg: number | null
+          cargo_kg: string | null
           celula: number | null
           client_id: string | null
           client_partner_id: string | null
@@ -7482,7 +7482,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           crew_checkin_time: string | null
-          daily_rate: number | null
+          daily_rate: string | null
           day_time: number | null
           dep_time: string | null
           departure_aerodrome: string
@@ -7814,7 +7814,7 @@ export type Database = {
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string | null
-          daily_rate: number | null
+          daily_rate: string | null
           fuel_consumption: string | null
           has_daily_rate: boolean | null
           horimetro_ativo: number | null
