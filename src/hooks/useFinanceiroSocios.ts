@@ -58,6 +58,23 @@ export interface PartnerExpense {
   prazo?: string | null;
 }
 
+function mapPartnerExpenseStatusToBankReconciliationStatus(status?: string): string | null {
+  if (!status) return null;
+  const normalized = status.toLowerCase().trim();
+
+  if (normalized === "paid" || normalized === "pago" || normalized === "reembolsado") {
+    return "reembolsado";
+  }
+  if (normalized === "pending" || normalized === "pendente") {
+    return "pendente";
+  }
+  if (normalized === "aguardando_reembolso" || normalized === "aguardando reembolso") {
+    return "aguardando_reembolso";
+  }
+
+  return null;
+}
+
 // --- HOOKS DE LEITURA (QUERIES) ---
 
 export function useSocioAccounts(clientId: string | null) {
@@ -906,6 +923,29 @@ export function useCreateExpense(showToast = true) {
         if (error) throw error;
       }
 
+      if (data.referenceType && data.referenceId) {
+        const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.status || undefined);
+        if (reconcStatus) {
+          const bankUpdate: any = {
+            status: reconcStatus,
+            updated_at: new Date().toISOString(),
+          };
+          if (reconcStatus === "reembolsado") {
+            bankUpdate.data_reembolso = data.dueDate || new Date().toISOString().split("T")[0];
+          }
+
+          const { error: reconError } = await supabase
+            .from("bank_reconciliations")
+            .update(bankUpdate)
+            .eq("reference_type", data.referenceType)
+            .eq("reference_id", data.referenceId);
+
+          if (reconError) {
+            console.warn("Falha ao sincronizar status de partner_expense em bank_reconciliations:", reconError.message);
+          }
+        }
+      }
+
       return data.clientId;
     },
     onSuccess: (clientId) => {
@@ -1124,6 +1164,30 @@ export function useUpdateTransaction() {
           })
           .eq("id", data.id);
         if (error) throw error;
+
+        // Sincronizar status na conciliação bancária quando é um relatório de viagem referenciado
+        if (data.referenceType && data.referenceId) {
+          const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.status || undefined);
+          if (reconcStatus) {
+            const bankUpdate: any = {
+              status: reconcStatus,
+              updated_at: new Date().toISOString(),
+            };
+            if (reconcStatus === "reembolsado") {
+              bankUpdate.data_reembolso = data.paymentDate || new Date().toISOString().split("T")[0];
+            }
+
+            const { error: reconError } = await supabase
+              .from("bank_reconciliations")
+              .update(bankUpdate)
+              .eq("reference_type", data.referenceType)
+              .eq("reference_id", data.referenceId);
+
+            if (reconError) {
+              console.warn("Falha ao sincronizar status de partner_expense em bank_reconciliations:", reconError.message);
+            }
+          }
+        }
       } else if (data.transactionType === "abastecimento") {
         const { data: fuelRecord, error: fuelFetchError } = await supabase
           .from("abastecimentos")

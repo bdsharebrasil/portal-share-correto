@@ -13,6 +13,42 @@ import {
 } from '@/utils/calculationUtils';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
 
+const toNumberOrNull = (value: any): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const converted = Number(String(value).replace(',', '.'));
+  return Number.isFinite(converted) ? converted : null;
+};
+
+const toBoolean = (value: any): boolean | null => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'sim'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'não', 'nao'].includes(normalized)) return false;
+  return null;
+};
+
+const sanitizeFlightEntry = (entry: any) => ({
+  ...entry,
+  total_time: toNumberOrNull(entry.total_time),
+  time: toNumberOrNull(entry.time),
+  day_time: toNumberOrNull(entry.day_time),
+  night_hours: toNumberOrNull(entry.night_hours),
+  ifr_time: toNumberOrNull(entry.ifr_time),
+  distance_nm: toNumberOrNull(entry.distance_nm),
+  pousos: toNumberOrNull(entry.pousos),
+  fuel_added: toNumberOrNull(entry.fuel_added),
+  fuel_liters: toNumberOrNull(entry.fuel_liters),
+  fuel_price_per_liter: toNumberOrNull(entry.fuel_price_per_liter),
+  celula: toNumberOrNull(entry.celula),
+  daily_rate: toNumberOrNull(entry.daily_rate),
+  is_equal_split: toBoolean(entry.is_equal_split),
+  is_loan: toBoolean(entry.is_loan),
+  refueled: toBoolean(entry.refueled),
+  confirmed: toBoolean(entry.confirmed),
+  // keep strings as-is for text fields
+});
+
 export interface FlightServiceConfig {
   aircraftId: string;
   logbookMonthId?: string | null;
@@ -76,11 +112,13 @@ export class FlightService {
     entry: FlightEntry,
     config: FlightServiceConfig
   ): FlightEntry {
-    const blockTime = calculateBlockTime(entry.ac_time, entry.cor_time);
-    const flightTime = calculateFlightTime(entry.dep_time, entry.pou_time);
+    const normalized = sanitizeFlightEntry(entry);
+
+    const blockTime = calculateBlockTime(normalized.ac_time, normalized.cor_time);
+    const flightTime = calculateFlightTime(normalized.dep_time, normalized.pou_time);
 
     return {
-      ...entry,
+      ...normalized,
       total_time: blockTime,
       time: flightTime,
       // day_time e night_time já foram calculados no frontend com cálculo solar correto
