@@ -1126,7 +1126,7 @@ export default function RelatorioViagem() {
                         <p className="text-center text-muted-foreground text-sm">Finalize um rascunho para vê-lo aqui</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                         {Object.entries(
                           reportsWithClient.reduce((acc, report) => {
                             const key = report.client || 'Sem Cliente';
@@ -1137,33 +1137,38 @@ export default function RelatorioViagem() {
                         ).map(([clientName, group]) => (
                           <div
                             key={clientName}
-                            className="p-5 rounded-lg bg-slate-900 border border-slate-700/60 hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer group"
-                            onClick={() => setOpenClientGroups(prev => ({ ...prev, [clientName]: !prev[clientName] }))}
+                            className="flex flex-col items-center gap-3"
                           >
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="p-2 rounded-lg bg-slate-800/80 group-hover:bg-slate-700/80 transition-all">
-                                <FolderOpen className="h-6 w-6 text-slate-400" />
+                            <div
+                              onClick={() => setOpenClientGroups(prev => ({ ...prev, [clientName]: !prev[clientName] }))}
+                              className="w-full flex flex-col items-center gap-3 p-4 rounded-xl bg-gradient-to-b from-sky-200 via-sky-100 to-blue-100 border-2 border-sky-300/60 hover:border-sky-400 hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                            >
+                              <div className="p-3 rounded-lg bg-white/50 group-hover:bg-white/70 transition-all shadow-md">
+                                <FolderOpen className="h-12 w-12 text-sky-500 group-hover:text-sky-600 transition-colors" />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-foreground truncate text-base">{clientName}</p>
-                                <p className="text-sm text-muted-foreground">{group.length} {group.length === 1 ? 'relatório' : 'relatórios'}</p>
+                              <div className="text-center">
+                                <p className="text-sm font-bold text-sky-900">{group.length}</p>
+                                <p className="text-xs text-sky-700/70">{group.length === 1 ? 'relatório' : 'relatórios'}</p>
                               </div>
+                            </div>
+                            <div className="text-center w-full">
+                              <p className="text-sm font-semibold text-foreground truncate px-2">{clientName}</p>
                             </div>
 
                             {openClientGroups[clientName] && (
-                              <div className="mt-4 pt-4 border-t border-slate-700/40 space-y-2">
+                              <div className="w-full mt-2 pt-3 border-t-2 border-sky-200/50 space-y-2">
                                 {group.map(report => (
                                   <div
                                     key={report.id}
-                                    className="flex items-center justify-between p-2 rounded-md bg-slate-800/60 hover:bg-slate-700/80 transition-all border border-slate-700/50"
+                                    className="flex items-center justify-between p-2 rounded-md bg-sky-50 hover:bg-sky-100 transition-all border border-sky-200/60 group/item"
                                   >
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-slate-200 truncate">{report.report_number}</p>
-                                      <p className="text-xs text-slate-400">
+                                      <p className="text-xs font-medium text-sky-900 truncate">{report.report_number}</p>
+                                      <p className="text-xs text-sky-700/70">
                                         {format(parseISO(report.start_date), 'dd MMM yyyy', { locale: ptBR })}
                                       </p>
                                     </div>
-                                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                    <div className="flex items-center gap-0.5 ml-2 flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                       {report.status === 'Finalizado' && (
                                         <Button
                                           size="sm"
@@ -1175,23 +1180,9 @@ export default function RelatorioViagem() {
                                             setSendDialogOpen(true);
                                           }}
                                           title="Enviar ao Cliente"
-                                          className="h-7 w-7 p-0 text-emerald-500 hover:bg-emerald-500/20"
+                                          className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-100/60"
                                         >
-                                          <Send className="h-3.5 w-3.5" />
-                                        </Button>
-                                      )}
-                                      {report.status === 'Rascunho' && (
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            editReport(report.id!);
-                                          }}
-                                          title="Editar"
-                                          className="h-7 w-7 p-0 text-cyan-500 hover:bg-cyan-500/20"
-                                        >
-                                          <Edit className="h-3.5 w-3.5" />
+                                          <Send className="h-3 w-3" />
                                         </Button>
                                       )}
                                       <Button
@@ -1202,9 +1193,9 @@ export default function RelatorioViagem() {
                                           handleViewPDF(report.id!);
                                         }}
                                         title="Visualizar"
-                                        className="h-7 w-7 p-0 text-cyan-500 hover:bg-cyan-500/20"
+                                        className="h-6 w-6 p-0 text-sky-600 hover:bg-sky-200/60"
                                       >
-                                        <Eye className="h-3.5 w-3.5" />
+                                        <Eye className="h-3 w-3" />
                                       </Button>
                                       <Button
                                         size="sm"
@@ -1214,9 +1205,9 @@ export default function RelatorioViagem() {
                                           deleteReport(report.id);
                                         }}
                                         title="Excluir"
-                                        className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/20"
+                                        className="h-6 w-6 p-0 text-red-500 hover:bg-red-100/60"
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                        <Trash2 className="h-3 w-3" />
                                       </Button>
                                     </div>
                                   </div>
