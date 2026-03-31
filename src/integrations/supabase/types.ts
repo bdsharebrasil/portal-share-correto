@@ -3659,6 +3659,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ctm_budget_versions: {
+        Row: {
+          budget_id: string | null
+          changed_at: string | null
+          changed_by: string | null
+          changed_fields: Json | null
+          created_at: string | null
+          data: Json | null
+          id: string
+          version: number
+        }
+        Insert: {
+          budget_id?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          changed_fields?: Json | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          version: number
+        }
+        Update: {
+          budget_id?: string | null
+          changed_at?: string | null
+          changed_by?: string | null
+          changed_fields?: Json | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_budget_versions_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_budgets: {
         Row: {
           aircraft_id: string
@@ -4418,6 +4459,63 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ctm_service_order_approvals_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_service_order_budgets: {
+        Row: {
+          approval_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          budget_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          service_order_id: string | null
+          status: string | null
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          service_order_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          service_order_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_service_order_budgets_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_service_order_budgets_service_order_id_fkey"
             columns: ["service_order_id"]
             isOneToOne: false
             referencedRelation: "ctm_service_orders"
@@ -7412,8 +7510,10 @@ export type Database = {
           next_maintenance_type: string | null
           night_hours: number | null
           occurrences: string | null
+          partner_name: string | null
           passengers: number | null
           pic_canac: string
+          pic_source: string | null
           pilot_signature_date: string | null
           pou_time: string | null
           pousos: number | null
@@ -7421,6 +7521,7 @@ export type Database = {
           sequential_number: number | null
           sic_canac: string | null
           sic_name: string | null
+          sic_source: string | null
           time: number | null
           total_time: number | null
           trecho: string | null
@@ -7472,8 +7573,10 @@ export type Database = {
           next_maintenance_type?: string | null
           night_hours?: number | null
           occurrences?: string | null
+          partner_name?: string | null
           passengers?: number | null
           pic_canac: string
+          pic_source?: string | null
           pilot_signature_date?: string | null
           pou_time?: string | null
           pousos?: number | null
@@ -7481,6 +7584,7 @@ export type Database = {
           sequential_number?: number | null
           sic_canac?: string | null
           sic_name?: string | null
+          sic_source?: string | null
           time?: number | null
           total_time?: number | null
           trecho?: string | null
@@ -7532,8 +7636,10 @@ export type Database = {
           next_maintenance_type?: string | null
           night_hours?: number | null
           occurrences?: string | null
+          partner_name?: string | null
           passengers?: number | null
           pic_canac?: string
+          pic_source?: string | null
           pilot_signature_date?: string | null
           pou_time?: string | null
           pousos?: number | null
@@ -7541,6 +7647,7 @@ export type Database = {
           sequential_number?: number | null
           sic_canac?: string | null
           sic_name?: string | null
+          sic_source?: string | null
           time?: number | null
           total_time?: number | null
           trecho?: string | null
@@ -7691,20 +7798,6 @@ export type Database = {
             columns: ["loan_recipient_partner_id"]
             isOneToOne: false
             referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_pic_canac_fkey"
-            columns: ["pic_canac"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_sic_canac_fkey"
-            columns: ["sic_canac"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
             referencedColumns: ["id"]
           },
         ]
@@ -10133,18 +10226,21 @@ export type Database = {
           data_pagamento_direto: string | null
           data_vencimento: string | null
           despesa_id: string
+          fonte_despesa: string | null
+          fonte_id: string | null
           forma_pagamento: string | null
           horas_voadas: number | null
           id: string
           nota_fiscal: string | null
+          numero_recibo: string | null
           observacoes: string | null
           pago_diretamente: boolean | null
           partner_name: string | null
           percentual: number | null
           percentual_voo: number | null
           recebimento_id: string | null
+          recibo_url: string | null
           status: string | null
-          tipo_rateio: string | null
           valor: number | null
           valor_por_voo: number | null
           valor_rateado: number
@@ -10165,18 +10261,21 @@ export type Database = {
           data_pagamento_direto?: string | null
           data_vencimento?: string | null
           despesa_id: string
+          fonte_despesa?: string | null
+          fonte_id?: string | null
           forma_pagamento?: string | null
           horas_voadas?: number | null
           id?: string
           nota_fiscal?: string | null
+          numero_recibo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
           partner_name?: string | null
           percentual?: number | null
           percentual_voo?: number | null
           recebimento_id?: string | null
+          recibo_url?: string | null
           status?: string | null
-          tipo_rateio?: string | null
           valor?: number | null
           valor_por_voo?: number | null
           valor_rateado: number
@@ -10197,18 +10296,21 @@ export type Database = {
           data_pagamento_direto?: string | null
           data_vencimento?: string | null
           despesa_id?: string
+          fonte_despesa?: string | null
+          fonte_id?: string | null
           forma_pagamento?: string | null
           horas_voadas?: number | null
           id?: string
           nota_fiscal?: string | null
+          numero_recibo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
           partner_name?: string | null
           percentual?: number | null
           percentual_voo?: number | null
           recebimento_id?: string | null
+          recibo_url?: string | null
           status?: string | null
-          tipo_rateio?: string | null
           valor?: number | null
           valor_por_voo?: number | null
           valor_rateado?: number
@@ -12878,6 +12980,7 @@ export type Database = {
       is_admin_role: { Args: never; Returns: boolean }
       is_financeiro_master: { Args: never; Returns: boolean }
       is_gestor_master: { Args: never; Returns: boolean }
+      is_privileged_user: { Args: never; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
       next_receipt_number:
         | { Args: never; Returns: number }

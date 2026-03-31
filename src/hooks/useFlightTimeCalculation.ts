@@ -40,8 +40,8 @@ export function useFlightTimeCalculation(
         console.warn(`⚠️ blockTime (${blockTime}) < flightTime (${flightTime})`);
       }
 
-      const nightTime = Math.min(nightTimeInput, flightTime);
-      const dayTime = calculateDayTime(flightTime, nightTime);
+      const nightTime = Math.min(nightTimeInput, blockTime);
+      const dayTime = calculateDayTime(blockTime, nightTime);
       const fuelConsumption = fuelConsumptionRate
         ? calculateFuelConsumption(blockTime, fuelConsumptionRate)
         : null;

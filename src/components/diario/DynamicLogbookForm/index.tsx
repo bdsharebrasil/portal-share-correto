@@ -47,6 +47,19 @@ const SPECIAL_FLIGHT_TYPES = [
   { value: 'voo_teste', label: 'Voo de Teste', description: 'Voo de manutenção/teste - rateio igual' },
 ] as const;
 
+// Helper: converte string para número ou null (evita enviar "" para campos numeric do Postgres)
+const toNumericOrNull = (value: string | number | undefined | null): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = parseFloat(String(value));
+  return isNaN(parsed) ? null : parsed;
+};
+
+const toIntOrNull = (value: string | number | undefined | null): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = parseInt(String(value), 10);
+  return isNaN(parsed) ? null : parsed;
+};
+
 interface DynamicLogbookFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -158,7 +171,6 @@ export function DynamicLogbookForm({
   const { data: clients = [] } = useQuery({
     queryKey: ['aircraft-clients', aircraftId],
     queryFn: async () => {
-      // Primeiro buscar os client_ids vinculados à aeronave
       const { data: clientAircraft, error: caError } = await supabase
         .from('client_aircraft')
         .select('client_id, share_percentage')
@@ -167,7 +179,6 @@ export function DynamicLogbookForm({
       if (caError) throw caError;
       if (!clientAircraft || clientAircraft.length === 0) return [];
 
-      // Depois buscar os dados completos dos clientes
       const clientIds = clientAircraft.map((ca: any) => ca.client_id);
       const { data: clientsData, error: clientsError } = await supabase
         .from('clients')
@@ -176,7 +187,6 @@ export function DynamicLogbookForm({
 
       if (clientsError) throw clientsError;
 
-      // Mapear os dados combinados
       const clientsMap: Record<string, any> = {};
       (clientsData || []).forEach((c: any) => {
         clientsMap[c.id] = c;
@@ -191,7 +201,7 @@ export function DynamicLogbookForm({
     enabled: !!aircraftId,
   });
 
-  // Buscar TODOS os clientes (para empréstimo - seleção do cliente que está usando a aeronave)
+  // Buscar TODOS os clientes (para empréstimo)
   const { data: allClients = [] } = useQuery({
     queryKey: ['all-clients-for-loan'],
     queryFn: async () => {
@@ -203,13 +213,10 @@ export function DynamicLogbookForm({
         console.error('Erro ao buscar clientes:', error);
         throw error;
       }
-      console.log('Total de clientes para empréstimo:', data?.length);
       return data || [];
     },
   });
 
-  // Para empréstimo, mostrar TODOS os clientes disponíveis
-  // O cliente que está usando a aeronave emprestada pode ser qualquer cliente cadastrado
   const borrowerClients = allClients;
 
   // Buscar parceiros do cliente selecionado (para cliente normal)
@@ -269,7 +276,7 @@ export function DynamicLogbookForm({
     enabled: !!selectedBorrowerClient && flightCategory === 'emprestimo',
   });
 
-  // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
+  // Buscar dados do logbook_month
   const { data: logbookMonth } = useQuery({
     queryKey: ['logbook-month', logbookMonthId],
     queryFn: async () => {
@@ -288,10 +295,8 @@ export function DynamicLogbookForm({
     enabled: !!logbookMonthId,
   });
 
-  // Verificar se a aeronave possui diária configurada
   const hasDailyRate = logbookMonth?.has_daily_rate ?? true;
 
-  // Atualizar base_aerodrome e daily_rate quando logbookMonth muda
   useEffect(() => {
     if (logbookMonth) {
       setBaseAerodrome(logbookMonth.base_aerodrome);
@@ -299,20 +304,17 @@ export function DynamicLogbookForm({
     }
   }, [logbookMonth]);
 
-  // Resetar parceiro quando cliente muda
   useEffect(() => {
     setSelectedClientPartner(null);
     setSelectedLenderPartner(null);
   }, [selectedClient]);
 
-  // Resetar parceiro do borrower quando muda
   useEffect(() => {
     setSelectedBorrowerPartner(null);
   }, [selectedBorrowerClient]);
 
   const { formData, updateField, updateFields, resetForm } = useLogbookForm(aerodromes);
 
-  // Ao abrir o formulário, garantir que exista uma data inicial (para não travar validação)
   useEffect(() => {
     if (!open) return;
     const initial = prefilledDate ?? new Date();
@@ -320,7 +322,6 @@ export function DynamicLogbookForm({
     setDateText(format(initial, 'dd/MM/yyyy'));
   }, [open, prefilledDate]);
 
-  // Atualizar data quando prefilledDate muda
   useEffect(() => {
     if (prefilledDate) {
       setDate(prefilledDate);
@@ -329,7 +330,6 @@ export function DynamicLogbookForm({
     }
   }, [prefilledDate, updateField]);
 
-  // Atualizar entry_date quando date muda
   useEffect(() => {
     if (date) {
       updateField('entry_date', format(date, 'yyyy-MM-dd'));
@@ -339,9 +339,7 @@ export function DynamicLogbookForm({
     }
   }, [date, updateField]);
 
-  // Detectar automaticamente se é voo fora da base e auto-preencher diárias (apenas se aeronave tem diária)
   useEffect(() => {
-    // Se aeronave não possui diária, não preencher automaticamente
     if (!hasDailyRate) {
       setDailyCount('');
       return;
@@ -365,105 +363,56 @@ export function DynamicLogbookForm({
   // Validações por passo
   const validateStep1 = (): boolean => {
     if (!date) {
-      toast({
-        title: 'Erro',
-        description: 'Selecione a data do voo.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Selecione a data do voo.', variant: 'destructive' });
       return false;
     }
 
     if (!formData.departure_airport || !formData.arrival_airport) {
-      toast({
-        title: 'Erro',
-        description: 'Preencha os aeroportos DE e PARA.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Preencha os aeroportos DE e PARA.', variant: 'destructive' });
       return false;
     }
 
-    // Validar PIC (obrigatório)
     if (!selectedPic) {
-      toast({
-        title: 'Erro',
-        description: 'Selecione o Piloto em Comando (PIC).',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Selecione o Piloto em Comando (PIC).', variant: 'destructive' });
       return false;
     }
 
-    // Validar cliente ou tipo de rateio ou empréstimo
     if (flightCategory === 'cliente' && !selectedClient) {
-      toast({
-        title: 'Erro',
-        description: 'Selecione um cliente.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Selecione um cliente.', variant: 'destructive' });
       return false;
     }
 
     if (flightCategory === 'rateio' && !specialFlightType) {
-      toast({
-        title: 'Erro',
-        description: 'Selecione o tipo de voo para rateio.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Selecione o tipo de voo para rateio.', variant: 'destructive' });
       return false;
     }
 
     if (flightCategory === 'emprestimo') {
       if (!selectedClient) {
-        toast({
-          title: 'Erro',
-          description: 'Selecione o cotista que está emprestando a aeronave.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro', description: 'Selecione o cotista que está emprestando a aeronave.', variant: 'destructive' });
         return false;
       }
       if (!selectedBorrowerClient) {
-        toast({
-          title: 'Erro',
-          description: 'Selecione o cliente que está pegando emprestado.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro', description: 'Selecione o cliente que está pegando emprestado.', variant: 'destructive' });
         return false;
       }
     }
 
     const timeRegex = /^\d{2}:\d{2}$/;
     if (!formData.ac_time || !timeRegex.test(formData.ac_time)) {
-      toast({
-        title: 'Erro',
-        description: 'AC inválido. Use o formato HH:MM.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'AC inválido. Use o formato HH:MM.', variant: 'destructive' });
       return false;
     }
-
     if (!formData.departure_time || !timeRegex.test(formData.departure_time)) {
-      toast({
-        title: 'Erro',
-        description: 'DEP inválido. Use o formato HH:MM.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'DEP inválido. Use o formato HH:MM.', variant: 'destructive' });
       return false;
     }
-
     if (!formData.pou_time || !timeRegex.test(formData.pou_time)) {
-      toast({
-        title: 'Erro',
-        description: 'POU inválido. Use o formato HH:MM.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'POU inválido. Use o formato HH:MM.', variant: 'destructive' });
       return false;
     }
-
     if (!formData.cor_time || !timeRegex.test(formData.cor_time)) {
-      toast({
-        title: 'Erro',
-        description: 'COR inválido. Use o formato HH:MM.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'COR inválido. Use o formato HH:MM.', variant: 'destructive' });
       return false;
     }
 
@@ -475,22 +424,14 @@ export function DynamicLogbookForm({
       (formData.flight_time_hours === '' || formData.flight_time_hours === '0') &&
       (formData.flight_time_minutes === '' || formData.flight_time_minutes === '0')
     ) {
-      toast({
-        title: 'Erro',
-        description: 'Informe o tempo de voo.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: 'Informe o tempo de voo.', variant: 'destructive' });
       return false;
     }
 
     if (formData.flight_time_minutes) {
       const minutes = parseInt(formData.flight_time_minutes, 10);
       if (isNaN(minutes) || minutes < 0 || minutes > 59) {
-        toast({
-          title: 'Erro',
-          description: 'Minutos devem estar entre 0 e 59.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro', description: 'Minutos devem estar entre 0 e 59.', variant: 'destructive' });
         return false;
       }
     }
@@ -499,15 +440,11 @@ export function DynamicLogbookForm({
   };
 
   const nextStep = () => {
-    if (validateStep1()) {
-      setStep(2);
-    }
+    if (validateStep1()) setStep(2);
   };
 
   const prevStep = () => {
-    if (step > 1) {
-      setStep(1);
-    }
+    if (step > 1) setStep(1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -523,83 +460,90 @@ export function DynamicLogbookForm({
       const flightMinutes = parseFloat(formData.flight_time_minutes) || 0;
       const flightTime = flightHours + flightMinutes / 60;
 
-      // Calcular tempo de bloco (AC até COR) usando função centralizada
+      // Calcular tempo de bloco (AC até COR)
       const totalBlockTime = calculateBlockTime(formData.ac_time, formData.cor_time);
 
-      // Calcular tempo noturno do bloco
+      // Calcular tempo noturno
       const nightHours = parseFloat(formData.night_time_hours) || 0;
       const nightMinutes = parseFloat(formData.night_time_minutes) || 0;
       const totalNight = nightHours + nightMinutes / 60;
 
-      // Calcular tempo diurno de forma CONSISTENTE (day_time + night_hours = flight_time)
-      const totalDay = calculateDayTime(flightTime, totalNight);
+      // Calcular tempo diurno
+      const totalDay = calculateDayTime(totalBlockTime, totalNight);
 
-      // VALIDAÇÃO OBRIGATÓRIA: blockTime >= flightTime
+      // VALIDAÇÃO: blockTime >= flightTime
       if (!validateTimes(totalBlockTime, flightTime)) {
-        throw new Error(`Validação falhou: Tempo Total (${totalBlockTime.toFixed(2)}h) não pode ser menor que Tempo de Voo (${flightTime.toFixed(2)}h)`);
+        throw new Error(
+          `Validação falhou: Tempo Total (${totalBlockTime.toFixed(2)}h) não pode ser menor que Tempo de Voo (${flightTime.toFixed(2)}h)`
+        );
       }
 
       // Calcular valor das diárias
       let finalDailyRate: number | null = null;
-
-      // Determinar tipo de voo e cliente
-      const flightNature = flightCategory === 'rateio'
-        ? specialFlightType.toUpperCase()
-        : flightCategory === 'emprestimo'
-          ? 'EP' // Empréstimo
-          : 'PV';
-
-      // Rateio entre sócios e empréstimo NÃO cobram diária
       if (flightCategory === 'cliente' && dailyCount && aircraftDailyRate) {
         const quantity = parseInt(dailyCount) || 0;
         finalDailyRate = quantity * aircraftDailyRate;
       }
 
-      // Determinar campos de acordo com as 3 cases
-      // client_id é SEMPRE o proprietário da aeronave
-      const entryClientId = selectedClient;
+      // Determinar natureza do voo
+      const flightNature = flightCategory === 'rateio'
+        ? specialFlightType.toUpperCase()
+        : flightCategory === 'emprestimo'
+          ? 'EP'
+          : 'PV';
 
-      // Inicializar campos de parceiros e loan_recipient
+      // Determinar campos de cliente/parceiro
+      const entryClientId = selectedClient;
       let entryClientPartnerId: string | null = null;
       let entryLoanRecipientClientId: string | null = null;
       let entryLoanRecipientPartnerId: string | null = null;
 
       if (flightCategory === 'cliente') {
-        // Case 1 ou 2: Voos normais
-        // client_partner_id = parceiro do proprietário que voou (se houver)
         entryClientPartnerId = selectedClientPartner || null;
       } else if (flightCategory === 'emprestimo') {
-        // Case 3: Voos de empréstimo
-        // loan_recipient_client_id = cliente que pegou emprestado
-        // loan_recipient_partner_id = parceiro do cliente que pegou emprestado (se houver)
         entryLoanRecipientClientId = selectedBorrowerClient || null;
         entryLoanRecipientPartnerId = selectedBorrowerPartner || null;
       }
 
-      // Buscar nome do cliente que pegará emprestado (para preencher partner_name)
+      // Nome do cliente que pega emprestado
       let borrowerPartnerName = '';
       if (flightCategory === 'emprestimo' && selectedBorrowerClient) {
         const borrowerClient = allClients.find(c => c.id === selectedBorrowerClient);
         borrowerPartnerName = borrowerClient?.company_name || '';
       }
 
-      // Calcular célula progressiva (célula anterior + total_time)
-      let celulaAnterior = 0;
+      // ─── Determinar pic_source e sic_source ───────────────────────────────
+      // tripulantes = crew_members; crewPersons = crew (externos)
+      const picSource: string = tripulantes.find((t: any) => t.id === selectedPic)
+        ? 'crew_members'
+        : 'crew';
 
-      // Se há um logbook_month_id, buscar a célula_anterior desse mês
+      const sicSource: string | null = selectedSic
+        ? (tripulantes.find((t: any) => t.id === selectedSic) ? 'crew_members' : 'crew')
+        : null;
+      // ──────────────────────────────────────────────────────────────────────
+
+      // Calcular célula progressiva
+      let celulaAnterior = 0;
       if (logbookMonthId) {
         const { data: monthData } = await supabase
           .from('logbook_months')
           .select('celula_anterior')
           .eq('id', logbookMonthId)
           .single();
-
         celulaAnterior = monthData?.celula_anterior || 0;
       }
 
-      // Calcular célula progressiva (célula anterior + total_time / bloco AC→COR)
-      // Usar totalBlockTime para consistência com updateCelulaAtual
       const entrycelula = celulaAnterior + totalBlockTime;
+
+      // Calcular daily_rate final (evitar string vazia → null)
+      if (finalDailyRate === null) {
+        const rawDailyRate = formData.daily_rate;
+        if (rawDailyRate && rawDailyRate !== '') {
+          const parsed = parseBRL(rawDailyRate);
+          finalDailyRate = isNaN(parsed) ? null : parsed;
+        }
+      }
 
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
@@ -609,30 +553,34 @@ export function DynamicLogbookForm({
           departure_aerodrome: formData.departure_airport,
           arrival_aerodrome: formData.arrival_airport,
           flight_nature: flightNature,
-          client_id: entryClientId,
+          client_id: entryClientId || null,
           partner_name: flightCategory === 'emprestimo' ? borrowerPartnerName : null,
           is_equal_split: flightCategory === 'rateio',
           is_loan: flightCategory === 'emprestimo',
-          pic_canac: selectedPic,
+          pic_canac: selectedPic || null,
+          pic_source: picSource,
           sic_canac: selectedSic || null,
+          sic_source: sicSource,
           sic_name: sicName || null,
           ac_time: formData.ac_time,
           dep_time: formData.departure_time,
           pou_time: formData.pou_time,
           cor_time: formData.cor_time,
-          crew_checkin_time: formData.crew_checkin_time,
+          crew_checkin_time: formData.crew_checkin_time || null,
           time: flightTime,
           total_time: totalBlockTime,
           day_time: totalDay,
           night_hours: totalNight,
-          ifr_time: parseFloat(formData.ifr_count) || 0,
-          pousos: parseInt(formData.landings) || 1,
-          fuel_added: parseFloat(formData.fuel_added) || 0,
+          // ── Campos numéricos: nunca enviar string vazia ──────────────────
+          ifr_time: toNumericOrNull(formData.ifr_count) ?? 0,
+          pousos: toIntOrNull(formData.landings) ?? 1,
+          fuel_added: toNumericOrNull(formData.fuel_added) ?? 0,
           celula: parseFloat(entrycelula.toFixed(2)),
-          daily_rate: finalDailyRate || (formData.daily_rate ? parseBRL(formData.daily_rate) : null),
-          distance_nm: parseFloat(formData.distance_nm) || 0,
-          passengers: parseInt(passengers) || 0,
-          cargo_kg: parseFloat(cargoKg) || 0,
+          daily_rate: finalDailyRate,
+          distance_nm: toNumericOrNull(formData.distance_nm) ?? 0,
+          passengers: toIntOrNull(passengers) ?? 0,
+          cargo_kg: toNumericOrNull(cargoKg) ?? 0,
+          // ─────────────────────────────────────────────────────────────────
           occurrences: occurrences || null,
           discrepancies: discrepancies || null,
           trecho: `${formData.departure_airport || ''} → ${formData.arrival_airport || ''}`,
@@ -651,7 +599,7 @@ export function DynamicLogbookForm({
             month: date!.getMonth() + 1,
             year: date!.getFullYear(),
             totalTime: totalBlockTime,
-            ifrTime: parseFloat(formData.ifr_count) || 0,
+            ifrTime: toNumericOrNull(formData.ifr_count) ?? 0,
             nightHours: totalNight,
             flightDay: format(date!, 'yyyy-MM-dd'),
             operation: 'add'
@@ -666,28 +614,27 @@ export function DynamicLogbookForm({
         }
       }
 
-      // Se for empréstimo, registrar na tabela aircraft_loans E no banco de horas (hour_transactions)
+      // Se for empréstimo, registrar na tabela aircraft_loans e hour_transactions
       if (flightCategory === 'emprestimo' && insertedEntry) {
-        // Buscar nome do PIC se disponível
         const picName = selectedPic ? (allCrew.find(p => p.id === selectedPic)?.full_name || null) : null;
 
-        // Registrar na tabela aircraft_loans
         const loanData = {
           hours_borrowed: totalBlockTime,
           entry_date: format(date!, 'yyyy-MM-dd'),
           departure_aerodrome: formData.departure_airport || '',
           arrival_aerodrome: formData.arrival_airport || '',
           trecho: `${formData.departure_airport || ''} → ${formData.arrival_airport || ''}`,
-          fuel_added: parseFloat(formData.fuel_added) || null,
+          fuel_added: toNumericOrNull(formData.fuel_added),
           pic_name: picName,
           logbook_entry_id: insertedEntry.id,
           status: 'active',
           notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
         };
 
-        console.log('📝 Criando aircraft_loans:', loanData);
-
-        const { error: loanError, data: loanResult } = await supabase.from('aircraft_loans').insert([loanData]).select();
+        const { error: loanError, data: loanResult } = await supabase
+          .from('aircraft_loans')
+          .insert([loanData])
+          .select();
 
         if (loanError) {
           console.error('❌ Erro ao registrar empréstimo:', loanError);
@@ -695,14 +642,11 @@ export function DynamicLogbookForm({
           console.log('✅ aircraft_loans criado com sucesso:', loanResult);
         }
 
-        // 2. Registrar no banco de horas (hour_transactions) - crédito para quem voou
-        // Quando alguém voa na aeronave emprestada, o cotista que emprestou recebe crédito
-        // para poder usar a aeronave do cliente que voou
         const { error: transactionError } = await supabase.from('hour_transactions').insert([
           {
             aircraft_id: aircraftId,
-            from_partner_id: selectedBorrowerClient, // Cliente que usou a aeronave (deve horas)
-            to_partner_id: selectedClient, // Cotista que emprestou (recebe crédito)
+            from_partner_id: selectedBorrowerClient,
+            to_partner_id: selectedClient,
             hours: totalBlockTime,
             type: 'loan',
             description: `Empréstimo: ${formData.departure_airport} → ${formData.arrival_airport} - Cliente usou aeronave emprestada`,
@@ -721,15 +665,10 @@ export function DynamicLogbookForm({
               variant: 'destructive',
             });
           }
-        } else {
-          console.log('✅ Transação de empréstimo registrada no banco de horas');
         }
       }
 
-      toast({
-        title: 'Sucesso!',
-        description: 'Registro adicionado com sucesso.',
-      });
+      toast({ title: 'Sucesso!', description: 'Registro adicionado com sucesso.' });
 
       setSaved(true);
       queryClient.invalidateQueries({ queryKey: ['logbook-entries'] });
@@ -777,139 +716,7 @@ export function DynamicLogbookForm({
     return clientData.company_name || clientData.proprietario || 'Sem nome';
   };
 
-  // Se inline e aberto, renderiza sem Dialog
-  const renderDialog = () => (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0">
-        {/* Header com gradiente */}
-        <div className="bg-gradient-to-r from-primary/20 to-primary/5 px-6 py-4 border-b border-border/50">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <Plane className="h-5 w-5 text-primary" />
-              Novo Trecho de Voo
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Progress indicator */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
-                  step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                )}>
-                  {step > 1 ? <Check className="h-4 w-4" /> : "1"}
-                </div>
-                <span className="text-sm font-medium">Dados do Voo</span>
-              </div>
-              <div className="h-px flex-1 mx-4 bg-border" />
-              <div className="flex items-center gap-2">
-                <div className={cn(
-                  "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
-                  step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                )}>
-                  2
-                </div>
-                <span className="text-sm font-medium">Tempos e Extras</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {saved && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none bg-background/80 backdrop-blur-sm">
-            <div className="bg-success/20 rounded-full p-6 shadow-lg flex items-center justify-center animate-in zoom-in-50">
-              <div className="h-16 w-16 rounded-full bg-success text-success-foreground flex items-center justify-center">
-                <Check className="h-8 w-8" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <form className="p-6 space-y-6">
-          {renderFormContent()}
-
-          {/* Navigation buttons */}
-          <div className="flex justify-between gap-2 pt-4 border-t border-border/50">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                onOpenChange(false);
-                setStep(1);
-                setDailyCount('');
-                setFlightCategory('cliente');
-                setSpecialFlightType('');
-                setSelectedClient('');
-                setSelectedBorrowerClient('');
-                setSelectedPic('');
-                setSelectedSic('');
-                setSicName('');
-                setPassengers('');
-                setCargoKg('');
-                setOccurrences('');
-                setDiscrepancies('');
-                resetForm();
-              }}
-              disabled={loading || saved}
-            >
-              Cancelar
-            </Button>
-
-            <div className="flex gap-2">
-              {step > 1 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={loading || saved}
-                  className="gap-1"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Voltar
-                </Button>
-              )}
-
-              {step === 1 ? (
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  disabled={loading || saved}
-                  className="gap-1"
-                >
-                  Próximo
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={loading || saved}
-                  className="gap-2 min-w-32"
-                >
-                  {loading ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                      Salvando...
-                    </>
-                  ) : saved ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Salvo!
-                    </>
-                  ) : (
-                    'Salvar Trecho'
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-
-  // Modal de seleção de parceiro (cliente)
+  // Modal de seleção de parceiro
   const PartnerSelectDialog = ({
     open,
     onOpenChange,
@@ -954,7 +761,7 @@ export function DynamicLogbookForm({
     );
   };
 
-  // Conteúdo do formulário (função para evitar remount e perda de foco nos inputs)
+  // Conteúdo do formulário
   const renderFormContent = () => (
     <>
       {/* PASSO 1: Dados de voo */}
@@ -997,7 +804,6 @@ export function DynamicLogbookForm({
                       }
                     }
 
-                    // Se inválido, volta para a data atual selecionada
                     setDateText(date ? format(date, 'dd/MM/yyyy') : '');
                   }}
                   placeholder="DD/MM/AAAA"
@@ -1008,12 +814,7 @@ export function DynamicLogbookForm({
                 />
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-11 w-11"
-                    >
+                    <Button type="button" variant="outline" size="icon" className="h-11 w-11">
                       <CalendarIcon className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
@@ -1126,7 +927,6 @@ export function DynamicLogbookForm({
                 </PopoverContent>
               </Popover>
 
-              {/* Seleção de Parceiro (se cliente tiver parceiros) */}
               {selectedClient && clientPartners.length > 0 && (
                 <div className="space-y-2 mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg animate-in slide-in-from-top-2">
                   <Label className="text-sm">Parceiro do Cliente (Opcional)</Label>
@@ -1173,7 +973,7 @@ export function DynamicLogbookForm({
             </div>
           )}
 
-          {/* Empréstimo: Selecionar cotista que empresta e cliente que pega emprestado */}
+          {/* Empréstimo */}
           {flightCategory === 'emprestimo' && (
             <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
               <div className="flex items-center gap-2 text-amber-400 mb-2">
@@ -1181,7 +981,7 @@ export function DynamicLogbookForm({
                 <span className="text-sm font-semibold">Configurar Empréstimo</span>
               </div>
 
-              {/* Cotista que está emprestando (seleciona entre os cotistas da aeronave) */}
+              {/* Cotista que empresta */}
               <div className="space-y-2">
                 <Label>Cotista que empresta a aeronave</Label>
                 <Popover open={clientOpen} onOpenChange={setClientOpen}>
@@ -1230,7 +1030,6 @@ export function DynamicLogbookForm({
                 </Popover>
               </div>
 
-              {/* Parceiro do Lender (se tiver) */}
               {selectedClient && lenderPartners.length > 0 && (
                 <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-in slide-in-from-top-2">
                   <Label className="text-sm">Parceiro do Cotista (Opcional)</Label>
@@ -1247,7 +1046,7 @@ export function DynamicLogbookForm({
                 </div>
               )}
 
-              {/* Cliente que está pegando emprestado */}
+              {/* Cliente que pega emprestado */}
               <div className="space-y-2">
                 <Label>Cliente que pega emprestado</Label>
                 <Popover open={borrowerClientOpen} onOpenChange={setBorrowerClientOpen}>
@@ -1258,7 +1057,9 @@ export function DynamicLogbookForm({
                       className="w-full justify-between h-11 font-normal border-amber-500/30"
                     >
                       {selectedBorrowerClient
-                        ? borrowerClients.find(c => c.id === selectedBorrowerClient)?.company_name || allClients.find(c => c.id === selectedBorrowerClient)?.company_name || 'Cliente selecionado'
+                        ? borrowerClients.find(c => c.id === selectedBorrowerClient)?.company_name
+                          || allClients.find(c => c.id === selectedBorrowerClient)?.company_name
+                          || 'Cliente selecionado'
                         : 'Selecione quem pega emprestado...'}
                     </Button>
                   </PopoverTrigger>
@@ -1267,7 +1068,7 @@ export function DynamicLogbookForm({
                       <CommandInput placeholder="Buscar cliente..." />
                       <CommandList>
                         {borrowerClients.length === 0 ? (
-                          <CommandEmpty>Nenhum cliente disponível (talvez todos sejam cotistas).</CommandEmpty>
+                          <CommandEmpty>Nenhum cliente disponível.</CommandEmpty>
                         ) : (
                           <CommandGroup heading="Clientes disponíveis">
                             {borrowerClients.map((client) => (
@@ -1294,7 +1095,6 @@ export function DynamicLogbookForm({
                 </Popover>
               </div>
 
-              {/* Parceiro do Borrower (se tiver) */}
               {selectedBorrowerClient && borrowerPartners.length > 0 && (
                 <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-in slide-in-from-top-2">
                   <Label className="text-sm">Parceiro do Cliente que Pega Emprestado (Opcional)</Label>
@@ -1325,7 +1125,7 @@ export function DynamicLogbookForm({
               Tripulação *
             </Label>
             <div className="grid grid-cols-2 gap-3">
-              {/* PIC (obrigatório) */}
+              {/* PIC */}
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">PIC (Piloto em Comando)</Label>
                 <Popover open={picOpen} onOpenChange={setPicOpen}>
@@ -1346,12 +1146,7 @@ export function DynamicLogbookForm({
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" align="start">
                     <Command>
-                      <CommandInput 
-                        placeholder="Buscar piloto por nome ou CANAC..." 
-                        onValueChange={(value) => {
-                          // Permitir busca por nome ou CANAC
-                        }}
-                      />
+                      <CommandInput placeholder="Buscar piloto por nome ou CANAC..." />
                       <CommandList>
                         <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
                         <CommandGroup>
@@ -1364,12 +1159,10 @@ export function DynamicLogbookForm({
                                 setPicOpen(false);
                               }}
                             >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedPic === tripulante.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
+                              <Check className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedPic === tripulante.id ? "opacity-100" : "opacity-0"
+                              )} />
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-medium">{tripulante.full_name}</span>
                                 <span className="text-xs text-muted-foreground">CANAC: {tripulante.canac}</span>
@@ -1383,7 +1176,7 @@ export function DynamicLogbookForm({
                 </Popover>
               </div>
 
-              {/* SIC (opcional) */}
+              {/* SIC */}
               <SICComboBoxManual
                 value={selectedSic ?? ''}
                 sicName={sicName ?? ''}
@@ -1433,20 +1226,18 @@ export function DynamicLogbookForm({
                             a.name.toUpperCase().includes(formData.departure_airport.toUpperCase())
                           )
                           .map(aerodrome => (
-                          <CommandItem
-                            key={aerodrome.id}
-                            value={aerodrome.designativo}
-                            onSelect={value => {
-                              updateField('departure_airport', value.toUpperCase());
-                              setDepartureOpen(false);
-                            }}
-                          >
-                            <span className="font-mono font-medium">{aerodrome.designativo}</span>
-                            <span className="ml-2 text-muted-foreground truncate">
-                              {aerodrome.name}
-                            </span>
-                          </CommandItem>
-                        ))}
+                            <CommandItem
+                              key={aerodrome.id}
+                              value={aerodrome.designativo}
+                              onSelect={value => {
+                                updateField('departure_airport', value.toUpperCase());
+                                setDepartureOpen(false);
+                              }}
+                            >
+                              <span className="font-mono font-medium">{aerodrome.designativo}</span>
+                              <span className="ml-2 text-muted-foreground truncate">{aerodrome.name}</span>
+                            </CommandItem>
+                          ))}
                       </CommandGroup>
                     </CommandList>
                   </Command>
@@ -1485,20 +1276,18 @@ export function DynamicLogbookForm({
                             a.name.toUpperCase().includes(formData.arrival_airport.toUpperCase())
                           )
                           .map(aerodrome => (
-                          <CommandItem
-                            key={aerodrome.id}
-                            value={aerodrome.designativo}
-                            onSelect={value => {
-                              updateField('arrival_airport', value.toUpperCase());
-                              setArrivalOpen(false);
-                            }}
-                          >
-                            <span className="font-mono font-medium">{aerodrome.designativo}</span>
-                            <span className="ml-2 text-muted-foreground truncate">
-                              {aerodrome.name}
-                            </span>
-                          </CommandItem>
-                        ))}
+                            <CommandItem
+                              key={aerodrome.id}
+                              value={aerodrome.designativo}
+                              onSelect={value => {
+                                updateField('arrival_airport', value.toUpperCase());
+                                setArrivalOpen(false);
+                              }}
+                            >
+                              <span className="font-mono font-medium">{aerodrome.designativo}</span>
+                              <span className="ml-2 text-muted-foreground truncate">{aerodrome.name}</span>
+                            </CommandItem>
+                          ))}
                       </CommandGroup>
                     </CommandList>
                   </Command>
@@ -1547,7 +1336,7 @@ export function DynamicLogbookForm({
             </div>
           </div>
 
-          {/* Apresentação */}
+          {/* Apresentação e Distância */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Apresentação</Label>
@@ -1608,9 +1397,7 @@ export function DynamicLogbookForm({
                     value={formData.night_time_minutes}
                     onChange={(e) => {
                       let val = e.target.value;
-                      if (val && parseInt(val) > 59) {
-                        val = '59';
-                      }
+                      if (val && parseInt(val) > 59) val = '59';
                       updateField('night_time_minutes', val);
                     }}
                     placeholder="0"
@@ -1658,9 +1445,7 @@ export function DynamicLogbookForm({
                       <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="text-xs max-w-xs">
-                        Combustível abastecido em litros
-                      </p>
+                      <p className="text-xs max-w-xs">Combustível abastecido em litros</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -1677,7 +1462,7 @@ export function DynamicLogbookForm({
             </div>
           </div>
 
-          {/* Diárias - Apenas se aeronave possui diária configurada */}
+          {/* Diárias */}
           {hasDailyRate ? (
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -1859,23 +1644,79 @@ export function DynamicLogbookForm({
     </>
   );
 
-  // Renderizar inline ou com Dialog
+  const resetAndClose = () => {
+    onOpenChange(false);
+    setStep(1);
+    setDailyCount('');
+    setFlightCategory('cliente');
+    setSpecialFlightType('');
+    setSelectedClient('');
+    setSelectedBorrowerClient('');
+    setSelectedClientPartner(null);
+    setSelectedLenderPartner(null);
+    setSelectedBorrowerPartner(null);
+    setSelectedPic('');
+    setSelectedSic('');
+    setSicName('');
+    setPassengers('');
+    setCargoKg('');
+    setOccurrences('');
+    setDiscrepancies('');
+    resetForm();
+  };
+
+  const navigationButtons = (
+    <div className="flex justify-between gap-2 pt-4 border-t border-border/50">
+      <Button type="button" variant="ghost" onClick={resetAndClose} disabled={loading || saved}>
+        Cancelar
+      </Button>
+
+      <div className="flex gap-2">
+        {step > 1 && (
+          <Button type="button" variant="outline" onClick={prevStep} disabled={loading || saved} className="gap-1">
+            <ChevronLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+        )}
+
+        {step === 1 ? (
+          <Button type="button" onClick={nextStep} disabled={loading || saved} className="gap-1">
+            Próximo
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button type="submit" onClick={handleSubmit} disabled={loading || saved} className="gap-2 min-w-32">
+            {loading ? (
+              <>
+                <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                Salvando...
+              </>
+            ) : saved ? (
+              <>
+                <Check className="h-4 w-4" />
+                Salvo!
+              </>
+            ) : (
+              'Salvar Trecho'
+            )}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  // Inline mode
   if (inline && open) {
     return (
       <div className="bg-slate-900 border-2 border-sky-500/20 rounded-3xl p-8 shadow-3xl space-y-8 max-h-[85vh] overflow-y-auto">
-        {/* Header inline */}
         <div className="flex items-center gap-3 mb-6">
           <Plane className="h-6 w-6 text-sky-400" />
           <h2 className="text-2xl font-black text-white uppercase tracking-tight">Novo Trecho de Voo</h2>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="ml-auto p-2 hover:bg-slate-800 rounded-xl text-slate-500"
-          >
+          <button onClick={resetAndClose} className="ml-auto p-2 hover:bg-slate-800 rounded-xl text-slate-500">
             ✕
           </button>
         </div>
 
-        {/* Progress indicator */}
         <div className="flex items-center justify-between mb-6 px-0">
           <div className="flex items-center gap-2 flex-1">
             <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= 1 ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
@@ -1902,95 +1743,69 @@ export function DynamicLogbookForm({
           </div>
         )}
 
-        {/* Form content */}
         <form className="space-y-6">
           {renderFormContent()}
-
-          {/* Navigation buttons */}
-          <div className="flex justify-between gap-2 pt-4 border-t border-slate-700">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                onOpenChange(false);
-                setStep(1);
-                setDailyCount('');
-                setFlightCategory('cliente');
-                setSpecialFlightType('');
-                setSelectedClient('');
-                setSelectedPic('');
-                setSelectedSic('');
-                setSicName('');
-                setPassengers('');
-                setCargoKg('');
-                setOccurrences('');
-                setDiscrepancies('');
-                resetForm();
-              }}
-              disabled={loading || saved}
-            >
-              Cancelar
-            </Button>
-
-            <div className="flex gap-2">
-              {step > 1 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={loading || saved}
-                  className="gap-1"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Voltar
-                </Button>
-              )}
-
-              {step === 1 ? (
-                <Button
-                  type="button"
-                  onClick={nextStep}
-                  disabled={loading || saved}
-                  className="gap-1"
-                >
-                  Próximo
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={loading || saved}
-                  className="gap-2 min-w-32"
-                >
-                  {loading ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Salvando...
-                    </>
-                  ) : saved ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Salvo!
-                    </>
-                  ) : (
-                    'Salvar Trecho'
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
+          {navigationButtons}
         </form>
       </div>
     );
   }
 
-  // Retornar Dialog normal com modais
+  // Dialog mode
   return (
     <>
-      {renderDialog()}
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0">
+          <div className="bg-gradient-to-r from-primary/20 to-primary/5 px-6 py-4 border-b border-border/50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <Plane className="h-5 w-5 text-primary" />
+                Novo Trecho de Voo
+              </DialogTitle>
+            </DialogHeader>
 
-      {/* Modal para seleção de parceiro do cliente (voo normal) */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
+                    step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  )}>
+                    {step > 1 ? <Check className="h-4 w-4" /> : "1"}
+                  </div>
+                  <span className="text-sm font-medium">Dados do Voo</span>
+                </div>
+                <div className="h-px flex-1 mx-4 bg-border" />
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
+                    step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  )}>
+                    2
+                  </div>
+                  <span className="text-sm font-medium">Tempos e Extras</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {saved && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none bg-background/80 backdrop-blur-sm">
+              <div className="bg-success/20 rounded-full p-6 shadow-lg flex items-center justify-center animate-in zoom-in-50">
+                <div className="h-16 w-16 rounded-full bg-success text-success-foreground flex items-center justify-center">
+                  <Check className="h-8 w-8" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <form className="p-6 space-y-6">
+            {renderFormContent()}
+            {navigationButtons}
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <PartnerSelectDialog
         open={clientPartnerModalOpen}
         onOpenChange={setClientPartnerModalOpen}
@@ -2000,7 +1815,6 @@ export function DynamicLogbookForm({
         title="Selecionar Parceiro do Cliente"
       />
 
-      {/* Modal para seleção de parceiro do lender (empréstimo) */}
       <PartnerSelectDialog
         open={lenderPartnerModalOpen}
         onOpenChange={setLenderPartnerModalOpen}
@@ -2010,7 +1824,6 @@ export function DynamicLogbookForm({
         title="Selecionar Parceiro do Cotista"
       />
 
-      {/* Modal para seleção de parceiro do borrower (empréstimo) */}
       <PartnerSelectDialog
         open={borrowerPartnerModalOpen}
         onOpenChange={setBorrowerPartnerModalOpen}

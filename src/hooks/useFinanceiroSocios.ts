@@ -344,9 +344,9 @@ export function useSocioTransactions(
           created_at: f.created_at,
           expense_type: "abastecimento",
           status: f.status_pagamento || null,
-          bank_name: null,
-          prazo: null,
-          payment_method: null,
+          bank_name: f.banco || null,
+          prazo: f.prazo || null,
+          payment_method: f.forma_pagamento || null,
           doc: f.comanda || null,
           // Campos adicionais de abastecimento para exibição detalhada
           comanda: f.comanda || null,

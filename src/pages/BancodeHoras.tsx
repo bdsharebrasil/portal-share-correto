@@ -22,6 +22,10 @@ interface AircraftLoan {
   fuel_added?: number | null;
   pic_name?: string | null;
   notes?: string | null;
+  lender_client_id?: string;
+  lender_name?: string;
+  borrower_client_id?: string;
+  borrower_name?: string;
 }
 
 interface ClientInfo {
@@ -77,88 +81,108 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
       if (acRes.data) setAircraft(acRes.data);
 
-      // Query logbook entries for loans of this aircraft
+      // Query logbook entries for this aircraft
       const logbookRes = await supabase
         .from('logbook_entries')
+        .select('id')
+        .eq('aircraft_id', aircraftId);
+
+      if (!logbookRes.data || logbookRes.data.length === 0) {
+        setLoans([]);
+        setLoading(false);
+        return;
+      }
+
+      const logbookIds = logbookRes.data.map((e: any) => e.id);
+
+      // PASSO 2: Buscar apenas os aircraft_loans vinculados a esses logbook_entries
+      const loansRes = await supabase
+        .from('aircraft_loans')
         .select(`
           id,
-          aircraft_id,
-          client_id,
-          loan_recipient_client_id,
-          loan_recipient_partner_id,
+          hours_borrowed,
+          hours_paid_back,
+          logbook_entry_id,
+          payback_entry_id,
           entry_date,
+          status,
           departure_aerodrome,
           arrival_aerodrome,
-          total_time
+          trecho,
+          fuel_added,
+          pic_name,
+          notes
         `)
-        .eq('aircraft_id', aircraftId)
-        .eq('is_loan', true)
+        .in('logbook_entry_id', logbookIds)
         .order('entry_date', { ascending: false });
 
-      if (logbookRes.data && logbookRes.data.length > 0) {
-        // Get associated aircraft_loans records
-        const logbookIds = logbookRes.data.map((e: any) => e.id);
-        const loansRes = await supabase
-          .from('aircraft_loans')
-          .select('*')
-          .in('logbook_entry_id', logbookIds);
+      if (loansRes.data && loansRes.data.length > 0) {
+        // PASSO 3: Buscar os detalhes dos logbook_entries para enriquecer os dados
+        const fullLogbookRes = await supabase
+          .from('logbook_entries')
+          .select(`
+            id,
+            aircraft_id,
+            client_id,
+            loan_recipient_client_id,
+            loan_recipient_partner_id,
+            entry_date,
+            departure_aerodrome,
+            arrival_aerodrome,
+            total_time
+          `)
+          .in('id', logbookIds);
 
-        // Create a map of logbook_entry_id -> aircraft_loan
-        const loansMap: Record<string, any> = {};
-        if (loansRes.data) {
-          loansRes.data.forEach((loan: any) => {
-            loansMap[loan.logbook_entry_id] = loan;
+        // Create a map of logbook_entry_id -> logbook data
+        const logbookMap: Record<string, any> = {};
+        if (fullLogbookRes.data) {
+          fullLogbookRes.data.forEach((entry: any) => {
+            logbookMap[entry.id] = entry;
           });
         }
 
-        // Fetch client and partner info
-        const clientIds = [
-          ...new Set([
-            ...logbookRes.data.map((e: any) => e.client_id),
-            ...logbookRes.data.map((e: any) => e.loan_recipient_client_id)
-          ].filter(Boolean))
-        ];
-        const partnerIds = logbookRes.data
-          .map((e: any) => e.loan_recipient_partner_id)
-          .filter(Boolean);
+        // Buscar nomes dos clientes (lenders e borrowers)
+        const allClientIds = new Set<string>();
+        Object.values(logbookMap).forEach((entry: any) => {
+          if (entry.client_id) allClientIds.add(entry.client_id);
+          if (entry.loan_recipient_client_id) allClientIds.add(entry.loan_recipient_client_id);
+        });
 
-        const [clientsRes, partnersRes] = await Promise.all([
-          clientIds.length > 0
-            ? supabase.from('clients').select('id, company_name').in('id', clientIds)
-            : Promise.resolve({ data: [] }),
-          partnerIds.length > 0
-            ? supabase.from('client_partners').select('id, name').in('id', partnerIds)
-            : Promise.resolve({ data: [] })
-        ]);
+        const clientsList = Array.from(allClientIds);
+        const clientsRes = clientsList.length > 0
+          ? await supabase.from('clients').select('id, company_name').in('id', clientsList)
+          : { data: [] };
 
         const clientsMap: Record<string, any> = {};
-        const partnersMap: Record<string, any> = {};
-
         (clientsRes.data || []).forEach((c: any) => {
           clientsMap[c.id] = c;
         });
 
-        (partnersRes.data || []).forEach((p: any) => {
-          partnersMap[p.id] = p;
-        });
-
-        // Combine logbook and aircraft_loans data
-        const transformedLoans = logbookRes.data.map((entry: any) => {
-          const loan = loansMap[entry.id];
+        const transformedLoans = loansRes.data.map((loan: any) => {
+          const logbookEntry = logbookMap[loan.logbook_entry_id];
           return {
-            id: loan?.id || entry.id,
-            hours_borrowed: loan?.hours_borrowed || entry.total_time || 0,
-            hours_paid_back: loan?.hours_paid_back || 0,
-            entry_date: loan?.entry_date || entry.entry_date,
-            departure_aerodrome: loan?.departure_aerodrome || entry.departure_aerodrome,
-            arrival_aerodrome: loan?.arrival_aerodrome || entry.arrival_aerodrome,
-            logbook_entry_id: entry.id,
-            payback_entry_id: loan?.payback_entry_id || null,
-            status: loan?.status || 'pending'
+            id: loan.id,
+            hours_borrowed: loan.hours_borrowed || 0,
+            hours_paid_back: loan.hours_paid_back || 0,
+            entry_date: loan.entry_date,
+            departure_aerodrome: loan.departure_aerodrome || logbookEntry?.departure_aerodrome,
+            arrival_aerodrome: loan.arrival_aerodrome || logbookEntry?.arrival_aerodrome,
+            trecho: loan.trecho,
+            fuel_added: loan.fuel_added,
+            pic_name: loan.pic_name,
+            logbook_entry_id: logbookEntry?.id,
+            payback_entry_id: loan.payback_entry_id,
+            status: loan.status,
+            lender_client_id: logbookEntry?.client_id,
+            lender_name: clientsMap[logbookEntry?.client_id]?.company_name || 'Cliente desconhecido',
+            borrower_client_id: logbookEntry?.loan_recipient_client_id,
+            borrower_name: clientsMap[logbookEntry?.loan_recipient_client_id]?.company_name || 'Cliente desconhecido'
           };
         });
 
         setLoans(transformedLoans as unknown as AircraftLoan[]);
+      } else {
+        setLoans([]);
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -173,65 +197,59 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   }, [aircraftId]);
 
   // Dados dos emprestadores (sócios)
-  // TODO: Reescrever após adicionar colunas de client/borrower à tabela aircraft_loans
-  // const lendersData = useMemo(() => {
-  //   const lenders: Record<string, ClientInfo> = {};
-  //   loans.forEach(loan => {
-  //     if (!lenders[loan.lender_client_id]) {
-  //       lenders[loan.lender_client_id] = {
-  //         client_id: loan.lender_client_id,
-  //         client_name: loan.lender_client?.company_name || 'Cliente desconhecido'
-  //       };
-  //     }
-  //   });
-  //   return Object.values(lenders);
-  // }, [loans]);
-  const lendersData: ClientInfo[] = [];
+  const lendersData = useMemo(() => {
+    const lenders: Record<string, ClientInfo> = {};
+    loans.forEach(loan => {
+      const lenderId = loan.lender_client_id || 'unknown';
+      if (!lenders[lenderId]) {
+        lenders[lenderId] = {
+          client_id: lenderId,
+          client_name: loan.lender_name || 'Cliente desconhecido'
+        };
+      }
+    });
+    return Object.values(lenders);
+  }, [loans]);
 
   // Dados dos tomadores para um sócio selecionado
-  // TODO: Reescrever após adicionar colunas de client/borrower à tabela aircraft_loans
-  // const borrowersForLender = useMemo(() => {
-  //   if (!selectedLenderId) return [];
+  const borrowersForLender = useMemo(() => {
+    if (!selectedLenderId) return [];
 
-  //   const borrowers: Record<string, ClientBalance> = {};
+    const borrowers: Record<string, ClientBalance> = {};
 
-  //   loans
-  //     .filter(loan => loan.lender_client_id === selectedLenderId)
-  //     .forEach(loan => {
-  //       const borrowerId = loan.borrower_client_id;
-  //       // Se há um parceiro, usar o nome do parceiro, senão usar o nome da empresa
-  //       const borrowerName = loan.borrower_partner?.name || loan.borrower_client?.company_name || 'Cliente desconhecido';
-  //       const hoursBorrowed = loan.hours_borrowed || 0;
-  //       const hoursPaidBack = loan.hours_paid_back || 0;
+    loans
+      .filter(loan => loan.lender_client_id === selectedLenderId)
+      .forEach(loan => {
+        const borrowerId = loan.borrower_client_id || loan.id;
+        const borrowerName = loan.borrower_name || 'Cliente desconhecido';
+        const hoursBorrowed = loan.hours_borrowed || 0;
+        const hoursPaidBack = loan.hours_paid_back || 0;
 
-  //       if (!borrowers[borrowerId]) {
-  //         borrowers[borrowerId] = {
-  //           client_id: borrowerId,
-  //           client_name: borrowerName,
-  //           total_borrowed: 0,
-  //           total_paid_back: 0,
-  //           balance: 0
-  //         };
-  //       }
+        if (!borrowers[borrowerId]) {
+          borrowers[borrowerId] = {
+            client_id: borrowerId,
+            client_name: borrowerName,
+            total_borrowed: 0,
+            total_paid_back: 0,
+            balance: 0
+          };
+        }
 
-  //       borrowers[borrowerId].total_borrowed += hoursBorrowed;
-  //       borrowers[borrowerId].total_paid_back += hoursPaidBack;
-  //       borrowers[borrowerId].balance = borrowers[borrowerId].total_borrowed - borrowers[borrowerId].total_paid_back;
-  //     });
+        borrowers[borrowerId].total_borrowed += hoursBorrowed;
+        borrowers[borrowerId].total_paid_back += hoursPaidBack;
+        borrowers[borrowerId].balance = borrowers[borrowerId].total_borrowed - borrowers[borrowerId].total_paid_back;
+      });
 
-  //   return Object.values(borrowers);
-  // }, [loans, selectedLenderId]);
-  const borrowersForLender: ClientBalance[] = [];
+    return Object.values(borrowers);
+  }, [loans, selectedLenderId]);
 
   // Empréstimos filtrados para um tomador específico
-  // TODO: Reescrever após adicionar colunas de client/borrower à tabela aircraft_loans
-  // const loansForBorrower = useMemo(() => {
-  //   if (!selectedLenderId || !selectedBorrowerId) return [];
-  //   return loans.filter(
-  //     loan => loan.lender_client_id === selectedLenderId && loan.borrower_client_id === selectedBorrowerId
-  //   );
-  // }, [loans, selectedLenderId, selectedBorrowerId]);
-  const loansForBorrower = loans;
+  const loansForBorrower = useMemo(() => {
+    if (!selectedLenderId || !selectedBorrowerId) return [];
+    return loans.filter(
+      loan => loan.lender_client_id === selectedLenderId && loan.borrower_client_id === selectedBorrowerId
+    );
+  }, [loans, selectedLenderId, selectedBorrowerId]);
 
   if (loading) return (
     <Layout>

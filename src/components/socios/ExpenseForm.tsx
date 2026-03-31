@@ -315,7 +315,24 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     }
   }, [form.supplierName, form.novoAbastCombustivel, form.category, form.criarNovoAbastecimento, fuelSuppliers]);
 
-  // when the user chooses to link existing, fetch reports
+  // Auto-calculate totalAmount for abastecimento from litros × valorUnitario
+  useEffect(() => {
+    if (form.category === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
+      const litros = parseFloat(form.novoAbastLitros || "0");
+      const valorUnitario = parseFloat(form.novoAbastValorUnitario || "0");
+      if (litros > 0 && valorUnitario > 0) {
+        const total = (litros * valorUnitario).toFixed(2);
+        setForm(prev => ({
+          ...prev,
+          totalAmount: total,
+          description: prev.novoAbastCombustivel ? `Combustível: ${prev.novoAbastCombustivel.toUpperCase()}` : "Abastecimento",
+          paidDate: prev.novoAbastStatusPagamento === "pago" && prev.novoAbastDataPagamento ? prev.novoAbastDataPagamento : prev.novoAbastData || prev.paidDate,
+        }));
+      }
+    }
+  }, [form.novoAbastLitros, form.novoAbastValorUnitario, form.category, form.criarNovoAbastecimento, form.novoAbastCombustivel]);
+
+
   useEffect(() => {
     const fetchReportsForPartner = async (partnerId: string | null) => {
       setLoadingReports(true);
@@ -450,13 +467,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             local: form.novoAbastLocal,
             litros: litros,
             valor_unitario: form.novoAbastValorUnitario ? parseFloat(form.novoAbastValorUnitario) : valorUnitario,
-            valor_total: valorTotal,
             abastecedor: form.supplierName || null,
             abastecedor_id: fuelSuppliers.find(s => s.supplier_name === form.supplierName)?.id || null,
             abastecimento_galoes: form.novoAbastGaloes ? parseFloat(form.novoAbastGaloes) : null,
             partner_name: assignedPartner?.name || null,
             status_pagamento: form.novoAbastStatusPagamento,
             tipo_faturamento: form.novoAbastTipoFaturamento || null,
+            forma_pagamento: form.paymentMethod && form.paymentMethod !== "nao_informado" ? form.paymentMethod.toUpperCase() : null,
+            prazo: form.prazo ? form.prazo.toUpperCase() : null,
             banco: form.novoAbastBanco || null,
             data_pagamento: form.novoAbastStatusPagamento === "pago" ? form.novoAbastDataPagamento : null,
             data_vencimento_boleto: form.novoAbastStatusPagamento === "em aberto" ? form.novoAbastDataVencimento : null,
@@ -1332,6 +1350,35 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                   </Select>
                                 </FormSection>
                               </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormSection label="💳 Forma de Pagamento">
+                                  <Select value={form.paymentMethod} onValueChange={set("paymentMethod")}>
+                                    <SelectTrigger className="h-13 rounded-xl border-green-700/30 bg-background text-foreground text-sm">
+                                      <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                      <SelectItem value="nao_informado">— Não informado —</SelectItem>
+                                      <SelectItem value="pix">PIX</SelectItem>
+                                      <SelectItem value="ted">TED</SelectItem>
+                                      <SelectItem value="boleto">Boleto</SelectItem>
+                                      <SelectItem value="cartao">Cartão</SelectItem>
+                                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                      <SelectItem value="outros">Outros</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormSection>
+                                <FormSection label="📋 Prazo">
+                                  <Select value={form.prazo} onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}>
+                                    <SelectTrigger className="h-13 rounded-xl border-green-700/30 bg-background text-foreground text-sm">
+                                      <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                      <SelectItem value="mensal">Mensal</SelectItem>
+                                      <SelectItem value="extra">Extra</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormSection>
+                              </div>
                               <FormSection label="📄 Comprovante de Pagamento">
                                 <FileUploadField
                                   value={form.comprovantePagamento}
@@ -1582,8 +1629,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Descrição (oculta para IMPOSTOS / DECEA / INFRAERO) ── */}
-                  {!hideDescriptionAndSupplier && (
+                  {/* ── Descrição (oculta para IMPOSTOS / DECEA / INFRAERO e ABASTECIMENTO com novo) ── */}
+                  {!hideDescriptionAndSupplier && !(isAbastecimento && form.criarNovoAbastecimento) && (
                     <FormSection label="Descrição" required>
                       <Input
                         value={form.description}
@@ -1593,14 +1640,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             ? `Ex: ${selectedCategory.label} - detalhe da despesa`
                             : "Descreva a despesa"
                         }
-                        required
+                        required={!(isAbastecimento && form.criarNovoAbastecimento)}
                         disabled={addExpense.isPending}
                         className="h-13 rounded-xl border-border/70 text-sm"
                       />
                     </FormSection>
                   )}
 
-                  {/* ── Valor + Datas ── */}
+                  {/* ── Valor + Datas (oculto para ABASTECIMENTO com novo - já tem no formulário acima) ── */}
+                  {!(isAbastecimento && form.criarNovoAbastecimento) && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <FormSection label="Valor (R$)" required>
                       <div className="relative">
@@ -1627,9 +1675,10 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       <DateFieldWithInput value={form.dueDate} onChange={(v) => set("dueDate")(v)} />
                     </FormSection>
                   </div>
+                  )}
 
-                  {/* ── Fornecedor + NF (oculto para IMPOSTOS / DECEA / INFRAERO) ── */}
-                  {!hideDescriptionAndSupplier && (
+                  {/* ── Fornecedor + NF (oculto para IMPOSTOS / DECEA / INFRAERO e ABASTECIMENTO com novo) ── */}
+                  {!hideDescriptionAndSupplier && !(isAbastecimento && form.criarNovoAbastecimento) && (
                     <div className="space-y-5">
                       <FormSection label="Fornecedor">
                         {isAbastecimento ? (
@@ -1731,7 +1780,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Status + Forma de Pagamento ── */}
+                  {/* ── Status + Forma de Pagamento (oculto para ABASTECIMENTO com novo - já tem no formulário acima) ── */}
+                  {!(isAbastecimento && form.criarNovoAbastecimento) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Status da Despesa">
                       <Select value={form.status} onValueChange={set("status")}>
@@ -1777,6 +1827,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       </Select>
                     </FormSection>
                   </div>
+                  )}
 
                   {/* ── Parcelamento em Cartão ── */}
                   {form.paymentMethod === "cartao" && (
@@ -1873,7 +1924,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Conta Bancária + Prazo ── */}
+                  {/* ── Conta Bancária + Prazo (oculto para ABASTECIMENTO com novo) ── */}
+                  {!(isAbastecimento && form.criarNovoAbastecimento) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Conta Bancaria">
                       <Select
@@ -1940,6 +1992,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       </Select>
                     </FormSection>
                   </div>
+                  )}
 
                   {/* ── Observações ── */}
                   <FormSection label="Observações">

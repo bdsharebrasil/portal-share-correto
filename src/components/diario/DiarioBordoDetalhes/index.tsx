@@ -25,7 +25,7 @@ import { SICComboBoxManual } from '@/components/diario/DynamicLogbookForm/compon
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== NOVOS IMPORTS - REFATORAÇÃO =====================
-import { timeStringToMinutes, minutesToTimeString, calculateTimeDiff, decimalToTimeString, timeStringToDecimal, calculateCrewCheckinTime, decimalToHHMM, decimalToHoursOnly } from '@/utils/timeUtils';
+import { timeStringToMinutes, minutesToTimeString, calculateTimeDiff, decimalToTimeString, timeStringToDecimal, calculateCrewCheckinTime, decimalToHHMM } from '@/utils/timeUtils';
 import { calculateDistance, calculateCostPerPartner, calculateDayNightTimes, calculateDailyAllowanceForEntry } from '@/utils/calculationUtils';
 import { formatTimeFromTimestamp, formatDateFromISO, shortenClientName, formatFlightNature, getMonthName } from '@/utils/formatters';
 import { logger, logSuccess, logError, logInfo } from '@/utils/logger';
@@ -395,6 +395,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         eq('year', selectedYear).
         maybeSingle();
 
+        logInfo(`📋 Buscando diário: aircraft=${aircraftId}, month=${selectedMonth}, year=${selectedYear}, resultado=${monthData ? 'ENCONTRADO' : 'NÃO ENCONTRADO'}`);
+
         if (monthData) {
           setLogbookMonth(monthData);
           setLastCelula(monthData.celula_anterior || 0);
@@ -545,17 +547,17 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         setNewEntry((prev) => {
           // Preserva edição manual de night_hours
           const currentNight = prev.night_hours || 0;
-          // Garante que noite nunca excede o tempo de voo
-          const nightCapped = Math.min(currentNight, flightTime);
-          // T DIA = T VOO - T NOITE (igual ao Excel)
-          const dayTime = Math.max(0, parseFloat((flightTime - nightCapped).toFixed(2)));
+          // Garante que noite nunca excede o tempo total
+          const nightCapped = Math.min(currentNight, totalTime);
+          // T DIA = T TOTAL - T NOITE
+          const dayTime = Math.max(0, parseFloat((totalTime - nightCapped).toFixed(2)));
 
           return {
             ...prev,
             total_time: totalTime, // AC → COR
             time: flightTime, // DEP → POU
             celula: newCelula,
-            day_time: dayTime, // T VOO - T NOITE
+            day_time: dayTime, // T TOTAL - T NOITE
             night_hours: nightCapped
           };
         });
@@ -564,6 +566,36 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
     }
   }, [newEntry.ac_time, newEntry.cor_time, newEntry.dep_time, newEntry.pou_time, lastCelula, entries]);
+
+  // Recalcula T.DIA quando T.NOITE mudar
+  useEffect(() => {
+    const nightCapped = Math.min(newEntry.night_hours || 0, newEntry.total_time || 0);
+    const dayTime = Math.max(0, parseFloat((newEntry.total_time - nightCapped).toFixed(2)));
+
+    if (dayTime !== newEntry.day_time) {
+      setNewEntry((prev) => ({
+        ...prev,
+        day_time: dayTime,
+        night_hours: nightCapped
+      }));
+    }
+  }, [newEntry.night_hours, newEntry.total_time]);
+
+  // Recalcula T.DIA quando T.NOITE mudar (para edição de voos existentes)
+  useEffect(() => {
+    if (!editingEntry) return;
+
+    const nightCapped = Math.min(editingEntry.night_hours || 0, editingEntry.total_time || 0);
+    const dayTime = Math.max(0, parseFloat((editingEntry.total_time - nightCapped).toFixed(2)));
+
+    if (dayTime !== editingEntry.day_time) {
+      setEditingEntry((prev: any) => ({
+        ...prev,
+        day_time: dayTime,
+        night_hours: nightCapped
+      }));
+    }
+  }, [editingEntry?.night_hours, editingEntry?.total_time]);
 
   const filteredEntries = useMemo(() => {
     let filtered = entries.filter((e: any) => {
@@ -925,6 +957,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
 
       // ==================== PREPARAR PAYLOAD ====================
+      // Helper to sanitize numeric fields - converts empty strings to null
+      const toNum = (v: any): number | null => {
+        if (v === '' || v === undefined || v === null) return null;
+        const n = Number(v);
+        return isNaN(n) ? null : n;
+      };
+
       const entryPayload = {
         logbook_month_id: logbookMonth.id,
         aircraft_id: aircraftId,
@@ -947,28 +986,28 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
-        total_time: newEntry.total_time,
-        time: newEntry.time,
-        day_time: newEntry.day_time,
-        night_hours: newEntry.night_hours,
-        ifr_time: newEntry.ifr_time,
-        pousos: newEntry.pousos,
-        fuel_added: newEntry.fuel_added,
-        fuel_liters: newEntry.fuel_liters,
+        total_time: toNum(newEntry.total_time),
+        time: toNum(newEntry.time),
+        day_time: toNum(newEntry.day_time),
+        night_hours: toNum(newEntry.night_hours),
+        ifr_time: toNum(newEntry.ifr_time),
+        pousos: toNum(newEntry.pousos),
+        fuel_added: toNum(newEntry.fuel_added),
+        fuel_liters: toNum(newEntry.fuel_liters),
         fuel_type: newEntry.fuel_type || null,
         fuel_location: newEntry.fuel_location || null,
-        fuel_price_per_liter: newEntry.fuel_price_per_liter || null,
+        fuel_price_per_liter: toNum(newEntry.fuel_price_per_liter),
         refueled: newEntry.refueled,
-        celula: newEntry.celula,
-        distance_nm: newEntry.distance_nm,
-        passengers: newEntry.passengers,
-        cargo_kg: newEntry.cargo_kg,
+        celula: toNum(newEntry.celula),
+        distance_nm: toNum(newEntry.distance_nm),
+        passengers: toNum(newEntry.passengers),
+        cargo_kg: toNum(newEntry.cargo_kg),
         flight_nature: newEntry.flight_nature,
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
         confirmed: isEdit ? oldEntry?.confirmed || false : false,
-        daily_rate: dailyValue,
+        daily_rate: toNum(dailyValue),
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
       };
 
@@ -2475,7 +2514,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   <div className="flex items-center justify-between">
                     <Label className="text-[9px] uppercase text-orange-500 font-bold">T. VOO</Label>
                     <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-black text-sm min-w-24 text-center">
-                      {decimalToHoursOnly(newEntry.time)}
+                      {decimalToHHMM(newEntry.time)}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
