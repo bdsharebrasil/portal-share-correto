@@ -117,6 +117,7 @@ export default function EmissaoRecibo() {
 
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
+      const isRateado = originalForm.isRateado === true;
       const nomePagador = originalForm.pagadorNome?.trim();
 
       if (!nomePagador) throw new Error("Nome do pagador não foi preenchido corretamente.");
@@ -350,7 +351,7 @@ export default function EmissaoRecibo() {
               // Registra quanto DEVERIA PAGAR cada um (valor_rateado é por propriedade, valor_por_voo é por uso)
               for (const ac of aircraftClients) {
                 const clientData = ac.clients as any;
-                const sharePercentage = parseFloat(ac.share_percentage || "0");
+                const sharePercentage = parseFloat(String(ac.share_percentage || 0));
 
                 // Quanto este client DEVERIA pagar
                 const valorPorPropriedade = (valorTotalDespesa * sharePercentage) / 100;

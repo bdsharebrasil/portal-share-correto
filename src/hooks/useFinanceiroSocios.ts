@@ -765,6 +765,9 @@ export function useCreateExpense(showToast = true) {
       status?: string | null;
       abastecimentoId?: string | null;
       percentualSocio?: number | null;
+      doc?: string | null;
+      boletoUrl?: string | null;
+      demonstrativoUrl?: string | null;
     }) => {
       // Se for abastecimento, NUNCA criar em partner_expenses - apenas atualizar abastecimentos
       if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
@@ -814,6 +817,13 @@ export function useCreateExpense(showToast = true) {
         )
         : null;
 
+      // Normalize fields to UPPERCASE
+      const normalizedPaymentMethod = data.paymentMethod?.toUpperCase() || null;
+      const normalizedStatus = data.status?.toUpperCase() || "PENDING";
+      const normalizedPrazo = data.prazo?.toUpperCase() || null;
+      const normalizedBankName = data.bankName?.toUpperCase() || null;
+      const normalizedSupplierName = data.supplierName?.toUpperCase() || null;
+
       const expenses = [];
 
       if (isInstallment) {
@@ -825,17 +835,17 @@ export function useCreateExpense(showToast = true) {
           total_amount: data.totalAmount,
           assigned_partner_cpf: data.assignedPartnerCpf || null,
           assigned_partner_name: data.assignedPartnerName || null,
-          supplier_name: data.supplierName || null,
+          supplier_name: normalizedSupplierName,
           due_date: data.dueDate || null,
           invoice_number: data.invoiceNumber || null,
           invoice_url: data.invoiceUrl || null,
-          payment_method: data.paymentMethod || null,
+          payment_method: normalizedPaymentMethod,
           notes:
             `${data.notes || ""}${data.notes ? "\n" : ""}Parcelado em ${installmentCount}x de R$ ${installmentAmount.toFixed(2)}` ||
             null,
-          status: data.status || "pending",
-          prazo: data.prazo || null,
-          bank_name: data.bankName || null,
+          status: normalizedStatus,
+          prazo: normalizedPrazo,
+          bank_name: normalizedBankName,
           reference_type: data.referenceType || null,
           reference_id: data.referenceId || null,
           installment_count: installmentCount,
@@ -843,6 +853,10 @@ export function useCreateExpense(showToast = true) {
           installment_start_date: startDate?.toISOString().split("T")[0] || null,
            parent_expense_id: null,
           percentual_socio: data.percentualSocio ?? null,
+          category: data.category || null,
+          doc: data.doc || null,
+          boleto_url: data.boletoUrl || null,
+          nf_url: data.demonstrativoUrl || null,
         };
 
         expenses.push(originalExpense);
@@ -859,15 +873,15 @@ export function useCreateExpense(showToast = true) {
             total_amount: installmentAmount,
             assigned_partner_cpf: data.assignedPartnerCpf || null,
             assigned_partner_name: data.assignedPartnerName || null,
-            supplier_name: data.supplierName || null,
+            supplier_name: normalizedSupplierName,
             due_date: installmentDate.toISOString().split("T")[0],
             invoice_number: data.invoiceNumber || null,
             invoice_url: data.invoiceUrl || null,
-            payment_method: data.paymentMethod || null,
+            payment_method: normalizedPaymentMethod,
             notes: data.notes || null,
-            status: data.status || "pending",
-            prazo: data.prazo || null,
-            bank_name: data.bankName || null,
+            status: normalizedStatus,
+            prazo: normalizedPrazo,
+            bank_name: normalizedBankName,
             reference_type: data.referenceType || null,
             reference_id: data.referenceId || null,
             installment_count: installmentCount,
@@ -875,6 +889,10 @@ export function useCreateExpense(showToast = true) {
             installment_start_date: startDate?.toISOString().split("T")[0] || null,
             parent_expense_id: null,
             percentual_socio: data.percentualSocio ?? null,
+            category: data.category || null,
+            doc: data.doc || null,
+            boleto_url: data.boletoUrl || null,
+            nf_url: data.demonstrativoUrl || null,
           });
         }
 
@@ -905,20 +923,24 @@ export function useCreateExpense(showToast = true) {
           total_amount: data.totalAmount,
           assigned_partner_cpf: data.assignedPartnerCpf || null,
           assigned_partner_name: data.assignedPartnerName || null,
-          supplier_name: data.supplierName || null,
+          supplier_name: normalizedSupplierName,
           due_date: data.dueDate || null,
           invoice_number: data.invoiceNumber || null,
           invoice_url: data.invoiceUrl || null,
-          payment_method: data.paymentMethod || null,
+          payment_method: normalizedPaymentMethod,
           notes: data.notes || null,
-          status: data.status || "pending",
-          prazo: data.prazo || null,
-          bank_name: data.bankName || null,
+          status: normalizedStatus,
+          prazo: normalizedPrazo,
+          bank_name: normalizedBankName,
           reference_type: data.referenceType || null,
           reference_id: data.referenceId || null,
           installment_count: 1,
           installment_number: 1,
           percentual_socio: data.percentualSocio ?? null,
+          category: data.category || null,
+          doc: data.doc || null,
+          boleto_url: data.boletoUrl || null,
+          nf_url: data.demonstrativoUrl || null,
         });
         if (error) throw error;
       }

@@ -47,11 +47,12 @@ export async function processReceiptRateio(receiptId: string) {
     console.log(`Found ${aircraftClients.length} clients for aircraft`);
 
     // 3. Buscar a conta_apagar ou usar o receipt como referência
+    // @ts-ignore - deep type instantiation
     const { data: conta, error: contaError } = await supabase
       .from("contas_apagar")
       .select("id")
-      .eq("created_at", receipt.created_at)
-      .eq("client_id", receipt.client_id)
+      .eq("created_at", receipt.created_at as string)
+      .eq("client_id", receipt.client_id as string)
       .single();
 
     const despesa_id = conta?.id || receipt.id;
@@ -65,7 +66,7 @@ export async function processReceiptRateio(receiptId: string) {
     let successCount = 0;
     for (const ac of aircraftClients) {
       const clientData = ac.clients as any;
-      const sharePercentage = parseFloat(ac.share_percentage || "0");
+      const sharePercentage = parseFloat(String(ac.share_percentage || 0));
 
       // Quanto este client DEVERIA pagar
       const valorPorPropriedade = (valorTotalDespesa * sharePercentage) / 100;

@@ -1134,14 +1134,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         celula: toNum(newEntry.celula),
         distance_nm: toNum(newEntry.distance_nm),
         passengers: toNum(newEntry.passengers),
-        cargo_kg: newEntry.cargo_kg ? String(newEntry.cargo_kg) : null,
+        cargo_kg: toNum(newEntry.cargo_kg),
         flight_nature: newEntry.flight_nature,
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
         confirmed: isEdit ? oldEntry?.confirmed || false : false,
-        // Schema: daily_rate é TEXT NULL, NÃO number
-        daily_rate: dailyValue !== 0 && dailyValue !== null ? String(dailyValue) : null,
+        // Schema: daily_rate é número
+        daily_rate: dailyValue !== 0 && dailyValue !== null ? toNum(dailyValue) : null,
         pic_source: 'crew_members',
         sic_source: 'crew_members',
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
@@ -1465,7 +1465,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         occurrences: '',
         discrepancies: '',
         corrective_actions: '',
-        daily_quantity: 0
+        daily_quantity: 0,
+        fuel_consu: 0,
       });
 
       setFlightType('cliente');
@@ -2860,7 +2861,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     occurrences: '',
                     discrepancies: '',
                     corrective_actions: '',
-                    daily_quantity: 0
+                    daily_quantity: 0,
+                    fuel_consu: 0,
                   });
                   setFlightType('cliente');
                 }} className="flex-1 bg-slate-800 hover:bg-slate-700 h-14 font-black uppercase text-sm rounded-2xl flex items-center justify-center">

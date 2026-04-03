@@ -206,7 +206,7 @@ export function DashboardManutenção({ aircraftWithHours }: DashboardManutencao
   if (isLoadingAeronaves) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <AirplaneSpinner size="lg" />
+        <LottieAirplaneSpinner size="lg" />
       </div>
     );
   }

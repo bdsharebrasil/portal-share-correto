@@ -27,7 +27,7 @@ interface RateioDialogProps {
   aeronaveRegistro: string;
   aeronaveId?: string;
   lancamentoId?: string;
-  tipoRateio?: "propriedade" | "uso" | "misto";
+  tipoRateio?: "propriedade" | "uso" | "misto" | "horas" | "percentual" | "valor";
   periodo?: { inicio: string; fim: string };
   onSave: (rateios: Socio[], tipoRateio: string) => void;
 }
