@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRateioDespesas } from "@/hooks/useRateioDespesas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, TrendingUp, TrendingDown, CheckCircle, DollarSign, FileDown, Wallet } from "lucide-react";
+import { ArrowRight, Users, TrendingUp, TrendingDown, CheckCircle, FileDown, LayoutGrid } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import jsPDF from "jspdf";
@@ -27,38 +27,20 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-// Helper function to get document number (prefers nota_fiscal, then boleto, then doc_number, then receipt_number)
-function getDocNumber(rateio: any): string {
-  return (rateio.nota_fiscal || rateio.boleto || rateio.doc_number || rateio.receipt_number || "-").toString();
-}
-
-// Helper function to get category name
-function getCategoryName(rateio: any): string {
-  return (rateio.receipt_category || "-").toString();
-}
-
-// Helper function to get client initials for rateio display
-function getClientInitials(clientName: string): string {
-  return clientName
-    .split(" ")
-    .slice(0, 2)
-    .map(word => word.charAt(0).toUpperCase())
-    .join("");
-}
-
 function getDifferencaColor(diff: number) {
-  if (Math.abs(diff) < 0.01) return "text-slate-400";
-  if (diff > 0) return "text-green-500"; // tem crédito
-  return "text-red-500"; // deve pagar
+  if (Math.abs(diff) < 0.01) return "text-muted-foreground";
+  if (diff > 0) return "text-green-500";
+  return "text-red-500";
 }
 
 function getDifferencaBg(diff: number) {
-  if (Math.abs(diff) < 0.01) return "bg-slate-900/30";
+  if (Math.abs(diff) < 0.01) return "bg-muted/30";
   if (diff > 0) return "bg-green-950/30";
   return "bg-red-950/30";
 }
 
 export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props) {
+  // Fetch partners for the aircraft
   const { data: partnersData, isLoading: partsLoading } = useQuery({
     queryKey: ["partners", aeronaveId],
     queryFn: async () => {
@@ -88,10 +70,37 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
     enabled: !!aeronaveId,
   });
 
+  // Fetch rateio data
   const { data: rateioData, isLoading: rateioLoading } = useRateioDespesas({
     clienteId,
     aeronaveId,
     periodo,
+  });
+
+  // Fetch enrichment data from bank_reconciliations
+  const despesaIds = useMemo(() => {
+    const despesas = rateioData?.despesas || [];
+    return Array.from(new Set(despesas.map((d: any) => d.despesa_id).filter(Boolean)));
+  }, [rateioData]);
+
+  const { data: enrichmentData } = useQuery({
+    queryKey: ["centro-financeiro-enrichment", despesaIds],
+    queryFn: async () => {
+      if (despesaIds.length === 0) return new Map();
+      const { data, error } = await supabase
+        .from("bank_reconciliations")
+        .select(`
+          id, description, fornecedor_nome, category, type, date,
+          forma_pagamento, prazo_pagamento, partner_name, percentual,
+          categorias_movimentacao:categoria_movimentacao_id(nome, grupo_categoria, tipo)
+        `)
+        .in("id", despesaIds);
+      if (error) throw error;
+      const map = new Map();
+      (data || []).forEach((item: any) => map.set(item.id, item));
+      return map;
+    },
+    enabled: despesaIds.length > 0,
   });
 
   const isLoading = partsLoading || rateioLoading;
@@ -109,7 +118,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
 
   const despesasRaw = rateioData?.despesas || [];
 
-  // Group by despesa_id and collect all rateio records
+  // Group by despesa_id
   const groupedDespesasMap: Map<string, any> = new Map();
   despesasRaw.forEach((d: any) => {
     if (!groupedDespesasMap.has(d.despesa_id)) {
@@ -117,16 +126,18 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         despesa_id: d.despesa_id,
         data: d.data_vencimento,
         valor_total: d.valor || 0,
-        rateios: [], // Array of all rateio records for this expense
+        rateios: [],
       });
     }
     const group = groupedDespesasMap.get(d.despesa_id);
     group.rateios.push(d);
   });
 
-  const groupedDespesas = Array.from(groupedDespesasMap.values());
+  const groupedDespesas = Array.from(groupedDespesasMap.values()).sort(
+    (a, b) => (a.data || "").localeCompare(b.data || "")
+  );
 
-  // Extract unique partner names from all rateios
+  // Extract unique partner names
   const rateioPartnerNames = Array.from(
     new Set(despesasRaw.map((d: any) => (d.partner_name || d.client_name || "").toString().trim()).filter(Boolean))
   );
@@ -143,7 +154,6 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         };
       })
   ).reduce((uniquePartners: any[], p) => {
-    // Remove duplicates by name (case-insensitive)
     if (!uniquePartners.find(up => up.name.toLowerCase() === p.name.toLowerCase())) {
       uniquePartners.push(p);
     }
@@ -153,13 +163,13 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
   if (!partners || partners.length < 2) {
     return (
       <Card className="border border-border/50 bg-card/80 rounded-2xl">
-        <CardHeader><CardTitle className="text-base">Gestão de Compartilhamento</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Centro Financeiro</CardTitle></CardHeader>
         <CardContent><p className="text-sm text-muted-foreground text-center py-8">Apenas para aeronaves compartilhadas.</p></CardContent>
       </Card>
     );
   }
 
-  // Calculate balances: Pago - Devido = Saldo
+  // Calculate balances
   const partnerBalances: Record<string, { totalPago: number; totalDevido: number }> = {};
   partners.forEach(p => {
     partnerBalances[p.name] = { totalPago: 0, totalDevido: 0 };
@@ -169,11 +179,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
     group.rateios.forEach((rateio: any) => {
       const partnerName = rateio.partner_name || rateio.client_name;
       if (partnerBalances[partnerName]) {
-        // Valor Devido: valor_por_voo (based on usage/rateio)
         partnerBalances[partnerName].totalDevido += rateio.valor_por_voo || 0;
-        
-        // Valor Pago: if pago_diretamente is true, they paid the full valor_total
-        // Otherwise, they paid their share (valor_rateado)
         if (rateio.pago_diretamente) {
           partnerBalances[partnerName].totalPago += group.valor_total;
         } else {
@@ -185,23 +191,12 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
 
   const summaryArray = partners.map(p => {
     const bal = partnerBalances[p.name];
-    const saldo = bal.totalPago - bal.totalDevido; // Positive = credit, Negative = debt
-    return { 
-      ...p, 
-      totalPago: bal.totalPago, 
-      totalDevido: bal.totalDevido, 
-      saldo 
-    };
+    const saldo = bal.totalPago - bal.totalDevido;
+    return { ...p, totalPago: bal.totalPago, totalDevido: bal.totalDevido, saldo };
   });
 
   // Debt resolution
   const debts: PartnerDebt[] = [];
-  const tempBalances = { ...partnerBalances };
-  
-  summaryArray.forEach(s => {
-    tempBalances[s.name] = { totalPago: s.totalPago, totalDevido: s.totalDevido };
-  });
-
   const debtorsData = summaryArray.filter(s => s.saldo < -0.01);
   const creditorsData = summaryArray.filter(s => s.saldo > 0.01);
 
@@ -210,71 +205,92 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
       const debtAmount = Math.abs(debtor.saldo);
       const creditAmount = creditor.saldo;
       if (debtAmount <= 0.01 || creditAmount <= 0.01) return;
-      
       const transfer = Math.min(debtAmount, creditAmount);
       if (transfer > 0.01) {
-        debts.push({ 
-          fromPartner: debtor, 
-          toPartner: creditor, 
-          amount: transfer 
-        });
+        debts.push({ fromPartner: debtor, toPartner: creditor, amount: transfer });
       }
     });
   });
 
+  // Helper to get enrichment info
+  const getEnrichment = (despesaId: string) => {
+    return enrichmentData?.get(despesaId) || {};
+  };
+
   const exportToPDF = () => {
     const doc = new jsPDF('landscape');
-    doc.setFontSize(16);
-    doc.text("Relatório de Rateio e Compensação Financeira", 14, 20);
+    doc.setFontSize(14);
+    doc.text("CENTRO DE LANÇAMENTO DE CUSTOS AERONAVE", 14, 15);
     doc.setFontSize(10);
-    doc.text(`Período: ${periodo.inicio} a ${periodo.fim}`, 14, 28);
+    doc.text(`Período: ${periodo.inicio} a ${periodo.fim}`, 14, 22);
 
     const headers = [
-      ["DATA", "VALOR TOTAL", ...partners.flatMap(p => [`${p.name} (Devido)`, `${p.name} (Pago)`])]
+      [
+        "DATA", "DOC", "FORNECEDOR", "DESCRIÇÃO",
+        "CATEGORIA", "TIPO", "PRAZO",
+        "FLUXO", "PAGO POR", "VALOR PAGO",
+        ...partners.flatMap(p => [`${p.name} %`, `${p.name} R$`])
+      ]
     ];
 
-    const body = groupedDespesas.map(group => [
-      group.data,
-      fmt(group.valor_total),
-      ...partners.flatMap(p => {
-        const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
-        return [
-          rateio ? fmt(rateio.valor_por_voo || 0) : "-",
-          rateio ? fmt(rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0)) : "-"
-        ];
-      })
-    ]);
+    const body = groupedDespesas.map(group => {
+      const enrich = getEnrichment(group.despesa_id);
+      const firstRateio = group.rateios[0] || {};
+      const pagoPor = firstRateio.pago_diretamente
+        ? (firstRateio.partner_name || firstRateio.client_name || "-")
+        : "EMPRESA";
+      const categoria = enrich.categorias_movimentacao?.nome || enrich.category || firstRateio.receipt_category || "-";
+      const tipo = enrich.categorias_movimentacao?.tipo || enrich.type || "-";
 
-    // Add totals row
-    body.push([
-      "TOTAL",
-      fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0)),
-      ...partners.flatMap(p => [
-        fmt(partnerBalances[p.name].totalDevido),
-        fmt(partnerBalances[p.name].totalPago)
-      ])
-    ]);
-
-    autoTable(doc, { 
-      startY: 35, 
-      head: headers, 
-      body: body, 
-      theme: 'grid', 
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [200, 200, 200], textColor: 0 }
+      return [
+        group.data || "-",
+        firstRateio.doc_number || firstRateio.nota_fiscal || enrich.doc || "-",
+        enrich.fornecedor_nome || "-",
+        enrich.description || "-",
+        categoria.toUpperCase(),
+        tipo.toUpperCase(),
+        (enrich.prazo_pagamento || "-").toUpperCase(),
+        firstRateio.pago_diretamente ? "SAIDA" : "SAIDA",
+        pagoPor,
+        fmt(group.valor_total),
+        ...partners.flatMap(p => {
+          const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+          const pct = rateio ? (rateio.percentual || 0) : 0;
+          const valorRateado = rateio
+            ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
+            : 0;
+          return [`${pct.toFixed(4)}%`, fmt(valorRateado)];
+        })
+      ];
     });
 
-    doc.save(`rateio_compensacao_${periodo.inicio}_${periodo.fim}.pdf`);
+    // Totals
+    body.push([
+      "TOTAL", "", "", "", "", "", "", "", "",
+      fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0)),
+      ...partners.flatMap(p => ["", fmt(partnerBalances[p.name].totalPago)])
+    ]);
+
+    autoTable(doc, {
+      startY: 28,
+      head: headers,
+      body: body,
+      theme: 'grid',
+      styles: { fontSize: 6, cellPadding: 1.5 },
+      headStyles: { fillColor: [200, 200, 200], textColor: 0, fontSize: 6 },
+    });
+
+    doc.save(`centro_financeiro_${periodo.inicio}_${periodo.fim}.pdf`);
   };
 
   return (
     <div className="space-y-6">
-      {/* Main Table: Despesas com Devido vs Pago */}
+      {/* Main Table: Centro Financeiro */}
       <Card className="border border-border/50 bg-card/80 rounded-2xl">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Wallet className="h-5 w-5 text-primary" />
-            Conciliação de Despesas (Devido vs Pago)
+            <LayoutGrid className="h-5 w-5 text-primary" />
+            Centro Financeiro
           </CardTitle>
           <Button variant="outline" size="sm" onClick={exportToPDF} className="gap-2">
             <FileDown className="h-4 w-4" />
@@ -287,96 +303,156 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
               Nenhuma despesa registrada neste período.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto table-scroll-visible">
               <Table>
                 <TableHeader>
+                  {/* Group headers */}
+                  <TableRow className="border-border/50 bg-muted/30">
+                    <TableHead colSpan={4} className="text-[10px] font-bold text-center border-r border-border/50 tracking-wider text-muted-foreground">
+                      IDENTIFICAÇÃO
+                    </TableHead>
+                    <TableHead colSpan={3} className="text-[10px] font-bold text-center border-r border-border/50 tracking-wider text-muted-foreground">
+                      QUALIFICAÇÃO DE CUSTO
+                    </TableHead>
+                    <TableHead colSpan={3} className="text-[10px] font-bold text-center border-r border-border/50 tracking-wider text-muted-foreground">
+                      PAGAMENTO
+                    </TableHead>
+                    <TableHead colSpan={partners.length} className="text-[10px] font-bold text-center border-r border-border/50 tracking-wider text-muted-foreground">
+                      %
+                    </TableHead>
+                    <TableHead colSpan={partners.length} className="text-[10px] font-bold text-center tracking-wider text-muted-foreground">
+                      RATEIO
+                    </TableHead>
+                  </TableRow>
+                  {/* Column headers */}
                   <TableRow className="border-border/50 bg-muted/20">
-                    <TableHead className="text-xs font-bold">DATA</TableHead>
-                    <TableHead className="text-xs font-bold">CATEGORIA</TableHead>
-                    <TableHead className="text-xs font-bold">Nº DOC</TableHead>
-                    <TableHead className="text-xs font-bold">RATEIO</TableHead>
-                    <TableHead className="text-xs font-bold">VALOR TOTAL</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[80px]">DATA</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[70px]">DOC</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[120px]">FORNECEDOR</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[140px] border-r border-border/50">DESCRIÇÃO</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[120px]">CATEGORIA</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[90px]">TIPO</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[80px] border-r border-border/50">PRAZO</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[60px]">FLUXO</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[90px]">PAGO POR</TableHead>
+                    <TableHead className="text-[10px] font-bold min-w-[100px] border-r border-border/50">VALOR PAGO</TableHead>
                     {partners.map(p => (
-                      <TableHead key={p.id} className="text-xs font-bold text-center border-l border-border/50 col-span-2">
-                        {p.name.toUpperCase()}
+                      <TableHead key={`pct-${p.id}`} className="text-[10px] font-bold text-center min-w-[80px]">
+                        {p.name.split(" ")[0].toUpperCase()}
+                      </TableHead>
+                    ))}
+                    {partners.length > 0 && (
+                      <TableHead className="text-[10px] font-bold text-center border-l border-border/50 min-w-[80px]">
+                        {/* spacer for rateio section border */}
+                      </TableHead>
+                    )}
+                    {partners.slice(1).map(p => (
+                      <TableHead key={`rat-${p.id}`} className="text-[10px] font-bold text-center min-w-[80px]">
                       </TableHead>
                     ))}
                   </TableRow>
+                  {/* Sub-headers for rateio with partner names */}
                   <TableRow className="border-border/50 bg-muted/10">
-                    <TableHead className="text-[10px]"></TableHead>
-                    <TableHead className="text-[10px]"></TableHead>
-                    <TableHead className="text-[10px]"></TableHead>
-                    <TableHead className="text-[10px]"></TableHead>
-                    <TableHead className="text-[10px]"></TableHead>
+                    <TableHead colSpan={10} className="border-r border-border/50"></TableHead>
                     {partners.map(p => (
-                      <React.Fragment key={`header-${p.id}`}>
-                        <TableHead className="text-[10px] text-center border-l border-border/50">DEVIDO</TableHead>
-                        <TableHead className="text-[10px] text-center">PAGO</TableHead>
-                      </React.Fragment>
+                      <TableHead key={`pct-sub-${p.id}`} className="text-[9px] text-center text-muted-foreground">
+                        {p.share_percentage.toFixed(2)}%
+                      </TableHead>
+                    ))}
+                    {partners.map(p => (
+                      <TableHead key={`rat-sub-${p.id}`} className={`text-[9px] text-center text-muted-foreground ${partners.indexOf(p) === 0 ? 'border-l border-border/50' : ''}`}>
+                        R$ {p.name.split(" ")[0].toUpperCase()}
+                      </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groupedDespesas.map((group, i) => (
-                    <TableRow key={i} className="border-border/50 hover:bg-muted/20">
-                      <TableCell className="text-xs">{group.data}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {group.rateios.length > 0 ? getCategoryName(group.rateios[0]) : "-"}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {group.rateios.length > 0 ? getDocNumber(group.rateios[0]) : "-"}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        <div className="space-y-1">
-                          {group.rateios.map((rateio: any, idx: number) => {
-                            const initials = getClientInitials(rateio.partner_name || rateio.client_name);
-                            const propriedade = rateio.percentual || 0;
-                            const uso = rateio.percentual_voo || 0;
-                            return (
-                              <div key={idx} className="text-[10px] font-mono">
-                                {initials} {propriedade.toFixed(2)}%/{uso.toFixed(2)}%
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-medium">{fmt(group.valor_total)}</TableCell>
-                      {partners.map(p => {
-                        const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
-                        const devido = rateio ? (rateio.valor_por_voo || 0) : 0;
-                        const pago = rateio
-                          ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
-                          : 0;
-                        const diferenca = pago - devido;
+                  {groupedDespesas.map((group, i) => {
+                    const enrich = getEnrichment(group.despesa_id);
+                    const firstRateio = group.rateios[0] || {};
+                    const pagoPor = firstRateio.pago_diretamente
+                      ? (firstRateio.partner_name || firstRateio.client_name || "-")
+                      : "DGA ADM";
+                    const categoria = enrich.categorias_movimentacao?.nome || enrich.category || firstRateio.receipt_category || "-";
+                    const tipo = enrich.categorias_movimentacao?.tipo || enrich.type || "-";
+                    const prazo = enrich.prazo_pagamento || "-";
 
-                        return (
-                          <React.Fragment key={`group-${i}-${p.id}`}>
-                            <TableCell className="text-xs text-center border-l border-border/50">
-                              {fmt(devido)}
-                            </TableCell>
+                    return (
+                      <TableRow key={i} className="border-border/50 hover:bg-muted/20">
+                        <TableCell className="text-[10px] whitespace-nowrap">{group.data || "-"}</TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap">
+                          {firstRateio.doc_number || firstRateio.nota_fiscal || "-"}
+                        </TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap truncate max-w-[140px]">
+                          {enrich.fornecedor_nome || "-"}
+                        </TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap truncate max-w-[160px] border-r border-border/50">
+                          {enrich.description || "-"}
+                        </TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap uppercase">
+                          {categoria.toString().toUpperCase().replace(/_/g, " ")}
+                        </TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap uppercase">
+                          {tipo.toString().toUpperCase().replace(/_/g, " ")}
+                        </TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap uppercase border-r border-border/50">
+                          {prazo.toString().toUpperCase().replace(/_/g, " ")}
+                        </TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap">SAÍDA</TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap font-medium">{pagoPor}</TableCell>
+                        <TableCell className="text-[10px] whitespace-nowrap font-medium border-r border-border/50">
+                          R$ {group.valor_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        {/* % columns */}
+                        {partners.map(p => {
+                          const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+                          const pct = rateio ? (rateio.percentual || 0) : 0;
+                          const isFullOwner = Math.abs(pct - 100) < 0.01;
+                          return (
                             <TableCell
-                              className={`text-xs text-center font-medium ${diferenca > 0.01 ? 'bg-green-950/20 text-green-500' : diferenca < -0.01 ? 'bg-red-950/20 text-red-500' : ''}`}
+                              key={`pct-${i}-${p.id}`}
+                              className={`text-[10px] text-center whitespace-nowrap ${isFullOwner ? 'font-bold text-primary' : pct === 0 ? 'text-muted-foreground' : ''}`}
                             >
-                              {fmt(pago)}
+                              {pct > 0 ? `${pct.toFixed(4)}%` : "0,0000%"}
                             </TableCell>
-                          </React.Fragment>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
+                          );
+                        })}
+                        {/* Rateio R$ columns */}
+                        {partners.map((p, pi) => {
+                          const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+                          const valorRateado = rateio
+                            ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
+                            : 0;
+                          return (
+                            <TableCell
+                              key={`rat-${i}-${p.id}`}
+                              className={`text-[10px] text-center whitespace-nowrap font-medium ${pi === 0 ? 'border-l border-border/50' : ''} ${valorRateado > 0 ? '' : 'text-muted-foreground'}`}
+                            >
+                              {valorRateado > 0
+                                ? `R$ ${valorRateado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                                : "R$ -"}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  })}
                   {/* Totals Row */}
-                  <TableRow className="border-t-2 border-border/50 bg-muted/30 font-bold">
-                    <TableCell className="text-xs">TOTAL</TableCell>
-                    <TableCell className="text-xs">{fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0))}</TableCell>
+                  <TableRow className="border-t-2 border-primary/30 bg-muted/40 font-bold">
+                    <TableCell colSpan={9} className="text-[10px] font-bold">TOTAL</TableCell>
+                    <TableCell className="text-[10px] font-bold border-r border-border/50">
+                      {fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0))}
+                    </TableCell>
                     {partners.map(p => (
-                      <React.Fragment key={`total-${p.id}`}>
-                        <TableCell className="text-xs text-center border-l border-border/50">
-                          {fmt(partnerBalances[p.name].totalDevido)}
-                        </TableCell>
-                        <TableCell className="text-xs text-center">
-                          {fmt(partnerBalances[p.name].totalPago)}
-                        </TableCell>
-                      </React.Fragment>
+                      <TableCell key={`total-pct-${p.id}`} className="text-[10px] text-center font-bold"></TableCell>
+                    ))}
+                    {partners.map((p, pi) => (
+                      <TableCell
+                        key={`total-rat-${p.id}`}
+                        className={`text-[10px] text-center font-bold ${pi === 0 ? 'border-l border-border/50' : ''}`}
+                      >
+                        {fmt(partnerBalances[p.name].totalPago)}
+                      </TableCell>
                     ))}
                   </TableRow>
                 </TableBody>
@@ -386,12 +462,11 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         </CardContent>
       </Card>
 
-      {/* Summary Cards: Saldo Final */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {summaryArray.map((s) => {
           const hasCredit = s.saldo > 0.01;
           const hasDebt = s.saldo < -0.01;
-
           return (
             <Card key={s.id} className="border border-border/50 bg-card/80 rounded-2xl">
               <CardContent className="pt-5 pb-4 space-y-3">
@@ -418,7 +493,6 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     </Badge>
                   )}
                 </div>
-
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="p-2 rounded-lg bg-muted/30">
                     <p className="text-muted-foreground">Total Devido</p>
@@ -429,7 +503,6 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     <p className="font-semibold text-foreground">{fmt(s.totalPago)}</p>
                   </div>
                 </div>
-
                 {Math.abs(s.saldo) > 0.01 && (
                   <div className={`p-2 rounded-lg text-xs ${getDifferencaBg(s.saldo)}`}>
                     <p className={`font-semibold ${getDifferencaColor(s.saldo)}`}>
@@ -468,13 +541,11 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     </div>
                     <span className="font-medium text-sm">{debt.fromPartner.name}</span>
                   </div>
-
                   <div className="flex flex-col items-center gap-1">
                     <ArrowRight className="h-5 w-5 text-primary" />
                     <span className="text-lg font-bold text-destructive">{fmt(debt.amount)}</span>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">deve</span>
                   </div>
-
                   <div className="flex items-center gap-3">
                     <span className="font-medium text-sm text-right">{debt.toPartner.name}</span>
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 text-sm font-bold">
