@@ -105,6 +105,14 @@ function getDocFieldPlaceholder(category: string): string {
   return "Ex: DOC-001";
 }
 
+// Categorias INFRAERO e DECEA que usam número demonstrativo + mês
+const INFRAERO_DECEA_CATEGORIES = ["DECEA", "INFRAERO"] as const;
+type InfraeoDeceaCategory = (typeof INFRAERO_DECEA_CATEGORIES)[number];
+
+function isInfraeoDececaCategory(cat: string): cat is InfraeoDeceaCategory {
+  return (INFRAERO_DECEA_CATEGORIES as readonly string[]).includes(cat);
+}
+
 const EMPTY_FORM = {
   description: "",
   totalAmount: "",
@@ -121,6 +129,9 @@ const EMPTY_FORM = {
   status: "pago",
   abastecimentoId: "",
   criarNovoAbastecimento: false,
+  // Campos para INFRAERO/DECEA
+  demonstrativoNumber: "",
+  mesReferente: format(new Date(), "MM-yyyy"),
   // Campo doc (usado por IMPOSTOS, DECEA, INFRAERO)
   doc: "",
   boletoUrl: "",
@@ -293,8 +304,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       setManutencaoTipoRateio("igual");
       setManualRateios({});
     }
-    // Reset doc field when category changes
-    setForm((prev) => ({ ...prev, doc: "" }));
+    // Reset doc-related fields when category changes
+    setForm((prev) => ({ ...prev, doc: "", demonstrativoNumber: "", mesReferente: format(new Date(), "MM-yyyy") }));
   }, [form.category]);
 
   // Auto-fill valor unitário when supplier and combustível are selected
@@ -367,13 +378,16 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
   // Derived flags
   const isDocCategory = isDocFieldCategory(form.category as string);
-  const hideDescriptionAndSupplier = isDocCategory;
+  const isInfraeoDececaExpense = isInfraeoDececaCategory(form.category as string);
+  const hideDescriptionAndSupplier = isDocCategory || isInfraeoDececaExpense;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation differs by category
-    if (isDocCategory) {
+    if (isInfraeoDececaExpense) {
+      if (!form.demonstrativoNumber || !form.mesReferente || !form.totalAmount || !form.category) return;
+    } else if (isDocCategory) {
       if (!form.doc || !form.totalAmount || !form.category) return;
     } else {
       if (!form.description || !form.totalAmount || !form.category) return;
@@ -391,8 +405,19 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     const bankNameResolved = selectedConta ? selectedConta.banco : form.bankName || null;
     const aircraftId = await getAircraftId();
 
-    // For doc-field categories, use doc as description
-    const effectiveDescription = isDocCategory ? form.doc : form.description;
+    // For INFRAERO/DECEA, format description as "INFRAERO/03-26" or "DECEA/03-26"
+    let effectiveDescription = "";
+    let effectiveDoc = "";
+
+    if (isInfraeoDececaExpense) {
+      effectiveDescription = `${form.category}/${form.mesReferente}`;
+      effectiveDoc = form.mesReferente;
+    } else if (isDocCategory) {
+      // IMPOSTOS uses doc as description
+      effectiveDescription = form.doc;
+    } else {
+      effectiveDescription = form.description;
+    }
 
     let referenceType: string | null = null;
     let referenceId: string | null = null;
@@ -508,7 +533,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       expenseType: form.expenseType || form.category,
       dueDate: form.dueDate,
       supplierName: isDocCategory ? null : (form.supplierName || null),
-      invoiceNumber: form.invoiceNumber || null,
+      invoiceNumber: isInfraeoDececaExpense ? (form.demonstrativoNumber || null) : (form.invoiceNumber || null),
       invoiceUrl: form.invoiceUrl || null,
       paymentMethod:
         form.paymentMethod === "nao_informado" ? null : form.paymentMethod || null,
@@ -529,10 +554,10 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       referenceType,
       referenceId,
       abastecimentoId: abastecimentoId,
-      // Salvar o campo doc na coluna doc do banco
-      doc: isDocCategory ? form.doc : null,
-      boletoUrl: isDocCategory ? form.boletoUrl || null : null,
-      demonstrativoUrl: isDocCategory ? form.demonstrativoUrl || null : null,
+      // For INFRAERO/DECEA, save mesReferente in doc; for IMPOSTOS, save doc field
+      doc: isInfraeoDececaExpense ? effectiveDoc : (isDocCategory ? form.doc : null),
+      boletoUrl: isInfraeoDececaExpense ? (form.boletoUrl || null) : (isDocCategory ? form.boletoUrl || null : null),
+      demonstrativoUrl: isInfraeoDececaExpense ? (form.demonstrativoUrl || null) : (isDocCategory ? form.demonstrativoUrl || null : null),
       percentualSocio: form.percentualSocio ? parseFloat(form.percentualSocio) : null,
     };
 
@@ -713,7 +738,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const isAbastecimento = form.category === "ABASTECIMENTO";
 
   // Validation
-  const isValid = isDocCategory
+  const isValid = isInfraeoDececaExpense
+    ? !!form.demonstrativoNumber && !!form.mesReferente && !!form.totalAmount && !!form.category
+    : isDocCategory
     ? !!form.doc && !!form.totalAmount && !!form.category
     : !!form.description && !!form.totalAmount && !!form.category;
 
@@ -909,8 +936,88 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Campo DOC (IMPOSTOS / DECEA / INFRAERO) ── */}
-                  {isDocCategory && (
+                  {/* ── INFRAERO/DECEA: Número Demonstrativo e Mês Referente ── */}
+                  {isInfraeoDececaExpense && (
+                    <div className="rounded-2xl bg-sky-950/30 border border-sky-700/40 p-6 space-y-4">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-900/60">
+                          <span className="text-base">🛬</span>
+                        </div>
+                        <p className="font-semibold text-sm text-sky-200">
+                          Informações de {form.category}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Número Demonstrativo</Label>
+                          <Input
+                            value={form.demonstrativoNumber}
+                            onChange={(e) => set("demonstrativoNumber")(e.target.value)}
+                            placeholder={`Ex: ${form.category}-2025-001`}
+                            required
+                            disabled={addExpense.isPending}
+                            className="h-13 rounded-xl text-sm border-sky-700/40 bg-zinc-900"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Este número será salvo como referência do demonstrativo.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold">Mês Referente</Label>
+                          <Input
+                            type="month"
+                            value={form.mesReferente}
+                            onChange={(e) => set("mesReferente")(e.target.value)}
+                            required
+                            disabled={addExpense.isPending}
+                            className="h-13 rounded-xl text-sm border-sky-700/40 bg-zinc-900"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Será preenchido na coluna DOC como MM-YYYY
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-muted/30 rounded-2xl border border-dashed border-border mt-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold flex items-center gap-2">
+                            <Receipt className="w-4 h-4 text-red-600" />
+                            Anexar Boleto (PDF/Imagem)
+                          </Label>
+                          <FileUploadField
+                            value={form.boletoUrl}
+                            onChange={set("boletoUrl")}
+                            label="Anexar Boleto"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="boleto"
+                            disabled={addExpense.isPending}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold flex items-center gap-2">
+                            <Landmark className="w-4 h-4 text-blue-600" />
+                            Anexar Demonstrativo (PDF/Imagem)
+                          </Label>
+                          <FileUploadField
+                            value={form.demonstrativoUrl}
+                            onChange={set("demonstrativoUrl")}
+                            label="Anexar Demonstrativo"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="demonstrativo"
+                            disabled={addExpense.isPending}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Campo DOC (IMPOSTOS only) ── */}
+                  {form.category === "IMPOSTOS" && (
                     <div className={cn(
                       "rounded-2xl border p-6 space-y-2",
                       form.category === "IMPOSTOS"
