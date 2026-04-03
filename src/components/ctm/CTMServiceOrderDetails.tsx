@@ -545,7 +545,6 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
               { label: 'Dias Previstos', value: order.dias_previstos },
               { label: 'Dias Efetivos', value: order.dias_efetivos },
               { label: 'Objetivo', value: order.objetivo },
-              { label: 'Tipo Rateio', value: order.tipo_rateio },
               { label: 'Tipo Manutenção', value: order.tipo_manutencao },
               { label: 'Data Entrada', value: order.data_entrada ? formatDateToBR(order.data_entrada) : undefined },
               { label: 'Data Saída', value: order.data_saida ? formatDateToBR(order.data_saida) : undefined },
@@ -737,38 +736,14 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
               </p>
             </div>
 
-            {/* Date Range Selector */}
-            <div className="bg-slate-800/40 border border-white/5 rounded-xl p-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-slate-300 text-xs">Período Início</Label>
-                  <Input
-                    type="date"
-                    value={rateioPeriodoInicio}
-                    onChange={e => setRateioPeriodoInicio(e.target.value)}
-                    className="bg-slate-800 border-white/10 text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-slate-300 text-xs">Período Fim</Label>
-                  <Input
-                    type="date"
-                    value={rateioPeriodoFim}
-                    onChange={e => setRateioPeriodoFim(e.target.value)}
-                    className="bg-slate-800 border-white/10 text-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Flight Hours Rateio Table */}
+            {/* Flight Hours Rateio with integrated calendar */}
             <OASFlightHoursRateio
               orderId={orderId}
               aircraftId={order.aircraft_id}
               costSharing={costSharingData}
               totalGeral={order.total_geral || 0}
-              periodoInicio={rateioPeriodoInicio || null}
-              periodoFim={rateioPeriodoFim || null}
+              periodoInicio={order.data_entrada || null}
+              periodoFim={order.data_saida || null}
               onRefetch={loadCostSharing}
             />
           </div>

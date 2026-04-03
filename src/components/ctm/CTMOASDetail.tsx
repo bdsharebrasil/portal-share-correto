@@ -390,10 +390,10 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
 
               {currentSection === "servicos" && <ServicesSection orderId={orderId} services={services} onRefetch={refetchServices} />}
               {currentSection === "pecas" && <PartsSection orderId={orderId} parts={parts} onRefetch={refetchParts} />}
-              {currentSection === "ras" && <OASRASSection orderId={orderId} reports={rasReports} onRefetch={refetchRAS} aircraftId={""} aircraftRegistration={""} />}
-              {currentSection === "oleo" && <OASOilAnalysisSection orderId={orderId} analyses={oilAnalyses} onRefetch={refetchOil} aircraftId={""} />}
+              {currentSection === "ras" && <OASRASSection orderId={orderId} reports={rasReports} onRefetch={refetchRAS} aircraftId={order?.aircraft_id || ""} aircraftRegistration={order?.aircraft?.registration || ""} />}
+              {currentSection === "oleo" && <OASOilAnalysisSection orderId={orderId} analyses={oilAnalyses} onRefetch={refetchOil} aircraftId={order?.aircraft_id || ""} />}
               {currentSection === "orcamentos" && <OASBudgetsSection orderId={orderId} budgets={budgets} onRefetch={refetchBudgets} />}
-              {currentSection === "rateio" && <OASFlightHoursRateio orderId={orderId} costSharing={costSharing} onRefetch={refetchCostSharing} aircraftId={""} totalGeral={0} />}
+              {currentSection === "rateio" && <OASFlightHoursRateio orderId={orderId} costSharing={costSharing} onRefetch={refetchCostSharing} aircraftId={order?.aircraft_id || ""} totalGeral={0} />}
               {currentSection === "despesas" && <OASMaintenanceExpensesTable orderId={orderId} />}
               {currentSection === "resumo" && (
                 <div className="space-y-4">

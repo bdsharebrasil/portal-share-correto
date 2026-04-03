@@ -451,7 +451,7 @@ export function NewServiceOrderPage({
               value={formData.horas_celula}
               onChange={(e) => set("horas_celula", e.target.value)}
               min="0"
-              step="0.5"
+              step="any"
             />
           </Field>
           <Field label="PERÍODO">
@@ -520,7 +520,7 @@ export function NewServiceOrderPage({
         </Section>
 
       {/* 4 · Duração e Horas */}
-      <Section icon={Clock4} title="Duração e Horas">
+      <Section icon={Clock4} title="Duração ">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <Field label="Dias Previstos">
             <Input
