@@ -622,12 +622,12 @@ export function useAddDeposit(showToast = true) {
           description: data.description,
           receipt_url: data.receiptUrl || null,
           payment_date: data.paymentDate,
-          bank_name: data.bankName || null,
-          transaction_subtype: data.transactionSubtype || "deposit",
+          bank_name: data.bankName?.toUpperCase() || null,
+          transaction_subtype: data.transactionSubtype?.toUpperCase() || "DEPOSIT",
           reference_type: data.referenceId ? "partner_expense" : null,
           reference_id: data.referenceId || null,
-          status: "recebido",
-          payment_method: data.paymentMethod || null,
+          status: "RECEBIDO",
+          payment_method: data.paymentMethod?.toUpperCase() || null,
         });
       if (txErr) throw txErr;
 
@@ -1007,8 +1007,8 @@ export function useAddBankInterest() {
         balance_after: 0,
         description: data.description,
         payment_date: data.paymentDate,
-        bank_name: data.bankName || null,
-        transaction_subtype: "interest",
+        bank_name: data.bankName?.toUpperCase() || null,
+        transaction_subtype: "INTEREST",
         payment_method: "OUTROS",
       });
 
@@ -1161,6 +1161,13 @@ export function useUpdateTransaction() {
     }) => {
       // Handle partner expenses (including travel_report type)
       if (data.transactionType === "partner_expense" || data.transactionType === "travel_report" || data.transactionType === "travel_expense_report") {
+        // Normalize fields to UPPERCASE
+        const normBankName = data.bankName?.toUpperCase() || null;
+        const normPrazo = data.prazo?.toUpperCase() || null;
+        const normSupplierName = data.supplierName?.toUpperCase() || null;
+        const normPaymentMethod = data.paymentMethod?.toUpperCase() || null;
+        const normStatus = data.status?.toUpperCase() || null;
+
         const { error } = await supabase
           .from("partner_expenses")
           .update({
@@ -1169,13 +1176,13 @@ export function useUpdateTransaction() {
             due_date: data.dueDate || data.paymentDate,
             paid_date: data.paymentDate,
             notes: data.notes || null,
-            bank_name: data.bankName || null,
-            prazo: data.prazo || null,
+            bank_name: normBankName,
+            prazo: normPrazo,
             category: data.category || null,
             expense_type: data.expenseType || data.category || undefined,
-            supplier_name: data.supplierName || null,
-            payment_method: data.paymentMethod || null,
-            status: data.status || null,
+            supplier_name: normSupplierName,
+            payment_method: normPaymentMethod,
+            status: normStatus,
             assigned_partner_cpf: data.assignedPartnerCpf || null,
             assigned_partner_name: data.assignedPartnerName || null,
             invoice_number: data.invoiceNumber || null,
@@ -1189,7 +1196,7 @@ export function useUpdateTransaction() {
 
         // Sincronizar status na conciliação bancária quando é um relatório de viagem referenciado
         if (data.referenceType && data.referenceId) {
-          const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.status || undefined);
+          const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(normStatus || undefined);
           if (reconcStatus) {
             const bankUpdate: any = {
               status: reconcStatus,
