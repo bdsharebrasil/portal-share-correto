@@ -1222,7 +1222,7 @@ export function FluxoCaixaInlineForm({
                               >
                                 <div>
                                   <p className="font-medium text-foreground">{r.nome}</p>
-                                  {r.documentoumento && <p className="text-xs text-muted-foreground">{r.documentoumento}</p>}
+                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
                                 </div>
                               </CommandItem>
                             ))}
@@ -1230,7 +1230,7 @@ export function FluxoCaixaInlineForm({
                       )}
                     {referencias.filter(r => r.tipo === 'fornecedor').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documentoumento.includes(referenciaSearch)
+                      r.documento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Fornecedores Favoritos" className="text-muted-foreground">
                           {referencias
