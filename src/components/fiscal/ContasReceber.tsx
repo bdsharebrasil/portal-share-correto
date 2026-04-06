@@ -955,7 +955,7 @@ export function ContasReceber() {
                               </TooltipProvider>
                             </>
                           )}
-                          {conta.situacao !== "recebido" && (
+                          {conta.status !== "recebido" && (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
