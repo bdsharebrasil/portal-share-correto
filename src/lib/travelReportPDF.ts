@@ -1111,8 +1111,8 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
       </html>
     `;
 
-    newWindow.documentoument.write(htmlDoc);
-    newWindow.documentoument.close();
+    newWindow.documento.write(htmlDoc);
+    newWindow.documento.close();
   } catch (error) {
     console.error('Erro ao visualizar prévia:', error);
     newWindow.close();
