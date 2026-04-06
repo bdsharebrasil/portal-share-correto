@@ -170,8 +170,7 @@ export const apiClient = {
         const mockData = await loadMockWeatherData(upperIcao)
         if (mockData) return mockData
       } catch {}
-      return { loc: upperIcao, metar: '', taf: '' }
-    }
+      throw new Error(`Weather unavailable for ${upperIcao}`)    }
   },
 
   // ── Charts ─────────────────────────────────────────────────────────────────
