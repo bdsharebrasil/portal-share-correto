@@ -3,14 +3,23 @@ import { get, set } from 'idb-keyval'
 import { API_ENDPOINTS } from '@/config/api'
 import type { FlightPlanResponse } from '@/services/flightBriefing'
 
-const AIS_API_BASE_URL =
-  import.meta.env.VITE_BACKEND_URL ||
-  (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev')
-
 // ─── Timeouts ─────────────────────────────────────────────────────────────────
 
-const FETCH_TIMEOUT_MS   = 8_000
-const WEATHER_TIMEOUT_MS = 25_000
+const FETCH_TIMEOUT_MS = 8_000
+const WEATHER_TIMEOUT_MS = 27_000
+
+// ─── TTLs de cache (IndexedDB) ────────────────────────────────────────────────
+
+const TTL = {
+  weather: 2 * 60 * 1_000,  //  2 min — dados mudam frequentemente
+  notam: 30 * 60 * 1_000,  // 30 min
+  charts: 60 * 60 * 1_000,  //  1 h
+  solar: 24 * 60 * 60 * 1_000, // 24 h — não muda no dia
+  rotaer: 30 * 60 * 1_000,
+  routes: 60 * 60 * 1_000,
+  nearby: 30 * 60 * 1_000,
+  default: 5 * 60 * 1_000,  //  5 min — fallback genérico
+} as const
 
 // ─── IDB com timeout ──────────────────────────────────────────────────────────
 
@@ -24,10 +33,10 @@ async function idbGet(key: string): Promise<any> {
 }
 
 async function idbSet(key: string, value: any): Promise<void> {
-  return Promise.race([
+  Promise.race([
     set(key, value),
     new Promise<void>(resolve => setTimeout(resolve, IDB_TIMEOUT_MS)),
-  ]).catch(() => {})
+  ]).catch((e) => console.warn('[IDB SET ERROR]', key, e))
 }
 
 // ─── fetch com timeout ────────────────────────────────────────────────────────
@@ -35,51 +44,42 @@ async function idbSet(key: string, value: any): Promise<void> {
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS) {
   const controller = new AbortController()
   const timeoutErr = new Error(`Request timeout after ${timeoutMs}ms`)
-  const timeoutId  = setTimeout(() => controller.abort(timeoutErr), timeoutMs)
+  const timeoutId = setTimeout(() => controller.abort(timeoutErr), timeoutMs)
   try {
     const res = await fetch(url, { ...options, signal: controller.signal })
-    clearTimeout(timeoutId)
     return res
   } catch (error: any) {
-    clearTimeout(timeoutId)
     if (error.name === 'AbortError') throw error.reason instanceof Error ? error.reason : timeoutErr
     throw error
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 
 // ─── fetchJson genérico ───────────────────────────────────────────────────────
+// Recebe sempre a URL completa montada por API_ENDPOINTS.
 
-async function fetchJson(endpoint: string, options: RequestInit = {}, customTimeout?: number) {
-  let url: string
-  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
-    url = endpoint
-  } else {
-    const base = AIS_API_BASE_URL.replace(/\/$/, '')
-    let ep     = endpoint.replace(/^\/+/, '')
-    if (ep.startsWith('api/')) ep = ep.replace(/^api\//, '')
-    url = `${base}/${ep}`
-  }
-
+async function fetchJson(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS) {
   try {
     console.debug(`[API] Fetching: ${url}`)
     const res = await fetchWithTimeout(
       url,
       { headers: { 'Content-Type': 'application/json' }, ...options },
-      customTimeout ?? FETCH_TIMEOUT_MS
+      timeoutMs,
     )
     if (!res.ok) {
       const text = await res.text()
       throw new Error(`AIS API error ${res.status}: ${text}`)
     }
-    return res.json()
+    return await res.json()
   } catch (error: any) {
-    console.error(`[API Error] Failed to fetch ${url}:`, error.message)
+    console.error(`[API Error] ${url}:`, error.message)
     throw error
   }
 }
 
-async function fetchJsonPost(endpoint: string, body: Record<string, any>) {
-  return fetchJson(endpoint, { method: 'POST', body: JSON.stringify(body) })
+async function fetchJsonPost(url: string, body: Record<string, any>) {
+  return fetchJson(url, { method: 'POST', body: JSON.stringify(body) })
 }
 
 // ─── Mock data de clima ───────────────────────────────────────────────────────
@@ -100,12 +100,18 @@ async function loadMockWeatherData(icao: string) {
 
 // ─── Cache persistente via IndexedDB ─────────────────────────────────────────
 
-const CACHE_TTL = 5 * 60 * 1000 // 5 min
+interface CacheEntry { timestamp: number; data: any }
 
-async function cachedFetch(key: string, fetcher: () => Promise<any>, allowMockFallback = false) {
+async function cachedFetch(
+  key: string,
+  fetcher: () => Promise<any>,
+  ttlMs = TTL.default,
+  allowMockFallback = false,
+): Promise<any> {
+  // 1. Cache fresco?
   try {
-    const cached = (await idbGet(key)) as { timestamp: number; data: any } | undefined
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    const cached = await idbGet(key) as CacheEntry | undefined
+    if (cached && Date.now() - cached.timestamp < ttlMs) {
       console.debug(`[Cache HIT] ${key}`)
       return cached.data
     }
@@ -113,26 +119,31 @@ async function cachedFetch(key: string, fetcher: () => Promise<any>, allowMockFa
     console.warn('[Cache READ ERROR]', key, err)
   }
 
+  // 2. Busca na rede
   try {
     console.debug(`[Cache MISS] Fetching ${key}`)
     const data = await fetcher()
     idbSet(key, { timestamp: Date.now(), data }) // fire-and-forget
     return data
   } catch (fetchError: any) {
-    console.warn(`[Cache STALE FALLBACK] Fetcher failed for ${key}`)
+    console.warn(`[Fetch FAILED] ${key}:`, fetchError.message)
+
+    // 3. Stale fallback — devolve dado expirado se existir
     try {
-      const stale = (await idbGet(key)) as { timestamp: number; data: any } | undefined
+      const stale = await idbGet(key) as CacheEntry | undefined
       if (stale?.data) {
         console.info(`[Cache STALE HIT] ${key}`)
         return stale.data
       }
-    } catch {}
+    } catch { }
 
-    if (allowMockFallback && key.startsWith('weather-')) {
-      const icao     = key.replace('weather-', '')
+    // 4. Mock fallback (só para weather)
+    if (allowMockFallback) {
+      const icao = key.replace('weather-', '')
       const mockData = await loadMockWeatherData(icao)
       if (mockData) return mockData
     }
+
     throw fetchError
   }
 }
@@ -142,92 +153,90 @@ async function cachedFetch(key: string, fetcher: () => Promise<any>, allowMockFa
 export const apiClient = {
 
   // ── Weather (METAR/TAF) ────────────────────────────────────────────────────
-  getWeather: async (icao: string) => {
+  getWeather: (icao: string) => {
     const upperIcao = icao.toUpperCase()
-    const cacheKey  = `weather-${upperIcao}`
-    try {
-      const cached = (await idbGet(cacheKey)) as { timestamp: number; data: any } | undefined
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        console.debug(`[Cache HIT] ${cacheKey}`)
-        return cached.data
-      }
-    } catch (err) {
-      console.warn('[Cache READ ERROR]', cacheKey, err)
-    }
-    try {
-      const data = await fetchJson(API_ENDPOINTS.weather(icao), {}, WEATHER_TIMEOUT_MS)
-      idbSet(cacheKey, { timestamp: Date.now(), data })
-      return data
-    } catch (apiError: any) {
-      console.warn(`[Weather API Failed] ${upperIcao}: ${apiError.message}`)
-      try {
-        const mockData = await loadMockWeatherData(upperIcao)
-        if (mockData) return mockData
-      } catch {}
-      return { loc: upperIcao, metar: '', taf: '' }
-    }
+    return cachedFetch(
+      `weather-${upperIcao}`,
+      () => fetchJson(API_ENDPOINTS.weather(upperIcao), {}, WEATHER_TIMEOUT_MS),
+      TTL.weather,
+      true, // allowMockFallback
+    )
   },
 
   // ── Charts ─────────────────────────────────────────────────────────────────
   getCharts: (icao: string, especie?: string, tipo?: string) =>
     cachedFetch(
-      `charts-${icao.toUpperCase()}-${especie || ''}-${tipo || ''}`,
-      () => fetchJson(API_ENDPOINTS.charts(icao, especie, tipo))
+      `charts-${icao.toUpperCase()}-${especie ?? ''}-${tipo ?? ''}`,
+      () => fetchJson(API_ENDPOINTS.charts(icao, especie, tipo)),
+      TTL.charts,
     ),
 
   // ── NOTAMs ─────────────────────────────────────────────────────────────────
   getNotam: (icao: string) =>
-    cachedFetch(`notam-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.notam(icao))),
+    cachedFetch(
+      `notam-${icao.toUpperCase()}`,
+      () => fetchJson(API_ENDPOINTS.notam(icao)),
+      TTL.notam,
+    ),
 
   // ── ROTAER — dados do aeródromo ────────────────────────────────────────────
   getAerodrome: (icao: string) =>
-    cachedFetch(`rotaer-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.rotaer(icao, ''))),
+    cachedFetch(
+      `rotaer-${icao.toUpperCase()}`,
+      () => fetchJson(API_ENDPOINTS.rotaer(icao, '')),
+      TTL.rotaer,
+    ),
 
   // ── Rotas preferenciais ────────────────────────────────────────────────────
   getPreferentialRoutes: (adep: string, ades: string) =>
     cachedFetch(
       `routes-${adep.toUpperCase()}-${ades.toUpperCase()}`,
-      () => fetchJson(API_ENDPOINTS.routes(adep, ades))
+      () => fetchJson(API_ENDPOINTS.routes(adep, ades)),
+      TTL.routes,
     ),
 
   // ── Solar ──────────────────────────────────────────────────────────────────
-  getSolar: (icao: string, date?: string) => {
-    const key = `solar-${icao.toUpperCase()}-${date ?? 'today'}`
-    const url = API_ENDPOINTS.solar(icao) + (date ? `?date=${date}` : '')
-    return cachedFetch(key, () => fetchJson(url))
-  },
+  getSolar: (icao: string, date?: string) =>
+    cachedFetch(
+      `solar-${icao.toUpperCase()}-${date ?? 'today'}`,
+      () => fetchJson(API_ENDPOINTS.solar(icao) + (date ? `?date=${date}` : '')),
+      TTL.solar,
+    ),
 
   // ── Cálculos de voo (POST) ─────────────────────────────────────────────────
   flightCalculations: (params: {
-    distance_nm:  number
-    speed_kts?:   number
-    fuel_burn?:   number
+    distance_nm: number
+    speed_kts?: number
+    fuel_burn?: number
     reserve_min?: number
-    wind_kts?:    number
-    taxi_min?:    number
+    wind_kts?: number
+    taxi_min?: number
   }) => fetchJsonPost(API_ENDPOINTS.flightCalculations, params),
 
-  // ── Plano de voo completo ─────────────────────────────────────────────────
-  // Retorna FlightPlanResponse — briefing deve ser gerado no frontend
-  // com generateFlightBriefing() de services/flightBriefing.ts
+  // ── Plano de voo completo ──────────────────────────────────────────────────
   getFlightPlan: (
-    adep:    string,
-    ades:    string,
-    speed    = 120,
-    burn     = 32,
-    reserve  = 45,
+    adep: string,
+    ades: string,
+    speed = 120,
+    burn = 32,
+    reserve = 45,
   ): Promise<FlightPlanResponse> =>
     fetchJson(API_ENDPOINTS.flightplan(adep, ades, speed, burn, reserve)),
 
   // ── Aeródromo mais próximo ─────────────────────────────────────────────────
   getNearestAirport: (lat: number, lon: number) =>
-    fetchJson(API_ENDPOINTS.nearestAirport(lat, lon)),
+    cachedFetch(
+      `nearest-${lat.toFixed(2)}-${lon.toFixed(2)}`,
+      () => fetchJson(API_ENDPOINTS.nearestAirport(lat, lon)),
+      TTL.nearby,
+    ),
 
   // ── Alternados próximos ────────────────────────────────────────────────────
   getNearbyAlternates: (lat: number, lon: number) =>
     cachedFetch(
       `geiloc-nearby-${lat.toFixed(2)}-${lon.toFixed(2)}`,
-      () => fetchJson(API_ENDPOINTS.geilocNearby(lat, lon))
+      () => fetchJson(API_ENDPOINTS.geilocNearby(lat, lon)),
+      TTL.nearby,
     ),
 }
 
@@ -235,6 +244,6 @@ export const apiClient = {
 
 export function handleApiError(error: any): string {
   if (error.response?.data?.error) return error.response.data.error
-  if (error.message)               return error.message
+  if (error.message) return error.message
   return 'Erro desconhecido na API'
 }

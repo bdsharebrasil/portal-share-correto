@@ -709,6 +709,7 @@ export default function RelatorioMensal() {
                 {/* Conta Bancária */}
                 {(bankAccountData.deposits > 0 || bankAccountData.expenses > 0) && (
                   <div
+                    key="bank-account"
                     className="p-4 rounded-lg border border-amber-200/40 dark:border-amber-800/40 bg-amber-50/10 dark:bg-amber-950/15 hover:border-amber-300 dark:hover:border-amber-700 hover:bg-amber-100/15 cursor-pointer transition-all duration-200 space-y-2"
                     onClick={() => setSelectedPartnerCard("Conta Bancária")}
                   >

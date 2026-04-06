@@ -98,8 +98,22 @@ export default function WeatherWidget() {
       // Busca dados via hook com cache (com fallback automático para mock data)
       const wxData = await getWeather(airport.icao);
 
+      // Check explícito: se getWeather retornar null, não tentar transformar
+      if (!wxData) {
+        console.warn(`[WeatherWidget] Dados nulos para ${airport.icao} — usando fallback`);
+        setWxToUnknown(airport);
+        return;
+      }
+
       // Transform dados brutos em formato estruturado
       const metarData = transformAISWebMETAR(wxData, airport.icao);
+
+      // Validar que o METAR não ficou vazio (fallback silencioso)
+      if (!metarData.rawOb) {
+        console.warn(`[WeatherWidget] METAR vazio para ${airport.icao} — usando fallback`);
+        setWxToUnknown(airport);
+        return;
+      }
 
       setWx({
         status: "ok",
