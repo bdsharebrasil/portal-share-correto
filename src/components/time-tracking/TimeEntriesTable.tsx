@@ -440,7 +440,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
                 <TableCell>{entry.total_hours ? `${entry.total_hours}h` : '-'}</TableCell>
                 <TableCell>{getStatusBadge(entry)}</TableCell>
                 <TableCell>
-                  {!entry.clock_in && entry.situacao !== 'falta' && (
+                  {!entry.clock_in && entry.status !== 'falta' && (
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
