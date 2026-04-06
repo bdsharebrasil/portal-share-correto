@@ -214,16 +214,16 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                     <Badge
                       className={cn(
                         "ml-auto",
-                        entry.situacao === "concluido" &&
+                        entry.status === "concluido" &&
                           "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-                        entry.situacao === "incompleto" &&
+                        entry.status === "incompleto" &&
                           "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                        entry.situacao === "ativo" && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        entry.status === "ativo" && "bg-blue-500/20 text-blue-400 border-blue-500/30"
                       )}
                     >
-                      {entry.situacao === "concluido" && "Concluído"}
-                      {entry.situacao === "incompleto" && "Incompleto"}
-                      {entry.situacao === "ativo" && "Em andamento"}
+                      {entry.status === "concluido" && "Concluído"}
+                      {entry.status === "incompleto" && "Incompleto"}
+                      {entry.status === "ativo" && "Em andamento"}
                     </Badge>
                   </div>
 
