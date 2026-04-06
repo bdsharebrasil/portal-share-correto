@@ -205,7 +205,7 @@ export function AeronaveDocumentosViewer({
   }
 
   const hasDocuments = Object.values(documentsByFolder).some(
-    (item) => item.documentouments.length > 0
+    (item) => item.documento.length > 0
   );
 
   return (
