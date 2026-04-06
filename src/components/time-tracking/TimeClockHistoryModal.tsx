@@ -160,18 +160,18 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   "aspect-square p-2 rounded-lg border text-center flex flex-col items-center justify-center text-xs cursor-pointer transition-all",
                   isToday && "border-primary/50 bg-primary/10",
                   !entry && "border-slate-700/50 bg-slate-800/30",
-                  entry && entry.situacao === "concluido" && "border-emerald-500/50 bg-emerald-500/10",
-                  entry && entry.situacao === "incompleto" && "border-amber-500/50 bg-amber-500/10",
-                  entry && entry.situacao === "ativo" && "border-blue-500/50 bg-blue-500/10"
+                  entry && entry.status === "concluido" && "border-emerald-500/50 bg-emerald-500/10",
+                  entry && entry.status === "incompleto" && "border-amber-500/50 bg-amber-500/10",
+                  entry && entry.status === "ativo" && "border-blue-500/50 bg-blue-500/10"
                 )}
               >
                 <span className="font-semibold text-white">{date.getDate()}</span>
                 {entry && (
                   <div className="flex items-center gap-0.5 mt-1">
-                    {entry.situacao === "concluido" && (
+                    {entry.status === "concluido" && (
                       <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                     )}
-                    {entry.situacao === "incompleto" && (
+                    {entry.status === "incompleto" && (
                       <AlertCircle className="h-3 w-3 text-amber-400" />
                     )}
                   </div>
