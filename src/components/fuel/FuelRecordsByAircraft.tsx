@@ -818,7 +818,7 @@ export function FuelRecordsByAircraft({
       }
 
       // Validação: se status é "pago", precisa de comprovante e data de pagamento
-      let statusFinal = formData.situacao_pagamento || "em aberto";
+      let statusFinal = formData.status_pagamento || "em aberto";
       if (statusFinal === "pago") {
         const temComprovante = comprovanteUrl || (editingRecord as any)?.comprovante_pagamento;
         const temDataPagamento = formData.data_pagamento;
