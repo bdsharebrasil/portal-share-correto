@@ -1739,7 +1739,7 @@ export function FuelRecordsByAircraft({
               </div>
             )}
 
-            {formData.situacao_pagamento === "pago" && (
+            {formData.status_pagamento === "pago" && (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
                 <Label className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2 block">
                   ⚠️ Para marcar como pago, é obrigatório anexar o comprovante de pagamento e informar a data.
