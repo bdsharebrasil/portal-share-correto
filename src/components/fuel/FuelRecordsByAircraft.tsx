@@ -1729,7 +1729,7 @@ export function FuelRecordsByAircraft({
               </div>
             )}
 
-            {formData.situacao_pagamento === "em aberto" && (
+            {formData.status_pagamento === "em aberto" && (
               <div>
                 <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
                 <Input type="data" value={formData.data_vencimento_boleto} onChange={e => setFormData({
