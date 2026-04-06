@@ -112,8 +112,8 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
                         <h4 className="font-bold text-foreground">{report.number || 'RAS'}</h4>
                         <p className="text-sm text-muted-foreground">{report.maintenance_type}</p>
                       </div>
-                      <Badge variant={report.situacao === 'completed' ? 'default' : 'secondary'}>
-                        {report.situacao === 'completed' ? 'Concluído' : 'Registrado'}
+                      <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
+                        {report.status === 'completed' ? 'Concluído' : 'Registrado'}
                       </Badge>
                     </div>
 
