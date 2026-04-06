@@ -99,7 +99,7 @@ export function AgendamentoPagamentoForm({
         fornecedor: formData.fornecedor,
         valor,
         categoria: formData.categoria || null,
-        status: formData.situacao,
+        status: formData.status,
         eh_recorrente: formData.eh_recorrente || false,
         frequencia_recorrencia: formData.eh_recorrente ? formData.frequencia_recorrencia : null,
         dia_recorrencia: formData.eh_recorrente && formData.dia_recorrencia ? parseInt(formData.dia_recorrencia) : null,
@@ -244,7 +244,7 @@ export function AgendamentoPagamentoForm({
             </div>
 
             <div>
-              <Label htmlFor="situacao">Status</Label>
+              <Label htmlFor="status">Status</Label>
               <Select defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
