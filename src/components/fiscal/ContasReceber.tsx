@@ -503,15 +503,15 @@ export function ContasReceber() {
 
   const filteredContas = useMemo(() => {
     return contas.filter((conta) => {
-      if ((conta as any).situacao === "recebido" || conta.status === "recebido") return false;
+      if ((conta as any).status === "recebido" || conta.status === "recebido") return false;
 
       const searchMatch = filters.searchTerm === "" ||
         conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         (conta.referencia && conta.referencia.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
-      const filterStatus = (filters as any).situacao || filters.status;
-      const contaStatus = (conta as any).situacao || conta.status;
+      const filterStatus = (filters as any).status || filters.status;
+      const contaStatus = (conta as any).status || conta.status;
       const statusMatch = filterStatus === "all" || contaStatus === filterStatus;
 
       let periodoMatch = true;
