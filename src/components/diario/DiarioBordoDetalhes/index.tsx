@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect, useReducer, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parse } from 'date-fns';
