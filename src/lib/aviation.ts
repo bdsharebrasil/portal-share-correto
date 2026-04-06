@@ -156,7 +156,7 @@ export interface AirspaceRestriction {
 
 // AISWeb API Base URL (via Workers proxy)
 // Em dev: usa proxy Vite (/api) | Em prod: usa URL da API
-const AISWEB_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
+const AISWEB_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '/api' : 'https://api.share-brasil.com');
 
 // Fetch NOTAMs via Workers proxy
 export async function fetchAISWebNOTAMs(icao: string): Promise<NOTAMData[]> {

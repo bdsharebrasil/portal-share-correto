@@ -9,7 +9,7 @@ export const AIS_API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   (import.meta.env.DEV
     ? '/api'
-    : 'https://api-workers.sharebrasil.workers.dev')
+    : 'https://api.share-brasil.com/')
 
 export const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL      || ''
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''

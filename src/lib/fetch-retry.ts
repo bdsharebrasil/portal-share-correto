@@ -7,7 +7,7 @@ const RETRY_CONFIG = {
   // URLs que sempre devem fazer retry em caso de falha de rede
   retryableHosts: [
     'supabase.co',
-    'api-workers.sharebrasil.workers.dev',
+    'api.share-brasil.com',
   ],
 };
 
