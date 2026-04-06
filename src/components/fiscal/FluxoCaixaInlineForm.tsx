@@ -291,7 +291,7 @@ export function FluxoCaixaInlineForm({
           referenciasList.push({
             id: fornecedor.id,
             nome: fornecedor.nome_completo,
-            documento: fornecedor.documentoumento || "",
+            documento: fornecedor.documento || "",
             tipo: 'fornecedor'
           });
         });
