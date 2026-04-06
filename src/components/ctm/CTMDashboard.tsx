@@ -70,7 +70,7 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
             dueDate: item.next_due_date,
             currentHours: (aircraftData as any)?.cell_hours_current || 0,
             currentCycles: (aircraftData as any)?.pousos_atuais || 0,
-            status: item.situacao || 'ok',
+            status: item.status || 'ok',
             interval: `${item.interval_value} ${item.interval_type}`,
             lastDone: item.last_done_date,
             nextDue: item.next_due_date || 'N/A',
