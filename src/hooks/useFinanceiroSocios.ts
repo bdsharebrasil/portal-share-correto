@@ -1,23 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
-// Interfaces mantidas
-export interface PartnerAccount {
-  id: string;
+type PartnerAccountRow = Database["public"]["Tables"]["partner_accounts"]["Row"];
+type PartnerTransactionRow = Database["public"]["Tables"]["partner_transactions"]["Row"];
+
+export type PartnerAccount = PartnerAccountRow & {
   client_id: string;
   client_partner_id: string | null;
   partner_cpf: string;
   partner_name: string;
-  current_balance: number;
-  total_deposited: number;
-  total_spent: number;
-  created_at: string;
-  updated_at: string;
-}
+  nome_socio: string;
+};
 
-export interface PartnerTransaction {
-  id: string;
+export type PartnerTransaction = PartnerTransactionRow & {
   client_id: string;
   partner_cpf: string;
   partner_name: string;
@@ -27,13 +24,31 @@ export interface PartnerTransaction {
   balance_after: number;
   description: string | null;
   reference_type: string | null;
-  reference_id: string | null;
   payment_date: string | null;
   receipt_url: string | null;
   notes: string | null;
   created_by: string | null;
-  created_at: string;
-}
+  created_at: string | null;
+  updated_at: string | null;
+  nome_socio: string;
+  socio_cpf: string;
+  tipo: string;
+  valor: number;
+  saldo_antes: number;
+  saldo_depois: number;
+  descricao: string | null;
+  tipo_referencia: string | null;
+  data_pagamento: string | null;
+  url_comprovante: string | null;
+  observacoes: string | null;
+  criado_por: string | null;
+  criado_em: string | null;
+  atualizado_em: string | null;
+  situacao: string | null;
+  banco_nome: string | null;
+  documento: string | null;
+  subtipo: string | null;
+};
 
 export interface PartnerExpense {
   id: string;
@@ -71,6 +86,101 @@ export interface PartnerExpense {
   categoria: string | null;
 }
 
+function normalizeCpf(value?: string | null) {
+  return value?.replace(/\D/g, "") || "";
+}
+
+function normalizeDisplayPartnerName(value?: string | null) {
+  const normalized = (value || "").trim();
+  const lower = normalized.toLowerCase();
+
+  if (!normalized || lower === "conta compartilhada" || lower === "geral" || lower === "outros" || lower === "n/a") {
+    return "CONTA BANCARIA";
+  }
+
+  return normalized;
+}
+
+function normalizePartnerAccount(account: PartnerAccountRow): PartnerAccount {
+  const partnerName = normalizeDisplayPartnerName(account.socio_nome);
+
+  return {
+    ...account,
+    client_id: account.cliente_id,
+    client_partner_id: account.socios_cliente_id,
+    partner_cpf: account.socio_cpf,
+    partner_name: partnerName,
+    nome_socio: partnerName,
+  };
+}
+
+function normalizePartnerTransaction(transaction: Record<string, any>): PartnerTransaction {
+  const partnerName = normalizeDisplayPartnerName(transaction.partner_name ?? transaction.nome_socio ?? transaction.socio_nome);
+  const transactionType = transaction.transaction_type ?? transaction.tipo ?? "expense";
+  const amount = Number(transaction.amount ?? transaction.valor ?? 0);
+  const balanceBefore = Number(transaction.balance_before ?? transaction.saldo_antes ?? 0);
+  const balanceAfter = Number(transaction.balance_after ?? transaction.saldo_depois ?? 0);
+  const description = transaction.description ?? transaction.descricao ?? null;
+  const referenceType = transaction.reference_type ?? transaction.tipo_referencia ?? null;
+  const paymentDate = transaction.payment_date ?? transaction.data_pagamento ?? null;
+  const receiptUrl = transaction.receipt_url ?? transaction.url_comprovante ?? null;
+  const notes = transaction.notes ?? transaction.observacoes ?? null;
+  const createdBy = transaction.created_by ?? transaction.criado_por ?? null;
+  const createdAt = transaction.created_at ?? transaction.criado_em ?? null;
+  const updatedAt = transaction.updated_at ?? transaction.atualizado_em ?? null;
+  const status = transaction.status ?? transaction.situacao ?? null;
+  const bankName = transaction.bank_name ?? transaction.banco_nome ?? null;
+  const doc = transaction.doc ?? transaction.documento ?? null;
+  const subtype = transaction.transaction_subtype ?? transaction.subtipo ?? null;
+  const partnerCpf = transaction.partner_cpf ?? transaction.socio_cpf ?? "";
+  const clientId = transaction.client_id ?? transaction.clientes_id ?? transaction.cliente_id ?? "";
+
+  return {
+    ...transaction,
+    client_id: clientId,
+    clientes_id: transaction.clientes_id ?? clientId,
+    partner_cpf: partnerCpf,
+    socio_cpf: transaction.socio_cpf ?? partnerCpf,
+    partner_name: partnerName,
+    nome_socio: partnerName,
+    transaction_type: transactionType,
+    tipo: transactionType,
+    amount,
+    valor: amount,
+    balance_before: balanceBefore,
+    saldo_antes: balanceBefore,
+    balance_after: balanceAfter,
+    saldo_depois: balanceAfter,
+    description,
+    descricao: description,
+    reference_type: referenceType,
+    tipo_referencia: referenceType,
+    payment_date: paymentDate,
+    data_pagamento: paymentDate,
+    receipt_url: receiptUrl,
+    url_comprovante: receiptUrl,
+    notes,
+    observacoes: notes,
+    created_by: createdBy,
+    criado_por: createdBy,
+    created_at: createdAt,
+    criado_em: createdAt,
+    updated_at: updatedAt,
+    atualizado_em: updatedAt,
+    status,
+    situacao: status,
+    bank_name: bankName,
+    banco_nome: bankName,
+    payment_method: transaction.payment_method ?? transaction.metodo_pagamento ?? null,
+    metodo_pagamento: transaction.metodo_pagamento ?? transaction.payment_method ?? null,
+    prazo: transaction.prazo ?? null,
+    doc,
+    documento: doc,
+    transaction_subtype: subtype,
+    subtipo: subtype,
+  } as PartnerTransaction;
+}
+
 function mapPartnerExpenseStatusToBankReconciliationStatus(status?: string): string | null {
   if (!status) return null;
   const normalized = status.toLowerCase().trim();
@@ -105,23 +215,23 @@ export function useSocioAccounts(clientId: string | null) {
       if (error) throw error;
 
       // Deduplicate by client_partner_id (primary) or partner_cpf (fallback)
-      const accounts = (data || []) as PartnerAccount[];
+      const accounts = ((data || []) as PartnerAccountRow[]).map(normalizePartnerAccount);
       const seenByPartner = new Set<string>();
       const seenById = new Set<string | null>();
 
       const deduplicated = accounts.filter((account) => {
-        const partnerId = account.socio_cliente_id_id || account.id;
-        const cpfKey = account.partner_cpf;
+        const partnerId = account.client_partner_id || account.id;
+        const cpfKey = normalizeCpf(account.partner_cpf);
 
         // Prefer deduplication by client_partner_id
         if (partnerId && seenById.has(partnerId)) return false;
         if (partnerId) seenById.add(partnerId);
 
         // Fallback: deduplicate by CPF if client_partner_id is null
-        if (!account.socio_cliente_id_id && cpfKey && seenByPartner.has(cpfKey)) {
+        if (!account.client_partner_id && cpfKey && seenByPartner.has(cpfKey)) {
           return false;
         }
-        if (!account.socio_cliente_id_id && cpfKey) {
+        if (!account.client_partner_id && cpfKey) {
           seenByPartner.add(cpfKey);
         }
 
@@ -172,7 +282,7 @@ export function useSocioTransactions(
       if (filters?.partnerCpf) query = query.eq("socio_cpf", filters.partnerCpf);
       if (filters?.startDate) query = query.gte("criado_em", filters.startDate);
       if (filters?.endDate) query = query.lte("criado_em", filters.endDate);
-      if (filters?.tipo) query = query.eq("transaction_type", filters.tipo);
+      if (filters?.type) query = query.eq("tipo", filters.type);
 
       const { data: transactions, error } = await query;
       if (error) throw error;
@@ -357,7 +467,7 @@ export function useSocioTransactions(
 
         return {
           id: f.id,
-          client_id: f.cliente_id,
+          client_id: f.id_clientes || clientId,
           partner_cpf: partnerByName?.cpf ?? "N/A",
           partner_name: partnerByName?.nome ?? f.nome_socio ?? "CONTA BANCARIA",
           transaction_type: "expense",
@@ -371,9 +481,9 @@ export function useSocioTransactions(
           receipt_url: f.nota_url || null,
           notes: f.observacao,
           created_by: null,
-          created_at: f.criado_em,
+          created_at: f.created_at || f.criado_em || null,
           expense_type: "abastecimento",
-          status: f.situacao_pagamento || null,
+          status: f.status_pagamento || f.situacao_pagamento || null,
           bank_name: f.banco || null,
           prazo: f.prazo || null,
           payment_method: f.forma_pagamento || null,
@@ -400,39 +510,27 @@ export function useSocioTransactions(
       // apenas as despesas (partner_expenses) que têm reference_type="travel_expense_report"
 
       // ── 8. Combinar, normalizar e ordenar ──────────────────────────────────
-      const normalizePartnerName = (name: string) => {
-        const lower = (name || "").toLowerCase();
-        if (!name || lower === "conta compartilhada" || lower === "geral" || lower === "outros" || lower === "n/a") {
-          return "CONTA BANCARIA";
-        }
-        return name;
-      };
-
       const combined = [
         ...(transactions || []),
         ...expensesAsTransactions,
         ...fuelsAsTransactions,
       ].map((t) => {
-        // Adicionar status padrão se não existir
-        let defaultStatus = t.situacao;
-        if (!defaultStatus) {
-          if (t.transaction_type === "deposit") {
-            defaultStatus = "recebido";
-          } else if (t.transaction_type === "payment") {
-            defaultStatus = "pago";
-          } else if (t.transaction_type === "expense") {
-            defaultStatus = "pendente";
-          }
+        const normalized = normalizePartnerTransaction(t);
+
+        if (!normalized.status) {
+          normalized.status =
+            normalized.transaction_type === "deposit"
+              ? "recebido"
+              : normalized.transaction_type === "payment"
+                ? "pago"
+                : "pendente";
+          normalized.situacao = normalized.status;
         }
 
-        return {
-          ...t,
-          partner_name: normalizePartnerName(t.nome_socio),
-          status: defaultStatus,
-        };
+        return normalized;
       }).sort((a, b) => {
-        const dateA = new Date(a.criado_em).getTime();
-        const dateB = new Date(b.criado_em).getTime();
+        const dateA = new Date(a.payment_date || a.created_at || a.criado_em || 0).getTime();
+        const dateB = new Date(b.payment_date || b.created_at || b.criado_em || 0).getTime();
         return dateB - dateA;
       });
 
