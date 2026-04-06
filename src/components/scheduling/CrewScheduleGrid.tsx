@@ -14,7 +14,7 @@ interface CrewMember {
   id: string;
   nome_completo: string;
   canac: string;
-  situacao: string;
+  status: string;
 }
 
 interface Aircraft {
@@ -98,7 +98,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         `)
         .gte("flight_date", startDate)
         .lte("flight_date", endDate)
-        .in("situacao", ["pendente", "confirmado"]);
+        .in("status", ["pendente", "confirmado"]);
       if (error) throw error;
       return (data || []) as FlightSchedule[];
     }
