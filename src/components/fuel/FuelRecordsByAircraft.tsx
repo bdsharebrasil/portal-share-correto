@@ -818,7 +818,7 @@ export function FuelRecordsByAircraft({
       }
 
       // Validação: se status é "pago", precisa de comprovante e data de pagamento
-      let statusFinal = formData.situacao_pagamento || "em aberto";
+      let statusFinal = formData.status_pagamento || "em aberto";
       if (statusFinal === "pago") {
         const temComprovante = comprovanteUrl || (editingRecord as any)?.comprovante_pagamento;
         const temDataPagamento = formData.data_pagamento;
@@ -985,7 +985,7 @@ export function FuelRecordsByAircraft({
       combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
       client_id: record.cliente_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
-      status_pagamento: record.situacao_pagamento || "em aberto",
+      status_pagamento: record.status_pagamento || "em aberto",
       tipo_faturamento: record.tipo_faturamento || "",
       banco: record.banco || "",
       data_vencimento_boleto: (record as any).data_vencimento_boleto || "",
@@ -1079,7 +1079,7 @@ export function FuelRecordsByAircraft({
     if (month !== null) {
       exportRecords = records.filter((r) => {
         // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
-        const dateToUse = (r.situacao_pagamento === "pago" && r.data_pagamento)
+        const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
           ? r.data_pagamento
           : r.data;
         const recordDate = new Date(dateToUse + "T00:00:00");
@@ -1088,7 +1088,7 @@ export function FuelRecordsByAircraft({
     } else {
       exportRecords = records.filter((r) => {
         // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
-        const dateToUse = (r.situacao_pagamento === "pago" && r.data_pagamento)
+        const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
           ? r.data_pagamento
           : r.data;
         const recordDate = new Date(dateToUse + "T00:00:00");
@@ -1700,7 +1700,7 @@ export function FuelRecordsByAircraft({
             </div>
 
             {/* Campos condicionais de Pagamento */}
-            {formData.situacao_pagamento === "pago" && (
+            {formData.status_pagamento === "pago" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Data do Pagamento <span className="text-red-500">*</span></Label>
@@ -1729,7 +1729,7 @@ export function FuelRecordsByAircraft({
               </div>
             )}
 
-            {formData.situacao_pagamento === "em aberto" && (
+            {formData.status_pagamento === "em aberto" && (
               <div>
                 <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
                 <Input type="data" value={formData.data_vencimento_boleto} onChange={e => setFormData({
@@ -1739,7 +1739,7 @@ export function FuelRecordsByAircraft({
               </div>
             )}
 
-            {formData.situacao_pagamento === "pago" && (
+            {formData.status_pagamento === "pago" && (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
                 <Label className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2 block">
                   ⚠️ Para marcar como pago, é obrigatório anexar o comprovante de pagamento e informar a data.

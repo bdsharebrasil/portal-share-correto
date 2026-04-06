@@ -273,7 +273,7 @@ export function ContasReceber() {
           valor: valor,
           categoria: rec.categoria || "Despesa Cliente",
           descricao: rec.descricao,
-          status: rec.situacao || "pendente",
+          status: rec.status || "pendente",
           arquivo_pdf_url: rec.nf_url || rec.comprovante_url || rec.boleto_url,
           aeronave: aircraftReg,
           referencia: rec.descricao,
@@ -282,7 +282,7 @@ export function ContasReceber() {
         };
       });
 
-      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any).select("*").neq("situacao", "recebido").order("data_vencimento");
+      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any).select("*").neq("status", "recebido").order("data_vencimento");
 
       if (contasError) {
         toast.error(`Erro ao carregar: ${contasError.message}`);
@@ -345,7 +345,7 @@ export function ContasReceber() {
       today.setHours(0, 0, 0, 0);
 
       const contasVencidas = todasContas.filter((conta) => {
-        if (conta.situacao !== "pendente") return false;
+        if (conta.status !== "pendente") return false;
         const vencimento = parseLocalDate(conta.data_vencimento);
         return vencimento < today;
       });
@@ -356,7 +356,7 @@ export function ContasReceber() {
         } else {
           await supabase.from("contas_areceber").update({ status: "inadimplente" }).eq("id", conta.id);
         }
-        conta.situacao = "inadimplente";
+        conta.status = "inadimplente";
       }
 
       setContas(todasContas);
@@ -412,7 +412,7 @@ export function ContasReceber() {
           valor: parseFloat(formData.valor),
           categoria: formData.categoria || "Serviços",
           descricao: formData.descricao || null,
-          status: (formData as any).situacao || formData.status,
+          status: (formData as any).status || formData.status,
           arquivo_pdf_url: pdfUrl || null,
           aeronave: formData.aeronave || null,
           referencia: formData.referencia || null,
@@ -434,7 +434,7 @@ export function ContasReceber() {
           valor: parseFloat(formData.valor),
           categoria: formData.categoria || "Serviços",
           descricao: formData.descricao || null,
-          status: (formData as any).situacao || formData.status,
+          status: (formData as any).status || formData.status,
           arquivo_pdf_url: pdfUrl || null,
           criado_por: user?.id,
           aeronave: formData.aeronave || null,
@@ -474,7 +474,7 @@ export function ContasReceber() {
       valor: conta.valor?.toString() || "",
       categoria: conta.categoria || "Serviços",
       descricao: conta.descricao || "",
-      status: conta.situacao || "pendente",
+      status: conta.status || "pendente",
       aeronave: conta.aeronave || "",
       referencia: conta.referencia || ""
     });
@@ -503,15 +503,15 @@ export function ContasReceber() {
 
   const filteredContas = useMemo(() => {
     return contas.filter((conta) => {
-      if ((conta as any).situacao === "recebido" || conta.status === "recebido") return false;
+      if ((conta as any).status === "recebido" || conta.status === "recebido") return false;
 
       const searchMatch = filters.searchTerm === "" ||
         conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         (conta.referencia && conta.referencia.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
-      const filterStatus = (filters as any).situacao || filters.status;
-      const contaStatus = (conta as any).situacao || conta.status;
+      const filterStatus = (filters as any).status || filters.status;
+      const contaStatus = (conta as any).status || conta.status;
       const statusMatch = filterStatus === "all" || contaStatus === filterStatus;
 
       let periodoMatch = true;
@@ -530,14 +530,14 @@ export function ContasReceber() {
   }, [filteredContas]);
 
   const contasPendentes = useMemo(() => {
-    return filteredContas.filter((c) => c.situacao !== "recebido").length;
+    return filteredContas.filter((c) => c.status !== "recebido").length;
   }, [filteredContas]);
 
   const proximoVencimento = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const futureContas = filteredContas
-      .filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.situacao !== "recebido")
+      .filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.status !== "recebido")
       .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
 
     return futureContas.length > 0 ? futureContas[0].data_vencimento : null;
@@ -955,7 +955,7 @@ export function ContasReceber() {
                               </TooltipProvider>
                             </>
                           )}
-                          {conta.situacao !== "recebido" && (
+                          {conta.status !== "recebido" && (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>

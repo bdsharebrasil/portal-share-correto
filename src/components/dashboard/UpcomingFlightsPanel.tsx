@@ -85,8 +85,8 @@ export function UpcomingFlightsPanel() {
                 </div>
               </div>
 
-              {flight.situacao === 'pendente' && (
-                <Badge className={getStatusStyle(flight.situacao)}>
+              {flight.status === 'pendente' && (
+                <Badge className={getStatusStyle(flight.status)}>
                   Pendente
                 </Badge>
               )}

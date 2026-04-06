@@ -182,7 +182,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
   };
 
   const handleSubmitAll = async () => {
-    const rascunhos = budgets.filter((b: any) => b.situacao === "rascunho");
+    const rascunhos = budgets.filter((b: any) => b.status === "rascunho");
     if (rascunhos.length === 0) return toast.info("Nenhum orçamento em rascunho");
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -267,9 +267,9 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
     return <Badge className={cn("text-xs", s.cls)}>{s.label}</Badge>;
   };
 
-  const totalAprovado = budgets.filter((b: any) => b.situacao === "aprovado").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
-  const totalPendente = budgets.filter((b: any) => b.situacao === "pendente_aprovacao").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
-  const hasRascunhos = budgets.some((b: any) => b.situacao === "rascunho");
+  const totalAprovado = budgets.filter((b: any) => b.status === "aprovado").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
+  const totalPendente = budgets.filter((b: any) => b.status === "pendente_aprovacao").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
+  const hasRascunhos = budgets.some((b: any) => b.status === "rascunho");
 
   return (
     <div className="space-y-4">

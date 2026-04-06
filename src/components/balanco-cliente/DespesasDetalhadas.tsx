@@ -75,7 +75,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         valor: d.valor,
         data: d.data,
         descricao: d.descricao,
-        situacao: d.status || 'pendente',
+        status: d.status || 'pendente',
         categoria_nome: d.categorias_movimentacao?.nome || 'Sem categoria',
         aeronave_registro: d.aircraft?.matricula || '-',
       }));
@@ -110,7 +110,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         valor: d.valor,
         data: d.data_vencimento,
         descricao: d.descricao,
-        situacao: d.status || 'pendente',
+        status: d.status || 'pendente',
         categoria_nome: d.categoria || 'Pagamento Direto',
         aeronave_registro: d.aircraft?.matricula || '-',
         comprovante_url: d.comprovante_url,

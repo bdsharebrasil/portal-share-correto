@@ -193,7 +193,7 @@ export function CTMBudgetFromOAS({ oasId, onClose, onSuccess }: CTMBudgetFromOAS
               </div>
               <div>
                 <p className="text-xs text-slate-400">Status</p>
-                <Badge variant="outline" className="text-xs">{oasData?.situacao}</Badge>
+                <Badge variant="outline" className="text-xs">{oasData?.status}</Badge>
               </div>
             </div>
           </div>

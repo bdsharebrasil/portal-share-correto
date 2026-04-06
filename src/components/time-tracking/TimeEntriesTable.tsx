@@ -279,7 +279,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
   };
 
   const getStatusBadge = (entry: TimeEntry) => {
-    if (entry.situacao === 'falta' && entry.absence_reason) {
+    if (entry.status === 'falta' && entry.absence_reason) {
       if (entry.absence_approved === true) {
         return <Badge className="bg-green-600">Falta Justificada</Badge>;
       } else if (entry.absence_approved === false) {
@@ -289,7 +289,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       }
     }
 
-    switch (entry.situacao) {
+    switch (entry.status) {
       case 'concluido':
         return <Badge className="bg-green-600">Concluído</Badge>;
       case 'em_andamento':
@@ -297,7 +297,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       case 'falta':
         return <Badge className="bg-red-600">Falta</Badge>;
       default:
-        return <Badge>{entry.situacao}</Badge>;
+        return <Badge>{entry.status}</Badge>;
     }
   };
 
@@ -440,7 +440,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
                 <TableCell>{entry.total_hours ? `${entry.total_hours}h` : '-'}</TableCell>
                 <TableCell>{getStatusBadge(entry)}</TableCell>
                 <TableCell>
-                  {!entry.clock_in && entry.situacao !== 'falta' && (
+                  {!entry.clock_in && entry.status !== 'falta' && (
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button

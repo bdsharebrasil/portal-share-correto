@@ -119,7 +119,7 @@ export function CTMServiceOrderList({
               </TableHeader>
               <TableBody>
                 {orders.map((order) => {
-                  const currentStatus = order.situacao || order.status || '';
+                  const currentStatus = order.status || order.status || '';
 
                   return (
                   <TableRow key={order.id} className="hover:bg-muted/50">

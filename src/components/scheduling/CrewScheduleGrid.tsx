@@ -14,7 +14,7 @@ interface CrewMember {
   id: string;
   nome_completo: string;
   canac: string;
-  situacao: string;
+  status: string;
 }
 
 interface Aircraft {
@@ -98,7 +98,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         `)
         .gte("flight_date", startDate)
         .lte("flight_date", endDate)
-        .in("situacao", ["pendente", "confirmado"]);
+        .in("status", ["pendente", "confirmado"]);
       if (error) throw error;
       return (data || []) as FlightSchedule[];
     }
@@ -123,7 +123,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         `)
         .gte("scheduled_date", startDate)
         .lte("scheduled_date", endDate)
-        .in("situacao", ["pendente", "confirmado"]);
+        .in("status", ["pendente", "confirmado"]);
       if (error) throw error;
       return data || [];
     }
@@ -191,7 +191,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         aircraftReg: (booking as any).aeronave?.matricula || "N/A",
         route: `${(booking as any).origin || "---"} → ${(booking as any).destination || "---"}`,
         time: (booking as any).departure_time?.slice(0, 5) || "",
-        status: (booking as any).situacao,
+        status: (booking as any).status,
         role: (booking as any).assigned_pilot_id === crewId ? "PIC" : "SIC"
       };
     }
@@ -214,7 +214,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         crewName: crew?.full_name || "Sem tripulação",
         route: `${schedule.origin || "---"} → ${schedule.destination || "---"}`,
         time: schedule.flight_time?.slice(0, 5) || "",
-        status: schedule.situacao
+        status: schedule.status
       };
     }
 
@@ -305,7 +305,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                   variant="secondary"
                                   className={cn(
                                     "text-xs font-medium px-2 py-1",
-                                    assignment.situacao === "confirmado"
+                                    assignment.status === "confirmado"
                                       ? "bg-destructive/20 text-destructive border-destructive/30"
                                       : "bg-warning/20 text-warning border-warning/30"
                                   )}
@@ -423,7 +423,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                   variant="secondary"
                                   className={cn(
                                     "text-xs font-medium px-2 py-1 truncate max-w-[90px]",
-                                    assignment.situacao === "confirmado"
+                                    assignment.status === "confirmado"
                                       ? "bg-destructive/20 text-destructive border-destructive/30"
                                       : "bg-warning/20 text-warning border-warning/30"
                                   )}

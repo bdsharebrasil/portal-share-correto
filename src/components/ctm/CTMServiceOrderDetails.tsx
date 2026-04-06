@@ -41,7 +41,7 @@ interface ServiceOrder {
   numero: string;
   tipo_manutencao: string;
   status?: string;
-  situacao?: string;
+  status?: string;
   oficina_nome?: string;
   oficina_contato?: string;
   horas_celula?: number;
@@ -430,7 +430,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
 
   // ── Render helpers ────────────────────────────────────────────────────────────
 
-  const currentOrderStatus = order?.situacao || order?.status || 'em_andamento';
+  const currentOrderStatus = order?.status || order?.status || 'em_andamento';
   const statusInfo = statusConfig[currentOrderStatus] || statusConfig.em_andamento;
 
   if (loading) {
@@ -893,7 +893,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
                           aprovado: { label: 'Aprovado', cls: 'bg-green-500/20 text-green-400 border-green-500/30' },
                           rejeitado: { label: 'Rejeitado', cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
                         };
-                        const s = statusMap[b.situacao] || statusMap.rascunho;
+                        const s = statusMap[b.status] || statusMap.rascunho;
                         return (
                           <TableRow key={b.id} className="border-white/5 hover:bg-white/2">
                             <TableCell>

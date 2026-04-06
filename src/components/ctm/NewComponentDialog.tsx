@@ -341,9 +341,9 @@ export function NewComponentDialog({
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Status Operacional</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="situacao">Condição do Componente</Label>
+                <Label htmlFor="status">Condição do Componente</Label>
                 <Select value={formData.status} onValueChange={(val) => handleChange("status", val)}>
-                  <SelectTrigger id="situacao">
+                  <SelectTrigger id="status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

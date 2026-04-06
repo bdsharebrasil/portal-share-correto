@@ -180,9 +180,9 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium">{fmt(f.valor_total || 0)}</td>
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      f.situacao_pagamento === "pago" ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                      f.status_pagamento === "pago" ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                     }`}>
-                      {f.situacao_pagamento || "pendente"}
+                      {f.status_pagamento || "pendente"}
                     </span>
                   </td>
                 </tr>
@@ -300,9 +300,9 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.valor)}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (e.situacao === "recebido" || e.situacao === "pago") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                        (e.status === "recebido" || e.status === "pago") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                       }`}>
-                        {e.situacao || "pendente"}
+                        {e.status || "pendente"}
                       </span>
                     </td>
                   </tr>

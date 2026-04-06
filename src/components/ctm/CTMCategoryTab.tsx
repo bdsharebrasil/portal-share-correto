@@ -218,8 +218,8 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
                                     R$ {(order.total_geral || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                   </p>
                                 </div>
-                                <Badge className={cn("text-xs shrink-0", statusColor(order.situacao))}>
-                                  {statusLabel(order.situacao)}
+                                <Badge className={cn("text-xs shrink-0", statusColor(order.status))}>
+                                  {statusLabel(order.status)}
                                 </Badge>
                                 {expandedOrderId === order.id ? (
                                   <ChevronDown className="h-4 w-4 text-muted-foreground" />

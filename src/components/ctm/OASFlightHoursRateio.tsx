@@ -454,10 +454,10 @@ export function OASFlightHoursRateio({
                   <TableCell>R$ {(cs.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell>
                     <Badge
-                      className={cn("cursor-pointer", cs.situacao_pagamento === "pago" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400")}
-                      onClick={() => togglePago(cs.id, cs.situacao_pagamento)}
+                      className={cn("cursor-pointer", cs.status_pagamento === "pago" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400")}
+                      onClick={() => togglePago(cs.id, cs.status_pagamento)}
                     >
-                      {cs.situacao_pagamento === "pago" ? "✓ Pago" : "Pendente"}
+                      {cs.status_pagamento === "pago" ? "✓ Pago" : "Pendente"}
                     </Badge>
                   </TableCell>
                 </TableRow>

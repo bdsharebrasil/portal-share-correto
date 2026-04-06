@@ -283,7 +283,7 @@ export async function syncBankReconciliationToFinancial(
         descricao: reconciliation.descricao,
         valor: reconciliation.valor,
         conta_banco: 'Conta Principal',
-        status: reconciliation.situacao === 'conciliado' ? 'pago' : 'pendente',
+        status: reconciliation.status === 'conciliado' ? 'pago' : 'pendente',
         client_id: reconciliation.cliente_id,
         aeronave_id: reconciliation.aeronave_id,
         comprovante_url: reconciliation.comprovante_url,
