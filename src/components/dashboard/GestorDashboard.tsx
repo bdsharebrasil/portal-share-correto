@@ -60,7 +60,7 @@ export function GestorDashboard() {
         .order("submitted_at", { ascending: false });
 
       // Buscar ordens de serviço CTM pendentes de aprovação
-      const { data: ctmOrdersData } = await supabase
+      const { data: ctmOrdersData } = await (supabase as any)
         .from("service_orders")
         .select('*, aeronave(matricula)')
         .eq("approval_status", "pending_approval")
