@@ -1700,7 +1700,7 @@ export function FuelRecordsByAircraft({
             </div>
 
             {/* Campos condicionais de Pagamento */}
-            {formData.situacao_pagamento === "pago" && (
+            {formData.status_pagamento === "pago" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Data do Pagamento <span className="text-red-500">*</span></Label>
