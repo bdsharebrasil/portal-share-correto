@@ -478,9 +478,9 @@ export function TimeClockTab() {
                           {getStatusBadge(item.situacao)}
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">{item.justification}</p>
-                        {item.documentoument_url && (
+                        {item.documento && (
                           <a
-                            href={item.documentoument_url}
+                            href={item.documento}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline mt-1 inline-block"
