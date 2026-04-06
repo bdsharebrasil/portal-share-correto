@@ -214,7 +214,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         crewName: crew?.full_name || "Sem tripulação",
         route: `${schedule.origin || "---"} → ${schedule.destination || "---"}`,
         time: schedule.flight_time?.slice(0, 5) || "",
-        status: schedule.situacao
+        status: schedule.status
       };
     }
 
