@@ -10,7 +10,7 @@ const AIS_API_BASE_URL =
 // ─── Timeouts ─────────────────────────────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS   = 8_000
-const WEATHER_TIMEOUT_MS = 25_000
+const WEATHER_TIMEOUT_MS = 27_000
 
 // ─── IDB com timeout ──────────────────────────────────────────────────────────
 
