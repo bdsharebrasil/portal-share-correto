@@ -985,7 +985,7 @@ export function FuelRecordsByAircraft({
       combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
       client_id: record.cliente_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
-      status_pagamento: record.situacao_pagamento || "em aberto",
+      status_pagamento: record.status_pagamento || "em aberto",
       tipo_faturamento: record.tipo_faturamento || "",
       banco: record.banco || "",
       data_vencimento_boleto: (record as any).data_vencimento_boleto || "",
