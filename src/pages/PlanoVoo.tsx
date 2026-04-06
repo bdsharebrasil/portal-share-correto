@@ -552,7 +552,7 @@ export default function PlanoVooPage() {
                         <Plane className="w-4 h-4 text-primary" />
                         <span className="font-semibold">{plan.departure_airport} → {plan.arrival_airport}</span>
                         <Badge variant="outline" className="text-xs">{new Date(plan.flight_date).toLocaleDateString('pt-BR')}</Badge>
-                        <Badge variant="outline" className="text-xs">{plan.situacao.toUpperCase()}</Badge>
+                        <Badge variant="outline" className="text-xs">{plan.status.toUpperCase()}</Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Piloto: {plan.pilot_in_command} • {plan.estimated_time || '--'}

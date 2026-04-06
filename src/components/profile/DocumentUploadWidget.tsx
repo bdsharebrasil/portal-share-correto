@@ -92,7 +92,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
       console.error("Erro ao carregar documentos:", {
         error: error,
         message: error?.message,
-        status: error?.situacao,
+        status: error?.status,
       });
 
       toast({
@@ -259,7 +259,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
         message: error.message,
         code: error.code,
         details: error.details,
-        status: error.situacao,
+        status: error.status,
       });
 
       let errorMessage = error.message || "Erro desconhecido ao fazer upload";

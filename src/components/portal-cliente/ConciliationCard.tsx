@@ -244,8 +244,8 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                           : "—"}
                       </td>
                       <td className="px-6 py-4">
-                        <Badge className={`text-xs font-medium whitespace-nowrap ${getStatusColor(item.situacao)}`}>
-                          {getStatusLabel(item.situacao)}
+                        <Badge className={`text-xs font-medium whitespace-nowrap ${getStatusColor(item.status)}`}>
+                          {getStatusLabel(item.status)}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-right">

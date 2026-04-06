@@ -651,7 +651,7 @@ export function FuelRecordsByAircraft({
     if (filterMonth !== "all" && filterYear) {
       filtered = filtered.filter(record => {
         // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
-        const dateToUse = (record.situacao_pagamento === "pago" && record.data_pagamento)
+        const dateToUse = (record.status_pagamento === "pago" && record.data_pagamento)
           ? record.data_pagamento
           : record.data;
         const recordDate = new Date(dateToUse);
@@ -1684,7 +1684,7 @@ export function FuelRecordsByAircraft({
 
               <div>
                 <Label className="text-xs text-muted-foreground">Status de Pagamento <span className="text-red-500">*</span></Label>
-                <Select value={formData.situacao_pagamento} onValueChange={value => setFormData({
+                <Select value={formData.status_pagamento} onValueChange={value => setFormData({
                   ...formData,
                   status_pagamento: value
                 })}>
@@ -2022,8 +2022,8 @@ export function FuelRecordsByAircraft({
               </div>
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Status de Pagamento</p>
-                <p className={`text-sm font-medium ${formData.situacao_pagamento === "pago" ? "text-green-600" : "text-amber-600"}`}>
-                  {formData.situacao_pagamento === "pago" ? "✓ Pago" : "⏱ Em Aberto"}
+                <p className={`text-sm font-medium ${formData.status_pagamento === "pago" ? "text-green-600" : "text-amber-600"}`}>
+                  {formData.status_pagamento === "pago" ? "✓ Pago" : "⏱ Em Aberto"}
                 </p>
               </div>
             </div>
@@ -2191,7 +2191,7 @@ export function FuelRecordsByAircraft({
                   <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
                   <TableCell className="text-muted-foreground font-medium">{record.nome_socio || "-"}</TableCell>
                   <TableCell>
-                    {record.situacao_pagamento === "pago" ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+                    {record.status_pagamento === "pago" ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
                       <FileCheck className="h-4 w-4" />
                       Pago
                     </span> : <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold">

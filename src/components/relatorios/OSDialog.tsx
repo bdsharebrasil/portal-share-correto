@@ -131,9 +131,9 @@ export function OSDialog({ os, onSave, mode = "create" }: OSDialogProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="situacao">Status*</Label>
+              <Label htmlFor="status">Status*</Label>
               <Select
-                value={formData.situacao}
+                value={formData.status}
                 onValueChange={(value) => setFormData({ ...formData, status: value })}
               >
                 <SelectTrigger>

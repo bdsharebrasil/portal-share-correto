@@ -249,9 +249,9 @@ export default function MapaComponentesPage() {
   };
 
   const statsCards = useMemo(() => {
-    const vencidos = components.filter(c => c.situacao === 'vencido').length;
-    const atencao = components.filter(c => c.situacao === 'atencao').length;
-    const ok = components.filter(c => c.situacao === 'ok').length;
+    const vencidos = components.filter(c => c.status === 'vencido').length;
+    const atencao = components.filter(c => c.status === 'atencao').length;
+    const ok = components.filter(c => c.status === 'ok').length;
     
     return { vencidos, atencao, ok };
   }, [components]);
@@ -419,7 +419,7 @@ export default function MapaComponentesPage() {
                   ) : (
                     filteredComponents.map((component) => (
                       <TableRow key={component.id} className="border-slate-800">
-                        <TableCell>{getStatusBadge(component.situacao)}</TableCell>
+                        <TableCell>{getStatusBadge(component.status)}</TableCell>
                         <TableCell className="text-xs text-slate-400">{component.categoria}</TableCell>
                         <TableCell className="font-medium">{component.componente}</TableCell>
                         <TableCell className="text-sm text-slate-400">{component.modelo}</TableCell>

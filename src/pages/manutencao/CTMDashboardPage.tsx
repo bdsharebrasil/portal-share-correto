@@ -93,8 +93,8 @@ export default function CTMDashboardPage() {
     );
   };
 
-  const activeAircraft = aircraft.filter((a) => isActiveStatus(a.situacao) && filterAircraft(a));
-  const inactiveAircraft = aircraft.filter((a) => isInactiveStatus(a.situacao) && filterAircraft(a));
+  const activeAircraft = aircraft.filter((a) => isActiveStatus(a.status) && filterAircraft(a));
+  const inactiveAircraft = aircraft.filter((a) => isInactiveStatus(a.status) && filterAircraft(a));
 
   if (loading) {
     return (
@@ -208,7 +208,7 @@ export default function CTMDashboardPage() {
         )}
 
         {/* Inactive Aircraft Section */}
-        {aircraft.some((a) => isInactiveStatus(a.situacao)) && (
+        {aircraft.some((a) => isInactiveStatus(a.status)) && (
           <div className="space-y-3">
             <button
               onClick={() => setShowInactive((s) => !s)}

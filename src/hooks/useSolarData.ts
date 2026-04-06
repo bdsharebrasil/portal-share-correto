@@ -39,11 +39,11 @@ export function useSolarData(icao: string | null) {
         clearTimeout(timeout);
 
         if (!response.ok) {
-          if (response.situacao === 404) {
+          if (response.status === 404) {
             console.debug(`[useSolarData] No solar data found for ${code}`);
             return;
           }
-          console.warn(`[useSolarData] API error for ${code}: ${response.situacao}`);
+          console.warn(`[useSolarData] API error for ${code}: ${response.status}`);
           return;
         }
 

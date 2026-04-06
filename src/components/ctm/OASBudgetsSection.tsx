@@ -313,25 +313,25 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
                 <TableCell>{b.empresa_nome || "-"}</TableCell>
                 <TableCell>{b.quantidade}</TableCell>
                 <TableCell className="text-right">R$ {(b.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                <TableCell>{statusBadge(b.situacao)}</TableCell>
+                <TableCell>{statusBadge(b.status)}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    {(b.situacao === "rascunho" || b.situacao === "rejeitado") && (
+                    {(b.status === "rascunho" || b.status === "rejeitado") && (
                       <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(b)} className="text-blue-400 hover:text-blue-300">
                         <span className="text-lg">✎</span>
                       </Button>
                     )}
-                    {b.situacao === "rascunho" && (
+                    {b.status === "rascunho" && (
                       <Button variant="ghost" size="icon" title="Enviar para aprovação" onClick={() => handleSubmitForApproval(b.id)}>
                         <Send className="h-3.5 w-3.5 text-primary" />
                       </Button>
                     )}
-                    {(b.situacao === "rascunho" || b.situacao === "rejeitado") && (
+                    {(b.status === "rascunho" || b.status === "rejeitado") && (
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(b.id)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     )}
-                    {b.situacao === "rejeitado" && b.rejection_reason && (
+                    {b.status === "rejeitado" && b.rejection_reason && (
                       <span className="text-xs text-red-400 ml-2" title={b.rejection_reason}>Motivo: {b.rejection_reason}</span>
                     )}
                   </div>

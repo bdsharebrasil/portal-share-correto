@@ -100,7 +100,7 @@ export interface RAS {
   inspectionDetails: string;
   status: 'pendente' | 'em_andamento' | 'concluido';
   /** @deprecated use status */
-  situacao?: string;
+  status?: string;
   totalCost: number;
   photos: RASPhoto[];
   costItems: RASCostItem[];

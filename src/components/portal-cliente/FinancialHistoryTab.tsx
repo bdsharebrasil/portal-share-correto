@@ -81,7 +81,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
             id: record.id,
             date: record.data,
             amount: Math.abs(record.saldo_pendente ?? record.valor ?? 0),
-            status: record.situacao || "pendente",
+            status: record.status || "pendente",
             category: record.categoria || record.descricao || "Despesa",
             grupo_categoria: "DESPESAS",
             boleto_url: record.boleto_url,
@@ -125,7 +125,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
             id: record.id,
             date: record.data_emissao,
             amount: Math.abs(record.valor || 0),
-            status: record.situacao || "pendente",
+            status: record.status || "pendente",
             category: record.nome_categoria || record.numero_documento || "REEMBOLSO",
             grupo_categoria: "DESPESAS REEMBOLSÁVEIS",
             boleto_url: record.url_boleto,
@@ -273,8 +273,8 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3 border-t border-border">
                     <div className="bg-background/50 p-3 rounded">
                       <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS</p>
-                      <Badge className={`w-full justify-center py-2 ${getStatusColor(record.situacao)}`}>
-                        {record.situacao?.charAt(0).toUpperCase() + record.situacao?.slice(1).toLowerCase()}
+                      <Badge className={`w-full justify-center py-2 ${getStatusColor(record.status)}`}>
+                        {record.status?.charAt(0).toUpperCase() + record.status?.slice(1).toLowerCase()}
                       </Badge>
                     </div>
 

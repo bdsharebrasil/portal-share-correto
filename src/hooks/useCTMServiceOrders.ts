@@ -43,7 +43,7 @@ export interface CTMServiceOrder {
   data_entrada?: string;
   data_saida?: string;
   status?: string;
-  situacao?: string;
+  status?: string;
   observacoes?: string;
   vencimento_id?: string;
   total_mao_obra?: number;

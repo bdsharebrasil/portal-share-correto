@@ -570,13 +570,13 @@ export function SocioDashboard({
                           <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-500">
                             Recebido
                           </Badge>
-                        ) : tx.situacao ? (
+                        ) : tx.status ? (
                           <Badge variant="outline" className={`text-xs ${
-                            tx.situacao === "paid" || tx.situacao === "pago"
+                            tx.status === "paid" || tx.status === "pago"
                               ? "border-emerald-500/30 text-emerald-500"
                               : "border-amber-500/30 text-amber-500"
                           }`}>
-                            {tx.situacao === "paid" || tx.situacao === "pago" ? "Pago" : tx.situacao.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                            {tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground text-xs">-</span>

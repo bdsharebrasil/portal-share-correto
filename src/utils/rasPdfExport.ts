@@ -26,7 +26,7 @@ export async function exportRAStoPDF(ras: RAS) {
       ['Número de OS:', ras.serviceOrderNumber],
       ['Centro de Manutenção:', ras.maintenanceCenter],
       ['Tipo de Manutenção:', ras.maintenanceType.toUpperCase()],
-      ['Status:', ras.situacao.toUpperCase()],
+      ['Status:', ras.status.toUpperCase()],
     ];
 
     basicInfo.forEach(([label, value]) => {

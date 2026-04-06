@@ -32,13 +32,13 @@ export function FlightCycleDashboard() {
   // Filter cycles
   const filteredCycles = cycles.filter(cycle => {
     if (activeTab === 'active') {
-      return cycle.situacao !== 'finalizado';
+      return cycle.status !== 'finalizado';
     } else {
-      return cycle.situacao === 'finalizado';
+      return cycle.status === 'finalizado';
     }
   }).filter(cycle => {
     if (statusFilter === 'all') return true;
-    return cycle.situacao === statusFilter;
+    return cycle.status === statusFilter;
   });
   if (selectedCycle) {
     // Find the updated cycle from the list

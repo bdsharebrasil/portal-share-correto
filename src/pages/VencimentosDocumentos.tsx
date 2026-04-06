@@ -159,7 +159,7 @@ export default function VencimentosDocumentos() {
     return documentos.filter(d => {
       const matchSearch = d.aeronaveRegistro.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          d.nomeDocumento.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = activeStatus === 'todos' || d.situacao === activeStatus;
+      const matchStatus = activeStatus === 'todos' || d.status === activeStatus;
       return matchSearch && matchStatus;
     });
   }, [documentos, searchTerm, activeStatus]);
@@ -185,9 +185,9 @@ export default function VencimentosDocumentos() {
   }, [filteredDocumentos]);
 
   const stats = useMemo(() => ({
-    vencidos: documentos.filter(d => d.situacao === 'vencido').length,
-    proximos: documentos.filter(d => d.situacao === 'proximo').length,
-    ok: documentos.filter(d => d.situacao === 'ok').length,
+    vencidos: documentos.filter(d => d.status === 'vencido').length,
+    proximos: documentos.filter(d => d.status === 'proximo').length,
+    ok: documentos.filter(d => d.status === 'ok').length,
     total: new Set(documentos.map(d => d.aeronaveId)).size
   }), [documentos]);
 
@@ -453,22 +453,22 @@ export default function VencimentosDocumentos() {
 
                           {/* Status Badges */}
                           <div className="flex flex-wrap gap-1.5 pt-3">
-                            {grupo.documentoumentos.filter(d => d.situacao === 'vencido').length > 0 && (
+                            {grupo.documentoumentos.filter(d => d.status === 'vencido').length > 0 && (
                               <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] px-2 py-0.5">
                                 <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.situacao === 'vencido').length}
+                                {grupo.documentoumentos.filter(d => d.status === 'vencido').length}
                               </Badge>
                             )}
-                            {grupo.documentoumentos.filter(d => d.situacao === 'proximo').length > 0 && (
+                            {grupo.documentoumentos.filter(d => d.status === 'proximo').length > 0 && (
                               <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px] px-2 py-0.5">
                                 <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.situacao === 'proximo').length}
+                                {grupo.documentoumentos.filter(d => d.status === 'proximo').length}
                               </Badge>
                             )}
-                            {grupo.documentoumentos.filter(d => d.situacao === 'ok').length > 0 && (
+                            {grupo.documentoumentos.filter(d => d.status === 'ok').length > 0 && (
                               <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-2 py-0.5">
                                 <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.situacao === 'ok').length}
+                                {grupo.documentoumentos.filter(d => d.status === 'ok').length}
                               </Badge>
                             )}
                           </div>
@@ -485,7 +485,7 @@ export default function VencimentosDocumentos() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {grupo.documentos.map((doc) => {
-                          const statusInfo = getStatusInfo(doc.situacao);
+                          const statusInfo = getStatusInfo(doc.status);
                           const StatusIcon = statusInfo.icon;
                           const publicUrl = doc.filePath ? getFlightDocumentPublicUrl(doc.filePath) : null;
 
@@ -515,7 +515,7 @@ export default function VencimentosDocumentos() {
 
                               <div className={`${statusInfo.bgColor} border ${statusInfo.borderColor} rounded-md p-2 mb-2`}>
                                 <p className={`${statusInfo.textColor} font-semibold text-lg`}>
-                                  {doc.situacao === 'vencido' ? (
+                                  {doc.status === 'vencido' ? (
                                     <span className="text-red-400 text-sm">Vencido</span>
                                   ) : (
                                     <>

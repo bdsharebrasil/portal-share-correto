@@ -73,10 +73,10 @@ export function FlightCycleDetail({
   const [savingEdit, setSavingEdit] = useState(false);
   const [expenseEdits, setExpenseEdits] = useState<Record<string, { amount: number | null; status: ExpenseStatus }>>({});
 
-  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.situacao];
+  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
 
   const expenses = cycle.expenses || [];
-  const completedExpenses = expenses.filter(e => ['paga', 'nao_aplicavel'].includes(e.situacao)).length;
+  const completedExpenses = expenses.filter(e => ['paga', 'nao_aplicavel'].includes(e.status)).length;
   const completionPercentage = expenses.length > 0
     ? Math.round((completedExpenses / expenses.length) * 100)
     : 0;
@@ -165,7 +165,7 @@ export function FlightCycleDetail({
   };
 
   const getExpenseAlertLevel = (expense: FlightExpense): 'none' | 'yellow' | 'red' | 'purple' => {
-    if (!expense.expected_date || expense.situacao === 'paga' || expense.situacao === 'nao_aplicavel') {
+    if (!expense.expected_date || expense.status === 'paga' || expense.status === 'nao_aplicavel') {
       return 'none';
     }
     
@@ -436,7 +436,7 @@ export function FlightCycleDetail({
                 Excluir Ciclo
               </Button>
 
-              {cycle.situacao === 'confirmado' && (
+              {cycle.status === 'confirmado' && (
                 <Button
                   size="sm"
                   onClick={() => onUpdateCycleStatus(cycle.id, 'em_execucao')}
@@ -445,7 +445,7 @@ export function FlightCycleDetail({
                   Iniciar Voo
                 </Button>
               )}
-              {cycle.situacao === 'em_execucao' && (
+              {cycle.status === 'em_execucao' && (
                 <Button
                   size="sm"
                   onClick={() => onUpdateCycleStatus(cycle.id, 'aguardando_despesas')}
@@ -454,7 +454,7 @@ export function FlightCycleDetail({
                   Concluir Voo
                 </Button>
               )}
-              {['aguardando_despesas', 'em_cobranca'].includes(cycle.situacao) && completionPercentage === 100 && (
+              {['aguardando_despesas', 'em_cobranca'].includes(cycle.status) && completionPercentage === 100 && (
                 <Button
                   size="sm"
                   onClick={() => onUpdateCycleStatus(cycle.id, 'finalizado')}
@@ -507,7 +507,7 @@ export function FlightCycleDetail({
                 <div className="space-y-2">
                   {categoryExpenses.map((expense) => {
                     const alertLevel = getExpenseAlertLevel(expense);
-                    const expenseStatusConfig = EXPENSE_STATUS_CONFIG[expense.situacao];
+                    const expenseStatusConfig = EXPENSE_STATUS_CONFIG[expense.status];
                     const isExpanded = expandedExpense === expense.id;
 
                     return (
@@ -565,7 +565,7 @@ export function FlightCycleDetail({
                                 <div className="flex-1">
                                   <label className="text-xs text-muted-foreground mb-1 block">Status</label>
                                   <Select
-                                    value={expenseEdits[expense.id]?.situacao || expense.situacao}
+                                    value={expenseEdits[expense.id]?.status || expense.status}
                                     onValueChange={(value) => setExpenseEdits(prev => ({
                                       ...prev,
                                       [expense.id]: { ...prev[expense.id], amount: prev[expense.id]?.valor ?? expense.valor, status: value as ExpenseStatus }
@@ -595,7 +595,7 @@ export function FlightCycleDetail({
                                       [expense.id]: { 
                                         ...prev[expense.id],
                                         amount: e.target.value ? parseFloat(e.target.value) : null,
-                                        status: prev[expense.id]?.situacao ?? expense.situacao
+                                        status: prev[expense.id]?.status ?? expense.status
                                       }
                                     }))}
                                   />
@@ -604,7 +604,7 @@ export function FlightCycleDetail({
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    const newStatus = expenseEdits[expense.id]?.situacao || expense.situacao;
+                                    const newStatus = expenseEdits[expense.id]?.status || expense.status;
                                     const newAmount = expenseEdits[expense.id]?.valor ?? expense.valor;
                                     onUpdateExpenseStatus(expense.id, newStatus, { amount: newAmount });
                                     setExpenseEdits(prev => {

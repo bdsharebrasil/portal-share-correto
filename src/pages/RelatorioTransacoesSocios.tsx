@@ -261,7 +261,7 @@ export default function RelatorioTransacoesSocios() {
     // Filter by status
     if (filterStatus !== "all") {
       result = result.filter((t: any) => {
-        const status = t.situacao || (t.transaction_type === "deposit" ? "pago" : "pendente");
+        const status = t.status || (t.transaction_type === "deposit" ? "pago" : "pendente");
         return status === filterStatus;
       });
     }
@@ -483,7 +483,7 @@ export default function RelatorioTransacoesSocios() {
     try {
       const data = filteredTransactions.map((tx: any) => {
         const txDate = tx.payment_date || tx.data_vencimento || tx.criado_em;
-        const status = tx.situacao || (tx.transaction_type === "deposit" ? "pago" : "pendente");
+        const status = tx.status || (tx.transaction_type === "deposit" ? "pago" : "pendente");
         return {
           data: formatDate(txDate),
           tipo: getTypeLabel(tx),
@@ -506,7 +506,7 @@ export default function RelatorioTransacoesSocios() {
         { header: "Valor", dataKey: "valor" },
         { header: "Categoria", dataKey: "categoria" },
         { header: "Pagamento", dataKey: "pagamento" },
-        { header: "Status", dataKey: "situacao" },
+        { header: "Status", dataKey: "status" },
       ];
 
       const monthLabel = filterMonth
@@ -648,7 +648,7 @@ export default function RelatorioTransacoesSocios() {
                           <td className="px-3 py-3 text-sm text-foreground">{tx.descricao}</td>
                           <td className="px-3 py-3 text-center">
                             <Badge variant="secondary" className="text-xs">
-                              {tx.transaction_type === "deposit" ? "Recebido" : tx.situacao === "paid" || tx.situacao === "pago" ? "Pago" : tx.situacao ? tx.situacao.charAt(0).toUpperCase() + tx.situacao.slice(1).replace(/_/g, ' ') : "—"}
+                              {tx.transaction_type === "deposit" ? "Recebido" : tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status ? tx.status.charAt(0).toUpperCase() + tx.status.slice(1).replace(/_/g, ' ') : "—"}
                             </Badge>
                           </td>
                           <td className={`px-3 py-3 text-sm text-right font-mono font-medium ${tx.transaction_type === "deposit" ? "text-emerald-500" : "text-destructive"}`}>
@@ -897,7 +897,7 @@ export default function RelatorioTransacoesSocios() {
                         const status =
                           tx.transaction_type === "deposit"
                             ? "recebido"
-                            : tx.situacao || "pendente";
+                            : tx.status || "pendente";
                         const hasAttachment =
                           tx.receipt_url || tx.invoice_url;
 

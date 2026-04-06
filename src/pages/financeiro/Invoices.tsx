@@ -94,10 +94,10 @@ export default function Invoices() {
     }
   };
 
-  const issuedCount = invoices.filter(i => i.situacao === 'issued').length;
-  const paidCount = invoices.filter(i => i.situacao === 'paid').length;
+  const issuedCount = invoices.filter(i => i.status === 'issued').length;
+  const paidCount = invoices.filter(i => i.status === 'paid').length;
   const totalValue = invoices.reduce((sum, i) => sum + parseFloat(i.value || "0"), 0);
-  const openReceivables = accountsReceivable.filter(r => r.situacao === 'open').length;
+  const openReceivables = accountsReceivable.filter(r => r.status === 'open').length;
 
   return (
     <Layout>
@@ -221,7 +221,7 @@ export default function Invoices() {
                       <TableCell className="text-gray-200 font-medium">{formatCurrency(parseFloat(invoice.value || "0"))}</TableCell>
                       <TableCell className="text-gray-200">{formatDate(invoice.issueDate)}</TableCell>
                       <TableCell className="text-gray-200">{invoice.dueDate ? formatDate(invoice.dueDate) : "-"}</TableCell>
-                      <TableCell>{getStatusBadge(invoice.situacao || "issued")}</TableCell>
+                      <TableCell>{getStatusBadge(invoice.status || "issued")}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex gap-2 justify-center">
                           <Button
@@ -435,7 +435,7 @@ export default function Invoices() {
                   <div>
                     <Label className="text-gray-400">Status</Label>
                     <div className="mt-1">
-                      {getStatusBadge(selectedInvoice.situacao)}
+                      {getStatusBadge(selectedInvoice.status)}
                     </div>
                   </div>
                   <Button onClick={() => setSelectedInvoice(null)}>

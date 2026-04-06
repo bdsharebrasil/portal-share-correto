@@ -266,14 +266,14 @@ export const FinanceiroFilters = ({
               </Badge>
             </motion.div>
           )}
-          {filters.situacao !== 'all' && (
+          {filters.status !== 'all' && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
                 className="gap-1 cursor-pointer hover:bg-destructive/20"
                 onClick={() => removeFilter('status')}
               >
-                Status: {STATUS_OPTIONS.find((o) => o.value === filters.situacao)?.label}
+                Status: {STATUS_OPTIONS.find((o) => o.value === filters.status)?.label}
                 <X className="h-3 w-3" />
               </Badge>
             </motion.div>

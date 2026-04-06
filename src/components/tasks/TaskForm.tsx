@@ -122,7 +122,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         description: task.descricao ?? "",
         due_date: task.data_vencimento ?? "",
         priority: task.priority ?? "media",
-        status: task.situacao ?? "pendente",
+        status: task.status ?? "pendente",
         assigned_to: task.assigned_to ?? currentUserId,
       });
     } else {
@@ -159,7 +159,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         description: formData.descricao.trim() || null,
         due_date: formData.data_vencimento ? formData.data_vencimento : null,
         priority: formData.priority,
-        status: formData.situacao,
+        status: formData.status,
         assigned_to: formData.assigned_to && formData.assigned_to !== currentUserId ? formData.assigned_to : null,
         created_by: currentUserId,
       };
@@ -317,8 +317,8 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           <div className="space-y-2">
             <Label htmlFor="task-status">Status</Label>
             <Select
-              value={formData.situacao}
-              onValueChange={(value: TaskFormData["situacao"]) =>
+              value={formData.status}
+              onValueChange={(value: TaskFormData["status"]) =>
                 setFormData((prev) => ({ ...prev, status: value }))
               }
               disabled={loading}

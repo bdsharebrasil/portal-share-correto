@@ -124,7 +124,7 @@ export function calcularAbastecimentos(
   let totalPagos = 0;
 
   for (const a of abastecimentos) {
-    const status = a.situacao || a.situacao_pagamento || 'pendente';
+    const status = a.status || a.status_pagamento || 'pendente';
     const valor = Number(a.valor_total || 0);
     const partnerIdx = a.partner_index || a.partner || a.socio_indice || null;
 
@@ -170,10 +170,10 @@ export function calcularBalancoSocio(
 ): SocioBalanco {
   const fator = socio.percentual / 100;
 
-  const pendentes = despesas.filter((d) => d.situacao === "pendente");
-  const pagos = despesas.filter((d) => ["pago", "conciliado"].includes(d.situacao));
-  const aguardando = despesas.filter((d) => d.situacao === "aguardando_reembolso");
-  const reembolsados = despesas.filter((d) => d.situacao === "reembolsado");
+  const pendentes = despesas.filter((d) => d.status === "pendente");
+  const pagos = despesas.filter((d) => ["pago", "conciliado"].includes(d.status));
+  const aguardando = despesas.filter((d) => d.status === "aguardando_reembolso");
+  const reembolsados = despesas.filter((d) => d.status === "reembolsado");
 
   const totalPendentes = pendentes.reduce((sum, d) => sum + (d.valor || 0), 0);
   const totalPagos = pagos.reduce((sum, d) => sum + (d.valor || 0), 0);

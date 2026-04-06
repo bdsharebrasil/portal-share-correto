@@ -69,15 +69,15 @@ export function ContasRecorrentesTab() {
     const today = new Date();
     const next7Days = addDays(today, 7);
 
-    const totalRecorrentes = contas.filter(c => c.situacao === 'agendado').length;
+    const totalRecorrentes = contas.filter(c => c.status === 'agendado').length;
     const proximosVencimentos = contas.filter(c => {
-      if (c.situacao !== 'agendado') return false;
+      if (c.status !== 'agendado') return false;
       const contaDate = new Date();
       contaDate.setDate(c.dia_recorrencia || 1);
       return isWithinInterval(contaDate, { start: today, end: next7Days });
     }).length;
     const valorTotal = contas
-      .filter(c => c.situacao === 'agendado' && c.valor)
+      .filter(c => c.status === 'agendado' && c.valor)
       .reduce((sum, c) => sum + parseFloat(c.valor), 0);
 
     return { totalRecorrentes, proximosVencimentos, valorTotal };
@@ -88,7 +88,7 @@ export function ContasRecorrentesTab() {
     const next7Days = addDays(today, 7);
     
     return contas.filter(c => {
-      if (c.situacao !== 'agendado') return false;
+      if (c.status !== 'agendado') return false;
       const dueDate = new Date();
       dueDate.setDate(c.dia_recorrencia || 1);
       return isWithinInterval(dueDate, { start: today, end: next7Days });
@@ -166,7 +166,7 @@ export function ContasRecorrentesTab() {
 
     setIsGenerating(true);
     try {
-      const activeContas = contas.filter(c => c.situacao === 'agendado');
+      const activeContas = contas.filter(c => c.status === 'agendado');
       
       if (activeContas.length === 0) {
         toast.info("Nenhuma conta recorrente ativa para gerar");
@@ -364,7 +364,7 @@ export function ContasRecorrentesTab() {
           ) : (
             <div className="space-y-3">
               {contas.map((conta) => {
-                const isInactive = conta.situacao === 'cancelado';
+                const isInactive = conta.status === 'cancelado';
                 const rowClass = isInactive 
                   ? 'bg-red-500/10 border-l-4 border-l-red-500 opacity-75' 
                   : 'bg-muted/30 border-l-4 border-l-primary';
@@ -376,8 +376,8 @@ export function ContasRecorrentesTab() {
                         <h3 className="font-semibold text-foreground">{conta.descricao}</h3>
                         <p className="text-sm text-muted-foreground">Fornecedor: {conta.fornecedor}</p>
                         <div className="flex items-center gap-4 mt-2 flex-wrap">
-                          <Badge className={getStatusColor(conta.situacao)}>
-                            {getStatusLabel(conta.situacao)}
+                          <Badge className={getStatusColor(conta.status)}>
+                            {getStatusLabel(conta.status)}
                           </Badge>
                           <span className="text-sm text-muted-foreground">
                             {getFrequencyLabel(conta.frequencia_recorrencia, conta.dia_recorrencia)}
@@ -401,7 +401,7 @@ export function ContasRecorrentesTab() {
                           {conta.valor ? `R$ ${parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Valor variável'}
                         </p>
                         <div className="flex gap-2">
-                          {conta.situacao === 'agendado' && (
+                          {conta.status === 'agendado' && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -499,7 +499,7 @@ export function ContasRecorrentesTab() {
             </div>
             <Alert className="border-blue-500/30 bg-blue-500/10">
               <AlertDescription className="text-blue-400 text-sm">
-                <strong>{contas.filter(c => c.situacao === 'agendado').length}</strong> conta(s) recorrente(s) ativa(s) serão processadas.
+                <strong>{contas.filter(c => c.status === 'agendado').length}</strong> conta(s) recorrente(s) ativa(s) serão processadas.
                 Contas já existentes para o período serão ignoradas.
               </AlertDescription>
             </Alert>

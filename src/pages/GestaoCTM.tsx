@@ -101,8 +101,8 @@ export default function GestaoCTM() {
   const normalizeStatus = (s: string | null | undefined) => (s ?? "").toString().trim().toLowerCase();
   const isActiveStatus = (s: string | null | undefined) => ["ativo", "ativa", "active"].includes(normalizeStatus(s));
   const isInactiveStatus = (s: string | null | undefined) => ["inativo", "inativa", "inactive"].includes(normalizeStatus(s));
-  const activeAircraft = aircraft.filter(a => isActiveStatus(a.situacao));
-  const inactiveAircraft = aircraft.filter(a => isInactiveStatus(a.situacao));
+  const activeAircraft = aircraft.filter(a => isActiveStatus(a.status));
+  const inactiveAircraft = aircraft.filter(a => isInactiveStatus(a.status));
   return <Layout>
       <div className="p-6 space-y-8">
         {/* Hero Header */}

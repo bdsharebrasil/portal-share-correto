@@ -95,7 +95,7 @@ export function useFlightPlans() {
       // Mapear campos calculados diretamente
       const parsedPlans = (data || []).map(plan => ({
         ...plan,
-        status: (plan.situacao as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
+        status: (plan.status as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
         calculations: plan.calculations as any,
         validation: plan.validation_data as any,
         weather: plan.weather_data as any,
@@ -137,7 +137,7 @@ export function useFlightPlans() {
         calculations: input.calculations || null,
         validation_data: input.validation || null,
         weather_data: input.weather || null,
-        status: input.situacao || 'draft',
+        status: input.status || 'draft',
         created_by: user.id,
       };
 
@@ -187,7 +187,7 @@ export function useFlightPlans() {
         ...(updates.fuel_endurance && { fuel_endurance: updates.fuel_endurance }),
         ...(updates.route && { route: updates.route }),
         ...(updates.remarks && { remarks: updates.remarks }),
-        ...(updates.situacao && { status: updates.situacao }),
+        ...(updates.status && { status: updates.status }),
         ...(updates.calculations && { calculations: updates.calculations }),
         ...(updates.validation && { validation_data: updates.validation }),
         ...(updates.weather && { weather_data: updates.weather }),
@@ -261,7 +261,7 @@ export function useFlightPlans() {
 
       return {
         ...data,
-        status: (data.situacao as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
+        status: (data.status as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
         calculations: data.calculations as any,
         validation: data.validation_data as any,
         weather: data.weather_data as any,
@@ -283,14 +283,14 @@ export function useFlightPlans() {
         .from('flight_plans')
         .select('*')
         .eq('created_by', user.id)
-        .eq('situacao', status)
+        .eq('status', status)
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
 
       return (data || []).map(plan => ({
         ...plan,
-        status: (plan.situacao as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
+        status: (plan.status as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
         calculations: plan.calculations as any,
         validation: plan.validation_data as any,
         weather: plan.weather_data as any,
@@ -322,7 +322,7 @@ export function useFlightPlans() {
 
       return (data || []).map(plan => ({
         ...plan,
-        status: (plan.situacao as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
+        status: (plan.status as 'draft' | 'filed' | 'approved' | 'completed' | 'cancelled') || 'draft',
         calculations: plan.calculations as any,
         validation: plan.validation_data as any,
         weather: plan.weather_data as any,

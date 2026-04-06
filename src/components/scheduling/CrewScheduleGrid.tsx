@@ -171,7 +171,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         aircraftReg: schedule.aeronave?.matricula || "N/A",
         route: `${schedule.origin || "---"} → ${schedule.destination || "---"}`,
         time: schedule.flight_time?.slice(0, 5) || "",
-        status: schedule.situacao
+        status: schedule.status
       };
     }
 
@@ -229,7 +229,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         crewName: pilot?.full_name || "Sem tripulação",
         route: `${(booking as any).origin || "---"} → ${(booking as any).destination || "---"}`,
         time: (booking as any).departure_time?.slice(0, 5) || "",
-        status: (booking as any).situacao
+        status: (booking as any).status
       };
     }
 
@@ -332,7 +332,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                 {assignment.time && <p>Horário: {assignment.time}</p>}
                                 {"role" in assignment && <p>Função: {assignment.role}</p>}
                                 <Badge variant="outline" className="text-xs mt-1">
-                                  {assignment.situacao === "confirmado" ? "Confirmado" : "Pendente"}
+                                  {assignment.status === "confirmado" ? "Confirmado" : "Pendente"}
                                 </Badge>
                               </div>
                             </TooltipContent>
@@ -449,7 +449,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                 <p>{assignment.route}</p>
                                 {assignment.time && <p>Horário: {assignment.time}</p>}
                                 <Badge variant="outline" className="text-xs mt-1">
-                                  {assignment.situacao === "confirmado" ? "Confirmado" : "Pendente"}
+                                  {assignment.status === "confirmado" ? "Confirmado" : "Pendente"}
                                 </Badge>
                               </div>
                             </TooltipContent>

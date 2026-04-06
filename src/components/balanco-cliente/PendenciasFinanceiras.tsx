@@ -175,7 +175,7 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
                       <TableCell>{item.aeronave?.matricula || '-'}</TableCell>
                       <TableCell>
                         <Badge variant={isAtrasado ? 'destructive' : 'secondary'}>
-                          {isAtrasado ? `${diasAtraso} dias atrasado` : item.situacao}
+                          {isAtrasado ? `${diasAtraso} dias atrasado` : item.status}
                         </Badge>
                       </TableCell>
                       <TableCell>

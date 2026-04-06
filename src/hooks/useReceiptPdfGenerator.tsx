@@ -109,7 +109,7 @@ export const useReceiptPdfGenerator = () => {
 
       const response = await fetch(pdfUrl);
       if (!response.ok) {
-        throw new Error(`Erro ao baixar: ${response.situacaoText}`);
+        throw new Error(`Erro ao baixar: ${response.statusText}`);
       }
 
       const blob = await response.blob();

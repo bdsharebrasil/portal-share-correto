@@ -237,7 +237,7 @@ export function TransactionsTable({
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {tx.nome_socio} • {getTransactionDate(tx)}
-                          {tx.transaction_type === "expense" && tx.situacao && ` • ${tx.situacao}`}
+                          {tx.transaction_type === "expense" && tx.status && ` • ${tx.status}`}
                         </p>
                       </div>
                     </div>

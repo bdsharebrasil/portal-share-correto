@@ -328,7 +328,7 @@ export function MaintenanceReportDialog({ aircraftId, clienteId }: MaintenanceRe
                           </div>
                           <div className="text-right">
                             <p className="font-bold">{fmt(so.total_geral || 0)}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{so.situacao}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{so.status}</p>
                           </div>
                         </div>
                       ))}

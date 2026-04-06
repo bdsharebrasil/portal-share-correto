@@ -88,7 +88,7 @@ export default function Ferias() {
       const { data, error } = await supabase
         .from("vacation_requests")
         .select("*")
-        .eq("situacao", "pending")
+        .eq("status", "pending")
         .order("criado_em", { ascending: false });
 
       if (error) throw error;
@@ -282,7 +282,7 @@ export default function Ferias() {
                         {format(new Date(request.start_date), "dd/MM/yyyy", { locale: ptBR })} - {format(new Date(request.end_date), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{request.days_requested} dias</TableCell>
-                      <TableCell>{getStatusBadge(request.situacao)}</TableCell>
+                      <TableCell>{getStatusBadge(request.status)}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{request.motivo || "-"}</TableCell>
                       <TableCell>
                         {format(new Date(request.criado_em), "dd/MM/yyyy", { locale: ptBR })}
@@ -365,7 +365,7 @@ export default function Ferias() {
                         {format(new Date(request.start_date), "dd/MM/yyyy", { locale: ptBR })} - {format(new Date(request.end_date), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{request.days_requested} dias</TableCell>
-                      <TableCell>{getStatusBadge(request.situacao)}</TableCell>
+                      <TableCell>{getStatusBadge(request.status)}</TableCell>
                       <TableCell>
                         {request.approved_by ? getUserName(request.approved_by) : "-"}
                       </TableCell>

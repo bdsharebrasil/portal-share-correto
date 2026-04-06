@@ -27,7 +27,7 @@ interface CrewMember {
   email?: string;
   telefone?: string;
   data_nascimento?: string;
-  situacao: string;
+  status: string;
   photo_url?: string;
   usuario_id?: string;
   role?: string;
@@ -661,8 +661,8 @@ export default function GestaoDeTripulacao() {
                           </p>
                         </div>
                       </div>
-                      <Badge variant={schedule.situacao === 'confirmado' ? 'default' : 'secondary'}>
-                        {schedule.situacao}
+                      <Badge variant={schedule.status === 'confirmado' ? 'default' : 'secondary'}>
+                        {schedule.status}
                       </Badge>
                     </div>)}
                   </div> : <div className="text-center py-8 text-muted-foreground">

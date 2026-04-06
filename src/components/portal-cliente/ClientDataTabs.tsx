@@ -467,7 +467,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                       'recebido': 'bg-green-500/10 border-green-500/30 text-green-300',
                       'cancelado': 'bg-red-500/10 border-red-500/30 text-red-300',
                     };
-                    const statusColor = statusColorMap[record.situacao?.toLowerCase()] || 'bg-gray-500/10 border-gray-500/30 text-gray-300';
+                    const statusColor = statusColorMap[record.status?.toLowerCase()] || 'bg-gray-500/10 border-gray-500/30 text-gray-300';
 
                     const categoryEmoji: any = {
                       'ADM SHARE': '📋',
@@ -497,7 +497,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 {record.descricao}
                               </h3>
                               <Badge className={`shrink-0 border ${statusColor} capitalize text-xs`}>
-                                {record.situacao}
+                                {record.status}
                               </Badge>
                             </div>
 
@@ -693,7 +693,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         {/* ── Abastecimentos ──────────────────────────────────────────────────── */}
         <TabsContent value="fuel" className="space-y-4">
           {(() => {
-            const pendingFuel = fuelRecords.filter((r: any) => r.situacao_pagamento === 'pendente');
+            const pendingFuel = fuelRecords.filter((r: any) => r.status_pagamento === 'pendente');
             const totalPending = pendingFuel.reduce((sum: number, r: any) => sum + (Number(r.valor_total) || 0), 0);
 
             return (
@@ -773,15 +773,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Status</p>
                                 <Badge className={
-                                  record.situacao_pagamento === 'pago'
+                                  record.status_pagamento === 'pago'
                                     ? 'bg-green-500/20 text-green-300'
-                                    : record.situacao_pagamento === 'pendente'
+                                    : record.status_pagamento === 'pendente'
                                     ? 'bg-yellow-500/20 text-yellow-300'
                                     : 'bg-gray-500/20 text-gray-300'
                                 }>
-                                  {record.situacao_pagamento === 'pago' ? 'Pago'
-                                    : record.situacao_pagamento === 'pendente' ? 'Pendente'
-                                    : record.situacao_pagamento || 'N/A'}
+                                  {record.status_pagamento === 'pago' ? 'Pago'
+                                    : record.status_pagamento === 'pendente' ? 'Pendente'
+                                    : record.status_pagamento || 'N/A'}
                                 </Badge>
                               </div>
                             </div>
@@ -798,7 +798,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
                             </div>
 
-                            {record.situacao_pagamento === 'pendente' && (
+                            {record.status_pagamento === 'pendente' && (
                               <Button
                                 onClick={() => {
                                   setSelectedFuelRecord(record);
@@ -812,7 +812,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               </Button>
                             )}
 
-                            {record.situacao_pagamento === 'pago' && record.comprovante_url && (
+                            {record.status_pagamento === 'pago' && record.comprovante_url && (
                               <Button
                                 onClick={() => window.open(record.comprovante_url, '_blank')}
                                 size="sm"
@@ -886,11 +886,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               ) : (
                 travelReports.map((report) => {
                   const isPago =
-                    report.situacao?.toLowerCase() === 'pago' ||
-                    report.situacao?.toLowerCase() === 'recebido' ||
-                    report.situacao?.toLowerCase() === 'conferido';
+                    report.status?.toLowerCase() === 'pago' ||
+                    report.status?.toLowerCase() === 'recebido' ||
+                    report.status?.toLowerCase() === 'conferido';
 
-                  const isEnviado = report.situacao?.toLowerCase() === 'enviado';
+                  const isEnviado = report.status?.toLowerCase() === 'enviado';
 
                   return (
                     <div key={report.id} className="p-4 bg-muted/50 rounded-lg border border-border">

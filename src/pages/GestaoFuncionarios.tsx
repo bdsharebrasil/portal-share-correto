@@ -278,7 +278,7 @@ export default function GestaoFuncionarios() {
               id: (crewMember as any).id,
               canac: (crewMember as any).canac,
               avatar_url: null,
-              status: (crewMember as any).situacao || 'active'
+              status: (crewMember as any).status || 'active'
             };
           }
         }

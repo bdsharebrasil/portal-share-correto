@@ -108,7 +108,7 @@ export default function CTMManagementPage() {
             completionDate: item.completion_date,
             description: item.descricao,
             inspectionDetails: item.inspection_details,
-            status: item.situacao || 'pendente',
+            status: item.status || 'pendente',
             totalCost: item.total_cost || 0,
             photos: item.photos || [],
             costItems: item.cost_items || [],
@@ -163,7 +163,7 @@ export default function CTMManagementPage() {
             effectiveDate: item.issue_date,
             dueDate: item.data_vencimento,
             description: item.descricao,
-            status: item.situacao || 'pendente',
+            status: item.status || 'pendente',
             completionDate: item.completion_date,
             observations: item.observacoes,
             createdAt: item.criado_em,
@@ -188,7 +188,7 @@ export default function CTMManagementPage() {
             issueDate: item.issue_date,
             dueDate: item.data_vencimento,
             description: item.descricao,
-            status: item.situacao || 'pendente',
+            status: item.status || 'pendente',
             completionDate: item.completion_date,
             observations: item.observacoes,
             createdAt: item.criado_em,
@@ -312,7 +312,7 @@ export default function CTMManagementPage() {
       ras.descricao.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ras.responsibleMechanic.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = !statusFilter || ras.situacao === statusFilter;
+    const matchesStatus = !statusFilter || ras.status === statusFilter;
     const matchesType = !typeFilter || ras.maintenanceType === typeFilter;
 
     return matchesSearch && matchesStatus && matchesType;
@@ -532,11 +532,11 @@ export default function CTMManagementPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">AD Pendentes:</span>
-                      <span className="font-bold text-orange-600">{ads.filter(a => a.situacao === 'pendente').length}</span>
+                      <span className="font-bold text-orange-600">{ads.filter(a => a.status === 'pendente').length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">SB Pendentes:</span>
-                      <span className="font-bold text-orange-600">{sbs.filter(s => s.situacao === 'pendente').length}</span>
+                      <span className="font-bold text-orange-600">{sbs.filter(s => s.status === 'pendente').length}</span>
                     </div>
                   </div>
                 </CardContent>

@@ -135,7 +135,7 @@ export default function Agendamentos() {
       const { data, error } = await supabase
         .from('aeronave')
         .select('id, matricula, modelo')
-        .eq("situacao", "ativa");
+        .eq("status", "ativa");
       if (error) throw error;
       return data;
     },
@@ -143,8 +143,8 @@ export default function Agendamentos() {
 
   const stats = {
     total: schedules?.length || 0,
-    confirmed: schedules?.filter(s => s.situacao === "confirmado").length || 0,
-    pending: schedules?.filter(s => s.situacao === "pendente").length || 0,
+    confirmed: schedules?.filter(s => s.status === "confirmado").length || 0,
+    pending: schedules?.filter(s => s.status === "pendente").length || 0,
     today: schedules?.filter(s => s.flight_date === new Date().toISOString().split('T')[0]).length || 0,
   };
 
@@ -284,7 +284,7 @@ export default function Agendamentos() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plane className="h-5 w-5" />
-              Lista de Agendamentos ({(schedules || []).filter((s: any) => statusTab === 'pendentes' ? s.situacao === 'pendente' : true).length})
+              Lista de Agendamentos ({(schedules || []).filter((s: any) => statusTab === 'pendentes' ? s.status === 'pendente' : true).length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -304,7 +304,7 @@ export default function Agendamentos() {
             ) : schedules && schedules.length > 0 ? (
               <div className="space-y-4">
                 {(schedules || [])
-                  .filter((s: any) => statusTab === 'pendentes' ? s.situacao === 'pendente' : true)
+                  .filter((s: any) => statusTab === 'pendentes' ? s.status === 'pendente' : true)
                   .map((schedule: any) => (
                   <Card key={schedule.id} className="group overflow-hidden border-border/50 hover:border-primary/50 hover:shadow-lg transition-all">
                     <CardContent className="p-0">
@@ -318,8 +318,8 @@ export default function Agendamentos() {
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <h3 className="font-bold text-xl text-foreground">{schedule.aeronave?.matricula || "N/A"}</h3>
-                                <Badge variant="outline" className={`${getStatusBadge(schedule.situacao).className} text-xs`}>
-                                  {getStatusBadge(schedule.situacao).label}
+                                <Badge variant="outline" className={`${getStatusBadge(schedule.status).className} text-xs`}>
+                                  {getStatusBadge(schedule.status).label}
                                 </Badge>
                                 {schedule.flight_type && (
                                   <Badge variant="outline" className="text-xs bg-muted/50">
@@ -403,7 +403,7 @@ export default function Agendamentos() {
 
                         {/* Ações */}
                         <div className="lg:w-48 bg-muted/20 p-4 flex flex-col gap-2 border-t lg:border-t-0 lg:border-l border-border/50">
-                          <StatusUpdateButtons scheduleId={schedule.id} currentStatus={schedule.situacao} onUpdate={refetch} />
+                          <StatusUpdateButtons scheduleId={schedule.id} currentStatus={schedule.status} onUpdate={refetch} />
                           <Button
                             variant="outline"
                             size="sm"

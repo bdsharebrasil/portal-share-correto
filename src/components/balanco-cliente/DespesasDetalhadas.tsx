@@ -148,7 +148,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         valor: d.valor_total,
         data: d.data,
         descricao: `Abastecimento - ${d.local} (${d.trecho})`,
-        situacao: d.status_pagamento || 'pendente',
+        status: d.status_pagamento || 'pendente',
         categoria_nome: 'Combustível',
         aeronave_registro: d.aircraft?.matricula || '-',
         comprovante_url: d.comanda_url,
@@ -194,7 +194,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
     const matchBusca = !busca ||
       d.descricao?.toLowerCase().includes(busca.toLowerCase()) ||
       d.fornecedor_nome?.toLowerCase().includes(busca.toLowerCase());
-    const matchStatus = statusFilter === 'todos' || d.situacao === statusFilter;
+    const matchStatus = statusFilter === 'todos' || d.status === statusFilter;
     const matchCategoria = categoriaFilter === 'todas' ||
       d.categorias_movimentacao?.id === categoriaFilter ||
       d.categoria_nome?.toLowerCase().includes(categoriaFilter.toLowerCase());
@@ -337,8 +337,8 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                         R$ {(despesa.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={STATUS_LABELS[despesa.situacao]?.variant || 'secondary'}>
-                          {STATUS_LABELS[despesa.situacao]?.label || despesa.situacao}
+                        <Badge variant={STATUS_LABELS[despesa.status]?.variant || 'secondary'}>
+                          {STATUS_LABELS[despesa.status]?.label || despesa.status}
                         </Badge>
                       </TableCell>
                       <TableCell>

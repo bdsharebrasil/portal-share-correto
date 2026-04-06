@@ -270,7 +270,7 @@ export default function ManutencaoAeronave() {
     setEditFormData({
       descricao: manutencao.descricao || '',
       mecanico: manutencao.mecanico || '',
-      statusExecutado: manutencao.situacaoExecutado,
+      statusExecutado: manutencao.statusExecutado,
       horasProximaManutencao: manutencao.horasProximaManutencao?.toString() || '',
       dataProximaManutencao: manutencao.dataProximaManutencao || '',
       observacoes: manutencao.observacoes || '',
@@ -287,7 +287,7 @@ export default function ManutencaoAeronave() {
         .update({
           observacoes: editFormData.descricao,
           mecanico: editFormData.mecanico,
-          etapa: editFormData.situacaoExecutado,
+          etapa: editFormData.statusExecutado,
           vencimento_horas: editFormData.horasProximaManutencao ? parseInt(editFormData.horasProximaManutencao) : null,
           data_programada: editFormData.dataProximaManutencao || undefined,
           oficina_id: editFormData.oficinaId || null,
@@ -330,9 +330,9 @@ export default function ManutencaoAeronave() {
   const stats = useMemo(() => ({
     preventivas: manutencoes.filter(m => m.tipo === 'preventiva').length,
     corretivas: manutencoes.filter(m => m.tipo === 'corretiva').length,
-    pendentes: manutencoes.filter(m => m.situacaoExecutado === 'pendente').length,
-    emAndamento: manutencoes.filter(m => m.situacaoExecutado === 'em_andamento').length,
-    concluidas: manutencoes.filter(m => m.situacaoExecutado === 'concluida').length
+    pendentes: manutencoes.filter(m => m.statusExecutado === 'pendente').length,
+    emAndamento: manutencoes.filter(m => m.statusExecutado === 'em_andamento').length,
+    concluidas: manutencoes.filter(m => m.statusExecutado === 'concluida').length
   }), [manutencoes]);
 
   const preventivas50h = useMemo(() => {
@@ -641,7 +641,7 @@ export default function ManutencaoAeronave() {
                     cancelada: { bg: 'bg-gray-500/10', border: 'border-gray-500/30', text: 'text-gray-400', label: 'Cancelada' }
                   };
 
-                  const statusInfo = statusColors[manutencao.situacaoExecutado as keyof typeof statusColors] || statusColors.pendente;
+                  const statusInfo = statusColors[manutencao.statusExecutado as keyof typeof statusColors] || statusColors.pendente;
 
                   return (
                     <div
@@ -760,7 +760,7 @@ export default function ManutencaoAeronave() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Status</label>
                     <select
-                      value={editFormData.situacaoExecutado}
+                      value={editFormData.statusExecutado}
                       onChange={(e) => setEditFormData({...editFormData, statusExecutado: e.target.value})}
                       className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm"
                     >

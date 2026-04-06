@@ -943,13 +943,13 @@ export default function RelatorioMensal() {
                                 variant="outline"
                                 className={cn(
                                   "text-[10px] px-1.5 py-0 whitespace-nowrap",
-                                  (tx.situacao === "pago" || tx.situacao === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
-                                    : (tx.situacao === "recebido" || tx.situacao === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
-                                      : tx.situacao === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
+                                  (tx.status === "pago" || tx.status === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                                    : (tx.status === "recebido" || tx.status === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
+                                      : tx.status === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
                                         : "border-amber-500/30 text-amber-500 bg-amber-500/5"
                                 )}
                               >
-                                {getStatusLabel(tx.situacao)}
+                                {getStatusLabel(tx.status)}
                               </Badge>
                             </td>
 
@@ -1048,7 +1048,7 @@ export default function RelatorioMensal() {
                                       { label: "Dias", value: tx.dias_count },
                                       { label: "Tripulação 1", value: tx.crew_member_name },
                                       { label: "Tripulação 2", value: tx.crew_member_name2 },
-                                      { label: "Status", value: getStatusLabel(tx.situacao) },
+                                      { label: "Status", value: getStatusLabel(tx.status) },
                                       { label: "Observação", value: tx.observacoes },
                                     ].map(({ label, value }) => (
                                       <div key={label} className="space-y-0.5">
@@ -1282,11 +1282,11 @@ export default function RelatorioMensal() {
                         </td>
                         <td className="py-2.5 px-4">
                           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 whitespace-nowrap",
-                            (tx.situacao === "pago" || tx.situacao === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
-                              : (tx.situacao === "recebido" || tx.situacao === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
-                                : tx.situacao === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
+                            (tx.status === "pago" || tx.status === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                              : (tx.status === "recebido" || tx.status === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
+                                : tx.status === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
                                   : "border-amber-500/30 text-amber-500 bg-amber-500/5")}>
-                            {getStatusLabel(tx.situacao)}
+                            {getStatusLabel(tx.status)}
                           </Badge>
                         </td>
                         <td className="py-2.5 px-4 text-xs text-foreground whitespace-nowrap">{getPaymentMethodLabel(tx.payment_method)}</td>

@@ -162,7 +162,7 @@ export function TransactionEditModal({
             category: "ABASTECIMENTO",
             expense_type: "ABASTECIMENTO",
             supplier_name: fuel.abastecedor || "",
-            status: fuel.situacao_pagamento || sourceTransaction.situacao,
+            status: fuel.status_pagamento || sourceTransaction.status,
             assigned_partner_name: fuel.nome_socio || null,
             assigned_partner_cpf: resolvePartnerCpf(fuel.nome_socio, sourceTransaction.assigned_partner_cpf),
             invoice_number: fuel.nf || "",
@@ -214,7 +214,7 @@ export function TransactionEditModal({
         expenseType: normalizeCategoryValue(sourceTransaction.expense_type || sourceTransaction.categoria || (isAbastecimento ? "ABASTECIMENTO" : "")),
         supplierName: sourceTransaction.supplier_name || "",
         paymentMethod: sourceTransaction.payment_method || "nao_informado",
-        status: sourceTransaction.situacao || "pago",
+        status: sourceTransaction.status || "pago",
         assignedPartnerCpf: resolvePartnerCpf(sourceTransaction.assigned_partner_name, sourceTransaction.assigned_partner_cpf),
         invoiceNumber: sourceTransaction.invoice_number || "",
         invoiceUrl: sourceTransaction.invoice_url || "",
@@ -349,7 +349,7 @@ export function TransactionEditModal({
         expenseType: formData.expenseType || null,
         supplierName: formData.supplierName || null,
         paymentMethod: formData.paymentMethod === "nao_informado" ? null : formData.paymentMethod || null,
-        status: formData.situacao || null,
+        status: formData.status || null,
         assignedPartnerCpf: assignedPartner?.cpf || null,
         assignedPartnerName: finalAssignedPartnerName,
         invoiceNumber: formData.invoiceNumber || null,
@@ -574,7 +574,7 @@ export function TransactionEditModal({
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Status</Label>
                 <Select
-                  value={formData.situacao}
+                  value={formData.status}
                   onValueChange={(v) => setFormData({ ...formData, status: v })}
                 >
                   <SelectTrigger className="text-sm">
@@ -653,7 +653,7 @@ export function TransactionEditModal({
                             <div className="text-sm space-y-0.5">
                               <div className="font-medium">
                                 OAS #{so.numero}
-                                {so.situacao ? ` • ${getStatusLabel(so.situacao)}` : ""}
+                                {so.status ? ` • ${getStatusLabel(so.status)}` : ""}
                               </div>
                               <div className="text-xs text-muted-foreground flex gap-2">
                                 {so.data_entrada && (

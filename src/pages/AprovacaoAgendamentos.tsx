@@ -89,7 +89,7 @@ export default function AprovacaoAgendamentos() {
         .order("criado_em", { ascending: false });
 
       if (filterStatus !== "all") {
-        query = query.eq("situacao", filterStatus);
+        query = query.eq("status", filterStatus);
       }
 
       const { data, error } = await query;
@@ -187,9 +187,9 @@ export default function AprovacaoAgendamentos() {
 
   const stats = {
     total: bookings?.length || 0,
-    pending: bookings?.filter(b => b.situacao === "pendente").length || 0,
-    approved: bookings?.filter(b => b.situacao === "confirmado").length || 0,
-    rejected: bookings?.filter(b => b.situacao === "rejeitado").length || 0
+    pending: bookings?.filter(b => b.status === "pendente").length || 0,
+    approved: bookings?.filter(b => b.status === "confirmado").length || 0,
+    rejected: bookings?.filter(b => b.status === "rejeitado").length || 0
   };
 
   const getStatusColor = (status: string) => {
@@ -337,9 +337,9 @@ export default function AprovacaoAgendamentos() {
                               <h4 className="text-base font-semibold text-foreground">
                                 {booking.user?.full_name || "Cliente"}
                               </h4>
-                              <Badge variant="outline" className={getStatusColor(booking.situacao)}>
-                                {getStatusIcon(booking.situacao)}
-                                {booking.situacao}
+                              <Badge variant="outline" className={getStatusColor(booking.status)}>
+                                {getStatusIcon(booking.status)}
+                                {booking.status}
                               </Badge>
                             </div>
 
@@ -397,7 +397,7 @@ export default function AprovacaoAgendamentos() {
                           </div>
 
                           {/* Actions */}
-                          {booking.situacao === "pendente" && (
+                          {booking.status === "pendente" && (
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -432,7 +432,7 @@ export default function AprovacaoAgendamentos() {
                             </div>
                           )}
 
-                          {booking.situacao !== "pendente" && (
+                          {booking.status !== "pendente" && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -469,9 +469,9 @@ export default function AprovacaoAgendamentos() {
               {/* Status */}
               <div>
                 <label className="text-sm font-semibold text-foreground">Status</label>
-                <Badge className={`mt-2 ${getStatusColor(selectedBooking.situacao)}`}>
-                  {getStatusIcon(selectedBooking.situacao)}
-                  {selectedBooking.situacao}
+                <Badge className={`mt-2 ${getStatusColor(selectedBooking.status)}`}>
+                  {getStatusIcon(selectedBooking.status)}
+                  {selectedBooking.status}
                 </Badge>
               </div>
 

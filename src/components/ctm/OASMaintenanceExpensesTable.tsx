@@ -240,16 +240,16 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
                                           variant="outline"
                                           className={cn(
                                             "text-xs",
-                                            rateio.situacao_pagamento === "pago"
+                                            rateio.status_pagamento === "pago"
                                               ? "bg-green-500/20 border-green-500/30 text-green-300"
-                                              : rateio.situacao_pagamento === "parcial"
+                                              : rateio.status_pagamento === "parcial"
                                                 ? "bg-yellow-500/20 border-yellow-500/30 text-yellow-300"
                                                 : "bg-gray-500/20 border-gray-500/30 text-gray-300"
                                           )}
                                         >
-                                          {rateio.situacao_pagamento === "pago"
+                                          {rateio.status_pagamento === "pago"
                                             ? "Pago"
-                                            : rateio.situacao_pagamento === "parcial"
+                                            : rateio.status_pagamento === "parcial"
                                               ? "Parcial"
                                               : "Pendente"}
                                         </Badge>

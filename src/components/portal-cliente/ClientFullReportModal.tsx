@@ -161,7 +161,7 @@ export function ClientFullReportModal({
         .reduce((sum, f) => sum + (f.valor || 0), 0);
 
       const pendente = (financialData || [])
-        .filter(f => f.situacao !== 'pago' && f.situacao !== 'confirmado')
+        .filter(f => f.status !== 'pago' && f.status !== 'confirmado')
         .reduce((sum, f) => sum + (f.valor || 0), 0);
 
       const reembolsoPendente = (financialData || [])

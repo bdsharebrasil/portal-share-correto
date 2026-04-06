@@ -44,7 +44,7 @@ export type PartnerTransaction = PartnerTransactionRow & {
   criado_por: string | null;
   criado_em: string | null;
   atualizado_em: string | null;
-  situacao: string | null;
+  status: string | null;
   banco_nome: string | null;
   documento: string | null;
   subtipo: string | null;
@@ -128,7 +128,7 @@ function normalizePartnerTransaction(transaction: Record<string, any>): PartnerT
   const createdBy = transaction.created_by ?? transaction.criado_por ?? null;
   const createdAt = transaction.created_at ?? transaction.criado_em ?? null;
   const updatedAt = transaction.updated_at ?? transaction.atualizado_em ?? null;
-  const status = transaction.status ?? transaction.situacao ?? null;
+  const status = transaction.status ?? transaction.status ?? null;
   const bankName = transaction.bank_name ?? transaction.banco_nome ?? null;
   const doc = transaction.doc ?? transaction.documento ?? null;
   const subtype = transaction.transaction_subtype ?? transaction.subtipo ?? null;
@@ -168,7 +168,7 @@ function normalizePartnerTransaction(transaction: Record<string, any>): PartnerT
     updated_at: updatedAt,
     atualizado_em: updatedAt,
     status,
-    situacao: status,
+    status: status,
     bank_name: bankName,
     banco_nome: bankName,
     payment_method: transaction.payment_method ?? transaction.metodo_pagamento ?? null,
@@ -483,7 +483,7 @@ export function useSocioTransactions(
           created_by: null,
           created_at: f.created_at || f.criado_em || null,
           expense_type: "abastecimento",
-          status: f.status_pagamento || f.situacao_pagamento || null,
+          status: f.status_pagamento || f.status_pagamento || null,
           bank_name: f.banco || null,
           prazo: f.prazo || null,
           payment_method: f.forma_pagamento || null,
@@ -524,7 +524,7 @@ export function useSocioTransactions(
               : normalized.transaction_type === "payment"
                 ? "pago"
                 : "pendente";
-          normalized.situacao = normalized.status;
+          normalized.status = normalized.status;
         }
 
         return normalized;
@@ -559,7 +559,7 @@ export function useSocioExpenses(
         .eq("clientes_id", clientId)
         .order("criado_em", { ascending: false });
 
-      if (filters?.situacao) query = query.eq("status", filters.situacao);
+      if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.partnerCpf) query = query.eq("cpf_socio", filters.partnerCpf);
       if (filters?.tipo) query = query.eq("tipo_despesa", filters.tipo);
 
@@ -887,13 +887,13 @@ export function useCreateExpense(showToast = true) {
           try {
             const updatePayload: any = {
               status_pagamento:
-                data.situacao === "paid" || data.situacao === "pago" ? "pago" : "pendente",
+                data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
               partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
               updated_at: new Date().toISOString(),
             };
 
             // Se a despesa foi marcada como paga, sincroniza a data_pagamento
-            if ((data.situacao === "paid" || data.situacao === "pago") && data.dueDate) {
+            if ((data.status === "paid" || data.status === "pago") && data.dueDate) {
               updatePayload.data_pagamento = data.dueDate;
             }
 
@@ -930,7 +930,7 @@ export function useCreateExpense(showToast = true) {
 
       // Normalize fields to UPPERCASE
       const normalizedPaymentMethod = data.paymentMethod?.toUpperCase() || null;
-      const normalizedStatus = data.situacao?.toUpperCase() || "PENDING";
+      const normalizedStatus = data.status?.toUpperCase() || "PENDING";
       const normalizedPrazo = data.prazo?.toUpperCase() || null;
       const normalizedBankName = data.bankName?.toUpperCase() || null;
       const normalizedSupplierName = data.supplierName?.toUpperCase() || null;
@@ -1057,7 +1057,7 @@ export function useCreateExpense(showToast = true) {
       }
 
       if (data.referenceType && data.referenceId) {
-        const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.situacao || undefined);
+        const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.status || undefined);
         if (reconcStatus) {
           const bankUpdate: any = {
             status: reconcStatus,
@@ -1277,7 +1277,7 @@ export function useUpdateTransaction() {
         const normPrazo = data.prazo?.toUpperCase() || null;
         const normSupplierName = data.supplierName?.toUpperCase() || null;
         const normPaymentMethod = data.paymentMethod?.toUpperCase() || null;
-        const normStatus = data.situacao?.toUpperCase() || null;
+        const normStatus = data.status?.toUpperCase() || null;
 
         const { error } = await supabase
           .from("partner_expenses")
@@ -1355,14 +1355,14 @@ export function useUpdateTransaction() {
         }
 
         // Update status and payment date
-        if (data.situacao === "paid" || data.situacao === "pago") {
-          updatePayload.situacao_pagamento = "pago";
+        if (data.status === "paid" || data.status === "pago") {
+          updatePayload.status_pagamento = "pago";
           updatePayload.data_pagamento = data.paymentDate;
-        } else if (data.situacao === "pendente" || data.situacao === "pending") {
-          updatePayload.situacao_pagamento = "pendente";
+        } else if (data.status === "pendente" || data.status === "pending") {
+          updatePayload.status_pagamento = "pendente";
           updatePayload.data_pagamento = null;
         } else {
-          updatePayload.situacao_pagamento = data.situacao || "pendente";
+          updatePayload.status_pagamento = data.status || "pendente";
           if (data.paymentDate) {
             updatePayload.data_pagamento = data.paymentDate;
           }

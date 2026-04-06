@@ -197,7 +197,7 @@ export default function PainelAgendamentos() {
       const { data, error } = await supabase
         .from("membros_tripulacao")
         .select("*")
-        .eq("situacao", "ativo")
+        .eq("status", "ativo")
         .order("nome_completo");
       if (error) throw error;
       return data || [];
@@ -494,8 +494,8 @@ export default function PainelAgendamentos() {
     }
   };
 
-  const pendingCount = bookings?.filter(b => b.situacao === "pendente").length || 0;
-  const confirmedCount = bookings?.filter(b => b.situacao === "confirmado").length || 0;
+  const pendingCount = bookings?.filter(b => b.status === "pendente").length || 0;
+  const confirmedCount = bookings?.filter(b => b.status === "confirmado").length || 0;
 
   // Calendar days
   const monthStart = startOfMonth(selectedMonth);
@@ -505,8 +505,8 @@ export default function PainelAgendamentos() {
   const getBookingsForDay = (date: Date) => {
     return bookings?.filter(b =>
       isSameDay(new Date(b.scheduled_date), date) &&
-      b.situacao !== "rejeitado" &&
-      b.situacao !== "cancelado"
+      b.status !== "rejeitado" &&
+      b.status !== "cancelado"
     ) || [];
   };
 
@@ -694,16 +694,16 @@ export default function PainelAgendamentos() {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <AlertCircle className="h-5 w-5 text-yellow-500" />
-                    Pendentes ({bookings?.filter(b => b.situacao === "pendente").length || 0})
+                    Pendentes ({bookings?.filter(b => b.status === "pendente").length || 0})
                   </h3>
-                  {bookings?.filter(b => b.situacao === "pendente").length === 0 ? (
+                  {bookings?.filter(b => b.status === "pendente").length === 0 ? (
                     <Card>
                       <CardContent className="py-6 text-center">
                         <p className="text-muted-foreground">Nenhuma solicitação pendente</p>
                       </CardContent>
                     </Card>
                   ) : (
-                    bookings?.filter(b => b.situacao === "pendente").map((booking) => (
+                    bookings?.filter(b => b.status === "pendente").map((booking) => (
                       <Card key={booking.id} className="border-yellow-500/30">
                         <CardContent className="pt-4">
                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -713,8 +713,8 @@ export default function PainelAgendamentos() {
                                   {booking.aeronave?.matricula}
                                 </Badge>
                                 <span className="font-semibold">{booking.client?.razao_social}</span>
-                                <Badge variant="outline" className={getStatusColor(booking.situacao)}>
-                                  {booking.situacao}
+                                <Badge variant="outline" className={getStatusColor(booking.status)}>
+                                  {booking.status}
                                 </Badge>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -769,16 +769,16 @@ export default function PainelAgendamentos() {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    Confirmados - Prontos para Iniciar ({bookings?.filter(b => b.situacao === "confirmado").length || 0})
+                    Confirmados - Prontos para Iniciar ({bookings?.filter(b => b.status === "confirmado").length || 0})
                   </h3>
-                  {bookings?.filter(b => b.situacao === "confirmado").length === 0 ? (
+                  {bookings?.filter(b => b.status === "confirmado").length === 0 ? (
                     <Card>
                       <CardContent className="py-6 text-center">
                         <p className="text-muted-foreground">Nenhum voo confirmado aguardando início</p>
                       </CardContent>
                     </Card>
                   ) : (
-                    bookings?.filter(b => b.situacao === "confirmado").map((booking) => (
+                    bookings?.filter(b => b.status === "confirmado").map((booking) => (
                       <Card key={booking.id} className="border-green-500/30">
                         <CardContent className="pt-4">
                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -788,8 +788,8 @@ export default function PainelAgendamentos() {
                                   {booking.aeronave?.matricula}
                                 </Badge>
                                 <span className="font-semibold">{booking.client?.razao_social}</span>
-                                <Badge variant="outline" className={getStatusColor(booking.situacao)}>
-                                  ✅ {booking.situacao}
+                                <Badge variant="outline" className={getStatusColor(booking.status)}>
+                                  ✅ {booking.status}
                                 </Badge>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -930,7 +930,7 @@ export default function PainelAgendamentos() {
                           {dayBookings.slice(0, 2).map((b) => (
                             <div
                               key={b.id}
-                              className={`text-xs p-1 rounded truncate ${getStatusColor(b.situacao)}`}
+                              className={`text-xs p-1 rounded truncate ${getStatusColor(b.status)}`}
                             >
                               {b.aeronave?.matricula} - {b.origin}→{b.destination}
                             </div>
@@ -1073,14 +1073,14 @@ export default function PainelAgendamentos() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {bookings?.filter(b => b.situacao === "confirmado").length === 0 ? (
+                {bookings?.filter(b => b.status === "confirmado").length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
                     <p>Nenhum voo confirmado neste período</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {bookings?.filter(b => b.situacao === "confirmado").map((booking) => {
+                    {bookings?.filter(b => b.status === "confirmado").map((booking) => {
                       const pilot = crewMembers?.find(c => c.id === booking.assigned_pilot_id);
                       const copilot = crewMembers?.find(c => c.id === booking.assigned_copilot_id);
 

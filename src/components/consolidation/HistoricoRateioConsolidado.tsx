@@ -98,9 +98,9 @@ export function HistoricoRateioConsolidado({
         valor_rateado: item.valor || 0,
         valor_pago: item.valor_reembolsado || 0,
         saldo_devedor: (item.valor || 0) - (item.valor_reembolsado || 0),
-        status_pagamento: item.situacao === 'reembolsado' ? 'Pago' :
-          item.situacao === 'pendente' ? 'Pendente' :
-            item.situacao === 'inadimplente' ? 'Inadimplente' : item.situacao,
+        status_pagamento: item.status === 'reembolsado' ? 'Pago' :
+          item.status === 'pendente' ? 'Pendente' :
+            item.status === 'inadimplente' ? 'Inadimplente' : item.status,
         tipo: item.tipo,
       }));
     },
@@ -148,7 +148,7 @@ export function HistoricoRateioConsolidado({
       'R$ ' + item.valor_rateado.toFixed(2),
       'R$ ' + item.valor_pago.toFixed(2),
       'R$ ' + item.saldo_devedor.toFixed(2),
-      item.situacao_pagamento,
+      item.status_pagamento,
     ]);
 
     const csvContent = [
@@ -366,16 +366,16 @@ export function HistoricoRateioConsolidado({
                       <TableCell>
                         <Badge
                           className={
-                            item.situacao_pagamento === 'Pago'
+                            item.status_pagamento === 'Pago'
                               ? 'bg-green-900/50 text-green-400 border-green-700'
-                              : item.situacao_pagamento === 'Pendente'
+                              : item.status_pagamento === 'Pendente'
                                 ? 'bg-amber-900/50 text-amber-400 border-amber-700'
-                                : item.situacao_pagamento === 'Inadimplente'
+                                : item.status_pagamento === 'Inadimplente'
                                   ? 'bg-red-900/50 text-red-400 border-red-700'
                                   : 'bg-slate-700 text-slate-300'
                           }
                         >
-                          {item.situacao_pagamento}
+                          {item.status_pagamento}
                         </Badge>
                       </TableCell>
                     </TableRow>
