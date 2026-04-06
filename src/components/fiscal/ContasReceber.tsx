@@ -474,7 +474,7 @@ export function ContasReceber() {
       valor: conta.valor?.toString() || "",
       categoria: conta.categoria || "Serviços",
       descricao: conta.descricao || "",
-      status: conta.situacao || "pendente",
+      status: conta.status || "pendente",
       aeronave: conta.aeronave || "",
       referencia: conta.referencia || ""
     });
