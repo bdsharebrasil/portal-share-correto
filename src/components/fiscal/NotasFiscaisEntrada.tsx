@@ -409,7 +409,7 @@ export function NotasFiscaisEntrada() {
     setFormData({
       ...formData,
       fornecedor_nome: fornecedor.nome,
-      fornecedor_cnpj: fornecedor.documentoumento
+      fornecedor_cnpj: fornecedor.documento
     });
     setOpenFornecedorPopover(false);
     setFornecedorSearch("");
@@ -417,7 +417,7 @@ export function NotasFiscaisEntrada() {
 
   const filteredFornecedores = fornecedores.filter(f =>
     f.nome.toLowerCase().includes(fornecedorSearch.toLowerCase()) ||
-    f.documentoumento.includes(fornecedorSearch)
+    f.documento.includes(fornecedorSearch)
   );
 
   const totalReceber = notas
