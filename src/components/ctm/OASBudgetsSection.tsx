@@ -182,7 +182,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
   };
 
   const handleSubmitAll = async () => {
-    const rascunhos = budgets.filter((b: any) => b.situacao === "rascunho");
+    const rascunhos = budgets.filter((b: any) => b.status === "rascunho");
     if (rascunhos.length === 0) return toast.info("Nenhum orçamento em rascunho");
     try {
       const { data: userData } = await supabase.auth.getUser();
