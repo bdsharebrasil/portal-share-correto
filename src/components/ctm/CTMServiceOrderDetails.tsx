@@ -430,7 +430,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
 
   // ── Render helpers ────────────────────────────────────────────────────────────
 
-  const currentOrderStatus = order?.situacao || order?.status || 'em_andamento';
+  const currentOrderStatus = order?.status || order?.status || 'em_andamento';
   const statusInfo = statusConfig[currentOrderStatus] || statusConfig.em_andamento;
 
   if (loading) {
