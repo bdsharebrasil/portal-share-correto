@@ -1024,8 +1024,8 @@ export const viewHTMLPreview = async (report: TravelReport, currentFullName?: st
   await Promise.all(imagePromises);
 
   const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
-  newWindow.documentoument.write(htmlContent);
-  newWindow.documentoument.close();
+  newWindow.documento.write(htmlContent);
+  newWindow.documento.close();
 };
 
 export const previewPDFForPrint = async (report: TravelReport, currentFullName?: string) => {
