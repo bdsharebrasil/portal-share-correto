@@ -1193,14 +1193,14 @@ export function FluxoCaixaInlineForm({
                     </CommandEmpty>
                     {referencias.filter(r => r.tipo === 'client').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documentoumento.includes(referenciaSearch)
+                      r.documento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Clientes" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'client')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documentoumento.includes(referenciaSearch)
+                              r.documento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
