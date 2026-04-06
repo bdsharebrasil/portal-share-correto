@@ -100,7 +100,7 @@ export default function EmissaoRecibo() {
         (data || []).map((d) => ({
           id: d.id,
           name: d.nome,
-          document: d.documento, // corrigido: era "d.documentoument" (typo)
+          document: d.documento, 
           address: d.endereco,
           city: d.cidade,
           uf: d.uf,

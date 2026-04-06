@@ -291,7 +291,7 @@ export function FluxoCaixaInlineForm({
           referenciasList.push({
             id: fornecedor.id,
             nome: fornecedor.nome_completo,
-            documento: fornecedor.documentoumento || "",
+            documento: fornecedor.documento || "",
             tipo: 'fornecedor'
           });
         });
@@ -1193,14 +1193,14 @@ export function FluxoCaixaInlineForm({
                     </CommandEmpty>
                     {referencias.filter(r => r.tipo === 'client').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documentoumento.includes(referenciaSearch)
+                      r.documento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Clientes" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'client')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documentoumento.includes(referenciaSearch)
+                              r.documento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
@@ -1222,7 +1222,7 @@ export function FluxoCaixaInlineForm({
                               >
                                 <div>
                                   <p className="font-medium text-foreground">{r.nome}</p>
-                                  {r.documentoumento && <p className="text-xs text-muted-foreground">{r.documentoumento}</p>}
+                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
                                 </div>
                               </CommandItem>
                             ))}
@@ -1230,14 +1230,14 @@ export function FluxoCaixaInlineForm({
                       )}
                     {referencias.filter(r => r.tipo === 'fornecedor').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documentoumento.includes(referenciaSearch)
+                      r.documento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Fornecedores Favoritos" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'fornecedor')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documentoumento.includes(referenciaSearch)
+                              r.documento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
@@ -1255,7 +1255,7 @@ export function FluxoCaixaInlineForm({
                               >
                                 <div>
                                   <p className="font-medium text-foreground">{r.nome}</p>
-                                  {r.documentoumento && <p className="text-xs text-muted-foreground">{r.documentoumento}</p>}
+                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
                                 </div>
                               </CommandItem>
                             ))}
@@ -1263,14 +1263,14 @@ export function FluxoCaixaInlineForm({
                       )}
                     {referencias.filter(r => r.tipo === 'user').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documentoumento.includes(referenciaSearch)
+                      r.documento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Colaboradores" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'user')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documentoumento.includes(referenciaSearch)
+                              r.documento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (

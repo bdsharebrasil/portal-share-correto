@@ -90,7 +90,7 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
             ...form,
             fornecedor_nome: nome,
             fornecedor_favorito_id: forn?.id || null,
-            fornecedor_cnpj: forn?.documentoumento || "",
+            fornecedor_cnpj: forn?.documento || "",
             conta_pagamento_fornecedor: forn?.conta_pagamento || "", // ← corrigido
           });
         }}

@@ -157,7 +157,7 @@ export function NovaFormularioDespesaDialog({
   const handleSelectFornecedor = (fornecedor: FornecedorFavorito) => {
     setFornecedorId(fornecedor.id);
     setFornecedorNome(fornecedor.nome_completo);
-    setFornecedorCnpj(fornecedor.documentoumento || "");
+    setFornecedorCnpj(fornecedor.documento|| "");
     setFornecedorSearchValue("");
     setOpenCombobox(false);
   };

@@ -81,7 +81,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
       await createFlightDocument({
         aeronave_id: formData.aeronave_id,
         name: formData.nome,
-        document_type: formData.documentoument_type || undefined,
+        document_type: formData.document_type || undefined,
         expiry_date: formData.expiry_date,
         file_path: "placeholder",
       });
@@ -175,7 +175,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
               Tipo de Documento *
             </Label>
             <Select
-              value={formData.documentoument_type}
+              value={formData.document_type}
               onValueChange={(value) =>
                 setFormData({ ...formData, document_type: value })
               }

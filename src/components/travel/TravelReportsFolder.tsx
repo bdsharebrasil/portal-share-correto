@@ -145,8 +145,8 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
 
       const newWindow = window.open('', '_blank');
       if (newWindow) {
-        newWindow.documentoument.write(data as string);
-        newWindow.documentoument.close();
+        newWindow.documento.write(data as string);
+        newWindow.documento.close();
       }
 
       toast.success("Relatório gerado com sucesso!");

@@ -180,7 +180,7 @@ export function NotasFiscaisEntrada() {
     }
 
     // Se está agendando pagamento, verifica se data está preenchida
-    if (formData.situacao === "agendada" && !formData.data_pagamento_agendado) {
+    if (formData.status === "agendada" && !formData.data_pagamento_agendado) {
       toast({
         title: "Validação",
         description: "Data de pagamento é obrigatória para notas agendadas",
@@ -199,7 +199,7 @@ export function NotasFiscaisEntrada() {
         valor: parseFloat(formData.valor),
         categoria: formData.categoria,
         descricao: formData.descricao || "",
-        status: formData.situacao,
+        status: formData.status,
         data_pagamento_agendado: formData.data_pagamento_agendado || null,
         metodo_pagamento: formData.metodo_pagamento || null,
         observacoes: formData.observacoes || null,
@@ -215,7 +215,7 @@ export function NotasFiscaisEntrada() {
         if (error) throw error;
 
         // Se status mudou para "paga" durante a edição
-        if (notaData.situacao === "paga" && editingNota.situacao !== "paga" && user) {
+        if (notaData.status === "paga" && editingNota.status !== "paga" && user) {
           await fromUntyped("controle_bancario").insert({
             descricao: `NF Entrada ${notaData.numero} - ${notaData.fornecedor_nome}`,
             valor: notaData.valor,
@@ -242,7 +242,7 @@ export function NotasFiscaisEntrada() {
         if (error) throw error;
 
         // Se criada já com status "paga"
-        if (notaData.situacao === "paga" && user && insertedNota) {
+        if (notaData.status === "paga" && user && insertedNota) {
           await fromUntyped("controle_bancario").insert({
             descricao: `NF Entrada ${notaData.numero} - ${notaData.fornecedor_nome}`,
             valor: notaData.valor,
@@ -311,7 +311,7 @@ export function NotasFiscaisEntrada() {
       valor: nota.valor.toString(),
       categoria: nota.categoria,
       descricao: nota.descricao,
-      status: nota.situacao,
+      status: nota.status,
       data_pagamento_agendado: nota.data_pagamento_agendado || "",
       metodo_pagamento: nota.metodo_pagamento || "",
       observacoes: nota.observacoes || "",
@@ -409,7 +409,7 @@ export function NotasFiscaisEntrada() {
     setFormData({
       ...formData,
       fornecedor_nome: fornecedor.nome,
-      fornecedor_cnpj: fornecedor.documentoumento
+      fornecedor_cnpj: fornecedor.documento
     });
     setOpenFornecedorPopover(false);
     setFornecedorSearch("");
@@ -417,19 +417,19 @@ export function NotasFiscaisEntrada() {
 
   const filteredFornecedores = fornecedores.filter(f =>
     f.nome.toLowerCase().includes(fornecedorSearch.toLowerCase()) ||
-    f.documentoumento.includes(fornecedorSearch)
+    f.documento.includes(fornecedorSearch)
   );
 
   const totalReceber = notas
-    .filter((n) => n.situacao === "recebida")
+    .filter((n) => n.status === "recebida")
     .reduce((acc, n) => acc + n.valor, 0);
 
   const totalAgendado = notas
-    .filter((n) => n.situacao === "agendada")
+    .filter((n) => n.status === "agendada")
     .reduce((acc, n) => acc + n.valor, 0);
 
   const totalPago = notas
-    .filter((n) => n.situacao === "paga")
+    .filter((n) => n.status === "paga")
     .reduce((acc, n) => acc + n.valor, 0);
 
   return (
@@ -580,7 +580,7 @@ export function NotasFiscaisEntrada() {
                             >
                               <div>
                                 <p className="font-medium text-foreground">{f.nome}</p>
-                                {f.documentoumento && <p className="text-xs text-muted-foreground">{f.documentoumento}</p>}
+                                {f.documento && <p className="text-xs text-muted-foreground">{f.documento}</p>}
                               </div>
                             </CommandItem>
                           ))}
@@ -594,7 +594,7 @@ export function NotasFiscaisEntrada() {
                             >
                               <div>
                                 <p className="font-medium text-foreground">{f.nome}</p>
-                                {f.documentoumento && <p className="text-xs text-muted-foreground">{f.documentoumento}</p>}
+                                {f.documento && <p className="text-xs text-muted-foreground">{f.documento}</p>}
                               </div>
                             </CommandItem>
                           ))}
@@ -661,7 +661,7 @@ export function NotasFiscaisEntrada() {
               </div>
               <div>
                 <Label className="text-foreground">Status</Label>
-                <Select value={formData.situacao} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
                   <SelectTrigger className="w-full bg-background border-border">
                     <SelectValue />
                   </SelectTrigger>
@@ -675,7 +675,7 @@ export function NotasFiscaisEntrada() {
               </div>
             </div>
 
-            {formData.situacao === "agendada" && (
+            {formData.status === "agendada" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-foreground">Data do Pagamento Agendado *</Label>
@@ -795,10 +795,10 @@ export function NotasFiscaisEntrada() {
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">{nota.categoria}</TableCell>
                       <TableCell className="px-4 py-3">
                         <Select
-                          value={nota.situacao}
+                          value={nota.status}
                           onValueChange={(value) => handleChangeStatus(nota.id, value)}
                         >
-                          <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${getStatusColor(nota.situacao)}`}>
+                          <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${getStatusColor(nota.status)}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-card border-border">

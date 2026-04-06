@@ -179,7 +179,7 @@ export default function VencimentosDocumentos() {
           documentos: []
         };
       }
-      grouped[d.aeronaveId].documentoumentos.push(d);
+      grouped[d.aeronaveId].documentos.push(d);
     });
     return Object.values(grouped).sort((a, b) => a.aeronave.registration.localeCompare(b.aeronave.registration));
   }, [filteredDocumentos]);
@@ -480,11 +480,11 @@ export default function VencimentosDocumentos() {
                     <div className="p-5 md:p-6">
                       <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                         <FileText className="h-4 w-4 text-cyan-400" />
-                        Documentos ({grupo.documentoumentos.length})
+                        Documentos ({grupo.documentos.length})
                       </h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {grupo.documentoumentos.map((doc) => {
+                        {grupo.documentos.map((doc) => {
                           const statusInfo = getStatusInfo(doc.situacao);
                           const StatusIcon = statusInfo.icon;
                           const publicUrl = doc.filePath ? getFlightDocumentPublicUrl(doc.filePath) : null;

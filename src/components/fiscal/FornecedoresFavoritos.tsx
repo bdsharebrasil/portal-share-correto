@@ -70,8 +70,8 @@ export function FornecedoresFavoritos() {
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                {fornecedor.documentoumento && (
-                  <span>CPF/CNPJ: {fornecedor.documentoumento}</span>
+                {fornecedor.documento && (
+                  <span>CPF/CNPJ: {fornecedor.documento}</span>
                 )}
                 {fornecedor.cidade && (
                   <span>Cidade: {fornecedor.cidade}</span>
@@ -142,7 +142,7 @@ export function FornecedoresFavoritos() {
         apelido: fornecedor.apelido || "",
         cidade: fornecedor.cidade || "",
         telefone: fornecedor.telefone || "",
-        documento: fornecedor.documentoumento || "",
+        documento: fornecedor.documento || "",
         categoria: fornecedor.categoria || "nenhum"
       });
     } else {
@@ -179,7 +179,7 @@ export function FornecedoresFavoritos() {
             apelido: formData.apelido || null,
             cidade: formData.cidade || null,
             telefone: formData.telefone || null,
-            documento: formData.documentoumento || null,
+            documento: formData.documento || null,
             categoria: formData.categoria || "nenhum",
             atualizado_em: new Date().toISOString()
           })
@@ -195,7 +195,7 @@ export function FornecedoresFavoritos() {
             apelido: formData.apelido || null,
             cidade: formData.cidade || null,
             telefone: formData.telefone || null,
-            documento: formData.documentoumento || null,
+            documento: formData.documento || null,
             categoria: formData.categoria || "nenhum",
             criado_por: user.id
           }]);
@@ -548,7 +548,7 @@ export function FornecedoresFavoritos() {
                 <Label htmlFor="documento">CPF ou CNPJ</Label>
                 <Input
                   id="documento"
-                  value={formData.documentoumento}
+                  value={formData.documento}
                   onChange={(e) => setFormData(prev => ({ ...prev, documento: e.target.value }))}
                   placeholder="000.000.000-00"
                   className="mt-1.5 bg-background"

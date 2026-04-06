@@ -42,7 +42,7 @@ export function AddFornecedorDialog({ open, onOpenChange, initialName = "", onSa
       const { data, error } = await (supabase.from("fornecedores_favoritos") as any)
         .insert([{
           nome_completo: form.nome_completo.trim(),
-          documento: form.documentoumento || null,
+          documento: form.documento || null,
           telefone: form.telefone || null,
           cidade: form.cidade || null,
           categoria: form.categoria,
