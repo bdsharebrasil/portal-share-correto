@@ -178,7 +178,7 @@ export function generateOASPDF(data: OASPDFData) {
           r.maintenance_type || "-",
           r.maintenance_center || "-",
           r.entry_date ? new Date(r.entry_date + "T12:00:00").toLocaleDateString("pt-BR") : "-",
-          r.situacao === "completed" ? "Concluído" : "Registrado",
+          r.status === "completed" ? "Concluído" : "Registrado",
         ]),
         margin: { left: margin, right: margin },
         styles: { fontSize: 8 },

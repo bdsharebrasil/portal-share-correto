@@ -85,7 +85,7 @@ export function OASRASSection({ orderId, aircraftId, aircraftRegistration, repor
                 <TableCell>{r.entry_date ? format(new Date(r.entry_date), "dd/MM/yyyy", { locale: ptBR }) : "-"}</TableCell>
                 <TableCell>
                   <Badge variant={r.status === "completed" ? "default" : "secondary"}>
-                    {r.situacao === "completed" ? "Concluído" : "Registrado"}
+                    {r.status === "completed" ? "Concluído" : "Registrado"}
                   </Badge>
                 </TableCell>
                 <TableCell>
