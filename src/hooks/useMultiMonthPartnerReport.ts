@@ -52,7 +52,7 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
     supabase
       .from("partner_expenses")
       .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
-      .eq("cliente_id", clientId)
+      .eq("clientes_id", clientId)
       .gte("data_vencimento", startDate)
       .lte("data_vencimento", endDate)
       .not("assigned_partner_name", "is", null)
@@ -61,7 +61,7 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
     supabase
       .from("partner_expenses")
       .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
-      .eq("cliente_id", clientId)
+      .eq("clientes_id", clientId)
       .gte("data_vencimento", startDate)
       .lte("data_vencimento", endDate)
       .is("assigned_partner_name", null)
