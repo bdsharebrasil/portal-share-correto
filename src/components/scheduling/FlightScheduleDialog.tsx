@@ -344,7 +344,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="situacao">Status</Label>
+                <Label htmlFor="status">Status</Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
