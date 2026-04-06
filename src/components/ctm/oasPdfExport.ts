@@ -229,7 +229,7 @@ export function generateOASPDF(data: OASPDFData) {
           c.horas_voadas ? `${Math.floor(c.horas_voadas)}:${String(Math.round((c.horas_voadas - Math.floor(c.horas_voadas)) * 60)).padStart(2, "0")}` : "-",
           `${(c.percentual || 0).toFixed(1)}%`,
           `R$ ${(c.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          c.situacao_pagamento === "pago" ? "Pago" : "Pendente",
+          c.status_pagamento === "pago" ? "Pago" : "Pendente",
         ]),
         margin: { left: margin, right: margin },
         styles: { fontSize: 8 },
