@@ -62,7 +62,7 @@ interface BudgetDetails {
 
 interface CTMBudget {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   month: number;
   year: number;
   status: "draft" | "submitted" | "approved";
@@ -131,8 +131,8 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
       const { data, error } = await (supabase as any)
         .from("ctm_budgets")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .order("created_at", { ascending: false });
+        .eq("id_aeronave", aircraftId)
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       setBudgets(data as CTMBudget[] || []);
@@ -249,7 +249,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
   const handleSaveBudget = async () => {
     try {
       const payload = {
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         month: formMonth,
         year: formYear,
         supplier_name: formSupplier,
@@ -260,11 +260,11 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
       };
 
       if (editingId) {
-        const { error } = await supabase.from("ctm_budgets").update(payload).eq("id", editingId);
+        const { error } = await (supabase as any).from("ctm_budgets").update(payload).eq("id", editingId);
         if (error) throw error;
         toast.success("Orçamento atualizado!");
       } else {
-        const { error } = await supabase.from("ctm_budgets").insert([{ ...payload, created_at: new Date().toISOString() }]);
+        const { error } = await (supabase as any).from("ctm_budgets").insert([{ ...payload, created_at: new Date().toISOString() }]);
         if (error) throw error;
         toast.success("Orçamento criado!");
       }
@@ -305,7 +305,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
   const handleDeleteBudget = async (budgetId: string) => {
     if (!confirm("Tem certeza que deseja deletar este orçamento?")) return;
     try {
-      const { error } = await supabase.from("ctm_budgets").delete().eq("id", budgetId);
+      const { error } = await (supabase as any).from("ctm_budgets").delete().eq("id", budgetId);
       if (error) throw error;
       toast.success("Orçamento deletado!");
       await loadBudgets();
@@ -316,7 +316,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
   const handleApproveBudget = async (budgetId: string) => {
     try {
-      const { error } = await supabase.from("ctm_budgets").update({ status: "approved", updated_at: new Date().toISOString() }).eq("id", budgetId);
+      const { error } = await (supabase as any).from("ctm_budgets").update({ status: "approved", updated_at: new Date().toISOString() }).eq("id", budgetId);
       if (error) throw error;
       toast.success("Orçamento aprovado!");
       await loadBudgets();
@@ -325,7 +325,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
     }
   };
 
-  const filteredBudgets = budgets.filter(b => filterStatus === "all" || b.status === filterStatus);
+  const filteredBudgets = budgets.filter(b => filterStatus === "all" || (b as any).status === filterStatus);
 
   // ✅ FIX: defensivo contra undefined/null
   const fmtCurrency = (v: number | undefined | null) =>
@@ -397,7 +397,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
             </div>
             <div>
               <Label>Data Emissão</Label>
-              <Input type="date" value={details.data_emissao} onChange={e => updateDetails({ data_emissao: e.target.value })} />
+              <Input type="data" value={details.data_emissao} onChange={e => updateDetails({ data_emissao: e.target.value })} />
             </div>
           </div>
 
@@ -712,7 +712,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                 filteredBudgets.map(budget => (
                   <tr key={budget.id} className="hover:bg-muted/20 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
-                      {format(new Date(budget.created_at), "dd MMM yyyy", { locale: ptBR })}
+                      {format(new Date((budget as any).created_at || (budget as any).criado_em), "dd MMM yyyy", { locale: ptBR })}
                     </td>
                     <td className="px-6 py-4 font-medium">{budget.month}/{budget.year}</td>
                     <td className="px-6 py-4">{budget.supplier_name || "-"}</td>
@@ -720,8 +720,8 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                       R$ {fmtCurrency(budget.total_value)}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <Badge className={`text-xs font-bold border ${getStatusColor(budget.status)}`}>
-                        {getStatusLabel(budget.status)}
+                      <Badge className={`text-xs font-bold border ${getStatusColor((budget as any).status)}`}>
+                        {getStatusLabel((budget as any).status)}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -729,7 +729,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                         <button onClick={() => handleEdit(budget)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Editar">
                           <Edit className="h-4 w-4" />
                         </button>
-                        {budget.status !== "approved" && (
+                        {(budget as any).status !== "approved" && (
                           <button onClick={() => handleApproveBudget(budget.id)} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-green-500" title="Aprovar">
                             ✓
                           </button>

@@ -16,13 +16,6 @@ export interface ResumoPagamentos {
   combustivel: SaldoDevedor;
 }
 
-/**
- * Hook para buscar saldos devedores do cliente
- * Retorna:
- * - Saldo devedor de despesas que precisam reembolso (de bank_reconciliations)
- * - Saldo devedor de despesas para pagamento direto (de despesas_cliente_direto)
- * - Saldo devedor de combustível
- */
 export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: string) {
   return useQuery({
     queryKey: ['saldos-devedores', clienteId, aircraftId],
@@ -30,15 +23,15 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
       if (!clienteId) return null;
 
       try {
-        // 1. Buscar despesas para reembolso da tabela bank_reconciliations
+        // 1. Buscar despesas para reembolso
         let bankReembolsoQuery = supabase
-          .from('bank_reconciliations')
-          .select('id, amount, status')
-          .eq('client_id', clienteId)
+          .from('conciliacoes_bancarias')
+          .select('id, valor, status')
+          .eq('cliente_id', clienteId)
           .eq('status', 'aguardando_reembolso');
 
         if (aircraftId) {
-          bankReembolsoQuery = bankReembolsoQuery.eq('aircraft_id', aircraftId);
+          bankReembolsoQuery = bankReembolsoQuery.eq('aeronave_id', aircraftId);
         }
 
         const { data: reembolsosData, error: reembolsoError } = await bankReembolsoQuery;
@@ -47,16 +40,16 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
           throw new Error(`Erro ao buscar reembolsos: ${reembolsoError.message}`);
         }
 
-        // 1b. Buscar recibos de reembolso pendentes da tabela receipts
+        // 1b. Buscar recibos de reembolso pendentes
         let receiptsReembolsoQuery = supabase
-          .from('receipts')
-          .select('id, amount, status')
-          .eq('client_id', clienteId)
-          .eq('receipt_type', 'reembolso')
+          .from('recibos')
+          .select('id, valor, status')
+          .eq('cliente_id', clienteId)
+          .eq('tipo_recibo', 'reembolso')
           .in('status', ['pendente', 'enviado', 'aberto']);
 
         if (aircraftId) {
-          receiptsReembolsoQuery = receiptsReembolsoQuery.eq('aircraft_id', aircraftId);
+          receiptsReembolsoQuery = receiptsReembolsoQuery.eq('aeronave_id', aircraftId);
         }
 
         const { data: receiptsReembolsoData, error: receiptsReembolsoError } = await receiptsReembolsoQuery;
@@ -67,12 +60,11 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
 
         const reembolsos = [...(reembolsosData || []), ...(receiptsReembolsoData || [])];
 
-        // 2. Buscar despesas para pagamento direto da tabela despesas_cliente_direto
-        // Status pendentes: enviado, visualizado_cliente, aguardando_pagamento, atrasado
+        // 2. Buscar despesas para pagamento direto
         let pagamentoDiretoQuery = supabase
           .from('despesas_cliente_direto')
           .select('id, valor, status, descricao')
-          .eq('client_id', clienteId)
+          .eq('cliente_id', clienteId)
           .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado', 'comprovante_recebido']);
 
         if (aircraftId) {
@@ -87,55 +79,52 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
 
         const pagamentoDireto = pagamentoDiretoData || [];
 
-        // 3. Buscar despesas de combustível (pode vir de três tabelas)
-        // Do bank_reconciliations
+        // 3. Buscar despesas de combustível
         let combustivelBankQuery = supabase
-          .from('bank_reconciliations')
-          .select('id, amount, status, description')
-          .eq('client_id', clienteId)
-          .ilike('description', '%combustivel%');
+          .from('conciliacoes_bancarias')
+          .select('id, valor, status, descricao')
+          .eq('cliente_id', clienteId)
+          .ilike('descricao', '%combustivel%');
 
         if (aircraftId) {
-          combustivelBankQuery = combustivelBankQuery.eq('aircraft_id', aircraftId);
+          combustivelBankQuery = combustivelBankQuery.eq('aeronave_id', aircraftId);
         }
 
-        const { data: combustivelBankData, error: combustivelBankError } = await combustivelBankQuery;
+        const { data: combustivelBankData } = await combustivelBankQuery;
 
-        // Do despesas_cliente_direto
         let combustivelDiretoQuery = supabase
           .from('despesas_cliente_direto')
           .select('id, valor, status, descricao')
-          .eq('client_id', clienteId)
+          .eq('cliente_id', clienteId)
           .ilike('descricao', '%combustivel%');
 
         if (aircraftId) {
           combustivelDiretoQuery = combustivelDiretoQuery.eq('aeronave_id', aircraftId);
         }
 
-        const { data: combustivelDiretoData, error: combustivelDiretoError } = await combustivelDiretoQuery;
+        const { data: combustivelDiretoData } = await combustivelDiretoQuery;
 
-        // Da tabela abastecimentos (combustível pendente de pagamento)
         let abastecimentoQuery = supabase
           .from('abastecimentos')
           .select('id, valor_total, status_pagamento')
-          .eq('client_id', clienteId)
+          .eq('id_clientes', clienteId)
           .neq('status_pagamento', 'pago');
 
         if (aircraftId) {
           abastecimentoQuery = abastecimentoQuery.eq('aeronave_id', aircraftId);
         }
 
-        const { data: abastecimentoData, error: abastecimentoError } = await abastecimentoQuery;
+        const { data: abastecimentoData } = await abastecimentoQuery;
 
         const combustivelBank = combustivelBankData || [];
         const combustivelDireto = combustivelDiretoData || [];
         const abastecimentos = abastecimentoData || [];
 
         // Calcular totais
-        const totalReembolsos = reembolsos.reduce((sum, item: any) => sum + (Number(item.amount) || 0), 0);
+        const totalReembolsos = reembolsos.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0);
         const totalPagamentoDireto = pagamentoDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0);
         const totalCombustivel =
-          combustivelBank.reduce((sum, item: any) => sum + (Number(item.amount) || 0), 0) +
+          combustivelBank.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0) +
           combustivelDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0) +
           abastecimentos.reduce((sum, item: any) => sum + (Number(item.valor_total) || 0), 0);
 
@@ -169,13 +158,10 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
       }
     },
     enabled: !!clienteId,
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    staleTime: 1000 * 60 * 5,
   });
 }
 
-/**
- * Hook para buscar detalhes de saldo devedor por tipo
- */
 export function useSaldosDevedoresDetalhes(
   clienteId?: string,
   tipo?: 'reembolso' | 'pagamento_direto' | 'combustivel',
@@ -188,27 +174,24 @@ export function useSaldosDevedoresDetalhes(
 
       try {
         if (tipo === 'reembolso') {
-          // Buscar de bank_reconciliations
           let query = supabase
-            .from('bank_reconciliations')
-            .select('id, amount, status, description, date')
-            .eq('client_id', clienteId)
+            .from('conciliacoes_bancarias')
+            .select('id, valor, status, descricao, data')
+            .eq('cliente_id', clienteId)
             .eq('status', 'aguardando_reembolso');
 
           if (aircraftId) {
-            query = query.eq('aircraft_id', aircraftId);
+            query = query.eq('aeronave_id', aircraftId);
           }
 
-          const { data, error } = await query.order('date', { ascending: false });
-
+          const { data, error } = await query.order('data', { ascending: false });
           if (error) throw error;
           return data || [];
         } else if (tipo === 'pagamento_direto') {
-          // Buscar de despesas_cliente_direto
           let query = supabase
             .from('despesas_cliente_direto')
             .select('id, valor, status, descricao, data_vencimento, data_envio')
-            .eq('client_id', clienteId)
+            .eq('cliente_id', clienteId)
             .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado', 'comprovante_recebido']);
 
           if (aircraftId) {
@@ -216,27 +199,25 @@ export function useSaldosDevedoresDetalhes(
           }
 
           const { data, error } = await query.order('data_vencimento', { ascending: false });
-
           if (error) throw error;
           return data || [];
         } else if (tipo === 'combustivel') {
-          // Buscar de três tabelas
           let bankQuery = supabase
-            .from('bank_reconciliations')
-            .select('id, amount, status, description, date')
-            .eq('client_id', clienteId)
-            .ilike('description', '%combustivel%');
+            .from('conciliacoes_bancarias')
+            .select('id, valor, status, descricao, data')
+            .eq('cliente_id', clienteId)
+            .ilike('descricao', '%combustivel%');
 
           if (aircraftId) {
-            bankQuery = bankQuery.eq('aircraft_id', aircraftId);
+            bankQuery = bankQuery.eq('aeronave_id', aircraftId);
           }
 
-          const { data: bankData, error: bankError } = await bankQuery.order('date', { ascending: false });
+          const { data: bankData, error: bankError } = await bankQuery.order('data', { ascending: false });
 
           let diretoQuery = supabase
             .from('despesas_cliente_direto')
             .select('id, valor, status, descricao, data_vencimento')
-            .eq('client_id', clienteId)
+            .eq('cliente_id', clienteId)
             .ilike('descricao', '%combustivel%');
 
           if (aircraftId) {
@@ -247,8 +228,8 @@ export function useSaldosDevedoresDetalhes(
 
           let abastecimentoQuery = supabase
             .from('abastecimentos')
-            .select('id, valor_total as valor, status_pagamento as status, data')
-            .eq('client_id', clienteId)
+            .select('id, valor_total, status_pagamento, data')
+            .eq('id_clientes', clienteId)
             .neq('status_pagamento', 'pago');
 
           if (aircraftId) {

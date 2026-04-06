@@ -13,7 +13,7 @@ interface BankReconciliation {
   status: string;
   category: string | null;
   client_id: string | null;
-  aircraft_id: string | null;
+  aeronave_id: string | null;
   prazo_pagamento: string | null;
   boleto_url?: string;
   nf_url?: string;
@@ -180,8 +180,8 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
               <tbody className="divide-y divide-border">
                 {reconciliations.map((item) => {
                   const isReembolso = item.tipo_documento === 'recibo' ||
-                    item.description?.includes('REEMBOLSO') ||
-                    item.description?.includes('RESSARCIMENTO') ||
+                    item.descricao?.includes('REEMBOLSO') ||
+                    item.descricao?.includes('RESSARCIMENTO') ||
                     item.categorias_movimentacao?.grupo_categoria === 'DESPESAS REEMBOLSÁVEIS';
 
                   const temRateio = item.percentual && parseFloat(item.percentual) < 100;
@@ -192,12 +192,12 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                       className={`hover:bg-muted/30 transition-colors ${isReembolso ? 'bg-purple-500/5' : ''}`}
                     >
                       <td className="px-6 py-4 text-sm text-foreground font-medium whitespace-nowrap">
-                        {formatDateCorrectly(item.date)}
+                        {formatDateCorrectly(item.data)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
                           <p className="text-sm font-medium text-foreground">
-                            {item.description}
+                            {item.descricao}
                           </p>
                           {isReembolso && (
                             <Badge variant="outline" className="text-[10px] w-fit bg-purple-500/10 text-purple-400 border-purple-500/30">
@@ -218,9 +218,9 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                               {item.categorias_movimentacao.nome}
                             </Badge>
                           </div>
-                        ) : item.category ? (
+                        ) : item.categoria ? (
                           <Badge variant="secondary" className="text-xs">
-                            {item.category.replace(/_/g, " ")}
+                            {item.categoria.replace(/_/g, " ")}
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-xs">—</Badge>
@@ -244,13 +244,13 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                           : "—"}
                       </td>
                       <td className="px-6 py-4">
-                        <Badge className={`text-xs font-medium whitespace-nowrap ${getStatusColor(item.status)}`}>
-                          {getStatusLabel(item.status)}
+                        <Badge className={`text-xs font-medium whitespace-nowrap ${getStatusColor(item.situacao)}`}>
+                          {getStatusLabel(item.situacao)}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className="text-sm font-semibold text-foreground whitespace-nowrap">
-                          R$ {Math.abs(Number(item.amount)).toFixed(2)}
+                          R$ {Math.abs(Number(item.valor)).toFixed(2)}
                         </span>
                       </td>
                       <td className="px-6 py-4">

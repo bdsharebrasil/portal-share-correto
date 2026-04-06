@@ -274,7 +274,7 @@ export function CreateUserForm() {
                       <FormItem>
                         <FormLabel>Telefone</FormLabel>
                         <FormControl>
-                          <Input placeholder="(11) 99999-9999" {...field} />
+                          <Input placeholder="(11) 99999-9999" {...field} value={String(field.value || "")} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -288,7 +288,7 @@ export function CreateUserForm() {
                       <FormItem>
                         <FormLabel>Data de Nascimento</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input type="data" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -302,7 +302,7 @@ export function CreateUserForm() {
                       <FormItem>
                         <FormLabel>Data de Início na Empresa</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input type="data" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -417,7 +417,7 @@ export function CreateUserForm() {
                     <FormItem>
                       <FormLabel>Endereço</FormLabel>
                       <FormControl>
-                        <Input placeholder="Rua, número, bairro, cidade - UF" {...field} />
+                        <Input placeholder="Rua, número, bairro, cidade - UF" {...field} value={String(field.value || "")} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -452,7 +452,7 @@ function ClientForm({ form, onSubmit, isLoading }: { form: any; onSubmit: any; i
 
   useEffect(() => {
     const fetchClients = async () => {
-      const { data } = await supabase.from("clients").select("id, company_name").order("company_name");
+      const { data } = await supabase.from("clientes").select("id, razao_social").order("razao_social");
       if (data) setClients(data);
     };
     fetchClients();
@@ -463,7 +463,7 @@ function ClientForm({ form, onSubmit, isLoading }: { form: any; onSubmit: any; i
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="client_id"
+          name="cliente_id"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Cliente *</FormLabel>
@@ -476,7 +476,7 @@ function ClientForm({ form, onSubmit, isLoading }: { form: any; onSubmit: any; i
                 <SelectContent>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
-                      {client.company_name}
+                      {client.razao_social}
                     </SelectItem>
                   ))}
                 </SelectContent>

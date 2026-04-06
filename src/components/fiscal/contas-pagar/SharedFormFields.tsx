@@ -16,7 +16,7 @@ export function BoletoSection({ form, setForm }: { form: any; setForm: (f: any) 
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.name
+      const sanitizedFileName = file.nome
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();
@@ -61,11 +61,11 @@ export function BoletoSection({ form, setForm }: { form: any; setForm: (f: any) 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium mb-1 block">Data recebimento boleto</label>
-              <Input type="date" value={form.data_recebimento_boleto || ""} onChange={e => setForm({ ...form, data_recebimento_boleto: e.target.value })} className="h-9 text-sm" />
+              <Input type="data" value={form.data_recebimento_boleto || ""} onChange={e => setForm({ ...form, data_recebimento_boleto: e.target.value })} className="h-9 text-sm" />
             </div>
             <div>
               <label className="text-xs font-medium mb-1 block">Prazo máximo pagamento</label>
-              <Input type="date" value={form.data_prazo_pagamento || ""} onChange={e => setForm({ ...form, data_prazo_pagamento: e.target.value })} className="h-9 text-sm" />
+              <Input type="data" value={form.data_prazo_pagamento || ""} onChange={e => setForm({ ...form, data_prazo_pagamento: e.target.value })} className="h-9 text-sm" />
             </div>
           </div>
           <div>
@@ -88,7 +88,7 @@ export function NFSection({ form, setForm }: { form: any; setForm: (f: any) => v
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.name
+      const sanitizedFileName = file.nome
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();
@@ -150,7 +150,7 @@ export function ValorVencimentoFields({ form, setForm }: { form: any; setForm: (
       </div>
       <div>
         <label className="text-sm font-semibold mb-1 block">Data de Vencimento *</label>
-        <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} className="h-9" />
+        <Input type="data" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} className="h-9" />
       </div>
     </div>
   );

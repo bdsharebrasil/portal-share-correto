@@ -106,8 +106,8 @@ export default function PlanoVooPage() {
   const { data: crewMembers = [] } = useQuery({
     queryKey: ['crew-members-pic'],
     queryFn: async () => {
-      const { data } = await supabase.from('crew_members').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name');
-      return (data || []).map((m: any) => ({ id: m.id, full_name: m.full_name, canac: m.canac }));
+      const { data } = await supabase.from('membros_tripulacao').select('id, nome_completo, canac, status').eq('status', 'ativo').order('nome_completo');
+      return (data || []).map((m: any) => ({ id: m.id, full_name: m.nome_completo, canac: m.canac }));
     }
   });
 
@@ -120,7 +120,7 @@ export default function PlanoVooPage() {
       const ad = getAerodromeByCode(code);
       if (!ad) return;
       const coords = parseCoordinates(ad.coordenadas);
-      if (coords) points.push({ icao: ad.designativo, name: ad.name, lat: coords.lat, lng: coords.lng, type });
+      if (coords) points.push({ icao: ad.designativo, name: ad.nome, lat: coords.lat, lng: coords.lng, type });
     };
     if (formData.origin) addPoint(formData.origin, 'departure');
     if (formData.destination) addPoint(formData.destination, 'arrival');
@@ -131,7 +131,7 @@ export default function PlanoVooPage() {
   // Leg calculations
   const legCalcs = useMemo(() => {
     const legs: Array<{ from: string; to: string; distanceNM: number; bearing: number }> = [];
-    const mainPoints = routePoints.filter(p => p.type !== 'alternate');
+    const mainPoints = routePoints.filter(p => p.tipo !== 'alternate');
     for (let i = 0; i < mainPoints.length - 1; i++) {
       const from = mainPoints[i], to = mainPoints[i + 1];
       const dist = calculateDistance(from.lat, from.lng, to.lat, to.lng);
@@ -141,11 +141,11 @@ export default function PlanoVooPage() {
     const totalDistanceNM = legs.reduce((s, l) => s + l.distanceNM, 0);
     const speed = formData.cruiseSpeed || 150;
     const estimatedTimeMinutes = (totalDistanceNM / speed) * 60;
-    const aircraft = aeronaves.find(a => a.id === formData.aircraftId);
+    const aircraft = aeronaves.find(a => a.id === formData.aeronaveId);
     const consumption = aircraft?.fuel_consumption || 50;
     const fuelBurnLiters = (totalDistanceNM / speed) * consumption;
     return { totalDistanceNM, estimatedTimeMinutes, fuelBurnLiters, legs };
-  }, [routePoints, formData.cruiseSpeed, formData.aircraftId, aeronaves]);
+  }, [routePoints, formData.cruiseSpeed, formData.aeronaveId, aeronaves]);
 
   // Auto-fetch weather when origin/destination change
   useEffect(() => {
@@ -217,7 +217,7 @@ export default function PlanoVooPage() {
       const distance = calculateDistance(oc.lat, oc.lng, dc.lat, dc.lng);
       const bearing = calculateMagneticHeading(oc.lat, oc.lng, dc.lat, dc.lng);
       const speed = formData.cruiseSpeed || 150;
-      const aircraft = aeronaves.find(a => a.id === formData.aircraftId);
+      const aircraft = aeronaves.find(a => a.id === formData.aeronaveId);
       const fuelCons = aircraft?.fuel_consumption || 50;
       const timeHours = distance / speed;
       const fuelReq = timeHours * fuelCons;
@@ -255,7 +255,7 @@ export default function PlanoVooPage() {
     const flightDate = formData.departure ? formData.departure.split('T')[0] : new Date().toISOString().split('T')[0];
     await createFlightPlan({
       flight_date: flightDate, departure_airport: formData.origin, arrival_airport: formData.destination,
-      aircraft_id: formData.aircraftId || undefined, pilot_in_command: picName,
+      aeronave_id: formData.aeronaveId || undefined, pilot_in_command: picName,
       alternate_airport: formData.alternate || undefined, cruise_altitude: String(formData.altitude),
       estimated_time: calculations.ete, fuel_endurance: `${calculations.totalFuel}L`,
       route: formData.route || 'DCT', status: 'draft', calculations, validation,
@@ -347,7 +347,7 @@ export default function PlanoVooPage() {
                       <div className="text-center">
                         <MapPin className="w-5 h-5 text-green-400 mx-auto mb-1" />
                         <p className="text-xl font-bold">{formData.origin}</p>
-                        <p className="text-xs text-muted-foreground">{getAerodromeByCode(formData.origin)?.name}</p>
+                        <p className="text-xs text-muted-foreground">{getAerodromeByCode(formData.origin)?.nome}</p>
                       </div>
                       <div className="flex-1 mx-4 border-t border-dashed border-primary/50 relative">
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3">
@@ -357,7 +357,7 @@ export default function PlanoVooPage() {
                       <div className="text-center">
                         <MapPin className="w-5 h-5 text-red-400 mx-auto mb-1" />
                         <p className="text-xl font-bold">{formData.destination}</p>
-                        <p className="text-xs text-muted-foreground">{getAerodromeByCode(formData.destination)?.name}</p>
+                        <p className="text-xs text-muted-foreground">{getAerodromeByCode(formData.destination)?.nome}</p>
                       </div>
                     </div>
                   </Card>
@@ -462,9 +462,9 @@ export default function PlanoVooPage() {
                           <div key={i} className="p-3 rounded-lg border bg-muted/30">
                             <div className="flex items-start justify-between mb-1">
                               <h4 className="text-sm font-semibold">{c.title}</h4>
-                              <Badge variant="outline" className="text-xs">{c.type}</Badge>
+                              <Badge variant="outline" className="text-xs">{c.tipo}</Badge>
                             </div>
-                            {c.description && <p className="text-xs text-muted-foreground mb-1">{c.description}</p>}
+                            {c.descricao && <p className="text-xs text-muted-foreground mb-1">{c.descricao}</p>}
                             {c.url ? <a href={c.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary text-xs font-semibold"><Download className="w-3 h-3" /> Download</a> : <span className="text-xs text-muted-foreground">Sem link</span>}
                           </div>
                         ))}
@@ -486,7 +486,7 @@ export default function PlanoVooPage() {
                     <h3 className="font-semibold mb-3 flex items-center gap-2"><Radio className="w-4 h-4 text-primary" /> {icao}</h3>
                     {r ? (
                       <div className="space-y-3 text-sm">
-                        <div><span className="text-muted-foreground">Nome:</span> {r.name}</div>
+                        <div><span className="text-muted-foreground">Nome:</span> {r.nome}</div>
                         <div><span className="text-muted-foreground">Elevação:</span> {r.elevation}ft</div>
                         <div><span className="text-muted-foreground">Coord:</span> {r.coordinates.lat.toFixed(2)}°, {r.coordinates.lng.toFixed(2)}°</div>
                         {solar?.day && (
@@ -508,7 +508,7 @@ export default function PlanoVooPage() {
                           <div>
                             <h4 className="font-semibold mb-1">Frequências:</h4>
                             {r.frequencies.map((f, i) => (
-                              <div key={i} className="ml-4 text-xs"><span className="text-muted-foreground">{f.type}:</span> {f.frequency} MHz</div>
+                              <div key={i} className="ml-4 text-xs"><span className="text-muted-foreground">{f.tipo}:</span> {f.frequency} MHz</div>
                             ))}
                           </div>
                         )}
@@ -552,7 +552,7 @@ export default function PlanoVooPage() {
                         <Plane className="w-4 h-4 text-primary" />
                         <span className="font-semibold">{plan.departure_airport} → {plan.arrival_airport}</span>
                         <Badge variant="outline" className="text-xs">{new Date(plan.flight_date).toLocaleDateString('pt-BR')}</Badge>
-                        <Badge variant="outline" className="text-xs">{plan.status.toUpperCase()}</Badge>
+                        <Badge variant="outline" className="text-xs">{plan.situacao.toUpperCase()}</Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         Piloto: {plan.pilot_in_command} • {plan.estimated_time || '--'}
@@ -562,7 +562,7 @@ export default function PlanoVooPage() {
                       <Button variant="ghost" size="sm" onClick={() => {
                         handleFormChange({
                           origin: plan.departure_airport, destination: plan.arrival_airport,
-                          alternate: plan.alternate_airport || '', aircraftId: plan.aircraft_id || '',
+                          alternate: plan.alternate_airport || '', aircraftId: plan.aeronave_id || '',
                           route: plan.route || '',
                         });
                         if (plan.calculations) setCalculations(plan.calculations);

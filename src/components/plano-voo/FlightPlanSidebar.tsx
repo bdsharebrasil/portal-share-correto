@@ -82,19 +82,19 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
   const handleAircraftChange = useCallback((aircraftId: string) => {
     const aircraft = aeronaves.find(a => a.id === aircraftId);
     if (aircraft) {
-      const speed = getAircraftSpeed(aircraft.model);
+      const speed = getAircraftSpeed(aeronave.modelo);
       onFormChange({
         aircraftId,
-        registration: aircraft.registration,
+        registration: aeronave.matricula,
         cruiseSpeed: speed,
         fuelOnBoard: 0,
       });
     }
   }, [aeronaves, onFormChange]);
 
-  const selectedAircraft = useMemo(() => {
-    return aeronaves.find(a => a.id === formData.aircraftId);
-  }, [aeronaves, formData.aircraftId]);
+  const selectedAeronave = useMemo(() => {
+    return aeronaves.find(a => a.id === formData.aeronaveId);
+  }, [aeronaves, formData.aeronaveId]);
 
   return (
     <div className="w-80 bg-card/95 backdrop-blur-xl border-r border-border flex flex-col h-full overflow-hidden">
@@ -123,7 +123,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
           <label className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider flex items-center gap-1">
             <Plane className="w-3 h-3" /> Aeronave
           </label>
-          <Select value={formData.aircraftId} onValueChange={handleAircraftChange}>
+          <Select value={formData.aeronaveId} onValueChange={handleAircraftChange}>
             <SelectTrigger className="bg-background border-border text-foreground h-9">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>
@@ -275,7 +275,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
                   <div className="truncate">{r.route}</div>
                   <div className="flex gap-2 mt-1">
                     {r.level && <Badge variant="outline" className="text-[9px] h-4">{r.level}</Badge>}
-                    {r.type && <Badge variant="outline" className="text-[9px] h-4">{r.type}</Badge>}
+                    {r.tipo && <Badge variant="outline" className="text-[9px] h-4">{r.tipo}</Badge>}
                   </div>
                 </button>
               ))}

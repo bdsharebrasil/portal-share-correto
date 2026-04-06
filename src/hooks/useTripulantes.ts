@@ -3,15 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
 // --- 1. Definição do Tipo (suporta ambas as tabelas)
-export type Tripulante = Tables<"crew_members"> | (Tables<"crew"> & { source?: "crew_members" | "crew" });
+export type Tripulante = Tables<"membros_tripulacao"> | (Tables<"tripulacao"> & { source?: "membros_tripulacao" | "tripulacao" });
 
 // --- 2. Chave da Query (Identificador para o React Query)
-const tripulantesQueryKey = ["tripulantes-crew-members-e-crew"];
+const tripulantesQueryKey = ["tripulantes-membros-tripulacao-e-tripulacao"];
 
 /**
  * Hook para buscar todos os membros ativos da tripulação.
- * Busca de duas tabelas: crew_members (primeira prioridade) e crew
- * Retorna uma lista ordenada com crew_members primeiro, depois crew.
+ * Busca de duas tabelas: membros_tripulacao (primeira prioridade) e tripulacao
+ * Retorna uma lista ordenada com membros_tripulacao primeiro, depois tripulacao.
  */
 export const useTripulantes = () => {
   const query = useQuery<Tripulante[]>({
@@ -21,32 +21,32 @@ export const useTripulantes = () => {
         // Buscar de ambas as tabelas
         const [crewMembersRes, crewRes] = await Promise.all([
           supabase
-            .from('crew_members')
+            .from('membros_tripulacao')
             .select('*')
             .eq('status', 'ativo')
-            .order('full_name', { ascending: true }),
+            .order('nome_completo', { ascending: true }),
           supabase
-            .from('crew')
+            .from('tripulacao')
             .select('*')
             .eq('status', 'ativo')
-            .order('full_name', { ascending: true }),
+            .order('nome_completo', { ascending: true }),
         ]);
 
         // Processar resultados
         const crewMembers = (crewMembersRes.data || []).map((t: any) => ({
           ...t,
-          source: 'crew_members' as const,
+          source: 'membros_tripulacao' as const,
         }));
 
         const crew = (crewRes.data || []).map((t: any) => ({
           ...t,
-          source: 'crew' as const,
+          source: 'tripulacao' as const,
         }));
 
         // Combinar: crew_members primeiro, depois crew
         const combined = [...crewMembers, ...crew];
 
-        console.info(`Tripulantes carregados: ${crewMembers.length} de crew_members + ${crew.length} de crew`);
+        console.info(`Tripulantes carregados: ${crewMembers.length} de membros_tripulacao + ${crew.length} de tripulacao`);
         return combined as Tripulante[];
       } catch (error) {
         console.error("Erro ao buscar tripulantes:", error);

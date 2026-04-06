@@ -3,12 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface ClientPartner {
   id: string;
-  client_id: string;
-  name: string;
+  cliente_id: string;
+  nome: string;
   cpf: string;
-  share_percentage: number | null;
-  created_at: string;
-  updated_at: string;
+  percentual_participacao: number | null;
+  criado_em: string;
+  atualizado_em: string;
 }
 
 /**
@@ -21,10 +21,10 @@ export function useClientPartners(clientId: string | null) {
       if (!clientId) return [];
 
       const { data, error } = await supabase
-        .from("client_partners")
+        .from("socios_cliente")
         .select("*")
-        .eq("client_id", clientId)
-        .order("name");
+        .eq("cliente_id", clientId)
+        .order("nome");
 
       if (error) {
         console.error("[useClientPartners] Erro ao buscar parceiros:", error);
@@ -45,9 +45,9 @@ export function useAllClientPartners() {
     queryKey: ["all-client-partners"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_partners")
+        .from("socios_cliente")
         .select("*")
-        .order("name");
+        .order("nome");
 
       if (error) {
         console.error("[useAllClientPartners] Erro ao buscar parceiros:", error);

@@ -30,7 +30,7 @@ export function StackedCardsUpload({ files, onRemove }: StackedCardsUploadProps)
           >
             <Card className="relative overflow-hidden">
               {/* Progress background */}
-              {file.status !== "done" && (
+              {file.situacao !== "done" && (
                 <div
                   className="absolute top-0 left-0 h-full bg-gray-300 dark:bg-gray-700 opacity-30 z-0 transition-all"
                   style={{ width: `${file.progress}%` }}
@@ -40,7 +40,7 @@ export function StackedCardsUpload({ files, onRemove }: StackedCardsUploadProps)
               <CardContent className="relative flex justify-between items-center p-4">
                 {/* File name */}
                 <p className="font-medium break-all flex-1 z-10 text-center sm:text-left">
-                  {file.file.name}
+                  {file.file.nome}
                 </p>
 
                 {/* Remove button */}

@@ -44,8 +44,8 @@ export default function TripulanteDetalhes() {
     enabled: !!id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("crew_members")
-        .select("id, full_name, canac, birth_date, phone, avatar_url, status")
+        .from("membros_tripulacao")
+        .select("id, nome_completo, canac, data_nascimento as birth_date, telefone, url_avatar as avatar_url, status")
         .eq("id", id)
         .single();
 
@@ -60,10 +60,10 @@ export default function TripulanteDetalhes() {
     enabled: !!id,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from("crew_licenses")
+        .from("habilitacoes_tripulante")
         .select("*")
-        .eq("crew_member_id", id)
-        .order("expiry_date", { ascending: true, nullsFirst: false });
+        .eq("membro_tripulacao_id", id)
+        .order("data_validade", { ascending: true, nullsFirst: false });
 
       if (error) {
         console.error("Error fetching licenses:", error);
@@ -80,7 +80,7 @@ export default function TripulanteDetalhes() {
       const today = new Date().toISOString().slice(0, 10);
       const { data, error } = await supabase
         .from("flight_schedules")
-        .select("id, flight_date, flight_time, origin, destination, status, aircraft:aircraft_id(registration), clients:client_id(company_name)")
+        .select('id, flight_date, flight_time, origin, destination, status, aircraft:aeronave_id(matricula), clientes:cliente_id(razao_social)')
         .eq("crew_member_id", id)
         .gte("flight_date", today)
         .order("flight_date", { ascending: true })
@@ -99,8 +99,8 @@ export default function TripulanteDetalhes() {
   const getLicenseStatusBadge = (lic: any, isCMA: boolean = false, onClick?: () => void) => {
     const expiryDate = isCMA && lic.validade_cma
       ? new Date(lic.validade_cma)
-      : lic.expiry_date
-        ? new Date(lic.expiry_date)
+      : lic.data_validade
+        ? new Date(lic.data_validade)
         : null;
 
     if (!expiryDate) {
@@ -177,8 +177,8 @@ export default function TripulanteDetalhes() {
     if (error) return setDocs([]);
     const items = await Promise.all(
       (data ?? []).map(async (f) => {
-        const { data: pub } = await supabase.storage.from("crew-docs").getPublicUrl(`${id}/${f.name}`);
-        return { name: f.name, url: pub.publicUrl };
+        const { data: pub } = await supabase.storage.from("crew-docs").getPublicUrl(`${id}/${f.nome}`);
+        return { name: f.nome, url: pub.publicUrl };
       })
     );
     setDocs(items);
@@ -208,7 +208,7 @@ export default function TripulanteDetalhes() {
     setUploadingFiles(prev => [...prev, uploadFile]);
 
     try {
-      const path = `${id}/${Date.now()}-${file.name}`;
+      const path = `${id}/${Date.now()}-${file.nome}`;
 
       const { error } = await supabase.storage.from("crew-docs").upload(path, file, {
         upsert: false
@@ -254,8 +254,8 @@ export default function TripulanteDetalhes() {
   const getLicenseStatusColorClass = (lic: any, isCMA: boolean = false) => {
     const expiryDate = isCMA && lic.validade_cma
       ? new Date(lic.validade_cma)
-      : lic.expiry_date
-        ? new Date(lic.expiry_date)
+      : lic.data_validade
+        ? new Date(lic.data_validade)
         : null;
 
     if (!expiryDate || isNaN(expiryDate.getTime())) {
@@ -393,7 +393,7 @@ export default function TripulanteDetalhes() {
                     </div>
                     <div className="space-y-2">
                       <Label>Telefone</Label>
-                      <Input value={member.phone || "—"} readOnly className="bg-muted/50" />
+                      <Input value={member.telefone || "—"} readOnly className="bg-muted/50" />
                     </div>
                   </div>
                 </div>
@@ -459,9 +459,9 @@ export default function TripulanteDetalhes() {
                               )}
                             </div>
 
-                            {lic.observations && (
+                            {lic.observacoes && (
                               <div className="text-xs text-slate-400 italic bg-slate-900/50 p-2 rounded border-l-2 border-cyan-500/50 mt-3">
-                                {lic.observations}
+                                {lic.observacoes}
                               </div>
                             )}
                           </div>
@@ -521,9 +521,9 @@ export default function TripulanteDetalhes() {
                               )}
                             </div>
 
-                            {lic.observations && (
+                            {lic.observacoes && (
                               <div className="text-xs text-slate-400 italic bg-slate-900/50 p-2 rounded border-l-2 border-cyan-500/50 mt-3">
-                                {lic.observations}
+                                {lic.observacoes}
                               </div>
                             )}
                           </div>
@@ -559,7 +559,7 @@ export default function TripulanteDetalhes() {
                             <p className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> {s.flight_time}</p>
                           </div>
                         </div>
-                        <Badge variant={s.status === 'confirmado' ? 'default' : 'secondary'}>{s.status}</Badge>
+                        <Badge variant={s.situacao === 'confirmado' ? 'default' : 'secondary'}>{s.situacao}</Badge>
                       </div>
                     ))}
                   </div>
@@ -615,20 +615,20 @@ export default function TripulanteDetalhes() {
                       <h4 className="text-sm font-semibold mb-3">Documentos enviados</h4>
                       <div className="space-y-2">
                         {docs.map((d) => (
-                          <div key={d.name} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                          <div key={d.nome} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                             <a
                               href={d.url}
                               target="_blank"
                               rel="noreferrer"
                               className="text-primary hover:underline flex-1 truncate"
                             >
-                              {d.name}
+                              {d.nome}
                             </a>
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 ml-2"
-                              onClick={() => void handleDelete(d.name)}
+                              onClick={() => void handleDelete(d.nome)}
                             >
                               <UploadCloud className="h-4 w-4 rotate-180" />
                             </Button>

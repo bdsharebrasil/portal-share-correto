@@ -41,7 +41,7 @@ export default function AprovacoesorOrcamentos() {
       // Buscar orçamentos CTM pendentes
       const { data: ctmBudgets } = await (supabase as any)
         .from("ctm_budgets")
-        .select("*, aircraft:aircraft_id(registration)")
+        .select('*, aircraft:aeronave(matricula)')
         .in("status", ["submitted"])
         .order("submitted_at", { ascending: false });
 
@@ -50,12 +50,12 @@ export default function AprovacoesorOrcamentos() {
           ...ctmBudgets.map((b: any) => ({
             id: b.id,
             type: "ctm_budget" as const,
-            title: `Orçamento CTM: ${b.description?.substring(0, 50) || b.supplier_name || ""}`,
+            title: `Orçamento CTM: ${b.descricao?.substring(0, 50) || b.supplier_name || ""}`,
             supplier: b.supplier_name,
-            aircraft: b.aircraft?.registration,
+            aircraft: b.aeronave?.matricula,
             total: b.total_value,
-            date: b.submitted_at || b.created_at,
-            status: b.approval_status || b.status || "pendente_aprovacao",
+            date: b.submitted_at || b.criado_em,
+            status: b.approval_status || b.situacao || "pendente_aprovacao",
             description: b.notes,
           }))
         );
@@ -63,8 +63,8 @@ export default function AprovacoesorOrcamentos() {
 
       // Buscar orçamentos OAS pendentes
       const { data: oasBudgets } = await (supabase as any)
-        .from("oas_budgets")
-        .select("*, service_order:ctm_service_orders(numero, aircraft:aircraft(registration))")
+        .from("oas_orcamentos")
+        .select('*, service_order:service_orders(numero, aeronave:aeronave(matricula))')
         .eq("status", "pendente_aprovacao")
         .order("submitted_at", { ascending: false });
 
@@ -75,18 +75,18 @@ export default function AprovacoesorOrcamentos() {
             type: "oas_budget" as const,
             title: `Orçamento OAS #${b.service_order?.numero}: ${b.descricao?.substring(0, 40) || ""}`,
             supplier: b.fornecedor_nome,
-            aircraft: b.service_order?.aircraft?.registration,
+            aircraft: b.service_order?.aeronave?.matricula,
             total: b.valor_total,
-            date: b.submitted_at || b.created_at,
-            status: b.approval_status || b.status || "pendente_aprovacao",
+            date: b.submitted_at || b.criado_em,
+            status: b.status || "pendente_aprovacao",
           }))
         );
       }
 
       // Buscar ordens de serviço CTM pendentes
       const { data: ctmOrders } = await supabase
-        .from("ctm_service_orders")
-        .select("*, aircraft(registration)")
+        .from("service_orders")
+        .select('*, aeronave(matricula)')
         .eq("approval_status", "pending_approval")
         .order("submitted_for_approval_at", { ascending: false });
 
@@ -95,8 +95,8 @@ export default function AprovacoesorOrcamentos() {
           ...ctmOrders.map((o: any) => ({
             id: o.id,
             type: "ctm_order" as const,
-            title: `OAS #${o.numero} - ${(o.aircraft as any)?.registration || "N/A"}`,
-            aircraft: (o.aircraft as any)?.registration,
+            title: `OAS #${o.numero} - ${(o.aeronave as any)?.registration || "N/A"}`,
+            aircraft: (o.aeronave as any)?.registration,
             total: o.total_geral,
             date: o.submitted_for_approval_at || o.data_entrada,
             status: "pendente_aprovacao",
@@ -105,23 +105,23 @@ export default function AprovacoesorOrcamentos() {
         );
       }
 
-      return results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return results.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
     },
   });
 
   const filteredApprovals = approvals.filter((item) => {
-    const matchesType = filterType === "all" || item.type === filterType;
+    const matchesType = filterType === "all" || item.tipo === filterType;
     const matchesSearch = 
       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.supplier?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-      (item.aircraft?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+      (item.aeronave?.toLowerCase() || "").includes(searchTerm.toLowerCase());
     return matchesType && matchesSearch;
   });
 
   const handleApprove = async (approval: Approval) => {
-    if (approval.type === "ctm_order") {
+    if (approval.tipo === "ctm_order") {
       navigate(`/manutencao/ctm?serviceOrderId=${approval.id}`);
-    } else if (approval.type === "ctm_budget") {
+    } else if (approval.tipo === "ctm_budget") {
       // Try to load and display PDF first
       try {
         setPdfLoading(true);
@@ -134,7 +134,7 @@ export default function AprovacoesorOrcamentos() {
 
         if (budgetData?.budget_details?.pdf_file_path) {
           const { data: signedUrl } = await supabase.storage
-            .from("documents")
+            .from("documentos")
             .createSignedUrl(budgetData.budget_details.pdf_file_path, 3600);
 
           if (signedUrl) {
@@ -152,13 +152,13 @@ export default function AprovacoesorOrcamentos() {
       } finally {
         setPdfLoading(false);
       }
-    } else if (approval.type === "oas_budget") {
+    } else if (approval.tipo === "oas_budget") {
       navigate(`/manutencao/orcamentos?oasBudgetId=${approval.id}`);
     }
   };
 
   const handleContinueReview = () => {
-    if (selectedApprovalForPdf?.type === "ctm_budget") {
+    if (selectedApprovalForPdf?.tipo === "ctm_budget") {
       navigate(`/manutencao/orcamentos?budgetId=${selectedApprovalForPdf.id}`);
       setPdfModalOpen(false);
     }
@@ -247,7 +247,7 @@ export default function AprovacoesorOrcamentos() {
                   <p className="text-sm text-muted-foreground">Mais Antigo</p>
                   <p className="text-2xl font-bold text-foreground">
                     {approvals.length > 0
-                      ? format(new Date(approvals[approvals.length - 1].date), "dd/MM", { locale: ptBR })
+                      ? format(new Date(approvals[approvals.length - 1].data), "dd/MM", { locale: ptBR })
                       : "-"}
                   </p>
                 </div>
@@ -300,28 +300,28 @@ export default function AprovacoesorOrcamentos() {
               <div className="space-y-3">
                 {filteredApprovals.map((approval) => (
                   <div
-                    key={`${approval.type}-${approval.id}`}
+                    key={`${approval.tipo}-${approval.id}`}
                     className="p-4 bg-background/50 rounded-lg border border-border/50 hover:border-primary/50 transition-all"
                   >
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-2">
                           <h3 className="font-medium text-foreground break-words">{approval.title}</h3>
-                          <Badge className={getTypeBadgeColor(approval.type)}>
-                            {getTypeLabel(approval.type)}
+                          <Badge className={getTypeBadgeColor(approval.tipo)}>
+                            {getTypeLabel(approval.tipo)}
                           </Badge>
                         </div>
                         {approval.supplier && (
                           <p className="text-sm text-muted-foreground">Fornecedor: {approval.supplier}</p>
                         )}
-                        {approval.aircraft && (
-                          <p className="text-sm text-muted-foreground">Aeronave: {approval.aircraft}</p>
+                        {approval.aeronave && (
+                          <p className="text-sm text-muted-foreground">Aeronave: {approval.aeronave}</p>
                         )}
-                        {approval.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{approval.description}</p>
+                        {approval.descricao && (
+                          <p className="text-sm text-muted-foreground mt-1">{approval.descricao}</p>
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
-                          {format(new Date(approval.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          {format(new Date(approval.data), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2">

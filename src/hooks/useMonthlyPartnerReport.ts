@@ -5,7 +5,7 @@ export interface PartnerInfo {
   id: string;
   name: string;
   cpf: string;
-  share_percentage: number | null;
+  percentual_sociedade: number | null;
 }
 
 export interface FlightEntry {
@@ -79,11 +79,11 @@ export interface ExpenseEntry {
 
 export interface TravelReportEntry {
   id: string;
-  report_number: string;
-  start_date: string;
-  end_date: string;
-  route: string | null;
-  days_count: number;
+  numero_relatorio: string;
+  data_inicio: string;
+  data_fim: string;
+  rota: string | null;
+  dias_count: number;
   status: string | null;
   total_amount: number | null;
   total_fuel: number | null;
@@ -96,17 +96,17 @@ export interface TravelReportEntry {
   total_sharebrasil: number | null;
   total_crew1: number | null;
   total_crew2: number | null;
-  client_partner: string | null;
+  socios_cliente_id: string | null;
   crew_member_name: string | null;
   crew_member_name2: string | null;
   crew_member_id: string | null;
   crew_member_id2: string | null;
   aircraft_registration: string | null;
   observations: string | null;
-  pdf_url: string | null;
+  url_pdf: string | null;
 }
 
-export interface AircraftInfo {
+export interface AeronaveInfo {
   id: string;
   registration: string;
   model: string;
@@ -122,7 +122,7 @@ export interface BankControlEntry {
   conta_banco: string | null;
   numero_documento: string | null;
   status: string | null;
-  client_partner_id: string | null;
+  socios_cliente_id: string | null;
   aeronave_id: string | null;
   aeronave_registro: string | null;
   categoria_id: string;
@@ -141,7 +141,7 @@ export interface MonthlyReportData {
   sharedExpenses: ExpenseEntry[];
   bankControlExpenses: BankControlEntry[];
   travelReports: TravelReportEntry[];
-  aircraft: AircraftInfo | null;
+  aircraft: AeronaveInfo | null;
   clientName: string;
   clientCnpj: string;
   dateRange: { startDate: string; endDate: string; firstEntryDate: string | null; lastEntryDate: string | null };
@@ -170,10 +170,10 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
       const [partnersRes, flightsRes, fuelsRes, expensesRes, sharedExpensesRes, clientRes, travelRes, bankControlRes] = await Promise.all([
         supabase
-          .from("client_partners")
-          .select("id, name, cpf, share_percentage")
-          .eq("client_id", clientId)
-          .order("name"),
+          .from("socios_cliente")
+          .select("id, nome, cpf, percentual_participacao")
+          .eq("cliente_id", clientId)
+          .order("nome"),
 
         supabase
           .from("logbook_entries")
@@ -183,9 +183,9 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
             fuel_liters, fuel_consu, distance_nm, passengers, cargo_kg,
             flight_nature, pic_canac, client_partner_id,
             is_equal_split, is_loan, loan_recipient_partner_id,
-            crew_members!logbook_entries_pic_canac_fkey(full_name)
+            socios_nome
           `)
-          .eq("client_id", clientId)
+          .eq("cliente_id", clientId)
           .gte("entry_date", startDate)
           .lte("entry_date", endDate)
           .order("entry_date"),
@@ -193,82 +193,82 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         supabase
           .from("abastecimentos")
           .select("id, data, data_pagamento, trecho, local, litros, valor_unitario, valor_total, partner_name, partner_index, tipo_faturamento, status_pagamento, observacao, comanda, nf, comanda_url, nota_url, boleto_url, comprovante_pagamento, abastecedor, abastecimento_galoes")
-          .eq("client_id", clientId)
+          .eq("id_clientes", clientId)
           .order("data"),
 
         // Despesas atribuídas a sócios (incluindo despesas de viagem)
         supabase
           .from("partner_expenses")
           .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
-          .eq("client_id", clientId)
-          .gte("due_date", startDate)
-          .lte("due_date", endDate)
+          .eq("cliente_id", clientId)
+          .gte("data_vencimento", startDate)
+          .lte("data_vencimento", endDate)
           .not("assigned_partner_name", "is", null)
-          .order("due_date"),
+          .order("data_vencimento"),
 
         // Despesas compartilhadas (sem sócio atribuído) - banco, impostos, taxas (excluindo despesas de viagem)
         supabase
           .from("partner_expenses")
           .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
-          .eq("client_id", clientId)
-          .gte("due_date", startDate)
-          .lte("due_date", endDate)
+          .eq("cliente_id", clientId)
+          .gte("data_vencimento", startDate)
+          .lte("data_vencimento", endDate)
           .is("assigned_partner_name", null)
           .neq("expense_type", "DESPESAS DE VIAGEM")
-          .order("due_date"),
+          .order("data_vencimento"),
 
         supabase
-          .from("clients")
-          .select("id, company_name, proprietario, cnpj")
+          .from("clientes")
+          .select("id, razao_social, proprietario, cnpj")
           .eq("id", clientId)
           .single(),
 
         supabase
           .from("travel_expense_reports")
-          .select("id, report_number, start_date, end_date, route, days_count, status, total_amount, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, client_partner, crew_member_name, crew_member_name2, crew_member_id, crew_member_id2, aircraft_registration, observations, pdf_url")
-          .eq("client_id", clientId)
-          .gte("start_date", startDate)
-          .lte("start_date", endDate)
-          .order("start_date"),
+          .select('id, numero_relatorio, data_inicio, data_fim, rota, dias_count, status, total_amount, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, socios_cliente_id, crew_member_name, crew_member_name2, crew_member_id, crew_member_id2, aircraft_matricula, observations, url_pdf')
+          .eq("clientes_id", clientId)
+          .gte("data_inicio", startDate)
+          .lte("data_inicio", endDate)
+          .order("data_inicio"),
 
         // Despesas do controle_bancario relacionadas a aeronaves e sócios
         supabase
           .from("controle_bancario")
-          .select("id, data, tipo_movimento, descricao, valor, conta_banco, numero_documento, status, client_partner_id, aeronave_id, aeronave_registro, categoria_id, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url")
-          .eq("client_id", clientId)
+          .select("id, data, tipo_movimento, descricao, valor, conta_banco, numero_documento, status, socios_cliente_id, aeronave_id, aeronave_registro, categoria_id, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url")
+          .eq("clientes_id", clientId)
           .gte("data", startDate)
           .lte("data", endDate)
-          .not("client_partner_id", "is", null)
+          .not("socios_cliente_id", "is", null)
           .order("data"),
       ]);
 
       // Get aircraft for client
       const { data: clientAircraftData } = await supabase
-        .from("client_aircraft")
-        .select("aircraft_id, aircraft:aircraft(id, registration, model, manufacturer, hourly_price)")
-        .eq("client_id", clientId)
+        .from("cotistas_aeronave")
+        .select('id_aeronave, aeronave!id_aeronave(id, matricula, modelo, fabricante, preco_hora)')
+        .eq("id_clientes", clientId)
         .limit(1);
 
-      const aircraftRaw = clientAircraftData?.[0]?.aircraft as any;
-      const aircraft = aircraftRaw ? { id: aircraftRaw.id, registration: aircraftRaw.registration, model: aircraftRaw.model, manufacturer: aircraftRaw.manufacturer } as AircraftInfo : null;
+      const aircraftRaw = clientAircraftData?.[0]?.aeronave as any;
+      const aircraft = aircraftRaw ? { id: aircraftRaw.id, registration: aircraftRaw.registration, model: aircraftRaw.model, manufacturer: aircraftRaw.manufacturer } as AeronaveInfo : null;
       const hourlyRate = aircraftRaw?.hourly_price ? parseFloat(aircraftRaw.hourly_price) : null;
 
       const flights: FlightEntry[] = (flightsRes.data || []).map((f: any) => ({
         ...f,
-        pic_name: f.crew_members?.full_name || null,
+        pic_name: f.socios_nome || null,
       }));
 
       const partners = (partnersRes.data || []) as PartnerInfo[];
       const partnerNameMap = new Map(
-        partners.map((partner) => [normalizePartnerName(partner.name), partner.name])
+        partners.map((partner) => [normalizePartnerName(partner.nome), partner.nome])
       );
 
       const fuels: FuelEntry[] = ((fuelsRes.data || []) as any[])
         .map((fuel) => {
-          let resolvedPartnerName = fuel.partner_name?.trim() || null;
+          let resolvedPartnerName = fuel.nome_socio?.trim() || null;
 
           if (!resolvedPartnerName && fuel.partner_index && partners[fuel.partner_index - 1]) {
-            resolvedPartnerName = partners[fuel.partner_index - 1].name;
+            resolvedPartnerName = partners[fuel.partner_index - 1].nome;
           }
 
           if (!resolvedPartnerName && fuel.observacao) {
@@ -298,8 +298,8 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
       const allDates = [
         ...flights.map(f => f.entry_date),
         ...fuels.map((f) => f.effective_date || f.data),
-        ...(expensesRes.data || []).map((e: any) => e.due_date).filter(Boolean),
-        ...(sharedExpensesRes.data || []).map((e: any) => e.due_date).filter(Boolean),
+        ...(expensesRes.data || []).map((e: any) => e.data_vencimento).filter(Boolean),
+        ...(sharedExpensesRes.data || []).map((e: any) => e.data_vencimento).filter(Boolean),
       ].filter(Boolean).sort();
 
       return {
@@ -311,7 +311,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         bankControlExpenses: (bankControlRes.data || []) as BankControlEntry[],
         travelReports: (travelRes.data || []) as TravelReportEntry[],
         aircraft,
-        clientName: clientRes.data?.company_name || clientRes.data?.proprietario || "",
+        clientName: clientRes.data?.razao_social || clientRes.data?.proprietario || "",
         clientCnpj: clientRes.data?.cnpj || "",
         dateRange: {
           startDate,

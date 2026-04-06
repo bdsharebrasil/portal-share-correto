@@ -72,9 +72,9 @@ export const FinanceiroFilters = ({
   }, [debouncedSearch, filters, onFiltersChange]);
 
   const activeFilterCount = [
-    filters.status !== 'all',
-    filters.dateRange?.from,
-    filters.amountRange[0] > 0 || filters.amountRange[1] < maxAmount,
+    filters.situacao !== 'all',
+    filters.dataRange?.from,
+    filters.valorRange[0] > 0 || filters.valorRange[1] < maxAmount,
     filters.source !== 'all',
   ].filter(Boolean).length;
 
@@ -91,9 +91,9 @@ export const FinanceiroFilters = ({
 
   const removeFilter = (key: keyof FinanceiroFilterState) => {
     const updated = { ...filters };
-    if (key === 'status') updated.status = 'all';
-    if (key === 'dateRange') updated.dateRange = undefined;
-    if (key === 'amountRange') updated.amountRange = [0, maxAmount];
+    if (key === 'status') updated.situacao = 'all';
+    if (key === 'dateRange') updated.dataRange = undefined;
+    if (key === 'amountRange') updated.valorRange = [0, maxAmount];
     if (key === 'source') updated.source = 'all';
     onFiltersChange(updated);
   };
@@ -124,7 +124,7 @@ export const FinanceiroFilters = ({
         <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
           Status
         </label>
-        <Select value={filters.status} onValueChange={(v) => onFiltersChange({ ...filters, status: v })}>
+        <Select value={filters.situacao} onValueChange={(v) => onFiltersChange({ ...filters, status: v })}>
           <SelectTrigger className="bg-card/50 border-border/50">
             <SelectValue />
           </SelectTrigger>
@@ -139,13 +139,13 @@ export const FinanceiroFilters = ({
       </div>
       <div>
         <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
-          Faixa de Valor: {formatCurrency(filters.amountRange[0])} — {formatCurrency(filters.amountRange[1])}
+          Faixa de Valor: {formatCurrency(filters.valorRange[0])} — {formatCurrency(filters.valorRange[1])}
         </label>
         <Slider
           min={0}
           max={maxAmount || 100000}
           step={100}
-          value={filters.amountRange}
+          value={filters.valorRange}
           onValueChange={(v) => onFiltersChange({ ...filters, amountRange: v as [number, number] })}
           className="mt-3"
         />
@@ -158,9 +158,9 @@ export const FinanceiroFilters = ({
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full justify-start text-left bg-card/50 border-border/50">
               <CalendarDays className="h-4 w-4 mr-2" />
-              {filters.dateRange?.from
-                ? `${format(filters.dateRange.from, 'dd/MM/yy', { locale: ptBR })} — ${filters.dateRange?.to
-                  ? format(filters.dateRange.to, 'dd/MM/yy', { locale: ptBR })
+              {filters.dataRange?.from
+                ? `${format(filters.dataRange.from, 'dd/MM/yy', { locale: ptBR })} — ${filters.dataRange?.to
+                  ? format(filters.dataRange.to, 'dd/MM/yy', { locale: ptBR })
                   : '...'
                 }`
                 : 'Selecionar período'}
@@ -169,7 +169,7 @@ export const FinanceiroFilters = ({
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="range"
-              selected={filters.dateRange}
+              selected={filters.dataRange}
               onSelect={(range) => onFiltersChange({ ...filters, dateRange: range })}
               numberOfMonths={isMobile ? 1 : 2}
               locale={ptBR}
@@ -265,39 +265,39 @@ export const FinanceiroFilters = ({
               </Badge>
             </motion.div>
           )}
-          {filters.status !== 'all' && (
+          {filters.situacao !== 'all' && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
                 className="gap-1 cursor-pointer hover:bg-destructive/20"
                 onClick={() => removeFilter('status')}
               >
-                Status: {STATUS_OPTIONS.find((o) => o.value === filters.status)?.label}
+                Status: {STATUS_OPTIONS.find((o) => o.value === filters.situacao)?.label}
                 <X className="h-3 w-3" />
               </Badge>
             </motion.div>
           )}
-          {filters.dateRange?.from && (
+          {filters.dataRange?.from && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
                 className="gap-1 cursor-pointer hover:bg-destructive/20"
                 onClick={() => removeFilter('dateRange')}
               >
-                Período: {format(filters.dateRange.from, 'dd/MM', { locale: ptBR })} —{' '}
-                {filters.dateRange.to ? format(filters.dateRange.to, 'dd/MM', { locale: ptBR }) : '...'}
+                Período: {format(filters.dataRange.from, 'dd/MM', { locale: ptBR })} —{' '}
+                {filters.dataRange.to ? format(filters.dataRange.to, 'dd/MM', { locale: ptBR }) : '...'}
                 <X className="h-3 w-3" />
               </Badge>
             </motion.div>
           )}
-          {(filters.amountRange[0] > 0 || filters.amountRange[1] < maxAmount) && (
+          {(filters.valorRange[0] > 0 || filters.valorRange[1] < maxAmount) && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
                 className="gap-1 cursor-pointer hover:bg-destructive/20"
                 onClick={() => removeFilter('amountRange')}
               >
-                Valor: {formatCurrency(filters.amountRange[0])} — {formatCurrency(filters.amountRange[1])}
+                Valor: {formatCurrency(filters.valorRange[0])} — {formatCurrency(filters.valorRange[1])}
                 <X className="h-3 w-3" />
               </Badge>
             </motion.div>

@@ -1,5 +1,5 @@
-// Aircraft Types
-export interface Aircraft {
+// Aeronave Types
+export interface Aeronave {
   id: string;
   registration: string;
   model: string;
@@ -12,6 +12,9 @@ export interface Aircraft {
   status?: string;
 }
 
+// Backward compatibility
+export type Aircraft = Aeronave;
+
 // Maintenance Item Types
 export type MaintenanceStatus = 'expired' | 'urgent' | 'attention' | 'ok';
 export type MaintenanceType = 'preventiva' | 'corretiva' | 'programada';
@@ -19,7 +22,7 @@ export type IntervalType = 'horas' | 'ciclos' | 'calendario' | 'variavel';
 
 export interface MaintenanceItem {
   id: string;
-  aircraftId: string;
+  aeronaveId: string;
   type: MaintenanceType;
   description: string;
   dueHours?: number;
@@ -40,7 +43,8 @@ export interface MaintenanceItem {
 // Component Types
 export interface Component {
   id: string;
-  aircraftId: string;
+  aeronaveId?: string;
+  aircraft_id?: string;
   name: string;
   partNumber: string;
   serialNumber: string;
@@ -52,6 +56,8 @@ export interface Component {
   alertPercentage?: number;
   lastInspection?: string;
   nextInspection?: string;
+  // Allow DB column names
+  [key: string]: any;
 }
 
 // RAS (Relatório de Acompanhamento de Serviço) Types
@@ -60,6 +66,8 @@ export interface RASPhoto {
   rasId: string;
   url: string;
   description?: string;
+  /** @deprecated use description */
+  descricao?: string;
   uploadedAt: string;
 }
 
@@ -67,6 +75,8 @@ export interface RASCostItem {
   id: string;
   rasId: string;
   description: string;
+  /** @deprecated use description */
+  descricao?: string;
   quantity: number;
   unitValue: number;
   totalValue: number;
@@ -75,43 +85,71 @@ export interface RASCostItem {
 
 export interface RAS {
   id: string;
-  aircraftId: string;
+  aeronaveId: string;
   serviceOrderNumber: string;
   maintenanceCenter: string;
   maintenanceType: 'corretiva' | 'preventiva' | 'revisao';
   responsibleMechanic: string;
   date: string;
+  /** @deprecated use date */
+  data?: string;
   completionDate?: string;
   description: string;
+  /** @deprecated use description */
+  descricao?: string;
   inspectionDetails: string;
   status: 'pendente' | 'em_andamento' | 'concluido';
+  /** @deprecated use status */
+  situacao?: string;
   totalCost: number;
   photos: RASPhoto[];
   costItems: RASCostItem[];
   motorHours?: number;
   observations?: string;
+  /** @deprecated use observations */
+  observacoes?: string;
   createdAt: string;
   updatedAt: string;
+  // Allow DB field access
+  [key: string]: any;
 }
 
 // Motor Expense Types
 export interface MotorExpense {
   id: string;
-  aircraftId: string;
+  aeronaveId: string;
   motorSide: 'LH' | 'RH' | 'both';
   type: 'overhaul' | 'repair' | 'maintenance' | 'inspection';
+  /** @deprecated use type */
+  tipo?: string;
   description: string;
+  /** @deprecated use description */
+  descricao?: string;
   motorHours: number;
   cost: number;
   supplier?: string;
   date: string;
+  /** @deprecated use date */
+  data?: string;
   observations?: string;
+  /** @deprecated use observations */
+  observacoes?: string;
   createdAt: string;
+}
+
+// Photo Item for uploads
+export interface PhotoItem {
+  id: string;
+  url: string;
+  description?: string;
+  /** @deprecated use description */
+  descricao?: string;
+  [key: string]: any;
 }
 
 // Financial Summary Types
 export interface FinancialSummary {
-  aircraftId: string;
+  aeronaveId: string;
   totalMaintenanceCost: number;
   totalMotorCost: number;
   totalPartsCost: number;
@@ -130,7 +168,7 @@ export interface MonthlyExpense {
 // AD and SB Types
 export interface AirworthinessDirective {
   id: string;
-  aircraftId: string;
+  aeronaveId: string;
   adNumber: string;
   title: string;
   issueDate: string;
@@ -145,7 +183,7 @@ export interface AirworthinessDirective {
 
 export interface ServiceBulletin {
   id: string;
-  aircraftId: string;
+  aeronaveId: string;
   sbNumber: string;
   title: string;
   issueDate: string;
@@ -160,7 +198,7 @@ export interface ServiceBulletin {
 // Insurance and Certificates Types
 export interface InsurancePolicy {
   id: string;
-  aircraftId: string;
+  aeronaveId: string;
   type: string;
   provider: string;
   policyNumber: string;
@@ -173,7 +211,7 @@ export interface InsurancePolicy {
 
 export interface Certification {
   id: string;
-  aircraftId: string;
+  aeronaveId: string;
   type: string;
   issueDate: string;
   expirationDate: string;

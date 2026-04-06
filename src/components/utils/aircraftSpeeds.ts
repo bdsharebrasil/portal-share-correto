@@ -3,14 +3,14 @@
  * Dados específicos de cada aeronave
  */
 
-export interface AircraftSpeedConfig {
+export interface AeronaveVelocidadeConfig {
   registration: string;
   model: string;
   cruiseSpeedKnots: number;
   speedCode: string; // Formato ICAO (ex: N0150)
 }
 
-export const AIRCRAFT_SPEEDS: Record<string, AircraftSpeedConfig> = {
+export const AIRCRAFT_SPEEDS: Record<string, AeronaveVelocidadeConfig> = {
   'PT-WSR': {
     registration: 'PT-WSR',
     model: 'PIPER SENECA V (PA-34-220T)',
@@ -76,7 +76,7 @@ export const AIRCRAFT_SPEEDS: Record<string, AircraftSpeedConfig> = {
 /**
  * Obtém a configuração de velocidade para uma aeronave
  */
-export function getAircraftSpeed(registration: string): AircraftSpeedConfig | null {
+export function getAircraftSpeed(registration: string): AeronaveVelocidadeConfig | null {
   const upperReg = registration.toUpperCase().trim();
   return AIRCRAFT_SPEEDS[upperReg] || null;
 }

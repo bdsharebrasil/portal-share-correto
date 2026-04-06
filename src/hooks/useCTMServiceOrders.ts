@@ -29,7 +29,7 @@ export interface Oficina {
 
 export interface CTMServiceOrder {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   numero: string;
   os_oficina?: string;
   horas_celula?: number;
@@ -43,6 +43,7 @@ export interface CTMServiceOrder {
   data_entrada?: string;
   data_saida?: string;
   status?: string;
+  situacao?: string;
   observacoes?: string;
   vencimento_id?: string;
   total_mao_obra?: number;
@@ -169,7 +170,7 @@ export function useCTMServiceOrders() {
     async (aircraftId: string): Promise<CTMServiceOrder[]> => {
       try {
         const { data, error } = await supabase
-          .from('ctm_service_orders')
+          .from('service_orders')
           .select('*')
           .eq('aircraft_id', aircraftId)
           .order('created_at', { ascending: false });
@@ -191,7 +192,7 @@ export function useCTMServiceOrders() {
       try {
         const [orderRes, servicesRes, partsRes, flightReportsRes, costSharingRes] = await Promise.all([
           supabase
-            .from('ctm_service_orders')
+            .from('service_orders')
             .select('*')
             .eq('id', serviceOrderId)
             .single(),
@@ -241,7 +242,7 @@ export function useCTMServiceOrders() {
   const createServiceOrder = useCallback(async (data: Partial<CTMServiceOrder>) => {
     try {
       const { data: newOrder, error } = await supabase
-        .from('ctm_service_orders')
+        .from('service_orders')
         .insert([data as any])
         .select()
         .single();
@@ -249,7 +250,7 @@ export function useCTMServiceOrders() {
       if (error) throw error;
 
       // Sincronização com manutencoes
-      if (newOrder && data.aircraft_id) {
+      if (newOrder && data.aeronave_id) {
         const maintenanceType = data.tipo_manutencao || data.objetivo || 'MANUTENÇÃO';
         const dataEntrada = data.data_entrada || new Date().toISOString().split('T')[0];
 
@@ -257,7 +258,7 @@ export function useCTMServiceOrders() {
           .from('manutencoes')
           .insert([
             {
-              aeronave_id: data.aircraft_id,
+              aeronave_id: data.aeronave_id,
               tipo: maintenanceType,
               data_programada: dataEntrada,
               mecanico: 'A designar',
@@ -276,7 +277,7 @@ export function useCTMServiceOrders() {
       }
 
       // Sincronização com aircraft_maintenance_records
-      if (newOrder && data.aircraft_id) {
+      if (newOrder && data.aeronave_id) {
         const mapMaintenanceType = (tipo?: string, horas?: number): string => {
           if (!tipo && !horas) return '100h';
           if (tipo?.includes('50')) return '50h';
@@ -296,10 +297,10 @@ export function useCTMServiceOrders() {
         const maintenanceType = mapMaintenanceType(data.tipo_manutencao, performedHours);
 
         const { error: recordError } = await supabase
-          .from('aircraft_maintenance_records')
+          .from('registros_manutencao_aeronave')
           .insert([
             {
-              aircraft_id: data.aircraft_id,
+              aeronave_id: data.aeronave_id,
               maintenance_type: maintenanceType,
               performed_at_hours: performedHours,
               performed_date: data.data_entrada || new Date().toISOString().split('T')[0],
@@ -330,7 +331,7 @@ export function useCTMServiceOrders() {
   const updateServiceOrder = useCallback(async (id: string, data: Partial<CTMServiceOrder>) => {
     try {
       const { data: updated, error } = await supabase
-        .from('ctm_service_orders')
+        .from('service_orders')
         .update(data)
         .eq('id', id)
         .select()
@@ -350,7 +351,7 @@ export function useCTMServiceOrders() {
   const deleteServiceOrder = useCallback(async (id: string) => {
     try {
       const { error } = await supabase
-        .from('ctm_service_orders')
+        .from('service_orders')
         .delete()
         .eq('id', id);
 
@@ -369,7 +370,7 @@ export function useCTMServiceOrders() {
     async (oasId: string, userId?: string) => {
       try {
         const { data: order, error: orderError } = await supabase
-          .from('ctm_service_orders')
+          .from('service_orders')
           .select('*')
           .eq('id', oasId)
           .single();
@@ -379,7 +380,7 @@ export function useCTMServiceOrders() {
         const { data: newBudget, error: budgetError } = await fromUntyped('ctm_budgets')
           .insert([
             {
-              aircraft_id: order.aircraft_id,
+              aeronave_id: order.aeronave_id,
               description: `Orçamento - OAS ${order.numero}`,
               status: 'draft',
               total_value: order.total_geral || 0,

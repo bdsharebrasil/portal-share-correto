@@ -241,14 +241,14 @@ export function EmployeeStatementTab({ employeeId, employeeName }: EmployeeState
                         <Badge 
                           variant="outline" 
                           className={`text-xs ${
-                            entry.status === "pago" || entry.status === "concluido"
+                            entry.situacao === "pago" || entry.situacao === "concluido"
                               ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                              : entry.status === "pendente"
+                              : entry.situacao === "pendente"
                               ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
                               : "bg-muted text-muted-foreground border-border"
                           }`}
                         >
-                          {entry.status || "—"}
+                          {entry.situacao || "—"}
                         </Badge>
                       </TableCell>
                     </TableRow>

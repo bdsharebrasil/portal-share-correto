@@ -10,7 +10,7 @@ interface ReceiptSubmissionData {
 
   // IDs relacionados
   client_id?: string;
-  aircraft_id?: string;
+  aeronave_id?: string;
   categoria_movimentacao_id?: string;
 
   // Dados específicos de documento
@@ -81,7 +81,7 @@ async function uploadFile(
 ): Promise<string | null> {
   try {
     const timestamp = Date.now();
-    const sanitizedFileName = file.name
+    const sanitizedFileName = file.nome
       .replace(/[^a-zA-Z0-9.\-_]/g, "_")
       .substring(0, 100);
     const randomSuffix = Math.random().toString(36).substring(2, 8);
@@ -121,8 +121,8 @@ async function fetchAircraftData(
 ): Promise<{ registration: string } | null> {
   try {
     const { data, error } = await supabase
-      .from("aircraft")
-      .select("registration")
+      .from('aeronave')
+      .select('matricula')
       .eq("id", aircraftId)
       .single();
 
@@ -143,11 +143,11 @@ async function fetchAircraftData(
  */
 async function fetchClientData(
   clientId: string
-): Promise<{ company_name: string; cnpj?: string } | null> {
+): Promise<{ razao_social: string; cnpj?: string } | null> {
   try {
     const { data, error } = await supabase
-      .from("clients")
-      .select("company_name, cnpj")
+      .from("clientes")
+      .select("razao_social, cnpj")
       .eq("id", clientId)
       .single();
 
@@ -171,7 +171,7 @@ async function insertBankReconciliation(
 ): Promise<{ id: string; [key: string]: any } | null> {
   try {
     const { data: result, error } = await supabase
-      .from("bank_reconciliations")
+      .from("conciliacoes_bancarias")
       .insert(data)
       .select()
       .single();
@@ -219,7 +219,7 @@ async function insertRateio(data: any): Promise<{ id: string } | null> {
 async function deleteBankReconciliation(id: string): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from("bank_reconciliations")
+      .from("conciliacoes_bancarias")
       .delete()
       .eq("id", id);
 
@@ -251,25 +251,25 @@ export async function handleReceiptSubmit(
 
   try {
     // Validações básicas
-    if (!submissionData.date) {
+    if (!submissionData.data) {
       throw new Error("Data é obrigatória");
     }
-    if (!submissionData.description?.trim()) {
+    if (!submissionData.descricao?.trim()) {
       throw new Error("Descrição é obrigatória");
     }
-    if (!submissionData.amount || submissionData.amount <= 0) {
+    if (!submissionData.valor || submissionData.valor <= 0) {
       throw new Error("Valor deve ser maior que zero");
     }
 
     // Normalizar o formato da data para YYYY-MM-DD (type: date)
-    let normalizedDate = submissionData.date;
+    let normalizedDate = submissionData.data;
     if (normalizedDate.includes("T")) {
       // Se for ISO string (2024-03-01T12:00:00), extrai apenas a data
       normalizedDate = normalizedDate.split("T")[0];
     }
     // Validar que está no formato correto YYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
-      throw new Error(`Formato de data inválido: ${submissionData.date}. Use YYYY-MM-DD`);
+      throw new Error(`Formato de data inválido: ${submissionData.data}. Use YYYY-MM-DD`);
     }
 
     // ===================== 1. UPLOAD DE ARQUIVOS =====================
@@ -288,14 +288,14 @@ export async function handleReceiptSubmit(
     // ===================== 2. BUSCAR DADOS RELACIONADOS =====================
     console.log("🔍 Buscando dados relacionados...");
     let aircraftData: { registration: string } | null = null;
-    let clientData: { company_name: string; cnpj?: string } | null = null;
+    let clientData: { razao_social: string; cnpj?: string } | null = null;
 
-    if (submissionData.aircraft_id) {
-      aircraftData = await fetchAircraftData(submissionData.aircraft_id);
+    if (submissionData.aeronave_id) {
+      aircraftData = await fetchAircraftData(submissionData.aeronave_id);
     }
 
-    if (submissionData.client_id) {
-      clientData = await fetchClientData(submissionData.client_id);
+    if (submissionData.cliente_id) {
+      clientData = await fetchClientData(submissionData.cliente_id);
     }
 
     // ===================== 3. PREPARAR DADOS PARA bank_reconciliations =====================
@@ -310,16 +310,16 @@ export async function handleReceiptSubmit(
     }
 
     const bankReconciliationPayload = {
-      type: submissionData.type || "cliente",
+      type: submissionData.tipo || "cliente",
       date: normalizedDate,
-      description: submissionData.description,
-      amount: submissionData.amount,
-      status: submissionData.status || "pendente",
-      client_id: submissionData.client_id || null,
-      aircraft_id: submissionData.aircraft_id || null,
+      description: submissionData.descricao,
+      amount: submissionData.valor,
+      status: submissionData.situacao || "pendente",
+      client_id: submissionData.cliente_id || null,
+      aeronave_id: submissionData.aeronave_id || null,
       categoria_movimentacao_id: submissionData.categoria_movimentacao_id || null,
       tipo_documento: submissionData.tipo_documento,
-      doc: submissionData.doc || null,
+      doc: submissionData.documento || null,
       prazo_pagamento: normalizedPrazoData || null,
       percentual: submissionData.percentual || null,
       forma_pagamento: submissionData.forma_pagamento || null,
@@ -329,8 +329,8 @@ export async function handleReceiptSubmit(
       boleto_url: boleto_url,
       nf_url: nf_url,
       criado_por: userId,
-      reference_id: submissionData.reference_id || null,
-      reference_type: submissionData.reference_type || null,
+      reference_id: submissionData.referencia_id || null,
+      reference_type: submissionData.tipo_referencia || null,
     };
 
     // ===================== 4. INSERIR EM bank_reconciliations =====================
@@ -352,20 +352,20 @@ export async function handleReceiptSubmit(
       try {
         const rateioPayload = {
           despesa_id: bankReconciliation.id,
-          client_id: submissionData.client_id || null,
-          client_name: clientData?.company_name || "",
-          aeronave_id: submissionData.aircraft_id || null,
+          client_id: submissionData.cliente_id || null,
+          client_name: clientData?.razao_social || "",
+          aeronave_id: submissionData.aeronave_id || null,
           aeronave_registro: aircraftData?.registration || "",
           percentual: parseFloat(String(submissionData.percentual || submissionData.rateio_data.percentual)),
-          valor_rateado: submissionData.amount,
+          valor_rateado: submissionData.valor,
           valor: submissionData.rateio_data.valor_total,
-          status: submissionData.status || "pendente",
+          status: submissionData.situacao || "pendente",
           data_vencimento: normalizedPrazoData || normalizedDate,
           categoria_id: submissionData.categoria_movimentacao_id || null,
           boleto: boleto_url,
           nota_fiscal: nf_url,
           observacoes: `Rateio de ${submissionData.percentual || submissionData.rateio_data.percentual}% do valor total de R$ ${submissionData.rateio_data.valor_total.toFixed(2)}`,
-          recebimento_id: submissionData.reference_id || null,
+          recebimento_id: submissionData.referencia_id || null,
         };
 
         console.log("📝 Payload para rateio_despesas:", rateioPayload);
@@ -489,9 +489,9 @@ export async function insertReceiptToBankReconciliations(
       date: normalizedDataData,
       description: data.descricao,
       amount: data.valor,
-      status: data.status || "pendente",
-      client_id: data.client_id || null,
-      aircraft_id: data.aeronave_id || null,
+      status: data.situacao || "pendente",
+      client_id: data.cliente_id || null,
+      aeronave_id: data.aeronave_id || null,
       categoria_movimentacao_id: categoria_movimentacao_id,
       tipo_documento: data.tipo === "recibo" ? "recibo" : "recibo",
       doc: data.numero_documento || null,
@@ -508,7 +508,7 @@ export async function insertReceiptToBankReconciliations(
 
     // Inserir em bank_reconciliations
     const { data: result, error } = await supabase
-      .from("bank_reconciliations")
+      .from("conciliacoes_bancarias")
       .insert(bankReconciliationPayload)
       .select()
       .single();

@@ -54,7 +54,7 @@ export function FormImpostos({ form, setForm }: Props) {
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.nome.split('.').pop();
       const fileName = `imposto_${form.categoria || 'geral'}_${timestamp}.${fileExt}`;
 
       const { error } = await supabase.storage
@@ -146,7 +146,7 @@ export function FormImpostos({ form, setForm }: Props) {
         <div className="space-y-1">
           <label className="text-xs font-bold text-muted-foreground uppercase">Vencimento *</label>
           <Input 
-            type="date" 
+            type="data" 
             value={form.data_vencimento} 
             onChange={e => setForm({ ...form, data_vencimento: e.target.value })} 
             className="h-10" 

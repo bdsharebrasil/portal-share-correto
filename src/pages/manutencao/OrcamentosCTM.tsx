@@ -43,7 +43,7 @@ export default function OrcamentosCTM() {
       setPdfLoading(true);
       const { data: budgetData, error } = await (supabase as any)
         .from("ctm_budgets")
-        .select("*, aircraft:aircraft_id(registration)")
+        .select('*, aircraft:aeronave(matricula)')
         .eq("id", budgetId)
         .single();
 
@@ -51,14 +51,14 @@ export default function OrcamentosCTM() {
 
       if (budgetData) {
         setAircraft({
-          id: budgetData.aircraft_id,
-          registration: budgetData.aircraft?.registration || "N/A",
+          id: budgetData.aeronave_id,
+          registration: budgetData.aeronave?.matricula || "N/A",
           model: ""
         });
 
         if (budgetData.budget_details?.pdf_file_path) {
           const { data: signedUrl, error: urlError } = await supabase.storage
-            .from("documents")
+            .from("documentos")
             .createSignedUrl(budgetData.budget_details.pdf_file_path, 3600);
 
           if (!urlError && signedUrl) {
@@ -80,8 +80,8 @@ export default function OrcamentosCTM() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model")
+        .from('aeronave')
+        .select('id, matricula, modelo')
         .eq("id", aircraftId)
         .single();
 
@@ -135,7 +135,7 @@ export default function OrcamentosCTM() {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Orçamentos para Manutenção</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Gestão de orçamentos para {aircraft.registration} ({aircraft.model})
+                Gestão de orçamentos para {aeronave.matricula} ({aeronave.modelo})
               </p>
             </div>
           </div>
@@ -175,7 +175,7 @@ export default function OrcamentosCTM() {
           <Card className="bg-gradient-card border-border p-6">
             <CTMBudgetManagement
               aircraftId={aircraftId}
-              aircraftRegistration={aircraft.registration}
+              aircraftRegistration={aeronave.matricula}
             />
           </Card>
         )}

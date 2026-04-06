@@ -94,7 +94,7 @@ export function TimeClockTab() {
         .from("absence_justifications")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       
       if (error) throw error;
       return (data || []) as AbsenceJustification[];
@@ -111,7 +111,7 @@ export function TimeClockTab() {
         .from("time_correction_requests")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       
       if (error) throw error;
       return (data || []) as TimeCorrectionRequest[];
@@ -144,7 +144,7 @@ export function TimeClockTab() {
       
       if (documentFile) {
         setUploading(true);
-        const fileName = `${userId}/${format(selectedDate, "yyyy-MM-dd")}-${Date.now()}.${documentFile.name.split(".").pop()}`;
+        const fileName = `${userId}/${format(selectedDate, "yyyy-MM-dd")}-${Date.now()}.${documentFile.nome.split(".").pop()}`;
         const { error: uploadError } = await supabase.storage
           .from("documents_colaborador")
           .upload(fileName, documentFile);
@@ -475,12 +475,12 @@ export function TimeClockTab() {
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-medium">{format(new Date(item.entry_date), "dd/MM/yyyy")}</span>
-                          {getStatusBadge(item.status)}
+                          {getStatusBadge(item.situacao)}
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">{item.justification}</p>
-                        {item.document_url && (
+                        {item.documentoument_url && (
                           <a
-                            href={item.document_url}
+                            href={item.documentoument_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline mt-1 inline-block"
@@ -511,12 +511,12 @@ export function TimeClockTab() {
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-medium">{format(new Date(item.entry_date), "dd/MM/yyyy")}</span>
-                          {getStatusBadge(item.status)}
+                          {getStatusBadge(item.situacao)}
                         </div>
                         <div className="text-sm space-y-1">
                           <p><span className="text-muted-foreground">Tipo:</span> {getCorrectionTypeLabel(item.correction_type)}</p>
                           <p><span className="text-muted-foreground">Horário correto:</span> {item.corrected_time}</p>
-                          <p className="text-muted-foreground line-clamp-1">{item.reason}</p>
+                          <p className="text-muted-foreground line-clamp-1">{item.motivo}</p>
                         </div>
                       </div>
                     ))}

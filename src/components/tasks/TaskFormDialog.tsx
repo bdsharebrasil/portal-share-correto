@@ -58,10 +58,10 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
     if (data) {
       setFormData({
         title: data.title,
-        description: data.description || "",
-        status: data.status,
+        description: data.descricao || "",
+        status: data.situacao,
         priority: data.priority,
-        due_date: data.due_date || "",
+        due_date: data.data_vencimento || "",
         assigned_to: data.assigned_to || ""
       });
     }
@@ -82,10 +82,10 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
 
       const taskData = {
         title: formData.title,
-        description: formData.description || null,
-        due_date: formData.due_date || null,
+        description: formData.descricao || null,
+        due_date: formData.data_vencimento || null,
         priority: formData.priority,
-        status: formData.status,
+        status: formData.situacao,
         assigned_to: formData.assigned_to || null,
         created_by: user.id,
       };
@@ -179,10 +179,10 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
           </div>
 
           <div>
-            <Label htmlFor="description">Descrição</Label>
+            <Label htmlFor="descricao">Descrição</Label>
             <Textarea
-              id="description"
-              value={formData.description}
+              id="descricao"
+              value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
             />
@@ -207,9 +207,9 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
             </div>
 
             <div>
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="situacao">Status</Label>
               <Select
-                value={formData.status}
+                value={formData.situacao}
                 onValueChange={(value) => setFormData({ ...formData, status: value })}
               >
                 <SelectTrigger>
@@ -245,11 +245,11 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
             </div>
 
             <div>
-              <Label htmlFor="due_date">Data de Vencimento</Label>
+              <Label htmlFor="data_vencimento">Data de Vencimento</Label>
               <Input
-                id="due_date"
-                type="date"
-                value={formData.due_date}
+                id="data_vencimento"
+                type="data"
+                value={formData.data_vencimento}
                 onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
               />
             </div>

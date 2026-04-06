@@ -46,7 +46,7 @@ interface TransactionData {
 
 type SortField = "data" | "tipo_movimento" | "valor" | null;
 type SortDirection = "asc" | "desc";
-type ColumnType = "checkbox" | "data" | "tipo" | "descricao" | "categoria" | "valor" | "status" | "anexos" | "actions";
+type ColumnType = "checkbox" | "data" | "tipo" | "descricao" | "categoria" | "valor" | "situacao" | "anexos" | "actions";
 
 interface VirtualizedTransactionTableProps {
   transactions: TransactionData[];
@@ -163,7 +163,7 @@ const Row = ({
   const transaction = transactions[index];
   const isSelected = selectedIds.has(transaction.id);
   const isEntrada = transaction.tipo_movimento === "entrada";
-  const isPendente = transaction.status === "pendente";
+  const isPendente = transaction.situacao === "pendente";
 
   return (
     <motion.div
@@ -246,7 +246,7 @@ const Row = ({
       <div className="w-28 flex-shrink-0 text-right">
         <p
           className={`text-sm font-semibold ${getValueColor(
-            transaction.status,
+            transaction.situacao,
             transaction.tipo_movimento
           )}`}
         >
@@ -259,15 +259,15 @@ const Row = ({
 
       {/* Status */}
       <div className="w-24 flex-shrink-0">
-        {transaction.status ? (
+        {transaction.situacao ? (
           <Badge
             variant="outline"
             className={`text-xs ${getStatusColor(
-              transaction.status,
+              transaction.situacao,
               transaction.tipo_movimento
             )}`}
           >
-            {transaction.status}
+            {transaction.situacao}
           </Badge>
         ) : (
           <span className="text-xs text-muted-foreground">-</span>
@@ -317,7 +317,7 @@ const defaultColumnOrder: ColumnType[] = [
   "descricao",
   "categoria",
   "valor",
-  "status",
+  "situacao",
   "anexos",
   "actions",
 ];

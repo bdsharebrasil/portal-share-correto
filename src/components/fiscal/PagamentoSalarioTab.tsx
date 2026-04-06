@@ -138,7 +138,7 @@ export function PagamentoSalarioTab() {
       const {
         data: existingPayments,
         error
-      } = await supabase.from("pagamento_salario_funcionario").select("*").gte("created_at", startDate).lte("created_at", `${endDate}T23:59:59`);
+      } = await supabase.from("pagamento_salario_funcionario").select("*").gte("criado_em", startDate).lte("criado_em", `${endDate}T23:59:59`);
       if (error) {
         toast.error(`Erro ao carregar pagamentos: ${error.message}`);
         return;
@@ -346,7 +346,7 @@ export function PagamentoSalarioTab() {
   const handleFileUpload = async (index: number, file: File, type: "holerite" | "comprovante") => {
     const row = paymentRows[index];
     const bucket = type === "holerite" ? "holerites" : "comprovantes";
-    const filePath = `${row.user_profile}/${selectedYear}/${selectedMonth}_${Date.now()}_${file.name}`;
+    const filePath = `${row.user_profile}/${selectedYear}/${selectedMonth}_${Date.now()}_${file.nome}`;
     setPaymentRows(prev => {
       const updated = [...prev];
       updated[index] = {

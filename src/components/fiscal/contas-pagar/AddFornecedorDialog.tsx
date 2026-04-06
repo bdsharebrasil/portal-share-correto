@@ -42,7 +42,7 @@ export function AddFornecedorDialog({ open, onOpenChange, initialName = "", onSa
       const { data, error } = await (supabase.from("fornecedores_favoritos") as any)
         .insert([{
           nome_completo: form.nome_completo.trim(),
-          documento: form.documento || null,
+          documento: form.documentoumento || null,
           telefone: form.telefone || null,
           cidade: form.cidade || null,
           categoria: form.categoria,
@@ -86,7 +86,7 @@ export function AddFornecedorDialog({ open, onOpenChange, initialName = "", onSa
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-semibold mb-1 block">Documento (CPF/CNPJ)</label>
-              <Input value={form.documento} onChange={e => setForm(p => ({ ...p, documento: e.target.value }))} />
+              <Input value={form.documentoumento} onChange={e => setForm(p => ({ ...p, documento: e.target.value }))} />
             </div>
             <div>
               <label className="text-sm font-semibold mb-1 block">Telefone</label>

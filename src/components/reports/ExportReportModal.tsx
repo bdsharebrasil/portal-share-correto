@@ -243,9 +243,9 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
                         id={`partner-${p.id}`}
                       />
                       <Label htmlFor={`partner-${p.id}`} className="text-sm cursor-pointer flex items-center gap-2">
-                        {p.name}
+                        {p.nome}
                         <Badge variant="secondary" className="text-[10px]">
-                          {p.share_percentage?.toFixed(1) || 0}%
+                          {p.percentual_participacao?.toFixed(1) || 0}%
                         </Badge>
                       </Label>
                     </div>

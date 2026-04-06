@@ -69,7 +69,7 @@ function parseRoutesResponse(data: any): PreferredRoute[] {
       return {
         route,
         level: item.nivel?.trim() ?? item.level?.trim() ?? item.fl?.trim() ?? undefined,
-        type: item.tipo?.trim() ?? item.type?.trim() ?? undefined,
+        type: item.tipo?.trim() ?? item.tipo?.trim() ?? undefined,
         remarks: item.obs?.trim() ?? item.remarks?.trim() ?? undefined,
       } as PreferredRoute;
     })

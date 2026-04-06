@@ -75,9 +75,9 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
   const loadAircrafts = async () => {
     try {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration")
-        .order("registration");
+        .from('aeronave')
+        .select('id, matricula')
+        .order("matricula");
 
       if (error) throw error;
       setAircrafts((data || []) as Aircraft[]);
@@ -220,18 +220,18 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="aeronave_id">Aeronave</Label>
+              <Label htmlFor="id_aeronave">Aeronave</Label>
               <Select
                 value={formData.aeronave_id || ""}
                 onValueChange={(value) => setFormData({ ...formData, aeronave_id: value })}
               >
-                <SelectTrigger id="aeronave_id">
+                <SelectTrigger id="id_aeronave">
                   <SelectValue placeholder="Selecione uma aeronave" />
                 </SelectTrigger>
                 <SelectContent>
                   {aircrafts.map((aircraft) => (
-                    <SelectItem key={aircraft.id} value={aircraft.id}>
-                      {aircraft.registration}
+                    <SelectItem key={aeronave.id} value={aeronave.id}>
+                      {aeronave.matricula}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -244,7 +244,7 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
               <Label htmlFor="dataProgramada">Data Programada*</Label>
               <Input
                 id="dataProgramada"
-                type="date"
+                type="data"
                 value={formData.data_programada}
                 onChange={(e) => setFormData({ ...formData, data_programada: e.target.value })}
                 required

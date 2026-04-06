@@ -241,7 +241,7 @@ export function CTMOASDocumentGenerator({
                             {doc.file_name || 'Documento'}
                           </p>
                           <p className="text-xs text-slate-600">
-                            {format(new Date(doc.generated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                            {format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                           </p>
                         </div>
                       </div>

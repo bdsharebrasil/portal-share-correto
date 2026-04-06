@@ -19,7 +19,7 @@ export function getFlightDocumentPublicUrl(filePath: string): string {
 }
 
 /**
- * Gera URL pública para um arquivo no bucket "documents"
+ * Gera URL pública para um arquivo no bucket "documentos"
  */
 export function getDocumentPublicUrl(filePath: string): string {
   if (!filePath) return '';

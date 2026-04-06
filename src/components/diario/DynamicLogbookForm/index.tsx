@@ -130,10 +130,10 @@ export function DynamicLogbookForm({
     queryKey: ['crew'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('crew')
-        .select('id, full_name, canac, status')
+        .from('tripulacao')
+        .select('id, nome_completo as full_name, canac, status')
         .eq('status', 'ativo')
-        .order('full_name', { ascending: true });
+        .order('nome_completo', { ascending: true });
 
       if (error) {
         console.error('Erro ao buscar crew:', error);
@@ -172,17 +172,17 @@ export function DynamicLogbookForm({
     queryKey: ['aircraft-clients', aircraftId],
     queryFn: async () => {
       const { data: clientAircraft, error: caError } = await supabase
-        .from('client_aircraft')
-        .select('client_id, share_percentage')
-        .eq('aircraft_id', aircraftId);
+        .from('cotistas_aeronave')
+        .select('id_cliente, percentual_sociedade')
+        .eq('id_aeronave', aircraftId);
 
       if (caError) throw caError;
       if (!clientAircraft || clientAircraft.length === 0) return [];
 
-      const clientIds = clientAircraft.map((ca: any) => ca.client_id);
+      const clientIds = clientAircraft.map((ca: any) => ca.id_cliente);
       const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, company_name, proprietario')
+        .from('clientes')
+        .select('id, razao_social, proprietario')
         .in('id', clientIds);
 
       if (clientsError) throw clientsError;
@@ -193,9 +193,9 @@ export function DynamicLogbookForm({
       });
 
       return clientAircraft.map((ca: any) => ({
-        client_id: ca.client_id,
-        share_percentage: ca.share_percentage,
-        clients: clientsMap[ca.client_id] || null
+        client_id: ca.cliente_id,
+        percentual_sociedade: ca.percentual_participacao,
+        clients: clientsMap[ca.cliente_id] || null
       }));
     },
     enabled: !!aircraftId,
@@ -206,9 +206,9 @@ export function DynamicLogbookForm({
     queryKey: ['all-clients-for-loan'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('clients')
-        .select('id, company_name, proprietario')
-        .order('company_name');
+        .from('clientes')
+        .select('id, razao_social, proprietario')
+        .order('razao_social');
       if (error) {
         console.error('Erro ao buscar clientes:', error);
         throw error;
@@ -225,10 +225,10 @@ export function DynamicLogbookForm({
     queryFn: async () => {
       if (!selectedClient) return [];
       const { data, error } = await supabase
-        .from('client_partners')
-        .select('id, name, cpf, share_percentage')
-        .eq('client_id', selectedClient)
-        .order('name');
+        .from('socios_cliente')
+        .select('id, nome, cpf, percentual_participacao')
+        .eq('cliente_id', selectedClient)
+        .order('nome');
       if (error) {
         console.error('Erro ao buscar parceiros do cliente:', error);
         return [];
@@ -244,10 +244,10 @@ export function DynamicLogbookForm({
     queryFn: async () => {
       if (!selectedClient) return [];
       const { data, error } = await supabase
-        .from('client_partners')
-        .select('id, name, cpf, share_percentage')
-        .eq('client_id', selectedClient)
-        .order('name');
+        .from('socios_cliente')
+        .select('id, nome, cpf, percentual_participacao')
+        .eq('cliente_id', selectedClient)
+        .order('nome');
       if (error) {
         console.error('Erro ao buscar parceiros do lender:', error);
         return [];
@@ -263,10 +263,10 @@ export function DynamicLogbookForm({
     queryFn: async () => {
       if (!selectedBorrowerClient) return [];
       const { data, error } = await supabase
-        .from('client_partners')
-        .select('id, name, cpf, share_percentage')
-        .eq('client_id', selectedBorrowerClient)
-        .order('name');
+        .from('socios_cliente')
+        .select('id, nome, cpf, percentual_participacao')
+        .eq('cliente_id', selectedBorrowerClient)
+        .order('nome');
       if (error) {
         console.error('Erro ao buscar parceiros do borrower:', error);
         return [];
@@ -514,7 +514,7 @@ export function DynamicLogbookForm({
       let borrowerPartnerName = '';
       if (flightCategory === 'emprestimo' && selectedBorrowerClient) {
         const borrowerClient = allClients.find(c => c.id === selectedBorrowerClient);
-        borrowerPartnerName = borrowerClient?.company_name || '';
+        borrowerPartnerName = borrowerClient?.razao_social || '';
       }
 
       // ─── Determinar pic_source e sic_source ───────────────────────────────
@@ -553,7 +553,7 @@ export function DynamicLogbookForm({
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
           logbook_month_id: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
-          aircraft_id: aircraftId,
+          aeronave_id: aircraftId,
           entry_date: format(date!, 'yyyy-MM-dd'),
           departure_aerodrome: formData.departure_airport,
           arrival_aerodrome: formData.arrival_airport,
@@ -628,20 +628,19 @@ export function DynamicLogbookForm({
         const picName = selectedPic ? (allCrew.find(p => p.id === selectedPic)?.full_name || null) : null;
 
         const loanData = {
-          hours_borrowed: totalBlockTime,
-          entry_date: format(date!, 'yyyy-MM-dd'),
-          departure_aerodrome: formData.departure_airport || '',
-          arrival_aerodrome: formData.arrival_airport || '',
+          horas_emprestadas: totalBlockTime,
+          data_lancamento: format(date!, 'yyyy-MM-dd'),
+          aerodromo_partida: formData.departure_airport || '',
+          aerodromo_chegada: formData.arrival_airport || '',
           trecho: `${formData.departure_airport || ''} → ${formData.arrival_airport || ''}`,
-          fuel_added: toNumericOrNull(formData.fuel_added),
-          pic_name: picName,
-          logbook_entry_id: insertedEntry.id,
-          status: 'active',
-          notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
+          combustivel_adicionado: toNumericOrNull(formData.fuel_added),
+          nome_piloto: picName,
+          lancamento_diario_id: insertedEntry.id,
+          observacoes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
         };
 
         const { error: loanError, data: loanResult } = await supabase
-          .from('aircraft_loans')
+          .from('emprestimos_aeronave')
           .insert([loanData])
           .select();
 
@@ -653,7 +652,7 @@ export function DynamicLogbookForm({
 
         const { error: transactionError } = await supabase.from('hour_transactions').insert([
           {
-            aircraft_id: aircraftId,
+            aeronave_id: aircraftId,
             from_partner_id: selectedBorrowerClient,
             to_partner_id: selectedClient,
             hours: totalBlockTime,
@@ -719,10 +718,10 @@ export function DynamicLogbookForm({
   };
 
   const getClientName = (clientId: string) => {
-    const client = clients.find((c: any) => c.client_id === clientId);
+    const client = clients.find((c: any) => c.cliente_id === clientId);
     if (!client?.clients) return 'Cliente não encontrado';
     const clientData = client.clients as any;
-    return clientData.company_name || clientData.proprietario || 'Sem nome';
+    return clientData.razao_social || clientData.proprietario || 'Sem nome';
   };
 
   // Modal de seleção de parceiro
@@ -759,9 +758,9 @@ export function DynamicLogbookForm({
                     : "border-input hover:border-primary/50 hover:bg-accent"
                 )}
               >
-                <div className="font-semibold">{partner.name}</div>
+                <div className="font-semibold">{partner.nome}</div>
                 {partner.cpf && <div className="text-xs text-muted-foreground">CPF: {partner.cpf}</div>}
-                {partner.share_percentage && <div className="text-xs text-muted-foreground">{partner.share_percentage}%</div>}
+                {partner.percentual_participacao && <div className="text-xs text-muted-foreground">{partner.percentual_participacao}%</div>}
               </button>
             ))}
           </div>
@@ -912,20 +911,20 @@ export function DynamicLogbookForm({
                           if (!clientData) return null;
                           return (
                             <CommandItem
-                              key={item.client_id}
-                              value={clientData.company_name || clientData.proprietario}
+                              key={item.cliente_id}
+                              value={clientData.razao_social || clientData.proprietario}
                               onSelect={() => {
-                                setSelectedClient(item.client_id);
+                                setSelectedClient(item.cliente_id);
                                 setClientOpen(false);
                               }}
                             >
                               <Check className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedClient === item.client_id ? "opacity-100" : "opacity-0"
+                                selectedClient === item.cliente_id ? "opacity-100" : "opacity-0"
                               )} />
-                              <span>{clientData.company_name || clientData.proprietario}</span>
+                              <span>{clientData.razao_social || clientData.proprietario}</span>
                               <span className="ml-auto text-xs text-muted-foreground">
-                                {item.share_percentage}%
+                                {item.percentual_participacao}%
                               </span>
                             </CommandItem>
                           );
@@ -946,7 +945,7 @@ export function DynamicLogbookForm({
                     onClick={() => setClientPartnerModalOpen(true)}
                   >
                     {selectedClientPartner
-                      ? clientPartners.find(p => p.id === selectedClientPartner)?.name
+                      ? clientPartners.find(p => p.id === selectedClientPartner)?.nome
                       : 'Selecione um parceiro...'}
                   </Button>
                   <p className="text-xs text-muted-foreground">
@@ -970,7 +969,7 @@ export function DynamicLogbookForm({
                     <SelectItem key={type.value} value={type.value}>
                       <div className="flex flex-col">
                         <span className="font-medium">{type.label}</span>
-                        <span className="text-xs text-muted-foreground">{type.description}</span>
+                        <span className="text-xs text-muted-foreground">{type.descricao}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -1014,20 +1013,20 @@ export function DynamicLogbookForm({
                             if (!clientData) return null;
                             return (
                               <CommandItem
-                                key={item.client_id}
-                                value={clientData.company_name || clientData.proprietario}
+                                key={item.cliente_id}
+                                value={clientData.razao_social || clientData.proprietario}
                                 onSelect={() => {
-                                  setSelectedClient(item.client_id);
+                                  setSelectedClient(item.cliente_id);
                                   setClientOpen(false);
                                 }}
                               >
                                 <Check className={cn(
                                   "mr-2 h-4 w-4",
-                                  selectedClient === item.client_id ? "opacity-100" : "opacity-0"
+                                  selectedClient === item.cliente_id ? "opacity-100" : "opacity-0"
                                 )} />
-                                <span>{clientData.company_name || clientData.proprietario}</span>
+                                <span>{clientData.razao_social || clientData.proprietario}</span>
                                 <span className="ml-auto text-xs text-muted-foreground">
-                                  {item.share_percentage}%
+                                  {item.percentual_participacao}%
                                 </span>
                               </CommandItem>
                             );
@@ -1049,7 +1048,7 @@ export function DynamicLogbookForm({
                     onClick={() => setLenderPartnerModalOpen(true)}
                   >
                     {selectedLenderPartner
-                      ? lenderPartners.find(p => p.id === selectedLenderPartner)?.name
+                      ? lenderPartners.find(p => p.id === selectedLenderPartner)?.nome
                       : 'Selecione um parceiro...'}
                   </Button>
                 </div>
@@ -1066,8 +1065,8 @@ export function DynamicLogbookForm({
                       className="w-full justify-between h-11 font-normal border-amber-500/30"
                     >
                       {selectedBorrowerClient
-                        ? borrowerClients.find(c => c.id === selectedBorrowerClient)?.company_name
-                          || allClients.find(c => c.id === selectedBorrowerClient)?.company_name
+                        ? borrowerClients.find(c => c.id === selectedBorrowerClient)?.razao_social
+                          || allClients.find(c => c.id === selectedBorrowerClient)?.razao_social
                           || 'Cliente selecionado'
                         : 'Selecione quem pega emprestado...'}
                     </Button>
@@ -1083,7 +1082,7 @@ export function DynamicLogbookForm({
                             {borrowerClients.map((client) => (
                               <CommandItem
                                 key={client.id}
-                                value={client.company_name || client.proprietario || ''}
+                                value={client.razao_social || client.proprietario || ''}
                                 onSelect={() => {
                                   setSelectedBorrowerClient(client.id);
                                   setBorrowerClientOpen(false);
@@ -1093,7 +1092,7 @@ export function DynamicLogbookForm({
                                   "mr-2 h-4 w-4",
                                   selectedBorrowerClient === client.id ? "opacity-100" : "opacity-0"
                                 )} />
-                                <span>{client.company_name || client.proprietario}</span>
+                                <span>{client.razao_social || client.proprietario}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -1114,7 +1113,7 @@ export function DynamicLogbookForm({
                     onClick={() => setBorrowerPartnerModalOpen(true)}
                   >
                     {selectedBorrowerPartner
-                      ? borrowerPartners.find(p => p.id === selectedBorrowerPartner)?.name
+                      ? borrowerPartners.find(p => p.id === selectedBorrowerPartner)?.nome
                       : 'Selecione um parceiro...'}
                   </Button>
                 </div>
@@ -1232,7 +1231,7 @@ export function DynamicLogbookForm({
                           .filter(a =>
                             !formData.departure_airport ||
                             a.designativo.includes(formData.departure_airport.toUpperCase()) ||
-                            a.name.toUpperCase().includes(formData.departure_airport.toUpperCase())
+                            a.nome.toUpperCase().includes(formData.departure_airport.toUpperCase())
                           )
                           .map(aerodrome => (
                             <CommandItem
@@ -1244,7 +1243,7 @@ export function DynamicLogbookForm({
                               }}
                             >
                               <span className="font-mono font-medium">{aerodrome.designativo}</span>
-                              <span className="ml-2 text-muted-foreground truncate">{aerodrome.name}</span>
+                              <span className="ml-2 text-muted-foreground truncate">{aerodrome.nome}</span>
                             </CommandItem>
                           ))}
                       </CommandGroup>
@@ -1282,7 +1281,7 @@ export function DynamicLogbookForm({
                           .filter(a =>
                             !formData.arrival_airport ||
                             a.designativo.includes(formData.arrival_airport.toUpperCase()) ||
-                            a.name.toUpperCase().includes(formData.arrival_airport.toUpperCase())
+                            a.nome.toUpperCase().includes(formData.arrival_airport.toUpperCase())
                           )
                           .map(aerodrome => (
                             <CommandItem
@@ -1294,7 +1293,7 @@ export function DynamicLogbookForm({
                               }}
                             >
                               <span className="font-mono font-medium">{aerodrome.designativo}</span>
-                              <span className="ml-2 text-muted-foreground truncate">{aerodrome.name}</span>
+                              <span className="ml-2 text-muted-foreground truncate">{aerodrome.nome}</span>
                             </CommandItem>
                           ))}
                       </CommandGroup>

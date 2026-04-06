@@ -61,28 +61,28 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
       const reembolsoRecords: ReembolsoRecord[] = [];
 
       // 1. Carregar despesas lançadas ao cliente de bank_reconciliations
-      // Filtra por client_id E aircraft_id quando disponível
+      // Filtra por client_id E aeronave_id quando disponível
       let bankQuery = supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .select("*")
-        .eq("client_id", clientId)
-        .eq("type", "cliente");
+        .eq("cliente_id", clientId)
+        .eq("tipo", "cliente");
       
-      // Só adiciona filtro de aircraft_id se foi passado
+      // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
-        bankQuery = bankQuery.eq("aircraft_id", aircraftId);
+        bankQuery = bankQuery.eq("id_aeronave", aircraftId);
       }
       
-      const { data: bankData } = await bankQuery.order("date", { ascending: false });
+      const { data: bankData } = await bankQuery.order("data", { ascending: false });
 
       if (bankData) {
         bankData.forEach((record: any) => {
           reembolsoRecords.push({
             id: record.id,
-            date: record.date,
-            amount: Math.abs(record.saldo_pendente ?? record.amount ?? 0),
-            status: record.status || "pendente",
-            category: record.category || record.description || "Despesa",
+            date: record.data,
+            amount: Math.abs(record.saldo_pendente ?? record.valor ?? 0),
+            status: record.situacao || "pendente",
+            category: record.categoria || record.descricao || "Despesa",
             grupo_categoria: "DESPESAS",
             boleto_url: record.boleto_url,
             nf_url: record.nf_url,
@@ -98,23 +98,23 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
       // Coletar IDs de reference_id que já vieram de bank_reconciliations (para evitar duplicatas)
       const bankReferenceIds = new Set(
         (bankData || [])
-          .filter((r: any) => r.reference_id)
-          .map((r: any) => r.reference_id)
+          .filter((r: any) => r.referencia_id)
+          .map((r: any) => r.referencia_id)
       );
 
-      // 2. Carregar recibos de reembolso da tabela receipts (exceto os que já estão em bank_reconciliations)
+      // 2. Carregar recibos de reembolso da tabela recibos (exceto os que já estão em bank_reconciliations)
       let receiptsQuery = supabase
-        .from("receipts")
+        .from("recibos")
         .select("*")
-        .eq("client_id", clientId)
-        .eq("receipt_type", "reembolso");
+        .eq("cliente_id", clientId)
+        .eq("tipo_recibo", "reembolso");
 
-      // Só adiciona filtro de aircraft_id se foi passado
+      // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
-        receiptsQuery = receiptsQuery.eq("aircraft_id", aircraftId);
+        receiptsQuery = receiptsQuery.eq("id_aeronave", aircraftId);
       }
 
-      const { data: receiptsData } = await receiptsQuery.order("issue_date", { ascending: false });
+      const { data: receiptsData } = await receiptsQuery.order("data_emissao", { ascending: false });
 
       if (receiptsData) {
         receiptsData.forEach((record: any) => {
@@ -123,24 +123,24 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
 
           reembolsoRecords.push({
             id: record.id,
-            date: record.issue_date,
-            amount: Math.abs(record.amount || 0),
-            status: record.status || "pendente",
-            category: record.category_name || record.doc_number || "REEMBOLSO",
+            date: record.data_emissao,
+            amount: Math.abs(record.valor || 0),
+            status: record.situacao || "pendente",
+            category: record.nome_categoria || record.numero_documento || "REEMBOLSO",
             grupo_categoria: "DESPESAS REEMBOLSÁVEIS",
-            boleto_url: record.boleto_url,
-            nf_url: record.nf_url,
-            pdf_url: record.pdf_url,
-            prazo_pagamento: record.max_payment_date,
-            receipt_number: record.receipt_number,
-            percentual: record.percentage,
-            tem_rateio: record.is_shared,
+            boleto_url: record.url_boleto,
+            nf_url: record.url_nf,
+            pdf_url: record.url_pdf,
+            prazo_pagamento: record.data_max_pagamento,
+            receipt_number: record.numero_recibo,
+            percentual: record.percentual,
+            tem_rateio: record.compartilhado,
           });
         });
       }
 
       // Ordenar por data decrescente
-      reembolsoRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      reembolsoRecords.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
       setRecords(reembolsoRecords);
     } catch (error) {
@@ -254,7 +254,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        📅 {formatDateCorrectly(record.date)}
+                        📅 {formatDateCorrectly(record.data)}
                       </p>
                       {record.prazo_pagamento && (
                         <p className="text-sm text-amber-400 mt-1">
@@ -264,7 +264,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xl font-bold text-green-400">
-                        R$ {Number(record.amount).toFixed(2)}
+                        R$ {Number(record.valor).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -273,16 +273,16 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3 border-t border-border">
                     <div className="bg-background/50 p-3 rounded">
                       <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS</p>
-                      <Badge className={`w-full justify-center py-2 ${getStatusColor(record.status)}`}>
-                        {record.status?.charAt(0).toUpperCase() + record.status?.slice(1).toLowerCase()}
+                      <Badge className={`w-full justify-center py-2 ${getStatusColor(record.situacao)}`}>
+                        {record.situacao?.charAt(0).toUpperCase() + record.situacao?.slice(1).toLowerCase()}
                       </Badge>
                     </div>
 
-                    {record.category && (
+                    {record.categoria && (
                       <div className="bg-background/50 p-3 rounded">
                         <p className="text-xs text-muted-foreground font-semibold mb-1">CATEGORIA</p>
                         <p className="text-sm text-foreground font-medium">
-                          {record.category.replace(/_/g, " ")}
+                          {record.categoria.replace(/_/g, " ")}
                         </p>
                       </div>
                     )}

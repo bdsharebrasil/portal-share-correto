@@ -37,25 +37,38 @@ export interface PartnerTransaction {
 
 export interface PartnerExpense {
   id: string;
-  client_id: string;
-  aircraft_id: string | null;
-  expense_type: string;
-  description: string;
-  total_amount: number;
-  assigned_partner_cpf: string | null;
-  assigned_partner_name: string | null;
-  status: string;
-  due_date: string | null;
-  paid_date: string | null;
-  supplier_name: string | null;
-  invoice_number: string | null;
-  invoice_url: string | null;
-  payment_method: string | null;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-  bank_name?: string | null;
-  prazo?: string | null;
+  clientes_id: string;
+  id_aeronave: string | null;
+  tipo_despesa: string;
+  descricao: string;
+  valor_total: number;
+  cpf_socio: string | null;
+  nome_socio: string | null;
+  status: string | null;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  nome_fornecedor: string | null;
+  numero_fatura: string | null;
+  url_fatura: string | null;
+  metodo_pagamento: string | null;
+  observacoes: string | null;
+  criado_por: string | null;
+  criado_em: string;
+  atualizado_em: string | null;
+  prazo: string;
+  nome_banco: string | null;
+  doc: string | null;
+  quantidade_parcelas: number | null;
+  numero_parcela: number | null;
+  id_despesa_pai: string | null;
+  data_inicio_parcelamento: string | null;
+  tipo_referencia: string | null;
+  id_referencia: string | null;
+  boleto_url: string | null;
+  demonstrativo_url: string | null;
+  nf_url: string | null;
+  percentual_socio: number | null;
+  categoria: string | null;
 }
 
 function mapPartnerExpenseStatusToBankReconciliationStatus(status?: string): string | null {
@@ -86,8 +99,8 @@ export function useSocioAccounts(clientId: string | null) {
       const { data, error } = await supabase
         .from("partner_accounts")
         .select("*")
-        .eq("client_id", clientId)
-        .order("partner_name");
+        .eq("cliente_id", clientId)
+        .order("socio_nome");
 
       if (error) throw error;
 
@@ -97,7 +110,7 @@ export function useSocioAccounts(clientId: string | null) {
       const seenById = new Set<string | null>();
 
       const deduplicated = accounts.filter((account) => {
-        const partnerId = account.client_partner_id || account.id;
+        const partnerId = account.socio_cliente_id_id || account.id;
         const cpfKey = account.partner_cpf;
 
         // Prefer deduplication by client_partner_id
@@ -105,10 +118,10 @@ export function useSocioAccounts(clientId: string | null) {
         if (partnerId) seenById.add(partnerId);
 
         // Fallback: deduplicate by CPF if client_partner_id is null
-        if (!account.client_partner_id && cpfKey && seenByPartner.has(cpfKey)) {
+        if (!account.socio_cliente_id_id && cpfKey && seenByPartner.has(cpfKey)) {
           return false;
         }
-        if (!account.client_partner_id && cpfKey) {
+        if (!account.socio_cliente_id_id && cpfKey) {
           seenByPartner.add(cpfKey);
         }
 
@@ -137,9 +150,9 @@ export function useSocioTransactions(
 
       // ── 1. Buscar client_partners da tabela (fonte de verdade) ──────────────
       const { data: clientPartners, error: cpError } = await supabase
-        .from("client_partners")
-        .select("id, name, cpf, share_percentage")
-        .eq("client_id", clientId);
+        .from("socios_cliente")
+        .select("id, nome, cpf, percentual_participacao")
+        .eq("cliente_id", clientId);
 
       if (cpError) console.warn("Erro ao carregar client_partners:", cpError);
       const partnersMap = new Map(
@@ -153,13 +166,13 @@ export function useSocioTransactions(
       let query = supabase
         .from("partner_transactions")
         .select("*")
-        .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
+        .eq("clientes_id", clientId)
+        .order("criado_em", { ascending: false });
 
-      if (filters?.partnerCpf) query = query.eq("partner_cpf", filters.partnerCpf);
-      if (filters?.startDate) query = query.gte("created_at", filters.startDate);
-      if (filters?.endDate) query = query.lte("created_at", filters.endDate);
-      if (filters?.type) query = query.eq("transaction_type", filters.type);
+      if (filters?.partnerCpf) query = query.eq("socio_cpf", filters.partnerCpf);
+      if (filters?.startDate) query = query.gte("criado_em", filters.startDate);
+      if (filters?.endDate) query = query.lte("criado_em", filters.endDate);
+      if (filters?.tipo) query = query.eq("transaction_type", filters.tipo);
 
       const { data: transactions, error } = await query;
       if (error) throw error;
@@ -168,7 +181,7 @@ export function useSocioTransactions(
       const { data: expenses, error: expenseError } = await supabase
         .from("partner_expenses")
         .select("*")
-        .eq("client_id", clientId);
+        .eq("clientes_id", clientId);
 
       if (expenseError) console.warn("Erro ao carregar despesas:", expenseError);
 
@@ -179,11 +192,11 @@ export function useSocioTransactions(
           (expenses || [])
             .filter(
               (exp: any) =>
-                exp.reference_type === "travel_expense_report" ||
-                exp.reference_type === "viagem" ||
-                exp.reference_type === "travel_report"
+                exp.tipo_referencia === "travel_expense_report" ||
+                exp.tipo_referencia === "viagem" ||
+                exp.tipo_referencia === "travel_report"
             )
-            .map((exp: any) => exp.reference_id)
+            .map((exp: any) => exp.id_referencia)
             .filter(Boolean)
         ),
       ];
@@ -193,7 +206,7 @@ export function useSocioTransactions(
       if (travelReportIds.length > 0) {
         const { data: reports, error: rError } = await supabase
           .from("travel_expense_reports")
-          .select("id, report_number, client_partner")
+          .select("id, numero_relatorio, socios_cliente_id")
           .in("id", travelReportIds as string[]);
 
         if (rError) console.warn("Erro ao carregar relatórios de viagem:", rError);
@@ -206,52 +219,52 @@ export function useSocioTransactions(
       // ── 5. Mapear despesas → formato de transação ────────────────────────────
       const expensesAsTransactions = (expenses || []).map((exp: any) => {
         // Resolver nome do parceiro: primeiro tenta pelo CPF na tabela client_partners
-        const cpfClean = (exp.assigned_partner_cpf || "").replace(/\D/g, "");
+        const cpfClean = (exp.cpf_socio || "").replace(/\D/g, "");
         const partnerFromTable = partnersByCpf.get(cpfClean);
         const resolvedPartnerName =
-          partnerFromTable?.name ?? exp.assigned_partner_name ?? "CONTA BANCARIA";
+          partnerFromTable?.nome ?? exp.nome_socio ?? "CONTA BANCARIA";
 
         // Resolver número do relatório de viagem (para o campo de obs)
-        let notesWithReport = exp.notes || null;
-        let finalReferenceType = exp.reference_type || "partner_expense";
-        let finalReferenceId = exp.reference_id || exp.id;
+        let notesWithReport = exp.observacoes || null;
+        let finalReferenceType = exp.tipo_referencia || "partner_expense";
+        let finalReferenceId = exp.referencia_id || exp.id;
 
         // Se a despesa é de abastecimento, deve ter reference_type "abastecimento"
-        if (exp.expense_type === "abastecimento" || exp.category === "abastecimento") {
+        if (exp.expense_type === "abastecimento" || exp.categoria === "abastecimento") {
           finalReferenceType = "abastecimento";
           // Mantém reference_id se já tiver, senão usa exp.id
-          if (!exp.reference_id) {
+          if (!exp.referencia_id) {
             finalReferenceId = exp.id;
           }
         }
         // Se é viagem, garante que reference_type seja travel_expense_report
         else if (
-          exp.reference_type === "travel_expense_report" ||
-          exp.reference_type === "viagem" ||
-          exp.reference_type === "travel_report" ||
+          exp.tipo_referencia === "travel_expense_report" ||
+          exp.tipo_referencia === "viagem" ||
+          exp.tipo_referencia === "travel_report" ||
           exp.expense_type === "viagem"
         ) {
           finalReferenceType = "travel_expense_report";
         }
 
         if (
-          exp.reference_id &&
+          exp.referencia_id &&
           (finalReferenceType === "travel_expense_report")
         ) {
-          const linkedReport = travelReportsMap.get(exp.reference_id);
-          if (linkedReport?.report_number) {
-            const reportTag = `Relatório de Viagem: ${linkedReport.report_number}`;
+          const linkedReport = travelReportsMap.get(exp.referencia_id);
+          if (linkedReport?.numero_relatorio) {
+            const reportTag = `Relatório de Viagem: ${linkedReport.numero_relatorio}`;
             notesWithReport = notesWithReport
               ? `${notesWithReport}\n${reportTag}`
               : reportTag;
 
-            // Se o relatório tem client_partner, resolver o nome pela tabela
-            if (linkedReport.client_partner) {
-              const partnerFromReport = partnersMap.get(linkedReport.client_partner);
+            // Se o relatório tem socios_cliente_id, resolver o nome pela tabela
+            if (linkedReport.socios_cliente_id) {
+              const partnerFromReport = partnersMap.get(linkedReport.socios_cliente_id);
               if (partnerFromReport) {
                 // Sobrescreve com o parceiro correto do relatório
                 Object.assign(exp, {
-                  _resolved_partner_name: partnerFromReport.name,
+                  _resolved_partner_name: partnerFromReport.nome,
                   _resolved_partner_cpf: partnerFromReport.cpf,
                 });
               }
@@ -261,49 +274,49 @@ export function useSocioTransactions(
 
         return {
           id: exp.id,
-          client_id: exp.client_id,
-          partner_cpf: exp._resolved_partner_cpf ?? exp.assigned_partner_cpf ?? "N/A",
+          client_id: exp.clientes_id,
+          partner_cpf: exp._resolved_partner_cpf ?? exp.cpf_socio ?? "N/A",
           partner_name: exp._resolved_partner_name ?? resolvedPartnerName,
           transaction_type: "expense",
-          amount: exp.total_amount,
+          amount: exp.valor_total,
           balance_before: 0,
           balance_after: 0,
-          description: exp.description,
+          description: exp.descricao,
           reference_type: finalReferenceType,
           reference_id: finalReferenceId,
-          payment_date: exp.due_date,
+          payment_date: exp.data_vencimento,
           receipt_url: null,
           notes: notesWithReport,
           created_by: null,
-          created_at: exp.created_at,
-          expense_type: exp.expense_type,
+          created_at: exp.criado_em,
+          expense_type: exp.tipo_despesa,
           status: exp.status,
-          bank_name: exp.bank_name || null,
+          bank_name: exp.nome_banco || null,
           prazo: exp.prazo || null,
-          payment_method: exp.payment_method || null,
-          doc: exp.invoice_number || null,
-          aircraft_id: exp.aircraft_id || null,
+          payment_method: exp.metodo_pagamento || null,
+          doc: exp.numero_fatura || null,
+          aeronave_id: exp.id_aeronave || null,
           // Campos adicionais para abastecimentos (quando vêm de partner_expenses)
-          ...(exp.expense_type === "abastecimento" && {
+          ...(exp.tipo_despesa === "abastecimento" && {
             comanda: exp.comanda || null,
             nf: exp.nf || null,
             trecho: exp.trecho || null,
             local: exp.local || null,
             litros: exp.litros || 0,
-            abastecedor: exp.abastecedor || exp.supplier_name || null,
+            abastecedor: exp.abastecedor || exp.nome_fornecedor || null,
             abastecimento_galoes: exp.abastecimento_galoes || null,
             comanda_url: exp.comanda_url || null,
             nota_url: exp.nota_url || null,
             boleto_url: exp.boleto_url || null,
             comprovante_pagamento: exp.comprovante_url || null,
-            observacao: exp.notes || null,
+            observacao: exp.observacoes || null,
           }),
           // Campos adicionais para viagens (quando vêm de partner_expenses)
-          ...(exp.expense_type === "viagem" && {
-            report_number: exp.invoice_number || null,
-            route: exp.supplier_name || null,
-            days_count: 0,
-            crew_member_name: exp.supplier_name || null,
+          ...(exp.tipo_despesa === "viagem" && {
+            numero_relatorio: exp.numero_fatura || null,
+            rota: exp.nome_fornecedor || null,
+            dias_count: 0,
+            crew_member_name: exp.nome_fornecedor || null,
             crew_member_name2: null,
             aircraft_registration: null,
             total_crew: 0,
@@ -311,13 +324,13 @@ export function useSocioTransactions(
             total_crew2: 0,
             total_sharebrasil: 0,
             total_client: 0,
-            pdf_url: null,
+            url_pdf: null,
             spent_crew: 0,
             remaining_crew: 0,
             spent_sharebrasil: 0,
             remaining_sharebrasil: 0,
-            start_date: exp.due_date,
-            end_date: exp.due_date,
+            data_inicio: exp.data_vencimento,
+            data_fim: exp.data_vencimento,
             observations: exp.notes || null,
           }),
         };
@@ -327,7 +340,7 @@ export function useSocioTransactions(
       const { data: fuels, error: fuelError } = await supabase
         .from("abastecimentos")
         .select("*")
-        .eq("client_id", clientId);
+        .eq("id_clientes", clientId);
 
       if (fuelError) console.warn("Erro ao carregar abastecimentos:", fuelError);
 
@@ -335,7 +348,7 @@ export function useSocioTransactions(
         // Resolver parceiro pelo nome armazenado no abastecimento (busca por nome na tabela)
         const partnerByName = (clientPartners || []).find(
           (cp: any) =>
-            cp.name?.toLowerCase() === (f.partner_name || "").toLowerCase()
+            cp.nome?.toLowerCase() === (f.nome_socio || "").toLowerCase()
         );
 
         // Use data_pagamento as the date that matters for monthly reports
@@ -344,9 +357,9 @@ export function useSocioTransactions(
 
         return {
           id: f.id,
-          client_id: f.client_id,
+          client_id: f.cliente_id,
           partner_cpf: partnerByName?.cpf ?? "N/A",
-          partner_name: partnerByName?.name ?? f.partner_name ?? "CONTA BANCARIA",
+          partner_name: partnerByName?.nome ?? f.nome_socio ?? "CONTA BANCARIA",
           transaction_type: "expense",
           amount: f.valor_total || 0,
           balance_before: 0,
@@ -358,9 +371,9 @@ export function useSocioTransactions(
           receipt_url: f.nota_url || null,
           notes: f.observacao,
           created_by: null,
-          created_at: f.created_at,
+          created_at: f.criado_em,
           expense_type: "abastecimento",
-          status: f.status_pagamento || null,
+          status: f.situacao_pagamento || null,
           bank_name: f.banco || null,
           prazo: f.prazo || null,
           payment_method: f.forma_pagamento || null,
@@ -401,7 +414,7 @@ export function useSocioTransactions(
         ...fuelsAsTransactions,
       ].map((t) => {
         // Adicionar status padrão se não existir
-        let defaultStatus = t.status;
+        let defaultStatus = t.situacao;
         if (!defaultStatus) {
           if (t.transaction_type === "deposit") {
             defaultStatus = "recebido";
@@ -414,12 +427,12 @@ export function useSocioTransactions(
 
         return {
           ...t,
-          partner_name: normalizePartnerName(t.partner_name),
+          partner_name: normalizePartnerName(t.nome_socio),
           status: defaultStatus,
         };
       }).sort((a, b) => {
-        const dateA = new Date(a.created_at).getTime();
-        const dateB = new Date(b.created_at).getTime();
+        const dateA = new Date(a.criado_em).getTime();
+        const dateB = new Date(b.criado_em).getTime();
         return dateB - dateA;
       });
 
@@ -445,12 +458,12 @@ export function useSocioExpenses(
       let query = supabase
         .from("partner_expenses")
         .select("*")
-        .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
+        .eq("clientes_id", clientId)
+        .order("criado_em", { ascending: false });
 
-      if (filters?.status) query = query.eq("status", filters.status);
-      if (filters?.partnerCpf) query = query.eq("assigned_partner_cpf", filters.partnerCpf);
-      if (filters?.type) query = query.eq("expense_type", filters.type);
+      if (filters?.situacao) query = query.eq("status", filters.situacao);
+      if (filters?.partnerCpf) query = query.eq("cpf_socio", filters.partnerCpf);
+      if (filters?.tipo) query = query.eq("tipo_despesa", filters.tipo);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -459,9 +472,9 @@ export function useSocioExpenses(
 
       // Buscar client_partners para resolver nomes
       const { data: clientPartners } = await supabase
-        .from("client_partners")
-        .select("id, name, cpf, share_percentage")
-        .eq("client_id", clientId);
+        .from("socios_cliente")
+        .select("id, nome, cpf, percentual_participacao")
+        .eq("cliente_id", clientId);
 
       const partnersByCpf = new Map(
         (clientPartners || []).map((cp: any) => [cp.cpf?.replace(/\D/g, ""), cp])
@@ -474,10 +487,10 @@ export function useSocioExpenses(
             .filter(
               (exp) =>
                 exp.notes?.includes("travel") ||
-                (exp as any).reference_type === "travel_expense_report" ||
-                (exp as any).reference_type === "viagem"
+                (exp as any).tipo_referencia === "travel_expense_report" ||
+                (exp as any).tipo_referencia === "viagem"
             )
-            .map((exp: any) => exp.reference_id)
+            .map((exp: any) => exp.id_referencia)
             .filter(Boolean)
         ),
       ];
@@ -486,33 +499,33 @@ export function useSocioExpenses(
       if (travelReportIds.length > 0) {
         const { data: reports } = await supabase
           .from("travel_expense_reports")
-          .select("id, report_number, client_partner")
+          .select("id, numero_relatorio, socios_cliente_id")
           .in("id", travelReportIds as string[]);
 
         (reports || []).forEach((r: any) => travelReportsMap.set(r.id, r));
       }
 
       return expenses.map((exp: any) => {
-        const cpfClean = (exp.assigned_partner_cpf || "").replace(/\D/g, "");
+        const cpfClean = (exp.cpf_socio || "").replace(/\D/g, "");
         const partnerFromTable = partnersByCpf.get(cpfClean);
 
-        let notes = exp.notes || null;
+        let notes = exp.observacoes || null;
         if (
-          exp.reference_id &&
-          (exp.reference_type === "travel_expense_report" ||
-            exp.reference_type === "viagem" ||
-            exp.reference_type === "travel_report")
+          exp.id_referencia &&
+          (exp.tipo_referencia === "travel_expense_report" ||
+            exp.tipo_referencia === "viagem" ||
+            exp.tipo_referencia === "travel_report")
         ) {
-          const linkedReport = travelReportsMap.get(exp.reference_id);
-          if (linkedReport?.report_number) {
-            const reportTag = `Relatório de Viagem: ${linkedReport.report_number}`;
+          const linkedReport = travelReportsMap.get(exp.id_referencia);
+          if (linkedReport?.numero_relatorio) {
+            const reportTag = `Relatório de Viagem: ${linkedReport.numero_relatorio}`;
             notes = notes ? `${notes}\n${reportTag}` : reportTag;
           }
         }
 
         return {
           ...exp,
-          assigned_partner_name: partnerFromTable?.name ?? exp.assigned_partner_name,
+          assigned_partner_name: partnerFromTable?.nome ?? exp.nome_socio,
           notes,
         };
       });
@@ -550,22 +563,22 @@ export function useAddDeposit(showToast = true) {
         let accountQuery = supabase
           .from("partner_accounts")
           .select("id, current_balance, total_deposited, client_partner_id")
-          .eq("client_id", data.clientId);
+          .eq("cliente_id", data.clientId);
 
         let clientPartnerId = data.clientPartnerId;
         if (!clientPartnerId) {
           // Fetch client_partner_id from client_partners
           const { data: partnerData, error: pErr } = await supabase
-            .from("client_partners")
+            .from("socios_cliente")
             .select("id")
-            .eq("client_id", data.clientId)
+            .eq("cliente_id", data.clientId)
             .eq("cpf", data.partnerCpf)
             .single();
           if (pErr) throw pErr;
           clientPartnerId = partnerData.id;
         }
 
-        accountQuery = accountQuery.eq("client_partner_id", clientPartnerId);
+        accountQuery = accountQuery.eq("socios_cliente_id", clientPartnerId);
 
         const { data: account, error: accErr } = await accountQuery.maybeSingle();
         if (accErr) throw accErr;
@@ -573,31 +586,31 @@ export function useAddDeposit(showToast = true) {
         let accountId: string;
         if (account) {
           balanceBefore = Number(account.current_balance);
-          balanceAfter = balanceBefore + data.amount;
+          balanceAfter = balanceBefore + data.valor;
           accountId = account.id;
 
           const { error: updErr } = await supabase
             .from("partner_accounts")
             .update({
               current_balance: balanceAfter,
-              total_deposited: Number(account.total_deposited) + data.amount,
+              total_deposited: Number(account.total_deposited) + data.valor,
             })
             .eq("id", account.id);
           if (updErr) throw updErr;
         } else {
           // Create new account
           balanceBefore = 0;
-          balanceAfter = data.amount;
+          balanceAfter = data.valor;
 
           const { data: newAccount, error: insErr } = await supabase
             .from("partner_accounts")
             .insert({
-              client_id: data.clientId,
-              client_partner_id: clientPartnerId,
-              partner_cpf: data.partnerCpf,
-              partner_name: data.partnerName,
+              cliente_id: data.clientId,
+              socios_cliente_id: clientPartnerId,
+              socio_cpf: data.partnerCpf,
+              socio_nome: data.partnerName,
               current_balance: balanceAfter,
-              total_deposited: data.amount,
+              total_deposited: data.valor,
               total_spent: 0,
             })
             .select("id")
@@ -606,28 +619,28 @@ export function useAddDeposit(showToast = true) {
           accountId = newAccount.id;
         }
       } else {
-        balanceAfter = data.amount;
+        balanceAfter = data.valor;
       }
 
       const { error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
-          client_id: data.clientId,
-          partner_cpf: data.partnerCpf || "00000000000",
-          partner_name: data.partnerName,
-          transaction_type: "deposit",
-          amount: data.amount,
-          balance_before: balanceBefore,
-          balance_after: balanceAfter,
-          description: data.description,
-          receipt_url: data.receiptUrl || null,
-          payment_date: data.paymentDate,
-          bank_name: data.bankName?.toUpperCase() || null,
-          transaction_subtype: data.transactionSubtype?.toUpperCase() || "DEPOSIT",
-          reference_type: data.referenceId ? "partner_expense" : null,
-          reference_id: data.referenceId || null,
+          clientes_id: data.clientId,
+          socio_cpf: data.partnerCpf || "00000000000",
+          socio_nome: data.partnerName,
+          tipo: "deposit",
+          valor: data.valor,
+          saldo_antes: balanceBefore,
+          saldo_depois: balanceAfter,
+          descricao: data.descricao,
+          url_comprovante: data.receiptUrl || null,
+          data_pagamento: data.paymentDate,
+          banco_nome: data.bankName?.toUpperCase() || null,
+          subtipo: data.transactionSubtype?.toUpperCase() || "DEPOSIT",
+          tipo_referencia: data.referenceId ? "partner_expense" : null,
+          referencia_id: data.referenceId || null,
           status: "RECEBIDO",
-          payment_method: data.paymentMethod?.toUpperCase() || null,
+          metodo_pagamento: data.paymentMethod?.toUpperCase() || null,
         });
       if (txErr) throw txErr;
 
@@ -661,43 +674,43 @@ export function usePayExpense() {
       // Validar que a despesa não é um abastecimento
       const { data: expense } = await supabase
         .from("partner_expenses")
-        .select("expense_type, category")
+        .select("tipo_despesa, categoria")
         .eq("id", data.expenseId)
         .single();
 
-      if (expense && (expense.expense_type === "abastecimento" || expense.category === "abastecimento")) {
+      if (expense && (expense.tipo_despesa === "abastecimento" || expense.categoria === "abastecimento")) {
         throw new Error("Abastecimentos devem ser pagos via Controle de Abastecimentos, não aqui.");
       }
 
       const { data: account, error: accErr } = await supabase
         .from("partner_accounts")
         .select("id, current_balance, total_spent")
-        .eq("client_id", data.clientId)
-        .eq("partner_cpf", data.partnerCpf)
+        .eq("cliente_id", data.clientId)
+        .eq("socio_cpf", data.partnerCpf)
         .single();
       if (accErr) throw accErr;
 
       const balanceBefore = Number(account.current_balance);
-      if (balanceBefore < data.amount) {
+      if (balanceBefore < data.valor) {
         throw new Error(`Saldo insuficiente. Disponível: R$ ${balanceBefore.toFixed(2)}`);
       }
 
-      const balanceAfter = balanceBefore - data.amount;
+      const balanceAfter = balanceBefore - data.valor;
 
       const { error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
-          client_id: data.clientId,
-          partner_cpf: data.partnerCpf,
-          partner_name: data.partnerName,
-          transaction_type: "payment",
-          amount: data.amount,
-          balance_before: balanceBefore,
-          balance_after: balanceAfter,
-          description: `Pagamento de despesa`,
-          reference_type: "expense",
-          reference_id: data.expenseId,
-          payment_date: data.paymentDate,
+          clientes_id: data.clientId,
+          socio_cpf: data.partnerCpf,
+          socio_nome: data.partnerName,
+          tipo: "payment",
+          valor: data.valor,
+          saldo_antes: balanceBefore,
+          saldo_depois: balanceAfter,
+          descricao: `Pagamento de despesa`,
+          tipo_referencia: "expense",
+          referencia_id: data.expenseId,
+          data_pagamento: data.paymentDate,
           status: "pago",
         });
       if (txErr) throw txErr;
@@ -706,7 +719,7 @@ export function usePayExpense() {
         .from("partner_accounts")
         .update({
           current_balance: balanceAfter,
-          total_spent: Number(account.total_spent) + data.amount,
+          total_spent: Number(account.total_spent) + data.valor,
         })
         .eq("id", account.id);
       if (updErr) throw updErr;
@@ -715,9 +728,9 @@ export function usePayExpense() {
         .from("partner_expenses")
         .update({
           status: "paid",
-          assigned_partner_cpf: data.partnerCpf,
-          assigned_partner_name: data.partnerName,
-          paid_date: data.paymentDate,
+          cpf_socio: data.partnerCpf,
+          nome_socio: data.partnerName,
+          data_pagamento: data.paymentDate,
         })
         .eq("id", data.expenseId);
       if (expErr) throw expErr;
@@ -770,19 +783,19 @@ export function useCreateExpense(showToast = true) {
       demonstrativoUrl?: string | null;
     }) => {
       // Se for abastecimento, NUNCA criar em partner_expenses - apenas atualizar abastecimentos
-      if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
+      if (data.expenseType === "abastecimento" || data.categoria === "abastecimento") {
         if (data.abastecimentoId) {
           // Atualizar abastecimento existente
           try {
             const updatePayload: any = {
               status_pagamento:
-                data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
+                data.situacao === "paid" || data.situacao === "pago" ? "pago" : "pendente",
               partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
               updated_at: new Date().toISOString(),
             };
 
             // Se a despesa foi marcada como paga, sincroniza a data_pagamento
-            if ((data.status === "paid" || data.status === "pago") && data.dueDate) {
+            if ((data.situacao === "paid" || data.situacao === "pago") && data.dueDate) {
               updatePayload.data_pagamento = data.dueDate;
             }
 
@@ -819,7 +832,7 @@ export function useCreateExpense(showToast = true) {
 
       // Normalize fields to UPPERCASE
       const normalizedPaymentMethod = data.paymentMethod?.toUpperCase() || null;
-      const normalizedStatus = data.status?.toUpperCase() || "PENDING";
+      const normalizedStatus = data.situacao?.toUpperCase() || "PENDING";
       const normalizedPrazo = data.prazo?.toUpperCase() || null;
       const normalizedBankName = data.bankName?.toUpperCase() || null;
       const normalizedSupplierName = data.supplierName?.toUpperCase() || null;
@@ -828,35 +841,35 @@ export function useCreateExpense(showToast = true) {
 
       if (isInstallment) {
         const originalExpense: any = {
-          client_id: data.clientId,
-          aircraft_id: data.aircraftId || null,
-          expense_type: data.expenseType,
-          description: data.description,
-          total_amount: data.totalAmount,
-          assigned_partner_cpf: data.assignedPartnerCpf || null,
-          assigned_partner_name: data.assignedPartnerName || null,
-          supplier_name: normalizedSupplierName,
-          due_date: data.dueDate || null,
-          invoice_number: data.invoiceNumber || null,
-          invoice_url: data.invoiceUrl || null,
-          payment_method: normalizedPaymentMethod,
-          notes:
+          clientes_id: data.clientId,
+          id_aeronave: data.aircraftId || null,
+          tipo_despesa: data.expenseType,
+          descricao: data.description,
+          valor_total: data.totalAmount,
+          cpf_socio: data.assignedPartnerCpf || null,
+          nome_socio: data.assignedPartnerName || null,
+          nome_fornecedor: normalizedSupplierName,
+          data_vencimento: data.dueDate || null,
+          numero_fatura: data.invoiceNumber || null,
+          url_fatura: data.invoiceUrl || null,
+          metodo_pagamento: normalizedPaymentMethod,
+          observacoes:
             `${data.notes || ""}${data.notes ? "\n" : ""}Parcelado em ${installmentCount}x de R$ ${installmentAmount.toFixed(2)}` ||
             null,
           status: normalizedStatus,
           prazo: normalizedPrazo,
-          bank_name: normalizedBankName,
-          reference_type: data.referenceType || null,
-          reference_id: data.referenceId || null,
-          installment_count: installmentCount,
-          installment_number: 0,
-          installment_start_date: startDate?.toISOString().split("T")[0] || null,
-           parent_expense_id: null,
+          nome_banco: normalizedBankName,
+          tipo_referencia: data.referenceType || null,
+          id_referencia: data.referenceId || null,
+          quantidade_parcelas: installmentCount,
+          numero_parcela: 0,
+          data_inicio_parcelamento: startDate?.toISOString().split("T")[0] || null,
+          id_despesa_pai: null,
           percentual_socio: data.percentualSocio ?? null,
-          category: data.category || null,
+          categoria: data.categoria || null,
           doc: data.doc || null,
           boleto_url: data.boletoUrl || null,
-          nf_url: data.demonstrativoUrl || null,
+          demonstrativo_url: data.demonstrativoUrl || null,
         };
 
         expenses.push(originalExpense);
@@ -866,33 +879,33 @@ export function useCreateExpense(showToast = true) {
           installmentDate.setMonth(installmentDate.getMonth() + (i - 1));
 
           expenses.push({
-            client_id: data.clientId,
-            aircraft_id: data.aircraftId || null,
-            expense_type: data.expenseType,
-            description: `${data.description} (${i}/${installmentCount})`,
-            total_amount: installmentAmount,
-            assigned_partner_cpf: data.assignedPartnerCpf || null,
-            assigned_partner_name: data.assignedPartnerName || null,
-            supplier_name: normalizedSupplierName,
-            due_date: installmentDate.toISOString().split("T")[0],
-            invoice_number: data.invoiceNumber || null,
-            invoice_url: data.invoiceUrl || null,
-            payment_method: normalizedPaymentMethod,
-            notes: data.notes || null,
+            clientes_id: data.clientId,
+            id_aeronave: data.aircraftId || null,
+            tipo_despesa: data.expenseType,
+            descricao: `${data.description} (${i}/${installmentCount})`,
+            valor_total: installmentAmount,
+            cpf_socio: data.assignedPartnerCpf || null,
+            nome_socio: data.assignedPartnerName || null,
+            nome_fornecedor: normalizedSupplierName,
+            data_vencimento: installmentDate.toISOString().split("T")[0],
+            numero_fatura: data.invoiceNumber || null,
+            url_fatura: data.invoiceUrl || null,
+            metodo_pagamento: normalizedPaymentMethod,
+            observacoes: data.notes || null,
             status: normalizedStatus,
             prazo: normalizedPrazo,
-            bank_name: normalizedBankName,
-            reference_type: data.referenceType || null,
-            reference_id: data.referenceId || null,
-            installment_count: installmentCount,
-            installment_number: i,
-            installment_start_date: startDate?.toISOString().split("T")[0] || null,
-            parent_expense_id: null,
+            nome_banco: normalizedBankName,
+            tipo_referencia: data.referenceType || null,
+            id_referencia: data.referenceId || null,
+            quantidade_parcelas: installmentCount,
+            numero_parcela: i,
+            data_inicio_parcelamento: startDate?.toISOString().split("T")[0] || null,
+            id_despesa_pai: null,
             percentual_socio: data.percentualSocio ?? null,
-            category: data.category || null,
+            categoria: data.categoria || null,
             doc: data.doc || null,
             boleto_url: data.boletoUrl || null,
-            nf_url: data.demonstrativoUrl || null,
+            demonstrativo_url: data.demonstrativoUrl || null,
           });
         }
 
@@ -916,37 +929,37 @@ export function useCreateExpense(showToast = true) {
         }
       } else {
         const { error } = await supabase.from("partner_expenses").insert({
-          client_id: data.clientId,
-          aircraft_id: data.aircraftId || null,
-          expense_type: data.expenseType,
-          description: data.description,
-          total_amount: data.totalAmount,
-          assigned_partner_cpf: data.assignedPartnerCpf || null,
-          assigned_partner_name: data.assignedPartnerName || null,
-          supplier_name: normalizedSupplierName,
-          due_date: data.dueDate || null,
-          invoice_number: data.invoiceNumber || null,
-          invoice_url: data.invoiceUrl || null,
-          payment_method: normalizedPaymentMethod,
-          notes: data.notes || null,
+          clientes_id: data.clientId,
+          id_aeronave: data.aircraftId || null,
+          tipo_despesa: data.expenseType,
+          descricao: data.description,
+          valor_total: data.totalAmount,
+          cpf_socio: data.assignedPartnerCpf || null,
+          nome_socio: data.assignedPartnerName || null,
+          nome_fornecedor: normalizedSupplierName,
+          data_vencimento: data.dueDate || null,
+          numero_fatura: data.invoiceNumber || null,
+          url_fatura: data.invoiceUrl || null,
+          metodo_pagamento: normalizedPaymentMethod,
+          observacoes: data.notes || null,
           status: normalizedStatus,
           prazo: normalizedPrazo,
-          bank_name: normalizedBankName,
-          reference_type: data.referenceType || null,
-          reference_id: data.referenceId || null,
-          installment_count: 1,
-          installment_number: 1,
+          nome_banco: normalizedBankName,
+          tipo_referencia: data.referenceType || null,
+          id_referencia: data.referenceId || null,
+          quantidade_parcelas: 1,
+          numero_parcela: 1,
           percentual_socio: data.percentualSocio ?? null,
-          category: data.category || null,
+          categoria: data.categoria || null,
           doc: data.doc || null,
           boleto_url: data.boletoUrl || null,
-          nf_url: data.demonstrativoUrl || null,
+          demonstrativo_url: data.demonstrativoUrl || null,
         });
         if (error) throw error;
       }
 
       if (data.referenceType && data.referenceId) {
-        const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.status || undefined);
+        const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.situacao || undefined);
         if (reconcStatus) {
           const bankUpdate: any = {
             status: reconcStatus,
@@ -957,10 +970,10 @@ export function useCreateExpense(showToast = true) {
           }
 
           const { error: reconError } = await supabase
-            .from("bank_reconciliations")
+            .from("conciliacoes_bancarias")
             .update(bankUpdate)
-            .eq("reference_type", data.referenceType)
-            .eq("reference_id", data.referenceId);
+            .eq("tipo_referencia", data.referenceType)
+            .eq("referencia_id", data.referenceId);
 
           if (reconError) {
             console.warn("Falha ao sincronizar status de partner_expense em bank_reconciliations:", reconError.message);
@@ -998,18 +1011,18 @@ export function useAddBankInterest() {
       paymentDate: string;
     }) => {
       const { error } = await supabase.from("partner_transactions").insert({
-        client_id: data.clientId,
-        partner_cpf: "00000000000",
-        partner_name: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
-        transaction_type: "deposit",
-        amount: data.amount,
-        balance_before: 0,
-        balance_after: 0,
-        description: data.description,
-        payment_date: data.paymentDate,
-        bank_name: data.bankName?.toUpperCase() || null,
-        transaction_subtype: "INTEREST",
-        payment_method: "OUTROS",
+        clientes_id: data.clientId,
+        socio_cpf: "00000000000",
+        socio_nome: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
+        tipo: "deposit",
+        valor: data.amount,
+        saldo_antes: 0,
+        saldo_depois: 0,
+        descricao: data.description,
+        data_pagamento: data.paymentDate,
+        banco_nome: data.bankName?.toUpperCase() || null,
+        subtipo: "INTEREST",
+        metodo_pagamento: "OUTROS",
       });
 
       if (error) throw error;
@@ -1086,20 +1099,20 @@ export function useDeleteTransaction() {
       } else {
         if (data.partnerCpf && data.partnerCpf !== "00000000000") {
           const { data: account, error: accErr } = await supabase
-            .from("partner_accounts")
-            .select("id, current_balance, total_deposited, total_spent")
-            .eq("client_id", data.clientId)
-            .eq("partner_cpf", data.partnerCpf)
-            .single();
+        .from("partner_accounts")
+        .select("id, current_balance, total_deposited, total_spent")
+        .eq("cliente_id", data.clientId)
+        .eq("socio_cpf", data.partnerCpf)
+        .single();
           if (accErr) throw accErr;
 
           const updates: any = {};
           if (data.transactionType === "deposit") {
-            updates.current_balance = Number(account.current_balance) - data.amount;
-            updates.total_deposited = Number(account.total_deposited) - data.amount;
+            updates.current_balance = Number(account.current_balance) - data.valor;
+            updates.total_deposited = Number(account.total_deposited) - data.valor;
           } else if (data.transactionType === "payment") {
-            updates.current_balance = Number(account.current_balance) + data.amount;
-            updates.total_spent = Number(account.total_spent) - data.amount;
+            updates.current_balance = Number(account.current_balance) + data.valor;
+            updates.total_spent = Number(account.total_spent) - data.valor;
           }
 
           const { error: updErr } = await supabase
@@ -1166,20 +1179,20 @@ export function useUpdateTransaction() {
         const normPrazo = data.prazo?.toUpperCase() || null;
         const normSupplierName = data.supplierName?.toUpperCase() || null;
         const normPaymentMethod = data.paymentMethod?.toUpperCase() || null;
-        const normStatus = data.status?.toUpperCase() || null;
+        const normStatus = data.situacao?.toUpperCase() || null;
 
         const { error } = await supabase
           .from("partner_expenses")
           .update({
-            description: data.description,
-            total_amount: data.amount,
+            description: data.descricao,
+            total_amount: data.valor,
             due_date: data.dueDate || data.paymentDate,
             paid_date: data.paymentDate,
             notes: data.notes || null,
             bank_name: normBankName,
             prazo: normPrazo,
-            category: data.category || null,
-            expense_type: data.expenseType || data.category || undefined,
+            category: data.categoria || null,
+            expense_type: data.expenseType || data.categoria || undefined,
             supplier_name: normSupplierName,
             payment_method: normPaymentMethod,
             status: normStatus,
@@ -1189,7 +1202,7 @@ export function useUpdateTransaction() {
             invoice_url: data.invoiceUrl || null,
             reference_type: data.referenceType || null,
             reference_id: data.referenceId || null,
-            aircraft_id: data.aircraftId || null,
+            aeronave_id: data.aeronaveId || null,
           })
           .eq("id", data.id);
         if (error) throw error;
@@ -1207,10 +1220,10 @@ export function useUpdateTransaction() {
             }
 
             const { error: reconError } = await supabase
-              .from("bank_reconciliations")
+              .from("conciliacoes_bancarias")
               .update(bankUpdate)
-              .eq("reference_type", data.referenceType)
-              .eq("reference_id", data.referenceId);
+              .eq("tipo_referencia", data.referenceType)
+              .eq("referencia_id", data.referenceId);
 
             if (reconError) {
               console.warn("Falha ao sincronizar status de partner_expense em bank_reconciliations:", reconError.message);
@@ -1228,7 +1241,7 @@ export function useUpdateTransaction() {
 
         const litros = Number(fuelRecord?.litros || 0);
         const updatePayload: any = {
-          descricao: data.description,
+          descricao: data.descricao,
           observacao: data.notes || null,
           abastecedor: data.supplierName || null,
           banco: data.bankName || null,
@@ -1239,19 +1252,19 @@ export function useUpdateTransaction() {
           updated_at: new Date().toISOString(),
         };
 
-        if (litros > 0 && Number.isFinite(data.amount)) {
-          updatePayload.valor_unitario = Number((data.amount / litros).toFixed(10));
+        if (litros > 0 && Number.isFinite(data.valor)) {
+          updatePayload.valor_unitario = Number((data.valor / litros).toFixed(10));
         }
 
         // Update status and payment date
-        if (data.status === "paid" || data.status === "pago") {
-          updatePayload.status_pagamento = "pago";
+        if (data.situacao === "paid" || data.situacao === "pago") {
+          updatePayload.situacao_pagamento = "pago";
           updatePayload.data_pagamento = data.paymentDate;
-        } else if (data.status === "pendente" || data.status === "pending") {
-          updatePayload.status_pagamento = "pendente";
+        } else if (data.situacao === "pendente" || data.situacao === "pending") {
+          updatePayload.situacao_pagamento = "pendente";
           updatePayload.data_pagamento = null;
         } else {
-          updatePayload.status_pagamento = data.status || "pendente";
+          updatePayload.situacao_pagamento = data.situacao || "pendente";
           if (data.paymentDate) {
             updatePayload.data_pagamento = data.paymentDate;
           }
@@ -1271,11 +1284,11 @@ export function useUpdateTransaction() {
         const { error } = await supabase
           .from("partner_transactions")
           .update({
-            description: data.description,
-            amount: data.amount,
-            payment_date: data.paymentDate,
-            notes: data.notes || null,
-            bank_name: data.bankName || null,
+            descricao: data.descricao,
+            valor: data.valor,
+            data_pagamento: data.paymentDate,
+            observacoes: data.notes || null,
+            banco_nome: data.bankName || null,
             prazo: data.prazo || null,
           })
           .eq("id", data.id);

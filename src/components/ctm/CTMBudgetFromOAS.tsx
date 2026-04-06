@@ -45,8 +45,8 @@ export function CTMBudgetFromOAS({ oasId, onClose, onSuccess }: CTMBudgetFromOAS
       setLoading(true);
 
       // Get OAS data
-      const { data: oas, error: oasError } = await supabase
-        .from('ctm_service_orders')
+      const { data: oas, error: oasError } = await (supabase as any)
+        .from('service_orders')
         .select('*')
         .eq('id', oasId)
         .single();
@@ -55,7 +55,7 @@ export function CTMBudgetFromOAS({ oasId, onClose, onSuccess }: CTMBudgetFromOAS
       setOasData(oas);
 
       // Get services
-      const { data: svcData, error: svcError } = await supabase
+      const { data: svcData, error: svcError } = await (supabase as any)
         .from('ctm_services')
         .select('*')
         .eq('service_order_id', oasId);
@@ -64,7 +64,7 @@ export function CTMBudgetFromOAS({ oasId, onClose, onSuccess }: CTMBudgetFromOAS
       setServices(svcData || []);
 
       // Get parts
-      const { data: partData, error: partError } = await supabase
+      const { data: partData, error: partError } = await (supabase as any)
         .from('ctm_parts')
         .select('*')
         .eq('service_order_id', oasId);
@@ -193,7 +193,7 @@ export function CTMBudgetFromOAS({ oasId, onClose, onSuccess }: CTMBudgetFromOAS
               </div>
               <div>
                 <p className="text-xs text-slate-400">Status</p>
-                <Badge variant="outline" className="text-xs">{oasData?.status}</Badge>
+                <Badge variant="outline" className="text-xs">{oasData?.situacao}</Badge>
               </div>
             </div>
           </div>

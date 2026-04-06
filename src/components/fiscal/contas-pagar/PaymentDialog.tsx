@@ -32,7 +32,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.name
+      const sanitizedFileName = file.nome
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();
@@ -90,7 +90,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
           conta_banco: banco,
           status: "pago",
           fornecedores_favoritos_id: conta.fornecedor_favorito_id || null,
-          client_id: conta.client_id || null,
+          client_id: conta.cliente_id || null,
           aeronave_id: conta.aeronave_id || null,
           aeronave_registro: conta.aeronave_registro || null,
           comprovante_url: comprovanteUrl || null,
@@ -125,7 +125,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
             </div>
             <div>
               <label className="text-sm font-semibold mb-1 block">Data do Pagamento *</label>
-              <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
+              <Input type="data" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
             </div>
           
             <div>

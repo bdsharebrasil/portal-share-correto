@@ -18,7 +18,7 @@ import { useCrewMembers } from "@/hooks/useCrewMembers";
 
 interface Client {
   id: string;
-  company_name: string | null;
+  razao_social: string | null;
   proprietario: string | null;
 }
 
@@ -30,7 +30,7 @@ interface Aircraft {
 
 interface ClientPartner {
   id: string;
-  name: string;
+  nome: string;
 }
 
 interface FlightCycleDetailProps {
@@ -62,7 +62,7 @@ export function FlightCycleDetail({
   const [partners, setPartners] = useState<ClientPartner[]>([]);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
   const [editData, setEditData] = useState({
-    client_id: cycle.client_id || '',
+    client_id: cycle.cliente_id || '',
     partner_id: cycle.partner_id || '',
     origin_icao: cycle.origin_icao,
     destination_icao: cycle.destination_icao,
@@ -73,10 +73,10 @@ export function FlightCycleDetail({
   const [savingEdit, setSavingEdit] = useState(false);
   const [expenseEdits, setExpenseEdits] = useState<Record<string, { amount: number | null; status: ExpenseStatus }>>({});
 
-  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
+  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.situacao];
 
   const expenses = cycle.expenses || [];
-  const completedExpenses = expenses.filter(e => ['paga', 'nao_aplicavel'].includes(e.status)).length;
+  const completedExpenses = expenses.filter(e => ['paga', 'nao_aplicavel'].includes(e.situacao)).length;
   const completionPercentage = expenses.length > 0
     ? Math.round((completedExpenses / expenses.length) * 100)
     : 0;
@@ -98,10 +98,10 @@ export function FlightCycleDetail({
       }
 
       const { data } = await supabase
-        .from('client_partners')
-        .select('id, name')
-        .eq('client_id', editData.client_id)
-        .order('name');
+        .from('socios_cliente')
+        .select('id, nome')
+        .eq('cliente_id', editData.client_id)
+        .order('nome');
 
       setPartners(data || []);
       setEditData(prev => ({ ...prev, partner_id: '' }));
@@ -112,8 +112,8 @@ export function FlightCycleDetail({
 
   const loadEditData = async () => {
     const [clientsRes, aircraftRes] = await Promise.all([
-      supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
-      supabase.from('aircraft').select('id, registration, model').order('registration'),
+      supabase.from('clientes').select('id, razao_social, proprietario').order('razao_social'),
+      supabase.from('aeronave').select('id, matricula, modelo').order("matricula"),
     ]);
 
     if (clientsRes.data) setClients(clientsRes.data);
@@ -132,11 +132,11 @@ export function FlightCycleDetail({
       let partnerName: string | null = null;
       if (editData.partner_id) {
         const partner = partners.find(p => p.id === editData.partner_id);
-        partnerName = partner?.name || null;
+        partnerName = partner?.nome || null;
       }
 
       await onUpdateCycle(cycle.id, {
-        client_id: editData.client_id || null,
+        client_id: editData.cliente_id || null,
         partner_id: editData.partner_id || null,
         partner_name: partnerName,
         origin_icao: editData.origin_icao,
@@ -153,7 +153,7 @@ export function FlightCycleDetail({
 
   const handleCancelEdit = () => {
     setEditData({
-      client_id: cycle.client_id || '',
+      client_id: cycle.cliente_id || '',
       partner_id: cycle.partner_id || '',
       origin_icao: cycle.origin_icao,
       destination_icao: cycle.destination_icao,
@@ -165,7 +165,7 @@ export function FlightCycleDetail({
   };
 
   const getExpenseAlertLevel = (expense: FlightExpense): 'none' | 'yellow' | 'red' | 'purple' => {
-    if (!expense.expected_date || expense.status === 'paga' || expense.status === 'nao_aplicavel') {
+    if (!expense.expected_date || expense.situacao === 'paga' || expense.situacao === 'nao_aplicavel') {
       return 'none';
     }
     
@@ -225,7 +225,7 @@ export function FlightCycleDetail({
                 <div>
                   <div className="flex items-center gap-3">
                     <h2 className="text-2xl font-bold text-foreground">
-                      {cycle.aircraft?.registration || 'N/A'}
+                      {cycle.aeronave?.matricula || 'N/A'}
                     </h2>
                     <Badge
                       variant="outline"
@@ -235,7 +235,7 @@ export function FlightCycleDetail({
                     </Badge>
                   </div>
                   <p className="text-muted-foreground">
-                    {cycle.partner_name || cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
+                    {cycle.nome_socio || cycle.client?.razao_social || cycle.client?.proprietario || 'Cliente não definido'}
                   </p>
                 </div>
               </div>
@@ -294,7 +294,7 @@ export function FlightCycleDetail({
               <div className="space-y-2">
                 <Label>Cliente</Label>
                 <Select
-                  value={editData.client_id}
+                  value={editData.cliente_id}
                   onValueChange={(v) => setEditData(prev => ({ ...prev, client_id: v }))}
                 >
                   <SelectTrigger>
@@ -303,7 +303,7 @@ export function FlightCycleDetail({
                   <SelectContent>
                     {clients.map(client => (
                       <SelectItem key={client.id} value={client.id}>
-                        {client.company_name || client.proprietario || 'Sem nome'}
+                        {client.razao_social || client.proprietario || 'Sem nome'}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -331,7 +331,7 @@ export function FlightCycleDetail({
                   <SelectContent>
                     {partners.map(partner => (
                       <SelectItem key={partner.id} value={partner.id}>
-                        {partner.name}
+                        {partner.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -436,7 +436,7 @@ export function FlightCycleDetail({
                 Excluir Ciclo
               </Button>
 
-              {cycle.status === 'confirmado' && (
+              {cycle.situacao === 'confirmado' && (
                 <Button
                   size="sm"
                   onClick={() => onUpdateCycleStatus(cycle.id, 'em_execucao')}
@@ -445,7 +445,7 @@ export function FlightCycleDetail({
                   Iniciar Voo
                 </Button>
               )}
-              {cycle.status === 'em_execucao' && (
+              {cycle.situacao === 'em_execucao' && (
                 <Button
                   size="sm"
                   onClick={() => onUpdateCycleStatus(cycle.id, 'aguardando_despesas')}
@@ -454,7 +454,7 @@ export function FlightCycleDetail({
                   Concluir Voo
                 </Button>
               )}
-              {['aguardando_despesas', 'em_cobranca'].includes(cycle.status) && completionPercentage === 100 && (
+              {['aguardando_despesas', 'em_cobranca'].includes(cycle.situacao) && completionPercentage === 100 && (
                 <Button
                   size="sm"
                   onClick={() => onUpdateCycleStatus(cycle.id, 'finalizado')}
@@ -507,7 +507,7 @@ export function FlightCycleDetail({
                 <div className="space-y-2">
                   {categoryExpenses.map((expense) => {
                     const alertLevel = getExpenseAlertLevel(expense);
-                    const expenseStatusConfig = EXPENSE_STATUS_CONFIG[expense.status];
+                    const expenseStatusConfig = EXPENSE_STATUS_CONFIG[expense.situacao];
                     const isExpanded = expandedExpense === expense.id;
 
                     return (
@@ -565,10 +565,10 @@ export function FlightCycleDetail({
                                 <div className="flex-1">
                                   <label className="text-xs text-muted-foreground mb-1 block">Status</label>
                                   <Select
-                                    value={expenseEdits[expense.id]?.status || expense.status}
+                                    value={expenseEdits[expense.id]?.situacao || expense.situacao}
                                     onValueChange={(value) => setExpenseEdits(prev => ({
                                       ...prev,
-                                      [expense.id]: { ...prev[expense.id], amount: prev[expense.id]?.amount ?? expense.amount, status: value as ExpenseStatus }
+                                      [expense.id]: { ...prev[expense.id], amount: prev[expense.id]?.valor ?? expense.valor, status: value as ExpenseStatus }
                                     }))}
                                   >
                                     <SelectTrigger>
@@ -589,13 +589,13 @@ export function FlightCycleDetail({
                                   <Input
                                     type="number"
                                     placeholder="0,00"
-                                    value={expenseEdits[expense.id]?.amount ?? expense.amount ?? ''}
+                                    value={expenseEdits[expense.id]?.valor ?? expense.valor ?? ''}
                                     onChange={(e) => setExpenseEdits(prev => ({
                                       ...prev,
                                       [expense.id]: { 
                                         ...prev[expense.id],
                                         amount: e.target.value ? parseFloat(e.target.value) : null,
-                                        status: prev[expense.id]?.status ?? expense.status
+                                        status: prev[expense.id]?.situacao ?? expense.situacao
                                       }
                                     }))}
                                   />
@@ -604,8 +604,8 @@ export function FlightCycleDetail({
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    const newStatus = expenseEdits[expense.id]?.status || expense.status;
-                                    const newAmount = expenseEdits[expense.id]?.amount ?? expense.amount;
+                                    const newStatus = expenseEdits[expense.id]?.situacao || expense.situacao;
+                                    const newAmount = expenseEdits[expense.id]?.valor ?? expense.valor;
                                     onUpdateExpenseStatus(expense.id, newStatus, { amount: newAmount });
                                     setExpenseEdits(prev => {
                                       const updated = { ...prev };

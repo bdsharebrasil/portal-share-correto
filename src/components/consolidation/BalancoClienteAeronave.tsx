@@ -92,7 +92,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
     queryKey: ['cliente-detalhe', clienteId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .select('*')
         .eq('id', clienteId)
         .single();
@@ -107,12 +107,12 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
     queryKey: ['cliente-aeronaves', clienteId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('client_aircraft')
+        .from('cotistas_aeronave')
         .select(`
           *,
-          aircraft:aircraft_id (id, registration, model, manufacturer)
+          aircraft:id_aeronave (id, registration, model, manufacturer)
         `)
-        .eq('client_id', clienteId);
+        .eq('id_clientes', clienteId);
       if (error) throw error;
       return data || [];
     },
@@ -125,7 +125,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
     queryFn: async () => {
       if (!aeronaveId) return null;
       const { data, error } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
         .eq('id', aeronaveId)
         .single();
@@ -168,15 +168,15 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
     queryKey: ['movimentacoes-cliente', clienteId, aeronaveId, ano, mes],
     queryFn: async () => {
       let query = supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .select(`
           *,
           categorias_movimentacao:categoria_movimentacao_id (nome, grupo_categoria)
         `)
-        .eq('client_id', clienteId);
+        .eq('clientes_id', clienteId);
 
       if (aeronaveId) {
-        query = query.eq('aircraft_id', aeronaveId);
+        query = query.eq('aeronave_id', aeronaveId);
       }
 
       // Filtro por data
@@ -203,21 +203,21 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
   // Tipos que representam despesas (saídas de caixa ou reembolsos a receber)
   const tiposDespesa = ['saida', 'despesa', 'cliente', 'reembolso'];
   const tiposReceita = ['entrada', 'receita', 'pagamento'];
-  
-  const despesas = movimentacoes.filter((m) => tiposDespesa.includes(m.type?.toLowerCase() || ''));
-  const receitas = movimentacoes.filter((m) => tiposReceita.includes(m.type?.toLowerCase() || ''));
 
-  const totalDespesas = despesas.reduce((acc, m) => acc + (m.amount || 0), 0);
-  const totalReceitas = receitas.reduce((acc, m) => acc + (m.amount || 0), 0);
+  const despesas = movimentacoes.filter((m) => tiposDespesa.includes(m.tipo?.toLowerCase() || ''));
+  const receitas = movimentacoes.filter((m) => tiposReceita.includes(m.tipo?.toLowerCase() || ''));
+
+  const totalDespesas = despesas.reduce((acc, m) => acc + (m.valor || 0), 0);
+  const totalReceitas = receitas.reduce((acc, m) => acc + (m.valor || 0), 0);
   const saldo = totalReceitas - totalDespesas;
 
   const despesasPendentes = movimentacoes.filter((m) => m.status === 'pendente' || m.status === 'aguardando_reembolso');
-  const totalPendente = despesasPendentes.reduce((acc, m) => acc + (m.saldo_pendente || m.amount || 0), 0);
+  const totalPendente = despesasPendentes.reduce((acc, m) => acc + (m.saldo_pendente || m.valor || 0), 0);
 
   // Dados agrupados por categoria
   const despesasPorCategoria = despesas.reduce((acc: any, m: any) => {
-    const categoria = m.categorias_movimentacao?.grupo_categoria || m.category || 'Outros';
-    acc[categoria] = (acc[categoria] || 0) + (m.amount || 0);
+    const categoria = m.categorias_movimentacao?.grupo_categoria || m.categoria || 'Outros';
+    acc[categoria] = (acc[categoria] || 0) + (m.valor || 0);
     return acc;
   }, {});
 
@@ -234,14 +234,14 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
       return entryMonth === mesNum;
     });
     const despesasMes = despesas.filter((d) => {
-      const despMonth = new Date(d.date).getMonth() + 1;
+      const despMonth = new Date(d.data).getMonth() + 1;
       return despMonth === mesNum;
     });
 
     return {
       mes: MESES[i].label.substring(0, 3),
       horas: horasMes.reduce((acc, h) => acc + (h.total_time || 0), 0),
-      despesas: despesasMes.reduce((acc, d) => acc + (d.amount || 0), 0),
+      despesas: despesasMes.reduce((acc, d) => acc + (d.valor || 0), 0),
     };
   }).filter((d) => mes === null || MESES.findIndex((m) => m.label.startsWith(d.mes)) + 1 === mes);
 
@@ -258,14 +258,14 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
     doc.setFontSize(12);
     doc.setTextColor(100);
     doc.text(
-      `Cliente: ${cliente?.company_name || cliente?.proprietario || 'N/A'}`,
+      `Cliente: ${cliente?.razao_social || cliente?.proprietario || 'N/A'}`,
       pageWidth / 2,
       30,
       { align: 'center' }
     );
 
     if (aeronave) {
-      doc.text(`Aeronave: ${aeronave.registration} - ${aeronave.model}`, pageWidth / 2, 38, {
+      doc.text(`Aeronave: ${aeronave.matricula} - ${aeronave.modelo}`, pageWidth / 2, 38, {
         align: 'center',
       });
     }
@@ -329,7 +329,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
     // Últimas movimentações
     if (movimentacoes.length > 0) {
       const finalY3 = (doc as any).lastAutoTable.finalY + 10;
-      
+
       if (finalY3 > 250) {
         doc.addPage();
         doc.text('Últimas Movimentações', 14, 20);
@@ -343,10 +343,10 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
         startY: startY4,
         head: [['Data', 'Descrição', 'Tipo', 'Valor', 'Status']],
         body: movimentacoes.slice(0, 15).map((m) => [
-          format(new Date(m.date), 'dd/MM/yyyy'),
-          m.description.substring(0, 30),
-          m.type === 'entrada' ? 'Entrada' : 'Saída',
-          `R$ ${m.amount.toFixed(2)}`,
+          format(new Date(m.data), 'dd/MM/yyyy'),
+          m.descricao.substring(0, 30),
+          m.tipo === 'entrada' ? 'Entrada' : 'Saída',
+          `R$ ${m.valor.toFixed(2)}`,
           m.status,
         ]),
         theme: 'striped',
@@ -367,7 +367,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
       { align: 'center' }
     );
 
-    const nomeArquivo = `balanco_${cliente?.company_name?.replace(/\s/g, '_') || 'cliente'}_${aeronave?.registration || 'todas'}_${ano}${mes ? `_${mes}` : ''}.pdf`;
+    const nomeArquivo = `balanco_${cliente?.razao_social?.replace(/\s/g, '_') || 'cliente'}_${aeronave?.matricula || 'todas'}_${ano}${mes ? `_${mes}` : ''}.pdf`;
     doc.save(nomeArquivo);
   };
 
@@ -387,8 +387,8 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
                 Balanço Completo
               </CardTitle>
               <CardDescription className="mt-1">
-                {cliente?.company_name || cliente?.proprietario || 'Cliente'}
-                {aeronave && ` • ${aeronave.registration}`}
+                {cliente?.razao_social || cliente?.proprietario || 'Cliente'}
+                {aeronave && ` • ${aeronave.matricula}`}
               </CardDescription>
             </div>
             <Button onClick={exportarPDF} className="gap-2" variant="default">
@@ -414,8 +414,8 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
                 <SelectContent>
                   <SelectItem value="todas">Todas as aeronaves</SelectItem>
                   {clienteAeronaves.map((ca: any) => (
-                    <SelectItem key={ca.aircraft?.id} value={ca.aircraft?.id || ''}>
-                      {ca.aircraft?.registration} - {ca.aircraft?.model}
+                    <SelectItem key={ca.aeronave?.id} value={ca.aeronave?.id || ''}>
+                      {ca.aeronave?.matricula} - {ca.aeronave?.modelo}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -462,7 +462,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
               <label className="text-sm font-medium text-muted-foreground">Participação</label>
               <div className="h-10 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-md flex items-center">
                 <span className="text-sm">
-                  {clienteAeronaves.find((ca: any) => ca.aircraft?.id === aeronaveId)?.share_percentage || 100}%
+                  {clienteAeronaves.find((ca: any) => ca.aeronave?.id === aeronaveId)?.percentual_sociedade || 100}%
                 </span>
               </div>
             </div>
@@ -728,18 +728,18 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
                       {movimentacoes.slice(0, 15).map((mov: any) => (
                         <TableRow key={mov.id} className="border-slate-700 hover:bg-slate-700/30">
                           <TableCell className="font-medium">
-                            {format(new Date(mov.date), 'dd/MM/yyyy')}
+                            {format(new Date(mov.data), 'dd/MM/yyyy')}
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate">
-                            {mov.description}
+                            {mov.descricao}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">
-                              {mov.categorias_movimentacao?.grupo_categoria || mov.category || 'N/A'}
+                              {mov.categorias_movimentacao?.grupo_categoria || mov.categoria || 'N/A'}
                             </Badge>
                           </TableCell>
-                          <TableCell className={`text-right font-medium ${mov.type === 'entrada' ? 'text-green-400' : 'text-red-400'}`}>
-                            {mov.type === 'entrada' ? '+' : '-'} R$ {mov.amount.toFixed(2)}
+                          <TableCell className={`text-right font-medium ${mov.tipo === 'entrada' ? 'text-green-400' : 'text-red-400'}`}>
+                            {mov.tipo === 'entrada' ? '+' : '-'} R$ {mov.valor.toFixed(2)}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -748,8 +748,8 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
                                 mov.status === 'conciliado' || mov.status === 'reembolsado'
                                   ? 'bg-green-900/50 text-green-300 border-green-700'
                                   : mov.status === 'pendente'
-                                  ? 'bg-amber-900/50 text-amber-300 border-amber-700'
-                                  : ''
+                                    ? 'bg-amber-900/50 text-amber-300 border-amber-700'
+                                    : ''
                               }
                             >
                               {mov.status}

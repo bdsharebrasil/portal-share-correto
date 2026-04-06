@@ -127,7 +127,7 @@ export function MaintenanceReportDialog({ aircraftId, clienteId }: MaintenanceRe
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div>
                       <p className="text-muted-foreground text-xs">Aeronave</p>
-                      <p className="font-medium">{report.aircraft?.registration || "—"}</p>
+                      <p className="font-medium">{report.aeronave?.matricula || "—"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">Iniciada em</p>
@@ -235,15 +235,15 @@ export function MaintenanceReportDialog({ aircraftId, clienteId }: MaintenanceRe
                             <span className="capitalize px-2 py-0.5 rounded-full bg-muted/60">
                               {d.tipo_rateio === "igual" ? "Rateio igual" : d.tipo_rateio === "por_uso" ? "Rateio por uso" : "Rateio manual"}
                             </span>
-                            <span>{fmtDate(d.created_at)}</span>
+                            <span>{fmtDate(d.criado_em)}</span>
                           </div>
                           {d.rateios.length > 0 && (
                             <div className="space-y-1 pt-2 border-t border-border/20">
                               {d.rateios.map((r) => {
-                                const partner = report.partners.find((p) => p.id === r.client_partner_id);
+                                const partner = report.partners.find((p) => p.id === r.socio_cliente_id_id);
                                 return (
                                   <div key={r.id} className="flex items-center justify-between text-xs">
-                                    <span>{partner?.name || "Sócio desconhecido"}</span>
+                                    <span>{partner?.nome || "Sócio desconhecido"}</span>
                                     <span className="font-mono">
                                       {r.percentual.toFixed(1)}% = {fmt(r.valor)}
                                     </span>
@@ -270,7 +270,7 @@ export function MaintenanceReportDialog({ aircraftId, clienteId }: MaintenanceRe
                         return (
                           <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
                             <div>
-                              <p className="font-medium text-sm">{p.name}</p>
+                              <p className="font-medium text-sm">{p.nome}</p>
                               <p className="text-xs text-muted-foreground">{p.cpf}</p>
                             </div>
                             <div className="text-right">
@@ -301,7 +301,7 @@ export function MaintenanceReportDialog({ aircraftId, clienteId }: MaintenanceRe
                       <tbody>
                         {report.oilAnalysis.map((o: any) => (
                           <tr key={o.id} className="border-b border-border/20">
-                            <td className="py-2 px-2">{fmtDate(o.date)}</td>
+                            <td className="py-2 px-2">{fmtDate(o.data)}</td>
                             <td className="py-2 px-2 text-right">{o.fe}</td>
                             <td className="py-2 px-2 text-right">{o.cu}</td>
                             <td className="py-2 px-2 text-right">{o.al}</td>
@@ -328,7 +328,7 @@ export function MaintenanceReportDialog({ aircraftId, clienteId }: MaintenanceRe
                           </div>
                           <div className="text-right">
                             <p className="font-bold">{fmt(so.total_geral || 0)}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{so.status}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{so.situacao}</p>
                           </div>
                         </div>
                       ))}

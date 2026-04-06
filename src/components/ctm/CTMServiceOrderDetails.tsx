@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { fromUntyped } from '@/lib/supabase-helpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +40,8 @@ interface ServiceOrder {
   id: string;
   numero: string;
   tipo_manutencao: string;
-  status: string;
+  status?: string;
+  situacao?: string;
   oficina_nome?: string;
   oficina_contato?: string;
   horas_celula?: number;
@@ -53,7 +55,7 @@ interface ServiceOrder {
   total_mao_obra?: number;
   total_pecas?: number;
   total_geral?: number;
-  aircraft_id: string;
+  aeronave_id: string;
 }
 
 interface ServiceItem {
@@ -146,7 +148,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
   const [services, setServices] = useState<Service[]>([]);
   const [pecas, setPecas] = useState<Peca[]>([]);
   const [rateio, setRateio] = useState<Rateio | null>(null);
-  const [partners, setPartners] = useState<{ id: string; name: string }[]>([]);
+  const [partners, setPartners] = useState<{ id: string; nome: string }[]>([]);
 
   // Dialog states
   const [showServiceForm, setShowServiceForm] = useState(false);
@@ -211,8 +213,10 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
   };
 
   const loadOrder = async () => {
-    const { data, error } = await supabase
-      .from('ctm_service_orders').select('*').eq('id', orderId).single();
+    const { data, error } = await fromUntyped('service_orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
     if (error) throw error;
     setOrder(data as ServiceOrder);
   };
@@ -253,21 +257,20 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
 
   const loadPartners = async () => {
     const { data } = await (supabase as any)
-      .from('client_partners').select('id, name').order('name');
+      .from('socios_cliente').select('id, nome').order('nome');
     setPartners(data || []);
   };
 
   const loadCostSharing = async () => {
-    const { data } = await supabase
-      .from('ctm_cost_sharing')
-      .select('*, client:clients(id, company_name, proprietario)')
+    const { data } = await fromUntyped('ctm_cost_sharing')
+      .select('*, client:clientes(id, razao_social, proprietario)')
       .eq('service_order_id', orderId);
     setCostSharingData(data || []);
   };
 
   const loadOASBudgets = async () => {
     const { data } = await (supabase as any)
-      .from('oas_budgets')
+      .from('oas_orcamentos')
       .select('*')
       .eq('service_order_id', orderId)
       .order('created_at', { ascending: false });
@@ -419,7 +422,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
         tipo_rateio: 'por_uso',
         periodo_inicio: order?.data_entrada || '',
         periodo_fim: order?.data_saida || '',
-        socios: partners.map(p => ({ nome: p.name, horas: '', percentual: '' })),
+        socios: partners.map(p => ({ nome: p.nome, horas: '', percentual: '' })),
       });
     }
     setShowRateioForm(true);
@@ -427,7 +430,8 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
 
   // ── Render helpers ────────────────────────────────────────────────────────────
 
-  const statusInfo = order ? (statusConfig[order.status] || statusConfig.em_andamento) : statusConfig.em_andamento;
+  const currentOrderStatus = order?.situacao || order?.status || 'em_andamento';
+  const statusInfo = statusConfig[currentOrderStatus] || statusConfig.em_andamento;
 
   if (loading) {
     return (
@@ -739,7 +743,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
             {/* Flight Hours Rateio with integrated calendar */}
             <OASFlightHoursRateio
               orderId={orderId}
-              aircraftId={order.aircraft_id}
+              aircraftId={order.aeronave_id}
               costSharing={costSharingData}
               totalGeral={order.total_geral || 0}
               periodoInicio={order.data_entrada || null}
@@ -827,12 +831,12 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
 
         {/* ══ COMPONENTES ══════════════════════════════════════════════════════════ */}
         {activeTab === 'componentes' && order && (
-          <CTMComponentMap aircraftId={order.aircraft_id} />
+          <CTMComponentMap aircraftId={order.aeronave_id} />
         )}
 
         {/* ══ PESO E BALANCEAMENTO ══════════════════════════════════════════════════ */}
         {activeTab === 'peso_balanceamento' && order && (
-          <CTMWeightBalance aircraftId={order.aircraft_id} aircraftRegistration="" />
+          <CTMWeightBalance aircraftId={order.aeronave_id} aircraftRegistration="" />
         )}
 
         {/* ══ ORÇAMENTOS (Histórico) ═══════════════════════════════════════════ */}
@@ -857,12 +861,12 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
                 <div className="flex gap-4 text-sm flex-wrap">
                   <div className="bg-green-500/10 rounded-lg px-3 py-2 border border-green-500/20">
                     <span className="text-green-400 font-bold">
-                      Aprovado: R$ {oasBudgets.filter((b: any) => b.status === 'aprovado').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      Aprovado: R$ {oasBudgets.filter((b: any) => b.situacao === 'aprovado').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="bg-yellow-500/10 rounded-lg px-3 py-2 border border-yellow-500/20">
                     <span className="text-yellow-400 font-bold">
-                      Pendente: R$ {oasBudgets.filter((b: any) => b.status === 'pendente_aprovacao').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      Pendente: R$ {oasBudgets.filter((b: any) => b.situacao === 'pendente_aprovacao').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
@@ -889,7 +893,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
                           aprovado: { label: 'Aprovado', cls: 'bg-green-500/20 text-green-400 border-green-500/30' },
                           rejeitado: { label: 'Rejeitado', cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
                         };
-                        const s = statusMap[b.status] || statusMap.rascunho;
+                        const s = statusMap[b.situacao] || statusMap.rascunho;
                         return (
                           <TableRow key={b.id} className="border-white/5 hover:bg-white/2">
                             <TableCell>
@@ -950,7 +954,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
                     <div className="flex items-center gap-3">
                       <FileText className="h-4 w-4 text-slate-500" />
                       <div>
-                        <p className="text-sm font-medium text-white">{doc.file_name}</p>
+                        <p className="text-sm font-medium text-white">{doc.nome_arquivo}</p>
                         <p className="text-xs text-slate-500">
                           {formatDateToBR(doc.generated_at)}
                         </p>
@@ -1075,13 +1079,13 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-300 text-xs">Período Início</Label>
-                <Input type="date" value={rateioForm.periodo_inicio}
+                <Input type="data" value={rateioForm.periodo_inicio}
                   onChange={e => setRateioForm(prev => ({ ...prev, periodo_inicio: e.target.value }))}
                   className="bg-slate-800 border-white/10 text-white" />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-300 text-xs">Período Fim</Label>
-                <Input type="date" value={rateioForm.periodo_fim}
+                <Input type="data" value={rateioForm.periodo_fim}
                   onChange={e => setRateioForm(prev => ({ ...prev, periodo_fim: e.target.value }))}
                   className="bg-slate-800 border-white/10 text-white" />
               </div>

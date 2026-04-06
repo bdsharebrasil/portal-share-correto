@@ -1,6 +1,6 @@
 // Common types used across the application
 
-export interface Aircraft {
+export interface Aeronave {
   id: string;
   registration: string;
   model: string;
@@ -24,6 +24,9 @@ export interface Aircraft {
   updated_at?: string;
 }
 
+// Backward compatibility
+export type Aircraft = Aeronave;
+
 export interface Aerodrome {
   id: string;
   designativo: string;
@@ -44,8 +47,8 @@ export interface Client {
   address?: string;
   city?: string;
   uf?: string;
-  aircraft?: string;
-  share_percentage?: number;
+  aeronave?: string;
+  percentual_sociedade?: number;
   status?: string;
   financial_contact?: string;
   logo_url?: string;
@@ -67,11 +70,11 @@ export interface UserProfile {
 }
 
 export interface ClientPartner {
-  client_id: string;
-  cpf: string;
-  created_at: string;
   id: string;
-          name: string
-          share_percentage: number | null
-          updated_at: string
-          }
+  cliente_id: string;
+  nome: string;
+  cpf: string;
+  percentual_participacao: number | null;
+  criado_em: string;
+  atualizado_em: string;
+}

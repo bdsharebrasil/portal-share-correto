@@ -13,7 +13,7 @@ import type { Database } from "@/integrations/supabase/types";
 interface AddAircraftDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  aircraft?: Database["public"]["Tables"]["aircraft"]["Row"] | null;
+  aircraft?: Database["public"]["Tables"]["aeronave"]["Row"] | null;
 }
 
 export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftDialogProps) {
@@ -38,14 +38,14 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
   useEffect(() => {
     if (aircraft) {
       setFormData({
-        registration: aircraft.registration ?? "",
-        manufacturer: aircraft.manufacturer ?? "",
-        model: aircraft.model ?? "",
-        serial_number: aircraft.serial_number ?? "",
-        owner_name: aircraft.owner_name ?? "",
-        year: "",
+        registration: aircraft.matricula ?? "",
+        manufacturer: aircraft.fabricante ?? "",
+        model: aircraft.modelo ?? "",
+        serial_number: aircraft.numero_serie ?? "",
+        owner_name: aircraft.nome_proprietario ?? "",
+        year: aircraft.ano ?? "",
         status: aircraft.status ?? "ativa",
-        fuel_consumption: aircraft.fuel_consumption != null ? String(aircraft.fuel_consumption) : "",
+        fuel_consumption: aircraft.consumo_combustivel != null ? String(aircraft.consumo_combustivel) : "",
         base: (aircraft as any).base ?? "",
       });
     } else if (open) {
@@ -70,30 +70,30 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
     try {
       if (aircraft) {
         const { error } = await supabase
-          .from('aircraft')
+          .from('aeronave')
           .update({
-            registration: formData.registration,
-            manufacturer: formData.manufacturer,
-            model: formData.model,
-            serial_number: formData.serial_number,
-            owner_name: formData.owner_name,
+            matricula: formData.registration,
+            fabricante: formData.manufacturer,
+            modelo: formData.model,
+            numero_serie: formData.serial_number,
+            nome_proprietario: formData.owner_name,
             status: formData.status,
-            fuel_consumption: formData.fuel_consumption ? parseFloat(formData.fuel_consumption) : null,
+            consumo_combustivel: formData.fuel_consumption ? parseFloat(formData.fuel_consumption) : null,
             base: formData.base || null,
           })
           .eq('id', aircraft.id);
         if (error) throw error;
         toast({ title: "Sucesso!", description: "Aeronave atualizada com sucesso." });
       } else {
-        const { data: insertedAircraft, error } = await supabase.from('aircraft').insert([{
-          registration: formData.registration,
-          manufacturer: formData.manufacturer,
-          model: formData.model,
-          serial_number: formData.serial_number,
-          owner_name: formData.owner_name,
-          year: formData.year || null,
+        const { data: insertedAircraft, error } = await supabase.from('aeronave').insert([{
+          matricula: formData.registration,
+          fabricante: formData.manufacturer,
+          modelo: formData.model,
+          numero_serie: formData.serial_number,
+          nome_proprietario: formData.owner_name,
+          ano: formData.year || null,
           status: formData.status,
-          fuel_consumption: formData.fuel_consumption ? parseFloat(formData.fuel_consumption) : null,
+          consumo_combustivel: formData.fuel_consumption ? parseFloat(formData.fuel_consumption) : null,
           base: formData.base || null,
         }]).select();
 
@@ -121,7 +121,7 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
     setDeleting(true);
     try {
       const { error } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .delete()
         .eq('id', aircraft.id);
 
@@ -311,7 +311,7 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
           </DialogHeader>
 
           <p className="text-slate-300 text-sm">
-            Tem certeza que deseja excluir a aeronave <span className="font-bold text-white">{aircraft?.registration}</span>? Esta ação não pode ser desfeita.
+            Tem certeza que deseja excluir a aeronave <span className="font-bold text-white">{aircraft?.matricula || 'N/A'}</span>? Esta ação não pode ser desfeita.
           </p>
 
           <DialogFooter className="gap-2">

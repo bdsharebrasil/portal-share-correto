@@ -40,7 +40,7 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
       setUploading(true);
 
       // Upload file to storage
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.nome.split('.').pop();
       const fileName = `${clientId}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from('client-documents')
@@ -58,8 +58,8 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
         .from('client_portal_files')
         .insert({
           client_id: clientId,
-          aircraft_id: aircraftId,
-          file_name: file.name,
+          aeronave_id: aircraftId,
+          file_name: file.nome,
           file_path: fileName,
           file_type: fileType,
           file_size: file.size,
@@ -124,9 +124,9 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
           </div>
 
           <div>
-            <Label htmlFor="description">Descrição *</Label>
+            <Label htmlFor="descricao">Descrição *</Label>
             <Input
-              id="description"
+              id="descricao"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Ex: Nota Fiscal de Manutenção - Janeiro/2025"
@@ -134,9 +134,9 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
           </div>
 
           <div>
-            <Label htmlFor="amount">Valor (R$)</Label>
+            <Label htmlFor="valor">Valor (R$)</Label>
             <Input
-              id="amount"
+              id="valor"
               type="number"
               step="0.01"
               value={amount}
@@ -149,7 +149,7 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
             <Label htmlFor="due-date">Data de Vencimento</Label>
             <Input
               id="due-date"
-              type="date"
+              type="data"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
             />

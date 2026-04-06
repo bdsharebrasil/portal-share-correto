@@ -1,77 +1,92 @@
 import React from 'react';
 
+// ---------------------------------------------------------------------------
+// TravelReportDraft — campos espelham travel_expense_reports
+// ---------------------------------------------------------------------------
 export interface TravelReportDraft {
   id?: string;
-  report_number: string;
-  client_id: string;
-  client: string;
-  client_partner?: string | null;
-  aircraft_id: string;
-  aircraft_registration: string;
-  crew_member_id: string;
-  crew_member_name: string;
-  crew_member_name_2: string;
-  route: string;
-  start_date: string;
-  end_date: string;
-  days_count: number;
-  observations: string;
+  numero_relatorio: string;
+
+  // Relations
+  clientes_id: string;
+  socios_cliente_id?: string | null;   // was client_partner
+  aeronave_id: string;
+  matricula_aeronave: string;          // was aircraft_registration
+
+  tripulacao_id: string;               // was crew_member_id  (FK → tripulacao)
+  nome_tripulante: string;             // was crew_member_name
+  tripulante_id2?: string | null;      // was crew_member_id2 (FK → membros_tripulacao)
+  nome_tripulante_2?: string | null;   // was crew_member_name_2
+
+  rota: string;
+  data_inicio: string;
+  data_fim: string;
+  dias_count: number;                  // was days_count
+  observacoes: string;                 // was observations
+
   expenses: Array<{
+    id?: string;
     category: string;
     description: string;
     amount: number;
     paid_by: string;
     receipt_url?: string;
-    id?: string;
+    expense_date?: string;
   }>;
-  total_amount: number;
-  total_fuel: number;
-  total_lodging: number;
-  total_food: number;
-  total_transport: number;
-  total_other: number;
-  total_crew: number;
-  total_client: number;
+
+  // Totals — nomes das colunas do banco
+  total_valor: number;                 // was total_amount
+  total_combustivel: number;           // was total_fuel
+  total_hospedagem: number;            // was total_lodging
+  total_alimentacao: number;           // was total_food
+  total_transporte: number;            // was total_transport
+  total_outros: number;                // was total_other
+  total_tripulacao: number;            // was total_crew
+  total_trip: number;                  // was total_crew1
+  total_trip2: number;                 // was total_crew2
+  total_clientes: number;              // was total_client
   total_sharebrasil: number;
+
   status: 'Rascunho' | 'Finalizado' | 'Enviado';
+
+  // Display-only
+  client?: string;
+
+  // Meta
   savedAt?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Storage
+// ---------------------------------------------------------------------------
 const DRAFT_STORAGE_KEY = 'travelReportDraft';
-const DRAFT_AUTO_SAVE_INTERVAL = 30000; // 30 segundos
+const DRAFT_AUTO_SAVE_INTERVAL = 30_000; // 30 s
 
 export const draftStorage = {
-  /**
-   * Salva um rascunho no localStorage
-   */
+  /** Salva um rascunho no localStorage. */
   saveDraft: (draft: TravelReportDraft): void => {
     try {
-      const draftWithTimestamp = {
-        ...draft,
-        savedAt: new Date().toISOString()
-      };
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftWithTimestamp));
+      localStorage.setItem(
+        DRAFT_STORAGE_KEY,
+        JSON.stringify({ ...draft, savedAt: new Date().toISOString() }),
+      );
     } catch (error) {
       console.error('Erro ao salvar rascunho:', error);
     }
   },
 
-  /**
-   * Recupera um rascunho do localStorage
-   */
+  /** Recupera o rascunho do localStorage. */
   getDraft: (): TravelReportDraft | null => {
     try {
-      const draft = localStorage.getItem(DRAFT_STORAGE_KEY);
-      return draft ? JSON.parse(draft) : null;
+      const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as TravelReportDraft) : null;
     } catch (error) {
       console.error('Erro ao recuperar rascunho:', error);
       return null;
     }
   },
 
-  /**
-   * Limpa o rascunho do localStorage
-   */
+  /** Remove o rascunho do localStorage. */
   clearDraft: (): void => {
     try {
       localStorage.removeItem(DRAFT_STORAGE_KEY);
@@ -80,46 +95,35 @@ export const draftStorage = {
     }
   },
 
-  /**
-   * Verifica se existe um rascunho salvo
-   */
+  /** Verifica se existe um rascunho salvo. */
   hasDraft: (): boolean => {
     try {
       return localStorage.getItem(DRAFT_STORAGE_KEY) !== null;
-    } catch (error) {
+    } catch {
       return false;
     }
-  }
+  },
 };
 
-/**
- * Hook para auto-salvamento de rascunho
- */
-export const useAutoSaveDraft = (draft: TravelReportDraft | null, enabled: boolean = true) => {
-  const autoSaveRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+// ---------------------------------------------------------------------------
+// Hook de auto-salvamento
+// ---------------------------------------------------------------------------
+export const useAutoSaveDraft = (
+  draft: TravelReportDraft | null,
+  enabled = true,
+) => {
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   React.useEffect(() => {
-    if (!enabled || !draft) {
-      if (autoSaveRef.current) {
-        clearInterval(autoSaveRef.current);
-      }
-      return;
-    }
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (!enabled || !draft) return;
 
-    // Limpa intervalo anterior se existir
-    if (autoSaveRef.current) {
-      clearInterval(autoSaveRef.current);
-    }
-
-    // Define novo intervalo para auto-salvar
-    autoSaveRef.current = setInterval(() => {
+    timerRef.current = setInterval(() => {
       draftStorage.saveDraft(draft);
     }, DRAFT_AUTO_SAVE_INTERVAL);
 
     return () => {
-      if (autoSaveRef.current) {
-        clearInterval(autoSaveRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [draft, enabled]);
 };

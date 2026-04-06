@@ -54,7 +54,7 @@ export function UsersList() {
           full_name: profile?.full_name || authUser.email,
           employment_status: profile?.employment_status || 'ativo',
           is_authenticated_user: true,
-          created_at: authUser.created_at,
+          created_at: authUser.criado_em,
           roles: authUser.roles || [],
           ...profile
         };

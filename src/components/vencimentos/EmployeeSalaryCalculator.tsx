@@ -536,7 +536,7 @@ export function EmployeeSalaryCalculator() {
                     </Label>
                     <Input
                       id="first-install-date"
-                      type="date"
+                      type="data"
                       value={thirteenthForm.first_installment_date}
                       onChange={(e) =>
                         setThirteenthForm({ ...thirteenthForm, first_installment_date: e.target.value })
@@ -550,7 +550,7 @@ export function EmployeeSalaryCalculator() {
                     </Label>
                     <Input
                       id="second-install-date"
-                      type="date"
+                      type="data"
                       value={thirteenthForm.second_installment_date}
                       onChange={(e) =>
                         setThirteenthForm({ ...thirteenthForm, second_installment_date: e.target.value })
@@ -688,7 +688,7 @@ export function EmployeeSalaryCalculator() {
                   </Label>
                   <Input
                     id="scheduled-vacation-date"
-                    type="date"
+                    type="data"
                     value={vacationForm.scheduled_date}
                     onChange={(e) =>
                       setVacationForm({ ...vacationForm, scheduled_date: e.target.value })

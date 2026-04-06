@@ -512,7 +512,7 @@ export function CTMServiceItemsForm({
       }
 
       const budgetPayload: any = {
-        aircraft_id: null,
+        aeronave_id: null,
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
         status: "submitted",
@@ -555,15 +555,15 @@ export function CTMServiceItemsForm({
 
       // Get additional service order data
       const { data: orderData } = await (supabase as any)
-        .from("ctm_service_orders")
-        .select("aircraft_id, client_id, client_partner_id")
+        .from("service_orders")
+        .select("aeronave_id, client_id, client_partner_id")
         .eq("id", orderId)
         .single();
 
       if (orderData) {
-        if (orderData.aircraft_id) budgetPayload.aircraft_id = orderData.aircraft_id;
-        if (orderData.client_id) budgetPayload.client_id = orderData.client_id;
-        if (orderData.client_partner_id) budgetPayload.client_partner_id = orderData.client_partner_id;
+        if (orderData.aeronave_id) budgetPayload.aeronave_id = orderData.aeronave_id;
+        if (orderData.cliente_id) budgetPayload.cliente_id = orderData.cliente_id;
+        if (orderData.socio_cliente_id_id) budgetPayload.socio_cliente_id_id = orderData.socio_cliente_id_id;
       }
 
       const { error: budgetError } = await (supabase as any)

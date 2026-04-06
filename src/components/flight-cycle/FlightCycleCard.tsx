@@ -12,12 +12,12 @@ interface FlightCycleCardProps {
 }
 
 export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
-  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
+  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.situacao];
   
   // Calculate checklist completion
   const expenses = cycle.expenses || [];
   const completedExpenses = expenses.filter(e => 
-    ['paga', 'nao_aplicavel'].includes(e.status)
+    ['paga', 'nao_aplicavel'].includes(e.situacao)
   ).length;
   const totalExpenses = expenses.length;
   const completionPercentage = totalExpenses > 0 
@@ -25,7 +25,7 @@ export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
     : 0;
 
   // Check for overdue expenses
-  const hasOverdue = expenses.some(e => e.status === 'atrasada');
+  const hasOverdue = expenses.some(e => e.situacao === 'atrasada');
 
   return (
     <div
@@ -46,7 +46,7 @@ export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-foreground">
-                {cycle.aircraft?.registration || 'N/A'}
+                {cycle.aeronave?.matricula || 'N/A'}
               </span>
               <Badge 
                 variant="outline" 
@@ -60,7 +60,7 @@ export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {cycle.partner_name || cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
+              {cycle.nome_socio || cycle.client?.razao_social || cycle.client?.proprietario || 'Cliente não definido'}
             </p>
           </div>
         </div>

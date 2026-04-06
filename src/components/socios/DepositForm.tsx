@@ -123,7 +123,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
   // Expenses available for reversal (only paid/completed ones)
   const reversableExpenses = useMemo(() => {
-    return expenses.filter((exp) => exp.status === "paid" || exp.status === "pago");
+    return expenses.filter((exp) => exp.situacao === "paid" || exp.situacao === "pago");
   }, [expenses]);
 
   // Selected expense for reversal
@@ -137,20 +137,20 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     if (!selectedExpense) return [];
 
     // Find expenses with same base description and created around the same time
-    const baseDescription = selectedExpense.description;
-    const selectedDate = new Date(selectedExpense.created_at);
+    const baseDescription = selectedExpense.descricao;
+    const selectedDate = new Date(selectedExpense.criado_em);
     const timeTolerance = 5 * 60 * 1000; // 5 minutes tolerance
 
     return expenses.filter((exp) => {
       // Check if descriptions match (ignoring installment numbers like "(1/3)")
-      const expBaseDesc = exp.description.replace(/\s*\(\d+\/\d+\)$/, "");
+      const expBaseDesc = exp.descricao.replace(/\s*\(\d+\/\d+\)$/, "");
       const selectedBaseDesc = baseDescription.replace(/\s*\(\d+\/\d+\)$/, "");
 
       const descMatches = expBaseDesc === selectedBaseDesc;
-      const expDate = new Date(exp.created_at);
+      const expDate = new Date(exp.criado_em);
       const dateMatches = Math.abs(selectedDate.getTime() - expDate.getTime()) < timeTolerance;
 
-      return descMatches && dateMatches && (exp.status === "paid" || exp.status === "pago");
+      return descMatches && dateMatches && (exp.situacao === "paid" || exp.situacao === "pago");
     });
   }, [selectedExpense, expenses]);
 
@@ -170,7 +170,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
       setEntry((p) => ({
         ...p,
         amount: String(selectedExpense.total_amount),
-        description: `Estorno: ${selectedExpense.description}`,
+        description: `Estorno: ${selectedExpense.descricao}`,
       }));
       setCustomReversalAmount("");
     }
@@ -185,7 +185,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
   };
 
   const isEntryValid = () => {
-    if (!entry.entryType || !entry.amount || !entry.description) return false;
+    if (!entry.entryType || !entry.valor || !entry.descricao) return false;
     if (requiresPartner && !entry.cpf) return false;
     if (isReversal && !selectedExpenseId) return false;
     return true;
@@ -197,7 +197,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
     if (isReversal && selectedExpense && relatedExpenses.length > 1) {
       // Reversal with ratio distribution (multiple partners)
-      const reversalAmount = customReversalAmount ? parseFloat(customReversalAmount) : parseFloat(entry.amount);
+      const reversalAmount = customReversalAmount ? parseFloat(customReversalAmount) : parseFloat(entry.valor);
       const amountPerPartner = reversalAmount / relatedExpenses.length;
       const amountPerPartnerRounded = Math.round(amountPerPartner * 100) / 100;
 
@@ -224,8 +224,8 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
           partnerCpf: null,
           partnerName: bankAccountName,
           amount: reversalAmount,
-          description: entry.description,
-          paymentDate: entry.date,
+          description: entry.descricao,
+          paymentDate: entry.data,
           bankName: entry.bankName || null,
           transactionSubtype: selectedEntryType?.subtype ?? "deposit",
           prazo: entry.prazo,
@@ -240,8 +240,8 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
             partnerCpf: cpf,
             partnerName: name,
             amount: amountPerPartnerRounded,
-            description: entry.description,
-            paymentDate: entry.date,
+            description: entry.descricao,
+            paymentDate: entry.data,
             bankName: entry.bankName || null,
             transactionSubtype: selectedEntryType?.subtype ?? "deposit",
             prazo: entry.prazo,
@@ -267,7 +267,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
         const partner = getPartner(entry.cpf);
         const account = getAccount(entry.cpf);
         partnerCpf = entry.cpf;
-        partnerName = partner?.name || account?.partner_name || "";
+        partnerName = partner?.nome || account?.nome_socio || "";
       } else if (!requiresPartner && entry.bankName) {
         // For bank transfers/entries without specific partner, use uppercase bank name
         partnerName = entry.bankName.toUpperCase();
@@ -277,9 +277,9 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
         clientId: clienteId,
         partnerCpf,
         partnerName,
-        amount: parseFloat(entry.amount),
-        description: entry.description,
-        paymentDate: entry.date,
+        amount: parseFloat(entry.valor),
+        description: entry.descricao,
+        paymentDate: entry.data,
         bankName: entry.bankName || null,
         transactionSubtype: selectedEntryType?.subtype ?? "deposit",
         prazo: entry.prazo,
@@ -293,15 +293,15 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
   const handleInterestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!interest.amount || !interest.bankName) return;
+    if (!interest.valor || !interest.bankName) return;
 
     await addDepositWithToast.mutateAsync({
       clientId: clienteId,
       partnerCpf: null,
       partnerName: interest.bankName.toUpperCase(),
-      amount: parseFloat(interest.amount),
+      amount: parseFloat(interest.valor),
       description: `Rendimento bancário - ${interest.bankName}${interest.notes ? ` (${interest.notes})` : ""}`,
-      paymentDate: interest.date,
+      paymentDate: interest.data,
       bankName: interest.bankName,
       transactionSubtype: "bank_interest",
       prazo: interest.prazo,
@@ -403,7 +403,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                             <span className="text-lg leading-none">{type.icon}</span>
                             <div>
                               <div className="font-medium text-sm">{type.label}</div>
-                              <div className="text-xs text-muted-foreground mt-0.5">{type.description}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">{type.descricao}</div>
                             </div>
                           </div>
                         </SelectItem>
@@ -435,7 +435,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                     <SearchableCombobox
                       items={reversableExpenses.map((exp) => ({
                         id: exp.id,
-                        label: `${exp.description} — ${exp.assigned_partner_name || "Conta Bancária"} • R$ ${Number(exp.total_amount).toFixed(2)}`,
+                        label: `${exp.descricao} — ${exp.assigned_partner_name || "Conta Bancária"} • R$ ${Number(exp.total_amount).toFixed(2)}`,
                       }))}
                       value={selectedExpenseId}
                       onChange={(val) => setSelectedExpenseId(val)}
@@ -470,7 +470,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                   <FormSection label="Valor do Estorno (R$)">
                     <div className="space-y-3">
                       <div className="text-sm text-muted-foreground">
-                        <p>Deixe em branco para estornar o valor total: <span className="font-semibold text-foreground">R$ {Number(entry.amount).toFixed(2)}</span></p>
+                        <p>Deixe em branco para estornar o valor total: <span className="font-semibold text-foreground">R$ {Number(entry.valor).toFixed(2)}</span></p>
                       </div>
                       <div className="relative">
                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
@@ -482,7 +482,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                           min="0.01"
                           value={customReversalAmount}
                           onChange={(e) => setCustomReversalAmount(e.target.value)}
-                          placeholder={entry.amount}
+                          placeholder={entry.valor}
                           disabled={addDepositWithToast.isPending}
                           className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
                         />
@@ -492,7 +492,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                 )}
 
                 {/* Prévia de distribuição */}
-                {isReversal && selectedExpense && relatedExpenses.length > 1 && (customReversalAmount || entry.amount) && (
+                {isReversal && selectedExpense && relatedExpenses.length > 1 && (customReversalAmount || entry.valor) && (
                   <FormSection label="Distribuição do Estorno">
                     <div className="space-y-2">
                       {Array.from(
@@ -501,7 +501,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                           exp.assigned_partner_name || "Conta Bancária"
                         ])).entries()
                       ).map(([cpf, name]) => {
-                        const reversalAmount = customReversalAmount ? parseFloat(customReversalAmount) : parseFloat(entry.amount);
+                        const reversalAmount = customReversalAmount ? parseFloat(customReversalAmount) : parseFloat(entry.valor);
                         const amountPerPartner = Math.round((reversalAmount / relatedExpenses.length) * 100) / 100;
                         return (
                           <div key={cpf} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5 text-sm">
@@ -555,14 +555,14 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormSection label="Valor (R$)" required>
                     <AmountField
-                      value={entry.amount}
+                      value={entry.valor}
                       onChange={(v) => setEntry((p) => ({ ...p, amount: v }))}
                       disabled={!entry.entryType}
                     />
                   </FormSection>
                   <FormSection label="Data" required>
                     <DateField
-                      value={entry.date}
+                      value={entry.data}
                       onChange={(v) => setEntry((p) => ({ ...p, date: v }))}
                     />
                   </FormSection>
@@ -571,7 +571,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                 {/* Descrição */}
                 <FormSection label="Descrição" required>
                   <Input
-                    value={entry.description}
+                    value={entry.descricao}
                     onChange={(e) => setEntry((p) => ({ ...p, description: e.target.value }))}
                     placeholder={
                       selectedEntryType
@@ -629,14 +629,14 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormSection label="Valor do Rendimento (R$)" required>
                     <AmountField
-                      value={interest.amount}
+                      value={interest.valor}
                       onChange={(v) => setInterest((p) => ({ ...p, amount: v }))}
                       placeholder="0,00"
                     />
                   </FormSection>
                   <FormSection label="Data do Rendimento" required>
                     <DateField
-                      value={interest.date}
+                      value={interest.data}
                       onChange={(v) => setInterest((p) => ({ ...p, date: v }))}
                     />
                   </FormSection>
@@ -655,7 +655,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
                 <SubmitButton
                   loading={addDepositWithToast.isPending}
-                  disabled={!interest.amount || !interest.bankName}
+                  disabled={!interest.valor || !interest.bankName}
                   label="Registrar Rendimento"
                   variant="interest"
                 />
@@ -721,13 +721,13 @@ function PartnerSelect({
               <SelectItem key={partner.id} value={partner.cpf} className="py-3">
                 <div className="flex items-start gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
-                    {partner.name.charAt(0).toUpperCase()}
+                    {partner.nome.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="font-medium text-sm">{partner.name}</div>
+                    <div className="font-medium text-sm">{partner.nome}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       CPF: {formatCPF(partner.cpf)}
-                      {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                      {partner.percentual_participacao && ` · ${partner.percentual_participacao}%`}
                     </div>
                     {account && (
                       <div className="text-xs text-emerald-600 font-semibold mt-0.5">
@@ -935,17 +935,17 @@ function PartnerSummaryCard({
     <Card className="bg-gradient-to-br from-emerald-900/50 to-teal-900/50 dark:from-emerald-900/70 dark:to-teal-900/70 border-emerald-700/60 dark:border-emerald-600/60 p-4 mt-2">
       <div className="flex items-center gap-3 mb-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/30 text-emerald-100 dark:text-emerald-200 text-base font-bold flex-shrink-0">
-          {partner.name.charAt(0).toUpperCase()}
+          {partner.nome.charAt(0).toUpperCase()}
         </div>
         <div>
-          <div className="font-semibold text-sm text-emerald-50 dark:text-emerald-100">{partner.name}</div>
+          <div className="font-semibold text-sm text-emerald-50 dark:text-emerald-100">{partner.nome}</div>
           <div className="text-xs text-emerald-200/70 dark:text-emerald-300/70 font-mono">{formatCPF(partner.cpf)}</div>
         </div>
-        {partner.share_percentage && (
+        {partner.percentual_participacao && (
           <div className="ml-auto text-right">
             <div className="text-xs text-emerald-200/70 dark:text-emerald-300/70">Participação</div>
             <div className="text-sm font-bold text-emerald-100 dark:text-emerald-200">
-              {partner.share_percentage}%
+              {partner.percentual_participacao}%
             </div>
           </div>
         )}

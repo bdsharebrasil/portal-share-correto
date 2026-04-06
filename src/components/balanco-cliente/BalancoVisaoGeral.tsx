@@ -33,16 +33,16 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
   const fatorProporcao = socioId && socioSelecionado ? socioSelecionado.percentual / 100 : 1;
 
   // Para sócio específico: buscar horas próprias e compartilhadas separadamente
-  const { data: horasParaCalculo = [] } = useQuery({
+  const { data: horasParaCalculo } = useQuery({
     queryKey: ['horas-calculo-socio', clienteId, aeronaveId, periodo, socioId],
-    queryFn: async () => {
+    queryFn: async (): Promise<{ horasOwned: number; horasShared: number }> => {
       if (!socioId || !clienteId) return { horasOwned: 0, horasShared: 0 };
 
       const qOwned = supabase
         .from('logbook_entries')
         .select('total_time')
         .eq('client_id', clienteId)
-        .eq('client_partner_id', socioId)
+        .eq('socios_cliente_id', socioId)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim);
 
@@ -118,13 +118,13 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       const anoFim = new Date(periodo.fim).getFullYear();
       const mesFim = new Date(periodo.fim).getMonth() + 1;
 
-      let q = supabase
+      let q = (supabase as any)
         .from('horas_mensais_consolidadas')
         .select('id, ano, mes, horas_voadas, aeronave_registro')
-        .eq('cliente_id', clienteId);
+        .eq('client_id', clienteId);
 
       if (aeronaveId) {
-        q = q.eq('aeronave_id', aeronaveId);
+        q = q.eq('aircraft_id', aeronaveId);
       }
 
       const { data: horasConsolidadas } = await q;
@@ -171,10 +171,10 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
   const { data: abastDetalhe = [] } = useQuery({
     queryKey: ['abast-detalhe', clienteId, aeronaveId, periodo],
     queryFn: async () => {
-      let q = supabase
+      let q = (supabase as any)
         .from('abastecimentos')
         .select('id, data, litros, valor_total, valor_unitario, local, trecho')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim)
         .order('data', { ascending: false });
@@ -198,15 +198,15 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       const statuses = statusMap[drillDown || ''];
       if (!statuses) return [];
 
-      let q = supabase
-        .from('bank_reconciliations')
-        .select('id, date, description, amount, status, saldo_pendente, category, categorias_movimentacao:categoria_movimentacao_id (nome)')
-        .eq('client_id', clienteId)
+      let q = (supabase as any)
+        .from('conciliacoes_bancarias')
+        .select('id, data, descricao, valor, status, saldo_pendente, categoria, categorias_movimentacao:categoria_movimentacao_id (nome)')
+        .eq('clientes_id', clienteId)
         .in('status', statuses)
-        .gte('date', periodo.inicio)
-        .lte('date', periodo.fim)
-        .order('date', { ascending: false });
-      if (aeronaveId) q = q.eq('aircraft_id', aeronaveId);
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim)
+        .order('data', { ascending: false });
+      if (aeronaveId) q = q.eq('aeronave_id', aeronaveId);
       const { data } = await q;
       return data || [];
     },
@@ -217,29 +217,29 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
   const { data: resumo, isLoading } = useQuery({
     queryKey: ['balanco-resumo', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
-      let queryDespesas = supabase
-        .from('bank_reconciliations')
-        .select('id, amount, status, type, saldo_pendente, valor_reembolsado, date')
-        .eq('client_id', clienteId)
-        .gte('date', periodo.inicio)
-        .lte('date', periodo.fim);
-      if (aeronaveId) queryDespesas = queryDespesas.eq('aircraft_id', aeronaveId);
+      let queryDespesas = (supabase as any)
+        .from('conciliacoes_bancarias')
+        .select('id, valor, status, tipo, saldo_pendente, valor_reembolsado, data')
+        .eq('clientes_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim);
+      if (aeronaveId) queryDespesas = queryDespesas.eq('aeronave_id', aeronaveId);
       const { data: despesasData, error: errorDespesas } = await queryDespesas;
       if (errorDespesas) throw errorDespesas;
 
-      let queryDiretas = supabase
+      let queryDiretas = (supabase as any)
         .from('despesas_cliente_direto')
         .select('id, valor, status, data_vencimento')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('data_vencimento', periodo.inicio)
         .lte('data_vencimento', periodo.fim);
       if (aeronaveId) queryDiretas = queryDiretas.eq('aeronave_id', aeronaveId);
       const { data: despesasDiretasData } = await queryDiretas;
 
-      let abastecimentosQuery = supabase
+      let abastecimentosQuery = (supabase as any)
         .from('abastecimentos')
         .select('id, litros, valor_total, status_pagamento')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim);
       if (aeronaveId) abastecimentosQuery = abastecimentosQuery.eq('aeronave_id', aeronaveId);
@@ -266,19 +266,19 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
 
       return {
         pendenteEnvio: {
-          valor: pendentes.reduce((sum, r) => sum + (r.amount || 0), 0) * fatorProporcao,
+          valor: pendentes.reduce((sum: number, r: any) => sum + (r.valor || 0), 0) * fatorProporcao,
           quantidade: pendentes.length
         },
         aguardandoReembolso: {
-          valor: aguardandoReembolso.reduce((sum, r) => sum + ((r.saldo_pendente || r.amount) || 0), 0) * fatorProporcao,
+          valor: aguardandoReembolso.reduce((sum: number, r: any) => sum + ((r.saldo_pendente || r.valor) || 0), 0) * fatorProporcao,
           quantidade: aguardandoReembolso.length
         },
         pago: {
-          valor: pagos.reduce((sum, r) => sum + (r.amount || 0), 0) * fatorProporcao,
+          valor: pagos.reduce((sum: number, r: any) => sum + (r.valor || 0), 0) * fatorProporcao,
           quantidade: pagos.length
         },
         reembolsado: {
-          valor: reembolsados.reduce((sum, r) => sum + (r.valor_reembolsado || r.amount || 0), 0) * fatorProporcao,
+          valor: reembolsados.reduce((sum: number, r: any) => sum + (r.valor_reembolsado || r.valor || 0), 0) * fatorProporcao,
           quantidade: reembolsados.length
         },
         pagamentoDiretoPendente: {
@@ -297,9 +297,9 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
           valor: abastecimentosPagos.reduce((sum: number, a: any) => sum + (a.valor_total || 0), 0) * fatorProporcao,
           quantidade: abastecimentosPagos.length
         },
-        total: (data.reduce((sum, r) => sum + (r.amount || 0), 0) || 0) * fatorProporcao +
-               (diretas.reduce((sum: number, d: any) => sum + (d.valor || 0), 0) || 0) * fatorProporcao +
-               (abastecimentos.reduce((sum: number, a: any) => sum + (a.valor_total || 0), 0) || 0) * fatorProporcao
+        total: (data.reduce((sum, r) => sum + (r.valor || 0), 0) || 0) * fatorProporcao +
+          (diretas.reduce((sum: number, d: any) => sum + (d.valor || 0), 0) || 0) * fatorProporcao +
+          (abastecimentos.reduce((sum: number, a: any) => sum + (a.valor_total || 0), 0) || 0) * fatorProporcao
       };
     },
     enabled: !!clienteId,
@@ -309,20 +309,20 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
   const { data: categorias = [] } = useQuery({
     queryKey: ['balanco-categorias', clienteId, aeronaveId, periodo],
     queryFn: async () => {
-      let query = supabase
-        .from('bank_reconciliations')
-        .select(`amount, categorias_movimentacao:categoria_movimentacao_id (nome, grupo_categoria)`)
-        .eq('client_id', clienteId)
-        .gte('date', periodo.inicio)
-        .lte('date', periodo.fim);
-      if (aeronaveId) query = query.eq('aircraft_id', aeronaveId);
+      let query = (supabase as any)
+        .from('conciliacoes_bancarias')
+        .select(`valor, categorias_movimentacao:categoria_movimentacao_id (nome, grupo_categoria)`)
+        .eq('clientes_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim);
+      if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
 
       const grouped: Record<string, number> = {};
       data?.forEach((item: any) => {
         const categoria = item.categorias_movimentacao?.nome || 'Sem categoria';
-        grouped[categoria] = (grouped[categoria] || 0) + (item.amount || 0);
+        grouped[categoria] = (grouped[categoria] || 0) + (item.valor || 0);
       });
 
       const keywordPermitidos = ['aeronave', 'reembolsável', 'reembolso', 'operacional', 'receita'];
@@ -487,7 +487,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={categorias.sort((a, b) => b.value - a.value).slice(0, 6)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="nome" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 10 }} />
                   <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} tick={{ fontSize: 10 }} />
                   <Tooltip formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                   <Bar dataKey="value" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} animationDuration={500} />
@@ -517,7 +517,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
               return chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={(entry) => `${entry.name}: R$ ${entry.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}>
+                    <Pie data={chartData} dataKey="value" nameKey="nome" cx="50%" cy="50%" outerRadius={100} label={(entry) => `${entry.nome}: R$ ${entry.value.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}>
                       {chartData.map((entry, index) => (
                         <Cell key={index} fill={entry.color} />
                       ))}
@@ -540,26 +540,26 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
         (resumo?.abastecimentoPendente?.valor || 0) > 0 ||
         (resumo?.pagamentoDiretoPago?.valor || 0) > 0 ||
         (resumo?.abastecimentoPago?.valor || 0) > 0) && (
-        <div>
-          <h3 className="text-sm font-semibold mb-3 text-foreground">Pagamentos Diretos e Combustível</h3>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {[
-              { show: (resumo?.pagamentoDiretoPendente?.valor || 0) > 0, label: 'Pgto Direto Pendente', valor: resumo?.pagamentoDiretoPendente?.valor, qtd: resumo?.pagamentoDiretoPendente?.quantidade, color: 'text-purple-400' },
-              { show: (resumo?.abastecimentoPendente?.valor || 0) > 0, label: 'Combust. Pendente', valor: resumo?.abastecimentoPendente?.valor, qtd: resumo?.abastecimentoPendente?.quantidade, color: 'text-orange-400' },
-              { show: (resumo?.pagamentoDiretoPago?.valor || 0) > 0, label: 'Pgto Direto Pago', valor: resumo?.pagamentoDiretoPago?.valor, qtd: resumo?.pagamentoDiretoPago?.quantidade, color: 'text-blue-400' },
-              { show: (resumo?.abastecimentoPago?.valor || 0) > 0, label: 'Combust. Pago', valor: resumo?.abastecimentoPago?.valor, qtd: resumo?.abastecimentoPago?.quantidade, color: 'text-emerald-400' },
-            ].filter(c => c.show).map((c, i) => (
-              <div key={i} className="rounded-2xl border border-border/50 bg-card/80 p-3">
-                <p className={`text-[10px] font-medium ${c.color} mb-1`}>{c.label}</p>
-                <p className="text-lg font-bold text-foreground">
-                  R$ {(c.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-[10px] text-muted-foreground">{c.qtd || 0} registros</p>
-              </div>
-            ))}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 text-foreground">Pagamentos Diretos e Combustível</h3>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {[
+                { show: (resumo?.pagamentoDiretoPendente?.valor || 0) > 0, label: 'Pgto Direto Pendente', valor: resumo?.pagamentoDiretoPendente?.valor, qtd: resumo?.pagamentoDiretoPendente?.quantidade, color: 'text-purple-400' },
+                { show: (resumo?.abastecimentoPendente?.valor || 0) > 0, label: 'Combust. Pendente', valor: resumo?.abastecimentoPendente?.valor, qtd: resumo?.abastecimentoPendente?.quantidade, color: 'text-orange-400' },
+                { show: (resumo?.pagamentoDiretoPago?.valor || 0) > 0, label: 'Pgto Direto Pago', valor: resumo?.pagamentoDiretoPago?.valor, qtd: resumo?.pagamentoDiretoPago?.quantidade, color: 'text-blue-400' },
+                { show: (resumo?.abastecimentoPago?.valor || 0) > 0, label: 'Combust. Pago', valor: resumo?.abastecimentoPago?.valor, qtd: resumo?.abastecimentoPago?.quantidade, color: 'text-emerald-400' },
+              ].filter(c => c.show).map((c, i) => (
+                <div key={i} className="rounded-2xl border border-border/50 bg-card/80 p-3">
+                  <p className={`text-[10px] font-medium ${c.color} mb-1`}>{c.label}</p>
+                  <p className="text-lg font-bold text-foreground">
+                    R$ {(c.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">{c.qtd || 0} registros</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Drill-down Dialog */}
       <Dialog open={!!drillDown} onOpenChange={() => setDrillDown(null)}>
@@ -641,11 +641,10 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
                         <TableCell className="text-right font-medium">{formatarHoras(h.total_time || 0)}</TableCell>
                         {socioSelecionado && (
                           <TableCell>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              h._isSocioOwned
+                            <span className={`text-xs px-2 py-1 rounded ${h._isSocioOwned
                                 ? 'bg-cyan-500/20 text-cyan-400'
                                 : 'bg-amber-500/20 text-amber-400'
-                            }`}>
+                              }`}>
                               {h._isSocioOwned ? 'Próprio' : 'Compartilhado'}
                             </span>
                           </TableCell>
@@ -764,19 +763,19 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
                     <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada</TableCell></TableRow>
                   ) : despesasDetalhe.map((d: any) => (
                     <TableRow key={d.id}>
-                      <TableCell>{format(new Date(d.date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                      <TableCell className="text-xs">{d.categorias_movimentacao?.nome || d.category || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-xs">{d.description || '-'}</TableCell>
-                      <TableCell className="text-right font-medium">R$ {(d.saldo_pendente || d.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell>{format(new Date(d.data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                      <TableCell className="text-xs">{d.categorias_movimentacao?.nome || d.categoria || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-xs">{d.descricao || '-'}</TableCell>
+                      <TableCell className="text-right font-medium">R$ {(d.saldo_pendente || d.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{d.status}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{d.situacao}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
               <div className="mt-3 text-right text-sm font-bold text-foreground">
-                Total: R$ {despesasDetalhe.reduce((s: number, d: any) => s + (d.saldo_pendente || d.amount || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                Total: R$ {despesasDetalhe.reduce((s: number, d: any) => s + (d.saldo_pendente || d.valor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
             </div>
           )}

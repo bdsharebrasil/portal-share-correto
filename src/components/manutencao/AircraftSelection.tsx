@@ -11,7 +11,7 @@ interface Aircraft {
   status: string;
 }
 
-interface AircraftSummary {
+interface AeronaveResumo {
   id: string;
   registration: string;
   model: string;
@@ -23,13 +23,13 @@ interface AircraftSummary {
   last_revision_mechanic: string;
 }
 
-interface AircraftSelectionProps {
-  onSelect?: (aircraft: AircraftSummary) => void;
+interface AeronaveSelecaoProps {
+  onSelect?: (aircraft: AeronaveResumo) => void;
 }
 
-const AircraftSelection: React.FC<AircraftSelectionProps> = ({ onSelect }) => {
+const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
   const navigate = useNavigate();
-  const [aircrafts, setAircrafts] = useState<AircraftSummary[]>([]);
+  const [aircrafts, setAircrafts] = useState<AeronaveResumo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,15 +39,15 @@ const AircraftSelection: React.FC<AircraftSelectionProps> = ({ onSelect }) => {
   const loadAircrafts = async () => {
     try {
       const { data, error } = await supabase
-        .from('aircraft')
-        .select('id, registration, model, status')
+        .from('aeronave')
+        .select('id, matricula, modelo, status')
         .eq('status', 'ativa')
-        .order('registration');
+        .order("matricula");
 
       if (error) throw error;
 
       // Buscar horas totais de cada aeronave dos diários de bordo
-      const transformedData: AircraftSummary[] = [];
+      const transformedData: AeronaveResumo[] = [];
 
       for (const ac of data || []) {
         // Somar total_time de todos os logbook_entries da aeronave
@@ -81,11 +81,11 @@ const AircraftSelection: React.FC<AircraftSelectionProps> = ({ onSelect }) => {
     }
   };
 
-  const handleSelect = (aircraft: AircraftSummary) => {
+  const handleSelect = (aircraft: AeronaveResumo) => {
     if (onSelect) {
       onSelect(aircraft);
     } else {
-      navigate(`/manutencao/ctm-detail?aircraftId=${aircraft.id}&registration=${aircraft.registration}`);
+      navigate(`/manutencao/ctm-detail?aircraftId=${aeronave.id}&registration=${aeronave.matricula}`);
     }
   };
 
@@ -159,4 +159,4 @@ const AircraftSelection: React.FC<AircraftSelectionProps> = ({ onSelect }) => {
   );
 };
 
-export default AircraftSelection;
+export default AeronaveSelecao;

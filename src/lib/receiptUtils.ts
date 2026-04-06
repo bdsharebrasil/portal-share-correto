@@ -50,22 +50,39 @@ export interface ValidationError {
 
 export interface GeneratedReceipt {
   id: string;
-  receipt_number: string;
-  user_id: string;
-  payer_name: string;
-  payer_document: string;
+  numero_recibo: string;
+  usuario_id: string;
+  nome_pagador: string;
+  documento_pagador: string;
+  endereco_pagador?: string;
+  cidade_pagador?: string;
+  uf_pagador?: string;
+  valor: number;
+  descricao_servico: string;
+  tipo_recibo: ReceiptType;
+  data_emissao: string;
+  data_max_pagamento?: string;
+  forma_pagamento?: string;
+  cliente_id?: string;
+  url_pdf?: string;
+  criado_em: string;
+  // Backward compatibility aliases
+  receipt_number?: string;
+  user_id?: string;
+  payer_name?: string;
+  payer_document?: string;
   payer_address?: string;
   payer_city?: string;
   payer_uf?: string;
-  amount: number;
-  service_description: string;
-  receipt_type: ReceiptType;
-  issue_date: string;
+  amount?: number;
+  service_description?: string;
+  receipt_type?: ReceiptType;
+  issue_date?: string;
   max_payment_date?: string;
   payment_method?: string;
   client_id?: string;
   pdf_url?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 // ============================================================================
@@ -401,10 +418,10 @@ export function validateReceiptFile(file: File | undefined, maxSizeMB: number = 
   const validMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
 
   // Validar MIME type
-  if (!validMimeTypes.includes(file.type)) {
+  if (!validMimeTypes.includes(file.tipo)) {
     errors.push({
       type: 'mimeType',
-      message: `Tipo de arquivo não suportado. Aceitos: PNG, JPG, GIF, WebP, PDF (recebido: ${file.type || 'desconhecido'})`
+      message: `Tipo de arquivo não suportado. Aceitos: PNG, JPG, GIF, WebP, PDF (recebido: ${file.tipo || 'desconhecido'})`
     });
   }
 

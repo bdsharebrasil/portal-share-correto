@@ -34,7 +34,7 @@ interface Client {
 
 interface Aircraft {
   id: string;
-  registration: string;
+  matricula: string;
 }
 
 interface UserProfile {
@@ -77,7 +77,7 @@ const schema = z.object({
     if (data.reembolsavel === "sim" && !data.category) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["category"],
+        path: ["categoria"],
         message: "Categoria é obrigatória para despesa reembolsável",
       });
     }
@@ -157,8 +157,8 @@ export function AddBankReconciliationForm({
       setLoadingData(true);
 
       const [clientsResponse, aircraftResponse, usersResponse, categoriesResponse] = await Promise.all([
-        supabase.from("clients").select("id, company_name").order("company_name"),
-        supabase.from("aircraft").select("id, registration").order("registration"),
+        supabase.from("clientes").select("id, razao_social").order("razao_social"),
+        supabase.from('aeronave').select('id, matricula').order("matricula"),
         supabase
           .from("user_profiles")
           .select("id, full_name, employment_status")
@@ -208,7 +208,7 @@ export function AddBankReconciliationForm({
       const fileName = `reconciliation/${timestamp}-${fieldName}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("documents")
+        .from("documentos")
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) {
@@ -216,7 +216,7 @@ export function AddBankReconciliationForm({
       }
 
       const { data: urlData } = supabase.storage
-        .from("documents")
+        .from("documentos")
         .getPublicUrl(fileName);
 
       return urlData.publicUrl;
@@ -271,11 +271,11 @@ export function AddBankReconciliationForm({
       };
 
       if (data.type === "cliente") {
-        insertData.client_id = data.clientId || null;
-        insertData.aircraft_id = data.aircraftId || null;
+        insertData.cliente_id = data.clientId || null;
+        insertData.aeronave_id = data.aircraftId || null;
 
         if (data.reembolsavel === "sim") {
-          insertData.category = data.category || null;
+          insertData.categoria = data.category || null;
         } else {
           insertData.boleto_url = boletoUrl;
           insertData.nf_url = notaUrl;
@@ -299,11 +299,11 @@ export function AddBankReconciliationForm({
           );
         }
 
-        insertData.receiver_id = data.receiverId;
+        insertData.recebedor_id = data.receiverId;
       }
 
       const { data: inserted, error } = await (supabase as any)
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .insert(insertData)
         .select()
         .single();
@@ -396,7 +396,7 @@ export function AddBankReconciliationForm({
             </CardTitle>
           </CardHeader>
         </CollapsibleTrigger>
-        
+
         <CollapsibleContent>
           <CardContent className="pt-0">
             <Form {...form}>
@@ -433,7 +433,7 @@ export function AddBankReconciliationForm({
                       <FormItem>
                         <FormLabel>Data *</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} className="rounded-lg" />
+                          <Input type="data" {...field} className="rounded-lg" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -530,7 +530,7 @@ export function AddBankReconciliationForm({
                               <SelectContent>
                                 {clients.map((client) => (
                                   <SelectItem key={client.id} value={client.id}>
-                                    {client.company_name}
+                                    {(client as any).razao_social}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -559,7 +559,7 @@ export function AddBankReconciliationForm({
                               <SelectContent>
                                 {aircraft.map((ac) => (
                                   <SelectItem key={ac.id} value={ac.id}>
-                                    {ac.registration}
+                                    {ac.matricula}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -726,8 +726,8 @@ export function AddBankReconciliationForm({
                   >
                     Cancelar
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={loading || loadingData || uploadingBoleto || uploadingNota}
                     className="rounded-lg"
                   >

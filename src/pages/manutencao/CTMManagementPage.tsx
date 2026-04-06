@@ -38,7 +38,7 @@ import type {
   FinancialSummary,
 } from '@/types/maintenance';
 
-interface AircraftSelection {
+interface AeronaveSelecao {
   id: string;
   registration: string;
   model: string;
@@ -47,7 +47,7 @@ interface AircraftSelection {
 type FormView = 'none' | 'ras' | 'motor' | 'ad' | 'sb';
 
 export default function CTMManagementPage() {
-  const [aircraft, setAircraft] = useState<AircraftSelection | null>(null);
+  const [aircraft, setAircraft] = useState<AeronaveSelecao | null>(null);
   const [rasList, setRASList] = useState<RAS[]>([]);
   const [motorExpenses, setMotorExpenses] = useState<MotorExpense[]>([]);
   const [ads, setADs] = useState<AirworthinessDirective[]>([]);
@@ -99,23 +99,23 @@ export default function CTMManagementPage() {
         setRASList(
           rasData.map((item: any) => ({
             id: item.id,
-            aircraftId: item.aircraft_id,
+            aircraftId: item.aeronave_id,
             serviceOrderNumber: item.service_order_number,
             maintenanceCenter: item.maintenance_center,
             maintenanceType: item.maintenance_type,
             responsibleMechanic: item.responsible_mechanic,
-            date: item.date,
+            date: item.data,
             completionDate: item.completion_date,
-            description: item.description,
+            description: item.descricao,
             inspectionDetails: item.inspection_details,
-            status: item.status || 'pendente',
+            status: item.situacao || 'pendente',
             totalCost: item.total_cost || 0,
             photos: item.photos || [],
             costItems: item.cost_items || [],
             motorHours: item.motor_hours,
-            observations: item.observations,
-            createdAt: item.created_at,
-            updatedAt: item.updated_at,
+            observations: item.observacoes,
+            createdAt: item.criado_em,
+            updatedAt: item.atualizado_em,
           }))
         );
       }
@@ -131,16 +131,16 @@ export default function CTMManagementPage() {
         setMotorExpenses(
           motorData.map((item: any) => ({
             id: item.id,
-            aircraftId: item.aircraft_id,
+            aircraftId: item.aeronave_id,
             motorSide: item.motor_side,
-            type: item.type,
-            description: item.description,
+            type: item.tipo,
+            description: item.descricao,
             motorHours: item.motor_hours,
             cost: item.cost,
             supplier: item.supplier,
-            date: item.date,
-            observations: item.observations,
-            createdAt: item.created_at,
+            date: item.data,
+            observations: item.observacoes,
+            createdAt: item.criado_em,
           }))
         );
       }
@@ -156,17 +156,17 @@ export default function CTMManagementPage() {
         setADs(
           adData.map((item: any) => ({
             id: item.id,
-            aircraftId: item.aircraft_id,
+            aircraftId: item.aeronave_id,
             adNumber: item.ad_number,
             title: item.title,
             issueDate: item.issue_date,
             effectiveDate: item.issue_date,
-            dueDate: item.due_date,
-            description: item.description,
-            status: item.status || 'pendente',
+            dueDate: item.data_vencimento,
+            description: item.descricao,
+            status: item.situacao || 'pendente',
             completionDate: item.completion_date,
-            observations: item.observations,
-            createdAt: item.created_at,
+            observations: item.observacoes,
+            createdAt: item.criado_em,
           }))
         );
       }
@@ -182,16 +182,16 @@ export default function CTMManagementPage() {
         setSBs(
           sbData.map((item: any) => ({
             id: item.id,
-            aircraftId: item.aircraft_id,
+            aircraftId: item.aeronave_id,
             sbNumber: item.sb_number,
             title: item.title,
             issueDate: item.issue_date,
-            dueDate: item.due_date,
-            description: item.description,
-            status: item.status || 'pendente',
+            dueDate: item.data_vencimento,
+            description: item.descricao,
+            status: item.situacao || 'pendente',
             completionDate: item.completion_date,
-            observations: item.observations,
-            createdAt: item.created_at,
+            observations: item.observacoes,
+            createdAt: item.criado_em,
           }))
         );
       }
@@ -309,10 +309,10 @@ export default function CTMManagementPage() {
     const matchesSearch =
       !searchQuery ||
       ras.serviceOrderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ras.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ras.descricao.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ras.responsibleMechanic.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = !statusFilter || ras.status === statusFilter;
+    const matchesStatus = !statusFilter || ras.situacao === statusFilter;
     const matchesType = !typeFilter || ras.maintenanceType === typeFilter;
 
     return matchesSearch && matchesStatus && matchesType;
@@ -363,8 +363,8 @@ export default function CTMManagementPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{aircraft.registration}</h1>
-            <p className="text-sm text-muted-foreground">{aircraft.model}</p>
+            <h1 className="text-2xl font-bold">{aeronave.matricula}</h1>
+            <p className="text-sm text-muted-foreground">{aeronave.modelo}</p>
           </div>
         </div>
 
@@ -399,14 +399,14 @@ export default function CTMManagementPage() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
-            <CTMDashboard aircraftId={aircraft.id} />
+            <CTMDashboard aircraftId={aeronave.id} />
           </TabsContent>
 
           {/* RAS Tab */}
           <TabsContent value="ras" className="space-y-6">
             {formView === 'ras' ? (
               <RASForm
-                aircraftId={aircraft.id}
+                aircraftId={aeronave.id}
                 onSuccess={handleRASCreated}
                 onCancel={() => setFormView('none')}
               />
@@ -448,7 +448,7 @@ export default function CTMManagementPage() {
           <TabsContent value="motor" className="space-y-6">
             {formView === 'motor' ? (
               <MotorExpenseForm
-                aircraftId={aircraft.id}
+                aircraftId={aeronave.id}
                 onSuccess={handleMotorExpenseCreated}
                 onCancel={() => setFormView('none')}
               />
@@ -465,14 +465,14 @@ export default function CTMManagementPage() {
           <TabsContent value="directives" className="space-y-6">
             {formView === 'ad' ? (
               <ADSBForm
-                aircraftId={aircraft.id}
+                aircraftId={aeronave.id}
                 type="ad"
                 onSuccess={handleADCreated}
                 onCancel={() => setFormView('none')}
               />
             ) : formView === 'sb' ? (
               <ADSBForm
-                aircraftId={aircraft.id}
+                aircraftId={aeronave.id}
                 type="sb"
                 onSuccess={handleSBCreated}
                 onCancel={() => setFormView('none')}
@@ -532,11 +532,11 @@ export default function CTMManagementPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">AD Pendentes:</span>
-                      <span className="font-bold text-orange-600">{ads.filter(a => a.status === 'pendente').length}</span>
+                      <span className="font-bold text-orange-600">{ads.filter(a => a.situacao === 'pendente').length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">SB Pendentes:</span>
-                      <span className="font-bold text-orange-600">{sbs.filter(s => s.status === 'pendente').length}</span>
+                      <span className="font-bold text-orange-600">{sbs.filter(s => s.situacao === 'pendente').length}</span>
                     </div>
                   </div>
                 </CardContent>

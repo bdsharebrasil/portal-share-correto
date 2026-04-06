@@ -25,7 +25,7 @@ interface ContactCardProps {
     cargo?: string | null;
     categoria?: string | null;
     origin?: string | null;
-    financial_contact?: string | null;
+    contato_financeiro?: string | null;
   };
   onEdit: (contact: any) => void;
   onDelete: (contact: any) => void;
@@ -54,7 +54,7 @@ export function ContactCard({
   onDelete,
   hideActionButtons = false,
 }: ContactCardProps) {
-  const isReadOnlyOrigin = contact.origin === "clients" || contact.origin === "user_profiles";
+  const isReadOnlyOrigin = contact.origin === "clientes" || contact.origin === "user_profiles";
 
   return (
     <Card className="group border-white/30 bg-slate-900/30 hover:shadow-lg transition-shadow">
@@ -146,7 +146,7 @@ export function ContactCard({
           )}
 
           {/* City / Financial Contact */}
-          {(contact.cidade || contact.financial_contact) && (
+          {(contact.cidade || contact.contato_financeiro) && (
             <div className="border-t border-white/20 pt-3 space-y-2">
               {contact.cidade && (
                 <p className="text-xs text-slate-400 flex items-center gap-2">
@@ -154,9 +154,9 @@ export function ContactCard({
                   <span>{contact.cidade}</span>
                 </p>
               )}
-              {contact.financial_contact && (
+              {contact.contato_financeiro && (
                 <p className="text-xs text-slate-400">
-                  <span className="text-slate-500">👤 Contato Financeiro:</span> {contact.financial_contact}
+                  <span className="text-slate-500">👤 Contato Financeiro:</span> {contact.contato_financeiro}
                 </p>
               )}
             </div>

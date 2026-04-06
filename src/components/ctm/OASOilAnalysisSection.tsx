@@ -27,8 +27,8 @@ export function OASOilAnalysisSection({ orderId, aircraftId, analyses, onRefetch
   const handleAdd = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase.from("oil_analysis").insert([{
-        aircraft_id: aircraftId,
+      const { error } = await (supabase as any).from("oil_analysis").insert([{
+        aeronave_id: aircraftId,
         service_order_id: orderId,
         date: form.date,
         fe: form.fe ? parseFloat(form.fe) : null,
@@ -46,7 +46,7 @@ export function OASOilAnalysisSection({ orderId, aircraftId, analyses, onRefetch
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("oil_analysis").delete().eq("id", id);
+    const { error } = await (supabase as any).from("oil_analysis").delete().eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("Análise removida"); onRefetch(); }
   };
@@ -69,7 +69,7 @@ export function OASOilAnalysisSection({ orderId, aircraftId, analyses, onRefetch
           <TableBody>
             {analyses.map((a: any) => (
               <TableRow key={a.id}>
-                <TableCell>{a.date ? format(new Date(a.date), "dd/MM/yyyy", { locale: ptBR }) : "-"}</TableCell>
+                <TableCell>{a.data ? format(new Date(a.data), "dd/MM/yyyy", { locale: ptBR }) : "-"}</TableCell>
                 <TableCell>{a.fe ?? "-"}</TableCell>
                 <TableCell>{a.cu ?? "-"}</TableCell>
                 <TableCell>{a.al ?? "-"}</TableCell>

@@ -31,7 +31,7 @@ export function ActiveFlightCycles() {
     queryFn: async () => {
       // Buscar ciclos ativos da view active_flight_cycles
       const { data, error } = await supabase
-        .from('active_flight_cycles')
+        .from('ciclos_voo_ativos')
         .select('*')
         .in('status', ['em_execucao', 'confirmado'])
         .order('flight_date', { ascending: true });
@@ -98,7 +98,7 @@ export function ActiveFlightCycles() {
                       {statusConfig.icon} {statusConfig.label}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
-                      {cycle.aircraft_model}
+                      {cycle.aeronave_model}
                     </span>
                   </div>
 
@@ -129,9 +129,9 @@ export function ActiveFlightCycles() {
                     )}
                   </div>
 
-                  {cycle.observations && (
+                  {cycle.observacoes && (
                     <p className="text-xs text-muted-foreground bg-card p-2 rounded border border-border/50">
-                      {cycle.observations}
+                      {cycle.observacoes}
                     </p>
                   )}
 

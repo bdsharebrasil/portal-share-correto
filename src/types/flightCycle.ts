@@ -34,7 +34,7 @@ export interface FlightCycle {
   id: string;
   client_id: string | null;
   partner_id: string | null;
-  aircraft_id: string | null;
+  aeronave_id: string | null;
   origin_icao: string;
   destination_icao: string;
   flight_date: string;
@@ -58,7 +58,7 @@ export interface FlightCycle {
   // Joined data
   client?: { company_name: string; proprietario: string };
   partner?: { name: string };
-  aircraft?: { registration: string; model: string };
+  aircraft?: { matricula: string; modelo: string };
   expenses?: FlightExpense[];
 }
 

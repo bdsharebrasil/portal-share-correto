@@ -71,10 +71,10 @@ export function AddLicenseDialog({
     setIsLoading(true);
     try {
       const insertData: any = {
-        crew_member_id: crewMemberId,
-        license_type: licenseType,
-        license_number: "",
-        expiry_date: isCMA ? null : expiryDate,
+        membro_tripulacao_id: crewMemberId,
+        tipo_habilitacao: licenseType,
+        numero_habilitacao: "",
+        data_validade: isCMA ? null : expiryDate,
         observacao: observations || null,
       };
 
@@ -85,7 +85,7 @@ export function AddLicenseDialog({
       }
 
       const { error } = await supabase
-        .from("crew_licenses")
+        .from("habilitacoes_tripulante")
         .insert(insertData);
 
       if (error) throw error;
@@ -139,7 +139,7 @@ export function AddLicenseDialog({
                 Data de Validade *
               </Label>
               <Input
-                type="date"
+                type="data"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
                 className="bg-transparent border-[#1d1d72] text-white"
@@ -169,7 +169,7 @@ export function AddLicenseDialog({
                   Validade do CMA *
                 </Label>
                 <Input
-                  type="date"
+                  type="data"
                   value={validadeCma}
                   onChange={(e) => setValidadeCma(e.target.value)}
                   className="bg-transparent border-[#1d1d72] text-white"

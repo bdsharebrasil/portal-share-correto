@@ -52,13 +52,13 @@ export function TransactionsTable({
   // Memoizar a função de obter data da transação
   const getTransactionDate = useMemo(
     () => (tx: any) => {
-      const date = tx.payment_date || tx.created_at;
+      const date = tx.payment_date || tx.criado_em;
       try {
         return format(new Date(date.includes("T") ? date : date + "T12:00:00"), "dd/MM/yyyy", {
           locale: ptBR,
         });
       } catch {
-        return format(new Date(tx.created_at), "dd/MM/yyyy", { locale: ptBR });
+        return format(new Date(tx.criado_em), "dd/MM/yyyy", { locale: ptBR });
       }
     },
     []
@@ -66,7 +66,7 @@ export function TransactionsTable({
 
   // Memoizar partners únicos
   const partners = useMemo(
-    () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean),
+    () => [...new Set(transactions.map((t) => t.nome_socio))].filter(Boolean),
     [transactions]
   );
 
@@ -76,7 +76,7 @@ export function TransactionsTable({
       [
         ...new Set(
           transactions.map((t) => {
-            const date = (t as any).payment_date || t.created_at;
+            const date = (t as any).payment_date || t.criado_em;
             try {
               return format(new Date(date), "yyyy-MM");
             } catch {
@@ -93,14 +93,14 @@ export function TransactionsTable({
     let result = [...transactions];
 
     if (filterPartner !== "all") {
-      result = result.filter((t) => t.partner_name === filterPartner);
+      result = result.filter((t) => t.nome_socio === filterPartner);
     }
     if (filterType !== "all") {
       result = result.filter((t) => t.transaction_type === filterType);
     }
     if (filterMonth !== "all") {
       result = result.filter((t) => {
-        const date = (t as any).payment_date || t.created_at;
+        const date = (t as any).payment_date || t.criado_em;
         try {
           return format(new Date(date), "yyyy-MM") === filterMonth;
         } catch {
@@ -122,10 +122,10 @@ export function TransactionsTable({
   const summary = useMemo(() => {
     const totalDeposits = filtered
       .filter((t) => t.transaction_type === "deposit")
-      .reduce((s, t) => s + Number(t.amount), 0);
+      .reduce((s, t) => s + Number(t.valor), 0);
     const totalExpenses = filtered
       .filter((t) => t.transaction_type !== "deposit")
-      .reduce((s, t) => s + Number(t.amount), 0);
+      .reduce((s, t) => s + Number(t.valor), 0);
     const netResult = totalDeposits - totalExpenses;
 
     return { totalDeposits, totalExpenses, netResult };
@@ -232,12 +232,12 @@ export function TransactionsTable({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium text-foreground truncate">
-                            {tx.description || tx.transaction_type}
+                            {tx.descricao || tx.transaction_type}
                           </p>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {tx.partner_name} • {getTransactionDate(tx)}
-                          {tx.transaction_type === "expense" && tx.status && ` • ${tx.status}`}
+                          {tx.nome_socio} • {getTransactionDate(tx)}
+                          {tx.transaction_type === "expense" && tx.situacao && ` • ${tx.situacao}`}
                         </p>
                       </div>
                     </div>
@@ -252,7 +252,7 @@ export function TransactionsTable({
                         }`}
                       >
                         {tx.transaction_type === "deposit" ? "+" : "-"}
-                        {fmt(Number(tx.amount))}
+                        {fmt(Number(tx.valor))}
                       </p>
                     </div>
                   </div>

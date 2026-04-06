@@ -22,39 +22,53 @@ import { CrewMemberCard } from "@/components/tripulacao/TripulacaoCard";
 import { CrewRegistrationForm } from "@/components/tripulacao/CrewRegistrationForm";
 interface CrewMember {
   id: string;
-  full_name: string;
+  nome_completo: string;
   canac: string;
   email?: string;
-  phone?: string;
-  birth_date?: string;
-  status: string;
+  telefone?: string;
+  data_nascimento?: string;
+  situacao: string;
   photo_url?: string;
-  user_id?: string;
+  usuario_id?: string;
   role?: string;
   cpf?: string;
   rg?: string;
+  endereco?: string;
+  // Backward compatibility
+  full_name?: string;
+  phone?: string;
+  birth_date?: string;
+  status?: string;
+  user_id?: string;
   address?: string;
 }
 interface CrewFlightHours {
   id: string;
-  crew_member_id: string;
-  aircraft_id: string;
-  total_hours: number;
+  membro_tripulacao_id: string;
+  aeronave_id: string;
+  horas_totais: number;
   aircraft?: {
     registration: string;
     model: string;
   };
+  // Backward compatibility
+  crew_member_id?: string;
+  total_hours?: number;
 }
 interface CrewLicense {
   id: string;
-  crew_member_id: string;
-  license_type: string;
-  expiry_date?: string;
+  membro_tripulacao_id: string;
+  tipo_habilitacao: string;
+  data_validade?: string;
   status?: string;
   observacao?: string;
   CMA?: string;
   FS_RH?: string;
   validade_cma?: string;
+  // Backward compatibility
+  crew_member_id?: string;
+  license_type?: string;
+  expiry_date?: string;
 }
 interface FlightSchedule {
   id: string;
@@ -63,7 +77,7 @@ interface FlightSchedule {
   origin: string;
   destination: string;
   status: string;
-  aircraft_id?: string;
+  aeronave_id?: string;
   client_id?: string;
 }
 export default function GestaoDeTripulacao() {
@@ -96,7 +110,7 @@ export default function GestaoDeTripulacao() {
     const {
       data,
       error
-    } = await supabase.from('crew_members').select('*').eq('status', statusFilter).order('full_name');
+    } = await supabase.from('membros_tripulacao').select('*').eq('status', statusFilter).order('nome_completo');
     if (error) {
       toast({
         title: "Erro ao carregar tripulantes",
@@ -112,27 +126,27 @@ export default function GestaoDeTripulacao() {
         role: 'Tripulante'
       };
 
-      if (crew.user_id) {
+      if (crew.usuario_id) {
         const {
           data: roleData
-        } = await supabase.from('user_roles').select('role').eq('user_id', crew.user_id);
+        } = await supabase.from('user_roles').select('role').eq('user_id', crew.usuario_id);
         const isPilotChief = roleData?.some(r => r.role === 'piloto_chefe');
         crewData.role = isPilotChief ? 'Piloto Chefe' : 'Tripulante';
 
         // Tentar carregar CPF, RG, Endereço e Avatar URL do user_profiles
         const { data: profileData } = await supabase
           .from('user_profiles')
-          .select('cpf, rg, address, avatar_url')
-          .eq('id', crew.user_id)
+          .select('cpf, rg, endereco, url_avatar')
+          .eq('id', crew.usuario_id)
           .single();
 
         if (profileData) {
           crewData.cpf = profileData.cpf || undefined;
           crewData.rg = profileData.rg || undefined;
-          crewData.address = profileData.address || undefined;
-          // Usar avatar_url como fallback se photo_url não estiver preenchido
-          if (!crewData.photo_url && profileData.avatar_url) {
-            crewData.photo_url = profileData.avatar_url;
+          crewData.endereco = profileData.endereco || undefined;
+          // Usar url_avatar como fallback se photo_url não estiver preenchido
+          if (!crewData.photo_url && profileData.url_avatar) {
+            crewData.photo_url = profileData.url_avatar;
           }
         }
       }
@@ -145,19 +159,19 @@ export default function GestaoDeTripulacao() {
     // Carregar horas de voo
     const {
       data: hoursData
-    } = await supabase.from('crew_flight_hours').select(`
+    } = await supabase.from('horas_voo_tripulante').select(`
         *,
-        aircraft:aircraft_id (
+        aircraft:aeronave_id (
           registration,
           model
         )
-      `).eq('crew_member_id', crewId);
+      `).eq('membro_tripulacao_id', crewId);
     setFlightHours(hoursData || []);
 
     // Carregar licenças
     const {
       data: licensesData
-    } = await (supabase as any).from('crew_licenses').select('*').eq('crew_member_id', crewId).order('created_at', { ascending: false });
+    } = await (supabase as any).from('habilitacoes_tripulante').select('*').eq('membro_tripulacao_id', crewId).order('criado_em', { ascending: false });
     setLicenses(licensesData || []);
 
     // Carregar escalas de voo
@@ -169,8 +183,8 @@ export default function GestaoDeTripulacao() {
     setSchedules(schedulesData || []);
   };
   const getLicenseStatusBadge = (license: CrewLicense, onEdit?: () => void) => {
-    // Para CMA, usar validade_cma; para outros, usar expiry_date
-    const dateStr = license.license_type === 'CMA' ? license.validade_cma : license.expiry_date;
+    // Para CMA, usar validade_cma; para outros, usar data_validade
+    const dateStr = license.tipo_habilitacao === 'CMA' ? license.validade_cma : license.data_validade;
 
     if (!dateStr) {
       return <Badge className="bg-gray-500">Sem data de validade</Badge>;
@@ -208,7 +222,7 @@ export default function GestaoDeTripulacao() {
         console.log("[License] Updating license:", { id: editingLicense.id, ...payload });
         const {
           error
-        } = await (supabase as any).from('crew_licenses').update(payload).eq('id', editingLicense.id);
+        } = await (supabase as any).from('habilitacoes_tripulante').update(payload).eq('id', editingLicense.id);
         if (error) {
           console.error("[License] Update error:", error);
           const errorMsg = error?.message || error?.details || "Erro ao atualizar licença";
@@ -223,7 +237,7 @@ export default function GestaoDeTripulacao() {
         console.log("[License] Inserting license:", payload);
         const {
           error
-        } = await (supabase as any).from('crew_licenses').insert([payload]);
+        } = await (supabase as any).from('habilitacoes_tripulante').insert([payload]);
         if (error) {
           console.error("[License] Insert error:", error);
           const errorMsg = error?.message || error?.details || "Erro ao criar licença";
@@ -258,7 +272,7 @@ export default function GestaoDeTripulacao() {
       console.log("[License] Deleting license:", licenseId);
       const {
         error
-      } = await (supabase as any).from('crew_licenses').delete().eq('id', licenseId);
+      } = await (supabase as any).from('habilitacoes_tripulante').delete().eq('id', licenseId);
       if (error) {
         console.error("[License] Delete error:", error);
         const errorMsg = error?.message || error?.details || "Erro ao excluir licença";
@@ -439,7 +453,7 @@ export default function GestaoDeTripulacao() {
                             .update({
                               cpf: editingProfileData.cpf || null,
                               rg: editingProfileData.rg || null,
-                              address: editingProfileData.address || null
+                              address: editingProfileData.endereco || null
                             })
                             .eq('id', editingProfileData.user_id);
 
@@ -486,17 +500,17 @@ export default function GestaoDeTripulacao() {
                             <Mail className="text-primary" size={16} />
                             <span>{selectedCrew.email}</span>
                           </div>}
-                          {selectedCrew.phone && <div className="flex items-center gap-2">
+                          {selectedCrew.telefone && <div className="flex items-center gap-2">
                             <Phone className="text-primary" size={16} />
-                            <span>{selectedCrew.phone}</span>
+                            <span>{selectedCrew.telefone}</span>
                           </div>}
                           {selectedCrew.birth_date && <div className="flex items-center gap-2">
                             <Calendar className="text-primary" size={16} />
                             <span><strong>Nascimento:</strong> {formatDate(selectedCrew.birth_date)}</span>
                           </div>}
-                          {selectedCrew.address && <div className="flex items-center gap-2 col-span-2">
+                          {selectedCrew.endereco && <div className="flex items-center gap-2 col-span-2">
                             <MapPin className="text-primary" size={16} />
-                            <span><strong>Endereço:</strong> {selectedCrew.address}</span>
+                            <span><strong>Endereço:</strong> {selectedCrew.endereco}</span>
                           </div>}
                         </div>
                       </div>
@@ -526,7 +540,7 @@ export default function GestaoDeTripulacao() {
                     <TableBody>
                       {flightHours.map(hours => <TableRow key={hours.id}>
                         <TableCell className="font-medium">
-                          {(hours.aircraft as any)?.registration} - {(hours.aircraft as any)?.model}
+                          {(hours.aeronave as any)?.registration} - {(hours.aeronave as any)?.model}
                         </TableCell>
                         <TableCell className="text-right">{hours.total_hours.toFixed(1)}h</TableCell>
                       </TableRow>)}
@@ -647,8 +661,8 @@ export default function GestaoDeTripulacao() {
                           </p>
                         </div>
                       </div>
-                      <Badge variant={schedule.status === 'confirmado' ? 'default' : 'secondary'}>
-                        {schedule.status}
+                      <Badge variant={schedule.situacao === 'confirmado' ? 'default' : 'secondary'}>
+                        {schedule.situacao}
                       </Badge>
                     </div>)}
                   </div> : <div className="text-center py-8 text-muted-foreground">
@@ -768,7 +782,7 @@ function LicenseForm({
           </div>
           <div className="sm:col-span-2">
             <Label>Validade CMA</Label>
-            <Input className="w-full" type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
+            <Input className="w-full" type="data" value={formData.validade_cma || ''} onChange={e => setFormData({
               ...formData,
               validade_cma: e.target.value
             })} />
@@ -777,7 +791,7 @@ function LicenseForm({
       ) : (
         <div className="sm:col-span-2">
           <Label>Data de Validade *</Label>
-          <Input className="w-full" type="date" value={formData.expiry_date} onChange={e => setFormData({
+          <Input className="w-full" type="data" value={formData.expiry_date} onChange={e => setFormData({
             ...formData,
             expiry_date: e.target.value
           })} required />
@@ -846,7 +860,7 @@ function EditProfileForm({
         <div className="col-span-2 space-y-2">
           <Label>Endereço</Label>
           <Input
-            value={crew.address || ''}
+            value={crew.endereco || ''}
             onChange={(e) => onChange({ ...crew, address: e.target.value })}
             placeholder="Rua, número, bairro, cidade"
           />

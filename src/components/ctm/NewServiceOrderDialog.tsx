@@ -274,29 +274,15 @@ export function NewServiceOrderPage({
         oficinaId = newOficinaId;
       }
 
-      const payload = {
+      const payload: any = {
         aircraft_id: aircraftId,
-        numero: formData.numero,
-        os_oficina: formData.os_oficina || null,
-        tipo_manutencao: formData.tipo_manutencao,
-        horas_celula: formData.horas_celula ? parseFloat(formData.horas_celula) : null,
-        periodo: formData.periodo || null,
-        periodo_inicio: formData.periodo_inicio || null,
-        periodo_fim: formData.periodo_fim || null,
-        tipo_rateio: formData.tipo_rateio || "HORAS",
-        oficina_nome: formData.oficina_nome,
-        oficina_contato: formData.oficina_contato || null,
-        mecanico_responsavel: formData.mecanico_responsavel || null,
-        data_entrada: formData.data_entrada || null,
-        data_saida: formData.data_saida || null,
-        dias_previstos: formData.dias_previstos ? parseInt(formData.dias_previstos) : null,
-        dias_efetivos: formData.dias_efetivos ? parseInt(formData.dias_efetivos) : null,
+        order_number: formData.numero,
+        service_type: formData.tipo_manutencao,
+        description: formData.observacoes || null,
+        supplier: formData.oficina_nome || null,
+        period: formData.periodo || null,
+        value: formData.horas_celula ? parseFloat(formData.horas_celula) : null,
         status: formData.status,
-        approval_status: formData.approval_status,
-        rejection_reason: formData.rejection_reason || null,
-        vencimento_id: formData.vencimento_id || null,
-        objetivo: formData.objetivo || null,
-        observacoes: formData.observacoes || null,
       };
 
       let data;
@@ -305,7 +291,7 @@ export function NewServiceOrderPage({
       if (editingOrder) {
         // Modo edição - UPDATE
         const { data: updated, error: err } = await supabase
-          .from("ctm_service_orders")
+          .from("service_orders")
           .update(payload)
           .eq("id", editingOrder.id)
           .select()
@@ -315,7 +301,7 @@ export function NewServiceOrderPage({
       } else {
         // Modo novo - INSERT
         const { data: inserted, error: err } = await supabase
-          .from("ctm_service_orders")
+          .from("service_orders")
           .insert([payload])
           .select()
           .single();
@@ -348,16 +334,16 @@ export function NewServiceOrderPage({
           return "100h";
         };
         const ph = formData.horas_celula ? parseFloat(formData.horas_celula) : 0;
-        const { error: re } = await supabase.from("aircraft_maintenance_records").insert([{
-          aircraft_id: aircraftId,
-          maintenance_type: mapType(formData.tipo_manutencao, ph),
-          performed_at_hours: ph,
-          performed_date: formData.data_entrada,
-          next_due_hours: ph + 50,
-          mechanic_name: formData.mecanico_responsavel || "A designar",
-          maintenance_center: formData.oficina_nome || null,
-          service_order_number: formData.numero || null,
-          description: formData.observacoes || null,
+        const { error: re } = await supabase.from('registros_manutencao_aeronave').insert([{
+          aeronave_id: aircraftId,
+          tipo_manutencao: mapType(formData.tipo_manutencao, ph),
+          horas_realizada: ph,
+          data_realizada: formData.data_entrada,
+          proxima_vencimento_horas: ph + 50,
+          nome_mecanico: formData.mecanico_responsavel || "A designar",
+          centro_manutencao: formData.oficina_nome || null,
+          numero_ordem_servico: formData.numero || null,
+          descricao: formData.observacoes || null,
         }]);
         if (re) console.error("Sync aircraft_maintenance_records:", re);
       }
@@ -503,7 +489,7 @@ export function NewServiceOrderPage({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <Field label="Data de Entrada" required>
               <Input
-                type="date"
+                type="data"
                 value={formData.data_entrada}
                 onChange={(e) => set("data_entrada", e.target.value)}
                 required
@@ -511,7 +497,7 @@ export function NewServiceOrderPage({
             </Field>
             <Field label="Data de Saída (Prevista)">
               <Input
-                type="date"
+                type="data"
                 value={formData.data_saida}
                 onChange={(e) => set("data_saida", e.target.value)}
               />

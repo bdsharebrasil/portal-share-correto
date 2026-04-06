@@ -62,8 +62,8 @@ export function usePartnerExpenses({ clientId, aircraftId, startDate, endDate }:
 
       // 1. Fetch client information
       const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('id, company_name, cnpj')
+        .from('clientes')
+        .select('id, razao_social, cnpj')
         .eq('id', clientId)
         .single();
 
@@ -72,12 +72,12 @@ export function usePartnerExpenses({ clientId, aircraftId, startDate, endDate }:
         return null;
       }
 
-      // 2. Fetch partners from client_partners table
+      // 2. Fetch partners from socios_cliente table
       const { data: partnersData, error: partnersError } = await supabase
-        .from('client_partners')
-        .select('id, name, cpf, share_percentage')
-        .eq('client_id', clientId)
-        .order('created_at');
+        .from('socios_cliente')
+        .select('id, nome, cpf, percentual_participacao')
+        .eq('cliente_id', clientId)
+        .order('criado_em');
 
       if (partnersError) {
         console.error('Error fetching partners:', partnersError);
@@ -87,16 +87,16 @@ export function usePartnerExpenses({ clientId, aircraftId, startDate, endDate }:
       // Build partners list
       const partners: PartnerInfo[] = (partnersData || []).map((partner, index) => ({
         index: index + 1,
-        name: partner.name,
+        name: partner.nome,
         cpf: partner.cpf || undefined,
-        percentage: partner.share_percentage || 33.33
+        percentage: partner.percentual_participacao || 33.33
       }));
 
       // 2. Fetch fuel expenses (abastecimentos)
       let fuelQuery = supabase
         .from('abastecimentos')
         .select('id, data, trecho, local, valor_total, partner_index, observacao')
-        .eq('client_id', clientId)
+        .eq('id_clientes', clientId)
         .gte('data', format(start, 'yyyy-MM-dd'))
         .lte('data', format(end, 'yyyy-MM-dd'));
 
@@ -118,7 +118,7 @@ export function usePartnerExpenses({ clientId, aircraftId, startDate, endDate }:
           const match = item.observacao.match(/\[Partner:([^\]]+)\]/);
           if (match) {
             const partnerName = match[1];
-            const foundPartner = partners.find(p => p.name === partnerName);
+            const foundPartner = partners.find(p => p.nome === partnerName);
             if (foundPartner) {
               partnerIndex = foundPartner.index;
             }
@@ -137,16 +137,16 @@ export function usePartnerExpenses({ clientId, aircraftId, startDate, endDate }:
       });
 
       // Calculate totals
-      const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+      const totalExpenses = expenses.reduce((sum, e) => sum + e.valor, 0);
       const sharedExpenses = expenses
-        .filter(e => e.type === 'shared')
-        .reduce((sum, e) => sum + e.amount, 0);
+        .filter(e => e.tipo === 'shared')
+        .reduce((sum, e) => sum + e.valor, 0);
 
       // Calculate per-partner summaries
       const partnerSummaries: PartnerExpenseSummary[] = partners.map(partner => {
         const directExpenses = expenses
           .filter(e => e.partner_index === partner.index)
-          .reduce((sum, e) => sum + e.amount, 0);
+          .reduce((sum, e) => sum + e.valor, 0);
         
         // Shared expenses are split according to configured percentage
         const sharedPortion = sharedExpenses * (partner.percentage / 100);
@@ -170,7 +170,7 @@ export function usePartnerExpenses({ clientId, aircraftId, startDate, endDate }:
       return {
         client: {
           id: clientData.id,
-          company_name: clientData.company_name || '',
+          company_name: clientData.razao_social || '',
           cnpj: clientData.cnpj || ''
         },
         partners,
@@ -194,9 +194,9 @@ export function useAllClientsWithPartners() {
     queryFn: async () => {
       // Fetch all clients
       const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, company_name, cnpj')
-        .order('company_name');
+        .from('clientes')
+        .select('id, razao_social, cnpj')
+        .order('razao_social');
 
       if (clientsError) {
         console.error('Error fetching clients:', clientsError);
@@ -205,15 +205,15 @@ export function useAllClientsWithPartners() {
 
       // Fetch clients that have partners
       const { data: partnersData, error: partnersError } = await supabase
-        .from('client_partners')
-        .select('client_id');
+        .from('socios_cliente')
+        .select('cliente_id');
 
       if (partnersError) {
         console.error('Error fetching partners:', partnersError);
         return clientsData || [];
       }
 
-      const clientsWithPartners = new Set((partnersData || []).map(p => p.client_id));
+      const clientsWithPartners = new Set((partnersData || []).map(p => p.cliente_id));
 
       // Filter clients to only those with partners
       return (clientsData || []).filter(client => clientsWithPartners.has(client.id));

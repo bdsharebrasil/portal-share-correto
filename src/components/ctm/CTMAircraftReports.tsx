@@ -46,9 +46,9 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
     queryKey: ["ctm-client", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("clients")
-        .select("id, proprietario, share_percentage")
-        .eq("aircraft", aircraftId)
+        .from("clientes")
+        .select("id, proprietario, percentual_sociedade")
+        .eq("aeronave", aircraftId)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -62,10 +62,10 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
     queryFn: async () => {
       if (!clientData?.id) return [];
       const { data, error } = await supabase
-        .from("client_partners")
-        .select("id, name, share_percentage")
-        .eq("client_id", clientData.id)
-        .order("name");
+        .from("socios_cliente")
+        .select("id, nome, percentual_participacao")
+        .eq("cliente_id", clientData.id)
+        .order("nome");
       if (error) throw error;
       return data || [];
     },
@@ -78,7 +78,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
     queryFn: async () => {
       const { data, error } = await supabase
         .from("logbook_entries")
-        .select("entry_date, pousos, time, total_time, fuel_added, client_partner_id")
+        .select("entry_date, pousos, time, total_time, fuel_added, socios_cliente_id")
         .eq("aircraft_id", aircraftId)
         .gte("entry_date", `${year}-01-01`)
         .lte("entry_date", `${year}-12-31`);
@@ -93,9 +93,9 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
     queryKey: ["all-aircraft"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model")
-        .order("registration");
+        .from('aeronave')
+        .select('id, matricula, modelo')
+        .order("matricula");
       if (error) throw error;
       return data || [];
     },
@@ -109,17 +109,17 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
 
       const result: Record<string, any> = {};
 
-      for (const aircraft of allAircraftList) {
+      for (const ac of allAircraftList) {
         const { data, error } = await supabase
           .from("logbook_entries")
           .select("fuel_added, time, total_time")
-          .eq("aircraft_id", aircraft.id);
+          .eq("aircraft_id", ac.id);
 
         if (error) {
-          console.error(`Erro ao buscar combustível para ${aircraft.registration}:`, error);
-          result[aircraft.id] = { entries: [] };
+          console.error(`Erro ao buscar combustível para ${ac.matricula}:`, error);
+          result[ac.id] = { entries: [] };
         } else {
-          result[aircraft.id] = { entries: data || [] };
+          result[ac.id] = { entries: data || [] };
         }
       }
 
@@ -131,8 +131,8 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
   // ── 6. Monta lista de participantes ──────────────────────────────────────
   const allParticipants = [];
   if (clientData) {
-    const partnersTotal = partnersData.reduce((sum, p) => sum + (p.share_percentage ?? 0), 0);
-    const ownerShare = clientData.share_percentage != null ? Number(clientData.share_percentage) : Math.max(0, 100 - partnersTotal);
+    const partnersTotal = partnersData.reduce((sum, p) => sum + ((p as any).percentual_participacao ?? 0), 0);
+    const ownerShare = (clientData as any).percentual_participacao != null ? Number((clientData as any).percentual_participacao) : Math.max(0, 100 - partnersTotal);
 
     allParticipants.push({
       id: "owner",
@@ -145,8 +145,8 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
       allParticipants.push({
         id: p.id,
         dbId: p.id,
-        name: p.name,
-        share: Number(p.share_percentage ?? 0),
+        name: p.nome,
+        share: Number(p.percentual_participacao ?? 0),
       });
     }
   }
@@ -170,8 +170,8 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
 
     const participantsData = allParticipants.map((p) => {
       const pEntries = monthEntries.filter((e) => {
-        if (p.id === "owner") return !e.client_partner_id;
-        return e.client_partner_id === p.id;
+        if (p.id === "owner") return !e.socios_cliente_id;
+        return e.socios_cliente_id === p.id;
       });
 
       const pPousos = pEntries.reduce((s, e) => s + (Number(e.pousos) || 0), 0);
@@ -235,8 +235,8 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
   // ── 8. Dados para o gráfico comparativo de frota ──────────────────────────
   const chartData = useMemo(() => {
     return allAircraftList
-      .map((aircraft: any) => {
-        const entries = fuelDataByAircraft[aircraft.id]?.entries || [];
+      .map((ac: any) => {
+        const entries = fuelDataByAircraft[ac.id]?.entries || [];
 
         if (entries.length === 0) {
           return null;
@@ -256,13 +256,13 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
           totalFlightHours > 0 ? totalFuelAdded / totalFlightHours : 0;
 
         return {
-          registration: aircraft.registration,
-          model: aircraft.model || "—",
+          registration: ac.matricula,
+          model: ac.modelo || "—",
           avgConsumption: parseFloat(avgConsumption.toFixed(2)),
           totalFlights: entries.length,
           totalFuel: parseFloat(totalFuelAdded.toFixed(2)),
           totalHours: parseFloat(totalFlightHours.toFixed(2)),
-          isCurrentAircraft: aircraft.id === aircraftId,
+          isCurrentAircraft: ac.id === aircraftId,
         };
       })
       .filter((item: any) => item !== null)
@@ -340,7 +340,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
                       <th className="px-3 py-2 text-center border border-border">H Total</th>
                       {allParticipants.map(p => (
                         <th key={p.id} className="px-3 py-2 text-center border border-border" colSpan={3}>
-                          <div>{p.name}</div>
+                          <div>{p.nome}</div>
                           <div className="text-[10px] font-normal flex justify-center gap-2 mt-1">
                             <span>Pousos</span><span>H Voo</span><span>H Total</span>
                           </div>
@@ -406,7 +406,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
                       <th className="px-3 py-2 text-right border border-border">Cons. Méd (L/h)</th>
                       {allParticipants.map(p => (
                         <th key={p.id} className="px-3 py-2 text-right border border-border">
-                          <div>{p.name}</div>
+                          <div>{p.nome}</div>
                           <div className="text-[10px] font-normal">(L)</div>
                         </th>
                       ))}

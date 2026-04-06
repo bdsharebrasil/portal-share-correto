@@ -35,7 +35,7 @@ export async function uploadPdfToStorage(
   const fileName = `recibos/${receiptId}_${Date.now()}.pdf`;
 
   const { error: uploadError } = await supabase.storage
-    .from("receipts")
+    .from("recibos")
     .upload(fileName, pdfBlob, {
       contentType: "application/pdf",
       upsert: true,
@@ -44,7 +44,7 @@ export async function uploadPdfToStorage(
   if (uploadError) throw uploadError;
 
   const { data: urlData } = supabase.storage
-    .from("receipts")
+    .from("recibos")
     .getPublicUrl(fileName);
 
   return urlData.publicUrl;

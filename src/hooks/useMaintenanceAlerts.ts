@@ -13,7 +13,7 @@ import {
 
 export interface MaintenanceRecord {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   maintenance_type: MaintenanceType;
   performed_at_hours: number;
   performed_date: string;
@@ -31,7 +31,7 @@ export interface MaintenanceRecord {
 
 export interface MaintenanceConfigRow {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   maintenance_type: MaintenanceType;
   interval_hours: number;
   alert_green_threshold: number;
@@ -45,7 +45,7 @@ export interface MaintenanceConfigRow {
 
 export interface MaintenanceNotification {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   maintenance_type: string;
   alert_level: string;
   hours_remaining: number;
@@ -91,7 +91,7 @@ export function useMaintenanceRecords(aircraftId: string) {
     queryKey: ['maintenance-records', aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('aircraft_maintenance_records')
+        .from('registros_manutencao_aeronave')
         .select('*')
         .eq('aircraft_id', aircraftId)
         .order('performed_at_hours', { ascending: false });
@@ -208,7 +208,7 @@ export function useAddMaintenanceRecord() {
   return useMutation({
     mutationFn: async (record: Omit<MaintenanceRecord, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
-        .from('aircraft_maintenance_records')
+        .from('registros_manutencao_aeronave')
         .insert(record)
         .select()
         .single();
@@ -217,7 +217,7 @@ export function useAddMaintenanceRecord() {
       return data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['maintenance-records', variables.aircraft_id] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance-records', variables.aeronave_id] });
       queryClient.invalidateQueries({ queryKey: ['maintenance-notifications'] });
     },
   });
@@ -237,7 +237,7 @@ export function useUpdateMaintenanceConfig() {
       const { data, error } = await supabase
         .from('aircraft_maintenance_config')
         .upsert({
-          aircraft_id: aircraftId,
+          aeronave_id: aircraftId,
           maintenance_type: config.maintenance_type,
           interval_hours: config.interval_hours,
           alert_green_threshold: config.alert_green_threshold,
@@ -246,7 +246,7 @@ export function useUpdateMaintenanceConfig() {
           alert_red_threshold: config.alert_red_threshold,
           is_active: config.is_active ?? true,
         }, {
-          onConflict: 'aircraft_id,maintenance_type',
+          onConflict: 'aeronave_id,maintenance_type',
         })
         .select()
         .single();
@@ -255,7 +255,7 @@ export function useUpdateMaintenanceConfig() {
       return data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['maintenance-configs', variables.aircraftId] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance-configs', variables.aeronaveId] });
     },
   });
 }

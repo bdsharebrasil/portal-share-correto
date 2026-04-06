@@ -252,7 +252,7 @@ export function FluxoCaixaInlineForm({
   const loadReferencias = async () => {
     try {
       const [clientsData, usersData, fornecedoresData] = await Promise.all([
-        supabase.from("clients").select("id, company_name, cnpj").order("company_name"),
+        supabase.from("clientes").select("id, razao_social, cnpj").order("razao_social"),
         supabase.from("user_profiles").select("id, full_name, cpf").order("full_name"),
         supabase.from("fornecedores_favoritos").select("id, nome_completo, documento, cidade, telefone").order("nome_completo")
       ]);
@@ -261,10 +261,10 @@ export function FluxoCaixaInlineForm({
 
       if (clientsData.data) {
         clientsData.data.forEach(client => {
-          if (client.company_name) {
+          if (client.razao_social) {
             referenciasList.push({
               id: client.id,
-              nome: client.company_name,
+              nome: client.razao_social,
               documento: client.cnpj || "",
               tipo: 'client'
             });
@@ -290,7 +290,7 @@ export function FluxoCaixaInlineForm({
           referenciasList.push({
             id: fornecedor.id,
             nome: fornecedor.nome_completo,
-            documento: fornecedor.documento || "",
+            documento: fornecedor.documentoumento || "",
             tipo: 'fornecedor'
           });
         });
@@ -312,7 +312,7 @@ export function FluxoCaixaInlineForm({
     setUploadingField(field);
 
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.nome.split('.').pop();
       const fileName = `${field}_${Date.now()}.${fileExt}`;
       const filePath = `fiscal/${user.id}/${fileName}`;
 
@@ -361,18 +361,18 @@ export function FluxoCaixaInlineForm({
       setValue("valor", movimentacao.valor.toString());
       setValue("conta_banco", movimentacao.conta_banco || "");
       setValue("numero_documento", movimentacao.numero_documento || "");
-      setValue("status", movimentacao.status);
+      setValue("situacao", movimentacao.situacao);
       setValue("observacoes", movimentacao.observacoes || "");
       setValue("aeronave", movimentacao.aeronave_registro || "");
-      setValue("client_id", movimentacao.client_id || "");
+      setValue("cliente_id", movimentacao.cliente_id || "");
       setValue("client_name", movimentacao.client_name || "");
-      setValue("client_partner_id", movimentacao.client_partner_id || "");
+      setValue("client_partner_id", movimentacao.socio_cliente_id_id || "");
       setValue("colaborador_id", movimentacao.colaborador_id || "");
       setValue("fornecedores_favoritos_id", movimentacao.fornecedores_favoritos_id || "");
       setIsReembolsavel(movimentacao.reembolsavel || false);
       setTemRateio(movimentacao.tem_rateio || false);
-      if (movimentacao.client_id) {
-        setSelectedClientId(movimentacao.client_id);
+      if (movimentacao.cliente_id) {
+        setSelectedClientId(movimentacao.cliente_id);
       }
 
       // Carregar URLs dos arquivos
@@ -392,7 +392,7 @@ export function FluxoCaixaInlineForm({
     } else {
       reset();
       setValue("data", getTodayDateString());
-      setValue("status", "pago");
+      setValue("situacao", "pago");
       setSelectedSubcategoria(null);
       setIsReembolsavel(false);
       setTemRateio(false);
@@ -407,7 +407,7 @@ export function FluxoCaixaInlineForm({
   // Atualiza o status quando o tipo de movimento muda
   useEffect(() => {
     if (!movimentacao) {
-      setValue("status", tipoMovimento === "entrada" ? "recebido" : "pago");
+      setValue("situacao", tipoMovimento === "entrada" ? "recebido" : "pago");
       setSelectedSubcategoria(null);
       setValue("categoria", "");
       // Resetar reembolso quando trocar para entrada
@@ -425,9 +425,9 @@ export function FluxoCaixaInlineForm({
       const isReembolsavelGroup = selectedSubcategoria.toLowerCase().includes("reembolsáve") ||
         selectedSubcategoria.toLowerCase().includes("reembolsave");
       if (isReembolsavelGroup) {
-        const currentStatus = watch("status");
+        const currentStatus = watch("situacao");
         if (currentStatus === "pago" || currentStatus === "pendente") {
-          setValue("status", "aguardando_reembolso");
+          setValue("situacao", "aguardando_reembolso");
         }
         setIsReembolsavel(true);
       }
@@ -436,8 +436,8 @@ export function FluxoCaixaInlineForm({
 
   // Selecionar cliente (para reembolso)
   const handleClienteSelect = (cliente: any) => {
-    setValue("client_id", cliente.id);
-    setValue("client_name", cliente.company_name || cliente.proprietario || "");
+    setValue("cliente_id", cliente.id);
+    setValue("client_name", cliente.razao_social || cliente.proprietario || "");
     setValue("client_partner_id", "");
     setSelectedClientId(cliente.id);
     // NÃO limpar referência ou outros IDs aqui - são campos separados
@@ -446,7 +446,7 @@ export function FluxoCaixaInlineForm({
   // Selecionar client_partner
   const handlePartnerSelect = (partner: any) => {
     setValue("client_partner_id", partner.id);
-    setValue("client_name", partner.name);
+    setValue("client_name", partner.nome);
     setSelectedPartnerDialogOpen(false);
     setPendingClientSelection(null);
   };
@@ -469,7 +469,7 @@ export function FluxoCaixaInlineForm({
     }
 
     // Validação: se é reembolsável, precisa ter cliente selecionado
-    if (isReembolsavel && !formData.client_id) {
+    if (isReembolsavel && !formData.cliente_id) {
       toast.error("Selecione um cliente para despesa reembolsável");
       return;
     }
@@ -505,12 +505,12 @@ export function FluxoCaixaInlineForm({
         valor,
         conta_banco: formData.conta_banco || null,
         numero_documento: formData.numero_documento || null,
-        status: formData.status,
+        status: formData.situacao,
         observacoes: formData.observacoes || null,
         aeronave_id: aeronaveObj?.id || null,
         aeronave_registro: formData.aeronave || null,
-        client_id: formData.client_id || null,
-        client_partner_id: formData.client_partner_id || null,
+        client_id: formData.cliente_id || null,
+        client_partner_id: formData.socio_cliente_id_id || null,
         client_name: isReembolsavel ? formData.client_name : null,
         colaborador_id: formData.colaborador_id || null,
         fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
@@ -533,16 +533,16 @@ export function FluxoCaixaInlineForm({
         const despesaReembolsavel = movimentacao.reembolsavel === true;
         const ehSaida = movimentacao.tipo_movimento === 'saida';
         const aindaNaoRecebido = movimentacao.reembolso_recebido !== true;
-        const statusRecebido = formData.status === 'recebido';
+        const statusRecebido = formData.situacao === 'recebido';
         // Se o status anterior era diferente de recebido OU se nunca foi processado corretamente
-        const statusMudouParaRecebido = movimentacao.status !== 'recebido' || aindaNaoRecebido;
+        const statusMudouParaRecebido = movimentacao.situacao !== 'recebido' || aindaNaoRecebido;
 
         console.log('=== Verificando reembolso ===');
         console.log('despesaReembolsavel:', despesaReembolsavel, '| movimentacao.reembolsavel:', movimentacao.reembolsavel);
         console.log('ehSaida:', ehSaida, '| movimentacao.tipo_movimento:', movimentacao.tipo_movimento);
         console.log('aindaNaoRecebido:', aindaNaoRecebido, '| movimentacao.reembolso_recebido:', movimentacao.reembolso_recebido);
-        console.log('statusRecebido:', statusRecebido, '| formData.status:', formData.status);
-        console.log('statusMudouParaRecebido:', statusMudouParaRecebido, '| movimentacao.status:', movimentacao.status);
+        console.log('statusRecebido:', statusRecebido, '| formData.situacao:', formData.situacao);
+        console.log('statusMudouParaRecebido:', statusMudouParaRecebido, '| movimentacao.situacao:', movimentacao.situacao);
 
         const isMarkingAsReceived = despesaReembolsavel && ehSaida && aindaNaoRecebido && statusRecebido;
         console.log('isMarkingAsReceived:', isMarkingAsReceived);
@@ -632,15 +632,15 @@ export function FluxoCaixaInlineForm({
       }
 
       // Se é reembolsável e tem cliente, criar conta a receber e entrada no portal
-      if (isReembolsavel && formData.client_id && lancamentoId) {
+      if (isReembolsavel && formData.cliente_id && lancamentoId) {
         try {
           // Buscar dados completos do cliente
-          const clienteData = clientes.find(c => c.id === formData.client_id);
+          const clienteData = clientes.find(c => c.id === formData.cliente_id);
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
 
           // Verificar se já existe uma conciliação vinculada a este lançamento (evita duplicatas)
           const { data: existingRecon } = await supabase
-            .from('bank_reconciliations')
+            .from('conciliacoes_bancarias')
             .select('id')
             .eq('reference_type', 'controle_bancario')
             .eq('reference_id', lancamentoId)
@@ -651,10 +651,10 @@ export function FluxoCaixaInlineForm({
           // Se não existe conciliação, criar (para exibição no portal do cliente)
           if (!reconciliationId) {
             const { data: recon, error: reconciliationError } = await supabase
-              .from('bank_reconciliations')
+              .from('conciliacoes_bancarias')
               .insert({
-                client_id: formData.client_id,
-                aircraft_id: aeronaveObj?.id || null,
+                client_id: formData.cliente_id,
+                aeronave_id: aeronaveObj?.id || null,
                 type: 'cliente',
                 category: 'Reembolso de Despesa',
                 description: `${formData.descricao} - Aguardando reembolso`,
@@ -697,8 +697,8 @@ export function FluxoCaixaInlineForm({
               .from('contas_areceber')
               .insert({
                 numero: numeroDocumento,
-                referencia: formData.client_name || clienteData?.company_name || 'Cliente',
-                cliente_nome: clienteData?.company_name || formData.client_name || 'Cliente',
+                referencia: formData.client_name || clienteData?.razao_social || 'Cliente',
+                cliente_nome: clienteData?.razao_social || formData.client_name || 'Cliente',
                 cliente_cnpj: clienteData?.cnpj || '',
                 data_criacao: formData.data,
                 data_vencimento: formData.data_vencimento || formData.data,
@@ -840,7 +840,7 @@ export function FluxoCaixaInlineForm({
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1">Cliente *</Label>
                   <Select
-                    value={watch("client_id")}
+                    value={watch("cliente_id")}
                     onValueChange={(value) => {
                       const cliente = clientes.find(c => c.id === value);
                       if (cliente) handleClienteSelect(cliente);
@@ -852,20 +852,20 @@ export function FluxoCaixaInlineForm({
                     <SelectContent>
                       {clientes.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          {c.company_name || c.proprietario}
+                          {c.razao_social || c.proprietario}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   {/* Mostrar aviso se cliente tem parceiros */}
-                  {watch("client_id") && clientPartners && clientPartners.length > 0 && !watch("client_partner_id") && (
+                  {watch("cliente_id") && clientPartners && clientPartners.length > 0 && !watch("client_partner_id") && (
                     <p className="text-xs text-amber-400 mt-1">
                       Este cliente tem {clientPartners.length} {clientPartners.length === 1 ? "parceiro" : "parceiros"} vinculado{clientPartners.length === 1 ? "" : "s"}
                     </p>
                   )}
                 </div>
                 {/* Seletor de Parceiro se cliente tem parceiros */}
-                {watch("client_id") && clientPartners && clientPartners.length > 0 && (
+                {watch("cliente_id") && clientPartners && clientPartners.length > 0 && (
                   <div>
                     <Label className="text-xs text-muted-foreground mb-1">Parceiro do Cliente *</Label>
                     <Select
@@ -881,7 +881,7 @@ export function FluxoCaixaInlineForm({
                       <SelectContent>
                         {clientPartners.map((partner) => (
                           <SelectItem key={partner.id} value={partner.id}>
-                            {partner.name}
+                            {partner.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1192,14 +1192,14 @@ export function FluxoCaixaInlineForm({
                     </CommandEmpty>
                     {referencias.filter(r => r.tipo === 'client').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documento.includes(referenciaSearch)
+                      r.documentoumento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Clientes" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'client')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documento.includes(referenciaSearch)
+                              r.documentoumento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
@@ -1207,7 +1207,7 @@ export function FluxoCaixaInlineForm({
                                 key={r.id}
                                 onSelect={() => {
                                   setValue("referencia", r.nome);
-                                  setValue("client_id", r.id);
+                                  setValue("cliente_id", r.id);
                                   setValue("client_partner_id", "");
                                   setValue("colaborador_id", "");
                                   setValue("fornecedores_favoritos_id", "");
@@ -1221,7 +1221,7 @@ export function FluxoCaixaInlineForm({
                               >
                                 <div>
                                   <p className="font-medium text-foreground">{r.nome}</p>
-                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
+                                  {r.documentoumento && <p className="text-xs text-muted-foreground">{r.documentoumento}</p>}
                                 </div>
                               </CommandItem>
                             ))}
@@ -1229,14 +1229,14 @@ export function FluxoCaixaInlineForm({
                       )}
                     {referencias.filter(r => r.tipo === 'fornecedor').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documento.includes(referenciaSearch)
+                      r.documentoumento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Fornecedores Favoritos" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'fornecedor')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documento.includes(referenciaSearch)
+                              r.documentoumento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
@@ -1245,7 +1245,7 @@ export function FluxoCaixaInlineForm({
                                 onSelect={() => {
                                   setValue("referencia", r.nome);
                                   setValue("fornecedores_favoritos_id", r.id);
-                                  setValue("client_id", "");
+                                  setValue("cliente_id", "");
                                   setValue("colaborador_id", "");
                                   setOpenReferenciaPopover(false);
                                   setReferenciaSearch("");
@@ -1254,7 +1254,7 @@ export function FluxoCaixaInlineForm({
                               >
                                 <div>
                                   <p className="font-medium text-foreground">{r.nome}</p>
-                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
+                                  {r.documentoumento && <p className="text-xs text-muted-foreground">{r.documentoumento}</p>}
                                 </div>
                               </CommandItem>
                             ))}
@@ -1262,14 +1262,14 @@ export function FluxoCaixaInlineForm({
                       )}
                     {referencias.filter(r => r.tipo === 'user').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documento.includes(referenciaSearch)
+                      r.documentoumento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Colaboradores" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'user')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documento.includes(referenciaSearch)
+                              r.documentoumento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
@@ -1278,7 +1278,7 @@ export function FluxoCaixaInlineForm({
                                 onSelect={() => {
                                   setValue("referencia", r.nome);
                                   setValue("colaborador_id", r.id);
-                                  setValue("client_id", "");
+                                  setValue("cliente_id", "");
                                   setValue("fornecedores_favoritos_id", "");
                                   setOpenReferenciaPopover(false);
                                   setReferenciaSearch("");
@@ -1287,7 +1287,7 @@ export function FluxoCaixaInlineForm({
                               >
                                 <div>
                                   <p className="font-medium text-foreground">{r.nome}</p>
-                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
+                                  {r.documentoumento && <p className="text-xs text-muted-foreground">{r.documentoumento}</p>}
                                 </div>
                               </CommandItem>
                             ))}
@@ -1327,12 +1327,12 @@ export function FluxoCaixaInlineForm({
         {/* Row 4: Status e Observações */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <Label htmlFor="status" className="text-sm font-semibold text-foreground mb-2">
+            <Label htmlFor="situacao" className="text-sm font-semibold text-foreground mb-2">
               Status
             </Label>
             <Select
               defaultValue={tipoMovimento === "entrada" ? "recebido" : "pago"}
-              onValueChange={(value) => setValue("status", value)}
+              onValueChange={(value) => setValue("situacao", value)}
             >
               <SelectTrigger className="h-10 w-full bg-background">
                 <SelectValue />
@@ -1610,10 +1610,10 @@ export function FluxoCaixaInlineForm({
                     <div className="flex items-center gap-3 w-full">
                       <Users className="h-5 w-5 text-muted-foreground shrink-0" />
                       <div className="text-left">
-                        <p className="font-medium text-foreground">{partner.name}</p>
-                        {partner.share_percentage && (
+                        <p className="font-medium text-foreground">{partner.nome}</p>
+                        {partner.percentual_participacao && (
                           <p className="text-xs text-muted-foreground">
-                            Participação: {partner.share_percentage}%
+                            Participação: {partner.percentual_participacao}%
                           </p>
                         )}
                       </div>

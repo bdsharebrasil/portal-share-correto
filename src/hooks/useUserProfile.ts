@@ -36,11 +36,11 @@ const buildDefaultProfile = (user: User): TablesInsert<"user_profiles"> => {
     const avatar = (user.user_metadata?.avatar_url as string | undefined) ?? undefined;
     if (avatar) profile.avatar_url = avatar;
 
-    const address = (user.user_metadata?.address as string | undefined) ?? undefined;
-    if (address) profile.address = address;
+    const address = (user.user_metadata?.endereco as string | undefined) ?? undefined;
+    if (address) profile.endereco = address;
 
-    const phone = (user.user_metadata?.phone as string | undefined) ?? undefined;
-    if (phone) profile.phone = phone;
+    const phone = (user.user_metadata?.telefone as string | undefined) ?? undefined;
+    if (phone) profile.telefone = phone;
 
     // NOTA: 'tipo' é um campo antigo — evite enviar por padrão para não quebrar inserts se a coluna não existir
 

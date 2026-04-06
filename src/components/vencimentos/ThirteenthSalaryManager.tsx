@@ -444,7 +444,7 @@ export function ThirteenthSalaryManager() {
     const valorBruto = vac?.vacation_gross_value ?? (selectedEmployee.salary?.base_salary_bruto ? (selectedEmployee.salary.base_salary_bruto).toFixed(2) : "—");
     const dataAgendada = vac?.scheduled_date ? formatDate(vac.scheduled_date) : "Pendente";
     const status = vac?.payment_status ? (vac.payment_status === 'paid' ? 'Pago' : vac.payment_status) : 'Pendente';
-    const dataPagamento = vac && vac.payment_status === 'paid' ? (vac.updated_at ? formatDate(vac.updated_at) : '—') : 'Pendente';
+    const dataPagamento = vac && vac.payment_status === 'paid' ? (vac.atualizado_em ? formatDate(vac.atualizado_em) : '—') : 'Pendente';
 
     return (
       <div className="space-y-6">

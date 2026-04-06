@@ -146,7 +146,7 @@ export function ContasReceber() {
 
   const loadClients = async () => {
     try {
-      const { data, error } = await supabase.from("clients").select("id, company_name, cnpj").order("company_name");
+      const { data, error } = await supabase.from("clientes").select("id, razao_social, cnpj").order("razao_social");
       if (error) {
         console.error("Erro ao carregar clientes:", error);
         return;
@@ -193,17 +193,17 @@ export function ContasReceber() {
         id, data, data_vencimento, descricao, valor, status, client_id, client_name,
         aeronave_registro, numero_documento, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url,
         fornecedores_favoritos_id, colaborador_id
-      `).eq("status", "aguardando_reembolso").not("data_vencimento", "is", null).order("data_vencimento");
+      `).eq("situacao", "aguardando_reembolso").not("data_vencimento", "is", null).order("data_vencimento");
 
       if (fluxoError) {
         console.error("Erro ao carregar despesas:", fluxoError);
       }
 
-      const { data: bankRecData, error: bankRecError } = await supabase.from("bank_reconciliations").select(`
-        id, date, description, amount, saldo_pendente, status, client_id, aircraft_id, category,
+      const { data: bankRecData, error: bankRecError } = await supabase.from("conciliacoes_bancarias").select(`
+        id, date, description, amount, saldo_pendente, status, client_id, aeronave_id, category,
         prazo_pagamento, boleto_url, nf_url, comprovante_url, controle_bancario_id,
-        clients:client_id (company_name), aircraft:aircraft_id (registration)
-      `).eq("type", "cliente").is("controle_bancario_id", null).in("status", ["pendente", "enviado", "aberto"]).neq("status", "recebido").order("date", { ascending: false });
+        clientes:cliente_id (company_name), aircraft:aeronave_id (registration)
+      `).eq("tipo", "cliente").is("controle_bancario_id", null).in("situacao", ["pendente", "enviado", "aberto"]).neq("situacao", "recebido").order("data", { ascending: false });
 
       if (bankRecError) {
         console.error("Erro ao carregar bank_reconciliations:", bankRecError);
@@ -259,30 +259,30 @@ export function ContasReceber() {
       });
 
       const contasFromBankRec = (bankRecData || []).map((rec: any) => {
-        const clientName = rec.clients?.company_name || "Cliente não especificado";
-        const aircraftReg = rec.aircraft?.registration || "";
-        const valor = Math.abs(rec.saldo_pendente ?? rec.amount ?? 0);
+        const clientName = rec.clients?.razao_social || "Cliente não especificado";
+        const aircraftReg = rec.aeronave?.matricula || "";
+        const valor = Math.abs(rec.saldo_pendente ?? rec.valor ?? 0);
 
         return {
           id: rec.id,
           numero: `BR-${rec.id.slice(0, 8)}`,
           cliente_nome: clientName,
           cliente_cnpj: "",
-          data_criacao: rec.date,
-          data_vencimento: rec.prazo_pagamento || rec.date,
+          data_criacao: rec.data,
+          data_vencimento: rec.prazo_pagamento || rec.data,
           valor: valor,
-          categoria: rec.category || "Despesa Cliente",
-          descricao: rec.description,
-          status: rec.status || "pendente",
+          categoria: rec.categoria || "Despesa Cliente",
+          descricao: rec.descricao,
+          status: rec.situacao || "pendente",
           arquivo_pdf_url: rec.nf_url || rec.comprovante_url || rec.boleto_url,
           aeronave: aircraftReg,
-          referencia: rec.description,
+          referencia: rec.descricao,
           isFromBankReconciliation: true,
           bankReconciliationId: rec.id
         };
       });
 
-      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any).select("*").neq("status", "recebido").order("data_vencimento");
+      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any).select("*").neq("situacao", "recebido").order("data_vencimento");
 
       if (contasError) {
         toast.error(`Erro ao carregar: ${contasError.message}`);
@@ -301,10 +301,10 @@ export function ContasReceber() {
           let isFromBankRec = false;
 
           if (conta.banco_conciliacao_id) {
-            const { data: bancarioData } = await supabase.from("bank_reconciliations").select("description, date").eq("id", conta.banco_conciliacao_id).single();
+            const { data: bancarioData } = await supabase.from("conciliacoes_bancarias").select("description, date").eq("id", conta.banco_conciliacao_id).single();
 
             if (bancarioData) {
-              referencia = bancarioData.description || referencia;
+              referencia = bancarioData.descricao || referencia;
               isFromBankRec = true;
             }
           }
@@ -345,7 +345,7 @@ export function ContasReceber() {
       today.setHours(0, 0, 0, 0);
 
       const contasVencidas = todasContas.filter((conta) => {
-        if (conta.status !== "pendente") return false;
+        if (conta.situacao !== "pendente") return false;
         const vencimento = parseLocalDate(conta.data_vencimento);
         return vencimento < today;
       });
@@ -356,7 +356,7 @@ export function ContasReceber() {
         } else {
           await supabase.from("contas_areceber").update({ status: "inadimplente" }).eq("id", conta.id);
         }
-        conta.status = "inadimplente";
+        conta.situacao = "inadimplente";
       }
 
       setContas(todasContas);
@@ -370,7 +370,7 @@ export function ContasReceber() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
+    if (file.tipo !== "application/pdf") {
       toast.error("Por favor, selecione um arquivo PDF");
       return;
     }
@@ -412,7 +412,7 @@ export function ContasReceber() {
           valor: parseFloat(formData.valor),
           categoria: formData.categoria || "Serviços",
           descricao: formData.descricao || null,
-          status: formData.status,
+          status: formData.situacao,
           arquivo_pdf_url: pdfUrl || null,
           aeronave: formData.aeronave || null,
           referencia: formData.referencia || null,
@@ -434,7 +434,7 @@ export function ContasReceber() {
           valor: parseFloat(formData.valor),
           categoria: formData.categoria || "Serviços",
           descricao: formData.descricao || null,
-          status: formData.status,
+          status: formData.situacao,
           arquivo_pdf_url: pdfUrl || null,
           criado_por: user?.id,
           aeronave: formData.aeronave || null,
@@ -474,7 +474,7 @@ export function ContasReceber() {
       valor: conta.valor?.toString() || "",
       categoria: conta.categoria || "Serviços",
       descricao: conta.descricao || "",
-      status: conta.status || "pendente",
+      status: conta.situacao || "pendente",
       aeronave: conta.aeronave || "",
       referencia: conta.referencia || ""
     });
@@ -503,14 +503,14 @@ export function ContasReceber() {
 
   const filteredContas = useMemo(() => {
     return contas.filter((conta) => {
-      if (conta.status === "recebido") return false;
+      if (conta.situacao === "recebido") return false;
 
       const searchMatch = filters.searchTerm === "" ||
         conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
         (conta.referencia && conta.referencia.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
-      const statusMatch = filters.status === "all" || conta.status === filters.status;
+      const statusMatch = filters.situacao === "all" || conta.situacao === filters.situacao;
 
       let periodoMatch = true;
       if (filters.periodo === "mes") {
@@ -528,14 +528,14 @@ export function ContasReceber() {
   }, [filteredContas]);
 
   const contasPendentes = useMemo(() => {
-    return filteredContas.filter((c) => c.status !== "recebido").length;
+    return filteredContas.filter((c) => c.situacao !== "recebido").length;
   }, [filteredContas]);
 
   const proximoVencimento = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const futureContas = filteredContas
-      .filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.status !== "recebido")
+      .filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.situacao !== "recebido")
       .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
 
     return futureContas.length > 0 ? futureContas[0].data_vencimento : null;
@@ -625,7 +625,7 @@ export function ContasReceber() {
     try {
       if (comprovanteFile) {
         const timestamp = Date.now();
-        const sanitizedFileName = comprovanteFile.name
+        const sanitizedFileName = comprovanteFile.nome
           .replace(/[^a-zA-Z0-9.\-_]/g, "_")
           .substring(0, 100);
         const fileExt = sanitizedFileName.split('.').pop();
@@ -842,7 +842,7 @@ export function ContasReceber() {
                 className="pl-9 bg-background/50 border-border/40"
               />
             </div>
-            <Select value={filters.status} onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}>
+            <Select value={filters.situacao} onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}>
               <SelectTrigger className="w-full md:w-[180px] bg-background/50 border-border/40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -898,9 +898,9 @@ export function ContasReceber() {
                         R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${getStatusColor(conta.status)} border text-xs gap-1`}>
-                          {getStatusIcon(conta.status)}
-                          {conta.status === "recebido" ? "Recebido" : conta.status === "pendente" ? "Pendente" : conta.status === "inadimplente" ? "Vencida" : conta.status}
+                        <Badge className={`${getStatusColor(conta.situacao)} border text-xs gap-1`}>
+                          {getStatusIcon(conta.situacao)}
+                          {conta.situacao === "recebido" ? "Recebido" : conta.situacao === "pendente" ? "Pendente" : conta.situacao === "inadimplente" ? "Vencida" : conta.situacao}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
@@ -953,7 +953,7 @@ export function ContasReceber() {
                               </TooltipProvider>
                             </>
                           )}
-                          {conta.status !== "recebido" && (
+                          {conta.situacao !== "recebido" && (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1006,14 +1006,14 @@ export function ContasReceber() {
                     if (client) {
                       setFormData((prev) => ({
                         ...prev,
-                        cliente_nome: client.company_name,
+                        cliente_nome: client.razao_social,
                         cliente_cnpj: client.cnpj || ""
                       }));
                     }
                   }}
                   options={clients.map((c) => ({
                     id: c.id,
-                    label: c.company_name
+                    label: c.razao_social
                   }))}
                   placeholder="Selecione ou digite o cliente"
                 />
@@ -1024,7 +1024,7 @@ export function ContasReceber() {
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">Data Emissão</label>
                 <Input
-                  type="date"
+                  type="data"
                   value={formData.data_criacao}
                   onChange={(e) => setFormData((prev) => ({ ...prev, data_criacao: e.target.value }))}
                   className="bg-background"
@@ -1033,7 +1033,7 @@ export function ContasReceber() {
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">Data Vencimento *</label>
                 <Input
-                  type="date"
+                  type="data"
                   value={formData.data_vencimento}
                   onChange={(e) => setFormData((prev) => ({ ...prev, data_vencimento: e.target.value }))}
                   className="bg-background"
@@ -1150,7 +1150,7 @@ export function ContasReceber() {
                 <div>
                   <label className="text-sm font-semibold text-foreground mb-2 block">Data do Recebimento *</label>
                   <Input
-                    type="date"
+                    type="data"
                     value={dataRecebimento}
                     onChange={(e) => setDataRecebimento(e.target.value)}
                     className="bg-background"
@@ -1163,12 +1163,12 @@ export function ContasReceber() {
                 <div className="flex gap-2">
                   <Input
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    accept=".pdf,.jpg,.jpeg,.png,.documento,.documentox"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
                         setComprovanteFile(file);
-                        toast.success(`Arquivo selecionado: ${file.name}`);
+                        toast.success(`Arquivo selecionado: ${file.nome}`);
                       }
                     }}
                     className="bg-background"
@@ -1177,7 +1177,7 @@ export function ContasReceber() {
                 </div>
                 {comprovanteFile && (
                   <p className="text-xs text-muted-foreground mt-2">
-                    Arquivo selecionado: {comprovanteFile.name}
+                    Arquivo selecionado: {comprovanteFile.nome}
                   </p>
                 )}
               </div>

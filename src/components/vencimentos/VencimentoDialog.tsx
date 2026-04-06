@@ -102,7 +102,7 @@ export function VencimentoDialog({ onAdd }: VencimentoDialogProps) {
             <Label htmlFor="dataVencimento">Data de Vencimento *</Label>
             <Input
               id="dataVencimento"
-              type="date"
+              type="data"
               value={formData.dataVencimento}
               onChange={(e) => setFormData({ ...formData, dataVencimento: e.target.value })}
             />

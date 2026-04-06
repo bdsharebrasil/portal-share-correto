@@ -6,7 +6,7 @@ export function FornecedorFavoritoConfig({ onSave, fornecedor }: { onSave: (data
   const [nomeCompleto, setNomeCompleto] = useState(fornecedor?.nome_completo || "");
   const [cidade, setCidade] = useState(fornecedor?.cidade || "");
   const [telefone, setTelefone] = useState(fornecedor?.telefone || "");
-  const [documento, setDocumento] = useState(fornecedor?.documento || "");
+  const [documento, setDocumento] = useState(fornecedor?.documentoumento || "");
   const [categoria, setCategoria] = useState(fornecedor?.categoria || "");
   const [apelido, setApelido] = useState(fornecedor?.apelido || "");
 

@@ -51,7 +51,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: order, refetch: refetchOrder } = useQuery({
     queryKey: ["oas-detail", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("ctm_service_orders").select("*, aircraft(registration, model)").eq("id", orderId).maybeSingle();
+      const { data, error } = await (supabase as any).from("service_orders").select('*, aeronave(matricula, modelo)').eq("id", orderId).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -60,7 +60,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: services = [], refetch: refetchServices } = useQuery({
     queryKey: ["oas-services", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("ctm_services").select("*").eq("service_order_id", orderId).order("created_at");
+      const { data, error } = await (supabase as any).from("ctm_services").select("*").eq("service_order_id", orderId).order("criado_em");
       if (error) throw error;
       return data || [];
     },
@@ -69,7 +69,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: parts = [], refetch: refetchParts } = useQuery({
     queryKey: ["oas-parts", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("ctm_parts").select("*").eq("service_order_id", orderId).order("created_at");
+      const { data, error } = await (supabase as any).from("ctm_parts").select("*").eq("service_order_id", orderId).order("criado_em");
       if (error) throw error;
       return data || [];
     },
@@ -78,9 +78,9 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: costSharing = [], refetch: refetchCostSharing } = useQuery({
     queryKey: ["oas-cost-sharing", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("ctm_cost_sharing")
-        .select("*, client:clients(id, company_name, proprietario)")
+        .select("*, client:clients(id, razao_social, proprietario)")
         .eq("service_order_id", orderId);
       if (error) throw error;
       return data || [];
@@ -90,7 +90,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: budgets = [], refetch: refetchBudgets } = useQuery({
     queryKey: ["oas-budgets", orderId],
     queryFn: async () => {
-      const { data, error } = (await supabase.from("oas_budgets").select("*").eq("service_order_id", orderId).order("created_at")) as any;
+      const { data, error } = (await (supabase as any).from("oas_orcamentos").select("*").eq("service_order_id", orderId).order("criado_em")) as any;
       if (error) throw error;
       return data || [];
     },
@@ -99,7 +99,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: rasReports = [], refetch: refetchRAS } = useQuery({
     queryKey: ["oas-ras", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("ras").select("*").eq("service_order_id", orderId).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("ras").select("*").eq("service_order_id", orderId).order("criado_em", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -108,7 +108,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: oilAnalyses = [], refetch: refetchOil } = useQuery({
     queryKey: ["oas-oil", orderId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("oil_analysis").select("*").eq("service_order_id", orderId).order("date", { ascending: false });
+      const { data, error } = await (supabase as any).from("oil_analysis").select("*").eq("service_order_id", orderId).order("data", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -122,7 +122,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
         .from("despesas_manutencao")
         .select("*")
         .eq("service_order_id", orderId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -154,7 +154,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const saveEdit = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase.from("ctm_service_orders").update({
+      const { error } = await (supabase as any).from("service_orders").update({
         numero: editForm?.numero,
         oficina_nome: editForm?.oficina_nome || null,
         oficina_contato: editForm?.oficina_contato || null,
@@ -181,7 +181,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
 
   const handleDelete = async () => {
     try {
-      const { error } = await supabase.from("ctm_service_orders").delete().eq("id", orderId);
+      const { error } = await (supabase as any).from("service_orders").delete().eq("id", orderId);
       if (error) throw error;
       toast.success("OAS excluída com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["all-oas"] });
@@ -195,7 +195,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const handleConcluir = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase.from("ctm_service_orders").update({
+      const { error } = await (supabase as any).from("service_orders").update({
         status: "concluido",
         data_saida: new Date().toISOString().split("T")[0],
       }).eq("id", orderId);
@@ -271,7 +271,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
                     </Badge>
                   </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {order?.aircraft?.registration} · {order?.aircraft?.model}
+                    {order?.aeronave?.matricula} · {order?.aeronave?.modelo}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -343,11 +343,11 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Aeronave</p>
-                    <p className="font-medium">{order?.aircraft?.registration}</p>
+                    <p className="font-medium">{order?.aeronave?.matricula}</p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Modelo</p>
-                    <p className="font-medium">{order?.aircraft?.model}</p>
+                    <p className="font-medium">{order?.aeronave?.modelo}</p>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Oficina</p>
@@ -390,10 +390,10 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
 
               {currentSection === "servicos" && <ServicesSection orderId={orderId} services={services} onRefetch={refetchServices} />}
               {currentSection === "pecas" && <PartsSection orderId={orderId} parts={parts} onRefetch={refetchParts} />}
-              {currentSection === "ras" && <OASRASSection orderId={orderId} reports={rasReports} onRefetch={refetchRAS} aircraftId={order?.aircraft_id || ""} aircraftRegistration={order?.aircraft?.registration || ""} />}
-              {currentSection === "oleo" && <OASOilAnalysisSection orderId={orderId} analyses={oilAnalyses} onRefetch={refetchOil} aircraftId={order?.aircraft_id || ""} />}
+              {currentSection === "ras" && <OASRASSection orderId={orderId} reports={rasReports} onRefetch={refetchRAS} aircraftId={order?.aeronave_id || ""} aircraftRegistration={order?.aeronave?.matricula || ""} />}
+              {currentSection === "oleo" && <OASOilAnalysisSection orderId={orderId} analyses={oilAnalyses} onRefetch={refetchOil} aircraftId={order?.aeronave_id || ""} />}
               {currentSection === "orcamentos" && <OASBudgetsSection orderId={orderId} budgets={budgets} onRefetch={refetchBudgets} />}
-              {currentSection === "rateio" && <OASFlightHoursRateio orderId={orderId} costSharing={costSharing} onRefetch={refetchCostSharing} aircraftId={order?.aircraft_id || ""} totalGeral={0} />}
+              {currentSection === "rateio" && <OASFlightHoursRateio orderId={orderId} costSharing={costSharing} onRefetch={refetchCostSharing} aircraftId={order?.aeronave_id || ""} totalGeral={0} />}
               {currentSection === "despesas" && <OASMaintenanceExpensesTable orderId={orderId} />}
               {currentSection === "resumo" && (
                 <div className="space-y-4">
@@ -451,11 +451,11 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
             </div>
             <div className="space-y-2">
               <Label htmlFor="data_entrada">Data Entrada</Label>
-              <Input id="data_entrada" type="date" value={editForm?.data_entrada} onChange={e => setEditForm({ ...editForm, data_entrada: e.target.value })} />
+              <Input id="data_entrada" type="data" value={editForm?.data_entrada} onChange={e => setEditForm({ ...editForm, data_entrada: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="data_saida">Data Saída</Label>
-              <Input id="data_saida" type="date" value={editForm?.data_saida} onChange={e => setEditForm({ ...editForm, data_saida: e.target.value })} />
+              <Input id="data_saida" type="data" value={editForm?.data_saida} onChange={e => setEditForm({ ...editForm, data_saida: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="dias_previstos">Dias Previstos</Label>
@@ -539,7 +539,7 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
   const handleAddPart = async (newPart: any) => {
     setSaving(true);
     try {
-      const { error } = await supabase.from("ctm_parts").insert({ ...newPart, service_order_id: orderId });
+      const { error } = await (supabase as any).from("ctm_parts").insert({ ...newPart, service_order_id: orderId });
       if (error) throw error;
       toast.success("Peça adicionada com sucesso!");
       setShowNewPartForm(false);
@@ -554,7 +554,7 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
   const handleDeletePart = async (id: string) => {
     setSaving(true);
     try {
-      const { error } = await supabase.from("ctm_parts").delete().eq("id", id);
+      const { error } = await (supabase as any).from("ctm_parts").delete().eq("id", id);
       if (error) throw error;
       toast.success("Peça removida com sucesso!");
       onRefetch();
@@ -582,7 +582,7 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from("ctm_parts").update({
+      const { error } = await (supabase as any).from("ctm_parts").update({
         descricao: editForm?.descricao,
         numero_serie: editForm?.numero_serie || null,
         quantidade: parseFloat(editForm?.quantidade || "0"),
@@ -749,7 +749,7 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
   const [saving, setSaving] = useState(false);
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("ctm_services").delete().eq("id", id);
+    const { error } = await (supabase as any).from("ctm_services").delete().eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("Serviço removido"); onRefetch(); }
   };
@@ -759,7 +759,7 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
     setExpandedService(service);
     setLoadingItems(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("ctm_service_items")
         .select("*")
         .eq("service_id", service.id)
@@ -777,7 +777,7 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
   const handleUpdateServiceItem = async (itemId: string, updates: any) => {
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("ctm_service_items")
         .update(updates)
         .eq("id", itemId);
@@ -801,7 +801,7 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
   const handleDeleteServiceItem = async (itemId: string) => {
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("ctm_service_items")
         .delete()
         .eq("id", itemId);

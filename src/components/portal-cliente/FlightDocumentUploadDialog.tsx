@@ -39,7 +39,7 @@ export function FlightDocumentUploadDialog({
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
 
-      if (!ALLOWED_TYPES.includes(selectedFile.type)) {
+      if (!ALLOWED_TYPES.includes(selectedFile.tipo)) {
         toast.error("Apenas arquivos PDF e imagens (JPG, PNG) são permitidos");
         return;
       }
@@ -51,7 +51,7 @@ export function FlightDocumentUploadDialog({
 
       setFile(selectedFile);
       if (!documentName) {
-        setDocumentName(selectedFile.name.replace(/\.[^/.]+$/, ""));
+        setDocumentName(selectedFile.nome.replace(/\.[^/.]+$/, ""));
       }
     }
   };
@@ -70,7 +70,7 @@ export function FlightDocumentUploadDialog({
     try {
       setUploading(true);
 
-      const fileExt = file.name.split(".").pop();
+      const fileExt = file.nome.split(".").pop();
       const timestamp = Date.now();
       const fileName = `${aircraftId}/${timestamp}.${fileExt}`;
 
@@ -93,10 +93,10 @@ export function FlightDocumentUploadDialog({
           name: documentName.trim(),
           description: documentDescription.trim() || null,
           file_path: fileName,
-          file_type: file.type,
+          file_type: file.tipo,
           file_size: file.size,
           uploaded_by: user?.id,
-          aircraft_id: aircraftId,
+          aeronave_id: aircraftId,
           document_type: documentType.trim() || null,
           expiry_date: expiryDate || null
         });
@@ -176,7 +176,7 @@ export function FlightDocumentUploadDialog({
             />
             {file && (
               <p className="text-xs text-muted-foreground mt-2">
-                Arquivo: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                Arquivo: {file.nome} ({(file.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-1">
@@ -206,7 +206,7 @@ export function FlightDocumentUploadDialog({
             </Label>
             <Input
               id="flight-document-expiry"
-              type="date"
+              type="data"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
               disabled={uploading}

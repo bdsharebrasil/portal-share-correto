@@ -1,34 +1,42 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AircraftPartner } from '@/integrations/supabase/types-hour-bank';
 
-export function useAircraftPartners(aircraftId: string | null | undefined) {
+interface AeronaveParcerias {
+  id: string;
+  id_aeronave: string;
+  id_cliente: string;
+  percentual_sociedade: number;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export function useAeronaveParcerias(aeronaveId: string | null | undefined) {
   return useQuery({
-    queryKey: ['aircraft-partners', aircraftId],
+    queryKey: ['aeronave-parcerias', aeronaveId],
     queryFn: async () => {
-      if (!aircraftId) return [];
-      
+      if (!aeronaveId) return [];
+
       const { data, error } = await supabase
-        .from('aircraft_partners')
-        .select('*, partner:clients(id, company_name)')
-        .eq('aircraft_id', aircraftId)
-        .order('created_at', { ascending: true });
+        .from('cotistas_aeronave')
+        .select('*, clientes(id, razao_social)')
+        .eq('id_aeronave', aeronaveId)
+        .order('criado_em', { ascending: true });
 
       if (error) throw error;
       return (data || []) as any[];
     },
-    enabled: !!aircraftId,
+    enabled: !!aeronaveId,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useCreateAircraftPartner() {
+export function useCreateAeronaveParcerias() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: Omit<AircraftPartner, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (data: Omit<AeronaveParcerias, 'id' | 'created_at' | 'updated_at'>) => {
       const { data: result, error } = await supabase
-        .from('aircraft_partners')
+        .from('cotistas_aeronave')
         .insert([data])
         .select()
         .single();
@@ -37,18 +45,18 @@ export function useCreateAircraftPartner() {
       return result;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['aircraft-partners', variables.aircraft_id] });
+      queryClient.invalidateQueries({ queryKey: ['aeronave-parcerias', variables.id_aeronave] });
     },
   });
 }
 
-export function useUpdateAircraftPartner() {
+export function useUpdateAeronaveParcerias() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...data }: Partial<AircraftPartner> & { id: string }) => {
+    mutationFn: async ({ id, ...data }: Partial<AeronaveParcerias> & { id: string }) => {
       const { data: result, error } = await supabase
-        .from('aircraft_partners')
+        .from('cotistas_aeronave')
         .update(data)
         .eq('id', id)
         .select()
@@ -58,25 +66,44 @@ export function useUpdateAircraftPartner() {
       return result;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['aircraft-partners'] });
+      queryClient.invalidateQueries({ queryKey: ['aeronave-parcerias'] });
     },
   });
 }
 
-export function useDeleteAircraftPartner() {
+export function useDeleteAeronaveParcerias() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('aircraft_partners')
+        .from('cotistas_aeronave')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['aircraft-partners'] });
+      queryClient.invalidateQueries({ queryKey: ['aeronave-parcerias'] });
     },
   });
 }
+
+// Backward compatibility
+export function useAircraftPartners(aircraftId: string | null | undefined) {
+  return useAeronaveParcerias(aircraftId);
+}
+
+export function useCreateAircraftPartner() {
+  return useCreateAeronaveParcerias();
+}
+
+export function useUpdateAircraftPartner() {
+  return useUpdateAeronaveParcerias();
+}
+
+export function useDeleteAircraftPartner() {
+  return useDeleteAeronaveParcerias();
+}
+
+

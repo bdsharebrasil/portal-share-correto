@@ -81,7 +81,7 @@ export function VacationManagement() {
       const { data, error } = await supabase
         .from("vacation_requests")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -105,7 +105,7 @@ export function VacationManagement() {
   }, [allRequests, userProfiles]);
 
   // Filter requests
-  const pendingRequests = enrichedRequests.filter(r => r.status === "pending");
+  const pendingRequests = enrichedRequests.filter(r => r.statuscao === "pending");
   const approvedRequests = enrichedRequests.filter(r => r.status === "approved");
   const rejectedRequests = enrichedRequests.filter(r => r.status === "rejected");
 
@@ -262,7 +262,7 @@ export function VacationManagement() {
               <div>
                 <h3 className="font-semibold text-foreground truncate">{request.user_name}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Solicitado em {format(new Date(request.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                  Solicitado em {format(new Date(request.criado_em), "dd/MM/yyyy", { locale: ptBR })}
                 </p>
               </div>
               {getStatusBadge(request.status)}

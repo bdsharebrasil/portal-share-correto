@@ -63,16 +63,16 @@ export function PaymentsTable() {
           <TableBody>
             {payments.map((payment) => (
               <TableRow key={payment.id} className="hover:bg-slate-700/30 border-slate-700">
-                <TableCell className="text-white text-base">{new Date(payment.date).toLocaleDateString("pt-BR")}</TableCell>
-                <TableCell className="text-white text-base">{payment.description}</TableCell>
+                <TableCell className="text-white text-base">{new Date(payment.data).toLocaleDateString("pt-BR")}</TableCell>
+                <TableCell className="text-white text-base">{payment.descricao}</TableCell>
                 <TableCell className="font-semibold text-emerald-400 text-lg">
-                  R$ {payment.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  R$ {payment.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell className="text-white text-base">{new Date(payment.dueDate).toLocaleDateString("pt-BR")}</TableCell>
                 <TableCell>
-                  <Badge variant={payment.status === "paid" ? "default" : "secondary"} 
-                         className={payment.status === "paid" ? "bg-emerald-600 text-white" : "bg-amber-600 text-white"}>
-                    {payment.status === "paid" ? "Pago" : "Pendente"}
+                  <Badge variant={payment.situacao === "paid" ? "default" : "secondary"} 
+                         className={payment.situacao === "paid" ? "bg-emerald-600 text-white" : "bg-amber-600 text-white"}>
+                    {payment.situacao === "paid" ? "Pago" : "Pendente"}
                   </Badge>
                   {payment.paidDate && (
                     <p className="text-sm text-slate-400 mt-1">
@@ -87,12 +87,12 @@ export function PaymentsTable() {
                         <Download className="h-4 w-4" />
                       </Button>
                     )}
-                    {payment.hasBoleto && payment.status === "pending" && (
+                    {payment.hasBoleto && payment.situacao === "pending" && (
                       <Button size="sm" variant="outline" className="hover:bg-slate-600/50 bg-slate-700/50 border-slate-600 text-white">
                         <FileText className="h-4 w-4" />
                       </Button>
                     )}
-                    {payment.status === "pending" && (
+                    {payment.situacao === "pending" && (
                       <Button size="sm" variant="outline" className="hover:bg-slate-600/50 bg-slate-700/50 border-slate-600 text-white">
                         <Upload className="h-4 w-4" />
                       </Button>

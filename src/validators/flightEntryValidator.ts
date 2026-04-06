@@ -144,7 +144,7 @@ function validateTimeFields(entry: FlightEntry, errors: ValidationError[]) {
  * Validações específicas para voos de cliente
  */
 function validateClientFlight(entry: FlightEntry, errors: ValidationError[]) {
-  if (!entry.client_id) {
+  if (!entry.cliente_id) {
     errors.push({
       field: 'client_id',
       message: 'Selecione um cliente',
@@ -175,7 +175,7 @@ function validateLoanFlight(entry: FlightEntry, errors: ValidationError[]) {
     });
   }
 
-  if (!entry.client_id) {
+  if (!entry.cliente_id) {
     errors.push({
       field: 'client_id',
       message: 'Selecione quem está emprestando a aeronave',

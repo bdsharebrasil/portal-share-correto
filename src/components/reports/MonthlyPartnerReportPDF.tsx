@@ -34,14 +34,14 @@ interface Props {
 function assignFlightsToPartner(flights: FlightEntry[], partnerId: string, allPartners: PartnerInfo[]): FlightEntry[] {
   return flights.filter((f) => {
     if (f.is_equal_split) return true;
-    if (f.client_partner_id === partnerId) return true;
+    if (f.socio_cliente_id_id === partnerId) return true;
     if (f.is_loan && f.loan_recipient_partner_id === partnerId) return true;
     return false;
   });
 }
 
 function assignFuelsToPartner(fuels: FuelEntry[], partnerName: string): FuelEntry[] {
-  return fuels.filter((f) => f.partner_name === partnerName);
+  return fuels.filter((f) => f.nome_socio === partnerName);
 }
 
 function assignExpensesToPartner(expenses: ExpenseEntry[], partnerName: string, partnerCpf: string): ExpenseEntry[] {
@@ -49,11 +49,11 @@ function assignExpensesToPartner(expenses: ExpenseEntry[], partnerName: string, 
 }
 
 function assignTravelReportsToPartner(travelReports: TravelReportEntry[], partnerId: string): TravelReportEntry[] {
-  return travelReports.filter((r) => r.client_partner === partnerId);
+  return travelReports.filter((r) => r.socio_cliente_id === partnerId);
 }
 
 function assignBankControlExpensesToPartner(expenses: BankControlEntry[], partnerId: string): BankControlEntry[] {
-  return expenses.filter((e) => e.client_partner_id === partnerId);
+  return expenses.filter((e) => e.socio_cliente_id_id === partnerId);
 }
 
 export function MonthlyPartnerReportPDF({ 
@@ -76,15 +76,15 @@ export function MonthlyPartnerReportPDF({
 
   // Date range from actual data
   const dateRangeLabel = useMemo(() => {
-    const first = data.dateRange?.firstEntryDate;
-    const last = data.dateRange?.lastEntryDate;
+    const first = data.dataRange?.firstEntryDate;
+    const last = data.dataRange?.lastEntryDate;
     if (first && last) {
       const d1 = new Date(first + "T12:00:00").getDate();
       const d2 = new Date(last + "T12:00:00").getDate();
       return `dos dias ${String(d1).padStart(2, '0')} a ${String(d2).padStart(2, '0')}`;
     }
     return "";
-  }, [data.dateRange]);
+  }, [data.dataRange]);
 
   // Filter logic
   const shouldShowFlights = activeFilter === "todos" || activeFilter === "voos";
@@ -100,8 +100,8 @@ export function MonthlyPartnerReportPDF({
   const partnerData = useMemo(() => {
     return activePartners.map((p) => {
       const pFlights = assignFlightsToPartner(data.flights, p.id, data.partners);
-      const pFuels = assignFuelsToPartner(data.fuels, p.name);
-      const pExpenses = assignExpensesToPartner(data.expenses, p.name, p.cpf);
+      const pFuels = assignFuelsToPartner(data.fuels, p.nome);
+      const pExpenses = assignExpensesToPartner(data.expenses, p.nome, p.cpf);
       const pBankControl = assignBankControlExpensesToPartner(data.bankControlExpenses, p.id);
       const pTravelReports = assignTravelReportsToPartner(data.travelReports || [], p.id);
 
@@ -138,13 +138,13 @@ export function MonthlyPartnerReportPDF({
 
   // Chart data
   const hoursChartData = partnerData.map((pd) => ({
-    name: pd.partner.name.split(" ")[0],
+    name: pd.partner.nome.split(" ")[0],
     hours: pd.hours,
     percentage: totalFlightHours > 0 ? (pd.hours / totalFlightHours) * 100 : 0,
   }));
 
   const costsChartData = partnerData.map((pd) => ({
-    name: pd.partner.name.split(" ")[0],
+    name: pd.partner.nome.split(" ")[0],
     combustivel: pd.fuelTotal,
     despesas: pd.expTotal + pd.bankControlTotal + pd.travelTotal,
     total: pd.fuelTotal + pd.expTotal + pd.bankControlTotal + pd.travelTotal,
@@ -157,7 +157,7 @@ export function MonthlyPartnerReportPDF({
 
   const sharedByCategory: Record<string, { items: typeof data.sharedExpenses; total: number }> = {};
   (data.sharedExpenses || []).forEach(e => {
-    const rawCat = e.category || e.expense_type || "Outros";
+    const rawCat = e.categoria || e.expense_type || "Outros";
     const cat = formatCategoryLabel(rawCat);
     if (!sharedByCategory[cat]) sharedByCategory[cat] = { items: [], total: 0 };
     sharedByCategory[cat].items.push(e);
@@ -204,9 +204,9 @@ export function MonthlyPartnerReportPDF({
             <p className="text-sm text-gray-500 font-medium">Doc: {data.clientCnpj || "—"}</p>
           </div>
           <div className="text-right">
-            {data.aircraft && (
+            {data.aeronave && (
               <p className="text-lg font-bold text-gray-700">
-                {data.aircraft.registration} <span className="text-gray-400 font-normal">| {data.aircraft.model}</span>
+                {data.aeronave.matricula} <span className="text-gray-400 font-normal">| {data.aeronave.modelo}</span>
               </p>
             )}
             {hourlyRate > 0 && (
@@ -255,9 +255,9 @@ export function MonthlyPartnerReportPDF({
                     <tr key={pd.partner.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-3 py-3 font-bold text-gray-800 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: PARTNER_COLORS[i % PARTNER_COLORS.length] }} />
-                        {pd.partner.name}
+                        {pd.partner.nome}
                       </td>
-                      <td className="px-3 py-3 text-gray-500">{pd.partner.share_percentage?.toFixed(1) || "0"}%</td>
+                      <td className="px-3 py-3 text-gray-500">{pd.partner.percentual_participacao?.toFixed(1) || "0"}%</td>
                       <td className="px-3 py-3 font-medium">{pd.hours.toFixed(1)}h</td>
                       <td className="px-3 py-3">{fmt(pd.fuelTotal)}</td>
                       <td className="px-3 py-3">{fmt(partnerDespesas)}</td>
@@ -305,7 +305,7 @@ export function MonthlyPartnerReportPDF({
                       <tr key={pd.partner.id} className="border-b border-gray-100">
                         <td className="px-3 py-2 font-bold flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: PARTNER_COLORS[i % PARTNER_COLORS.length] }} />
-                          {pd.partner.name.split(" ")[0]}
+                          {pd.partner.nome.split(" ")[0]}
                         </td>
                         <td className="px-3 py-2">{pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—"}</td>
                         <td className="px-3 py-2">{pd.hours > 0 ? fmt((pd.expTotal + pd.travelTotal) / pd.hours) : "—"}</td>
@@ -341,7 +341,7 @@ export function MonthlyPartnerReportPDF({
         <div key={pd.partner.id} className="p-8" style={{ pageBreakBefore: "always", pageBreakInside: "avoid" }}>
           <div className="flex items-center justify-between border-b-2 border-[#1a1a2e] pb-2 mb-6">
             <div>
-              <h2 className="text-2xl font-black text-[#1a1a2e] uppercase">{pd.partner.name}</h2>
+              <h2 className="text-2xl font-black text-[#1a1a2e] uppercase">{pd.partner.nome}</h2>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Extrato de Utilização Detalhado</p>
             </div>
             <div className="text-right">
@@ -442,17 +442,17 @@ export function MonthlyPartnerReportPDF({
               <tbody>
                 {(data.sharedExpenses || []).map((e, i) => (
                   <tr key={e.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"}>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.due_date ? fmtDate(e.due_date) : "—"}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] max-w-[200px] truncate">{e.description}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{formatCategoryLabel(e.category || e.expense_type || '')}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.data_vencimento ? fmtDate(e.data_vencimento) : "—"}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] max-w-[200px] truncate">{e.descricao}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{formatCategoryLabel(e.categoria || e.expense_type || '')}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.payment_method || "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.bank_name || "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.total_amount)}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (e.status === "pago" || e.status === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                        (e.situacao === "pago" || e.situacao === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                       }`}>
-                        {e.status || "pendente"}
+                        {e.situacao || "pendente"}
                       </span>
                     </td>
                   </tr>
@@ -491,7 +491,7 @@ export function MonthlyPartnerReportPDF({
             <p className="text-2xl font-black text-emerald-700">
               {fmt(partnerData.reduce((s, pd) => {
                 const partnerDeposits = data.flights
-                  .filter(f => f.is_equal_split || f.client_partner_id === pd.partner.id)
+                  .filter(f => f.is_equal_split || f.socio_cliente_id_id === pd.partner.id)
                   .reduce((sum, f) => sum + (f.total_time || 0) * hourlyRate / (f.is_equal_split ? data.partners.length : 1), 0);
                 return s + partnerDeposits;
               }, 0) || 0)}

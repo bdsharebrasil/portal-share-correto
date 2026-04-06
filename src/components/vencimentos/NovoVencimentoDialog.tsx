@@ -150,7 +150,7 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
           const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
           const serviceOrderData = {
-            aircraft_id: formData.aeronave_id,
+            aeronave_id: formData.aeronave_id,
             numero: osNumero,
             tipo_manutencao: formData.tipoManutencao,
             oficina_nome: oficinaNome || null,
@@ -162,13 +162,13 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
           };
 
           const { error: ctmError } = await supabase
-            .from("ctm_service_orders")
+            .from("service_orders")
             .insert([serviceOrderData]);
 
           if (ctmError) {
             console.error("Erro ao criar O.S. no CTM:", ctmError);
           } else {
-            console.log(`✅ O.S. ${osNumero} criada no CTM para ${aircraft?.registration}`);
+            console.log(`✅ O.S. ${osNumero} criada no CTM para ${aircraft?.matricula}`);
           }
         } catch (ctmErr) {
           console.error("Erro ao registrar no CTM:", ctmErr);
@@ -242,11 +242,11 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
               <SelectContent className="bg-slate-800 border-white/10">
                 {aircrafts.map((aircraft) => (
                   <SelectItem
-                    key={aircraft.id}
-                    value={aircraft.id}
+                    key={aeronave.id}
+                    value={aeronave.id}
                     className="text-white"
                   >
-                    {aircraft.registration}
+                    {aeronave.matricula}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -360,7 +360,7 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
               </Label>
               <Input
                 id="dataVencimento"
-                type="date"
+                type="data"
                 value={formData.dataVencimento}
                 onChange={(e) =>
                   setFormData({ ...formData, dataVencimento: e.target.value })

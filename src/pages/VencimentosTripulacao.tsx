@@ -80,10 +80,10 @@ export default function VencimentosTripulacao() {
     try {
       // Carregar membros da tripulação
       const { data: crew, error: crewError } = await supabase
-        .from('crew_members')
+        .from('membros_tripulacao')
         .select('*')
-        .eq('status', 'ativo')
-        .order('full_name');
+        .eq('situacao', 'ativo')
+        .order('nome_completo');
 
       if (crewError) throw crewError;
 
@@ -94,9 +94,9 @@ export default function VencimentosTripulacao() {
       // Para cada membro da tripulação, carregar suas habilitações
       for (const member of crew || []) {
         const { data: licenses, error: licenseError } = await supabase
-          .from('crew_licenses')
+          .from('habilitacoes_tripulante')
           .select('*')
-          .eq('crew_member_id', member.id);
+          .eq('membro_tripulacao_id', member.id);
 
         if (licenseError) {
           console.error('Erro ao carregar habilitações:', licenseError);
@@ -188,9 +188,9 @@ export default function VencimentosTripulacao() {
 
     try {
       const { error } = await supabase
-        .from('crew_licenses')
+        .from('habilitacoes_tripulante')
         .update({
-          [editingHabilitacao.habilitacao.tipo === 'habilitacao' ? 'expiry_date' : 'validade_cma']: newDate
+          [editingHabilitacao.habilitacao.tipo === 'habilitacao' ? 'data_validade' : 'validade_cma']: newDate
         })
         .eq('id', editingHabilitacao.habilitacao.licenseId);
 
@@ -225,7 +225,7 @@ export default function VencimentosTripulacao() {
       // Filtrar por status: verifica se tripulante tem habilitações do status selecionado
       let matchStatus = true;
       if (activeStatus !== 'todos') {
-        matchStatus = tripulante.habilitacoes.some(h => h.status === activeStatus);
+        matchStatus = tripulante.habilitacoes.some(h => h.situacao === activeStatus);
       }
 
       return matchSearch && matchStatus;
@@ -240,9 +240,9 @@ export default function VencimentosTripulacao() {
 
     vencimentos.forEach(tripulante => {
       tripulante.habilitacoes.forEach(hab => {
-        if (hab.status === 'vencido') vencidosCount++;
-        else if (hab.status === 'proximo') proximosCount++;
-        else if (hab.status === 'ok') okCount++;
+        if (hab.situacao === 'vencido') vencidosCount++;
+        else if (hab.situacao === 'proximo') proximosCount++;
+        else if (hab.situacao === 'ok') okCount++;
       });
     });
 
@@ -331,9 +331,9 @@ export default function VencimentosTripulacao() {
             {notification && (
               <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
                 <ModernNotification
-                  type={notification.type}
+                  type={notification.tipo}
                   title={notification.title}
-                  description={notification.description}
+                  description={notification.descricao}
                   duration={4000}
                   onClose={() => setNotification(null)}
                 />
@@ -475,7 +475,7 @@ export default function VencimentosTripulacao() {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {filteredVencimentos.map((tripulante) => {
-                  const statusInfo = getStatusInfo(tripulante.statusGeral);
+                  const statusInfo = getStatusInfo(tripulante.situacaoGeral);
                   const StatusIcon = statusInfo.icon;
 
                   return (
@@ -511,7 +511,7 @@ export default function VencimentosTripulacao() {
                           </div>
                         ) : (
                           tripulante.habilitacoes.map((hab) => {
-                            const habStatusInfo = getStatusInfo(hab.status);
+                            const habStatusInfo = getStatusInfo(hab.situacao);
                             return (
                               <div key={hab.id} className={`rounded-lg px-3 py-2 border ${habStatusInfo.borderColor} ${habStatusInfo.bgColor}`}>
                                 <div className="flex items-center justify-between mb-2">
@@ -540,7 +540,7 @@ export default function VencimentosTripulacao() {
                                 </div>
 
                                 {/* Status Badge */}
-                                {hab.status === 'vencido' ? (
+                                {hab.situacao === 'vencido' ? (
                                   <div className="bg-red-500/20 rounded px-2 py-1 border border-red-500/30 inline-block">
                                     <p className="text-red-300 font-semibold text-xs">Vencido há {Math.abs(hab.diasRestantes)} dias</p>
                                   </div>
@@ -589,7 +589,7 @@ export default function VencimentosTripulacao() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">Nova Data de Vencimento</label>
                 <input
-                  type="date"
+                  type="data"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white"

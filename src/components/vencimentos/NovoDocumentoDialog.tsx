@@ -37,7 +37,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
-    aircraft_id: "",
+    aeronave_id: "",
     name: "",
     document_type: "",
     expiry_date: "",
@@ -68,7 +68,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
     setLoading(true);
 
     try {
-      if (!formData.aircraft_id || !formData.name || !formData.expiry_date) {
+      if (!formData.aeronave_id || !formData.nome || !formData.expiry_date) {
         toast({
           title: "Erro",
           description: "Preencha todos os campos obrigatórios.",
@@ -79,9 +79,9 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
       }
 
       await createFlightDocument({
-        aircraft_id: formData.aircraft_id,
-        name: formData.name,
-        document_type: formData.document_type || undefined,
+        aeronave_id: formData.aeronave_id,
+        name: formData.nome,
+        document_type: formData.documentoument_type || undefined,
         expiry_date: formData.expiry_date,
         file_path: "placeholder",
       });
@@ -92,7 +92,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
       });
 
       setFormData({
-        aircraft_id: "",
+        aeronave_id: "",
         name: "",
         document_type: "",
         expiry_date: "",
@@ -141,17 +141,17 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="aircraft" className="text-gray-300">
+            <Label htmlFor="aeronave" className="text-gray-300">
               Aeronave *
             </Label>
             <Select
-              value={formData.aircraft_id}
+              value={formData.aeronave_id}
               onValueChange={(value) =>
-                setFormData({ ...formData, aircraft_id: value })
+                setFormData({ ...formData, aeronave_id: value })
               }
             >
               <SelectTrigger
-                id="aircraft"
+                id="aeronave"
                 className="bg-slate-800 border-white/10 text-white"
               >
                 <SelectValue placeholder="Selecione uma aeronave" />
@@ -159,11 +159,11 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
               <SelectContent className="bg-slate-800 border-white/10">
                 {aircrafts.map((aircraft) => (
                   <SelectItem
-                    key={aircraft.id}
-                    value={aircraft.id}
+                    key={aeronave.id}
+                    value={aeronave.id}
                     className="text-white"
                   >
-                    {aircraft.registration}
+                    {aeronave.matricula}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -175,7 +175,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
               Tipo de Documento *
             </Label>
             <Select
-              value={formData.document_type}
+              value={formData.documentoument_type}
               onValueChange={(value) =>
                 setFormData({ ...formData, document_type: value })
               }
@@ -197,13 +197,13 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-gray-300">
+            <Label htmlFor="nome" className="text-gray-300">
               Nome/Descrição *
             </Label>
             <Input
-              id="name"
+              id="nome"
               placeholder="Ex: Seguro Responsabilidade Civil"
-              value={formData.name}
+              value={formData.nome}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-slate-800 border-white/10 text-white placeholder-gray-500"
             />
@@ -215,7 +215,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
             </Label>
             <Input
               id="expiry_date"
-              type="date"
+              type="data"
               value={formData.expiry_date}
               onChange={(e) =>
                 setFormData({ ...formData, expiry_date: e.target.value })

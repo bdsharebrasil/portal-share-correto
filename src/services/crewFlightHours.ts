@@ -10,15 +10,15 @@ export async function updateCrewFlightHours(params: {
   picId: string;
   sicId?: string | null;
   aircraftId: string;
-  month: number;
-  year: number;
+  mes: number;
+  ano: number;
   totalTime: number;
   ifrTime?: number;
   nightHours?: number;
-  flightDay: string;
+  diaVoo: string;
   operation: 'add' | 'remove';
 }) {
-  const { picId, sicId, aircraftId, month, year, totalTime, ifrTime = 0, nightHours = 0, flightDay, operation } = params;
+  const { picId, sicId, aircraftId, mes, ano, totalTime, ifrTime = 0, nightHours = 0, diaVoo, operation } = params;
 
   console.log(`🚀 updateCrewFlightHours called with:`, {
     picId,
@@ -26,8 +26,8 @@ export async function updateCrewFlightHours(params: {
     sicIdType: typeof sicId,
     sicIdLength: typeof sicId === 'string' ? sicId.length : 'N/A',
     aircraftId,
-    month,
-    year,
+    mes,
+    ano,
     totalTime,
     ifrTime,
     nightHours,
@@ -52,24 +52,24 @@ export async function updateCrewFlightHours(params: {
     try {
       // Check if record exists
       const { data: existing, error: fetchError } = await supabase
-        .from('crew_flight_hours')
-        .select('id, total_hours, ifr_hours, not_hours')
-        .eq('crew_member_id', crewMemberId)
+        .from('horas_voo_tripulante')
+        .select('id, horas_totais, horas_ifr, horas_noturnas')
+        .eq('membro_tripulacao_id', crewMemberId)
         .eq('aircraft_id', aircraftId)
-        .eq('month', month)
-        .eq('year', year)
+        .eq('mes', mes)
+        .eq('ano', ano)
         .maybeSingle();
 
       if (fetchError) {
-        console.error(`❌ Error fetching crew_flight_hours for ${crewMemberId}:`, fetchError);
+        console.error(`❌ Error fetching horas_voo_tripulante for ${crewMemberId}:`, fetchError);
         continue;
       }
 
       if (existing) {
         // Update existing record
-        const currentTotalHours = Number(existing.total_hours) || 0;
-        const currentIfrHours = Number(existing.ifr_hours) || 0;
-        const currentNightHours = Number(existing.not_hours) || 0;
+        const currentTotalHours = Number(existing.horas_totais) || 0;
+        const currentIfrHours = Number(existing.horas_ifr) || 0;
+        const currentNightHours = Number(existing.horas_noturnas) || 0;
 
         const newTotalHours = operation === 'add'
           ? currentTotalHours + totalTime
@@ -93,12 +93,12 @@ export async function updateCrewFlightHours(params: {
         });
 
         const { error: updateError } = await supabase
-          .from('crew_flight_hours')
+          .from('horas_voo_tripulante')
           .update({
-            total_hours: newTotalHours,
-            ifr_hours: newIfrHours,
-            not_hours: newNightHours,
-            updated_at: new Date().toISOString()
+            horas_totais: newTotalHours,
+            horas_ifr: newIfrHours,
+            horas_noturnas: newNightHours,
+            atualizado_em: new Date().toISOString()
           })
           .eq('id', existing.id);
 
@@ -120,16 +120,16 @@ export async function updateCrewFlightHours(params: {
         });
 
         const { error: insertError } = await supabase
-          .from('crew_flight_hours')
+          .from('horas_voo_tripulante')
           .insert({
-            crew_member_id: crewMemberId,
-            aircraft_id: aircraftId,
-            month,
-            year,
-            total_hours: totalTime,
-            ifr_hours: ifrTime,
-            not_hours: nightHours,
-            flight_day: flightDay
+            membro_tripulacao_id: crewMemberId,
+            aeronave_id: aircraftId,
+            mes,
+            ano,
+            horas_totais: totalTime,
+            horas_ifr: ifrTime,
+            horas_noturnas: nightHours,
+            dia_voo: diaVoo
           });
 
         if (insertError) {
@@ -158,12 +158,12 @@ export async function updateCrewFlightHours(params: {
  */
 export async function recalculateCrewFlightHoursForMonth(
   aircraftId: string,
-  month: number,
-  year: number
+  mes: number,
+  ano: number
 ) {
   // Fetch all logbook entries for the period
-  const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
-  const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+  const startDate = new Date(ano, mes - 1, 1).toISOString().split('T')[0];
+  const endDate = new Date(ano, mes, 0).toISOString().split('T')[0];
 
   const { data: entries, error } = await supabase
     .from('logbook_entries')
@@ -203,39 +203,39 @@ export async function recalculateCrewFlightHoursForMonth(
     }
   }
 
-  // Update crew_flight_hours for each crew member
+  // Update horas_voo_tripulante for each crew member
   for (const [crewMemberId, hours] of Object.entries(hoursByCrewMember)) {
     const { data: existing } = await supabase
-      .from('crew_flight_hours')
+      .from('horas_voo_tripulante')
       .select('id')
-      .eq('crew_member_id', crewMemberId)
+      .eq('membro_tripulacao_id', crewMemberId)
       .eq('aircraft_id', aircraftId)
-      .eq('month', month)
-      .eq('year', year)
+      .eq('mes', mes)
+      .eq('ano', ano)
       .maybeSingle();
 
     if (existing) {
       await supabase
-        .from('crew_flight_hours')
+        .from('horas_voo_tripulante')
         .update({
-          total_hours: hours.total,
-          ifr_hours: hours.ifr,
-          not_hours: hours.night,
-          updated_at: new Date().toISOString()
+          horas_totais: hours.total,
+          horas_ifr: hours.ifr,
+          horas_noturnas: hours.night,
+          atualizado_em: new Date().toISOString()
         })
         .eq('id', existing.id);
     } else {
       await supabase
-        .from('crew_flight_hours')
+        .from('horas_voo_tripulante')
         .insert({
-          crew_member_id: crewMemberId,
-          aircraft_id: aircraftId,
-          month,
-          year,
-          total_hours: hours.total,
-          ifr_hours: hours.ifr,
-          not_hours: hours.night,
-          flight_day: hours.flightDay
+          membro_tripulacao_id: crewMemberId,
+          aeronave_id: aircraftId,
+          mes,
+          ano,
+          horas_totais: hours.total,
+          horas_ifr: hours.ifr,
+          horas_noturnas: hours.night,
+          dia_voo: hours.flightDay
         });
     }
   }

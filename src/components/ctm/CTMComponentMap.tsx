@@ -45,14 +45,14 @@ export function CTMComponentMap({ aircraftId }: ComponentMapProps) {
     if (search) {
       const searchLower = search.toLowerCase();
       filtered = filtered.filter(c => 
-        c.name.toLowerCase().includes(searchLower) ||
+        (c as any).name?.toLowerCase().includes(searchLower) ||
         c.part_number.toLowerCase().includes(searchLower) ||
         c.serial_number.toLowerCase().includes(searchLower)
       );
     }
 
     if (categoryFilter !== "all") {
-      filtered = filtered.filter(c => c.category === categoryFilter);
+      filtered = filtered.filter(c => (c as any).category === categoryFilter);
     }
 
     return filtered;
@@ -167,7 +167,7 @@ export function CTMComponentMap({ aircraftId }: ComponentMapProps) {
                       {getStatusIcon(comp.remaining_percentage)}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{comp.name}</div>
+                      <div className="font-medium">{(comp as any).name || comp.name}</div>
                       <div className="font-mono text-xs text-muted-foreground">{comp.part_number}</div>
                     </TableCell>
                     <TableCell className="font-mono text-sm">{comp.serial_number}</TableCell>
@@ -203,8 +203,8 @@ export function CTMComponentMap({ aircraftId }: ComponentMapProps) {
                     
                     {/* Data de Instalação ou Data de Vencimento Absoluta */}
                     <TableCell>
-                      {comp.due_date 
-                        ? format(new Date(comp.due_date), "dd/MM/yyyy", { locale: ptBR })
+                      {(comp as any).due_date 
+                        ? format(new Date((comp as any).due_date), "dd/MM/yyyy", { locale: ptBR })
                         : comp.installed_date 
                           ? format(new Date(comp.installed_date), "dd/MM/yyyy", { locale: ptBR })
                           : "-"

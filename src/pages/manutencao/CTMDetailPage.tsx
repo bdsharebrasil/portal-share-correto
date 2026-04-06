@@ -10,7 +10,7 @@ import { CTMServiceOrderList } from '@/components/ctm';
 import { NewServiceOrderPage } from '@/components/ctm/NewServiceOrderDialog';
 import { CTMServiceOrderDetails } from '@/components/ctm';
 import { useCTMServiceOrders, CTMServiceOrder, CTMMaintenanceCategory } from '@/hooks/useCTMServiceOrders';
-import AircraftSelection from '@/components/manutencao/AircraftSelection';
+import AeronaveSelecao from '@/components/manutencao/AircraftSelection';
 
 type ViewMode = 'select' | 'list' | 'create' | 'edit' | 'detail';
 
@@ -27,7 +27,7 @@ export default function CTMPage() {
   const registrationParam = searchParams.get('registration');
 
   const [view, setView] = useState<ViewMode>(aircraftIdParam ? 'list' : 'select');
-  const [selectedAircraft, setSelectedAircraft] = useState<SelectedAircraft | null>(
+  const [selectedAeronave, setSelectedAircraft] = useState<SelectedAircraft | null>(
     aircraftIdParam && registrationParam
       ? { id: aircraftIdParam, registration: registrationParam, model: '' }
       : null
@@ -54,27 +54,27 @@ export default function CTMPage() {
 
   // Load orders when aircraft is selected
   useEffect(() => {
-    if (selectedAircraft) {
+    if (selectedAeronave) {
       loadOrders();
     }
-  }, [selectedAircraft]);
+  }, [selectedAeronave]);
 
   const loadOrders = useCallback(async () => {
-    if (!selectedAircraft) return;
+    if (!selectedAeronave) return;
     setLoading(true);
-    const data = await loadServiceOrders(selectedAircraft.id);
+    const data = await loadServiceOrders(selectedAeronave.id);
     setOrders(data);
     setLoading(false);
-  }, [selectedAircraft, loadServiceOrders]);
+  }, [selectedAeronave, loadServiceOrders]);
 
   const handleSelectAircraft = (aircraft: any) => {
     setSelectedAircraft({
-      id: aircraft.id,
-      registration: aircraft.registration,
-      model: aircraft.model
+      id: aeronave.id,
+      registration: aeronave.matricula,
+      model: aeronave.modelo
     });
     setView('list');
-    navigate(`/manutencao/ctm?aircraftId=${aircraft.id}&registration=${aircraft.registration}`, { replace: true });
+    navigate(`/manutencao/ctm?aircraftId=${aeronave.id}&registration=${aeronave.matricula}`, { replace: true });
   };
 
   const handleBackToAircraftSelection = () => {
@@ -128,7 +128,7 @@ export default function CTMPage() {
   if (view === 'select') {
     return (
       <Layout>
-        <AircraftSelection onSelect={handleSelectAircraft} />
+        <AeronaveSelecao onSelect={handleSelectAircraft} />
       </Layout>
     );
   }
@@ -160,7 +160,7 @@ export default function CTMPage() {
                 <Plane className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">{selectedAircraft?.registration}</h1>
+                <h1 className="text-2xl font-bold">{selectedAeronave?.registration}</h1>
                 <p className="text-muted-foreground">Centro Técnico de Manutenção</p>
               </div>
             </div>
@@ -214,8 +214,8 @@ export default function CTMPage() {
 
         {(view === 'create' || view === 'edit') && (
           <NewServiceOrderPage
-            aircraftId={selectedAircraft!.id}
-            aircraftRegistration={selectedAircraft!.registration}
+            aircraftId={selectedAeronave!.id}
+            aircraftRegistration={selectedAeronave!.registration}
             editingOrder={view === 'edit' ? selectedOrder : null}
             onBack={() => {
               handleSaveOrder();

@@ -32,21 +32,21 @@ export function useExpirationNotifications(aircraftId: string) {
             if (daysUntil < 0) {
               alerts.push({
                 type: 'maintenance',
-                title: `Inspeção Vencida: ${item.description}`,
+                title: `Inspeção Vencida: ${item.descricao}`,
                 daysUntilExpiry: daysUntil,
                 severity: 'expired',
               });
             } else if (daysUntil <= 7) {
               alerts.push({
                 type: 'maintenance',
-                title: `Inspeção Crítica: ${item.description} (${daysUntil} dias)`,
+                title: `Inspeção Crítica: ${item.descricao} (${daysUntil} dias)`,
                 daysUntilExpiry: daysUntil,
                 severity: 'critical',
               });
             } else if (daysUntil <= 30) {
               alerts.push({
                 type: 'maintenance',
-                title: `Inspeção Próxima: ${item.description} (${daysUntil} dias)`,
+                title: `Inspeção Próxima: ${item.descricao} (${daysUntil} dias)`,
                 daysUntilExpiry: daysUntil,
                 severity: 'warning',
               });
@@ -60,12 +60,12 @@ export function useExpirationNotifications(aircraftId: string) {
         .from('airworthiness_directives')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .eq('status', 'pendente');
+        .eq('situacao', 'pendente');
 
       if (ads) {
         ads.forEach((ad: any) => {
-          if (ad.due_date) {
-            const dueDate = new Date(ad.due_date);
+          if (ad.data_vencimento) {
+            const dueDate = new Date(ad.data_vencimento);
             const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
             if (daysUntil < 0) {
@@ -92,12 +92,12 @@ export function useExpirationNotifications(aircraftId: string) {
         .from('service_bulletins')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .eq('status', 'pendente');
+        .eq('situacao', 'pendente');
 
       if (sbs) {
         sbs.forEach((sb: any) => {
-          if (sb.due_date) {
-            const dueDate = new Date(sb.due_date);
+          if (sb.data_vencimento) {
+            const dueDate = new Date(sb.data_vencimento);
             const daysUntil = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
             if (daysUntil < 0) {
@@ -132,7 +132,7 @@ export function useExpirationNotifications(aircraftId: string) {
           if (lifePercentage >= 80) {
             alerts.push({
               type: 'component',
-              title: `Componente Crítico: ${comp.name} (${lifePercentage.toFixed(0)}%)`,
+              title: `Componente Crítico: ${comp.nome} (${lifePercentage.toFixed(0)}%)`,
               daysUntilExpiry: 0,
               severity: 'warning',
             });

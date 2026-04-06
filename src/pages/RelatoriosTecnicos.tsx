@@ -51,10 +51,10 @@ export default function RelatoriosTecnicos() {
   const carregarAeronaves = async () => {
     try {
       const { data } = await supabase
-        .from("aircraft")
-        .select("id, registration")
+        .from('aeronave')
+        .select('id, matricula')
         .eq("status", "ativa")
-        .order("registration");
+        .order("matricula");
       setAircraftList(data || []);
     } catch (e) {
       console.error("Erro ao carregar aeronaves:", e);
@@ -100,7 +100,7 @@ export default function RelatoriosTecnicos() {
     const maps: Record<string, string> = {};
 
     try {
-      const { data } = await supabase.from("aircraft").select("id, registration");
+      const { data } = await supabase.from('aeronave').select('id, matricula');
       if (data) {
         data.forEach((row: any) => {
           if (row.id && row.registration) {
@@ -144,9 +144,9 @@ export default function RelatoriosTecnicos() {
   }
 
   const contagemStatus = {
-    finalizado: relatorios.filter(r => r.status === "concluida").length,
-    andamento: relatorios.filter(r => r.status === "em_andamento").length,
-    pendente: relatorios.filter(r => r.status === "aguardando").length,
+    finalizado: relatorios.filter(r => r.situacao === "concluida").length,
+    andamento: relatorios.filter(r => r.situacao === "em_andamento").length,
+    pendente: relatorios.filter(r => r.situacao === "aguardando").length,
     total: relatorios.length,
   };
 
@@ -319,8 +319,8 @@ export default function RelatoriosTecnicos() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
-                      <Badge className={getStatusColor(relatorio.status)}>
-                        {getStatusLabel(relatorio.status)}
+                      <Badge className={getStatusColor(relatorio.situacao)}>
+                        {getStatusLabel(relatorio.situacao)}
                       </Badge>
                       <Button variant="outline" size="sm">
                         <Eye className="h-4 w-4 mr-1" />
@@ -478,7 +478,7 @@ function CreateOSDialog({
               <Label htmlFor="data">Data Programada *</Label>
               <Input
                 id="data"
-                type="date"
+                type="data"
                 value={formData.data_programada}
                 onChange={(e) => setFormData({ ...formData, data_programada: e.target.value })}
                 required
@@ -498,7 +498,7 @@ function CreateOSDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="situacao">Status</Label>
               <Select
                 value={formData.etapa}
                 onValueChange={(value) => setFormData({ ...formData, etapa: value })}

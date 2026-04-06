@@ -57,7 +57,7 @@ const SPLIT_FLIGHT_TYPES = [
 // Obter o nome do parceiro por ID
 const getPartnerNameById = (partnerId: string | null, partnerMap: Record<string, any>): string | null => {
   if (!partnerId) return null;
-  return partnerMap[partnerId]?.name || null;
+  return partnerMap[partnerId]?.nome || null;
 };
 
 
@@ -321,27 +321,27 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
-        supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
-        supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
-        supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
+        const [acRes, crewMembersRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
+        supabase.from('aeronave').select('*').eq('id', aircraftId).single(),
+        supabase.from('tripulacao').select('id, nome_completo, canac, status').eq('status', 'ativo').order('nome_completo', { ascending: true }),
         supabase.from('aerodromes').select('*').order('designativo'),
-        supabase.from('clients').select('id, company_name, cnpj, client_aircraft(aircraft_id, share_percentage)').order('company_name'),
+        supabase.from('clientes').select('id, razao_social, cnpj, cotistas_aeronave(id_aeronave, percentual_sociedade)').order('razao_social'),
         supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
         supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
-        supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
-        supabase.from('client_partners').select('id, name, cpf, client_id').order('name')]
+        supabase.from('cotistas_aeronave').select('*, clientes(id, razao_social)').eq('id_aeronave', aircraftId),
+        supabase.from('socios_cliente').select('id, nome, cpf, cliente_id').order('nome')]
         );
 
         if (acRes.data) {
           setAircraft(acRes.data);
-          setLastCelula(acRes.data.cell_hours_current || 0);
+          // Será carregado do logbook_months
+          setLastCelula(0);
         }
-        // Merge crew_members + crew table (dedup by id)
+        // Get crew members from crew table
         const crewMembersData = crewMembersRes.data || [];
-        const crewTableData = (crewTableRes.data || []).map((p: any) => ({
+        const crewTableData = (crewMembersData).map((p: any) => ({
           id: p.id,
-          full_name: p.full_name,
+          nome_completo: p.nome_completo,
           canac: p.canac,
           status: p.status
         }));
@@ -373,10 +373,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             partnerMap[p.id] = p;
 
             // Mapa por client_id para busca rápida dos partners de cada cliente
-            if (!partnersByClientId[p.client_id]) {
-              partnersByClientId[p.client_id] = [];
+            if (!partnersByClientId[p.cliente_id]) {
+              partnersByClientId[p.cliente_id] = [];
             }
-            partnersByClientId[p.client_id].push(p);
+            partnersByClientId[p.cliente_id].push(p);
           });
 
           setClientPartners(partnerMap);
@@ -385,10 +385,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
 
         const loansRes = await (supabase as any).
-        from('aircraft_loans').
+        from('emprestimos_aeronave').
         select('*').
-        not('logbook_entry_id', 'is', null).
-        order('entry_date', { ascending: false });
+        not('lancamento_diario_id', 'is', null).
+        order('data_lancamento', { ascending: false });
 
         if (loansRes.data) setLoans(loansRes.data || []);
 
@@ -442,7 +442,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       
       const { data } = await supabase
         .from('abastecimentos')
-        .select('id, logbook_entry_id, litros, trecho, local, data, abastecedor, client_id')
+        .select('id, logbook_entry_id, litros, trecho, local, data, abastecedor, id_clientes')
         .in('logbook_entry_id', entryIds);
       
       if (data) {
@@ -673,8 +673,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const sortedClients = useMemo(() => {
     if (!clients.length) return [];
-    const linkedClients = clients.filter((c: any) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
-    const otherClients = clients.filter((c: any) => !c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
+    const linkedClients = clients.filter((c: any) => c.client_aircraft?.some((ca: any) => ca.aeronave_id === aircraftId));
+    const otherClients = clients.filter((c: any) => !c.client_aircraft?.some((ca: any) => ca.aeronave_id === aircraftId));
     return [...linkedClients, ...otherClients];
   }, [clients, aircraftId]);
 
@@ -691,7 +691,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const { data: monthEntries } = await supabase.
       from('logbook_entries').
       select('id, celula, sequential_number').
-      eq('aircraft_id', aircraftId).
+      eq('aeronave_id', aircraftId).
       gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
       lt('entry_date', selectedMonth === 12 ?
       `${selectedYear + 1}-01-01` :
@@ -774,7 +774,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const { data: monthEntries } = await supabase.
       from('logbook_entries').
       select('id, time, sequential_number').
-      eq('aircraft_id', aircraftId).
+      eq('aeronave_id', aircraftId).
       gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
       lt('entry_date', selectedMonth === 12 ?
       `${selectedYear + 1}-01-01` :
@@ -928,7 +928,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const { data: existingMonth } = await supabase.
       from('logbook_months').
       select('*').
-      eq('aircraft_id', aircraftId).
+      eq('aeronave_id', aircraftId).
       eq('month', nextMonth).
       eq('year', nextYear).
       maybeSingle();
@@ -952,11 +952,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         });
       } else {
         setPreviousMonthData({
-          celula_atual: aircraft?.cell_hours_current || 0,
-          celula_prox_revisao: aircraft?.celula_prox_revisao || 0,
+          celula_atual: 0,
+          celula_prox_revisao: 0,
           horimetro_final: null,
           base_aerodrome: aircraft?.base || null,
-          fuel_consumption: aircraft?.fuel_consumption?.toString() || null,
+          fuel_consumption: aircraft?.consumo_combustivel?.toString() || null,
           has_daily_rate: false,
           daily_rate: null
         });
@@ -974,7 +974,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     const { data } = await supabase.
     from('logbook_entries').
     select('*').
-    eq('aircraft_id', aircraftId).
+    eq('aeronave_id', aircraftId).
     order('logbook_month_id', { ascending: false }).
     order('sequential_number', { ascending: true });
     setEntries(data || []);
@@ -1000,13 +1000,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       return;
     }
 
-    if (flightType === 'cliente' && !newEntry.client_id) {
+    if (flightType === 'cliente' && !newEntry.cliente_id) {
       toast.error('Selecione um cliente para este voo');
       return;
     }
 
     if (flightType === 'emprestimo') {
-      if (!newEntry.client_id) {
+      if (!newEntry.cliente_id) {
         toast.error('Selecione o cotista que está emprestando a aeronave');
         return;
       }
@@ -1096,7 +1096,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       const entryPayload = {
         logbook_month_id: logbookMonth.id,
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         entry_date: newEntry.entry_date,
         departure_aerodrome: newEntry.departure_aerodrome,
         arrival_aerodrome: newEntry.arrival_aerodrome,
@@ -1110,10 +1110,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
-        client_id: newEntry.is_equal_split ? null : newEntry.client_id,
+        client_id: newEntry.is_equal_split ? null : newEntry.cliente_id,
         client_partner_id: newEntry.is_equal_split ?
         null :
-        newEntry.is_loan ? null : newEntry.client_partner_id || null,
+        newEntry.is_loan ? null : newEntry.socio_cliente_id_id || null,
         loan_recipient_client_id: newEntry.is_loan ? newEntry.loan_recipient_client_id || null : null,
         loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
         is_equal_split: newEntry.is_equal_split,
@@ -1134,14 +1134,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         celula: toNum(newEntry.celula),
         distance_nm: toNum(newEntry.distance_nm),
         passengers: toNum(newEntry.passengers),
-        cargo_kg: toNum(newEntry.cargo_kg),
+        cargo_kg: String(toNum(newEntry.cargo_kg) ?? ''),
         flight_nature: newEntry.flight_nature,
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
         confirmed: isEdit ? oldEntry?.confirmed || false : false,
         // Schema: daily_rate é número
-        daily_rate: dailyValue !== 0 && dailyValue !== null ? toNum(dailyValue) : null,
+        daily_rate: dailyValue !== 0 && dailyValue !== null ? String(toNum(dailyValue)) : null,
         pic_source: 'crew_members',
         sic_source: 'crew_members',
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
@@ -1213,32 +1213,31 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         if (wasLoan && !isLoanNow) {
           // Era empréstimo, não é mais → DELETE
-          await supabase.from('aircraft_loans').delete().eq('logbook_entry_id', editingEntryIdForm);
+          await supabase.from('emprestimos_aeronave').delete().eq('lancamento_diario_id', editingEntryIdForm);
           logSuccess('Empréstimo deletado');
         } else if (!wasLoan && isLoanNow) {
           // Não era empréstimo, agora é → INSERT
           const picName = newEntry.pic_canac ? crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null : null;
 
           const loanData = {
-            hours_borrowed: newEntry.total_time,
-            entry_date: newEntry.entry_date,
-            departure_aerodrome: newEntry.departure_aerodrome || '',
-            arrival_aerodrome: newEntry.arrival_aerodrome || '',
+            horas_emprestadas: newEntry.total_time,
+            data_lancamento: newEntry.entry_date,
+            aerodromo_partida: newEntry.departure_aerodrome || '',
+            aerodromo_chegada: newEntry.arrival_aerodrome || '',
             trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
-            fuel_added: toNum(newEntry.fuel_added),
-            pic_name: picName,
-            logbook_entry_id: insertedEntryId,
-            status: 'active',
-            notes: `Empréstimo ${isEdit ? 'editado' : 'criado'} via diário de bordo`
+            combustivel_adicionado: toNum(newEntry.fuel_added),
+            nome_piloto: picName,
+            lancamento_diario_id: insertedEntryId,
+            observacoes: `Empréstimo ${isEdit ? 'editado' : 'criado'} via diário de bordo`
           };
 
-          const { error: loanError } = await supabase.from('aircraft_loans').insert([loanData]);
+          const { error: loanError } = await supabase.from('emprestimos_aeronave').insert([loanData]);
           if (loanError) throw loanError;
 
           const transData = {
-            aircraft_id: aircraftId,
+            aeronave_id: aircraftId,
             from_partner_id: newEntry.loan_recipient_client_id,
-            to_partner_id: newEntry.client_id,
+            to_partner_id: newEntry.cliente_id,
             hours: newEntry.total_time,
             type: 'loan',
             description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
@@ -1255,20 +1254,19 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           const picName = newEntry.pic_canac ? crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null : null;
 
           const loanUpdateData = {
-            hours_borrowed: newEntry.total_time,
-            entry_date: newEntry.entry_date,
-            departure_aerodrome: newEntry.departure_aerodrome,
-            arrival_aerodrome: newEntry.arrival_aerodrome,
+            horas_emprestadas: newEntry.total_time,
+            data_lancamento: newEntry.entry_date,
+            aerodromo_partida: newEntry.departure_aerodrome,
+            aerodromo_chegada: newEntry.arrival_aerodrome,
             trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-            fuel_added: toNum(newEntry.fuel_added),
-            pic_name: picName,
-            borrower_client_id: newEntry.loan_recipient_client_id
+            combustivel_adicionado: toNum(newEntry.fuel_added),
+            nome_piloto: picName
           };
 
           const { error: updateError } = await supabase.
-          from('aircraft_loans').
+          from('emprestimos_aeronave').
           update(loanUpdateData).
-          eq('logbook_entry_id', editingEntryIdForm);
+          eq('lancamento_diario_id', editingEntryIdForm);
 
           if (updateError) throw updateError;
 
@@ -1277,9 +1275,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryIdForm).eq('type', 'loan');
 
             const transData = {
-              aircraft_id: aircraftId,
+              aeronave_id: aircraftId,
               from_partner_id: newEntry.loan_recipient_client_id,
-              to_partner_id: newEntry.client_id,
+              to_partner_id: newEntry.cliente_id,
               hours: newEntry.total_time,
               type: 'loan',
               description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
@@ -1298,25 +1296,24 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         const picName = newEntry.pic_canac ? crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null : null;
 
         const loanData = {
-          hours_borrowed: newEntry.total_time,
-          entry_date: newEntry.entry_date,
-          departure_aerodrome: newEntry.departure_aerodrome || '',
-          arrival_aerodrome: newEntry.arrival_aerodrome || '',
+          horas_emprestadas: newEntry.total_time,
+          data_lancamento: newEntry.entry_date,
+          aerodromo_partida: newEntry.departure_aerodrome || '',
+          aerodromo_chegada: newEntry.arrival_aerodrome || '',
           trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
-          fuel_added: toNum(newEntry.fuel_added),
-          pic_name: picName,
-          logbook_entry_id: insertedEntryId,
-          status: 'active',
-          notes: `Empréstimo criado via diário de bordo`
+          combustivel_adicionado: toNum(newEntry.fuel_added),
+          nome_piloto: picName,
+          lancamento_diario_id: insertedEntryId,
+          observacoes: `Empréstimo criado via diário de bordo`
         };
 
-        const { error: loanError } = await supabase.from('aircraft_loans').insert([loanData]);
+        const { error: loanError } = await supabase.from('emprestimos_aeronave').insert([loanData]);
         if (loanError) throw loanError;
 
         const transData = {
-          aircraft_id: aircraftId,
+          aeronave_id: aircraftId,
           from_partner_id: newEntry.loan_recipient_client_id,
-          to_partner_id: newEntry.client_id,
+          to_partner_id: newEntry.cliente_id,
           hours: newEntry.total_time,
           type: 'loan',
           description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
@@ -1407,7 +1404,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const { data: updatedEntries } = await supabase.
       from('logbook_entries').
       select('*').
-      eq('aircraft_id', aircraftId).
+      eq('aeronave_id', aircraftId).
       order('logbook_month_id', { ascending: false }).
       order('sequential_number', { ascending: true });
 
@@ -1497,7 +1494,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       crew_checkin_time: entry.crew_checkin_time || '',
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
-      client_id: entry.client_id || '',
+      client_id: entry.cliente_id || '',
       loan_recipient_client_id: entry.is_loan ? entry.loan_recipient_client_id || null : null,
       is_equal_split: entry.is_equal_split || false,
       is_loan: entry.is_loan || false,
@@ -1529,9 +1526,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     });
 
     // Se for empréstimo, buscar o ID do cliente que pegou emprestado
-    if (entry.is_loan && entry.partner_name) {
+    if (entry.is_loan && entry.nome_socio) {
       // Buscar cliente pelo partner_name (company_name)
-      const borrower = clients.find((c: any) => c.company_name === entry.partner_name);
+      const borrower = clients.find((c: any) => c.razao_social === entry.nome_socio);
       if (borrower) {
         setNewEntry((prev) => ({
           ...prev,
@@ -1586,9 +1583,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       if (entryToDelete.is_loan) {
         const { error: loansError } = await supabase.
-        from('aircraft_loans').
+        from('emprestimos_aeronave').
         delete().
-        eq('logbook_entry_id', id);
+        eq('lancamento_diario_id', id);
 
         if (loansError) {
           logError('Erro ao deletar aircraft_loans:', loansError);
@@ -1626,7 +1623,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const { data } = await supabase.
       from('logbook_entries').
       select('*').
-      eq('aircraft_id', aircraftId).
+      eq('aeronave_id', aircraftId).
       order('logbook_month_id', { ascending: false }).
       order('sequential_number', { ascending: true });
       if (data) {
@@ -1682,7 +1679,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const { data: lastMonthData } = await supabase.
       from('logbook_months').
       select('*').
-      eq('aircraft_id', aircraftId).
+      eq('aeronave_id', aircraftId).
       order('year', { ascending: false }).
       order('month', { ascending: false }).
       limit(1).
@@ -1692,11 +1689,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         setPreviousMonthData(lastMonthData);
       } else {
         setPreviousMonthData({
-          celula_atual: aircraft?.cell_hours_current || 0,
-          celula_prox_revisao: aircraft?.celula_prox_revisao || 0,
+          celula_atual: 0,
+          celula_prox_revisao: 0,
           horimetro_final: null,
           base_aerodrome: aircraft?.base || null,
-          fuel_consumption: aircraft?.fuel_consumption?.toString() || null,
+          fuel_consumption: aircraft?.consumo_combustivel?.toString() || null,
           has_daily_rate: false,
           daily_rate: null
         });
@@ -1706,7 +1703,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     } catch (error) {
       logError("Erro ao buscar dados do mês anterior:", error);
       setPreviousMonthData({
-        celula_atual: aircraft?.cell_hours_current || 0,
+        celula_atual: 0,
         celula_prox_revisao: 0
       });
       setShowCreateMonthDialog(true);
@@ -1723,7 +1720,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const { data: existingMonth, error: checkError } = await supabase.
       from('logbook_months').
       select('id, month, year').
-      eq('aircraft_id', aircraftId).
+      eq('aeronave_id', aircraftId).
       eq('month', targetMonth).
       eq('year', targetYear).
       maybeSingle();
@@ -1808,8 +1805,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <ArrowLeft size={20} className="text-slate-400" />
             </button>
             <div>
-              <h1 className="text-3xl font-black text-white tracking-tighter">{aircraft?.registration}</h1>
-              <p className="text-[10px] font-bold text-sky-500 uppercase tracking-[0.2em] py-[7px]">{aircraft?.model}</p>
+              <h1 className="text-3xl font-black text-white tracking-tighter">{aircraft?.matricula}</h1>
+              <p className="text-[10px] font-bold text-sky-500 uppercase tracking-[0.2em] py-[7px]">{aircraft?.modelo}</p>
 
             </div>
           </div>
@@ -1888,7 +1885,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           open={showCreateMonthDialog}
           onOpenChange={setShowCreateMonthDialog}
           aircraftId={aircraftId}
-          aircraftRegistration={aircraft?.registration || ''}
+          aircraftRegistration={aircraft?.matricula || ''}
           month={selectedMonth}
           year={selectedYear}
           previousMonthData={previousMonthData}
@@ -1913,8 +1910,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           open={showExportDialog}
           onOpenChange={setShowExportDialog}
           aircraftId={aircraftId}
-          aircraftRegistration={aircraft?.registration || ''}
-          aircraftModel={aircraft?.model || ''}
+          aircraftRegistration={aircraft?.matricula || ''}
+          aircraftModel={aircraft?.modelo || ''}
           clientName={''}
           availableMonths={availableMonths}
           entries={entries}
@@ -1935,8 +1932,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           // Find the selected partner based on the current partner ID
           const currentPartnerId = flightType === 'emprestimo' && pendingClientId === newEntry.loan_recipient_client_id ?
           newEntry.loan_recipient_partner_id :
-          newEntry.client_partner_id;
-          const currentPartnerName = partners.find((p) => p.id === currentPartnerId)?.name || '';
+          newEntry.socio_cliente_id_id;
+          const currentPartnerName = partners.find((p) => p.id === currentPartnerId)?.nome || '';
 
           // Transformar partners para adicionar index
           const partnersWithIndex = partners.map((p, idx) => ({
@@ -1948,17 +1945,17 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             <PartnerSelectModal
               open={showPartnerModal}
               onOpenChange={setShowPartnerModal}
-              clientName={selectedClient?.company_name || ''}
+              clientName={selectedClient?.razao_social || ''}
               partners={partnersWithIndex}
               selectedPartner={currentPartnerName}
               onSelectPartner={(partnerName) => {
                 // Find partner ID from name
-                const partner = partners.find((p) => p.name === partnerName);
+                const partner = partners.find((p) => p.nome === partnerName);
                 const partnerId = partner?.id || null;
 
                 // Verifica qual fluxo está ativo
                 if (flightType === 'emprestimo') {
-                  if (pendingClientId === newEntry.client_id) {
+                  if (pendingClientId === newEntry.cliente_id) {
                     // Selecionando parceiro do cliente que empresta - mas não usamos para empréstimos
                     // client_partner_id deve ser null para empréstimos
                     setNewEntry({
@@ -2306,7 +2303,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
 
               <datalist id="aerodromes-list">
-                {aerodromes.map((a) => <option key={a.id} value={a.designativo}>{a.name}</option>)}
+                {aerodromes.map((a) => <option key={a.id} value={a.designativo}>{a.nome}</option>)}
               </datalist>
 
               {newEntry.distance_nm > 0 && <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center">
@@ -2325,7 +2322,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         // Obter o primeiro cliente vinculado à aeronave (proprietário)
-                        const linkedClientId = sortedClients.find((c) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId))?.id || '';
+                        const linkedClientId = sortedClients.find((c) => c.client_aircraft?.some((ca: any) => ca.aeronave_id === aircraftId))?.id || '';
 
                         setFlightType('cliente');
                         setNewEntry({
@@ -2387,7 +2384,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-slate-950/50 border border-slate-800 rounded-lg">
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
-                      <Select value={newEntry.client_id} onValueChange={(v) => {
+                      <Select value={newEntry.cliente_id} onValueChange={(v) => {
                       const selectedClient = clients.find((c) => c.id === v);
                       const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
@@ -2410,10 +2407,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         </SelectTrigger>
                         <SelectContent>
                           {sortedClients.
-                        filter((cl) => cl.client_aircraft?.some((ca) => ca.aircraft_id === aircraftId)).
+                        filter((cl) => cl.client_aircraft?.some((ca) => ca.aeronave_id === aircraftId)).
                         map((cl) =>
                         <SelectItem key={cl.id} value={cl.id}>
-                                {cl.company_name}
+                                {cl.razao_social}
                                 <span className="text-emerald-400"> ✓</span>
                               </SelectItem>
                         )
@@ -2423,31 +2420,31 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
 
                     {/* Seleção de Sócio/Partner - mostra quando cliente tem parceiros */}
-                    {newEntry.client_id && (() => {
-                    const selectedClient = clients.find((c) => c.id === newEntry.client_id);
+                    {newEntry.cliente_id && (() => {
+                    const selectedClient = clients.find((c) => c.id === newEntry.cliente_id);
                     const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
                     if (partners.length > 0) {
                       return (
                         <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                             <Label className="text-[9px] uppercase text-amber-500 ml-1 block">
-                              {newEntry.client_partner_id ? 'Sócio Selecionado' : 'Selecionar Sócio'}
+                              {newEntry.socio_cliente_id_id ? 'Sócio Selecionado' : 'Selecionar Sócio'}
                             </Label>
                             <div className="flex items-center justify-between">
-                              <p className={`text-sm font-bold ${newEntry.client_partner_id ? 'text-amber-400' : 'text-slate-400'}`}>
-                                {newEntry.client_partner_id ?
-                              partners.find((p) => p.id === newEntry.client_partner_id)?.name || 'Selecionado' :
+                              <p className={`text-sm font-bold ${newEntry.socio_cliente_id_id ? 'text-amber-400' : 'text-slate-400'}`}>
+                                {newEntry.socio_cliente_id_id ?
+                              partners.find((p) => p.id === newEntry.socio_cliente_id_id)?.nome || 'Selecionado' :
                               'Nenhum sócio selecionado'}
                               </p>
                               <button
                               type="button"
                               onClick={() => {
-                                setPendingClientId(newEntry.client_id);
+                                setPendingClientId(newEntry.cliente_id);
                                 setShowPartnerModal(true);
                               }}
                               className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all">
                               
-                                {newEntry.client_partner_id ? 'Alterar' : 'Selecionar'}
+                                {newEntry.socio_cliente_id_id ? 'Alterar' : 'Selecionar'}
                               </button>
                             </div>
                             {selectedClient?.cnpj &&
@@ -2500,7 +2497,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     {/* Cliente que está emprestando */}
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
-                      <Select value={newEntry.client_id} onValueChange={(v) => {
+                      <Select value={newEntry.cliente_id} onValueChange={(v) => {
                       const selectedClient = clients.find((c) => c.id === v);
 
                       setNewEntry({
@@ -2520,13 +2517,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <SelectContent>
                           {sortedClients.map((cl) => {
                           // Verificar se o cliente está vinculado à aeronave
-                          const isLinkedToAircraft = cl.client_aircraft?.some((ca) => ca.aircraft_id === aircraftId);
+                          const isLinkedToAircraft = cl.client_aircraft?.some((ca) => ca.aeronave_id === aircraftId);
                           // Mostrar apenas clientes vinculados à aeronave (sócios)
                           const shouldShow = isLinkedToAircraft;
 
                           return shouldShow ?
                           <SelectItem key={cl.id} value={cl.id}>
-                                {cl.company_name}
+                                {cl.razao_social}
                               </SelectItem> :
                           null;
                         })}
@@ -2565,7 +2562,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <SelectContent>
                           {clients.map((cl) =>
                         <SelectItem key={cl.id} value={cl.id}>
-                              {cl.company_name}
+                              {cl.razao_social}
                             </SelectItem>
                         )}
                         </SelectContent>
@@ -2582,7 +2579,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                             <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado</Label>
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-amber-400">{borrowerPartners.find((p) => p.id === newEntry.loan_recipient_partner_id)?.name || 'Selecionado'}</p>
+                              <p className="text-sm font-bold text-amber-400">{borrowerPartners.find((p) => p.id === newEntry.loan_recipient_partner_id)?.nome || 'Selecionado'}</p>
                               <button
                               type="button"
                               onClick={() => {
@@ -2915,7 +2912,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {calculatePerDiemInfo.details.map((pd, idx) => {
-                const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.date}` : `${idx}`;
+                const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.data}` : `${idx}`;
                 const isMarked = markedDailies[uniqueKey] || false;
                 return (
                   <div
@@ -2940,7 +2937,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <div className="flex-1 min-w-0">
                           <p className={`text-[9px] uppercase font-bold mb-1 ${isMarked ? 'text-sky-400' : 'text-yellow-500'}`
                         }>
-                            {pd.date}
+                            {pd.data}
                           </p>
                           <p className="text-xs text-slate-400 truncate">{pd.location}</p>
                         </div>
@@ -3063,9 +3060,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <tbody className="divide-y divide-slate-800">
                   {technicalStatus.crew_records.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-2 text-center">
-                      <input type="date" value={record.date} onChange={(e) => {
+                      <input type="data" value={record.data} onChange={(e) => {
                         const newRecords = [...technicalStatus.crew_records];
-                        newRecords[idx].date = e.target.value;
+                        newRecords[idx].data = e.target.value;
                         setTechnicalStatus({
                           ...technicalStatus,
                           crew_records: newRecords
@@ -3150,9 +3147,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <tbody className="divide-y divide-slate-800">
                   {technicalStatus.service_return.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-2 text-center">
-                      <input type="date" value={record.date} onChange={(e) => {
+                      <input type="data" value={record.data} onChange={(e) => {
                         const newRecords = [...technicalStatus.service_return];
-                        newRecords[idx].date = e.target.value;
+                        newRecords[idx].data = e.target.value;
                         setTechnicalStatus({
                           ...technicalStatus,
                           service_return: newRecords
@@ -3358,7 +3355,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-800/50 text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-800">
-                  <th onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')} className="p-2 text-center cursor-pointer hover:text-sky-400 transition-colors group px-[7px] relative select-none" style={{ width: `${columnWidths.date}px` }}>
+                  <th onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')} className="p-2 text-center cursor-pointer hover:text-sky-400 transition-colors group px-[7px] relative select-none" style={{ width: `${columnWidths.data}px` }}>
                     <div className="flex items-center justify-center gap-1">
                       <span>Data</span>
                       <span className="text-[7px] opacity-60 group-hover:opacity-100 transition-opacity font-extrabold bg-transparent text-primary-glow px-[4px]">
@@ -3477,10 +3474,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   const sicCrew = crew.find((c) => c.id === e.sic_canac);
                   // Exibir apenas o cliente do voo (client_id) - nunca o partner_name
                   // (partner_name em empréstimo contém quem pegou emprestado, não o dono)
-                  const lenderClient = clients.find((c) => c.id === e.client_id);
-                  const displayClientName = lenderClient?.company_name;
+                  const lenderClient = clients.find((c) => c.id === e.cliente_id);
+                  const displayClientName = lenderClient?.razao_social;
                   const borrowerClient = e.loan_recipient_client_id ? clients.find((c) => c.id === e.loan_recipient_client_id) : null;
-                  const displayBorrowerName = borrowerClient?.company_name;
+                  const displayBorrowerName = borrowerClient?.razao_social;
 
                   // Para empréstimos: buscar nome do parceiro do tomador se existir
                   const borrowerPartnerName = e.is_loan && e.loan_recipient_partner_id ?
@@ -3488,11 +3485,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   null;
 
                   // Para voos normais: buscar nome do parceiro do cliente se existir
-                  const clientPartnerName = !e.is_loan && e.client_partner_id ?
-                  getPartnerNameById(e.client_partner_id, clientPartners) :
+                  const clientPartnerName = !e.is_loan && e.socio_cliente_id_id ?
+                  getPartnerNameById(e.socio_cliente_id_id, clientPartners) :
                   null;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
-                    <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.data}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
                         <span className="text-slate-500 text-[10px]" title={`Sequência do mês: ${e.sequential_number}`}>#{e.sequential_number}</span>
                         <span className="text-white font-bold">{formatDateFromISO(e.entry_date)}</span>
@@ -3543,7 +3540,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                             <span
                               className="text-blue-400 font-bold text-xs cursor-pointer hover:text-blue-300 hover:underline transition-colors"
                               title={`Abastecimento: ${linked.litros}L | ${linked.trecho || ''} | ${linked.local || ''} | ${linked.data || ''}\nClique para ver detalhes`}
-                              onClick={() => navigate('/abastecimento', { state: { highlightAbastecimentoId: linked.id, clientId: linked.client_id } })}
+                              onClick={() => navigate('/abastecimento', { state: { highlightAbastecimentoId: linked.id, clientId: linked.cliente_id } })}
                             >
                               {fuelValue}
                             </span>
@@ -3650,24 +3647,24 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             filteredEntries.forEach((e) => {
               if (e.is_equal_split) {
                 splitHours += e.time || 0;
-              } else if (e.client_id) {
-                const clientName = clients.find((c) => c.id === e.client_id)?.company_name?.split(' ')[0] || 'Cliente';
+              } else if (e.cliente_id) {
+                const clientName = clients.find((c) => c.id === e.cliente_id)?.razao_social?.split(' ')[0] || 'Cliente';
 
                 // Se é empréstimo (is_loan = true), agregar pelo cliente dono
                 if (e.is_loan) {
-                  if (!clientTotals[e.client_id]) {
-                    clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                  if (!clientTotals[e.cliente_id]) {
+                    clientTotals[e.cliente_id] = { hours: 0, dailyRates: 0, name: clientName };
                   }
-                  clientTotals[e.client_id].hours += e.time || 0;
-                  clientTotals[e.client_id].dailyRates += e.daily_rate || 0;
+                  clientTotals[e.cliente_id].hours += e.time || 0;
+                  clientTotals[e.cliente_id].dailyRates += e.daily_rate || 0;
                 } else {
                   // Voo normal: tentar agrupar por parceiro se houver
-                  const hasClientPartner = e.client_partner_id;
+                  const hasClientPartner = e.socio_cliente_id_id;
 
                   if (hasClientPartner) {
                     // Agregar pelo client_partner_id
-                    const partnerName = getPartnerNameById(e.client_partner_id, clientPartners) || 'Parceiro Desconhecido';
-                    const partnerKey = e.client_partner_id;
+                    const partnerName = getPartnerNameById(e.socio_cliente_id_id, clientPartners) || 'Parceiro Desconhecido';
+                    const partnerKey = e.socio_cliente_id_id;
 
                     if (!partnerTotals[partnerKey]) {
                       partnerTotals[partnerKey] = { hours: 0, dailyRates: 0, voos: 0, partnerName };
@@ -3675,21 +3672,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     partnerTotals[partnerKey].hours += e.time || 0;
                     partnerTotals[partnerKey].dailyRates += e.daily_rate || 0;
                     partnerTotals[partnerKey].voos += 1;
-                  } else if (e.partner_name) {
+                  } else if (e.nome_socio) {
                     // Fallback: usar partner_name se existir (compatibilidade com dados antigos)
-                    if (!partnerTotals[e.partner_name]) {
-                      partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0, partnerName: e.partner_name };
+                    if (!partnerTotals[e.nome_socio]) {
+                      partnerTotals[e.nome_socio] = { hours: 0, dailyRates: 0, voos: 0, partnerName: e.nome_socio };
                     }
-                    partnerTotals[e.partner_name].hours += e.time || 0;
-                    partnerTotals[e.partner_name].dailyRates += e.daily_rate || 0;
-                    partnerTotals[e.partner_name].voos += 1;
+                    partnerTotals[e.nome_socio].hours += e.time || 0;
+                    partnerTotals[e.nome_socio].dailyRates += e.daily_rate || 0;
+                    partnerTotals[e.nome_socio].voos += 1;
                   } else {
                     // Sem parceiro: agregar pelo cliente
-                    if (!clientTotals[e.client_id]) {
-                      clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                    if (!clientTotals[e.cliente_id]) {
+                      clientTotals[e.cliente_id] = { hours: 0, dailyRates: 0, name: clientName };
                     }
-                    clientTotals[e.client_id].hours += e.time || 0;
-                    clientTotals[e.client_id].dailyRates += e.daily_rate || 0;
+                    clientTotals[e.cliente_id].hours += e.time || 0;
+                    clientTotals[e.cliente_id].dailyRates += e.daily_rate || 0;
                   }
                 }
               }
@@ -3778,7 +3775,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
                       {Object.values(clientTotals).map((ct, idx) =>
                     <span key={idx}>
-                          <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
+                          <span className="text-cyan-400 font-semibold">{ct.nome.split(' ')[0]}</span>
                           {' '}{decimalToHHMM(ct.hours)}h
                           {logbookMonth?.has_daily_rate && ct.dailyRates > 0 &&
                       <span className="text-yellow-400"> • R${ct.dailyRates.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
@@ -3820,7 +3817,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Data *</Label>
-                    <Input type="date" value={editingEntry.entry_date ?? ''} onChange={(e) => setEditingEntry({
+                    <Input type="data" value={editingEntry.entry_date ?? ''} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       entry_date: e.target.value
                     })} className="bg-slate-900 border border-slate-700 text-white h-10" />
@@ -3834,7 +3831,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       onChange={(e) => setEditingEntry({
                         ...editingEntry,
                         is_equal_split: e.target.checked,
-                        client_id: e.target.checked ? '' : editingEntry.client_id
+                        client_id: e.target.checked ? '' : editingEntry.cliente_id
                       })}
                       className="w-5 h-5 rounded cursor-pointer accent-emerald-500" />
                     
@@ -3867,7 +3864,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
                   <div className="space-y-2">
                       <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Cliente *</Label>
-                      <Select value={editingEntry.client_id} onValueChange={(v) => setEditingEntry({
+                      <Select value={editingEntry.cliente_id} onValueChange={(v) => setEditingEntry({
                       ...editingEntry,
                       client_id: v
                     })}>
@@ -3875,7 +3872,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>)}
+                          {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.razao_social}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -3974,7 +3971,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {aerodromes.map((a) => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
+                        {aerodromes.map((a) => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -3988,7 +3985,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {aerodromes.map((a) => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
+                        {aerodromes.map((a) => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.nome}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

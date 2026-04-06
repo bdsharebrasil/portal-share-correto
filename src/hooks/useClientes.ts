@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
-export type Cliente = Tables<"clients"> & {
+export type Cliente = Tables<"clientes"> & {
   client_aircraft?: Array<{
-    aircraft_id: string;
-    share_percentage: number;
+    aeronave_id: string;
+    percentual_sociedade: number;
     aircraft: {
       id: string;
       registration: string;
@@ -17,9 +17,9 @@ export type Cliente = Tables<"clients"> & {
 };
 
 // Sugestão: usar a tipagem gerada pelo Supabase em vez de uma interface manual
-export type ClientPartner = Tables<"client_partners">;
+export type ClientPartner = Tables<"socios_cliente">;
 
-const clientesQueryKey = ["clients"];
+const clientesQueryKey = ["clientes"];
 
 export const useClientes = () => {
   const query = useQuery<Cliente[]>({
@@ -27,27 +27,18 @@ export const useClientes = () => {
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .from('clients')
+          .from('clientes')
           // Se precisar trazer as aeronaves vinculadas, use o select abaixo:
-          // .select('*, client_aircraft(aircraft_id, share_percentage, aircraft(id, registration, manufacturer, model, year))')
+          // .select('*, client_aircraft(aeronave_id, percentual_sociedade, aircraft(id, matricula, fabricante, modelo, year))')
           .select('*')
-          .or(`status.eq.ativo,status.eq.active`)
-          .order('company_name', { ascending: true });
+          .order('razao_social', { ascending: true });
 
         if (error) {
           console.error('Erro ao buscar clientes do Supabase:', error);
           throw error;
         }
 
-        const normalize = (s: any) => {
-          const st = String(s ?? '').trim().toLowerCase();
-          if (!st) return 'ativo';
-          if (st === 'active') return 'ativo';
-          if (st === 'inactive') return 'inativo';
-          return st;
-        };
-
-        return (data || []).map((d: any) => ({ ...d, status: normalize(d.status) })) as Cliente[];
+        return (data || []) as Cliente[];
       } catch (error) {
         console.error('Erro ao buscar clientes:', error);
         throw error;
@@ -78,10 +69,10 @@ export function useClientPartners(clientId: string | null) {
       if (!clientId) return [];
 
       const { data, error } = await supabase
-        .from("client_partners")
+        .from("socios_cliente")
         .select("*")
-        .eq("client_id", clientId)
-        .order("name");
+        .eq("cliente_id", clientId)
+        .order("nome");
 
       if (error) {
         console.error("[useClientPartners] Erro ao buscar parceiros:", error);
@@ -102,9 +93,9 @@ export function useAllClientPartners() {
     queryKey: ["all-client-partners"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_partners")
+        .from("socios_cliente")
         .select("*")
-        .order("name");
+        .order("nome");
 
       if (error) {
         console.error("[useAllClientPartners] Erro ao buscar parceiros:", error);

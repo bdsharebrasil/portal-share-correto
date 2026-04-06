@@ -16,7 +16,7 @@ const ITEMS_PER_PAGE = 9;
 
 export default function Aeronaves() {
   const navigate = useNavigate();
-  const { uploadAircraftImage } = useAircraftImages();
+  const { uploadAeronaveImage } = useAircraftImages();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,12 +30,12 @@ export default function Aeronaves() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: aircraft, isLoading, refetch } = useQuery({
-    queryKey: ["aircraft"],
+    queryKey: ["aeronave"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
+        .from('aeronave')
         .select("*")
-        .order("registration", { ascending: true });
+        .order('matricula', { ascending: true });
       if (error) throw error;
       return data;
     }
@@ -45,13 +45,13 @@ export default function Aeronaves() {
     queryKey: ["clients-for-aircraft"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("clients")
-        .select(`id, company_name, client_aircraft(aircraft_id)`);
+        .from("clientes")
+        .select(`id, razao_social, cotistas_aeronave(id_aeronave)`);
       if (error) throw error;
       return data as Array<{
         id: string;
-        company_name: string | null;
-        client_aircraft: Array<{ aircraft_id: string }>;
+        razao_social: string | null;
+        cotistas_aeronave: Array<{ id_aeronave: string }>;
       }>;
     }
   });
@@ -59,10 +59,10 @@ export default function Aeronaves() {
   const clientCountByAircraft = useMemo(() => {
     const map = new Map<string, number>();
     (clients || []).forEach(c => {
-      if (c.client_aircraft && Array.isArray(c.client_aircraft)) {
-        c.client_aircraft.forEach((ca: any) => {
-          if (ca.aircraft_id) {
-            map.set(ca.aircraft_id, (map.get(ca.aircraft_id) || 0) + 1);
+      if (c.cotistas_aeronave && Array.isArray(c.cotistas_aeronave)) {
+        c.cotistas_aeronave.forEach((ca: any) => {
+          if (ca.id_aeronave) {
+            map.set(ca.id_aeronave, (map.get(ca.id_aeronave) || 0) + 1);
           }
         });
       }
@@ -89,7 +89,7 @@ export default function Aeronaves() {
     if (!imageFile || !selectedAircraftForImage) return;
     setIsUploadingImage(true);
     try {
-      const result = await uploadAircraftImage(selectedAircraftForImage.id, imageFile);
+      const result = await uploadAeronaveImage(selectedAircraftForImage.id, imageFile);
       if (result.success) {
         toast.success("Imagem da aeronave salva com sucesso");
         setImageUploadOpen(false);
@@ -121,9 +121,9 @@ export default function Aeronaves() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(a =>
-        a.registration?.toLowerCase().includes(term) ||
-        a.model?.toLowerCase().includes(term) ||
-        a.manufacturer?.toLowerCase().includes(term) ||
+        a.matricula?.toLowerCase().includes(term) ||
+        a.modelo?.toLowerCase().includes(term) ||
+        a.fabricante?.toLowerCase().includes(term) ||
         a.base?.toLowerCase().includes(term)
       );
     }
@@ -143,7 +143,7 @@ export default function Aeronaves() {
     setCurrentPage(1);
   }, [searchTerm, activeFilter]);
 
-  const AircraftCard = ({ aircraft: a }: { aircraft: any }) => {
+  const AeronaveCard = ({ aircraft: a }: { aircraft: any }) => {
     const sociosCount = clientCountByAircraft.get(a.id) || 0;
     
     return (
@@ -155,10 +155,10 @@ export default function Aeronaves() {
           <div className="flex">
             {/* Imagem da Aeronave */}
             <div className="relative w-24 h-24 flex-shrink-0 bg-muted overflow-hidden">
-              {a.image_url ? (
+              {a.url_imagem ? (
                 <img
-                  src={a.image_url}
-                  alt={a.registration}
+                  src={a.url_imagem}
+                  alt={a.matricula}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               ) : (
@@ -184,7 +184,7 @@ export default function Aeronaves() {
             {/* Conteúdo */}
             <div className="flex-1 p-3 min-w-0">
               <h3 className="text-base font-bold text-foreground uppercase tracking-wide truncate">
-                {a.registration}
+                {a.matricula}
               </h3>
               
               <div className="mt-2 space-y-1">
@@ -198,7 +198,7 @@ export default function Aeronaves() {
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                     <span>Ano:</span>
-                    <span className="font-medium text-foreground">{a.year || "-"}</span>
+                    <span className="font-medium text-foreground">{a.ano || "-"}</span>
                   </div>
                   
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -299,7 +299,7 @@ export default function Aeronaves() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {paginatedAircraft.map((a: any) => (
-                <AircraftCard key={a.id} aircraft={a} />
+                <AeronaveCard key={a.id} aircraft={a} />
               ))}
             </div>
 
@@ -390,9 +390,9 @@ export default function Aeronaves() {
               {selectedAircraftForImage && (
                 <div className="p-3 bg-muted rounded-lg border border-border">
                   <p className="text-sm text-foreground">
-                    <span className="font-semibold">Aeronave:</span> {selectedAircraftForImage.registration}
+                    <span className="font-semibold">Aeronave:</span> {selectedAircraftForImage.matricula}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">{selectedAircraftForImage.model}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{selectedAircraftForImage.modelo}</p>
                 </div>
               )}
             </div>

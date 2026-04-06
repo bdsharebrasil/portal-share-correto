@@ -82,19 +82,19 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
   const enrichEntries = (rawEntries: any[]) => {
     const crewMap = new Map<string, string>();
     crewMembers.forEach((c: any) => {
-      crewMap.set(c.id, c.full_name || c.name || '');
+      crewMap.set(c.id, c.full_name || c.nome || '');
     });
 
     const clientMap = new Map<string, string>();
     clients.forEach((c: any) => {
-      clientMap.set(c.id, c.company_name || c.name || '');
+      clientMap.set(c.id, c.razao_social || c.nome || '');
     });
 
     return rawEntries.map(entry => {
       // Resolve partner name from client_partner_id
-      let resolvedPartnerName = entry.partner_name || '';
-      if (entry.client_partner_id && clientPartners[entry.client_partner_id]) {
-        resolvedPartnerName = clientPartners[entry.client_partner_id].partner_name || resolvedPartnerName;
+      let resolvedPartnerName = entry.nome_socio || '';
+      if (entry.socio_cliente_id_id && clientPartners[entry.socio_cliente_id_id]) {
+        resolvedPartnerName = clientPartners[entry.socio_cliente_id_id].nome_socio || resolvedPartnerName;
       }
 
       // Determine which client to use: loan recipient if is_loan, otherwise original client
@@ -103,7 +103,7 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
       if (entry.is_loan && entry.loan_recipient_client_id) {
         // Resolve loan recipient client name
         const loanRecipientName = clientMap.get(entry.loan_recipient_client_id) || entry.loan_recipient_client_name || '';
-        const clientName = clientMap.get(entry.client_id) || entry.client_company_name || '';
+        const clientName = clientMap.get(entry.cliente_id) || entry.client_company_name || '';
 
         if (loanRecipientName && clientName) {
           // Show format: "OWNER → RECIPIENT"
@@ -115,7 +115,7 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
         }
       } else {
         // Regular flight: show client and partner if applicable
-        const clientName = clientMap.get(entry.client_id) || entry.client_company_name || '';
+        const clientName = clientMap.get(entry.cliente_id) || entry.client_company_name || '';
         displayVooPara = clientName;
         if (resolvedPartnerName && clientName) {
           // Abbreviate client name (first word) + partner first name

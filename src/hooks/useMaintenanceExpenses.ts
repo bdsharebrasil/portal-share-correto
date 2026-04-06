@@ -16,7 +16,7 @@ export interface ManutencaoOption {
 export interface DespesaManutencao {
   id: string;
   manutencao_id: string;
-  aircraft_id: string | null;
+  aeronave_id: string | null;
   client_id: string | null;
   descricao: string;
   valor: number;
@@ -66,7 +66,7 @@ export function useMaintenanceExpenses(manutencaoId: string | null) {
         .from("despesas_manutencao")
         .select("*")
         .eq("manutencao_id", manutencaoId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return (data || []) as DespesaManutencao[];
     },
@@ -119,7 +119,7 @@ export function useCreateMaintenanceExpense() {
         .from("despesas_manutencao")
         .insert({
           manutencao_id: data.manutencaoId,
-          aircraft_id: data.aircraftId,
+          aeronave_id: data.aeronaveId,
           client_id: data.clientId,
           descricao: data.descricao,
           valor: data.valor,
@@ -173,7 +173,7 @@ export interface MaintenanceReportData {
   maintenanceItems: any[];
   oilAnalysis: any[];
   despesas: (DespesaManutencao & { rateios: DespesaManutencaoRateio[] })[];
-  partners: Array<{ id: string; name: string; cpf: string; share_percentage: number | null }>;
+  partners: Array<{ id: string; name: string; cpf: string; percentual_sociedade: number | null }>;
   totals: {
     totalParts: number;
     totalServices: number;
@@ -203,8 +203,8 @@ export function useMaintenanceReport(manutencaoId: string | null) {
       let aircraft = null;
       if (aircraftId) {
         const { data: ac } = await supabase
-          .from("aircraft")
-          .select("id, registration, model")
+          .from('aeronave')
+          .select('id, matricula, modelo')
           .eq("id", aircraftId)
           .single();
         aircraft = ac;
@@ -214,10 +214,10 @@ export function useMaintenanceReport(manutencaoId: string | null) {
       let serviceOrders: any[] = [];
       if (aircraftId) {
         const { data } = await supabase
-          .from("ctm_service_orders")
+          .from("service_orders")
           .select("*")
-          .eq("aircraft_id", aircraftId)
-          .order("created_at", { ascending: false });
+          .eq("id_aeronave", aircraftId)
+          .order("criado_em", { ascending: false });
         serviceOrders = data || [];
       }
 
@@ -260,7 +260,7 @@ export function useMaintenanceReport(manutencaoId: string | null) {
         const { data } = await supabase
           .from("maintenance_items")
           .select("*")
-          .eq("aircraft_id", aircraftId);
+          .eq("id_aeronave", aircraftId);
         maintenanceItems = data || [];
       }
 
@@ -270,8 +270,8 @@ export function useMaintenanceReport(manutencaoId: string | null) {
         const { data } = await supabase
           .from("oil_analysis")
           .select("*")
-          .eq("aircraft_id", aircraftId)
-          .order("date", { ascending: false })
+          .eq("id_aeronave", aircraftId)
+          .order("data", { ascending: false })
           .limit(10);
         oilAnalysis = data || [];
       }
@@ -296,19 +296,19 @@ export function useMaintenanceReport(manutencaoId: string | null) {
       // 11. Fetch partners from client
       let partners: any[] = [];
       if (manutencao.aeronave_id) {
-        // Find client through client_aircraft
+        // Find client through cotistas_aeronave
         const { data: ca } = await supabase
-          .from("client_aircraft")
-          .select("client_id")
-          .eq("aircraft_id", manutencao.aeronave_id)
+          .from("cotistas_aeronave")
+          .select("id_cliente")
+          .eq("id_aeronave", manutencao.aeronave_id)
           .limit(1)
           .single();
-        if (ca?.client_id) {
+        if (ca?.id_cliente) {
           const { data: p } = await supabase
-            .from("client_partners")
-            .select("id, name, cpf, share_percentage")
-            .eq("client_id", ca.client_id)
-            .order("name");
+            .from("socios_cliente")
+            .select("id, nome, cpf, percentual_participacao")
+            .eq("cliente_id", ca.cliente_id)
+            .order("nome");
           partners = p || [];
         }
       }
@@ -323,7 +323,7 @@ export function useMaintenanceReport(manutencaoId: string | null) {
       const byPartner: Record<string, number> = {};
       for (const d of despesasWithRateios) {
         for (const r of d.rateios) {
-          byPartner[r.client_partner_id] = (byPartner[r.client_partner_id] || 0) + r.valor;
+          byPartner[r.socio_cliente_id_id] = (byPartner[r.socio_cliente_id_id] || 0) + r.valor;
         }
       }
 

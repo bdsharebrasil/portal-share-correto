@@ -58,7 +58,7 @@ export function NextMaintenanceSchedule({
           event: '*',
           schema: 'public',
           table: 'logbook_months',
-          filter: `aircraft_id=eq.${aircraftId}`,
+          filter: `aeronave_id=eq.${aircraftId}`,
         },
         () => {
           console.log('NextMaintenanceSchedule: Real-time update detected (logbook_months)');
@@ -83,7 +83,7 @@ export function NextMaintenanceSchedule({
       const { data: manutencoes, error: manutError } = await supabase
         .from('manutencoes')
         .select('*')
-        .eq('aeronave_id', aircraftId)
+        .eq('aircraft_id', aircraftId)
         .order('updated_at', { ascending: false });
 
       if (!manutError && manutencoes && manutencoes.length > 0) {

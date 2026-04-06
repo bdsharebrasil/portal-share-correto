@@ -44,7 +44,7 @@ export function useInvoices() {
         .from("invoices")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       if (error) {
         toast.error("Erro ao carregar notas fiscais");
@@ -86,7 +86,7 @@ export function useCreateInvoice() {
             value: parseFloat(invoiceData.value),
             issue_date: invoiceData.issueDate.toISOString().split('T')[0],
             due_date: invoiceData.dueDate ? invoiceData.dueDate.toISOString().split('T')[0] : null,
-            observations: invoiceData.observations,
+            observations: invoiceData.observacoes,
             status: "issued",
           },
         ])
@@ -140,7 +140,7 @@ export function useAccountsReceivable() {
       const { data, error } = await supabase
         .from("accounts_receivable")
         .select("*")
-        .order("due_date", { ascending: true });
+        .order("data_vencimento", { ascending: true });
 
       if (error) {
         toast.error("Erro ao carregar contas a receber");
@@ -151,7 +151,7 @@ export function useAccountsReceivable() {
       return (data || []).map(d => ({
         ...d,
         invoiceId: d.invoice_id,
-        dueDate: d.due_date,
+        dueDate: d.data_vencimento,
       })) as unknown as AccountsReceivable[];
     },
   });

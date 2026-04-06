@@ -91,7 +91,7 @@ export function RASForm({ aircraftId, onSuccess, onCancel, existingRAS }: RASFor
       const uploadedPhotos = [];
       for (const photo of photos) {
         if (photo.file) {
-          const fileName = `ras/${aircraftId}/${Date.now()}_${photo.file.name}`;
+          const fileName = `ras/${aircraftId}/${Date.now()}_${photo.file.nome}`;
           const { error: uploadError } = await supabase.storage
             .from('maintenance-photos')
             .upload(fileName, photo.file);
@@ -119,7 +119,7 @@ export function RASForm({ aircraftId, onSuccess, onCancel, existingRAS }: RASFor
 
       // Prepare RAS data
       const rasData = {
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         service_order_number: data.serviceOrderNumber,
         maintenance_center: data.maintenanceCenter,
         maintenance_type: data.maintenanceType,
@@ -172,7 +172,7 @@ export function RASForm({ aircraftId, onSuccess, onCancel, existingRAS }: RASFor
       if (savedRAS) {
         onSuccess({
           id: savedRAS.id,
-          aircraftId: savedRAS.aircraft_id,
+          aeronaveId: savedRAS.aeronave_id,
           serviceOrderNumber: savedRAS.service_order_number,
           maintenanceCenter: savedRAS.maintenance_center,
           maintenanceType: savedRAS.maintenance_type,

@@ -34,7 +34,7 @@ const ALLOWED_FILE_TYPES = [
   "image/jpeg",
   "image/png",
   "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.documentoument",
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 ];
@@ -71,7 +71,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
         .from("user_documents")
         .select("*")
         .eq("user_id", employeeId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       console.log("Resposta da listagem de documentos:", { data, error });
 
@@ -92,7 +92,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
       console.error("Erro ao carregar documentos:", {
         error: error,
         message: error?.message,
-        status: error?.status,
+        status: error?.situacao,
       });
 
       toast({
@@ -112,7 +112,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
     const file = files[0];
 
     // Validar tipo de arquivo
-    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+    if (!ALLOWED_FILE_TYPES.includes(file.tipo)) {
       toast({
         title: "Tipo de arquivo não permitido",
         description: "Apenas PDF, Imagens, DOC, DOCX, XLS, XLSX são aceitos",
@@ -146,8 +146,8 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
     // Guardar arquivo pendente e abrir dialog para legenda
     const timestamp = Date.now();
     // Sanitizar nome do arquivo: remover espaços, acentos e caracteres especiais
-    const fileExt = file.name.split('.').pop() || '';
-    const sanitizedName = file.name
+    const fileExt = file.nome.split('.').pop() || '';
+    const sanitizedName = file.nome
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '') // Remove acentos
       .replace(/[^a-zA-Z0-9._-]/g, '_') // Substitui caracteres especiais por _
@@ -156,10 +156,10 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
     const filePath = `${employeeId}/${fileName}`;
 
     setPendingFile({
-      name: file.name,
+      name: file.nome,
       path: filePath,
       size: file.size,
-      type: file.type,
+      type: file.tipo,
     });
     // Guardar o objeto File na state para upload posterior
     (event.currentTarget as any).pendingFileObject = file;
@@ -220,10 +220,10 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
         .from("user_documents")
         .insert({
           user_id: employeeId,
-          file_name: pendingFile.name,
+          file_name: pendingFile.nome,
           file_path: pendingFile.path,
           file_size: pendingFile.size,
-          file_type: pendingFile.type,
+          file_type: pendingFile.tipo,
           description: caption,
           uploaded_by: user.id,
           created_at: new Date().toISOString(),
@@ -259,7 +259,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
         message: error.message,
         code: error.code,
         details: error.details,
-        status: error.status,
+        status: error.situacao,
       });
 
       let errorMessage = error.message || "Erro desconhecido ao fazer upload";
@@ -290,7 +290,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
       // Deletar do storage
       const { error: storageError } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .remove([doc.file_path]);
+        .remove([doc.caminho_arquivo]);
 
       if (storageError) throw storageError;
 
@@ -324,7 +324,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
     try {
       const { data, error } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .download(doc.file_path);
+        .download(doc.caminho_arquivo);
 
       if (error) throw error;
 
@@ -332,7 +332,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
       const url = window.URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = doc.file_name;
+      a.download = doc.nome_arquivo;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -352,7 +352,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
       // Gerar URL pública para visualizar
       const { data } = supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .getPublicUrl(doc.file_path);
+        .getPublicUrl(doc.caminho_arquivo);
 
       if (data?.publicUrl) {
         setViewingDoc(doc);
@@ -416,7 +416,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
               <div className="relative">
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xlsx,.xls"
+                  accept=".pdf,.documento,.documentox,.jpg,.jpeg,.png,.xlsx,.xls"
                   onChange={handleFileUpload}
                   disabled={isLoading}
                   className="hidden"
@@ -495,22 +495,22 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           <FileText className="h-5 w-5 text-cyan-500 flex-shrink-0" />
-                          <p className="text-sm font-medium text-gray-200 truncate">{doc.file_name}</p>
+                          <p className="text-sm font-medium text-gray-200 truncate">{doc.nome_arquivo}</p>
                         </div>
 
-                        {doc.description && (
+                        {doc.descricao && (
                           <p className="text-xs text-gray-300 mb-2 italic">
-                            <span className="font-semibold">Legenda:</span> {doc.description}
+                            <span className="font-semibold">Legenda:</span> {doc.descricao}
                           </p>
                         )}
 
                         <p className="text-xs text-gray-400">
-                          {new Date(doc.created_at).toLocaleDateString("pt-BR")} • {(doc.file_size / 1024).toFixed(2)} KB
+                          {new Date(doc.criado_em).toLocaleDateString("pt-BR")} • {(doc.tamanho_arquivo / 1024).toFixed(2)} KB
                         </p>
                       </div>
 
                       <div className="flex gap-1 flex-shrink-0">
-                        {doc.file_type.includes("pdf") || doc.file_type.includes("image") ? (
+                        {doc.tipo_arquivo.includes("pdf") || doc.tipo_arquivo.includes("image") ? (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -528,7 +528,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
                           size="icon"
                           onClick={() => {
                             setEditingDocId(doc.id);
-                            setEditingCaption(doc.description || "");
+                            setEditingCaption(doc.descricao || "");
                           }}
                           disabled={isLoading}
                           title="Editar legenda"
@@ -576,7 +576,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
             <DialogDescription>
               {pendingFile && (
                 <>
-                  Arquivo: <strong>{pendingFile.name}</strong>
+                  Arquivo: <strong>{pendingFile.nome}</strong>
                 </>
               )}
             </DialogDescription>
@@ -671,27 +671,27 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
           <DialogContent className="max-w-4xl max-h-[90vh] bg-gray-900 border-gray-700 p-0">
             <DialogHeader className="p-4 border-b border-gray-700">
               <DialogTitle className="text-white">
-                {viewingDoc.description || viewingDoc.file_name}
+                {viewingDoc.descricao || viewingDoc.nome_arquivo}
               </DialogTitle>
-              {viewingDoc.description && (
+              {viewingDoc.descricao && (
                 <DialogDescription className="text-gray-400 text-sm">
-                  {viewingDoc.file_name}
+                  {viewingDoc.nome_arquivo}
                 </DialogDescription>
               )}
             </DialogHeader>
 
             <div className="w-full overflow-auto flex-1">
-              {viewingDoc.file_type.includes("pdf") ? (
+              {viewingDoc.tipo_arquivo.includes("pdf") ? (
                 <DocumentViewer
                   url={viewerUrl}
-                  fileName={viewingDoc.file_name}
-                  fileType={viewingDoc.file_type}
+                  fileName={viewingDoc.nome_arquivo}
+                  fileType={viewingDoc.tipo_arquivo}
                 />
-              ) : viewingDoc.file_type.includes("image") ? (
+              ) : viewingDoc.tipo_arquivo.includes("image") ? (
                 <div className="flex items-center justify-center p-4">
                   <img
                     src={viewerUrl}
-                    alt={viewingDoc.file_name}
+                    alt={viewingDoc.nome_arquivo}
                     className="max-w-full max-h-[75vh] object-contain"
                   />
                 </div>

@@ -84,7 +84,7 @@ const STATUS_LABELS: Record<string, {
 // Função auxiliar para upload de arquivos
 const uploadFile = async (file: File, folder: string, clientId?: string): Promise<string> => {
   const timestamp = Date.now();
-  const sanitizedFileName = file.name
+  const sanitizedFileName = file.nome
     .replace(/[^a-zA-Z0-9.\-_]/g, "_")
     .substring(0, 100);
   const fileExt = sanitizedFileName.split('.').pop();
@@ -130,10 +130,10 @@ export function EnvioDespesaTab({
   const loadDespesas = async () => {
     try {
       setLoading(true);
-      let query = (supabase as any).from('despesas_cliente_direto').select('*').eq('client_id', clientId);
+      let query = (supabase as any).from('despesas_cliente_direto').select('*').eq('cliente_id', clientId);
 
       if (aircraftId) {
-        query = query.eq('aeronave_id', aircraftId);
+        query = query.eq('aircraft_id', aircraftId);
       }
 
       const {
@@ -330,7 +330,7 @@ export function EnvioDespesaTab({
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Status</p>
-                        {getStatusBadge(despesa.status)}
+                        {getStatusBadge(despesa.situacao)}
                       </div>
                       <div className="flex items-center gap-1 flex-wrap">
                         {despesa.boleto_url && <Button variant="outline" size="sm" onClick={() => openDocument(despesa.boleto_url!, 'Boleto')} className="h-7 px-2">
@@ -349,19 +349,19 @@ export function EnvioDespesaTab({
                     </div>
                     
                     <div className="flex items-center gap-2 flex-wrap lg:flex-nowrap">
-                      {despesa.status === 'pendente_envio' && <Button variant="default" size="sm" onClick={() => handleSendToClient(despesa)}>
+                      {despesa.situacao === 'pendente_envio' && <Button variant="default" size="sm" onClick={() => handleSendToClient(despesa)}>
                           <Send className="h-4 w-4 mr-1" />
                           Enviar
                         </Button>}
-                      {['enviado', 'aguardando_pagamento'].includes(despesa.status) && <Button variant="outline" size="sm" onClick={() => openPaymentModal(despesa)}>
+                      {['enviado', 'aguardando_pagamento'].includes(despesa.situacao) && <Button variant="outline" size="sm" onClick={() => openPaymentModal(despesa)}>
                           <Check className="h-4 w-4 mr-1" />
                           Registrar Pgto
                         </Button>}
-                      {despesa.status === 'comprovante_recebido' && <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleValidatePayment(despesa)}>
+                      {despesa.situacao === 'comprovante_recebido' && <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleValidatePayment(despesa)}>
                           <Check className="h-4 w-4 mr-1" />
                           Validar
                         </Button>}
-                      {['pendente_envio', 'cancelado'].includes(despesa.status) && <Button variant="ghost" size="sm" onClick={() => handleDelete(despesa.id)} className="text-destructive hover:text-destructive">
+                      {['pendente_envio', 'cancelado'].includes(despesa.situacao) && <Button variant="ghost" size="sm" onClick={() => handleDelete(despesa.id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>}
                     </div>
@@ -386,12 +386,12 @@ export function EnvioDespesaTab({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Data do Pagamento *</Label>
-              <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
+              <Input type="data" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Comprovante de Pagamento</Label>
               <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setComprovanteFile(e.target.files?.[0] || null)} />
-              {comprovanteFile && <p className="text-xs text-muted-foreground">{comprovanteFile.name}</p>}
+              {comprovanteFile && <p className="text-xs text-muted-foreground">{comprovanteFile.nome}</p>}
             </div>
           </div>
           <DialogFooter>

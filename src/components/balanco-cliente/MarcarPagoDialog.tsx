@@ -84,7 +84,7 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
         if (error) throw error;
       } else if (tipo === 'reembolso') {
         const { error } = await supabase
-          .from('bank_reconciliations')
+          .from('conciliacoes_bancarias')
           .update({
             status: 'reembolsado',
             data_reembolso: dataPagamento,
@@ -138,7 +138,7 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
             <Label htmlFor="dataPagamento">Data do Pagamento</Label>
             <Input
               id="dataPagamento"
-              type="date"
+              type="data"
               value={dataPagamento}
               onChange={(e) => setDataPagamento(e.target.value)}
             />

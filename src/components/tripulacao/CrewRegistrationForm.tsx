@@ -14,37 +14,51 @@ import { Edit2, Trash2, Plus } from "lucide-react";
 interface CrewPerson {
   id: string;
   canac: string;
-  full_name: string;
+  nome_completo: string;
+  data_nascimento?: string;
+  telefone?: string;
+  url_avatar?: string;
+  situacao: string;
+  rg?: string;
+  cpf?: string;
+  endereco?: string;
+  criado_em: string;
+  // Backward compatibility
+  full_name?: string;
   birth_date?: string;
   phone?: string;
   avatar_url?: string;
-  status: string;
-  rg?: string;
-  cpf?: string;
+  status?: string;
   address?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 interface FormData {
   canac: string;
-  full_name: string;
-  birth_date: string;
-  phone: string;
+  nome_completo: string;
+  data_nascimento: string;
+  telefone: string;
   rg: string;
   cpf: string;
-  address: string;
-  status: string;
+  endereco: string;
+  situacao: string;
+  // Backward compatibility
+  full_name?: string;
+  birth_date?: string;
+  phone?: string;
+  address?: string;
+  status?: string;
 }
 
 const INITIAL_FORM_STATE: FormData = {
   canac: "",
-  full_name: "",
-  birth_date: "",
-  phone: "",
+  nome_completo: "",
+  data_nascimento: "",
+  telefone: "",
   rg: "",
   cpf: "",
-  address: "",
-  status: "ativo",
+  endereco: "",
+  situacao: "ativo",
 };
 
 export function CrewRegistrationForm() {
@@ -63,9 +77,9 @@ export function CrewRegistrationForm() {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
-        .from("crew")
+        .from("tripulacao")
         .select("*")
-        .order("full_name", { ascending: true });
+        .order("nome_completo", { ascending: true });
 
       if (error) {
         toast({
@@ -103,7 +117,7 @@ export function CrewRegistrationForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.canac || !formData.full_name) {
+    if (!formData.canac || !formData.nome_completo) {
       toast({
         title: "Validação",
         description: "CANAC e Nome são campos obrigatórios",
@@ -118,7 +132,7 @@ export function CrewRegistrationForm() {
       if (editingId) {
         // Update existing crew
         const { error } = await supabase
-          .from("crew")
+          .from("tripulacao")
           .update(formData)
           .eq("id", editingId);
 
@@ -131,7 +145,7 @@ export function CrewRegistrationForm() {
       } else {
         // Insert new crew
         const { error } = await supabase
-          .from("crew")
+          .from("tripulacao")
           .insert([formData]);
 
         if (error) throw error;
@@ -159,13 +173,13 @@ export function CrewRegistrationForm() {
   const handleEdit = (crew: CrewPerson) => {
     setFormData({
       canac: crew.canac,
-      full_name: crew.full_name,
-      birth_date: crew.birth_date || "",
-      phone: crew.phone || "",
+      nome_completo: crew.nome_completo,
+      data_nascimento: crew.data_nascimento || "",
+      telefone: crew.telefone || "",
       rg: crew.rg || "",
       cpf: crew.cpf || "",
-      address: crew.address || "",
-      status: crew.status,
+      endereco: crew.endereco || "",
+      situacao: crew.situacao,
     });
     setEditingId(crew.id);
     setIsDialogOpen(true);
@@ -179,7 +193,7 @@ export function CrewRegistrationForm() {
     try {
       setIsLoading(true);
       const { error } = await supabase
-        .from("crew")
+        .from("tripulacao")
         .delete()
         .eq("id", id);
 
@@ -265,12 +279,12 @@ export function CrewRegistrationForm() {
                     <TableCell className="font-medium">{crew.full_name}</TableCell>
                     <TableCell>{crew.canac}</TableCell>
                     <TableCell>{crew.cpf || "-"}</TableCell>
-                    <TableCell>{crew.phone || "-"}</TableCell>
+                    <TableCell>{crew.telefone || "-"}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={crew.status === "ativo" ? "default" : "secondary"}
+                        variant={crew.situacao === "ativo" ? "default" : "secondary"}
                       >
-                        {crew.status === "ativo" ? "Ativo" : "Inativo"}
+                        {crew.situacao === "ativo" ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
@@ -360,17 +374,17 @@ export function CrewRegistrationForm() {
                 <Label htmlFor="birth_date">Data de Nascimento</Label>
                 <Input
                   id="birth_date"
-                  type="date"
+                  type="data"
                   value={formData.birth_date}
                   onChange={(e) => handleInputChange("birth_date", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Telefone</Label>
+                <Label htmlFor="telefone">Telefone</Label>
                 <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
+                  id="telefone"
+                  value={formData.telefone}
+                  onChange={(e) => handleInputChange("telefone", e.target.value)}
                   placeholder="(11) 99999-9999"
                 />
               </div>
@@ -378,21 +392,21 @@ export function CrewRegistrationForm() {
 
             {/* Row 4 */}
             <div className="space-y-2">
-              <Label htmlFor="address">Endereço</Label>
+              <Label htmlFor="endereco">Endereço</Label>
               <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => handleInputChange("address", e.target.value)}
+                id="endereco"
+                value={formData.endereco}
+                onChange={(e) => handleInputChange("endereco", e.target.value)}
                 placeholder="Rua, número, cidade"
               />
             </div>
 
             {/* Row 5 */}
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="situacao">Status</Label>
               <Select
-                value={formData.status}
-                onValueChange={(value) => handleInputChange("status", value)}
+                value={formData.situacao}
+                onValueChange={(value) => handleInputChange("situacao", value)}
               >
                 <SelectTrigger>
                   <SelectValue />

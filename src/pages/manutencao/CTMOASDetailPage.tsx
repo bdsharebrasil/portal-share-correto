@@ -84,7 +84,7 @@ export function CTMOASDetailPage({
       // Load aircraft info
       if (aircraftId) {
         const { data: aircraftData } = await supabase
-          .from('aircraft')
+          .from('aeronave')
           .select('*')
           .eq('id', aircraftId)
           .single();
@@ -154,12 +154,12 @@ export function CTMOASDetailPage({
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-white">{oasData.numero}</h1>
-              <Badge className={`${getStatusColor(oasData.status)}`}>
-                {oasData.status || 'N/A'}
+              <Badge className={`${getStatusColor(oasData.situacao)}`}>
+                {oasData.situacao || 'N/A'}
               </Badge>
             </div>
             <p className="text-sm text-slate-400">
-              {aircraftRegistration || aircraft?.registration} · {oasData.tipo_manutencao}
+              {aircraftRegistration || aircraft?.matricula} · {oasData.tipo_manutencao}
               {oasData.data_entrada && ` · ${formatDateToBR(oasData.data_entrada)}`}
             </p>
           </div>
@@ -268,11 +268,11 @@ export function CTMOASDetailPage({
                         <p className="text-xs text-slate-500">Versão {link.version}</p>
                       </div>
                       <Badge className={`text-xs ${
-                        link.status === 'approved' ? 'bg-green-500/20 text-green-300' :
-                        link.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                        link.situacao === 'approved' ? 'bg-green-500/20 text-green-300' :
+                        link.situacao === 'rejected' ? 'bg-red-500/20 text-red-300' :
                         'bg-slate-500/20 text-slate-300'
                       }`}>
-                        {link.status}
+                        {link.situacao}
                       </Badge>
                     </div>
                     {link.budget?.total_estimado && (
@@ -310,7 +310,7 @@ export function CTMOASDetailPage({
                     <div className="flex items-center gap-3">
                       <FileText className="h-4 w-4 text-slate-500" />
                       <div>
-                        <p className="text-sm font-medium text-white">{doc.file_name}</p>
+                        <p className="text-sm font-medium text-white">{doc.nome_arquivo}</p>
                         <p className="text-xs text-slate-500">
                           {format(new Date(doc.generated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                         </p>

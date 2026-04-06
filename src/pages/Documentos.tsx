@@ -117,7 +117,7 @@ export default function Documentos() {
       const {
         data: subfolders,
         error: subfoldersError
-      } = await supabase.from("document_folders").select("id, name").eq("parent_folder_id", folderId).order("name");
+      } = await supabase.from("document_folders").select("id, name").eq("parent_folder_id", folderId).order("nome");
       if (subfoldersError) {
         return;
       }
@@ -126,7 +126,7 @@ export default function Documentos() {
       const {
         data: docs,
         error: docsError
-      } = await supabase.from("documents").select("id, name, file_type").eq("folder_id", folderId).order("name").limit(10);
+      } = await supabase.from("documentos").select("id, name, file_type").eq("folder_id", folderId).order("nome").limit(10);
       if (docsError) {
         return;
       }
@@ -136,7 +136,7 @@ export default function Documentos() {
       (subfolders || []).forEach(subfolder => {
         projects.push({
           id: subfolder.id,
-          title: subfolder.name,
+          title: subfolder.nome,
           image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23FFA500' width='100' height='100' rx='10'/%3E%3Cpath d='M15 40 L35 20 L85 20 L85 85 Q85 90 80 90 L20 90 Q15 90 15 85 Z' fill='%23FFB833'/%3E%3C/svg%3E"
         });
       });
@@ -145,8 +145,8 @@ export default function Documentos() {
       (docs || []).forEach(doc => {
         projects.push({
           id: doc.id,
-          title: doc.name,
-          image: getPlaceholderImageForFile(doc.file_type)
+          title: doc.nome,
+          image: getPlaceholderImageForFile(doc.tipo_arquivo)
         });
       });
       setFolderContents(prev => ({
@@ -169,14 +169,14 @@ export default function Documentos() {
       const {
         data: folders,
         error: foldersError
-      } = await foldersQuery.order("name");
+      } = await foldersQuery.order("nome");
       if (foldersError) {
         toast.error("Erro ao carregar pastas");
         return;
       }
 
       // Buscar documentos
-      let docsQuery = supabase.from("documents").select("*");
+      let docsQuery = supabase.from("documentos").select("*");
       if (currentFolder === null) {
         docsQuery = docsQuery.is("folder_id", null);
       } else {
@@ -185,7 +185,7 @@ export default function Documentos() {
       const {
         data: docs,
         error: docsError
-      } = await docsQuery.order("name");
+      } = await docsQuery.order("nome");
       if (docsError) {
         toast.error("Erro ao carregar documentos");
         return;
@@ -200,7 +200,7 @@ export default function Documentos() {
         ...d,
         type: 'file' as const
       }));
-      setItems([...folderItems, ...docItems]);
+      setItems([...folderItems, ...documentoItems]);
 
       // Carregar conteúdo de cada pasta
       (folders || []).forEach(folder => {
@@ -286,11 +286,11 @@ export default function Documentos() {
       setLoading(false);
       return;
     }
-    const uniqueFileName = buildUniqueFileName(uploadFile.name);
+    const uniqueFileName = buildUniqueFileName(uploadFile.nome);
     const filePath = currentFolder ? `${currentFolder}/${uniqueFileName}` : uniqueFileName;
     const {
       error: uploadError
-    } = await supabase.storage.from("documents").upload(filePath, uploadFile);
+    } = await supabase.storage.from("documentos").upload(filePath, uploadFile);
     if (uploadError) {
       setLoading(false);
       toast.error("Erro ao fazer upload do arquivo");
@@ -298,11 +298,11 @@ export default function Documentos() {
     }
     const {
       error: dbError
-    } = await supabase.from("documents").insert({
-      name: uploadFile.name,
+    } = await supabase.from("documentos").insert({
+      name: uploadFile.nome,
       file_path: filePath,
       folder_id: currentFolder,
-      file_type: uploadFile.type,
+      file_type: uploadFile.tipo,
       file_size: uploadFile.size,
       uploaded_by: user.id
     });
@@ -329,16 +329,16 @@ export default function Documentos() {
     });
   };
   const handleDeleteDocument = async (item: DocumentItem) => {
-    const isFolder = item.type === "folder";
-    const message = `Deseja excluir ${isFolder ? "a pasta" : "o arquivo"} "${item.name}"?`;
+    const isFolder = item.tipo === "folder";
+    const message = `Deseja excluir ${isFolder ? "a pasta" : "o arquivo"} "${item.nome}"?`;
     if (!window.confirm(message)) {
       return;
     }
-    if (item.type === "file") {
-      await supabase.storage.from("documents").remove([item.file_path]);
+    if (item.tipo === "file") {
+      await supabase.storage.from("documentos").remove([item.caminho_arquivo]);
       const {
         error
-      } = await supabase.from("documents").delete().eq("id", item.id);
+      } = await supabase.from("documentos").delete().eq("id", item.id);
       if (error) {
         toast.error("Erro ao excluir");
         return;
@@ -359,7 +359,7 @@ export default function Documentos() {
     const {
       data,
       error
-    } = await supabase.storage.from("documents").download(doc.file_path);
+    } = await supabase.storage.from("documentos").download(doc.caminho_arquivo);
     if (error || !data) {
       toast.error("Erro ao baixar arquivo");
       return;
@@ -367,14 +367,14 @@ export default function Documentos() {
     const url = URL.createObjectURL(data);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = doc.name;
+    anchor.download = doc.nome;
     anchor.click();
     URL.revokeObjectURL(url);
   };
   const handleViewFile = async (doc: Document) => {
     const {
       data: publicUrlData
-    } = supabase.storage.from("documents").getPublicUrl(doc.file_path);
+    } = supabase.storage.from("documentos").getPublicUrl(doc.caminho_arquivo);
     if (!publicUrlData?.publicUrl) {
       toast.error("Erro ao visualizar arquivo");
       return;
@@ -507,11 +507,11 @@ export default function Documentos() {
 
         <div className="space-y-6">
           {/* Animated Folders Section */}
-          {items.some(item => item.type === 'folder') && <div>
+          {items.some(item => item.tipo === 'folder') && <div>
               <h2 className="text-xl font-semibold text-foreground mb-4">Pastas</h2>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {items.filter(item => item.type === 'folder').map(item => <div key={item.id} className="relative group">
-                      <AnimatedFolder title={item.name} projects={folderContents[item.id] || []} onClick={() => handleOpenFolder(item as DocumentFolder)} />
+                {items.filter(item => item.tipo === 'folder').map(item => <div key={item.id} className="relative group">
+                      <AnimatedFolder title={item.nome} projects={folderContents[item.id] || []} onClick={() => handleOpenFolder(item as DocumentFolder)} />
                       <Button variant="ghost" size="icon" className="absolute top-1 right- h-8 w-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={() => handleDeleteDocument(item)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -521,16 +521,16 @@ export default function Documentos() {
             </div>}
 
           {/* Files Section */}
-          {items.some(item => item.type === 'file') && <div>
+          {items.some(item => item.tipo === 'file') && <div>
               <h2 className="text-xl font-semibold text-foreground mb-4">Documentos</h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {items.filter(item => item.type === 'file').map(item => <Card key={item.id} className="transition-colors hover:bg-accent/50 rounded-xl">
+                {items.filter(item => item.tipo === 'file').map(item => <Card key={item.id} className="transition-colors hover:bg-accent/50 rounded-xl">
                       <CardContent className="p-4 space-y-4">
                         <div className="flex w-full items-start gap-3 text-left">
                           <FileText className="h-8 w-8 flex-shrink-0 text-primary" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{item.name}</p>
-                            {item.type === "file" && <p className="mt-1 text-xs text-muted-foreground">{formatFileSize(item.file_size)}</p>}
+                            <p className="truncate text-sm font-medium">{item.nome}</p>
+                            {item.tipo === "file" && <p className="mt-1 text-xs text-muted-foreground">{formatFileSize(item.tamanho_arquivo)}</p>}
                           </div>
                         </div>
                         <div className="flex justify-end gap-1">
@@ -560,10 +560,10 @@ export default function Documentos() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                {previewDoc?.name}
+                {previewDoc?.nome}
               </DialogTitle>
             </DialogHeader>
-            {previewDoc && <DocumentViewer url={previewUrl} fileName={previewDoc.name} fileType={previewDoc.file_type} onDownload={() => handleDownloadFile(previewDoc)} />}
+            {previewDoc && <DocumentViewer url={previewUrl} fileName={previewDoc.nome} fileType={previewDoc.tipo_arquivo} onDownload={() => handleDownloadFile(previewDoc)} />}
           </DialogContent>
         </Dialog>
       </div>

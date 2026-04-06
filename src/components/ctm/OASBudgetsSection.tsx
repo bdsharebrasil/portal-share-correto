@@ -92,7 +92,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
     const unitVal = parseFloat(form.valor_unitario) || 0;
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("oas_budgets").insert([{
+      const { error } = await (supabase as any).from("oas_orcamentos").insert([{
         service_order_id: orderId,
         tipo: form.tipo,
         descricao: form.descricao,
@@ -170,7 +170,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
   const handleSubmitForApproval = async (budgetId: string) => {
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("oas_budgets").update({
+      const { error } = await (supabase as any).from("oas_orcamentos").update({
         status: "pendente_aprovacao",
         submitted_by: userData.user?.id || null,
         submitted_at: new Date().toISOString(),
@@ -182,7 +182,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
   };
 
   const handleSubmitAll = async () => {
-    const rascunhos = budgets.filter((b: any) => b.status === "rascunho");
+    const rascunhos = budgets.filter((b: any) => b.situacao === "rascunho");
     if (rascunhos.length === 0) return toast.info("Nenhum orçamento em rascunho");
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -199,7 +199,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await (supabase as any).from("oas_budgets").delete().eq("id", id);
+    const { error } = await (supabase as any).from("oas_orcamentos").delete().eq("id", id);
     if (error) {
       toast.error(error.message);
     } else {
@@ -233,7 +233,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
     const unitVal = parseFloat(editForm.valor_unitario) || 0;
 
     try {
-      const { error } = await (supabase as any).from("oas_budgets").update({
+      const { error } = await (supabase as any).from("oas_orcamentos").update({
         tipo: editForm.tipo,
         descricao: editForm.descricao,
         empresa_id: editForm.empresa_id || null,
@@ -267,9 +267,9 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
     return <Badge className={cn("text-xs", s.cls)}>{s.label}</Badge>;
   };
 
-  const totalAprovado = budgets.filter((b: any) => b.status === "aprovado").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
-  const totalPendente = budgets.filter((b: any) => b.status === "pendente_aprovacao").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
-  const hasRascunhos = budgets.some((b: any) => b.status === "rascunho");
+  const totalAprovado = budgets.filter((b: any) => b.situacao === "aprovado").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
+  const totalPendente = budgets.filter((b: any) => b.situacao === "pendente_aprovacao").reduce((s: number, b: any) => s + (b.valor_total || 0), 0);
+  const hasRascunhos = budgets.some((b: any) => b.situacao === "rascunho");
 
   return (
     <div className="space-y-4">
@@ -313,25 +313,25 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
                 <TableCell>{b.empresa_nome || "-"}</TableCell>
                 <TableCell>{b.quantidade}</TableCell>
                 <TableCell className="text-right">R$ {(b.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
-                <TableCell>{statusBadge(b.status)}</TableCell>
+                <TableCell>{statusBadge(b.situacao)}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    {(b.status === "rascunho" || b.status === "rejeitado") && (
+                    {(b.situacao === "rascunho" || b.situacao === "rejeitado") && (
                       <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(b)} className="text-blue-400 hover:text-blue-300">
                         <span className="text-lg">✎</span>
                       </Button>
                     )}
-                    {b.status === "rascunho" && (
+                    {b.situacao === "rascunho" && (
                       <Button variant="ghost" size="icon" title="Enviar para aprovação" onClick={() => handleSubmitForApproval(b.id)}>
                         <Send className="h-3.5 w-3.5 text-primary" />
                       </Button>
                     )}
-                    {(b.status === "rascunho" || b.status === "rejeitado") && (
+                    {(b.situacao === "rascunho" || b.situacao === "rejeitado") && (
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(b.id)}>
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     )}
-                    {b.status === "rejeitado" && b.rejection_reason && (
+                    {b.situacao === "rejeitado" && b.rejection_reason && (
                       <span className="text-xs text-red-400 ml-2" title={b.rejection_reason}>Motivo: {b.rejection_reason}</span>
                     )}
                   </div>

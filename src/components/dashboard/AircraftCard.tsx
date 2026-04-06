@@ -2,11 +2,11 @@ import { Plane, Clock, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Aircraft } from '@/types/maintenance';
 
-interface AircraftCardProps {
+interface AeronaveCardProps {
   aircraft: Aircraft;
 }
 
-export function AircraftCard({ aircraft }: AircraftCardProps) {
+export function AeronaveCard({ aircraft }: AeronaveCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">

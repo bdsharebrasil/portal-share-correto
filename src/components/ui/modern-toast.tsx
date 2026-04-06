@@ -111,7 +111,7 @@ const showToast = (
       <ToastContent
         type={type}
         title={title}
-        description={options?.description}
+        description={options?.descricao}
         onDismiss={() => sonnerToast.dismiss(id)}
       />
     ),

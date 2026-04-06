@@ -173,8 +173,8 @@ export default function Perfil() {
       setFormState({
         full_name: profile.full_name ?? "",
         display_name: profile.display_name ?? "",
-        phone: profile.phone != null ? String(profile.phone) : "",
-        address: profile.address ?? "",
+        phone: profile.telefone != null ? String(profile.telefone) : "",
+        address: profile.endereco ?? "",
         tipo: "",
         cpf: p?.cpf ?? "",
         rg: p?.rg ?? "",
@@ -198,7 +198,7 @@ export default function Perfil() {
   }, [cropImage]);
   const displayName = useMemo(() => formState.display_name || formState.full_name || profile?.full_name || user?.email || "Usuário", [formState.display_name, formState.full_name, profile?.full_name, user?.email]);
   const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
-  const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.updated_at), [profile?.updated_at]);
+  const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.atualizado_em), [profile?.atualizado_em]);
   const isProfileBusy = isUpdating || avatarUploading;
   const userId = user?.id ?? "";
   const {
@@ -210,7 +210,7 @@ export default function Perfil() {
       const {
         data,
         error
-      } = await supabase.from("pagamento_salario_funcionario").select("*").eq("user_profile", userId).order("created_at", {
+      } = await supabase.from("pagamento_salario_funcionario").select("*").eq("user_profile", userId).order("criado_em", {
         ascending: false
       });
       if (error) return [] as any[];
@@ -229,7 +229,7 @@ export default function Perfil() {
       const {
         data,
         error
-      } = await supabase.from("vacation_requests" as any).select("*").eq("user_id", userId).order("created_at", {
+      } = await supabase.from("vacation_requests" as any).select("*").eq("user_id", userId).order("criado_em", {
         ascending: false
       });
       if (error) return [] as any[];
@@ -255,7 +255,7 @@ export default function Perfil() {
     if (absences <= 32) return Math.min(baseDays, 12);
     return 0;
   })();
-  const approvedTaken = (vacationRequests as any[]).filter(r => r.status === "approved").reduce((sum, r) => sum + (Number(r.days) || 0), 0);
+  const approvedTaken = (vacationRequests as any[]).filter(r => r.situacao === "approved").reduce((sum, r) => sum + (Number(r.days) || 0), 0);
   const available = workingMonths < 12 ? 0 : Math.max(0, entitlement - approvedTaken);
   const isWeekend = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -514,7 +514,7 @@ export default function Perfil() {
     }
     setAvatarUploading(true);
     try {
-      const path = buildAvatarPath(user.id, file.name);
+      const path = buildAvatarPath(user.id, file.nome);
       const {
         error: uploadError
       } = await supabase.storage.from("avatar-profile").upload(path, file, {
@@ -580,7 +580,7 @@ export default function Perfil() {
     const drawHeight = cropMeta.height * scaleMultiplier * ratio;
     const drawX = (AVATAR_OUTPUT_SIZE - drawWidth) / 2 + x * ratio;
     const drawY = (AVATAR_OUTPUT_SIZE - drawHeight) / 2 + y * ratio;
-    const preferredMime = cropImage.file.type === "image/png" ? "image/png" : "image/jpeg";
+    const preferredMime = cropImage.file.tipo === "image/png" ? "image/png" : "image/jpeg";
     context.clearRect(0, 0, AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE);
     if (preferredMime === "image/jpeg") {
       context.fillStyle = "#ffffff";
@@ -597,7 +597,7 @@ export default function Perfil() {
       return;
     }
     const extension = preferredMime === "image/png" ? "png" : "jpg";
-    const baseName = cropImage.file.name.replace(/\.[^.]+$/, "");
+    const baseName = cropImage.file.nome.replace(/\.[^.]+$/, "");
     const croppedFile = new File([blob], `${baseName}.${extension}`, {
       type: preferredMime
     });
@@ -626,7 +626,7 @@ export default function Perfil() {
     const value = event.target.value;
     setFormState(prev => ({
       ...prev,
-      [field]: field === "phone" ? sanitizePhone(value) : value
+      [field]: field === "telefone" ? sanitizePhone(value) : value
     }));
   };
   const handleSelectChange = (value: ContactType) => {
@@ -645,7 +645,7 @@ export default function Perfil() {
       });
       return;
     }
-    const phoneDigits = formState.phone ? String(formState.phone) : null;
+    const phoneDigits = formState.telefone ? String(formState.telefone) : null;
     try {
       if (!user?.id) {
         throw new Error("Usuário não autenticado");
@@ -654,7 +654,7 @@ export default function Perfil() {
         full_name: trimmedFullName,
         display_name: formState.display_name.trim() || null,
         phone: phoneDigits,
-        address: formState.address.trim() || null,
+        address: formState.endereco.trim() || null,
         tipo: formState.tipo || null,
         cpf: formState.cpf.trim() || null,
         rg: formState.rg.trim() || null,
@@ -690,8 +690,8 @@ export default function Perfil() {
     try {
       const payload = {
         display_name: formState.display_name,
-        phone: formState.phone,
-        address: formState.address,
+        phone: formState.telefone,
+        address: formState.endereco,
         bank_name: formState.bank_name,
         bank_agency: formState.bank_agency,
         bank_account: formState.bank_account,
@@ -891,8 +891,8 @@ export default function Perfil() {
 
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="space-y-2">
-                          <Label htmlFor="phone" className="text-sm font-medium text-foreground">Telefone</Label>
-                        <Input id="phone" value={formState.phone} onChange={e => setFormState({
+                          <Label htmlFor="telefone" className="text-sm font-medium text-foreground">Telefone</Label>
+                        <Input id="telefone" value={formState.telefone} onChange={e => setFormState({
                           ...formState,
                           phone: e.target.value
                         })} placeholder="(XX) XXXXX-XXXX" disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
@@ -915,15 +915,15 @@ export default function Perfil() {
 
                       <div className="space-y-2">
                         <Label htmlFor="birth" className="text-sm font-medium text-foreground">Data de Nascimento</Label>
-                      <Input id="birth" type="date" value={formState.birth_date} onChange={e => setFormState({
+                      <Input id="birth" type="data" value={formState.birth_date} onChange={e => setFormState({
                         ...formState,
                         birth_date: e.target.value
                       })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="address" className="text-sm font-medium text-foreground">Endereço</Label>
-                      <Textarea id="address" value={formState.address} onChange={e => setFormState({
+                        <Label htmlFor="endereco" className="text-sm font-medium text-foreground">Endereço</Label>
+                      <Textarea id="endereco" value={formState.endereco} onChange={e => setFormState({
                         ...formState,
                         address: e.target.value
                       })} rows={3} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
@@ -1037,7 +1037,7 @@ export default function Perfil() {
                     return <li key={s.id} className="rounded-md border p-3 space-y-2">
                             <div className="flex items-center justify-between">
                               <p className="font-medium text-sm">
-                                {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
+                                {new Date(s.criado_em ?? Date.now()).toLocaleDateString("pt-BR", {
                             month: "long",
                             year: "numeric"
                           })}
@@ -1069,7 +1069,7 @@ export default function Perfil() {
                       {salaryPayments.filter((s: any) => s.holerite_url).map((s: any) => <li key={s.id} className="flex items-center justify-between rounded-md border p-3">
                             <div>
                               <p className="font-medium">
-                                {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
+                                {new Date(s.criado_em ?? Date.now()).toLocaleDateString("pt-BR", {
                           month: "long",
                           year: "numeric"
                         })}
@@ -1119,7 +1119,7 @@ export default function Perfil() {
                     <CardContent className="pt-6">
                       <div className="text-center">
                         <p className="text-sm text-muted-foreground mb-2">Agendadas</p>
-                        <p className="text-4xl font-bold text-amber-600">{vacationRequests.filter((r: any) => r.status === 'pending' || r.status === 'approved').length}</p>
+                        <p className="text-4xl font-bold text-amber-600">{vacationRequests.filter((r: any) => r.situacao === 'pending' || r.situacao === 'approved').length}</p>
                         <p className="text-xs text-muted-foreground mt-2">dias</p>
                       </div>
                     </CardContent>
@@ -1200,11 +1200,11 @@ export default function Perfil() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="start-date">Data de Início</Label>
-                          <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="dd/mm/aaaa" />
+                          <Input id="start-date" type="data" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="dd/mm/aaaa" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="end-date">Data de Fim</Label>
-                          <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="dd/mm/aaaa" />
+                          <Input id="end-date" type="data" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="dd/mm/aaaa" />
                         </div>
                       </div>
 
@@ -1228,8 +1228,8 @@ export default function Perfil() {
                               <p className="text-sm text-muted-foreground">{r.days} dias</p>
                             </div>
                           </div>
-                          <Badge variant={r.status === 'approved' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
-                            {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
+                          <Badge variant={r.situacao === 'approved' ? 'default' : r.situacao === 'rejected' ? 'destructive' : 'secondary'}>
+                            {r.situacao === 'approved' ? 'Aprovado' : r.situacao === 'rejected' ? 'Rejeitado' : 'Pendente'}
                           </Badge>
                         </div>)}
                     </div>}

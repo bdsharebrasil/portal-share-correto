@@ -21,7 +21,7 @@ export function generateOASPDF(data: OASPDFData) {
     const margin = 15;
     let y = margin;
 
-    const registration = (order?.aircraft as any)?.registration || "N/A";
+    const registration = (order?.aeronave as any)?.registration || "N/A";
 
     // ===== HEADER =====
     pdf.setFillColor(0, 82, 147);
@@ -51,7 +51,7 @@ export function generateOASPDF(data: OASPDFData) {
       ["OAS Nº:", order?.numero || "-"],
       ["Aeronave:", registration],
       ["Tipo Manutenção:", order?.tipo_manutencao || "-"],
-      ["Status:", order?.status === "concluido" ? "CONCLUÍDO" : order?.status === "em_andamento" ? "EM ANDAMENTO" : "PENDENTE"],
+      ["Status:", order?.situacao === "concluido" ? "CONCLUÍDO" : order?.situacao === "em_andamento" ? "EM ANDAMENTO" : "PENDENTE"],
       ["Oficina:", order?.oficina_nome || "-"],
       ["Data Entrada:", order?.data_entrada ? new Date(order.data_entrada + "T12:00:00").toLocaleDateString("pt-BR") : "-"],
       ["Data Saída:", order?.data_saida ? new Date(order.data_saida + "T12:00:00").toLocaleDateString("pt-BR") : "-"],
@@ -153,7 +153,7 @@ export function generateOASPDF(data: OASPDFData) {
           b.descricao,
           b.fornecedor || "-",
           `R$ ${(b.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          b.status === "aprovado" ? "Aprovado" : b.status === "rejeitado" ? "Rejeitado" : "Pendente",
+          b.situacao === "aprovado" ? "Aprovado" : b.situacao === "rejeitado" ? "Rejeitado" : "Pendente",
         ]),
         margin: { left: margin, right: margin },
         styles: { fontSize: 8 },
@@ -178,7 +178,7 @@ export function generateOASPDF(data: OASPDFData) {
           r.maintenance_type || "-",
           r.maintenance_center || "-",
           r.entry_date ? new Date(r.entry_date + "T12:00:00").toLocaleDateString("pt-BR") : "-",
-          r.status === "completed" ? "Concluído" : "Registrado",
+          r.situacao === "completed" ? "Concluído" : "Registrado",
         ]),
         margin: { left: margin, right: margin },
         styles: { fontSize: 8 },
@@ -199,7 +199,7 @@ export function generateOASPDF(data: OASPDFData) {
         startY: y,
         head: [["Data", "Fe", "Cu", "Al", "Si", "Viscosidade"]],
         body: oilAnalyses.map((a: any) => [
-          a.date ? new Date(a.date + "T12:00:00").toLocaleDateString("pt-BR") : "-",
+          a.data ? new Date(a.data + "T12:00:00").toLocaleDateString("pt-BR") : "-",
           a.fe ?? "-",
           a.cu ?? "-",
           a.al ?? "-",
@@ -225,11 +225,11 @@ export function generateOASPDF(data: OASPDFData) {
         startY: y,
         head: [["Sócio", "Horas", "%", "Valor", "Status"]],
         body: costSharing.map((c: any) => [
-          c.client?.company_name || c.client?.proprietario || "-",
+          c.client?.razao_social || c.client?.proprietario || "-",
           c.horas_voadas ? `${Math.floor(c.horas_voadas)}:${String(Math.round((c.horas_voadas - Math.floor(c.horas_voadas)) * 60)).padStart(2, "0")}` : "-",
           `${(c.percentual || 0).toFixed(1)}%`,
           `R$ ${(c.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
-          c.status_pagamento === "pago" ? "Pago" : "Pendente",
+          c.situacao_pagamento === "pago" ? "Pago" : "Pendente",
         ]),
         margin: { left: margin, right: margin },
         styles: { fontSize: 8 },

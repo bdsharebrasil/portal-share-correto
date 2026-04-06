@@ -44,7 +44,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   const [formData, setFormData] = useState({
     client_id: '',
     partner_id: '',
-    aircraft_id: '',
+    aeronave_id: '',
     origin_icao: '',
     destination_icao: '',
     flight_date: format(new Date(), 'yyyy-MM-dd'),
@@ -66,29 +66,29 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
 
   useEffect(() => {
     const loadPartners = async () => {
-      if (!formData.client_id) {
+      if (!formData.cliente_id) {
         setPartners([]);
         setFormData(prev => ({ ...prev, partner_id: '' }));
         return;
       }
 
       const { data } = await supabase
-        .from('client_partners')
-        .select('id, name')
-        .eq('client_id', formData.client_id)
-        .order('name');
+        .from('socios_cliente')
+        .select('id, nome')
+        .eq('cliente_id', formData.cliente_id)
+        .order('nome');
 
       setPartners(data || []);
       setFormData(prev => ({ ...prev, partner_id: '' }));
     };
 
     loadPartners();
-  }, [formData.client_id]);
+  }, [formData.cliente_id]);
 
   const loadData = async () => {
     const [clientsRes, aircraftRes] = await Promise.all([
-      supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
-      supabase.from('aircraft').select('id, registration, model').order('registration'),
+      supabase.from('clientes').select('id, razao_social, proprietario').order('razao_social'),
+      supabase.from('aeronave').select('id, matricula, modelo').order("matricula"),
     ]);
 
     if (clientsRes.data) setClients(clientsRes.data);
@@ -105,13 +105,13 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       let partnerName: string | null = null;
       if (formData.partner_id) {
         const partner = partners.find(p => p.id === formData.partner_id);
-        partnerName = partner?.name || null;
+        partnerName = partner?.nome || null;
       }
 
       await onCreate({
-        client_id: formData.client_id || null,
+        client_id: formData.cliente_id || null,
         partner_id: formData.partner_id || null,
-        aircraft_id: formData.aircraft_id || null,
+        aeronave_id: formData.aeronave_id || null,
         origin_icao: formData.origin_icao || null,
         destination_icao: formData.destination_icao || null,
         flight_date: formData.flight_date || null,
@@ -131,7 +131,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       setFormData({
         client_id: '',
         partner_id: '',
-        aircraft_id: '',
+        aeronave_id: '',
         origin_icao: '',
         destination_icao: '',
         flight_date: format(new Date(), 'yyyy-MM-dd'),
@@ -162,7 +162,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
             <div className="space-y-2">
               <Label>Cliente *</Label>
               <Select
-                value={formData.client_id}
+                value={formData.cliente_id}
                 onValueChange={(v) => setFormData(prev => ({ ...prev, client_id: v }))}
               >
                 <SelectTrigger>
@@ -171,7 +171,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
                 <SelectContent>
                   {clients.map(client => (
                     <SelectItem key={client.id} value={client.id}>
-                      {client.company_name || client.proprietario || 'Sem nome'}
+                      {client.razao_social || client.proprietario || 'Sem nome'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -181,8 +181,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
             <div className="space-y-2">
               <Label>Aeronave *</Label>
               <Select
-                value={formData.aircraft_id}
-                onValueChange={(v) => setFormData(prev => ({ ...prev, aircraft_id: v }))}
+                value={formData.aeronave_id}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, aeronave_id: v }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione" />
@@ -213,7 +213,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
                 <SelectContent>
                   {partners.map(partner => (
                     <SelectItem key={partner.id} value={partner.id}>
-                      {partner.name}
+                      {partner.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -246,7 +246,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
             <div className="space-y-2">
               <Label>Data do Voo *</Label>
               <Input
-                type="date"
+                type="data"
                 value={formData.flight_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, flight_date: e.target.value }))}
               />
@@ -254,7 +254,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
             <div className="space-y-2">
               <Label>Data de Retorno</Label>
               <Input
-                type="date"
+                type="data"
                 value={formData.return_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, return_date: e.target.value }))}
               />
@@ -380,7 +380,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || !formData.client_id || !formData.aircraft_id || !formData.origin_icao || !formData.destination_icao}
+            disabled={loading || !formData.cliente_id || !formData.aeronave_id || !formData.origin_icao || !formData.destination_icao}
           >
             Criar Ciclo
           </Button>

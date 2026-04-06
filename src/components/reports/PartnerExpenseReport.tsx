@@ -103,7 +103,7 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
                 <SelectContent>
                   {(clientsWithPartners || []).map(client => (
                     <SelectItem key={client.id} value={client.id}>
-                      {client.company_name}
+                      {client.razao_social}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -182,7 +182,7 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-xl">{expenseSummary.client.company_name}</CardTitle>
+                    <CardTitle className="text-xl">{expenseSummary.client.razao_social}</CardTitle>
                     <p className="text-sm text-muted-foreground font-mono mt-1">
                       CNPJ: {expenseSummary.client.cnpj}
                     </p>
@@ -221,7 +221,7 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
                     {expenseSummary.partners.map(partner => (
                       <div key={partner.index} className="p-3 rounded-lg border bg-card">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium">{partner.name}</span>
+                          <span className="font-medium">{partner.nome}</span>
                           <Badge variant="secondary">{formatPercentage(partner.percentage)}</Badge>
                         </div>
                         {partner.cpf && (
@@ -244,7 +244,7 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
                 <Card key={summary.partner.index}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{summary.partner.name}</CardTitle>
+                      <CardTitle className="text-base">{summary.partner.nome}</CardTitle>
                       <Badge variant="outline">Sócio {summary.partner.index}</Badge>
                     </div>
                     {summary.partner.cpf && (
@@ -320,7 +320,7 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
                       <TableRow key={summary.partner.index}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{summary.partner.name}</p>
+                            <p className="font-medium">{summary.partner.nome}</p>
                             {summary.partner.cpf && (
                               <p className="text-xs text-muted-foreground font-mono">{summary.partner.cpf}</p>
                             )}
@@ -431,7 +431,7 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
                               {formatCurrency(fuel.valor_total)}
                             </TableCell>
                             <TableCell className="text-muted-foreground">
-                              {fuel.partner_name || '-'}
+                              {fuel.nome_socio || '-'}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button

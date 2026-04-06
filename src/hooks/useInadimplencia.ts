@@ -22,7 +22,7 @@ export function useInadimplencia() {
           valor,
           descricao,
           tipo_movimento,
-          clients:client_id(company_name)
+          clientes:cliente_id(razao_social)
         `)
         .eq("tipo_movimento", "entrada")
         .order("data", { ascending: false });
@@ -36,7 +36,7 @@ export function useInadimplencia() {
   const inadimplentes = transacoes
     ?.map((t: any) => ({
       id: t.id,
-      cliente_nome: t.clients?.company_name || "Cliente Desconhecido",
+      cliente_nome: t.clientes?.razao_social || "Cliente Desconhecido",
       data_vencimento: t.data,
       valor: t.valor,
       descricao: t.descricao || "",

@@ -3,13 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface FuelSupplier {
   id: string;
-  city_name: string;
-  icao_code: string;
-  supplier_name: string;
-  contact_person: string | null;
-  phone: string | null;
-  fuel_price_avgas: number | null;
-  fuel_price_jet: number | null;
+  nome_cidade: string;
+  codigo_icao: string | null;
+  nome_fornecedor: string;
+  pessoa_contato: string | null;
+  telefone: string | null;
+  preco_avgas: number | null;
+  preco_jet: number | null;
 }
 
 /**
@@ -21,9 +21,9 @@ export function useFuelSuppliers() {
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .from("fuel_suppliers")
+          .from("fornecedores_combustivel")
           .select("*")
-          .order("supplier_name");
+          .order("nome_fornecedor");
 
         if (error) {
           console.warn("Erro ao buscar fornecedores de combustível:", error);

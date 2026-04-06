@@ -103,19 +103,19 @@ export default function CentroLancamentoCustos() {
   };
 
   // Aircraft info
-  const aircraft = reportData?.aircraft;
+  const aircraft = reportData?.aeronave;
   const partners = reportData?.partners || [];
 
   // Build the "Diário Espelho" - flight log mirror with cost assignments
   const flightMirror = useMemo(() => {
     if (!reportData) return [];
     return reportData.flights.map((f) => {
-      const assignedPartner = partners.find((p) => p.id === f.client_partner_id);
+      const assignedPartner = partners.find((p) => p.id === f.socio_cliente_id_id);
       const loanPartner = f.is_loan ? partners.find((p) => p.id === f.loan_recipient_partner_id) : null;
       return {
         ...f,
-        partner_name: assignedPartner?.name || "Não atribuído",
-        loan_partner_name: loanPartner?.name || null,
+        partner_name: assignedPartner?.nome || "Não atribuído",
+        loan_partner_name: loanPartner?.nome || null,
       };
     });
   }, [reportData, partners]);
@@ -124,12 +124,12 @@ export default function CentroLancamentoCustos() {
   const expensePivot = useMemo(() => {
     if (!reportData) return { rows: [], partnerNames: [] as string[], totals: {} as Record<string, number> };
 
-    const partnerNames = ["DGA ADM", ...partners.map((p) => p.name)];
+    const partnerNames = ["DGA ADM", ...partners.map((p) => p.nome)];
     const categoryMap: Record<string, Record<string, number>> = {};
 
     // Partner expenses
     reportData.expenses.forEach((e) => {
-      const cat = (e.expense_type || e.category || "Outros").toUpperCase();
+      const cat = (e.expense_type || e.categoria || "Outros").toUpperCase();
       if (!shouldIncludeInCostCenter(cat)) return;
       if (!categoryMap[cat]) categoryMap[cat] = {};
       const pName = e.assigned_partner_name || "DGA ADM";
@@ -138,7 +138,7 @@ export default function CentroLancamentoCustos() {
 
     // Shared expenses (no partner)
     reportData.sharedExpenses.forEach((e) => {
-      const cat = (e.expense_type || e.category || "Outros").toUpperCase();
+      const cat = (e.expense_type || e.categoria || "Outros").toUpperCase();
       if (!shouldIncludeInCostCenter(cat)) return;
       if (!categoryMap[cat]) categoryMap[cat] = {};
       categoryMap[cat]["DGA ADM"] = (categoryMap[cat]["DGA ADM"] || 0) + e.total_amount;
@@ -149,7 +149,7 @@ export default function CentroLancamentoCustos() {
       const cat = "COMBUSTÍVEIS";
       if (!categoryMap[cat]) categoryMap[cat] = {};
       reportData.fuels.forEach((fuel) => {
-        const pName = fuel.partner_name || fuel.observacao?.match(/\[Partner:([^\]]+)\]/i)?.[1] || "DGA ADM";
+        const pName = fuel.nome_socio || fuel.observacao?.match(/\[Partner:([^\]]+)\]/i)?.[1] || "DGA ADM";
         const total = fuel.valor_total || fuel.litros * fuel.valor_unitario;
         categoryMap[cat][pName] = (categoryMap[cat][pName] || 0) + total;
       });
@@ -180,7 +180,7 @@ export default function CentroLancamentoCustos() {
   // Chart data by category per partner
   const chartData = useMemo(() => {
     return expensePivot.rows.map((row) => ({
-      category: row.category,
+      category: row.categoria,
       ...row.values,
     }));
   }, [expensePivot]);
@@ -189,7 +189,7 @@ export default function CentroLancamentoCustos() {
   const filteredFlights = useMemo(() => {
     let result = flightMirror;
     if (filterPartner !== "all") {
-      result = result.filter((f) => f.partner_name === filterPartner);
+      result = result.filter((f) => f.nome_socio === filterPartner);
     }
     return result;
   }, [flightMirror, filterPartner]);
@@ -216,8 +216,8 @@ export default function CentroLancamentoCustos() {
                 Centro de Lançamento de Custos
               </h1>
               <p className="text-sm text-muted-foreground">
-                {selectedClient?.company_name || selectedClient?.proprietario || ""}
-                {aircraft && ` • ${aircraft.registration} — ${aircraft.manufacturer} ${aircraft.model}`}
+                {selectedClient?.razao_social || selectedClient?.proprietario || ""}
+                {aircraft && ` • ${aeronave.matricula} — ${aircraft.manufacturer} ${aeronave.modelo}`}
               </p>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function CentroLancamentoCustos() {
             <SelectContent>
               <SelectItem value="all">Todos os Sócios</SelectItem>
               {partners.map((p) => (
-                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>
               ))}
               <SelectItem value="Não atribuído">Não atribuído</SelectItem>
             </SelectContent>
@@ -274,7 +274,7 @@ export default function CentroLancamentoCustos() {
             <SelectContent>
               <SelectItem value="all">Todas as Categorias</SelectItem>
               {expensePivot.rows.map((r) => (
-                <SelectItem key={r.category} value={r.category}>{r.category}</SelectItem>
+                <SelectItem key={r.categoria} value={r.categoria}>{r.categoria}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -325,7 +325,7 @@ export default function CentroLancamentoCustos() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Plane className="h-4 w-4 text-primary" />
-              Diário Espelho — {aircraft?.registration || ""}
+              Diário Espelho — {aircraft?.matricula || ""}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -367,7 +367,7 @@ export default function CentroLancamentoCustos() {
                           <TableCell>{f.passengers ? `${f.passengers} PAX` : "—"}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-[10px] whitespace-nowrap">
-                              {f.partner_name}
+                              {f.nome_socio}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -409,9 +409,9 @@ export default function CentroLancamentoCustos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(filterCategory === "all" ? expensePivot.rows : expensePivot.rows.filter((r) => r.category === filterCategory)).map((row) => (
-                    <TableRow key={row.category} className="text-xs">
-                      <TableCell className="font-semibold">{row.category}</TableCell>
+                  {(filterCategory === "all" ? expensePivot.rows : expensePivot.rows.filter((r) => r.categoria === filterCategory)).map((row) => (
+                    <TableRow key={row.categoria} className="text-xs">
+                      <TableCell className="font-semibold">{row.categoria}</TableCell>
                       {expensePivot.partnerNames.map((name) => (
                         <TableCell key={name} className="text-right font-mono">
                           {row.values[name] ? fmt(row.values[name]) : "—"}
@@ -446,7 +446,7 @@ export default function CentroLancamentoCustos() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 40, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="category" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" interval={0} />
+                    <XAxis dataKey="categoria" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" interval={0} />
                     <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(value: number) => fmt(value)} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />

@@ -114,7 +114,7 @@ export function useCTMDocumentGeneration() {
         .eq('id', documentId)
         .single();
       if (error) throw error;
-      return data?.file_path || null;
+      return data?.caminho_arquivo || null;
     } catch (error) {
       console.error('Error getting document URL:', error);
       return null;

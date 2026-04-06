@@ -66,7 +66,7 @@ export function MotorExpenseForm({ aircraftId, onSuccess, onCancel }: MotorExpen
       setSubmitting(true);
 
       const motorExpenseData = {
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         motor_side: data.motorSide,
         type: data.type,
         description: data.description,
@@ -90,7 +90,7 @@ export function MotorExpenseForm({ aircraftId, onSuccess, onCancel }: MotorExpen
 
       onSuccess({
         id: newExpense.id,
-        aircraftId: newExpense.aircraft_id,
+        aeronaveId: newExpense.aeronave_id,
         motorSide: newExpense.motor_side,
         type: newExpense.type,
         description: newExpense.description,

@@ -91,7 +91,7 @@ export class FlightService {
       }
 
       // Atualizar horas da tripulação
-      await this.updateCrewHours(result, config.aircraftId);
+      await this.updateCrewHours(result, config.aeronaveId);
 
       // Processar empréstimo se necessário
       if (flightType === 'emprestimo' && result) {
@@ -122,7 +122,7 @@ export class FlightService {
       total_time: blockTime,
       time: flightTime,
       // day_time e night_time já foram calculados no frontend com cálculo solar correto
-      aircraft_id: config.aircraftId,
+      aeronave_id: config.aeronaveId,
     } as any;
   }
 
@@ -229,7 +229,7 @@ export class FlightService {
     try {
       // Criar registro de empréstimo
       const { error: loanError } = await (supabase as any)
-        .from('aircraft_loans')
+        .from('emprestimos_aeronave')
         .insert([
           {
             hours_borrowed: entry.total_time,
@@ -250,9 +250,9 @@ export class FlightService {
         .from('hour_transactions')
         .insert([
           {
-            aircraft_id: config.aircraftId,
+            aeronave_id: config.aeronaveId,
             from_partner_id: entry.loan_recipient_client_id,
-            to_partner_id: entry.client_id,
+            to_partner_id: entry.cliente_id,
             hours: entry.total_time,
             type: 'loan',
             logbook_entry_id: entry.id,

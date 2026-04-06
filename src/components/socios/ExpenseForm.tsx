@@ -84,7 +84,7 @@ export const IMPOSTOS_SUBTYPES = [
 export type ExpenseCategoryId = (typeof EXPENSE_CATEGORIES)[number]["id"];
 
 // ─── Helpers para lógica de campos condicionais ───────────────────────────────
-// Categorias que ocultam Descrição e Fornecedor e mostram campo "doc"
+// Categorias que ocultam Descrição e Fornecedor e mostram campo "documento"
 const CATEGORIES_WITH_DOC_FIELD = ["IMPOSTOS", "DECEA", "INFRAERO"] as const;
 type DocFieldCategory = (typeof CATEGORIES_WITH_DOC_FIELD)[number];
 
@@ -206,18 +206,18 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [bankForm, setBankForm] = useState(EMPTY_BANK_FORM);
   const [showAddFornecedor, setShowAddFornecedor] = useState(false);
   const [showAddFuelSupplier, setShowAddFuelSupplier] = useState(false);
-  const [newFuelSupplier, setNewFuelSupplier] = useState({ supplier_name: '', city_name: '', icao_code: '' });
+  const [newFuelSupplier, setNewFuelSupplier] = useState({ nome_fornecedor: '', city_name: '', icao_code: '' });
   const [savingFuelSupplier, setSavingFuelSupplier] = useState(false);
   const queryClient = useQueryClient();
 
   // Travel report linking states
   const [linkOption, setLinkOption] = useState<"existing" | "new" | null>(null);
   const [existingReports, setExistingReports] = useState<
-    Array<{ id: string; report_number: string; status: string }>
+    Array<{ id: string; numero_relatorio: string; status: string }>
   >([]);
   const [selectedReport, setSelectedReport] = useState<{
     id: string;
-    report_number: string;
+    numero_relatorio: string;
     status: string;
   } | null>(null);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -242,12 +242,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   useEffect(() => {
     const fetchAircraft = async () => {
       const { data } = await supabase
-        .from("client_aircraft")
-        .select("aircraft_id")
-        .eq("client_id", clienteId)
+        .from("cotistas_aeronave")
+        .select("id_aeronave")
+        .eq("id_clientes", clienteId)
         .limit(1)
         .single();
-      setClientAircraftId(data?.aircraft_id || null);
+      setClientAircraftId(data?.id_aeronave || null);
     };
     if (clienteId) fetchAircraft();
   }, [clienteId]);
@@ -266,12 +266,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const getAircraftId = async (): Promise<string | null> => {
     try {
       const { data } = await supabase
-        .from("client_aircraft")
-        .select("aircraft_id")
-        .eq("client_id", clienteId)
+        .from("cotistas_aeronave")
+        .select("id_aeronave")
+        .eq("id_clientes", clienteId)
         .limit(1)
         .single();
-      return data?.aircraft_id || null;
+      return data?.id_aeronave || null;
     } catch {
       return null;
     }
@@ -285,8 +285,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
   // Auto-fill percentual when partner changes
   useEffect(() => {
-    if (assignedPartner?.share_percentage) {
-      setForm(prev => ({ ...prev, percentualSocio: assignedPartner.share_percentage!.toString() }));
+    if (assignedPartner?.percentual_participacao) {
+      setForm(prev => ({ ...prev, percentualSocio: assignedPartner.percentual_participacao!.toString() }));
     } else if (form.assignedPartnerCpf === "none") {
       setForm(prev => ({ ...prev, percentualSocio: "" }));
     }
@@ -294,24 +294,24 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
   // when category changes, reset link states and doc field
   useEffect(() => {
-    if (form.category !== "DESPESAS DE VIAGEM") {
+    if (form.categoria !== "DESPESAS DE VIAGEM") {
       setLinkOption(null);
       setExistingReports([]);
       setSelectedReport(null);
     }
-    if (form.category !== "MANUTENÇÃO") {
+    if (form.categoria !== "MANUTENÇÃO") {
       setSelectedManutencaoId("");
       setManutencaoTipoRateio("igual");
       setManualRateios({});
     }
     // Reset doc-related fields when category changes
     setForm((prev) => ({ ...prev, doc: "", demonstrativoNumber: "", mesReferente: format(new Date(), "MM-yyyy") }));
-  }, [form.category]);
+  }, [form.categoria]);
 
   // Auto-fill valor unitário when supplier and combustível are selected
   useEffect(() => {
-    if (form.category === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
-      const selectedSupplier = fuelSuppliers.find(s => s.supplier_name === form.supplierName);
+    if (form.categoria === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
+      const selectedSupplier = fuelSuppliers.find(s => s.nome_fornecedor === form.supplierName);
       if (selectedSupplier && form.novoAbastCombustivel) {
         let valorUnitario = "";
         if (form.novoAbastCombustivel === "avgas" && selectedSupplier.fuel_price_avgas) {
@@ -324,11 +324,11 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         }
       }
     }
-  }, [form.supplierName, form.novoAbastCombustivel, form.category, form.criarNovoAbastecimento, fuelSuppliers]);
+  }, [form.supplierName, form.novoAbastCombustivel, form.categoria, form.criarNovoAbastecimento, fuelSuppliers]);
 
   // Auto-calculate totalAmount for abastecimento from litros × valorUnitario
   useEffect(() => {
-    if (form.category === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
+    if (form.categoria === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
       const litros = parseFloat(form.novoAbastLitros || "0");
       const valorUnitario = parseFloat(form.novoAbastValorUnitario || "0");
       if (litros > 0 && valorUnitario > 0) {
@@ -341,7 +341,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         }));
       }
     }
-  }, [form.novoAbastLitros, form.novoAbastValorUnitario, form.category, form.criarNovoAbastecimento, form.novoAbastCombustivel]);
+  }, [form.novoAbastLitros, form.novoAbastValorUnitario, form.categoria, form.criarNovoAbastecimento, form.novoAbastCombustivel]);
 
 
   useEffect(() => {
@@ -351,18 +351,18 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         if (partnerId) {
           const { data, error } = await supabase
             .from("travel_expense_reports")
-            .select("id, report_number, status")
-            .eq("client_id", clienteId)
-            .or(`client_partner.eq.${partnerId},client_partner.is.null`)
+            .select("id, numero_relatorio, status")
+            .eq("clientes_id", clienteId)
+            .or(`socios_cliente_id.eq.${partnerId},socios_cliente_id.is.null`)
             .in("status", ["Finalizado", "Rascunho", "Enviado"])
             .order("created_at", { ascending: false });
           if (error) { setExistingReports([]); } else { setExistingReports(data || []); }
         } else {
           const { data, error } = await supabase
             .from("travel_expense_reports")
-            .select("id, report_number, status")
-            .eq("client_id", clienteId)
-            .is("client_partner", null)
+            .select("id, numero_relatorio, status")
+            .eq("clientes_id", clienteId)
+            .is("socio_cliente_id", null)
             .in("status", ["Finalizado", "Rascunho", "Enviado"])
             .order("created_at", { ascending: false });
           if (error) { setExistingReports([]); } else { setExistingReports(data || []); }
@@ -377,8 +377,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   }, [linkOption, assignedPartner?.id, clienteId]);
 
   // Derived flags
-  const isDocCategory = isDocFieldCategory(form.category as string);
-  const isInfraeoDececaExpense = isInfraeoDececaCategory(form.category as string);
+  const isDocCategory = isDocFieldCategory(form.categoria as string);
+  const isInfraeoDececaExpense = isInfraeoDececaCategory(form.categoria as string);
   const hideDescriptionAndSupplier = isDocCategory || isInfraeoDececaExpense;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -386,14 +386,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
     // Validation differs by category
     if (isInfraeoDececaExpense) {
-      if (!form.demonstrativoNumber || !form.mesReferente || !form.totalAmount || !form.category) return;
+      if (!form.demonstrativoNumber || !form.mesReferente || !form.totalAmount || !form.categoria) return;
     } else if (isDocCategory) {
-      if (!form.doc || !form.totalAmount || !form.category) return;
+      if (!form.documento || !form.totalAmount || !form.categoria) return;
     } else {
-      if (!form.description || !form.totalAmount || !form.category) return;
+      if (!form.descricao || !form.totalAmount || !form.categoria) return;
     }
 
-    if (form.category === "DESPESAS DE VIAGEM" && linkOption === "existing" && !selectedReport) {
+    if (form.categoria === "DESPESAS DE VIAGEM" && linkOption === "existing" && !selectedReport) {
       toast.error("Selecione um relatório de viagem para vincular");
       return;
     }
@@ -410,30 +410,30 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     let effectiveDoc = "";
 
     if (isInfraeoDececaExpense) {
-      effectiveDescription = `${form.category}/${form.mesReferente}`;
+      effectiveDescription = `${form.categoria}/${form.mesReferente}`;
       effectiveDoc = form.mesReferente;
     } else if (isDocCategory) {
       // IMPOSTOS uses doc as description
-      effectiveDescription = form.doc;
+      effectiveDescription = form.documento;
     } else {
-      effectiveDescription = form.description;
+      effectiveDescription = form.descricao;
     }
 
     let referenceType: string | null = null;
     let referenceId: string | null = null;
 
-    if (form.category === "DESPESAS DE VIAGEM") {
+    if (form.categoria === "DESPESAS DE VIAGEM") {
       if (linkOption === "existing" && selectedReport) {
         referenceType = "travel_report";
         referenceId = selectedReport.id;
       } else if (linkOption === "new") {
         try {
           const { data: clientData } = await supabase
-            .from("clients")
-            .select("company_name")
+            .from("clientes")
+            .select("razao_social")
             .eq("id", clienteId)
             .single();
-          const clientName = clientData?.company_name || "";
+          const clientName = clientData?.razao_social || "";
           const reportNumber = await generateReportNumber(clientName);
           const today = format(new Date(), "yyyy-MM-dd");
           const expenseItem = {
@@ -446,15 +446,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           const { data: newReport, error: newReportError } = await supabase
             .from("travel_expense_reports")
             .insert({
-              client_id: clienteId,
-              client_partner: assignedPartner?.id || null,
-              report_number: reportNumber,
-              start_date: today,
-              end_date: today,
-              days_count: 1,
+              clientes_id: clienteId,
+              socios_cliente_id: assignedPartner?.id || null,
+              numero_relatorio: reportNumber,
+              data_inicio: today,
+              data_fim: today,
+              dias_count: 1,
               status: "Rascunho",
               expenses: JSON.stringify([expenseItem]),
-              aircraft_id: aircraftId,
+              aeronave_id: aircraftId,
             })
             .select()
             .single();
@@ -471,7 +471,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     // ─── CRIAR NOVO ABASTECIMENTO SE NECESSÁRIO ───
     let abastecimentoId = form.abastecimentoId || null;
 
-    if (form.category === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
+    if (form.categoria === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
       if (!form.novoAbastLocal || !form.novoAbastLitros || !form.totalAmount) {
         toast.error("Preencha Local, Litros e Valor Total para criar novo abastecimento");
         return;
@@ -485,17 +485,17 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         const { data: newAbastecimento, error: abastError } = await supabase
           .from("abastecimentos")
           .insert({
-            client_id: clienteId,
+            id_clientes: clienteId,
             aeronave_id: aircraftId || null,
             data: form.novoAbastData,
-            trecho: form.novoAbastTrecho || form.description || "N/A",
+            trecho: form.novoAbastTrecho || form.descricao || "N/A",
             local: form.novoAbastLocal,
             litros: litros,
             valor_unitario: form.novoAbastValorUnitario ? parseFloat(form.novoAbastValorUnitario) : valorUnitario,
             abastecedor: form.supplierName || null,
-            abastecedor_id: fuelSuppliers.find(s => s.supplier_name === form.supplierName)?.id || null,
+            abastecedor_id: fuelSuppliers.find(s => s.nome_fornecedor === form.supplierName)?.id || null,
             abastecimento_galoes: form.novoAbastGaloes ? parseFloat(form.novoAbastGaloes) : null,
-            partner_name: assignedPartner?.name || null,
+            socio_nome: assignedPartner?.nome || null,
             status_pagamento: form.novoAbastStatusPagamento,
             tipo_faturamento: form.novoAbastTipoFaturamento || null,
             forma_pagamento: form.paymentMethod && form.paymentMethod !== "nao_informado" ? form.paymentMethod.toUpperCase() : null,
@@ -529,8 +529,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       clientId: clienteId,
       description: effectiveDescription,
       totalAmount: parseFloat(form.totalAmount),
-      category: form.category,
-      expenseType: form.expenseType || form.category,
+      category: form.categoria,
+      expenseType: form.expenseType || form.categoria,
       dueDate: form.dueDate,
       supplierName: isDocCategory || isInfraeoDececaExpense ? null : (form.supplierName?.toUpperCase() || null),
       invoiceNumber: isInfraeoDececaExpense ? (form.demonstrativoNumber || null) : (form.invoiceNumber || null),
@@ -550,19 +550,19 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           ? form.installmentStartDate
           : null,
       aircraftId,
-      status: form.status,
+      status: form.situacao,
       referenceType,
       referenceId,
       abastecimentoId: abastecimentoId,
       // For INFRAERO/DECEA, save mesReferente in doc; for IMPOSTOS, save doc field
-      doc: isInfraeoDececaExpense ? effectiveDoc : (isDocCategory ? form.doc : null),
+      doc: isInfraeoDececaExpense ? effectiveDoc : (isDocCategory ? form.documento : null),
       boletoUrl: isInfraeoDececaExpense ? (form.boletoUrl || null) : (isDocCategory ? form.boletoUrl || null : null),
       demonstrativoUrl: isInfraeoDececaExpense ? (form.demonstrativoUrl || null) : (isDocCategory ? form.demonstrativoUrl || null : null),
       percentualSocio: form.percentualSocio ? parseFloat(form.percentualSocio) : null,
     };
 
     // Para abastecimentos, não criar em partner_expenses - apenas abastecimentos foi criado acima
-    if (form.category !== "ABASTECIMENTO") {
+    if (form.categoria !== "ABASTECIMENTO") {
       if (!assignedPartnerCpf && partners.length > 1) {
         const splitAmount = parseFloat(form.totalAmount) / partners.length;
         const splitAmountRounded = Math.round(splitAmount * 100) / 100;
@@ -574,12 +574,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             ? parseFloat(form.totalAmount) - alreadyAssigned
             : splitAmountRounded;
 
-          const finalPayload = form.category === "DESPESAS DE VIAGEM" && referenceId
+          const finalPayload = form.categoria === "DESPESAS DE VIAGEM" && referenceId
             ? {
                 ...basePayload,
                 totalAmount: amount,
                 assignedPartnerCpf: partner.cpf,
-                assignedPartnerName: partner.name,
+                assignedPartnerName: partner.nome,
                 referenceType: "travel_expense_report",
                 referenceId: referenceId,
               }
@@ -587,7 +587,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 ...basePayload,
                 totalAmount: amount,
                 assignedPartnerCpf: partner.cpf,
-                assignedPartnerName: partner.name,
+                assignedPartnerName: partner.nome,
               };
 
           await addExpense.mutateAsync(finalPayload);
@@ -596,12 +596,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         await addExpense.mutateAsync({
           ...basePayload,
           assignedPartnerCpf,
-          assignedPartnerName: assignedPartner?.name || null,
+          assignedPartnerName: assignedPartner?.nome || null,
         });
       }
     }
 
-    if (form.category === "MANUTENÇÃO" && selectedManutencaoId) {
+    if (form.categoria === "MANUTENÇÃO" && selectedManutencaoId) {
       try {
         const valor = parseFloat(form.totalAmount);
         let rateios: Array<{ clientPartnerId: string; percentual: number; valor: number }> = [];
@@ -615,10 +615,10 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             valor: partVal,
           }));
         } else if (manutencaoTipoRateio === "por_uso" && partners.length > 0) {
-          const totalPct = partners.reduce((s, p) => s + (p.share_percentage || 0), 0);
+          const totalPct = partners.reduce((s, p) => s + (p.percentual_participacao || 0), 0);
           if (totalPct > 0) {
             rateios = partners.map((p) => {
-              const pct = (p.share_percentage || 0) / totalPct * 100;
+              const pct = (p.percentual_participacao || 0) / totalPct * 100;
               return {
                 clientPartnerId: p.id,
                 percentual: Math.round(pct * 100) / 100,
@@ -673,7 +673,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
   const handleBankSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bankForm.category || !bankForm.amount || !bankForm.description) return;
+    if (!bankForm.categoria || !bankForm.valor || !bankForm.descricao) return;
 
     const aircraftId = await getAircraftId();
     const selectedConta = contasBancarias.find((c) => c.id === bankForm.bankName);
@@ -682,11 +682,11 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
     const basePayload = {
       clientId: clienteId,
-      description: bankForm.description,
-      totalAmount: parseFloat(bankForm.amount),
+      description: bankForm.descricao,
+      totalAmount: parseFloat(bankForm.valor),
       category: "TARIFAS BANCARIAS",
-      expenseType: bankForm.category,
-      dueDate: bankForm.date,
+      expenseType: bankForm.categoria,
+      dueDate: bankForm.data,
       supplierName: bankNameResolved ? bankNameResolved.toUpperCase() : null,
       notes: bankForm.notes || null,
       bankName: bankNameUppercase,
@@ -697,20 +697,20 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     };
 
     if (bankForm.assignMode === "rateio" && partners.length > 1) {
-      const splitAmount = parseFloat(bankForm.amount) / partners.length;
+      const splitAmount = parseFloat(bankForm.valor) / partners.length;
       const splitAmountRounded = Math.round(splitAmount * 100) / 100;
       for (const partner of partners) {
         const isLast = partners.indexOf(partner) === partners.length - 1;
         const alreadyAssigned = splitAmountRounded * (partners.indexOf(partner));
         const amount = isLast
-          ? parseFloat(bankForm.amount) - alreadyAssigned
+          ? parseFloat(bankForm.valor) - alreadyAssigned
           : splitAmountRounded;
 
         await addExpense.mutateAsync({
           ...basePayload,
           totalAmount: amount,
           assignedPartnerCpf: partner.cpf,
-          assignedPartnerName: partner.name,
+          assignedPartnerName: partner.nome,
         });
       }
     } else if (bankForm.assignMode === "socio" && bankForm.assignedPartnerCpf !== "none") {
@@ -718,7 +718,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       await addExpense.mutateAsync({
         ...basePayload,
         assignedPartnerCpf: bankForm.assignedPartnerCpf,
-        assignedPartnerName: partner?.name || null,
+        assignedPartnerName: partner?.nome || null,
       });
     } else {
       await addExpense.mutateAsync({
@@ -734,15 +734,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     setTab("expense");
   };
 
-  const selectedCategory = EXPENSE_CATEGORIES.find((c) => c.id === form.category);
-  const isAbastecimento = form.category === "ABASTECIMENTO";
+  const selectedCategory = EXPENSE_CATEGORIES.find((c) => c.id === form.categoria);
+  const isAbastecimento = form.categoria === "ABASTECIMENTO";
 
   // Validation
   const isValid = isInfraeoDececaExpense
-    ? !!form.demonstrativoNumber && !!form.mesReferente && !!form.totalAmount && !!form.category
+    ? !!form.demonstrativoNumber && !!form.mesReferente && !!form.totalAmount && !!form.categoria
     : isDocCategory
-    ? !!form.doc && !!form.totalAmount && !!form.category
-    : !!form.description && !!form.totalAmount && !!form.category;
+    ? !!form.documento && !!form.totalAmount && !!form.categoria
+    : !!form.descricao && !!form.totalAmount && !!form.categoria;
 
   return (
     <>
@@ -844,13 +844,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <SelectItem key={partner.id} value={partner.cpf} className="py-3">
                               <div className="flex items-center gap-3">
                                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
-                                  {partner.name.charAt(0).toUpperCase()}
+                                  {partner.nome.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                  <div className="font-medium text-sm">{partner.name}</div>
+                                  <div className="font-medium text-sm">{partner.nome}</div>
                                   <div className="text-xs text-muted-foreground font-mono">
                                     {formatCPF(partner.cpf)}
-                                    {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                                    {partner.percentual_participacao && ` · ${partner.percentual_participacao}%`}
                                   </div>
                                 </div>
                               </div>
@@ -861,7 +861,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
 
                     <FormSection label="Categoria" required>
-                      <Select value={form.category} onValueChange={set("category")}>
+                      <Select value={form.categoria} onValueChange={set("categoria")}>
                         <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione a categoria da despesa" />
                         </SelectTrigger>
@@ -913,7 +913,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   )}
 
                   {/* ── IMPOSTOS: Tipo de Imposto ── */}
-                  {(form.category as string) === "IMPOSTOS" && (
+                  {(form.categoria as string) === "IMPOSTOS" && (
                     <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-6 space-y-4">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900/60">
@@ -944,7 +944,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           <span className="text-base">🛬</span>
                         </div>
                         <p className="font-semibold text-sm text-sky-200">
-                          Informações de {form.category}
+                          Informações de {form.categoria}
                         </p>
                       </div>
 
@@ -954,7 +954,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           <Input
                             value={form.demonstrativoNumber}
                             onChange={(e) => set("demonstrativoNumber")(e.target.value)}
-                            placeholder={`Ex: ${form.category}-2025-001`}
+                            placeholder={`Ex: ${form.categoria}-2025-001`}
                             required
                             disabled={addExpense.isPending}
                             className="h-13 rounded-xl text-sm border-sky-700/40 bg-zinc-900"
@@ -1017,44 +1017,44 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   )}
 
                   {/* ── Campo DOC (IMPOSTOS only) ── */}
-                  {form.category === "IMPOSTOS" && (
+                  {form.categoria === "IMPOSTOS" && (
                     <div className={cn(
                       "rounded-2xl border p-6 space-y-2",
-                      form.category === "IMPOSTOS"
+                      form.categoria === "IMPOSTOS"
                         ? "bg-blue-950/30 border-blue-700/40"
                         : "bg-sky-950/30 border-sky-700/40"
                     )}>
                       <div className="flex items-center gap-2.5 mb-3">
                         <div className={cn(
                           "flex h-8 w-8 items-center justify-center rounded-lg",
-                          form.category === "IMPOSTOS" ? "bg-blue-900/60" : "bg-sky-900/60"
+                          form.categoria === "IMPOSTOS" ? "bg-blue-900/60" : "bg-sky-900/60"
                         )}>
                           <span className="text-base">
-                            {form.category === "IMPOSTOS" ? "🏦" : "🛬"}
+                            {form.categoria === "IMPOSTOS" ? "🏦" : "🛬"}
                           </span>
                         </div>
                         <p className={cn(
                           "font-semibold text-sm",
-                          form.category === "IMPOSTOS" ? "text-blue-200" : "text-sky-200"
+                          form.categoria === "IMPOSTOS" ? "text-blue-200" : "text-sky-200"
                         )}>
-                          {getDocFieldLabel(form.category as string)}
+                          {getDocFieldLabel(form.categoria as string)}
                         </p>
                       </div>
                       <Input
-                        value={form.doc}
-                        onChange={(e) => set("doc")(e.target.value)}
-                        placeholder={getDocFieldPlaceholder(form.category as string)}
+                        value={form.documento}
+                        onChange={(e) => set("documento")(e.target.value)}
+                        placeholder={getDocFieldPlaceholder(form.categoria as string)}
                         required
                         disabled={addExpense.isPending}
                         className={cn(
                           "h-13 rounded-xl text-sm",
-                          form.category === "IMPOSTOS"
+                          form.categoria === "IMPOSTOS"
                             ? "border-blue-700/40 bg-zinc-900"
                             : "border-sky-700/40 bg-zinc-900"
                         )}
                       />
                       <p className="text-xs text-muted-foreground pt-1">
-                        {form.category === "IMPOSTOS"
+                        {form.categoria === "IMPOSTOS"
                           ? "Este número será salvo como identificador do documento fiscal."
                           : "Este número será salvo como referência do demonstrativo."}
                       </p>
@@ -1096,7 +1096,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   )}
 
                   {/* ── Vincular Relatório de Viagem ── */}
-                  {form.category === "DESPESAS DE VIAGEM" && (
+                  {form.categoria === "DESPESAS DE VIAGEM" && (
                     <FormSection label="Deseja vincular a um relatório de viagem?">
                       <div className="flex flex-col sm:flex-row gap-4">
                         <Button
@@ -1140,7 +1140,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <SelectContent className="rounded-xl">
                               {existingReports.map((r) => (
                                 <SelectItem key={r.id} value={r.id} className="py-3">
-                                  {r.report_number}
+                                  {r.numero_relatorio}
                                   {r.status && (
                                     <span className="ml-2 text-xs text-muted-foreground">
                                       ({r.status})
@@ -1197,8 +1197,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                       </div>
                                       <div className="text-xs text-muted-foreground flex gap-2">
                                         {abast.comanda && <span>Comanda: {abast.comanda}</span>}
-                                        {abast.partner_name && (
-                                          <span>Sócio: {abast.partner_name}</span>
+                                        {abast.nome_socio && (
+                                          <span>Sócio: {abast.nome_socio}</span>
                                         )}
                                       </div>
                                     </div>
@@ -1240,7 +1240,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           {!form.novoAbastVincularDiario && (
                             <FormSection label="📅 Data do Abastecimento">
                               <Input
-                                type="date"
+                                type="data"
                                 value={form.novoAbastData}
                                 onChange={(e) => set("novoAbastData")(e.target.value)}
                                 className="h-13 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
@@ -1295,15 +1295,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               <div className="flex gap-2">
                                 <SearchableCombobox
                                   items={fuelSuppliers.map(s => ({
-                                    id: s.supplier_name,
-                                    label: `${s.supplier_name} (${s.city_name})`
+                                    id: s.nome_fornecedor,
+                                    label: `${s.nome_fornecedor} (${s.cidade_name})`
                                   }))}
                                   value={form.supplierName}
                                   onChange={(v) => {
                                     set("supplierName")(v);
-                                    const supplier = fuelSuppliers.find(s => s.supplier_name === v);
+                                    const supplier = fuelSuppliers.find(s => s.nome_fornecedor === v);
                                     if (supplier) {
-                                      set("novoAbastLocal")(supplier.city_name);
+                                      set("novoAbastLocal")(supplier.cidade_name);
                                     }
                                   }}
                                   placeholder="Selecione fornecedor"
@@ -1433,7 +1433,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <FormSection label="📅 Data de Pagamento">
                                   <Input
-                                    type="date"
+                                    type="data"
                                     value={form.novoAbastDataPagamento}
                                     onChange={(e) => set("novoAbastDataPagamento")(e.target.value)}
                                     className="h-13 rounded-xl border-green-700/30 bg-background text-foreground text-sm"
@@ -1504,7 +1504,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <div className="space-y-3 pt-2 border-t bg-orange-500/5 border-l-4 border-l-orange-500 pl-4">
                               <FormSection label="📅 Data de Vencimento">
                                 <Input
-                                  type="date"
+                                  type="data"
                                   value={form.novoAbastDataVencimento}
                                   onChange={(e) => set("novoAbastDataVencimento")(e.target.value)}
                                   className="h-13 rounded-xl border-orange-700/30 bg-background text-foreground text-sm"
@@ -1597,7 +1597,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   )}
 
                   {/* ── Manutenção ── */}
-                  {form.category === "MANUTENÇÃO" && (
+                  {form.categoria === "MANUTENÇÃO" && (
                     <div className="rounded-2xl bg-muted/50 border border-border/60 p-6 space-y-4">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -1682,7 +1682,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               <p className="text-xs font-medium text-muted-foreground">Percentual por sócio</p>
                               {partners.map((p) => (
                                 <div key={p.id} className="flex items-center gap-3">
-                                  <span className="text-sm flex-1 truncate">{p.name}</span>
+                                  <span className="text-sm flex-1 truncate">{p.nome}</span>
                                   <div className="flex items-center gap-1.5">
                                     <Input
                                       type="number"
@@ -1720,11 +1720,11 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <div className="rounded-xl border border-border/40 p-4 space-y-2">
                               <p className="text-xs font-medium text-muted-foreground">Rateio estimado por uso</p>
                               {partners.map((p) => {
-                                const totalPct = partners.reduce((s, pp) => s + (pp.share_percentage || 0), 0);
-                                const pct = totalPct > 0 ? ((p.share_percentage || 0) / totalPct * 100) : (100 / partners.length);
+                                const totalPct = partners.reduce((s, pp) => s + (pp.percentual_participacao || 0), 0);
+                                const pct = totalPct > 0 ? ((p.percentual_participacao || 0) / totalPct * 100) : (100 / partners.length);
                                 return (
                                   <div key={p.id} className="flex items-center justify-between text-sm">
-                                    <span className="truncate">{p.name}</span>
+                                    <span className="truncate">{p.nome}</span>
                                     <span className="text-muted-foreground font-mono">{pct.toFixed(1)}%</span>
                                   </div>
                                 );
@@ -1740,8 +1740,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   {!hideDescriptionAndSupplier && !(isAbastecimento && form.criarNovoAbastecimento) && (
                     <FormSection label="Descrição" required>
                       <Input
-                        value={form.description}
-                        onChange={(e) => set("description")(e.target.value)}
+                        value={form.descricao}
+                        onChange={(e) => set("descricao")(e.target.value)}
                         placeholder={
                           selectedCategory
                             ? `Ex: ${selectedCategory.label} - detalhe da despesa`
@@ -1793,14 +1793,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <SearchableCombobox
                               items={fuelSuppliers.map((f) => ({
                                 id: f.id,
-                                label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`,
+                                label: `${f.nome_fornecedor} - ${f.cidade_name} (${f.icao_code})`,
                               }))}
                               value={
-                                fuelSuppliers.find((f) => f.supplier_name === form.supplierName)?.id || ""
+                                fuelSuppliers.find((f) => f.nome_fornecedor === form.supplierName)?.id || ""
                               }
                               onChange={(id) => {
                                 const supplier = fuelSuppliers.find((f) => f.id === id);
-                                set("supplierName")(supplier?.supplier_name || "");
+                                set("supplierName")(supplier?.nome_fornecedor || "");
                               }}
                               placeholder="Selecione um fornecedor de combustível..."
                               searchPlaceholder="Buscar fornecedor..."
@@ -1812,7 +1812,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                setNewFuelSupplier({ supplier_name: '', city_name: '', icao_code: '' });
+                                setNewFuelSupplier({ nome_fornecedor: '', city_name: '', icao_code: '' });
                                 setShowAddFuelSupplier(true);
                               }}
                               className="w-full gap-2 h-10 text-xs rounded-lg border-dashed border-border/60 text-muted-foreground hover:text-foreground"
@@ -1826,7 +1826,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <SearchableCombobox
                               items={fornecedoresShare.map((f) => ({
                                 id: f.id,
-                                label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`,
+                                label: `${f.nome_completo}${f.documentoumento ? ` (${f.documentoumento})` : ""}`,
                               }))}
                               value={
                                 fornecedoresShare.find((f) => f.nome_completo === form.supplierName)
@@ -1891,7 +1891,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   {!(isAbastecimento && form.criarNovoAbastecimento) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Status da Despesa">
-                      <Select value={form.status} onValueChange={set("status")}>
+                      <Select value={form.situacao} onValueChange={set("situacao")}>
                         <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
@@ -1981,7 +1981,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                               <div className="mt-3 p-3 rounded-lg bg-white/15 text-sm text-white/90">
                                 <p className="font-medium">Resumo do parcelamento:</p>
                                 <p className="mt-1">
-                                  <strong>{form.description || "Despesa"}</strong>{" "}
+                                  <strong>{form.descricao || "Despesa"}</strong>{" "}
                                   {parseInt(form.installmentCount)}X{" "}
                                   <strong>
                                     R${" "}
@@ -2019,7 +2019,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           </FormSection>
                           <FormSection label="Data 1ª Parcela" required>
                             <Input
-                              type="date"
+                              type="data"
                               value={form.installmentStartDate}
                               onChange={(e) => set("installmentStartDate")(e.target.value)}
                               disabled={addExpense.isPending}
@@ -2199,13 +2199,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <SelectItem key={partner.id} value={partner.cpf} className="py-3">
                               <div className="flex items-center gap-3">
                                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
-                                  {partner.name.charAt(0).toUpperCase()}
+                                  {partner.nome.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                  <div className="font-medium text-sm">{partner.name}</div>
+                                  <div className="font-medium text-sm">{partner.nome}</div>
                                   <div className="text-xs text-muted-foreground font-mono">
                                     {formatCPF(partner.cpf)}
-                                    {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                                    {partner.percentual_participacao && ` · ${partner.percentual_participacao}%`}
                                   </div>
                                 </div>
                               </div>
@@ -2225,7 +2225,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
                   <FormSection label="Tipo de Despesa Bancária" required>
                     <Select
-                      value={bankForm.category}
+                      value={bankForm.categoria}
                       onValueChange={(v) => setBankForm((p) => ({ ...p, category: v as BankExpenseCategoryId }))}
                     >
                       <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
@@ -2246,7 +2246,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
                   <FormSection label="Descrição" required>
                     <Input
-                      value={bankForm.description}
+                      value={bankForm.descricao}
                       onChange={(e) => setBankForm((p) => ({ ...p, description: e.target.value }))}
                       placeholder="Ex: Anuidade cartão Visa, Taxa TED, etc."
                       required
@@ -2332,7 +2332,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           type="number"
                           step="0.01"
                           min="0.01"
-                          value={bankForm.amount}
+                          value={bankForm.valor}
                           onChange={(e) => setBankForm((p) => ({ ...p, amount: e.target.value }))}
                           placeholder="0,00"
                           required
@@ -2343,7 +2343,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                     <FormSection label="Data" required>
                       <DateFieldWithInput
-                        value={bankForm.date}
+                        value={bankForm.data}
                         onChange={(v) => setBankForm((p) => ({ ...p, date: v }))}
                       />
                     </FormSection>
@@ -2369,7 +2369,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       transition-all duration-200 hover:-translate-y-px hover:shadow-md
                       disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none
                     "
-                    disabled={addExpense.isPending || !bankForm.category || !bankForm.amount || !bankForm.description || !bankForm.bankName || (bankForm.assignMode === "socio" && bankForm.assignedPartnerCpf === "none")}
+                    disabled={addExpense.isPending || !bankForm.categoria || !bankForm.valor || !bankForm.descricao || !bankForm.bankName || (bankForm.assignMode === "socio" && bankForm.assignedPartnerCpf === "none")}
                   >
                     {addExpense.isPending ? (
                       <span className="flex items-center gap-2">
@@ -2412,24 +2412,24 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
-              if (!newFuelSupplier.supplier_name.trim() || !newFuelSupplier.city_name.trim() || !newFuelSupplier.icao_code.trim()) {
+              if (!newFuelSupplier.nome_fornecedor.trim() || !newFuelSupplier.cidade_name.trim() || !newFuelSupplier.icao_code.trim()) {
                 toast.error('Preencha todos os campos obrigatórios');
                 return;
               }
               setSavingFuelSupplier(true);
               try {
                 const { data, error } = await supabase
-                  .from('fuel_suppliers')
+                  .from('fornecedores_combustivel')
                   .insert({
-                    supplier_name: newFuelSupplier.supplier_name.trim(),
-                    city_name: newFuelSupplier.city_name.trim(),
+                    nome_fornecedor: newFuelSupplier.nome_fornecedor.trim(),
+                    city_name: newFuelSupplier.cidade_name.trim(),
                     icao_code: newFuelSupplier.icao_code.trim().toUpperCase(),
                   })
                   .select()
                   .single();
                 if (error) throw error;
                 queryClient.invalidateQueries({ queryKey: ['fuel-suppliers'] });
-                set('supplierName')(data.supplier_name);
+                set('supplierName')(data.nome_fornecedor);
                 setShowAddFuelSupplier(false);
                 toast.success('Fornecedor de combustível cadastrado!');
               } catch (err: any) {
@@ -2443,8 +2443,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             <div className="space-y-1">
               <Label>Nome do Fornecedor *</Label>
               <Input
-                value={newFuelSupplier.supplier_name}
-                onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, supplier_name: e.target.value }))}
+                value={newFuelSupplier.nome_fornecedor}
+                onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, nome_fornecedor: e.target.value }))}
                 placeholder="Ex: BR Aviation"
                 className="h-11"
               />
@@ -2453,7 +2453,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               <div className="space-y-1">
                 <Label>Cidade *</Label>
                 <Input
-                  value={newFuelSupplier.city_name}
+                  value={newFuelSupplier.cidade_name}
                   onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, city_name: e.target.value }))}
                   placeholder="Ex: São Paulo"
                   className="h-11"

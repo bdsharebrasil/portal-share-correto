@@ -68,7 +68,7 @@ export default function CrewCalendar({ crewMemberId }: Props) {
                   {items.map((it: any) => (
                     <li key={it.id} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-3">
-                        <Badge variant="secondary" className="capitalize">{it.status}</Badge>
+                        <Badge variant="secondary" className="capitalize">{it.situacao}</Badge>
                         <span className="text-foreground">{it.origin} → {it.destination}</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground"><Clock className="h-4 w-4" /><span className="text-foreground">{it.flight_time}</span></div>

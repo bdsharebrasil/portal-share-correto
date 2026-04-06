@@ -81,11 +81,11 @@ export default function Agendamentos() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [selectedAircraft, setSelectedAircraft] = useState("all");
+  const [selectedAeronave, setSelectedAircraft] = useState("all");
   const [statusTab, setStatusTab] = useState<"pendentes" | "todos">("todos");
 
   const { data: schedules, isLoading, error: schedulesError, refetch } = useQuery({
-    queryKey: ["flight-schedules", selectedAircraft],
+    queryKey: ["flight-schedules", selectedAeronave],
     queryFn: async () => {
       try {
         let query = supabase
@@ -94,8 +94,8 @@ export default function Agendamentos() {
           .order("flight_date", { ascending: false })
           .order("flight_time", { ascending: false });
 
-        if (selectedAircraft !== "all") {
-          query = query.eq("aircraft_id", selectedAircraft);
+        if (selectedAeronave !== "all") {
+          query = query.eq("id_aeronave", selectedAeronave);
         }
 
         const { data: baseSchedules, error: baseError } = await query;
@@ -104,22 +104,22 @@ export default function Agendamentos() {
         const schedules = baseSchedules || [];
         
         // Buscar dados relacionados
-        const aircraftIds = [...new Set(schedules.map(s => s.aircraft_id).filter(Boolean))];
+        const aircraftIds = [...new Set(schedules.map(s => s.aeronave_id).filter(Boolean))];
         const crewIds = [...new Set(schedules.map(s => s.crew_member_id).filter(Boolean))];
-        const clientIds = [...new Set(schedules.map(s => s.client_id).filter(Boolean))];
+        const clientIds = [...new Set(schedules.map(s => s.cliente_id).filter(Boolean))];
 
         const [aircraftData, crewData, clientData] = await Promise.all([
-          aircraftIds.length ? supabase.from("aircraft").select("id, registration, model").in("id", aircraftIds as string[]) : Promise.resolve({ data: [] }),
-          crewIds.length ? supabase.from("crew_members").select("id, full_name").in("id", crewIds as string[]) : Promise.resolve({ data: [] }),
-          clientIds.length ? supabase.from("clients").select("id, company_name").in("id", clientIds as string[]) : Promise.resolve({ data: [] })
+          aircraftIds.length ? supabase.from('aeronave').select('id, matricula, modelo').in("id", aircraftIds as string[]) : Promise.resolve({ data: [] }),
+          crewIds.length ? supabase.from("membros_tripulacao").select("id, nome_completo").in("id", crewIds as string[]) : Promise.resolve({ data: [] }),
+          clientIds.length ? supabase.from("clientes").select("id, razao_social").in("id", clientIds as string[]) : Promise.resolve({ data: [] })
         ]);
 
         return schedules.map(s => ({
           ...s,
-          aircraft: aircraftData.data?.find(a => a.id === s.aircraft_id) || null,
+          aircraft: aircraftData.data?.find(a => a.id === s.aeronave_id) || null,
           crew: crewData.data?.find(c => c.id === s.crew_member_id) || null,
-          client: clientData.data?.find(c => c.id === s.client_id) || null,
-          client_name: clientData.data?.find(c => c.id === s.client_id)?.company_name || null
+          client: clientData.data?.find(c => c.id === s.cliente_id) || null,
+          client_name: clientData.data?.find(c => c.id === s.cliente_id)?.razao_social || null
         }));
       } catch (err) {
         console.error("Erro ao carregar agendamentos:", err);
@@ -130,12 +130,12 @@ export default function Agendamentos() {
   });
 
   const { data: aircraft } = useQuery({
-    queryKey: ["aircraft"],
+    queryKey: ["aeronave"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model")
-        .eq("status", "ativa");
+        .from('aeronave')
+        .select('id, matricula, modelo')
+        .eq("situacao", "ativa");
       if (error) throw error;
       return data;
     },
@@ -143,8 +143,8 @@ export default function Agendamentos() {
 
   const stats = {
     total: schedules?.length || 0,
-    confirmed: schedules?.filter(s => s.status === "confirmado").length || 0,
-    pending: schedules?.filter(s => s.status === "pendente").length || 0,
+    confirmed: schedules?.filter(s => s.situacao === "confirmado").length || 0,
+    pending: schedules?.filter(s => s.situacao === "pendente").length || 0,
     today: schedules?.filter(s => s.flight_date === new Date().toISOString().split('T')[0]).length || 0,
   };
 
@@ -256,7 +256,7 @@ export default function Agendamentos() {
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-muted-foreground">Filtrar por aeronave:</span>
-              <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
+              <Select value={selectedAeronave} onValueChange={setSelectedAircraft}>
                 <SelectTrigger className="w-[250px]">
                   <SelectValue placeholder="Todas as aeronaves" />
                 </SelectTrigger>
@@ -284,7 +284,7 @@ export default function Agendamentos() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plane className="h-5 w-5" />
-              Lista de Agendamentos ({(schedules || []).filter((s: any) => statusTab === 'pendentes' ? s.status === 'pendente' : true).length})
+              Lista de Agendamentos ({(schedules || []).filter((s: any) => statusTab === 'pendentes' ? s.situacao === 'pendente' : true).length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -304,7 +304,7 @@ export default function Agendamentos() {
             ) : schedules && schedules.length > 0 ? (
               <div className="space-y-4">
                 {(schedules || [])
-                  .filter((s: any) => statusTab === 'pendentes' ? s.status === 'pendente' : true)
+                  .filter((s: any) => statusTab === 'pendentes' ? s.situacao === 'pendente' : true)
                   .map((schedule: any) => (
                   <Card key={schedule.id} className="group overflow-hidden border-border/50 hover:border-primary/50 hover:shadow-lg transition-all">
                     <CardContent className="p-0">
@@ -317,9 +317,9 @@ export default function Agendamentos() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <h3 className="font-bold text-xl text-foreground">{schedule.aircraft?.registration || "N/A"}</h3>
-                                <Badge variant="outline" className={`${getStatusBadge(schedule.status).className} text-xs`}>
-                                  {getStatusBadge(schedule.status).label}
+                                <h3 className="font-bold text-xl text-foreground">{schedule.aeronave?.matricula || "N/A"}</h3>
+                                <Badge variant="outline" className={`${getStatusBadge(schedule.situacao).className} text-xs`}>
+                                  {getStatusBadge(schedule.situacao).label}
                                 </Badge>
                                 {schedule.flight_type && (
                                   <Badge variant="outline" className="text-xs bg-muted/50">
@@ -327,7 +327,7 @@ export default function Agendamentos() {
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-sm text-muted-foreground">{schedule.aircraft?.model || ""}</p>
+                              <p className="text-sm text-muted-foreground">{schedule.aeronave?.modelo || ""}</p>
                             </div>
                           </div>
 
@@ -375,7 +375,7 @@ export default function Agendamentos() {
                             <div className="space-y-1">
                               <p className="text-xs font-medium text-muted-foreground">Cliente</p>
                               <p className="text-sm font-semibold text-foreground truncate">
-                                {schedule.client?.company_name || "Não informado"}
+                                {schedule.client?.razao_social || "Não informado"}
                               </p>
                             </div>
                             <div className="space-y-1">
@@ -393,17 +393,17 @@ export default function Agendamentos() {
                             </div>
                           )}
 
-                          {schedule.observations && (
+                          {schedule.observacoes && (
                             <div className="mt-4 space-y-1">
                               <p className="text-xs font-medium text-muted-foreground">Observações</p>
-                              <p className="text-sm text-foreground bg-muted/30 p-3 rounded-lg">{schedule.observations}</p>
+                              <p className="text-sm text-foreground bg-muted/30 p-3 rounded-lg">{schedule.observacoes}</p>
                             </div>
                           )}
                         </div>
 
                         {/* Ações */}
                         <div className="lg:w-48 bg-muted/20 p-4 flex flex-col gap-2 border-t lg:border-t-0 lg:border-l border-border/50">
-                          <StatusUpdateButtons scheduleId={schedule.id} currentStatus={schedule.status} onUpdate={refetch} />
+                          <StatusUpdateButtons scheduleId={schedule.id} currentStatus={schedule.situacao} onUpdate={refetch} />
                           <Button
                             variant="outline"
                             size="sm"

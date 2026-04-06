@@ -53,7 +53,7 @@ export function EmployeeVacationTab({ employeeId, employeeName }: EmployeeVacati
         .from("vacation_requests")
         .select("*")
         .eq("user_id", employeeId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -244,7 +244,7 @@ export function EmployeeVacationTab({ employeeId, employeeName }: EmployeeVacati
                   <div className="flex items-center gap-3 mb-2">
                     {getStatusBadge(request.status)}
                     <span className="text-xs text-muted-foreground">
-                      Solicitado em {format(new Date(request.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                      Solicitado em {format(new Date(request.criado_em), "dd/MM/yyyy", { locale: ptBR })}
                     </span>
                   </div>
                   

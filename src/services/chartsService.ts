@@ -70,8 +70,8 @@ function parseChartsData(rawData: any): ChartData[] {
       }
 
       // Extrair título e descrição
-      const title = chart.nome || chart.title || chart.name || chart.designator || 'Sem título';
-      const description = chart.tipo_descr || chart.description || tipoAPI || '';
+      const title = chart.nome || chart.title || chart.nome || chart.designator || 'Sem título';
+      const description = chart.tipo_descr || chart.descricao || tipoAPI || '';
 
       const parsedChart: ChartData = {
         type,
@@ -99,7 +99,7 @@ function parseChartsData(rawData: any): ChartData[] {
         'IAP': 6,
         'AIRPORT': 7,
       };
-      return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
+      return (typeOrder[a.tipo] || 99) - (typeOrder[b.tipo] || 99);
     });
 }
 

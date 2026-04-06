@@ -41,7 +41,7 @@ export function PayExpenseDialog({
       clientId: clienteId,
       expenseId: expense.id,
       partnerCpf: selectedCpf,
-      partnerName: acc.partner_name,
+      partnerName: acc.nome_socio,
       amount,
       paymentDate: payDate,
     });
@@ -55,7 +55,7 @@ export function PayExpenseDialog({
         <DialogHeader>
           <DialogTitle>Pagar Despesa — {fmt(amount)}</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground mb-2">{expense.description}</p>
+        <p className="text-sm text-muted-foreground mb-2">{expense.descricao}</p>
 
         <div className="space-y-2">
           <Label>Selecione o sócio pagador:</Label>
@@ -76,7 +76,7 @@ export function PayExpenseDialog({
                 }`}
               >
                 <div className="text-left">
-                  <p className="font-medium text-foreground">{acc.partner_name}</p>
+                  <p className="font-medium text-foreground">{acc.nome_socio}</p>
                   <p className="text-sm text-muted-foreground">Saldo: {fmt(bal)}</p>
                 </div>
                 {canPay ? (
@@ -91,7 +91,7 @@ export function PayExpenseDialog({
 
         <div>
           <Label>Data do Pagamento</Label>
-          <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+          <Input type="data" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
         </div>
 
         <Button

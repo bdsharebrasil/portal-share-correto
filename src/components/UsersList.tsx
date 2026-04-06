@@ -43,7 +43,7 @@ export function UsersList() {
             {users?.map((user: any) => (
               <TableRow key={user.id}>
                 <TableCell>{user.email}</TableCell>
-                <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(user.criado_em).toLocaleDateString()}</TableCell>
                 <TableCell>
                   <Badge variant={user.email_confirmed_at ? "default" : "secondary"}>
                     {user.email_confirmed_at ? "Confirmado" : "Pendente"}

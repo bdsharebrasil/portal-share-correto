@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface BenefitTransaction {
+  valor: number;
   id: string;
   benefit_card_id: string;
   description: string;
@@ -235,7 +236,7 @@ export default function CartoesCorporativos() {
   };
 
   const getTotalSpent = (cardType: "combustivel" | "alimentacao") => {
-    return getTransactionsForCard(cardType).reduce((sum, t) => sum + t.amount, 0);
+    return getTransactionsForCard(cardType).reduce((sum, t) => sum + t.valor, 0);
   };
 
   const updateCardBalances = () => {
@@ -257,12 +258,12 @@ export default function CartoesCorporativos() {
     ];
 
     cardConfigs.forEach((config) => {
-      const card = benefitCards.get(config.type);
-      const spent = getTotalSpent(config.type);
+      const card = benefitCards.get(config.tipo);
+      const spent = getTotalSpent(config.tipo);
       const balance = (card?.initial_balance || 0) - spent;
 
       balances.push({
-        type: config.type,
+        type: config.tipo,
         balance: Math.max(0, balance),
         spent,
         icon: config.icon,
@@ -280,12 +281,12 @@ export default function CartoesCorporativos() {
   }, [benefitCards, transactions]);
 
   const handleAddExpense = async () => {
-    if (!formData.amount || !formData.description) {
+    if (!formData.valor || !formData.descricao) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
 
-    const card = benefitCards.get(formData.category as "combustivel" | "alimentacao");
+    const card = benefitCards.get(formData.categoria as "combustivel" | "alimentacao");
     if (!card) {
       toast.error("Cartão não encontrado para este período");
       return;
@@ -297,8 +298,8 @@ export default function CartoesCorporativos() {
         {
           benefit_card_id: card.id,
           user_id: currentUser.id,
-          description: formData.description,
-          amount: parseFloat(formData.amount),
+          description: formData.descricao,
+          amount: parseFloat(formData.valor),
           transaction_date: format(new Date(), "yyyy-MM-dd"),
         },
       ]);
@@ -427,13 +428,13 @@ export default function CartoesCorporativos() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {cardBalances.map((card) => (
             <div
-              key={card.type}
+              key={card.tipo}
               className={`relative h-40 rounded-2xl bg-gradient-to-br ${card.color} p-6 text-white shadow-lg overflow-hidden group transition-transform hover:scale-105`}
             >
               {/* Background pattern */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-4 right-4">
-                  {card.type === "combustivel" ? (
+                  {card.tipo === "combustivel" ? (
                     <Fuel className="h-16 w-16 text-white/20" />
                   ) : (
                     <UtensilsCrossed className="h-16 w-16 text-white/20" />
@@ -446,7 +447,7 @@ export default function CartoesCorporativos() {
                 {/* Top */}
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-wider opacity-80">
-                    {card.type === "combustivel" ? "Combustível" : "Alimentação"}
+                    {card.tipo === "combustivel" ? "Combustível" : "Alimentação"}
                   </p>
                   <h2 className="text-3xl font-bold mt-3">
                     R$ {card.balance.toFixed(2)}
@@ -460,7 +461,7 @@ export default function CartoesCorporativos() {
                   </div>
                   {canEditSettings && (
                     <button
-                      onClick={() => openEditBalanceDialog(card.type)}
+                      onClick={() => openEditBalanceDialog(card.tipo)}
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/20 rounded-lg"
                       title="Editar saldo"
                     >
@@ -496,7 +497,7 @@ export default function CartoesCorporativos() {
                       key={type}
                       onClick={() => setFormData({ ...formData, category: type })}
                       className={`flex-1 p-3 rounded-lg border-2 transition-all ${
-                        formData.category === type
+                        formData.categoria === type
                           ? "border-primary bg-primary/10"
                           : "border-slate-700/50 hover:border-slate-600"
                       }`}
@@ -513,7 +514,7 @@ export default function CartoesCorporativos() {
                 <Input
                   type="number"
                   placeholder="0.00"
-                  value={formData.amount}
+                  value={formData.valor}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   step="0.01"
                   min="0"
@@ -526,7 +527,7 @@ export default function CartoesCorporativos() {
                 <label className="text-sm font-semibold text-foreground mb-1 block">Descrição *</label>
                 <Input
                   placeholder="Ex: Abastecimento avião N-123"
-                  value={formData.description}
+                  value={formData.descricao}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="bg-slate-800/40 border-slate-700/50"
                 />
@@ -563,7 +564,7 @@ export default function CartoesCorporativos() {
           {/* Tab Selection */}
           <div className="flex gap-2">
             {["combustivel", "alimentacao"].map((type) => {
-              const config = cardBalances.find((c) => c.type === type as any);
+              const config = cardBalances.find((c) => c.tipo === type as any);
               return (
                 <button
                   key={type}
@@ -643,14 +644,14 @@ export default function CartoesCorporativos() {
                             {format(new Date(tx.transaction_date), "dd/MM/yyyy", { locale: ptBR })}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {tx.description}
+                            {tx.descricao}
                           </TableCell>
                           <TableCell className="text-foreground text-sm flex items-center gap-2">
                             <User className="h-4 w-4 text-muted-foreground" />
                             {tx.user_name}
                           </TableCell>
                           <TableCell className="text-right font-semibold text-foreground">
-                            -R$ {tx.amount.toFixed(2)}
+                            -R$ {tx.valor.toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))}

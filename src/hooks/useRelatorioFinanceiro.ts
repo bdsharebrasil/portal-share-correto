@@ -151,7 +151,7 @@ export function useRelatorioFinanceiro() {
   const porCliente = useMemo((): ClienteResumo[] => {
     const map: Record<string, ClienteResumo> = {};
     transacoesFiltradas.forEach((t) => {
-      const id = t.client_id || "sem-cliente";
+      const id = t.cliente_id || "sem-cliente";
       const nome = t.client_name || "Sem Cliente";
       if (!map[id]) map[id] = { id, nome, receitas: 0, despesas: 0, saldo: 0, quantidade: 0 };
       if (t.tipo_movimento === "entrada") map[id].receitas += t.valor;

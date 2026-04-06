@@ -53,7 +53,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
   const { data: cliente } = useQuery({
     queryKey: ['cliente-info', clienteId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('*').eq('id', clienteId).single();
+      const { data, error } = await supabase.from('clientes').select('*').eq('id', clienteId).single();
       if (error) throw error;
       return data;
     },
@@ -64,7 +64,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
     queryKey: ['socio-info', socioId],
     queryFn: async () => {
       if (!socioId) return null;
-      const { data, error } = await supabase.from('client_partners').select('*').eq('id', socioId).single();
+      const { data, error } = await supabase.from('socios_cliente').select('*').eq('id', socioId).single();
       if (error) throw error;
       return data;
     },
@@ -75,7 +75,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
     queryKey: ['aeronave-info-relatorio', aeronaveId],
     queryFn: async () => {
       if (!aeronaveId) return null;
-      const { data } = await supabase.from('aircraft').select('registration, model').eq('id', aeronaveId).single();
+      const { data } = await supabase.from('aeronave').select('matricula, modelo').eq('id', aeronaveId).single();
       return data;
     },
     enabled: !!aeronaveId,
@@ -84,13 +84,13 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
   const { data: despesas = [] } = useQuery({
     queryKey: ['despesas-relatorio', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
-      let query = supabase
-        .from('bank_reconciliations')
-        .select(`*, categorias_movimentacao:categoria_movimentacao_id (nome, grupo_categoria), aircraft:aircraft_id (registration)`)
-        .eq('client_id', clienteId)
-        .gte('date', periodo.inicio)
-        .lte('date', periodo.fim)
-        .order('date', { ascending: false });
+      let query = (supabase as any)
+        .from('conciliacoes_bancarias')
+        .select(`*, categorias_movimentacao:categoria_movimentacao_id (nome, grupo_categoria), aircraft:aeronave_id (matricula)`)
+        .eq('clientes_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim)
+        .order('data', { ascending: false });
       if (aeronaveId) query = query.eq('aircraft_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
@@ -109,7 +109,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           .from('logbook_entries')
           .select('entry_date, total_time, aircraft_id')
           .eq('client_id', clienteId)
-          .eq('client_partner_id', socioId)
+          .eq('socios_cliente_id', socioId)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim);
 
@@ -122,7 +122,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           .from('logbook_entries')
           .select('entry_date, total_time, aircraft_id')
           .eq('client_id', clienteId)
-          .is('client_partner_id', null)
+          .is('socios_cliente_id', null)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim);
 
@@ -145,7 +145,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           const mIni = ano === anoInicio ? mesInicio : 1;
           const mFim = ano === anoFim ? mesFim : 12;
           for (let mes = mIni; mes <= mFim; mes++) {
-            const fator = socioInfo?.share_percentage ? socioInfo.share_percentage / 100 : 0.333;
+            const fator = socioInfo?.percentual_participacao ? socioInfo.percentual_participacao / 100 : 0.333;
             result.push({
               ano,
               mes,
@@ -159,11 +159,11 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
       }
 
       // Sem sócio: usar consolidadas
-      let query = supabase
+      let query = (supabase as any)
         .from('horas_mensais_consolidadas')
         .select('ano, mes, horas_voadas, percentual_uso, aeronave_registro')
-        .eq('cliente_id', clienteId);
-      if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);
+        .eq('clientes_id', clienteId);
+      if (aeronaveId) query = query.eq('aircraft_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -174,19 +174,19 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
   const { data: abastecimentos = [] } = useQuery({
     queryKey: ['abast-relatorio', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from('abastecimentos')
         .select('data, litros, valor_total')
-        .eq('client_id', clienteId)
+        .eq('id_clientes', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim);
-      if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);
+      if (aeronaveId) query = query.eq('aircraft_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
 
       // Se há sócio, aplicar proporção
       if (socioId && data) {
-        const fator = socioInfo?.share_percentage ? socioInfo.share_percentage / 100 : 0.333;
+        const fator = socioInfo?.percentual_participacao ? socioInfo.percentual_participacao / 100 : 0.333;
         return data.map((a: any) => ({
           ...a,
           litros: a.litros * fator,
@@ -203,13 +203,13 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
     queryFn: async () => {
       let aeronaveRegistro: string | null = null;
       if (aeronaveId) {
-        const { data: a } = await supabase.from('aircraft').select('registration').eq('id', aeronaveId).single();
-        aeronaveRegistro = a?.registration ?? null;
+        const { data: a } = await supabase.from('aeronave').select('matricula').eq('id', aeronaveId).single();
+        aeronaveRegistro = a?.matricula ?? null;
       }
-      let query = supabase
+      let query = (supabase as any)
         .from('vw_extrato_cliente')
         .select('data, valor, valor_total, categoria, aeronave_registro')
-        .eq('cliente_id', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim);
       if (aeronaveRegistro) query = query.eq('aeronave_registro', aeronaveRegistro);
@@ -218,7 +218,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
 
       // Se há sócio, aplicar proporção
       if (socioId && data) {
-        const fator = socioInfo?.share_percentage ? socioInfo.share_percentage / 100 : 0.333;
+        const fator = socioInfo?.percentual_participacao ? socioInfo.percentual_participacao / 100 : 0.333;
         return (data || []).map((d: any) => ({
           ...d,
           valor: d.valor ? d.valor * fator : d.valor,
@@ -276,17 +276,17 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
 
   // Helper para obter nome exibição (cliente ou sócio)
   const getNomeExibicao = () => {
-    if (socioId && socioInfo?.name) {
-      return `${cliente?.company_name || cliente?.proprietario || '-'} - Sócio: ${socioInfo.name}`;
+    if (socioId && socioInfo?.nome) {
+      return `${cliente?.razao_social || cliente?.proprietario || '-'} - Sócio: ${socioInfo.nome}`;
     }
-    return cliente?.company_name || cliente?.proprietario || '-';
+    return cliente?.razao_social || cliente?.proprietario || '-';
   };
 
   const gerarPDFMensalCompleto = (): jsPDF => {
     const ano = new Date(periodo.inicio).getFullYear();
     const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
     const nomeExibicao = getNomeExibicao();
-    const aeronaveReg = aeronaveInfo?.registration || horasConsolidadas[0]?.aeronave_registro || '-';
+    const aeronaveReg = aeronaveInfo?.matricula || horasConsolidadas[0]?.aeronave_registro || '-';
 
     doc.setFontSize(14); doc.setFont('helvetica', 'bold');
     doc.text('RESUMO GERAL', 148, 12, { align: 'center' });
@@ -351,27 +351,29 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
 
     if (tipo === 'completo') {
       doc.setFontSize(14); doc.text('Resumo Financeiro', 14, yPos); yPos += 10;
-      const pendentes = despesas.filter((d: any) => d.status === 'pendente');
-      const pagos = despesas.filter((d: any) => ['pago', 'conciliado'].includes(d.status));
-      const aguardando = despesas.filter((d: any) => d.status === 'aguardando_reembolso');
-      autoTable(doc, { startY: yPos, head: [['Status', 'Quantidade', 'Valor Total']], body: [
-        ['Pendente de Envio', pendentes.length.toString(), fmtCurrency(pendentes.reduce((s: number, d: any) => s + (d.amount || 0), 0))],
-        ['Pago', pagos.length.toString(), fmtCurrency(pagos.reduce((s: number, d: any) => s + (d.amount || 0), 0))],
-        ['Aguardando Reembolso', aguardando.length.toString(), fmtCurrency(aguardando.reduce((s: number, d: any) => s + (d.amount || 0), 0))],
-      ], theme: 'striped', headStyles: { fillColor: [59, 130, 246] } });
+      const pendentes = despesas.filter((d: any) => d.situacao === 'pendente');
+      const pagos = despesas.filter((d: any) => ['pago', 'conciliado'].includes(d.situacao));
+      const aguardando = despesas.filter((d: any) => d.situacao === 'aguardando_reembolso');
+      autoTable(doc, {
+        startY: yPos, head: [['Status', 'Quantidade', 'Valor Total']], body: [
+          ['Pendente de Envio', pendentes.length.toString(), fmtCurrency(pendentes.reduce((s: number, d: any) => s + (d.valor || 0), 0))],
+          ['Pago', pagos.length.toString(), fmtCurrency(pagos.reduce((s: number, d: any) => s + (d.valor || 0), 0))],
+          ['Aguardando Reembolso', aguardando.length.toString(), fmtCurrency(aguardando.reduce((s: number, d: any) => s + (d.valor || 0), 0))],
+        ], theme: 'striped', headStyles: { fillColor: [59, 130, 246] }
+      });
       yPos = (doc as any).lastAutoTable.finalY + 15;
     }
 
     if (tipo === 'despesas' || tipo === 'completo') {
       doc.setFontSize(14); doc.text('Despesas Detalhadas', 14, yPos); yPos += 10;
-      const despesasData = despesas.slice(0, 50).map((d: any) => [format(new Date(d.date), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.description || '-').substring(0, 30), fmtCurrency(d.amount || 0), d.status]);
+      const despesasData = despesas.slice(0, 50).map((d: any) => [format(new Date(d.data), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.descricao || '-').substring(0, 30), fmtCurrency(d.valor || 0), d.situacao]);
       autoTable(doc, { startY: yPos, head: [['Data', 'Categoria', 'Descrição', 'Valor', 'Status']], body: despesasData, theme: 'striped', headStyles: { fillColor: [59, 130, 246] }, styles: { fontSize: 9 } });
     }
 
     if (tipo === 'pendencias') {
       doc.setFontSize(14); doc.text('Pendências Financeiras', 14, yPos); yPos += 10;
-      const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.status));
-      const pendenciasData = pendencias.map((d: any) => [format(new Date(d.date), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.description || '-').substring(0, 30), fmtCurrency(d.amount || 0), d.status === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso']);
+      const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.situacao));
+      const pendenciasData = pendencias.map((d: any) => [format(new Date(d.data), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.descricao || '-').substring(0, 30), fmtCurrency(d.valor || 0), d.situacao === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso']);
       autoTable(doc, { startY: yPos, head: [['Data', 'Categoria', 'Descrição', 'Valor', 'Status']], body: pendenciasData.length > 0 ? pendenciasData : [['', '', 'Nenhuma pendência encontrada', '', '']], theme: 'striped', headStyles: { fillColor: [239, 68, 68] }, styles: { fontSize: 9 } });
     }
 
@@ -501,23 +503,23 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
             <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma despesa encontrada</TableCell></TableRow>
           ) : despesas.map((d: any) => (
             <TableRow key={d.id} className="text-xs">
-              <TableCell>{format(new Date(d.date), 'dd/MM/yyyy')}</TableCell>
+              <TableCell>{format(new Date(d.data), 'dd/MM/yyyy')}</TableCell>
               <TableCell>{d.categorias_movimentacao?.nome || '-'}</TableCell>
-              <TableCell className="max-w-[250px] truncate">{d.description || '-'}</TableCell>
-              <TableCell className="text-right font-medium">{fmtCurrency(d.amount || 0)}</TableCell>
-              <TableCell><span className={`text-[10px] px-1.5 py-0.5 rounded ${d.status === 'pago' ? 'bg-emerald-500/10 text-emerald-400' : d.status === 'pendente' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{d.status}</span></TableCell>
+              <TableCell className="max-w-[250px] truncate">{d.descricao || '-'}</TableCell>
+              <TableCell className="text-right font-medium">{fmtCurrency(d.valor || 0)}</TableCell>
+              <TableCell><span className={`text-[10px] px-1.5 py-0.5 rounded ${d.situacao === 'pago' ? 'bg-emerald-500/10 text-emerald-400' : d.situacao === 'pendente' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{d.situacao}</span></TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
       <div className="mt-2 text-right text-sm font-bold">
-        Total: {fmtCurrency(despesas.reduce((s: number, d: any) => s + (d.amount || 0), 0))}
+        Total: {fmtCurrency(despesas.reduce((s: number, d: any) => s + (d.valor || 0), 0))}
       </div>
     </div>
   );
 
   const renderInlinePendencias = () => {
-    const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.status));
+    const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.situacao));
     return (
       <div className="overflow-x-auto">
         <Table>
@@ -535,18 +537,18 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
               <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma pendência encontrada</TableCell></TableRow>
             ) : pendencias.map((d: any) => (
               <TableRow key={d.id} className="text-xs">
-                <TableCell>{format(new Date(d.date), 'dd/MM/yyyy')}</TableCell>
+                <TableCell>{format(new Date(d.data), 'dd/MM/yyyy')}</TableCell>
                 <TableCell>{(d as any).categorias_movimentacao?.nome || '-'}</TableCell>
-                <TableCell className="max-w-[250px] truncate">{d.description || '-'}</TableCell>
-                <TableCell className="text-right font-medium">{fmtCurrency(d.amount || 0)}</TableCell>
-                <TableCell><span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">{d.status === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso'}</span></TableCell>
+                <TableCell className="max-w-[250px] truncate">{d.descricao || '-'}</TableCell>
+                <TableCell className="text-right font-medium">{fmtCurrency(d.valor || 0)}</TableCell>
+                <TableCell><span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">{d.situacao === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso'}</span></TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
         {pendencias.length > 0 && (
           <div className="mt-2 text-right text-sm font-bold">
-            Total: {fmtCurrency(pendencias.reduce((s: number, d: any) => s + (d.amount || 0), 0))}
+            Total: {fmtCurrency(pendencias.reduce((s: number, d: any) => s + (d.valor || 0), 0))}
           </div>
         )}
       </div>
@@ -571,7 +573,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">{relatorios.find(r => r.id === inlineView)?.titulo}</CardTitle>
             <CardDescription className="text-xs">
-              {cliente?.company_name || '-'} • {aeronaveInfo?.registration || '-'} • {format(new Date(periodo.inicio), 'dd/MM/yyyy')} a {format(new Date(periodo.fim), 'dd/MM/yyyy')}
+              {cliente?.razao_social || '-'} • {aeronaveInfo?.matricula || '-'} • {format(new Date(periodo.inicio), 'dd/MM/yyyy')} a {format(new Date(periodo.fim), 'dd/MM/yyyy')}
             </CardDescription>
           </CardHeader>
           <CardContent>

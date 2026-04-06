@@ -157,7 +157,7 @@ export function NovaFormularioDespesaDialog({
   const handleSelectFornecedor = (fornecedor: FornecedorFavorito) => {
     setFornecedorId(fornecedor.id);
     setFornecedorNome(fornecedor.nome_completo);
-    setFornecedorCnpj(fornecedor.documento || "");
+    setFornecedorCnpj(fornecedor.documentoumento || "");
     setFornecedorSearchValue("");
     setOpenCombobox(false);
   };
@@ -165,7 +165,7 @@ export function NovaFormularioDespesaDialog({
   const uploadFile = async (file: File, folder: string): Promise<string | null> => {
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.name
+      const sanitizedFileName = file.nome
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();
@@ -432,7 +432,7 @@ export function NovaFormularioDespesaDialog({
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="dataVencimento"
-                      type="date"
+                      type="data"
                       value={dataVencimento}
                       onChange={(e) => setDataVencimento(e.target.value)}
                       className="pl-10"
@@ -505,7 +505,7 @@ export function NovaFormularioDespesaDialog({
                       <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="dataAbastecimento"
-                        type="date"
+                        type="data"
                         value={dataAbastecimento}
                         onChange={(e) => setDataAbastecimento(e.target.value)}
                         className="pl-10"
@@ -592,7 +592,7 @@ export function NovaFormularioDespesaDialog({
                       <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="dataVencimentoAbast"
-                        type="date"
+                        type="data"
                         value={dataVencimento}
                         onChange={(e) => setDataVencimento(e.target.value)}
                         className="pl-10"
@@ -621,7 +621,7 @@ export function NovaFormularioDespesaDialog({
                       )}
                     </div>
                     {comandaFile && (
-                      <p className="text-xs text-muted-foreground">{comandaFile.name}</p>
+                      <p className="text-xs text-muted-foreground">{comandaFile.nome}</p>
                     )}
                   </div>
                 </div>
@@ -691,7 +691,7 @@ export function NovaFormularioDespesaDialog({
                 )}
               </div>
               {boletoFile && (
-                <p className="text-xs text-muted-foreground">{boletoFile.name}</p>
+                <p className="text-xs text-muted-foreground">{boletoFile.nome}</p>
               )}
             </div>
 
@@ -716,7 +716,7 @@ export function NovaFormularioDespesaDialog({
                 )}
               </div>
               {notaFiscalFile && (
-                <p className="text-xs text-muted-foreground">{notaFiscalFile.name}</p>
+                <p className="text-xs text-muted-foreground">{notaFiscalFile.nome}</p>
               )}
             </div>
           </div>

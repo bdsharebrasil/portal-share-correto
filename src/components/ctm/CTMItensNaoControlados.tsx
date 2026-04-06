@@ -11,7 +11,7 @@ import { Save, Plus, Trash2 } from "lucide-react";
 
 interface ItemNaoControlado {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   tipo_controle: string;
   posicao: string | null;
   media_horas: number | null;
@@ -48,7 +48,7 @@ export function CTMItensNaoControlados({ aircraftId }: Props) {
       const { data, error } = await (supabase as any)
         .from("ctm_itens_nao_controlados")
         .select("*")
-        .eq("aircraft_id", aircraftId)
+        .eq("id_aeronave", aircraftId)
         .order("tipo_controle")
         .order("posicao");
       if (error) throw error;
@@ -71,7 +71,7 @@ export function CTMItensNaoControlados({ aircraftId }: Props) {
       } else {
         const { error } = await (supabase as any)
           .from("ctm_itens_nao_controlados")
-          .insert([{ ...item, aircraft_id: aircraftId }]);
+          .insert([{ ...item, aeronave_id: aircraftId }]);
         if (error) throw error;
       }
       toast.success("Salvo com sucesso!");
@@ -219,7 +219,7 @@ function ItemForm({
         </div>
         <div>
           <Label className="text-xs">Data Última Troca</Label>
-          <Input className="h-8 text-xs" type="date" value={form.data_ultima_troca || ""} onChange={e => update("data_ultima_troca", e.target.value || null)} />
+          <Input className="h-8 text-xs" type="data" value={form.data_ultima_troca || ""} onChange={e => update("data_ultima_troca", e.target.value || null)} />
         </div>
         <div>
           <Label className="text-xs">Horas Última Troca</Label>

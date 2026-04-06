@@ -31,7 +31,7 @@ export function AddExpenseDialog({ open, onOpenChange, onAdd }: AddExpenseDialog
     onAdd({
       expense_type: expenseType || 'outras',
       expense_category: category,
-      expense_name: typeConfig?.name || customName || 'Despesa Manual',
+      expense_name: typeConfig?.nome || customName || 'Despesa Manual',
       status: 'aguardando',
       expected_date: expectedDate,
       amount: amount ? parseFloat(amount) : null,
@@ -61,8 +61,8 @@ export function AddExpenseDialog({ open, onOpenChange, onAdd }: AddExpenseDialog
               setExpenseType(value);
               // Auto-preencher categoria baseado no tipo selecionado
               const typeConfig = EXPENSE_TYPES[value as keyof typeof EXPENSE_TYPES];
-              if (typeConfig?.category) {
-                setCategory(typeConfig.category);
+              if (typeConfig?.categoria) {
+                setCategory(typeConfig.categoria);
               }
             }}>
               <SelectTrigger>
@@ -71,7 +71,7 @@ export function AddExpenseDialog({ open, onOpenChange, onAdd }: AddExpenseDialog
               <SelectContent>
                 {Object.entries(EXPENSE_TYPES).map(([key, config]) => (
                   <SelectItem key={key} value={key}>
-                    {config.name}
+                    {config.nome}
                   </SelectItem>
                 ))}
               </SelectContent>

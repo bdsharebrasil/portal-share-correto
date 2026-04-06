@@ -88,7 +88,7 @@ export default function FlightMapViewPage() {
         if (coords) {
           points.push({
             icao: originAerodrome.designativo,
-            name: originAerodrome.name,
+            name: originAerodrome.nome,
             lat: coords.lat,
             lng: coords.lng,
             type: 'departure'
@@ -104,7 +104,7 @@ export default function FlightMapViewPage() {
         if (coords) {
           points.push({
             icao: destAerodrome.designativo,
-            name: destAerodrome.name,
+            name: destAerodrome.nome,
             lat: coords.lat,
             lng: coords.lng,
             type: 'arrival'
@@ -120,7 +120,7 @@ export default function FlightMapViewPage() {
         if (coords) {
           points.push({
             icao: altAerodrome.designativo,
-            name: altAerodrome.name,
+            name: altAerodrome.nome,
             lat: coords.lat,
             lng: coords.lng,
             type: 'alternate'

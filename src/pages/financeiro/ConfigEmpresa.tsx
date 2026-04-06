@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface CompanySettings {
+  url_logo: any;
   id?: string;
   razao_social: string;
   nome_fantasia: string;
@@ -25,6 +26,7 @@ interface CompanySettings {
 }
 
 const EMPTY_DATA: CompanySettings = {
+  url_logo: null,
   razao_social: "",
   nome_fantasia: "",
   cnpj: "",
@@ -59,7 +61,7 @@ export default function ConfigEmpresa() {
       const { data, error } = await supabase
         .from("company_settings")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("criado_em", { ascending: false })
         .limit(1);
 
       if (error) throw error;
@@ -78,6 +80,7 @@ export default function ConfigEmpresa() {
           telefone: row.telefone || "",
           email: row.email || "",
           logo_url: row.logo_url || "",
+          url_logo: row.logo_url || null,
         };
         setCompanyData(settings);
         setEditData(settings);
@@ -169,11 +172,11 @@ export default function ConfigEmpresa() {
     setIsSaving(true);
 
     try {
-      let logoUrl = companyData.logo_url; // Manter logo anterior
+      let logoUrl = companyData.url_logo; // Manter logo anterior
 
       // Se há novo arquivo, fazer upload
       if (selectedLogoFile) {
-        const fileExt = selectedLogoFile.name.split(".").pop()?.toLowerCase() || "png";
+        const fileExt = selectedLogoFile.nome.split(".").pop()?.toLowerCase() || "png";
         const fileName = `logo-company-${Date.now()}.${fileExt}`;
         const filePath = `company-logos/${fileName}`;
 
@@ -181,7 +184,7 @@ export default function ConfigEmpresa() {
           .from("company-logos")
           .upload(filePath, selectedLogoFile, {
             upsert: false,
-            contentType: selectedLogoFile.type,
+            contentType: selectedLogoFile.tipo,
           });
 
         if (uploadError) throw new Error(`Upload: ${uploadError.message}`);

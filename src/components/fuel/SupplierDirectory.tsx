@@ -11,13 +11,13 @@ import { Plus, Edit, Trash2, MapPin, Phone, DollarSign, Search, X } from "lucide
 
 interface FuelSupplier {
   id: string;
-  city_name: string;
-  icao_code: string;
-  supplier_name: string;
-  contact_person: string | null;
+  nome_cidade: string;
+  codigo_icao: string;
+  nome_fornecedor: string;
+  pessoa_contato: string | null;
   phone: string | null;
-  fuel_price_avgas: number | null;
-  fuel_price_jet: number | null;
+  preco_avgas: number | null;
+  preco_jet: number | null;
 }
 
 export function SupplierDirectory() {
@@ -26,10 +26,10 @@ export function SupplierDirectory() {
   const [editingSupplier, setEditingSupplier] = useState<FuelSupplier | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
-    city_name: "",
-    icao_code: "",
-    supplier_name: "",
-    contact_person: "",
+    nome_cidade: "",
+    codigo_icao: "",
+    nome_fornecedor: "",
+    pessoa_contato: "",
     phone: "",
     avgas_price: "",
     jet_price: "",
@@ -41,9 +41,9 @@ export function SupplierDirectory() {
 
   const loadSuppliers = async () => {
     const { data, error } = await supabase
-      .from("fuel_suppliers")
+      .from("fornecedores_combustivel")
       .select("*")
-      .order("city_name", { ascending: true });
+      .order("nome_cidade", { ascending: true });
 
     if (error) {
       toast.error("Erro ao carregar fornecedores");
@@ -57,18 +57,18 @@ export function SupplierDirectory() {
     e.preventDefault();
 
     const supplierData = {
-      city_name: formData.city_name,
-      icao_code: formData.icao_code.toUpperCase(),
-      supplier_name: formData.supplier_name,
-      contact_person: formData.contact_person || null,
-      phone: formData.phone || null,
-      fuel_price_avgas: parseFloat(formData.avgas_price) || 0,
-      fuel_price_jet: parseFloat(formData.jet_price) || 0,
+      nome_cidade: formData.cidade_name,
+      codigo_icao: formData.codigo_icao.toUpperCase(),
+      nome_fornecedor: formData.nome_fornecedor,
+      pessoa_contato: formData.pessoa_contato || null,
+      phone: formData.telefone || null,
+      preco_avgas: parseFloat(formData.avgas_price) || 0,
+      preco_jet: parseFloat(formData.jet_price) || 0,
     } as const;
 
     if (editingSupplier) {
       const { error } = await supabase
-        .from("fuel_suppliers")
+        .from("fornecedores_combustivel")
         .update(supplierData)
         .eq("id", editingSupplier.id);
 
@@ -78,7 +78,7 @@ export function SupplierDirectory() {
       }
       toast.success("Fornecedor atualizado com sucesso");
     } else {
-      const { error } = await supabase.from("fuel_suppliers").insert(supplierData);
+      const { error } = await supabase.from("fornecedores_combustivel").insert(supplierData);
 
       if (error) {
         toast.error("Erro ao criar fornecedor");
@@ -95,13 +95,13 @@ export function SupplierDirectory() {
   const handleEdit = (supplier: FuelSupplier) => {
     setEditingSupplier(supplier);
     setFormData({
-      city_name: supplier.city_name,
-      icao_code: supplier.icao_code,
-      supplier_name: supplier.supplier_name,
-      contact_person: supplier.contact_person || "",
-      phone: supplier.phone || "",
-      avgas_price: supplier.fuel_price_avgas ? supplier.fuel_price_avgas.toString() : "",
-      jet_price: supplier.fuel_price_jet ? supplier.fuel_price_jet.toString() : "",
+      nome_cidade: supplier.cidade_name,
+      codigo_icao: supplier.codigo_icao,
+      nome_fornecedor: supplier.nome_fornecedor,
+      pessoa_contato: supplier.pessoa_contato || "",
+      phone: supplier.telefone || "",
+      avgas_price: supplier.preco_avgas ? supplier.preco_avgas.toString() : "",
+      jet_price: supplier.preco_jet ? supplier.preco_jet.toString() : "",
     });
     setIsDialogOpen(true);
   };
@@ -109,7 +109,7 @@ export function SupplierDirectory() {
   const handleDelete = async (id: string) => {
     if (!confirm("Deseja excluir este fornecedor?")) return;
 
-    const { error } = await supabase.from("fuel_suppliers").delete().eq("id", id);
+    const { error } = await supabase.from("fornecedores_combustivel").delete().eq("id", id);
 
     if (error) {
       toast.error("Erro ao excluir fornecedor");
@@ -122,10 +122,10 @@ export function SupplierDirectory() {
 
   const resetForm = () => {
     setFormData({
-      city_name: "",
-      icao_code: "",
-      supplier_name: "",
-      contact_person: "",
+      nome_cidade: "",
+      codigo_icao: "",
+      nome_fornecedor: "",
+      pessoa_contato: "",
       phone: "",
       avgas_price: "",
       jet_price: "",
@@ -134,9 +134,9 @@ export function SupplierDirectory() {
   };
 
   const filteredSuppliers = suppliers.filter(supplier =>
-    supplier.supplier_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    supplier.city_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    supplier.icao_code.toLowerCase().includes(searchQuery.toLowerCase())
+    supplier.nome_fornecedor.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    supplier.cidade_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    supplier.codigo_icao.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -175,8 +175,8 @@ export function SupplierDirectory() {
                   <div>
                     <Label className="text-sm">Cidade</Label>
                     <Input
-                      value={formData.city_name}
-                      onChange={(e) => setFormData({ ...formData, city_name: e.target.value })}
+                      value={formData.cidade_name}
+                      onChange={(e) => setFormData({ ...formData, nome_cidade: e.target.value })}
                       placeholder="Ex: São Paulo"
                       required
                       className="mt-1.5"
@@ -185,8 +185,8 @@ export function SupplierDirectory() {
                   <div>
                     <Label className="text-sm">Código ICAO</Label>
                     <Input
-                      value={formData.icao_code}
-                      onChange={(e) => setFormData({ ...formData, icao_code: e.target.value })}
+                      value={formData.codigo_icao}
+                      onChange={(e) => setFormData({ ...formData, codigo_icao: e.target.value })}
                       placeholder="Ex: SBSP"
                       required
                       maxLength={4}
@@ -199,8 +199,8 @@ export function SupplierDirectory() {
               <div>
                 <Label className="text-sm">Nome do Fornecedor</Label>
                 <Input
-                  value={formData.supplier_name}
-                  onChange={(e) => setFormData({ ...formData, supplier_name: e.target.value })}
+                  value={formData.nome_fornecedor}
+                  onChange={(e) => setFormData({ ...formData, nome_fornecedor: e.target.value })}
                   placeholder="Ex: Combustíveis Brasil Ltda"
                   required
                   className="mt-1.5"
@@ -213,8 +213,8 @@ export function SupplierDirectory() {
                   <div>
                     <Label className="text-sm">Pessoa de Contato</Label>
                     <Input
-                      value={formData.contact_person}
-                      onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+                      value={formData.pessoa_contato}
+                      onChange={(e) => setFormData({ ...formData, pessoa_contato: e.target.value })}
                       placeholder="Nome do contato"
                       className="mt-1.5"
                     />
@@ -222,7 +222,7 @@ export function SupplierDirectory() {
                   <div>
                     <Label className="text-sm">Telefone</Label>
                     <Input
-                      value={formData.phone}
+                      value={formData.telefone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="(11) 99999-9999"
                       className="mt-1.5"
@@ -312,31 +312,31 @@ export function SupplierDirectory() {
                     key={supplier.id}
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
-                    <TableCell className="font-medium text-foreground">{supplier.city_name}</TableCell>
-                    <TableCell className="font-mono text-primary font-semibold">{supplier.icao_code}</TableCell>
-                    <TableCell className="text-foreground">{supplier.supplier_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{supplier.contact_person || "-"}</TableCell>
+                    <TableCell className="font-medium text-foreground">{supplier.cidade_name}</TableCell>
+                    <TableCell className="font-mono text-primary font-semibold">{supplier.codigo_icao}</TableCell>
+                    <TableCell className="text-foreground">{supplier.nome_fornecedor}</TableCell>
+                    <TableCell className="text-muted-foreground">{supplier.pessoa_contato || "-"}</TableCell>
                     <TableCell className="text-muted-foreground flex items-center gap-1">
-                      {supplier.phone ? (
+                      {supplier.telefone ? (
                         <>
                           <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                          {supplier.phone}
+                          {supplier.telefone}
                         </>
                       ) : "-"}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {supplier.fuel_price_avgas ? (
+                      {supplier.preco_avgas ? (
                         <div className="flex items-center justify-end gap-1 text-success">
                           <DollarSign className="h-3.5 w-3.5" />
-                          {supplier.fuel_price_avgas.toFixed(2)}
+                          {supplier.preco_avgas.toFixed(2)}
                         </div>
                       ) : "-"}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {supplier.fuel_price_jet ? (
+                      {supplier.preco_jet ? (
                         <div className="flex items-center justify-end gap-1 text-success">
                           <DollarSign className="h-3.5 w-3.5" />
-                          {supplier.fuel_price_jet.toFixed(2)}
+                          {supplier.preco_jet.toFixed(2)}
                         </div>
                       ) : "-"}
                     </TableCell>

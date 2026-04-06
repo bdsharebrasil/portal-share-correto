@@ -132,9 +132,9 @@ export function ContasPagar() {
         .select(`
           *,
           fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo, conta_pagamento),
-          clients:client_id(id, company_name, proprietario)
+          clientes:cliente_id(id, razao_social, proprietario)
         `)
-        .neq("status", "paga")
+        .neq("situacao", "paga")
         .order("data_vencimento", { ascending: true });
 
       if (error) throw error;
@@ -151,7 +151,7 @@ export function ContasPagar() {
       const { data, error } = await supabase
         .from("contas_recorrentes")
         .select("*")
-        .eq("status", "agendado")
+        .eq("situacao", "agendado")
         .order("dia_recorrencia", { ascending: true });
 
       if (error) {
@@ -289,7 +289,7 @@ export function ContasPagar() {
       const search = filters.searchTerm.toLowerCase();
       const fornecedor = c.fornecedores_favoritos?.nome_completo?.toLowerCase() || c.fornecedor_nome?.toLowerCase() || "";
       const searchOk = !search || fornecedor.includes(search) || c.numero_doc?.toLowerCase().includes(search);
-      const statusOk = filters.status === "all" || (filters.status === "vencido" ? isVencida(c.data_vencimento, c.status) : c.status === filters.status);
+      const statusOk = filters.situacao === "all" || (filters.situacao === "vencido" ? isVencida(c.data_vencimento, c.situacao) : c.situacao === filters.situacao);
       const mesOk = !filters.mes || c.data_vencimento?.startsWith(filters.mes);
       return searchOk && statusOk && mesOk;
     });
@@ -343,7 +343,7 @@ export function ContasPagar() {
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Status</label>
-            <RegularSelect value={filters.status} onValueChange={v => setFilters({ ...filters, status: v })}>
+            <RegularSelect value={filters.situacao} onValueChange={v => setFilters({ ...filters, status: v })}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os abertos</SelectItem>
@@ -495,7 +495,7 @@ export function ContasPagar() {
                 </tr>
               ) : (
                 filteredContas.map(conta => {
-                  const vencida = isVencida(conta.data_vencimento, conta.status);
+                  const vencida = isVencida(conta.data_vencimento, conta.situacao);
                   const isRecorrente = conta._isRecorrente;
                   return (
                     <React.Fragment key={conta.id}>
@@ -539,7 +539,7 @@ export function ContasPagar() {
                               variant={vencida ? "destructive" : "outline"}
                               className="capitalize font-medium"
                             >
-                              {vencida ? "Vencida" : conta.status}
+                              {vencida ? "Vencida" : conta.situacao}
                             </Badge>
                           )}
                         </td>

@@ -100,7 +100,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
+      if (!file.tipo.startsWith('image/')) {
         toast({
           title: "Erro",
           description: "Por favor, selecione um arquivo de imagem.",
@@ -128,7 +128,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
   const uploadAvatar = async (uniqueId: string): Promise<string | null> => {
     if (!avatarFile) return null;
 
-    const fileExt = avatarFile.name.split('.').pop();
+    const fileExt = avatarFile.nome.split('.').pop();
     const filePath = `${uniqueId}/${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
@@ -169,9 +169,9 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
         const profileData: Record<string, any> = {
           full_name: data.full_name || null,
           email: email,
-          phone: data.phone || null,
+          phone: data.telefone || null,
           birth_date: data.birth_date || null,
-          address: data.address || null,
+          address: data.endereco || null,
           admission_date: data.admission_date || null,
           cpf: data.cpf || null,
           rg: data.rg || null,
@@ -231,9 +231,9 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
             id: newId,
             full_name: data.full_name,
             email: data.email || null,
-            phone: data.phone || null,
+            phone: data.telefone || null,
             birth_date: data.birth_date || null,
-            address: data.address || null,
+            address: data.endereco || null,
             admission_date: data.admission_date || null,
             cpf: data.cpf || null,
             rg: data.rg || null,
@@ -300,7 +300,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
       return;
     }
 
-    if (!data.client_id || !data.client_id.trim()) {
+    if (!data.cliente_id || !data.cliente_id.trim()) {
       toast({
         title: "Erro",
         description: "Selecione um cliente.",
@@ -327,7 +327,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
         password: "***",
         role: "cliente",
         userType: "cliente",
-        clientId: data.client_id,
+        clientId: data.cliente_id,
       });
 
       const response = await supabase.functions.invoke("create-user", {
@@ -336,7 +336,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
           password: data.password.trim(),
           role: "cliente",
           userType: "cliente",
-          clientId: data.client_id.trim(),
+          clientId: data.cliente_id.trim(),
         },
       });
 
@@ -533,7 +533,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
 
                       <FormField
                         control={colaboradorForm.control}
-                        name="phone"
+                        name="telefone"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Telefone</FormLabel>
@@ -552,7 +552,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>Data de Nascimento</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} />
+                              <Input type="data" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -603,7 +603,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
 
                       <FormField
                         control={colaboradorForm.control}
-                        name="address"
+                        name="endereco"
                         render={({ field }) => (
                           <FormItem className="md:col-span-2">
                             <FormLabel>Endereço</FormLabel>
@@ -656,7 +656,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           <FormItem>
                             <FormLabel>Data de Admissão</FormLabel>
                             <FormControl>
-                              <Input type="date" {...field} />
+                              <Input type="data" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -765,13 +765,12 @@ function ClientForm({
   isLoading: boolean;
 }) {
   const { data: clients = [] } = useQuery({
-    queryKey: ["clients"],
+    queryKey: ["clientes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("clients")
+        .from("clientes")
         .select("*")
-        .eq("status", "ativo")
-        .order("company_name");
+        .order("razao_social");
       if (error) throw error;
       return data;
     },
@@ -785,7 +784,7 @@ function ClientForm({
 
           <FormField
             control={form.control}
-            name="client_id"
+            name="cliente_id"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cliente</FormLabel>
@@ -798,7 +797,7 @@ function ClientForm({
                   <SelectContent>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
-                        {client.company_name}
+                        {client.razao_social}
                       </SelectItem>
                     ))}
                   </SelectContent>

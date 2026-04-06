@@ -436,7 +436,7 @@ export function RASDocumentEditor({
                   Data *
                 </label>
                 <Input
-                  type="date"
+                  type="data"
                   value={formData.entry_date}
                   onChange={(e) =>
                     setFormData({ ...formData, entry_date: e.target.value })

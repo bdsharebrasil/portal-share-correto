@@ -86,7 +86,7 @@ export function ManutencaoRegistroDialog({
       const nextDueHours = performedHours + intervalHours;
 
       await addRecord.mutateAsync({
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         maintenance_type: formData.maintenanceType,
         performed_at_hours: performedHours,
         performed_date: formData.performedDate,
@@ -94,9 +94,9 @@ export function ManutencaoRegistroDialog({
         mechanic_name: formData.mechanicName || undefined,
         maintenance_center: formData.maintenanceCenter || undefined,
         service_order_number: formData.serviceOrderNumber || undefined,
-        description: formData.description || undefined,
+        description: formData.descricao || undefined,
         cost: formData.cost ? parseFloat(formData.cost) : undefined,
-        observations: formData.observations || undefined,
+        observations: formData.observacoes || undefined,
         created_by: userData.user?.id,
       });
 
@@ -108,8 +108,8 @@ export function ManutencaoRegistroDialog({
         '200h': 'REVISÃO',
       };
 
-      await supabase.from('ctm_service_orders').insert({
-        aircraft_id: aircraftId,
+      await supabase.from('service_orders').insert({
+        aeronave_id: aircraftId,
         numero: formData.serviceOrderNumber || `MNT-${formData.maintenanceType}-${Date.now().toString().slice(-6)}`,
         tipo_manutencao: tipoMap[formData.maintenanceType] || 'PREVENTIVA',
         objetivo: 'CÉLULA',
@@ -117,8 +117,8 @@ export function ManutencaoRegistroDialog({
         horas_celula: performedHours,
         data_entrada: formData.performedDate,
         status: 'concluída',
-        observacoes: formData.observations || null,
-        description: formData.description || `Manutenção preventiva de ${formData.maintenanceType} realizada`,
+        observacoes: formData.observacoes || null,
+        description: formData.descricao || `Manutenção preventiva de ${formData.maintenanceType} realizada`,
         periodo: formData.maintenanceType,
         total_geral: formData.cost ? parseFloat(formData.cost) : null,
       } as any);
@@ -190,7 +190,7 @@ export function ManutencaoRegistroDialog({
                 Data Realizada
               </Label>
               <Input
-                type="date"
+                type="data"
                 value={formData.performedDate}
                 onChange={(e) => setFormData({ ...formData, performedDate: e.target.value })}
                 className="bg-slate-800 border-white/10"
@@ -292,7 +292,7 @@ export function ManutencaoRegistroDialog({
           <div className="space-y-2">
             <Label className="text-gray-300">Descrição dos Serviços</Label>
             <Textarea
-              value={formData.description}
+              value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Descreva os serviços realizados..."
               className="bg-slate-800 border-white/10 min-h-[80px]"
@@ -302,7 +302,7 @@ export function ManutencaoRegistroDialog({
           <div className="space-y-2">
             <Label className="text-gray-300">Observações</Label>
             <Textarea
-              value={formData.observations}
+              value={formData.observacoes}
               onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
               placeholder="Observações adicionais..."
               className="bg-slate-800 border-white/10 min-h-[60px]"

@@ -142,7 +142,7 @@ export function PrestadoresServicoTab() {
         query = query.eq("prestador_id", filterPrestador);
       }
       if (filterStatus !== "all") {
-        query = query.eq("status", filterStatus);
+        query = query.eq("situacao", filterStatus);
       }
       
       const { data, error } = await query;
@@ -293,18 +293,18 @@ export function PrestadoresServicoTab() {
 
   const handleUploadFile = async (file: File, type: "nota" | "comprovante", notaId: string) => {
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.nome.split('.').pop();
       const fileName = `${notaId}_${type}_${Date.now()}.${fileExt}`;
       const filePath = `prestadores/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("documents")
+        .from("documentos")
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
-        .from("documents")
+        .from("documentos")
         .getPublicUrl(filePath);
 
       const updateField = type === "nota" ? "arquivo_nota_url" : "comprovante_pagamento_url";
@@ -635,7 +635,7 @@ export function PrestadoresServicoTab() {
                         <div>
                           <p className="text-xs text-muted-foreground">Pendentes</p>
                           <p className="text-lg font-bold text-amber-500">
-                            R$ {notas.filter(n => n.status === 'pendente').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
+                            R$ {notas.filter(n => n.situacao === 'pendente').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -650,7 +650,7 @@ export function PrestadoresServicoTab() {
                         <div>
                           <p className="text-xs text-muted-foreground">Pagos</p>
                           <p className="text-lg font-bold text-green-500">
-                            R$ {notas.filter(n => n.status === 'pago').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
+                            R$ {notas.filter(n => n.situacao === 'pago').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -745,11 +745,11 @@ function NotaFiscalRow({ nota, prestadorNome, bancos, onPay, onEdit, onDelete, o
           R$ {Number(nota.valor).toFixed(2)}
         </TableCell>
         <TableCell>
-          <Badge variant="outline" className={statusColors[nota.status]}>
-            {nota.status === "pendente" && <Clock className="h-3 w-3 mr-1" />}
-            {nota.status === "pago" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-            {nota.status === "cancelado" && <X className="h-3 w-3 mr-1" />}
-            {nota.status.charAt(0).toUpperCase() + nota.status.slice(1)}
+          <Badge variant="outline" className={statusColors[nota.situacao]}>
+            {nota.situacao === "pendente" && <Clock className="h-3 w-3 mr-1" />}
+            {nota.situacao === "pago" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+            {nota.situacao === "cancelado" && <X className="h-3 w-3 mr-1" />}
+            {nota.situacao.charAt(0).toUpperCase() + nota.situacao.slice(1)}
           </Badge>
         </TableCell>
         <TableCell>
@@ -766,7 +766,7 @@ function NotaFiscalRow({ nota, prestadorNome, bancos, onPay, onEdit, onDelete, o
                 </Button>
               </label>
             )}
-            {nota.status === "pago" && (
+            {nota.situacao === "pago" && (
               nota.comprovante_pagamento_url ? (
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onPreview(nota.comprovante_pagamento_url!)}>
                   <Receipt className="h-3.5 w-3.5 text-green-600" />
@@ -784,7 +784,7 @@ function NotaFiscalRow({ nota, prestadorNome, bancos, onPay, onEdit, onDelete, o
         </TableCell>
         <TableCell className="text-right">
           <div className="flex justify-end gap-1">
-            {nota.status === "pendente" && (
+            {nota.situacao === "pendente" && (
               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowPayDialog(true)}>
                 <DollarSign className="h-3 w-3 mr-1" />
                 Pagar
@@ -825,7 +825,7 @@ function NotaFiscalRow({ nota, prestadorNome, bancos, onPay, onEdit, onDelete, o
             </div>
             <div className="space-y-2">
               <Label>Data do Pagamento</Label>
-              <Input type="date" value={payData} onChange={(e) => setPayData(e.target.value)} />
+              <Input type="data" value={payData} onChange={(e) => setPayData(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
@@ -1094,18 +1094,18 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
     
     setIsUploading(true);
     try {
-      const fileExt = notaFile.name.split('.').pop();
+      const fileExt = notaFile.nome.split('.').pop();
       const fileName = `${notaId}_nf_${Date.now()}.${fileExt}`;
       const filePath = `prestadores/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("documents")
+        .from("documentos")
         .upload(filePath, notaFile);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
-        .from("documents")
+        .from("documentos")
         .getPublicUrl(filePath);
 
       return urlData.publicUrl;
@@ -1234,7 +1234,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
             <div className="space-y-2">
               <Label>Data de Emissão *</Label>
               <Input
-                type="date"
+                type="data"
                 value={formData.data_emissao || ""}
                 onChange={(e) => setFormData({ ...formData, data_emissao: e.target.value })}
                 required
@@ -1243,7 +1243,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
             <div className="space-y-2">
               <Label>Data de Vencimento</Label>
               <Input
-                type="date"
+                type="data"
                 value={formData.data_vencimento || ""}
                 onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
               />
@@ -1285,7 +1285,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
               {notaFile && (
                 <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <FileText className="h-4 w-4" />
-                  <span className="truncate">{notaFile.name}</span>
+                  <span className="truncate">{notaFile.nome}</span>
                   <Button
                     type="button"
                     variant="ghost"

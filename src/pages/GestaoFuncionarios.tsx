@@ -117,19 +117,19 @@ const EditEmployeeFormComponent = memo(({
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_birth_date" className="text-muted-foreground font-medium">Data de Nascimento</Label>
-            <Input id="edit_birth_date" type="date" value={editEmployeeForm.birth_date || ""} onChange={e => onFieldChange("birth_date", e.target.value)} className="h-11 rounded-xl w-full" />
+            <Input id="edit_birth_date" type="data" value={editEmployeeForm.birth_date || ""} onChange={e => onFieldChange("birth_date", e.target.value)} className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_phone" className="text-muted-foreground font-medium">Telefone</Label>
-            <Input id="edit_phone" value={editEmployeeForm.phone || ""} onChange={e => onFieldChange("phone", e.target.value)} placeholder="(XX) XXXX-XXXX" className="h-11 rounded-xl w-full" />
+            <Input id="edit_phone" value={editEmployeeForm.telefone || ""} onChange={e => onFieldChange("telefone", e.target.value)} placeholder="(XX) XXXX-XXXX" className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_admission_date" className="text-muted-foreground font-medium">Data de Admissão</Label>
-            <Input id="edit_admission_date" type="date" value={editEmployeeForm.admission_date || ""} onChange={e => onFieldChange("admission_date", e.target.value)} className="h-11 rounded-xl w-full" />
+            <Input id="edit_admission_date" type="data" value={editEmployeeForm.admission_date || ""} onChange={e => onFieldChange("admission_date", e.target.value)} className="h-11 rounded-xl w-full" />
           </div>
           <div className="col-span-full space-y-2">
             <Label htmlFor="edit_address" className="text-muted-foreground font-medium">Endereço</Label>
-            <Input id="edit_address" value={editEmployeeForm.address || ""} onChange={e => onFieldChange("address", e.target.value)} placeholder="Rua, Número, Bairro, Cidade - Estado" className="h-11 rounded-xl w-full" />
+            <Input id="edit_address" value={editEmployeeForm.endereco || ""} onChange={e => onFieldChange("endereco", e.target.value)} placeholder="Rua, Número, Bairro, Cidade - Estado" className="h-11 rounded-xl w-full" />
           </div>
 
           <div className="space-y-2">
@@ -206,8 +206,8 @@ export default function GestaoFuncionarios() {
         rg: selectedEmployee.rg || "",
         canac: selectedEmployee.canac || "",
         birth_date: selectedEmployee.birth_date || "",
-        phone: selectedEmployee.phone || "",
-        address: selectedEmployee.address || "",
+        phone: selectedEmployee.telefone || "",
+        address: selectedEmployee.endereco || "",
         admission_date: selectedEmployee.admission_date || "",
         salary: selectedEmployee.salary || "",
         benefits: selectedEmployee.benefits || "",
@@ -269,7 +269,7 @@ export default function GestaoFuncionarios() {
           const {
             data: crewMember,
             error: crewError
-          } = await supabase.from("crew_members").select("id, status, canac").eq("user_id", profile.id).single();
+          } = await supabase.from("membros_tripulacao").select("id, status, canac").eq("usuario_id", profile.id).single();
           if (crewError && crewError.code !== 'PGRST116') {
             console.error("Erro ao buscar crew member para", profile.full_name, "-", crewError.message || crewError);
           }
@@ -278,7 +278,7 @@ export default function GestaoFuncionarios() {
               id: (crewMember as any).id,
               canac: (crewMember as any).canac,
               avatar_url: null,
-              status: (crewMember as any).status || 'active'
+              status: (crewMember as any).situacao || 'active'
             };
           }
         }
@@ -302,8 +302,8 @@ export default function GestaoFuncionarios() {
           rg: profile.rg,
           canac: profile.canac,
           birth_date: profile.birth_date,
-          phone: profile.phone,
-          address: profile.address,
+          phone: profile.telefone,
+          address: profile.endereco,
           admission_date: profile.admission_date || null,
           salary: latestSalary,
           benefits: latestBenefits,
@@ -341,7 +341,7 @@ export default function GestaoFuncionarios() {
       }
       if (updatedData.new_photo_file) {
         const file = updatedData.new_photo_file;
-        const fileExt = file.name.split('.').pop();
+        const fileExt = file.nome.split('.').pop();
         const fileName = `${employeeId}_${Date.now()}.${fileExt}`;
         const filePath = `${employeeId}/${fileName}`;
         const {
@@ -365,8 +365,8 @@ export default function GestaoFuncionarios() {
         rg: updatedData.rg || null,
         canac: updatedData.canac || null,
         birth_date: updatedData.birth_date || null,
-        phone: updatedData.phone || null,
-        address: updatedData.address || null,
+        phone: updatedData.telefone || null,
+        address: updatedData.endereco || null,
         admission_date: updatedData.admission_date || null,
         employment_status: updatedData.employment_status,
         avatar_url: newPhotoUrl
@@ -484,7 +484,7 @@ export default function GestaoFuncionarios() {
           <Tabs defaultValue="info" className="w-full">
             <TabsList className="grid w-full grid-cols-4 max-w-lg mx-auto mb-6 rounded-2xl p-1.5 h-auto bg-transparent border-2 border-border">
               <TabsTrigger value="info" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Informações</TabsTrigger>
-              <TabsTrigger value="documents" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Documentos</TabsTrigger>
+              <TabsTrigger value="documentos" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Documentos</TabsTrigger>
               <TabsTrigger value="vacation" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Férias</TabsTrigger>
               <TabsTrigger value="statement" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Extrato</TabsTrigger>
             </TabsList>
@@ -501,8 +501,8 @@ export default function GestaoFuncionarios() {
                   <DetailItem label="RG" value={selectedEmployee.rg} icon={<CreditCard className="h-4 w-4" />} />
                   <DetailItem label="CANAC" value={selectedEmployee.canac} icon={<Aperture className="h-4 w-4" />} />
                   <DetailItem label="Data de Nascimento" value={selectedEmployee.birth_date ? formatDateToBR(selectedEmployee.birth_date) : null} icon={<Calendar className="h-4 w-4" />} />
-                  <DetailItem label="Telefone" value={selectedEmployee.phone} icon={<Phone className="h-4 w-4" />} />
-                  <DetailItem label="Endereço" value={selectedEmployee.address} icon={<Building className="h-4 w-4" />} fullWidth />
+                  <DetailItem label="Telefone" value={selectedEmployee.telefone} icon={<Phone className="h-4 w-4" />} />
+                  <DetailItem label="Endereço" value={selectedEmployee.endereco} icon={<Building className="h-4 w-4" />} fullWidth />
                 </div>
               </div>
 
@@ -536,7 +536,7 @@ export default function GestaoFuncionarios() {
               </div>
             </TabsContent>
 
-            <TabsContent value="documents" className="min-h-[400px] mt-0">
+            <TabsContent value="documentos" className="min-h-[400px] mt-0">
               <DocumentUploadWidget employeeId={selectedEmployee.id} employeeName={selectedEmployee.full_name} />
             </TabsContent>
 

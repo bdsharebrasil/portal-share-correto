@@ -67,7 +67,7 @@ export async function getAirportCoordinates(icao: string): Promise<AirportInfo |
       if (coords) {
         return {
           icao: data.designativo,
-          name: data.name,
+          name: data.nome,
           lat: coords.lat,
           lng: coords.lng,
         };
@@ -118,7 +118,7 @@ export async function searchAirports(query: string): Promise<AirportInfo[]> {
     if (coords) {
       results.push({
         icao: item.designativo,
-        name: item.name,
+        name: item.nome,
         lat: coords.lat,
         lng: coords.lng,
       });

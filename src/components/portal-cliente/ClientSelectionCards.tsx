@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plane } from "lucide-react";
 
 interface ClientAircraft {
-  aircraft_id: string;
-  share_percentage: number;
+  id_aeronave: string;
+  percentual_sociedade: number;
   aircraft: {
     id: string;
     registration: string;
@@ -17,7 +17,7 @@ interface ClientAircraft {
 
 interface Client {
   id: string;
-  company_name: string;
+  razao_social: string;
   status: string;
   cnpj?: string;
   email?: string;
@@ -30,7 +30,7 @@ interface Client {
   proprietario?: string;
   observations?: string;
   logo_url?: string;
-  client_aircraft?: ClientAircraft[];
+  cotistas_aeronave?: ClientAircraft[];
 }
 
 interface ClientSelectionCardsProps {
@@ -55,17 +55,17 @@ export function ClientSelectionCards({
   }
 
   let clientsWithAircraft = clients.filter(
-    (client) => client.client_aircraft && client.client_aircraft.length > 0
+    (client) => client.cotistas_aeronave && client.cotistas_aeronave.length > 0
   );
 
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase();
     clientsWithAircraft = clientsWithAircraft.filter((client) =>
-      client.company_name.toLowerCase().includes(query) ||
-      client.client_aircraft?.some(a =>
-        a.aircraft.registration.toLowerCase().includes(query) ||
-        a.aircraft.manufacturer.toLowerCase().includes(query) ||
-        a.aircraft.model.toLowerCase().includes(query)
+      client.razao_social.toLowerCase().includes(query) ||
+      client.cotistas_aeronave?.some(a =>
+        a.aeronave.matricula.toLowerCase().includes(query) ||
+        a.aeronave.fabricante.toLowerCase().includes(query) ||
+        a.aeronave.modelo.toLowerCase().includes(query)
       )
     );
   }
@@ -108,7 +108,7 @@ export function ClientSelectionCards({
                 <div className="mb-3">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-foreground truncate">
-                      {client.company_name}
+                      {client.razao_social}
                     </h3>
                   </div>
                 </div>
@@ -116,10 +116,10 @@ export function ClientSelectionCards({
                 {/* Aircraft List */}
                 <div className="flex-1 mb-3">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    Aeronaves ({client.client_aircraft?.length || 0})
+                    Aeronaves ({client.cotistas_aeronave?.length || 0})
                   </p>
                   <div className="space-y-1.5">
-                    {client.client_aircraft?.slice(0, 2).map((aircraft, idx) => (
+                    {client.cotistas_aeronave?.slice(0, 2).map((aircraft, idx) => (
                       <div
                         key={idx}
                         className="group/aircraft p-2 rounded-md bg-slate-800/50 dark:bg-slate-900/60 border border-slate-700/30 dark:border-slate-800/50 hover:bg-slate-800/70 dark:hover:bg-slate-900/80 transition-colors"
@@ -127,22 +127,22 @@ export function ClientSelectionCards({
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-xs text-foreground truncate">
-                              {aircraft.aircraft.registration}
+                              {aircraft.aeronave.matricula}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5 truncate line-clamp-1">
-                              {aircraft.aircraft.manufacturer} {aircraft.aircraft.model}
+                              {aircraft.aeronave.fabricante} {aircraft.aeronave.modelo}
                             </p>
                           </div>
                           <Badge variant="secondary" className="text-xs bg-primary/30 text-primary/90 px-1.5 py-0 whitespace-nowrap">
-                            {aircraft.share_percentage}%
+                            {aircraft.percentual_sociedade}%
                           </Badge>
                         </div>
                       </div>
                     ))}
 
-                    {(client.client_aircraft?.length || 0) > 2 && (
+                    {(client.cotistas_aeronave?.length || 0) > 2 && (
                       <p className="text-xs text-muted-foreground pt-1 pl-2 italic">
-                        +{(client.client_aircraft?.length || 0) - 2} aeronave(s)
+                        +{(client.cotistas_aeronave?.length || 0) - 2} aeronave(s)
                       </p>
                     )}
                   </div>
@@ -150,16 +150,16 @@ export function ClientSelectionCards({
 
                 {/* Action Buttons */}
                 <div className="space-y-1.5 pt-3 border-t border-slate-700/30 dark:border-slate-800/50">
-                  {client.client_aircraft && client.client_aircraft.length === 1 ? (
+                  {client.cotistas_aeronave && client.cotistas_aeronave.length === 1 ? (
                     <Button
-                      onClick={() => onSelectClient(client, client.client_aircraft![0])}
+                      onClick={() => onSelectClient(client, client.cotistas_aeronave![0])}
                       className="w-full h-7 bg-primary/40 hover:bg-primary/50 backdrop-blur-sm border border-primary/30 hover:border-primary/50 text-white font-semibold text-xs gap-1.5 transition-all duration-300"
                     >
                       <Plane className="h-3 w-3" />
                       Acessar
                     </Button>
                   ) : (
-                    client.client_aircraft?.slice(0, 2).map((aircraft, idx) => (
+                    client.cotistas_aeronave?.slice(0, 2).map((aircraft, idx) => (
                       <Button
                         key={idx}
                         onClick={() => onSelectClient(client, aircraft)}
@@ -167,7 +167,7 @@ export function ClientSelectionCards({
                         className="w-full h-7 text-xs border-slate-700/40 dark:border-slate-800/50 hover:border-slate-600 dark:hover:border-slate-700 gap-1"
                       >
                         <Plane className="h-3 w-3" />
-                        <span className="truncate">{aircraft.aircraft.registration}</span>
+                        <span className="truncate">{aircraft.aeronave.matricula}</span>
                       </Button>
                     ))
                   )}

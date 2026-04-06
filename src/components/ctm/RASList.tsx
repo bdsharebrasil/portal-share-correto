@@ -58,8 +58,8 @@ export function RASList({ items, onView, onNew, onDelete }: RASListProps) {
         ) : (
           <div className="space-y-3">
             {sortedItems.map((ras) => {
-              const config = statusConfig[ras.status as keyof typeof statusConfig];
-              const date = new Date(ras.date).toLocaleDateString('pt-BR');
+              const config = statusConfig[ras.situacao as keyof typeof statusConfig];
+              const date = new Date(ras.data).toLocaleDateString('pt-BR');
 
               return (
                 <div

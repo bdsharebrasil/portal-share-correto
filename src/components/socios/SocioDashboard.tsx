@@ -74,19 +74,19 @@ export function SocioDashboard({
   const [filterMonth, setFilterMonth] = useState("")
   const [filterDay, setFilterDay] = useState("")
   const [visiblePartners, setVisiblePartners] = useState<string[]>([])
-  const [sortBy, setSortBy] = useState<"date" | "amount">("date")
+  const [sortBy, setSortBy] = useState<"data" | "valor">("data")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [clientAircraftId, setClientAircraftId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchAircraft = async () => {
       const { data } = await supabase
-        .from("client_aircraft")
-        .select("aircraft_id")
-        .eq("client_id", clienteId)
+        .from("cotistas_aeronave")
+        .select("id_aeronave")
+        .eq("id_clientes", clienteId)
         .limit(1)
         .single();
-      setClientAircraftId(data?.aircraft_id || null);
+      setClientAircraftId(data?.aeronave_id || null);
     };
     if (clienteId) fetchAircraft();
   }, [clienteId]);
@@ -99,7 +99,7 @@ export function SocioDashboard({
   const availableMonths = useMemo(() => {
     const months = new Set<string>()
     transactions.forEach((t) => {
-      const date = (t as any).payment_date || t.created_at
+      const date = (t as any).payment_date || t.criado_em
       try {
         months.add(format(new Date(date.includes("T") ? date : date + "T12:00:00"), "yyyy-MM"))
       } catch {}
@@ -109,7 +109,7 @@ export function SocioDashboard({
 
   // Partners únicos
   const allPartners = useMemo(
-    () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean),
+    () => [...new Set(transactions.map((t) => t.nome_socio))].filter(Boolean),
     [transactions]
   )
 
@@ -119,7 +119,7 @@ export function SocioDashboard({
     if (filterMonth) {
       const selectedDate = new Date(filterMonth + "-01")
       result = result.filter((t) => {
-        const date = (t as any).payment_date || t.created_at
+        const date = (t as any).payment_date || t.criado_em
         try {
           return isSameMonth(
             new Date(date.includes("T") ? date : date + "T12:00:00"),
@@ -133,7 +133,7 @@ export function SocioDashboard({
     if (filterDay) {
       const dayNumber = parseInt(filterDay)
       result = result.filter((t) => {
-        const date = (t as any).payment_date || t.created_at
+        const date = (t as any).payment_date || t.criado_em
         try {
           return new Date(date.includes("T") ? date : date + "T12:00:00").getDate() === dayNumber
         } catch {
@@ -142,7 +142,7 @@ export function SocioDashboard({
       })
     }
     if (visiblePartners.length > 0) {
-      result = result.filter((t) => visiblePartners.includes(t.partner_name))
+      result = result.filter((t) => visiblePartners.includes(t.nome_socio))
     }
     return result
   }, [transactions, filterMonth, filterDay, visiblePartners])
@@ -153,7 +153,7 @@ export function SocioDashboard({
     const currentDate = new Date(filterMonth + "-01")
     const prevDate = subMonths(currentDate, 1)
     return transactions.filter((t) => {
-      const date = (t as any).payment_date || t.created_at
+      const date = (t as any).payment_date || t.criado_em
       try {
         return isSameMonth(
           new Date(date.includes("T") ? date : date + "T12:00:00"),
@@ -169,10 +169,10 @@ export function SocioDashboard({
   const calculateSummary = (list: PartnerTransaction[]) => {
     const totalEntradas = list
       .filter((t) => t.transaction_type === "deposit")
-      .reduce((sum, t) => sum + Number(t.amount), 0)
+      .reduce((sum, t) => sum + Number(t.valor), 0)
     const totalSaidas = list
       .filter((t) => t.transaction_type !== "deposit")
-      .reduce((sum, t) => sum + Number(t.amount), 0)
+      .reduce((sum, t) => sum + Number(t.valor), 0)
     return { totalEntradas, totalSaidas, saldo: totalEntradas - totalSaidas }
   }
 
@@ -188,10 +188,10 @@ export function SocioDashboard({
   const partnerChartData = useMemo(() => {
     const map: Record<string, { entradas: number; saidas: number }> = {}
     filteredTransactions.forEach((t) => {
-      const name = t.partner_name || "Conta Bancária"
+      const name = t.nome_socio || "Conta Bancária"
       if (!map[name]) map[name] = { entradas: 0, saidas: 0 }
-      if (t.transaction_type === "deposit") map[name].entradas += Number(t.amount)
-      else map[name].saidas += Number(t.amount)
+      if (t.transaction_type === "deposit") map[name].entradas += Number(t.valor)
+      else map[name].saidas += Number(t.valor)
     })
     return Object.entries(map).map(([name, v]) => ({ name, ...v }))
   }, [filteredTransactions])
@@ -206,7 +206,7 @@ export function SocioDashboard({
           : t.transaction_type === "expense"
           ? "Despesa"
           : "Pagamento"
-      map[type] = (map[type] || 0) + Number(t.amount)
+      map[type] = (map[type] || 0) + Number(t.valor)
     })
     return Object.entries(map).map(([name, value]) => ({ name, value }))
   }, [filteredTransactions])
@@ -214,19 +214,19 @@ export function SocioDashboard({
   // Ordenação
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((a, b) => {
-      if (sortBy === "date") {
-        const dateA = new Date((a as any).payment_date || a.created_at).getTime()
-        const dateB = new Date((b as any).payment_date || b.created_at).getTime()
+      if (sortBy === "data") {
+        const dateA = new Date((a as any).payment_date || a.criado_em).getTime()
+        const dateB = new Date((b as any).payment_date || b.criado_em).getTime()
         return sortOrder === "asc" ? dateA - dateB : dateB - dateA
       }
       return sortOrder === "asc"
-        ? Number(a.amount) - Number(b.amount)
-        : Number(b.amount) - Number(a.amount)
+        ? Number(a.valor) - Number(b.valor)
+        : Number(b.valor) - Number(a.valor)
     })
   }, [filteredTransactions, sortBy, sortOrder])
 
   const getTransactionDate = (tx: any) => {
-    const date = tx.payment_date || tx.created_at
+    const date = tx.payment_date || tx.criado_em
     try {
       return format(new Date(date.includes("T") ? date : date + "T12:00:00"), "dd/MM/yyyy", {
         locale: ptBR,
@@ -340,16 +340,16 @@ export function SocioDashboard({
             )
             const deposits = partnerTxs
               .filter((t) => t.transaction_type === "deposit")
-              .reduce((s, t) => s + Number(t.amount), 0)
+              .reduce((s, t) => s + Number(t.valor), 0)
             const expenses = partnerTxs
               .filter((t) => t.transaction_type !== "deposit")
-              .reduce((s, t) => s + Number(t.amount), 0)
+              .reduce((s, t) => s + Number(t.valor), 0)
             const balance = deposits - expenses
             return (
               <Card key={acc.id} className="border border-border bg-background">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-bold text-sm text-foreground">{acc.partner_name}</h3>
+                    <h3 className="font-bold text-sm text-foreground">{acc.nome_socio}</h3>
                     <Badge variant="outline" className="text-xs">
                       {acc.partner_cpf}
                     </Badge>
@@ -413,7 +413,7 @@ export function SocioDashboard({
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={partnerChartData}>
                   <XAxis
-                    dataKey="name"
+                    dataKey="nome"
                     tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                   />
                   <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
@@ -490,8 +490,8 @@ export function SocioDashboard({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="date">Por Data</SelectItem>
-                  <SelectItem value="amount">Por Valor</SelectItem>
+                  <SelectItem value="data">Por Data</SelectItem>
+                  <SelectItem value="valor">Por Valor</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as any)}>
@@ -544,9 +544,9 @@ export function SocioDashboard({
                     >
                       <td className="py-2.5 text-foreground">{getTransactionDate(tx)}</td>
                       <td className="text-foreground truncate max-w-[200px]">
-                        {tx.description || "-"}
+                        {tx.descricao || "-"}
                       </td>
-                      <td className="text-muted-foreground">{tx.partner_name}</td>
+                      <td className="text-muted-foreground">{tx.nome_socio}</td>
                       <td>
                         <Badge
                           variant="outline"
@@ -570,13 +570,13 @@ export function SocioDashboard({
                           <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-500">
                             Recebido
                           </Badge>
-                        ) : tx.status ? (
+                        ) : tx.situacao ? (
                           <Badge variant="outline" className={`text-xs ${
-                            tx.status === "paid" || tx.status === "pago"
+                            tx.situacao === "paid" || tx.situacao === "pago"
                               ? "border-emerald-500/30 text-emerald-500"
                               : "border-amber-500/30 text-amber-500"
                           }`}>
-                            {tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                            {tx.situacao === "paid" || tx.situacao === "pago" ? "Pago" : tx.situacao.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground text-xs">-</span>
@@ -588,7 +588,7 @@ export function SocioDashboard({
                         }`}
                       >
                         {tx.transaction_type === "deposit" ? "+" : "-"}
-                        {fmt(Number(tx.amount))}
+                        {fmt(Number(tx.valor))}
                       </td>
                     </tr>
                   ))}

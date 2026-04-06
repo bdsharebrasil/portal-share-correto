@@ -25,8 +25,8 @@ import { useQuery } from "@tanstack/react-query";
 
 interface Aircraft {
   id: string;
-  registration: string;
-  model: string;
+  matricula: string;
+  modelo: string;
   status?: string | null;
 }
 
@@ -143,7 +143,7 @@ function useOngoingMaintenance(aircraftId: string) {
         .select("*")
         .eq("aeronave_id", aircraftId)
         .in("etapa", ["aguardando", "pendente", "em_andamento"])
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -152,7 +152,7 @@ function useOngoingMaintenance(aircraftId: string) {
 }
 
 export function CTMAircraftDetail({
-  aircraft,
+  aircraft: aeronave,
   onBack
 }: CTMAircraftDetailProps) {
   const navigate = useNavigate();
@@ -165,15 +165,15 @@ export function CTMAircraftDetail({
     data: serviceOrders = [],
     isLoading: loadingOS,
     refetch: refetchOrders
-  } = useCTMServiceOrders(aircraft.id);
+  } = useCTMServiceOrders(aeronave.id);
 
   const {
     data: ongoingMaintenance = [],
-  } = useOngoingMaintenance(aircraft.id);
+  } = useOngoingMaintenance(aeronave.id);
 
   const {
     data: cellData
-  } = useAircraftCellHours(aircraft.id);
+  } = useAircraftCellHours(aeronave.id);
 
   const filteredOrders = categoryFilter === "TUDO"
     ? serviceOrders
@@ -197,8 +197,8 @@ export function CTMAircraftDetail({
     return (
       <CTMOASDetailPage
         oasId={selectedOASId}
-        aircraftId={aircraft.id}
-        aircraftRegistration={aircraft.registration}
+        aircraftId={aeronave.id}
+        aircraftRegistration={aeronave.matricula}
         onBack={() => setSelectedOASId(null)}
         isEmbedded={true}
       />
@@ -219,20 +219,20 @@ export function CTMAircraftDetail({
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-4xl font-black text-foreground tracking-tight">
-                {aircraft.registration}
+                {aeronave.matricula}
               </h1>
               <Badge className="bg-green-500/20 text-green-400 border-green-500/30 px-3 py-1">
                 <span className="relative flex h-2 w-2 mr-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
                 </span>
-                {aircraft.status || "OPERACIONAL"}
+                {aeronave.status || "OPERACIONAL"}
               </Badge>
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                MODELO: <strong className="text-foreground">{aircraft.model}</strong>
+                MODELO: <strong className="text-foreground">{aeronave.modelo}</strong>
               </span>
             </div>
           </div>
@@ -288,8 +288,8 @@ export function CTMAircraftDetail({
                   <NewServiceOrderPage
                     open={true}
                     onOpenChange={(open) => { if (!open) setShowNewOSForm(false); }}
-                    aircraftId={aircraft.id}
-                    aircraftRegistration={aircraft.registration}
+                    aircraftId={aeronave.id}
+                    aircraftRegistration={aeronave.matricula}
                     onServiceOrderCreated={handleServiceOrderCreated}
                     onBack={() => setShowNewOSForm(false)}
                   />
@@ -433,28 +433,28 @@ export function CTMAircraftDetail({
           )}
 
           {/* Reports Tab */}
-          {activeTab === "relatorios" && <CTMAircraftReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+          {activeTab === "relatorios" && <CTMAircraftReports aircraftId={aeronave.id} aircraftRegistration={aeronave.matricula} />}
 
           {/* Itens Não Controlados Tab */}
-          {activeTab === "itens-nao-controlados" && <CTMItensNaoControlados aircraftId={aircraft.id} />}
+          {activeTab === "itens-nao-controlados" && <CTMItensNaoControlados aircraftId={aeronave.id} />}
 
           {/* RAS Tab */}
-          {activeTab === "ras" && <CTMRASReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+          {activeTab === "ras" && <CTMRASReports aircraftId={aeronave.id} aircraftRegistration={aeronave.matricula} />}
 
           {/* Budgets Tab */}
-          {activeTab === "orcamentos" && <CTMBudgetManagement aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+          {activeTab === "orcamentos" && <CTMBudgetManagement aircraftId={aeronave.id} aircraftRegistration={aeronave.matricula} />}
 
           {/* Components Tab */}
-          {activeTab === "componentes" && <CTMComponentMap aircraftId={aircraft.id} />}
+          {activeTab === "componentes" && <CTMComponentMap aircraftId={aeronave.id} />}
 
           {/* Weight Balance Tab */}
-          {activeTab === "peso" && <CTMWeightBalanceComplete aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
+          {activeTab === "peso" && <CTMWeightBalanceComplete aircraftId={aeronave.id} aircraftRegistration={aeronave.matricula} />}
 
           {/* Oil Analysis Tab */}
-          {activeTab === "analise-oleo" && <CTMOilAnalysisTab aircraftId={aircraft.id} />}
+          {activeTab === "analise-oleo" && <CTMOilAnalysisTab aircraftId={aeronave.id} />}
 
           {/* Motor Expenses Tab */}
-          {activeTab === "despesas-motor" && <CTMMotorExpensesTab aircraftId={aircraft.id} />}
+          {activeTab === "despesas-motor" && <CTMMotorExpensesTab aircraftId={aeronave.id} />}
 
         </motion.div>
       </AnimatePresence>

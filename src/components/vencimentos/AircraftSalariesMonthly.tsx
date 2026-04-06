@@ -14,7 +14,7 @@ import { Pencil, Save, X, Loader2 } from "lucide-react";
 
 interface MonthlyRate {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   hourly_rate: number;
   effective_date: string;
   created_at: string | null;
@@ -38,7 +38,7 @@ export function AircraftSalariesMonthly() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
-  const [selectedAircraft, setSelectedAircraft] = useState<AircraftData | null>(null);
+  const [selectedAeronave, setSelectedAircraft] = useState<AircraftData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogValue, setDialogValue] = useState<string>("");
   const [selectedAircraftsToShow, setSelectedAircraftsToShow] = useState<string[]>([]);
@@ -73,10 +73,10 @@ export function AircraftSalariesMonthly() {
     queryKey: ["active_aircraft"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model, status")
+        .from('aeronave')
+        .select('id, matricula, modelo, status')
         .eq("status", "ativa")
-        .order("registration", { ascending: true });
+        .order('matricula', { ascending: true });
       if (error) throw error;
       return data as AircraftData[];
     },
@@ -86,7 +86,7 @@ export function AircraftSalariesMonthly() {
     queryKey: ["aircraft_monthly_rates"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft_hourly_rates")
+        .from('taxas_hora_aeronave')
         .select("*")
         .order("effective_date", { ascending: false });
       if (error) throw error;
@@ -105,7 +105,7 @@ export function AircraftSalariesMonthly() {
   const aircraftWithRates = useMemo(() => {
     return activeAircraft.map((aircraft) => {
       const currentMonthRate = allRates.find((r) => {
-        if (r.aircraft_id !== aircraft.id) return false;
+        if (r.aeronave_id !== aeronave.id) return false;
         const { month, year } = getMonthYearFromDate(r.effective_date);
         return month === selectedMonth && year === selectedYear;
       });
@@ -115,7 +115,7 @@ export function AircraftSalariesMonthly() {
 
       if (!currentMonthRate) {
         const mostRecentRate = allRates.find((r) => {
-          if (r.aircraft_id !== aircraft.id) return false;
+          if (r.aeronave_id !== aeronave.id) return false;
           const { month, year } = getMonthYearFromDate(r.effective_date);
           const rateDate = new Date(year, month - 1);
           const selectedDate = new Date(selectedYear, selectedMonth - 1);
@@ -127,7 +127,7 @@ export function AircraftSalariesMonthly() {
       }
 
       return {
-        ...aircraft,
+        ...aeronave,
         hourly_rate: displayRate,
         current_rate_id: currentRateId,
       };
@@ -160,19 +160,19 @@ export function AircraftSalariesMonthly() {
   const saveRateMutation = useMutation({
     mutationFn: async (data: any) => {
       const rateData = {
-        aircraft_id: data.aircraft_id,
+        aeronave_id: data.aeronave_id,
         hourly_rate: parseFloat(data.hourly_rate),
         effective_date: `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
       };
 
       if (data.rate_id) {
         const { error } = await supabase
-          .from("aircraft_hourly_rates")
+          .from('taxas_hora_aeronave')
           .update(rateData)
           .eq("id", data.rate_id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("aircraft_hourly_rates").insert(rateData);
+        const { error } = await supabase.from('taxas_hora_aeronave').insert(rateData);
         if (error) throw error;
       }
     },
@@ -198,22 +198,22 @@ export function AircraftSalariesMonthly() {
   };
 
   const handleSaveDialog = () => {
-    if (!selectedAircraft) return;
+    if (!selectedAeronave) return;
     if (!dialogValue || isNaN(parseFloat(dialogValue))) {
       toast.error("Digite um valor válido");
       return;
     }
 
     saveRateMutation.mutate({
-      aircraft_id: selectedAircraft.id,
-      rate_id: (selectedAircraft as any).current_rate_id,
+      aeronave_id: selectedAeronave.id,
+      rate_id: (selectedAeronave as any).current_rate_id,
       hourly_rate: dialogValue,
     });
   };
 
   const handleInlineEdit = (aircraft: any) => {
     if (!isAllowed) return;
-    setEditingId(aircraft.id);
+    setEditingId(aeronave.id);
     setEditingValue(aircraft.hourly_rate.toString());
   };
 
@@ -223,10 +223,10 @@ export function AircraftSalariesMonthly() {
       return;
     }
 
-    const aircraftData = activeAircraft.find((a) => a.id === aircraft.id);
+    const aircraftData = activeAircraft.find((a) => a.id === aeronave.id);
     if (aircraftData) {
       saveRateMutation.mutate({
-        aircraft_id: aircraftData.id,
+        aeronave_id: aircraftData.id,
         rate_id: aircraft.current_rate_id,
         hourly_rate: editingValue,
       });
@@ -304,8 +304,8 @@ export function AircraftSalariesMonthly() {
                 </SelectTrigger>
                 <SelectContent>
                   {availableAircraftToAdd.map((aircraft) => (
-                    <SelectItem key={aircraft.id} value={aircraft.id}>
-                      {aircraft.registration} - {aircraft.model} (R$ {aircraft.hourly_rate.toFixed(2)}/hora)
+                    <SelectItem key={aeronave.id} value={aeronave.id}>
+                      {aeronave.matricula} - {aeronave.modelo} (R$ {aircraft.hourly_rate.toFixed(2)}/hora)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -338,16 +338,16 @@ export function AircraftSalariesMonthly() {
               </TableHeader>
               <TableBody>
                 {displayedAircraft.map((aircraft) => (
-                  <TableRow key={aircraft.id}>
-                    <TableCell className="font-semibold">{aircraft.registration}</TableCell>
-                    <TableCell>{aircraft.model}</TableCell>
+                  <TableRow key={aeronave.id}>
+                    <TableCell className="font-semibold">{aeronave.matricula}</TableCell>
+                    <TableCell>{aeronave.modelo}</TableCell>
                     <TableCell>
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Ativa
                       </span>
                     </TableCell>
                     <TableCell>
-                      {editingId === aircraft.id ? (
+                      {editingId === aeronave.id ? (
                         <div className="flex gap-2 items-center">
                           <Input
                             type="number"
@@ -383,7 +383,7 @@ export function AircraftSalariesMonthly() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {editingId !== aircraft.id && (
+                        {editingId !== aeronave.id && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -393,11 +393,11 @@ export function AircraftSalariesMonthly() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
-                        {selectedAircraftsToShow.includes(aircraft.id) && (
+                        {selectedAircraftsToShow.includes(aeronave.id) && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleRemoveAircraft(aircraft.id)}
+                            onClick={() => handleRemoveAircraft(aeronave.id)}
                             title="Remover da tabela"
                             className="text-red-600 hover:text-red-700"
                           >
@@ -423,7 +423,7 @@ export function AircraftSalariesMonthly() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Valor/Hora - {selectedAircraft?.registration}</DialogTitle>
+            <DialogTitle>Editar Valor/Hora - {selectedAeronave?.registration}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>

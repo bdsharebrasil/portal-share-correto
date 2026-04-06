@@ -123,18 +123,18 @@ export function ColaboradoresListTab() {
                 {/* Informações Pessoais */}
                 <div className="space-y-3 text-sm">
                   {/* Telefone */}
-                  {colab.phone && (
+                  {colab.telefone && (
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground">{colab.phone}</span>
+                      <span className="text-muted-foreground">{colab.telefone}</span>
                     </div>
                   )}
 
                   {/* Endereço */}
-                  {colab.address && (
+                  {colab.endereco && (
                     <div className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                      <span className="text-muted-foreground text-xs break-words">{colab.address}</span>
+                      <span className="text-muted-foreground text-xs break-words">{colab.endereco}</span>
                     </div>
                   )}
 

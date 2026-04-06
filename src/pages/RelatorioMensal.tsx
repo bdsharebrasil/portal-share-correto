@@ -165,12 +165,12 @@ export default function RelatorioMensal() {
   // ========================
 
   const allPartners = useMemo(
-    () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean).sort(),
+    () => [...new Set(transactions.map((t) => t.nome_socio))].filter(Boolean).sort(),
     [transactions]
   )
 
   const getCategoryFromTx = (t: any): string => {
-    const raw = t.transaction_subtype || t.category || t.expense_type
+    const raw = t.transaction_subtype || t.categoria || t.expense_type
     const dbCat = dbCategories.find((c: any) => c.id === raw)
     if (dbCat) return dbCat.label
     return normalizeCategory(raw)
@@ -216,7 +216,7 @@ export default function RelatorioMensal() {
 
   const filteredTransactions = useMemo(() => {
     let result = transactions.filter((t) => {
-      const date = (t as any).payment_date || t.created_at
+      const date = (t as any).payment_date || t.criado_em
       try {
         return isSameMonth(new Date(date.includes("T") ? date : date + "T12:00:00"), currentMonth)
       } catch {
@@ -225,7 +225,7 @@ export default function RelatorioMensal() {
     })
 
     if (selectedPartners.length > 0) {
-      result = result.filter((t) => selectedPartners.includes(t.partner_name))
+      result = result.filter((t) => selectedPartners.includes(t.nome_socio))
     }
 
     if (selectedCategories.length > 0) {
@@ -238,7 +238,7 @@ export default function RelatorioMensal() {
     if (selectedDay) {
       const dayNumber = parseInt(selectedDay)
       result = result.filter((t) => {
-        const date = (t as any).payment_date || t.created_at
+        const date = (t as any).payment_date || t.criado_em
         try {
           return new Date(date.includes("T") ? date : date + "T12:00:00").getDate() === dayNumber
         } catch {
@@ -250,21 +250,21 @@ export default function RelatorioMensal() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       result = result.filter((t: any) =>
-        (t.description || "").toLowerCase().includes(q) ||
-        (t.partner_name || "").toLowerCase().includes(q) ||
+        (t.descricao || "").toLowerCase().includes(q) ||
+        (t.nome_socio || "").toLowerCase().includes(q) ||
         (t.notes || "").toLowerCase().includes(q) ||
-        (t.doc || "").toLowerCase().includes(q)
+        (t.documento || "").toLowerCase().includes(q)
       )
     }
 
     result.sort((a, b) => {
       let compareValue = 0
       if (sortBy === 'date') {
-        const dateA = new Date((a as any).payment_date || a.created_at)
-        const dateB = new Date((b as any).payment_date || b.created_at)
+        const dateA = new Date((a as any).payment_date || a.criado_em)
+        const dateB = new Date((b as any).payment_date || b.criado_em)
         compareValue = dateA.getTime() - dateB.getTime()
       } else if (sortBy === 'partner') {
-        compareValue = (a.partner_name || '').localeCompare(b.partner_name || '')
+        compareValue = (a.nome_socio || '').localeCompare(b.nome_socio || '')
       }
       return sortOrder === 'asc' ? compareValue : -compareValue
     })
@@ -279,10 +279,10 @@ export default function RelatorioMensal() {
   const monthlySummary = useMemo(() => {
     const deposits = filteredTransactions
       .filter((t) => t.transaction_type === "deposit")
-      .reduce((sum, t) => sum + Number(t.amount), 0)
+      .reduce((sum, t) => sum + Number(t.valor), 0)
     const expenses = filteredTransactions
       .filter((t) => t.transaction_type !== "deposit")
-      .reduce((sum, t) => sum + Number(t.amount), 0)
+      .reduce((sum, t) => sum + Number(t.valor), 0)
     return { totalDeposits: deposits, totalExpenses: expenses, balance: deposits - expenses }
   }, [filteredTransactions])
 
@@ -292,7 +292,7 @@ export default function RelatorioMensal() {
     const days = eachDayOfInterval({ start, end })
     return days.map((day) => {
       const dayTransactions = filteredTransactions.filter((t) => {
-        const date = (t as any).payment_date || t.created_at
+        const date = (t as any).payment_date || t.criado_em
         try {
           const txDate = new Date(date.includes("T") ? date : date + "T12:00:00")
           return (
@@ -302,14 +302,14 @@ export default function RelatorioMensal() {
           )
         } catch { return false }
       })
-      const deposits = dayTransactions.filter((t) => t.transaction_type === "deposit").reduce((sum, t) => sum + Number(t.amount), 0)
-      const expenses = dayTransactions.filter((t) => t.transaction_type !== "deposit").reduce((sum, t) => sum + Number(t.amount), 0)
+      const deposits = dayTransactions.filter((t) => t.transaction_type === "deposit").reduce((sum, t) => sum + Number(t.valor), 0)
+      const expenses = dayTransactions.filter((t) => t.transaction_type !== "deposit").reduce((sum, t) => sum + Number(t.valor), 0)
       return { date: format(day, "dd MMM", { locale: ptBR }), day: day.getDate(), deposits, expenses, balance: deposits - expenses }
     })
   }, [filteredTransactions, currentMonth])
 
   const isBankAccountTransaction = (t: any) => {
-    const name = (t.partner_name || "").trim().toLowerCase()
+    const name = (t.nome_socio || "").trim().toLowerCase()
     const cpf = (t.partner_cpf || "").trim()
     return (
       name === "conta bancária" || !name || !cpf ||
@@ -321,10 +321,10 @@ export default function RelatorioMensal() {
     const map: Record<string, { deposits: number; expenses: number }> = {}
     filteredTransactions.forEach((t) => {
       if (isBankAccountTransaction(t)) return
-      const name = t.partner_name
+      const name = t.nome_socio
       if (!map[name]) map[name] = { deposits: 0, expenses: 0 }
-      if (t.transaction_type === "deposit") map[name].deposits += Number(t.amount)
-      else map[name].expenses += Number(t.amount)
+      if (t.transaction_type === "deposit") map[name].deposits += Number(t.valor)
+      else map[name].expenses += Number(t.valor)
     })
     return Object.entries(map).map(([name, data]) => ({
       name, deposits: data.deposits, expenses: data.expenses, balance: data.deposits - data.expenses,
@@ -335,8 +335,8 @@ export default function RelatorioMensal() {
     let deposits = 0, expenses = 0
     filteredTransactions.forEach((t) => {
       if (isBankAccountTransaction(t)) {
-        if (t.transaction_type === "deposit") deposits += Number(t.amount)
-        else expenses += Number(t.amount)
+        if (t.transaction_type === "deposit") deposits += Number(t.valor)
+        else expenses += Number(t.valor)
       }
     })
     return { deposits, expenses, balance: deposits - expenses }
@@ -345,7 +345,7 @@ export default function RelatorioMensal() {
   const partnerCardTransactions = useMemo(() => {
     if (!selectedPartnerCard) return []
     if (selectedPartnerCard === "Conta Bancária") return filteredTransactions.filter((t) => isBankAccountTransaction(t))
-    return filteredTransactions.filter((t) => t.partner_name === selectedPartnerCard)
+    return filteredTransactions.filter((t) => t.nome_socio === selectedPartnerCard)
   }, [filteredTransactions, selectedPartnerCard])
 
   // ========================
@@ -393,34 +393,34 @@ export default function RelatorioMensal() {
 
   const handleExpenseTypeClick = async (tx: any, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (tx.reference_type === "abastecimento") {
+    if (tx.tipo_referencia === "abastecimento") {
       try {
         const { data: abastecimento, error } = await supabase
-          .from("abastecimentos").select("id, data, local, litros").eq("id", tx.reference_id).single()
+          .from("abastecimentos").select("id, data, local, litros").eq("id", tx.referencia_id).single()
         if (error || !abastecimento) { toast.error("Esse abastecimento não está vinculado a nenhum registro"); return }
-        navigate("/abastecimento", { state: { selectedAbastecimentoId: tx.reference_id, fromRelatorioMensal: true, clienteId, abastecimentoFound: true } })
+        navigate("/abastecimento", { state: { selectedAbastecimentoId: tx.referencia_id, fromRelatorioMensal: true, clienteId, abastecimentoFound: true } })
       } catch (err) { toast.error("Esse abastecimento não está vinculado a nenhum registro") }
     } else if (
-      tx.reference_type === "travel_expense_report" ||
-      (tx.reference_type === "partner_expense" && tx.expense_type &&
+      tx.tipo_referencia === "travel_expense_report" ||
+      (tx.tipo_referencia === "partner_expense" && tx.expense_type &&
         (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem"))
     ) {
       try {
         let travelReportId: string | null = null
         let travelReport: any = null
-        if (tx.reference_type === "travel_expense_report" && tx.reference_id) {
+        if (tx.tipo_referencia === "travel_expense_report" && tx.referencia_id) {
           const { data: report, error: reportError } = await supabase
-            .from("travel_expense_reports").select("id, report_number, start_date, client").eq("id", tx.reference_id).single()
-          if (!reportError && report) { travelReportId = tx.reference_id; travelReport = report }
+            .from("travel_expense_reports").select("id, numero_relatorio, data_inicio, client").eq("id", tx.referencia_id).single()
+          if (!reportError && report) { travelReportId = tx.referencia_id; travelReport = report }
         }
-        if (!travelReport && tx.reference_type === "partner_expense") {
+        if (!travelReport && tx.tipo_referencia === "partner_expense") {
           const { data: expense, error: expError } = await supabase
-            .from("partner_expenses").select("id, reference_id, reference_type, description, notes").eq("id", tx.reference_id).single()
+            .from("partner_expenses").select("id, reference_id, reference_type, description, notes").eq("id", tx.referencia_id).single()
           if (expError || !expense) { toast.error("Essa despesa não foi vinculada a um relatório de viagem"); return }
-          if (expense.reference_id && (expense.reference_type === "travel_expense_report" || expense.reference_type === "travel_report" || expense.reference_type === "viagem")) {
+          if (expense.referencia_id && (expense.tipo_referencia === "travel_expense_report" || expense.tipo_referencia === "travel_report" || expense.tipo_referencia === "viagem")) {
             const { data: report, error: reportError } = await supabase
-              .from("travel_expense_reports").select("id, report_number, start_date, client").eq("id", expense.reference_id).single()
-            if (!reportError && report) { travelReportId = expense.reference_id; travelReport = report }
+              .from("travel_expense_reports").select("id, numero_relatorio, data_inicio, client").eq("id", expense.referencia_id).single()
+            if (!reportError && report) { travelReportId = expense.referencia_id; travelReport = report }
           }
           if (!travelReport && expense.notes) {
             const reportPattern = /REL-[A-Z]{3}-\d{3}\/\d{2}/g
@@ -428,7 +428,7 @@ export default function RelatorioMensal() {
             if (matches && matches.length > 0) {
               const reportNumber = matches[0]
               const { data: reportByNumber, error: searchError } = await supabase
-                .from("travel_expense_reports").select("id, report_number, start_date, client_id").eq("report_number", reportNumber).eq("client_id", clienteId).single()
+                .from("travel_expense_reports").select("id, numero_relatorio, data_inicio, clientes_id").eq("numero_relatorio", reportNumber).eq("clientes_id", clienteId).single()
               if (!searchError && reportByNumber) {
                 travelReportId = reportByNumber.id; travelReport = reportByNumber
                 try {
@@ -439,7 +439,7 @@ export default function RelatorioMensal() {
           }
         }
         if (!travelReport) { toast.error("Essa despesa não foi vinculada a um relatório de viagem"); return }
-        navigate("/financeiro/viagem", { state: { selectedReportId: travelReportId, fromRelatorioMensal: true, clienteId, reportFound: true, reportNumber: travelReport.report_number } })
+        navigate("/financeiro/viagem", { state: { selectedReportId: travelReportId, fromRelatorioMensal: true, clienteId, reportFound: true, reportNumber: travelReport.numero_relatorio } })
       } catch (err) { toast.error("Essa despesa não foi vinculada a um relatório de viagem") }
     }
   }
@@ -477,7 +477,7 @@ export default function RelatorioMensal() {
                 <h1 className="text-3xl font-bold text-foreground">Relatório Mensal</h1>
               </div>
               <p className="text-sm text-muted-foreground">
-                {selectedClient.company_name || selectedClient.proprietario}
+                {selectedClient.razao_social || selectedClient.proprietario}
                 {selectedClient.cnpj ? ` • ${selectedClient.cnpj}` : ""}
               </p>
             </div>
@@ -738,11 +738,11 @@ export default function RelatorioMensal() {
                 {/* Sócios */}
                 {partnerData.map((partner) => (
                   <div
-                    key={partner.name}
+                    key={partner.nome}
                     className="p-4 rounded-lg border border-border/60 bg-muted/10 hover:border-primary/40 hover:bg-muted/25 cursor-pointer transition-all duration-200 space-y-2"
-                    onClick={() => setSelectedPartnerCard(partner.name)}
+                    onClick={() => setSelectedPartnerCard(partner.nome)}
                   >
-                    <h4 className="font-semibold text-foreground text-sm truncate">{partner.name}</h4>
+                    <h4 className="font-semibold text-foreground text-sm truncate">{partner.nome}</h4>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Entradas</span>
@@ -830,7 +830,7 @@ export default function RelatorioMensal() {
                   </thead>
                   <tbody>
                     {filteredTransactions.map((tx: any, idx) => {
-                      const txDate = tx.payment_date || tx.created_at
+                      const txDate = tx.payment_date || tx.criado_em
                       const formattedDate = format(
                         new Date(txDate.includes("T") ? txDate : txDate + "T12:00:00"),
                         "dd/MM/yyyy",
@@ -870,8 +870,8 @@ export default function RelatorioMensal() {
                                         id: tx.id, clientId: clienteId!,
                                         transactionType: tx.transaction_type,
                                         partnerCpf: tx.partner_cpf || "",
-                                        amount: Number(tx.amount),
-                                        referenceType: tx.reference_type || undefined,
+                                        amount: Number(tx.valor),
+                                        referenceType: tx.tipo_referencia || undefined,
                                       })
                                     }
                                   }}
@@ -889,28 +889,28 @@ export default function RelatorioMensal() {
 
                             {/* Descrição */}
                             <td className="py-2.5 px-3 text-foreground text-xs max-w-[200px]">
-                              <span className="truncate block" title={tx.description || ""}>{tx.description || "-"}</span>
+                              <span className="truncate block" title={tx.descricao || ""}>{tx.descricao || "-"}</span>
                             </td>
 
                             {/* Sócio */}
                             <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
-                              {tx.partner_name || "-"}
+                              {tx.nome_socio || "-"}
                             </td>
 
                             {/* Tipo */}
                             <td className="py-2.5 px-3">
                               <div className="flex items-center gap-1.5">
-                                {(tx.reference_type === "abastecimento" || tx.reference_type === "travel_expense_report") && (
+                                {(tx.tipo_referencia === "abastecimento" || tx.tipo_referencia === "travel_expense_report") && (
                                   <Button
                                     size="sm" variant="ghost" className="h-5 w-5 p-0 rounded"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      if (tx.reference_type === "abastecimento") toggleFuelExpanded(tx.reference_id)
-                                      else if (tx.reference_type === "travel_expense_report") toggleTravelReportExpanded(tx.reference_id)
+                                      if (tx.tipo_referencia === "abastecimento") toggleFuelExpanded(tx.referencia_id)
+                                      else if (tx.tipo_referencia === "travel_expense_report") toggleTravelReportExpanded(tx.referencia_id)
                                     }}
                                   >
-                                    {(tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id)) ||
-                                      (tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id)) ? (
+                                    {(tx.tipo_referencia === "abastecimento" && expandedFuels.has(tx.referencia_id)) ||
+                                      (tx.tipo_referencia === "travel_expense_report" && expandedTravelReports.has(tx.referencia_id)) ? (
                                       <ChevronDown className="h-3.5 w-3.5 text-primary" />
                                     ) : (
                                       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -943,13 +943,13 @@ export default function RelatorioMensal() {
                                 variant="outline"
                                 className={cn(
                                   "text-[10px] px-1.5 py-0 whitespace-nowrap",
-                                  (tx.status === "pago" || tx.status === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
-                                    : (tx.status === "recebido" || tx.status === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
-                                      : tx.status === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
+                                  (tx.situacao === "pago" || tx.situacao === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                                    : (tx.situacao === "recebido" || tx.situacao === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
+                                      : tx.situacao === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
                                         : "border-amber-500/30 text-amber-500 bg-amber-500/5"
                                 )}
                               >
-                                {getStatusLabel(tx.status)}
+                                {getStatusLabel(tx.situacao)}
                               </Badge>
                             </td>
 
@@ -970,7 +970,7 @@ export default function RelatorioMensal() {
 
                             {/* Doc */}
                             <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
-                              {tx.doc || "-"}
+                              {tx.documento || "-"}
                             </td>
 
                             {/* Obs */}
@@ -983,12 +983,12 @@ export default function RelatorioMensal() {
                               "text-right py-2.5 px-3 font-bold text-sm whitespace-nowrap",
                               tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
                             )}>
-                              {tx.transaction_type === "deposit" ? "+" : "-"}{fmt(Number(tx.amount))}
+                              {tx.transaction_type === "deposit" ? "+" : "-"}{fmt(Number(tx.valor))}
                             </td>
                           </tr>
 
                           {/* Expansão: Abastecimento */}
-                          {tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id) && (
+                          {tx.tipo_referencia === "abastecimento" && expandedFuels.has(tx.referencia_id) && (
                             <tr className={isEven ? "bg-blue-950/20" : "bg-blue-900/20"}>
                               <td colSpan={12} className="py-4 px-5">
                                 <div className="bg-blue-950/30 rounded-lg p-4 border border-blue-500/20">
@@ -1033,7 +1033,7 @@ export default function RelatorioMensal() {
                           )}
 
                           {/* Expansão: Viagem */}
-                          {tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id) && (
+                          {tx.tipo_referencia === "travel_expense_report" && expandedTravelReports.has(tx.referencia_id) && (
                             <tr className={isEven ? "bg-purple-950/20" : "bg-purple-900/20"}>
                               <td colSpan={12} className="py-4 px-5">
                                 <div className="bg-purple-950/30 rounded-lg p-4 border border-purple-500/20">
@@ -1042,14 +1042,14 @@ export default function RelatorioMensal() {
                                   </h5>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-xs">
                                     {[
-                                      { label: "Relatório", value: tx.report_number },
-                                      { label: "Rota", value: tx.route },
-                                      { label: "Período", value: tx.start_date && tx.end_date ? `${format(new Date(tx.start_date), "dd/MM/yyyy", { locale: ptBR })} a ${format(new Date(tx.end_date), "dd/MM/yyyy", { locale: ptBR })}` : null },
-                                      { label: "Dias", value: tx.days_count },
+                                      { label: "Relatório", value: tx.numero_relatorio },
+                                      { label: "Rota", value: tx.rota },
+                                      { label: "Período", value: tx.data_inicio && tx.data_fim ? `${format(new Date(tx.data_inicio), "dd/MM/yyyy", { locale: ptBR })} a ${format(new Date(tx.data_fim), "dd/MM/yyyy", { locale: ptBR })}` : null },
+                                      { label: "Dias", value: tx.dias_count },
                                       { label: "Tripulação 1", value: tx.crew_member_name },
                                       { label: "Tripulação 2", value: tx.crew_member_name2 },
-                                      { label: "Status", value: getStatusLabel(tx.status) },
-                                      { label: "Observação", value: tx.observations },
+                                      { label: "Status", value: getStatusLabel(tx.situacao) },
+                                      { label: "Observação", value: tx.observacoes },
                                     ].map(({ label, value }) => (
                                       <div key={label} className="space-y-0.5">
                                         <p className="text-muted-foreground font-medium">{label}</p>
@@ -1077,9 +1077,9 @@ export default function RelatorioMensal() {
                                       <p className="text-muted-foreground text-[10px] pt-1">Não contabilizado</p>
                                     </div>
                                   </div>
-                                  {tx.pdf_url && (
+                                  {tx.url_pdf && (
                                     <div className="pt-3 border-t border-purple-500/20">
-                                      <a href={tx.pdf_url} target="_blank" rel="noopener noreferrer"
+                                      <a href={tx.url_pdf} target="_blank" rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-md transition-colors text-xs font-medium">
                                         <FileDown className="h-3.5 w-3.5" /> Baixar PDF do Relatório
                                       </a>
@@ -1119,7 +1119,7 @@ export default function RelatorioMensal() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <XAxis dataKey="data" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip
                     formatter={(v: number) => fmt(v)}
@@ -1145,7 +1145,7 @@ export default function RelatorioMensal() {
                     : partnerData
                 }>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip
                     formatter={(v: number) => fmt(v)}
@@ -1193,7 +1193,7 @@ export default function RelatorioMensal() {
           open={showExportModal}
           onOpenChange={setShowExportModal}
           clientId={clienteId}
-          clientName={selectedClient?.company_name || selectedClient?.proprietario || ""}
+          clientName={selectedClient?.razao_social || selectedClient?.proprietario || ""}
           defaultMonth={reportMonth}
         />
       )}
@@ -1219,17 +1219,17 @@ export default function RelatorioMensal() {
           {partnerCardTransactions.length > 0 && (
             <div className="px-6 py-3 border-b border-border bg-background grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
               {[
-                { label: "Total Entradas", value: fmt(partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)), color: "text-emerald-500" },
-                { label: "Total Saídas", value: fmt(partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)), color: "text-red-500" },
+                { label: "Total Entradas", value: fmt(partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.valor), 0)), color: "text-emerald-500" },
+                { label: "Total Saídas", value: fmt(partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.valor), 0)), color: "text-red-500" },
                 {
                   label: "Saldo", color: (() => {
-                    const d = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
-                    const e = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    const d = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.valor), 0)
+                    const e = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.valor), 0)
                     return d - e >= 0 ? "text-emerald-500" : "text-red-500"
                   })(),
                   value: fmt((() => {
-                    const d = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
-                    const e = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    const d = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.valor), 0)
+                    const e = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.valor), 0)
                     return d - e
                   })())
                 },
@@ -1259,7 +1259,7 @@ export default function RelatorioMensal() {
                 </thead>
                 <tbody>
                   {partnerCardTransactions.map((tx: any, idx) => {
-                    const txDate = tx.payment_date || tx.created_at
+                    const txDate = tx.payment_date || tx.criado_em
                     const formattedDate = format(new Date(txDate.includes("T") ? txDate : txDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })
                     return (
                       <tr
@@ -1272,7 +1272,7 @@ export default function RelatorioMensal() {
                       >
                         <td className="py-2.5 px-4 text-xs font-medium text-foreground whitespace-nowrap">{formattedDate}</td>
                         <td className="py-2.5 px-4 text-xs text-foreground max-w-[220px]">
-                          <span className="truncate block" title={tx.description}>{tx.description || "-"}</span>
+                          <span className="truncate block" title={tx.descricao}>{tx.descricao || "-"}</span>
                         </td>
                         <td className="py-2.5 px-4">
                           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 whitespace-nowrap",
@@ -1282,11 +1282,11 @@ export default function RelatorioMensal() {
                         </td>
                         <td className="py-2.5 px-4">
                           <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 whitespace-nowrap",
-                            (tx.status === "pago" || tx.status === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
-                              : (tx.status === "recebido" || tx.status === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
-                                : tx.status === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
+                            (tx.situacao === "pago" || tx.situacao === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                              : (tx.situacao === "recebido" || tx.situacao === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
+                                : tx.situacao === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
                                   : "border-amber-500/30 text-amber-500 bg-amber-500/5")}>
-                            {getStatusLabel(tx.status)}
+                            {getStatusLabel(tx.situacao)}
                           </Badge>
                         </td>
                         <td className="py-2.5 px-4 text-xs text-foreground whitespace-nowrap">{getPaymentMethodLabel(tx.payment_method)}</td>
@@ -1295,7 +1295,7 @@ export default function RelatorioMensal() {
                         </td>
                         <td className={cn("text-right py-2.5 px-4 font-bold text-sm whitespace-nowrap",
                           tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500")}>
-                          {tx.transaction_type === "deposit" ? "+" : "-"}{fmt(Number(tx.amount))}
+                          {tx.transaction_type === "deposit" ? "+" : "-"}{fmt(Number(tx.valor))}
                         </td>
                       </tr>
                     )

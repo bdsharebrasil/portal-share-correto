@@ -5,13 +5,13 @@ import { Plane, MapPin, Wrench, Clock, ArrowRight, AlertCircle, Zap } from "luci
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-interface AircraftStatus {
+interface AeronaveStatus {
   id: string;
   registration: string;
   model: string;
   status: string;
   base?: string;
-  current_status?: string;
+  status_atual?: string;
 }
 
 const statusConfig: Record<string, { bg: string; text: string; label: string; borderColor: string; icon: string; textColor: string }> = {
@@ -34,10 +34,10 @@ export function FleetStatusCards() {
     queryKey: ["aircraft-fleet"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
+        .from('aeronave')
         .select("*")
         .eq("status", "ativa")
-        .order("registration");
+        .order("matricula");
       if (error) throw error;
       return data || [];
     },
@@ -61,7 +61,7 @@ export function FleetStatusCards() {
             const newData = payload.new as any;
             setLiveStatuses((prev) => ({
               ...prev,
-              [newData.aircraft_id]: newData.current_status,
+              [newData.aeronave_id]: newData.status_atual,
             }));
           }
         }
@@ -71,12 +71,12 @@ export function FleetStatusCards() {
     // Fetch initial live statuses
     const fetchLiveStatuses = async () => {
       const { data, error } = await supabase
-        .from("aircraft_live_status")
+        .from('status_tempo_real_aeronave')
         .select("*");
       if (!error && data) {
         const statusMap = data.reduce(
           (acc, status) => {
-            acc[status.aircraft_id] = status.current_status;
+            acc[status.aeronave_id] = status.status_atual;
             return acc;
           },
           {} as Record<string, string>
@@ -135,8 +135,8 @@ export function FleetStatusCards() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-white font-bold text-lg">{ac.registration}</div>
-                      <div className="text-muted-foreground text-xs">{ac.model}</div>
+                      <div className="text-white font-bold text-lg">{ac.matricula}</div>
+                      <div className="text-muted-foreground text-xs">{ac.modelo}</div>
                     </div>
                   </div>
                 </div>

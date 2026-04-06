@@ -106,8 +106,8 @@ export const fetchManagedUsers = async (): Promise<ManagedUser[]> => {
     displayName: profile.display_name ?? profile.full_name,
     tipo: profile.tipo ?? null,
     roles: rolesMap.get(profile.id) ?? [],
-    createdAt: profile.created_at ?? null,
-    updatedAt: profile.updated_at ?? null,
+    createdAt: profile.criado_em ?? null,
+    updatedAt: profile.atualizado_em ?? null,
   }));
 };
 

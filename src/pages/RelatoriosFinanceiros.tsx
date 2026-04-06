@@ -307,7 +307,7 @@ export default function RelatoriosFinanceiros() {
                         <Pie
                           data={rel.receitasPorCategoria.map((c) => ({ name: c.nome, value: c.total }))}
                           cx="50%" cy="50%" outerRadius={100} innerRadius={40}
-                          dataKey="value" nameKey="name"
+                          dataKey="value" nameKey="nome"
                           label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                           labelLine={false}
                           fontSize={10}
@@ -370,7 +370,7 @@ export default function RelatoriosFinanceiros() {
                         <Pie
                           data={rel.despesasPorCategoria.map((c) => ({ name: c.nome, value: c.total }))}
                           cx="50%" cy="50%" outerRadius={100} innerRadius={40}
-                          dataKey="value" nameKey="name"
+                          dataKey="value" nameKey="nome"
                           label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                           labelLine={false}
                           fontSize={10}
@@ -428,7 +428,7 @@ export default function RelatoriosFinanceiros() {
                     <BarChart data={rel.despesasPorGrupo} layout="vertical" margin={{ left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                       <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => formatCompact(v)} />
-                      <YAxis type="category" dataKey="nome" stroke="hsl(var(--muted-foreground))" fontSize={11} width={180} tickLine={false} />
+                      <YAxis type="categoria" dataKey="nome" stroke="hsl(var(--muted-foreground))" fontSize={11} width={180} tickLine={false} />
                       <Tooltip
                         contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }}
                         formatter={(value: number) => formatCurrency(value)}

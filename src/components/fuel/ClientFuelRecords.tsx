@@ -9,10 +9,10 @@ import { FuelRecordsByAircraft } from "./FuelRecordsByAircraft";
 
 interface Client {
   id: string;
-  company_name: string;
+  razao_social: string;
   client_aircraft?: Array<{
-    aircraft_id: string;
-    share_percentage: number;
+    aeronave_id: string;
+    percentual_participacao: number;
   }>;
 }
 
@@ -31,14 +31,14 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
-  const [selectedAircraft, setSelectedAircraft] = useState<Aircraft | null>(null);
+  const [selectedAeronave, setSelectedAircraft] = useState<Aircraft | null>(null);
   const [pendingAbastecimento, setPendingAbastecimento] = useState<{
     clientId?: string;
     aircraftId?: string;
   } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredClients = clients.filter(client => client.company_name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredClients = clients.filter(client => client.razao_social.toLowerCase().includes(searchTerm.toLowerCase()));
 
   useEffect(() => {
     loadClients();
@@ -72,8 +72,8 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
 
   // Selecionar aeronave quando aircrafts forem carregados
   useEffect(() => {
-    if (pendingAbastecimento?.aircraftId && aircrafts.length > 0) {
-      const aircraftToSelect = aircrafts.find(a => a.id === pendingAbastecimento.aircraftId);
+    if (pendingAbastecimento?.aeronaveId && aircrafts.length > 0) {
+      const aircraftToSelect = aircrafts.find(a => a.id === pendingAbastecimento.aeronaveId);
       if (aircraftToSelect) {
         setSelectedAircraft(aircraftToSelect);
         setPendingAbastecimento(null);
@@ -82,7 +82,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
         setPendingAbastecimento(null);
       }
     }
-  }, [pendingAbastecimento?.aircraftId, aircrafts.length > 0]);
+  }, [pendingAbastecimento?.aeronaveId, aircrafts.length > 0]);
 
   const loadAbastecimentoData = async () => {
     try {
@@ -99,7 +99,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
 
       // Armazenar os IDs para selecionar depois
       setPendingAbastecimento({
-        clientId: abastecimento.client_id,
+        clientId: abastecimento.cliente_id,
         aircraftId: abastecimento.aeronave_id
       });
     } catch (err) {
@@ -110,16 +110,16 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
 
   const loadClients = async () => {
     const { data, error } = await supabase
-      .from('clients')
+      .from('clientes')
       .select(`
         id,
-        company_name,
+        razao_social,
         client_aircraft (
-          aircraft_id,
-          share_percentage
+          aeronave_id,
+          percentual_participacao
         )
       `)
-      .order('company_name', { ascending: true });
+      .order('razao_social', { ascending: true });
 
     if (error) {
       toast.error('Erro ao carregar clientes');
@@ -135,13 +135,13 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
       return;
     }
 
-    const aircraftIds = selectedClient.client_aircraft.map(ca => ca.aircraft_id);
+    const aircraftIds = selectedClient.client_aircraft.map(ca => ca.aeronave_id);
 
     const { data, error } = await supabase
-      .from('aircraft')
-      .select('id, registration, model, year')
+      .from('aeronave')
+      .select('id, matricula, modelo, ano')
       .in('id', aircraftIds)
-      .order('registration', { ascending: true });
+      .order('matricula', { ascending: true });
 
     if (error) {
       toast.error('Erro ao carregar aeronaves');
@@ -168,7 +168,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
   };
 
   const handleBack = () => {
-    if (selectedAircraft) {
+    if (selectedAeronave) {
       setSelectedAircraft(null);
     } else if (selectedClient) {
       setSelectedClient(null);
@@ -176,11 +176,11 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
     }
   };
 
-  if (selectedAircraft && selectedClient) {
+  if (selectedAeronave && selectedClient) {
     return (
       <FuelRecordsByAircraft
         client={selectedClient}
-        aircraft={selectedAircraft}
+        aircraft={selectedAeronave}
         onBack={handleBack}
         selectedAbastecimentoId={selectedAbastecimentoId}
       />
@@ -230,7 +230,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
                         <div className="flex items-center gap-2 mb-2">
                           <Building2 className="h-4 w-4 text-primary" />
                           <p className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
-                            {client.company_name}
+                            {client.razao_social}
                           </p>
                         </div>
                         {client.client_aircraft && client.client_aircraft.length > 0 && (
@@ -265,7 +265,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
                 <Plane className="h-6 w-6 text-primary" />
                 Aeronaves
               </h2>
-              <p className="text-sm text-muted-foreground mt-0.5">{selectedClient.company_name}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{selectedClient.razao_social}</p>
             </div>
           </div>
 
@@ -281,7 +281,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {aircrafts.map((aircraft) => (
                 <Card
-                  key={aircraft.id}
+                  key={aeronave.id}
                   className="cursor-pointer border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group"
                   onClick={() => handleAircraftClick(aircraft)}
                 >
@@ -291,11 +291,11 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
                         <div className="flex items-center gap-2 mb-3">
                           <Plane className="h-4 w-4 text-primary" />
                           <p className="font-bold text-foreground text-lg group-hover:text-primary transition-colors font-mono">
-                            {aircraft.registration}
+                            {aeronave.matricula}
                           </p>
                         </div>
-                        {aircraft.model && (
-                          <p className="text-sm text-muted-foreground">{aircraft.model}</p>
+                        {aeronave.modelo && (
+                          <p className="text-sm text-muted-foreground">{aeronave.modelo}</p>
                         )}
                         {aircraft.year && (
                           <p className="text-xs text-muted-foreground mt-1">Ano: {aircraft.year}</p>

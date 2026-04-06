@@ -83,7 +83,7 @@ export function FinanceiroDashboard() {
       const {
         data,
         error
-      } = await supabase.from("tasks").select("id, title, priority, status, due_date").or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`).eq("status", "pendente").order("due_date", {
+      } = await supabase.from("tasks").select("id, title, priority, status, due_date").or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`).eq("status", "aberto").order("due_date", {
         ascending: true
       }).limit(4);
       if (!error && data) {

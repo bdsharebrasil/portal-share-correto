@@ -18,8 +18,8 @@ interface Props {
 
 interface AcessoPortal {
   id: string;
-  cliente_id: string;
-  client_partner_id: string | null;
+  clientes_id: string;
+  socios_cliente_id: string | null;
   login: string;
   hash_senha: string;
   ativo: boolean;
@@ -47,27 +47,27 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
       const { data, error } = await supabase
         .from('autenticacao_portal_cliente')
         .select('*')
-        .eq('cliente_id', clienteId)
+        .eq('clientes_id', clienteId)
         .order('criado_em', { ascending: false });
       if (error) throw error;
 
       // Fetch partner names
-      const partnerIds = (data || []).filter(a => a.client_partner_id).map(a => a.client_partner_id!);
+      const partnerIds = (data || []).filter(a => a.socios_cliente_id).map(a => a.socios_cliente_id!);
       let partnersMap: Record<string, string> = {};
       if (partnerIds.length > 0) {
         const { data: partners } = await supabase
-          .from('client_partners')
-          .select('id, name')
+          .from('socios_cliente')
+          .select('id, nome')
           .in('id', partnerIds);
         if (partners) {
-          partnersMap = Object.fromEntries(partners.map(p => [p.id, p.name]));
+          partnersMap = Object.fromEntries(partners.map(p => [p.id, p.nome]));
         }
       }
 
       return (data || []).map(a => ({
         ...a,
         ativo: a.ativo ?? true,
-        partner_name: a.client_partner_id ? partnersMap[a.client_partner_id] || 'Sócio' : undefined,
+        partner_name: a.socios_cliente_id ? partnersMap[a.socios_cliente_id] || 'Sócio' : undefined,
       })) as AcessoPortal[];
     },
     enabled: !!clienteId,
@@ -78,10 +78,10 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
     queryKey: ['client-partners', clienteId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('client_partners')
-        .select('id, name')
-        .eq('client_id', clienteId)
-        .order('name');
+        .from('socios_cliente')
+        .select('id, nome')
+        .eq('cliente_id', clienteId)
+        .order('nome');
       if (error) throw error;
       return data || [];
     },
@@ -99,7 +99,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
           .update({
             login: login.trim(),
             hash_senha: senha.trim(),
-            client_partner_id: partnerId,
+            socios_cliente_id: partnerId,
             atualizado_em: new Date().toISOString(),
           })
           .eq('id', editingId);
@@ -108,10 +108,10 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
         const { error } = await supabase
           .from('autenticacao_portal_cliente')
           .insert({
-            cliente_id: clienteId,
+            clientes_id: clienteId,
             login: login.trim(),
             hash_senha: senha.trim(),
-            client_partner_id: partnerId,
+            socios_cliente_id: partnerId,
             ativo: true,
           });
         if (error) throw error;
@@ -186,7 +186,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
     setEditingId(acesso.id);
     setLogin(acesso.login);
     setSenha(acesso.hash_senha);
-    setPartnerId(acesso.client_partner_id);
+    setPartnerId(acesso.socios_cliente_id);
     setDialogOpen(true);
   };
 
@@ -211,7 +211,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
           <div className="text-sm text-amber-800 dark:text-amber-400">
             <p className="font-semibold mb-1">Informações de Acesso</p>
             <p className="text-xs opacity-90">
-              O login pode ser um código ou texto (ex: cliente001). A senha pode ser o CNPJ do cliente ou uma senha personalizada. 
+              O login pode ser um código ou texto (ex: cliente001). A senha pode ser o CNPJ do cliente ou uma senha personalizada.
               O usuário poderá alterá-la após o primeiro acesso.
             </p>
           </div>
@@ -253,11 +253,11 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-medium text-sm">{acesso.login}</span>
-                      {acesso.partner_name && (
+                      {((acesso as any).nome_socio || acesso.partner_name) ? (
                         <Badge variant="outline" className="text-xs">
-                          {acesso.partner_name}
+                          {(acesso as any).nome_socio || acesso.partner_name}
                         </Badge>
-                      )}
+                      ) : null}
                       <Badge variant={acesso.ativo ? 'default' : 'secondary'} className="text-xs">
                         {acesso.ativo ? 'Ativo' : 'Inativo'}
                       </Badge>
@@ -351,7 +351,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
                   <option value="">Cliente consolidado</option>
                   {partners.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {p.nome}
                     </option>
                   ))}
                 </select>

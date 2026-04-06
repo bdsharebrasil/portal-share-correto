@@ -73,7 +73,7 @@ export default function VencimentosDocumentos() {
 
       // Carregar aeronaves para obter informações
       const { data: aircraft, error: aircraftError } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
         .eq('status', 'ativa');
 
@@ -94,20 +94,20 @@ export default function VencimentosDocumentos() {
         else if (diasRestantes <= 60) status = 'proximo';
         else status = 'ok';
 
-        const aeroInfo = aircraftMap.get(doc.aircraft_id);
+        const aeroInfo = aircraftMap.get(doc.aeronave_id);
 
         documentosTemp.push({
           id: doc.id,
-          aeronaveId: doc.aircraft_id,
+          aeronaveId: doc.aeronave_id,
           aeronaveRegistro: aeroInfo?.registration || '-',
           aeronaveModelo: aeroInfo?.model || '-',
           aeronaveImagem: aeroInfo?.image_url,
-          nomeDocumento: doc.name,
+          nomeDocumento: doc.nome,
           dataVencimento: doc.expiry_date,
           diasRestantes,
           status,
-          fileType: doc.file_type,
-          filePath: doc.file_path
+          fileType: doc.tipo_arquivo,
+          filePath: doc.caminho_arquivo
         });
       }
 
@@ -159,7 +159,7 @@ export default function VencimentosDocumentos() {
     return documentos.filter(d => {
       const matchSearch = d.aeronaveRegistro.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          d.nomeDocumento.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = activeStatus === 'todos' || d.status === activeStatus;
+      const matchStatus = activeStatus === 'todos' || d.situacao === activeStatus;
       return matchSearch && matchStatus;
     });
   }, [documentos, searchTerm, activeStatus]);
@@ -179,15 +179,15 @@ export default function VencimentosDocumentos() {
           documentos: []
         };
       }
-      grouped[d.aeronaveId].documentos.push(d);
+      grouped[d.aeronaveId].documentoumentos.push(d);
     });
     return Object.values(grouped).sort((a, b) => a.aeronave.registration.localeCompare(b.aeronave.registration));
   }, [filteredDocumentos]);
 
   const stats = useMemo(() => ({
-    vencidos: documentos.filter(d => d.status === 'vencido').length,
-    proximos: documentos.filter(d => d.status === 'proximo').length,
-    ok: documentos.filter(d => d.status === 'ok').length,
+    vencidos: documentos.filter(d => d.situacao === 'vencido').length,
+    proximos: documentos.filter(d => d.situacao === 'proximo').length,
+    ok: documentos.filter(d => d.situacao === 'ok').length,
     total: new Set(documentos.map(d => d.aeronaveId)).size
   }), [documentos]);
 
@@ -268,9 +268,9 @@ export default function VencimentosDocumentos() {
             {notification && (
               <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
                 <ModernNotification
-                  type={notification.type}
+                  type={notification.tipo}
                   title={notification.title}
-                  description={notification.description}
+                  description={notification.descricao}
                   duration={4000}
                   onClose={() => setNotification(null)}
                 />
@@ -453,22 +453,22 @@ export default function VencimentosDocumentos() {
 
                           {/* Status Badges */}
                           <div className="flex flex-wrap gap-1.5 pt-3">
-                            {grupo.documentos.filter(d => d.status === 'vencido').length > 0 && (
+                            {grupo.documentoumentos.filter(d => d.situacao === 'vencido').length > 0 && (
                               <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] px-2 py-0.5">
                                 <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentos.filter(d => d.status === 'vencido').length}
+                                {grupo.documentoumentos.filter(d => d.situacao === 'vencido').length}
                               </Badge>
                             )}
-                            {grupo.documentos.filter(d => d.status === 'proximo').length > 0 && (
+                            {grupo.documentoumentos.filter(d => d.situacao === 'proximo').length > 0 && (
                               <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px] px-2 py-0.5">
                                 <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentos.filter(d => d.status === 'proximo').length}
+                                {grupo.documentoumentos.filter(d => d.situacao === 'proximo').length}
                               </Badge>
                             )}
-                            {grupo.documentos.filter(d => d.status === 'ok').length > 0 && (
+                            {grupo.documentoumentos.filter(d => d.situacao === 'ok').length > 0 && (
                               <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-2 py-0.5">
                                 <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentos.filter(d => d.status === 'ok').length}
+                                {grupo.documentoumentos.filter(d => d.situacao === 'ok').length}
                               </Badge>
                             )}
                           </div>
@@ -480,12 +480,12 @@ export default function VencimentosDocumentos() {
                     <div className="p-5 md:p-6">
                       <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                         <FileText className="h-4 w-4 text-cyan-400" />
-                        Documentos ({grupo.documentos.length})
+                        Documentos ({grupo.documentoumentos.length})
                       </h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {grupo.documentos.map((doc) => {
-                          const statusInfo = getStatusInfo(doc.status);
+                        {grupo.documentoumentos.map((doc) => {
+                          const statusInfo = getStatusInfo(doc.situacao);
                           const StatusIcon = statusInfo.icon;
                           const publicUrl = doc.filePath ? getFlightDocumentPublicUrl(doc.filePath) : null;
 
@@ -515,7 +515,7 @@ export default function VencimentosDocumentos() {
 
                               <div className={`${statusInfo.bgColor} border ${statusInfo.borderColor} rounded-md p-2 mb-2`}>
                                 <p className={`${statusInfo.textColor} font-semibold text-lg`}>
-                                  {doc.status === 'vencido' ? (
+                                  {doc.situacao === 'vencido' ? (
                                     <span className="text-red-400 text-sm">Vencido</span>
                                   ) : (
                                     <>
@@ -585,7 +585,7 @@ export default function VencimentosDocumentos() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white">Nova Data de Vencimento</label>
                 <input
-                  type="date"
+                  type="data"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white"

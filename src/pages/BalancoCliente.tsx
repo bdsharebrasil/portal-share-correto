@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User, KeyRound, Share2, Calendar } from 'lucide-react';
+import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User, KeyRound, Calendar, Calculator } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -18,7 +18,7 @@ import { PendenciasFinanceiras } from '@/components/balanco-cliente/PendenciasFi
 import { BalancoAeronave } from '@/components/balanco-cliente/BalancoAeronave';
 import { RelatoriosExportacao } from '@/components/balanco-cliente/RelatoriosExportacao';
 import { GerenciarAcessoPortal } from '@/components/balanco-cliente/GerenciarAcessoPortal';
-import { GestaoCompartilhamento } from '@/components/balanco-cliente/GestaoCompartilhamento';
+import { CentroCusto } from '@/components/balanco-cliente/CentroCusto';
 import { useClientesComSocios, ClienteComSocios, Socio } from '@/hooks/useSocioBalanco';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -52,18 +52,18 @@ function BalancoClienteContent() {
   const { data: aeronaves = [] } = useQuery({
     queryKey: ['aeronaves-balanco', clienteId],
     queryFn: async () => {
-      let query = supabase.from('aircraft').select('id, registration, model').eq('status', 'ativa');
+      let query = supabase.from('aeronave').select('id, matricula, modelo').eq('status', 'ativa');
       if (clienteId) {
         const { data: clientAircraft } = await supabase
-          .from('client_aircraft')
-          .select('aircraft_id')
-          .eq('client_id', clienteId);
+          .from('cotistas_aeronave')
+          .select('id_aeronave')
+          .eq('id_clientes', clienteId);
         if (clientAircraft && clientAircraft.length > 0) {
-          const aircraftIds = clientAircraft.map(ca => ca.aircraft_id);
+          const aircraftIds = clientAircraft.map(ca => ca.id_aeronave);
           query = query.in('id', aircraftIds);
         }
       }
-      const { data, error } = await query.order('registration');
+      const { data, error } = await query.order("matricula");
       if (error) throw error;
       return data || [];
     },
@@ -79,11 +79,11 @@ function BalancoClienteContent() {
 
       // 1) bank_reconciliations aguardando_reembolso (matching PendenciasFinanceiras)
       let q1 = supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .select('id', { count: 'exact', head: true })
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .eq('status', 'aguardando_reembolso');
-      if (aeronaveId) q1 = q1.eq('aircraft_id', aeronaveId);
+      if (aeronaveId) q1 = q1.eq('aeronave_id', aeronaveId);
       const { count: c1 } = await q1;
       total += c1 || 0;
 
@@ -91,7 +91,7 @@ function BalancoClienteContent() {
       let q2 = supabase
         .from('despesas_cliente_direto')
         .select('id', { count: 'exact', head: true })
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado']);
       if (aeronaveId) q2 = q2.eq('aeronave_id', aeronaveId);
       const { count: c2 } = await q2;
@@ -101,7 +101,7 @@ function BalancoClienteContent() {
       let q3 = supabase
         .from('abastecimentos')
         .select('id', { count: 'exact', head: true })
-        .eq('client_id', clienteId)
+        .eq('id_clientes', clienteId)
         .neq('status_pagamento', 'pago');
       if (aeronaveId) q3 = q3.eq('aeronave_id', aeronaveId);
       const { count: c3 } = await q3;
@@ -180,7 +180,7 @@ function BalancoClienteContent() {
                           <>
                             <Users className="h-4 w-4 text-muted-foreground" />
                             <span className="truncate">
-                              {clienteAtual.company_name || clienteAtual.proprietario}
+                              {clienteAtual.razao_social || clienteAtual.proprietario}
                             </span>
                             {clienteAtual.temMultiplosSocios && (
                               <Badge variant="outline" className="ml-1 text-xs">
@@ -200,7 +200,7 @@ function BalancoClienteContent() {
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-primary" />
                           <span className="font-medium">
-                            {cliente.company_name || cliente.proprietario}
+                            {cliente.razao_social || cliente.proprietario}
                           </span>
                           {cliente.temMultiplosSocios && (
                             <Badge variant="outline" className="ml-1 text-xs">
@@ -242,7 +242,7 @@ function BalancoClienteContent() {
                     <SelectItem value="__all__">Todas as aeronaves</SelectItem>
                     {aeronaves.map((aeronave: any) => (
                       <SelectItem key={aeronave.id} value={aeronave.id}>
-                        {aeronave.registration} - {aeronave.model}
+                        {aeronave.matricula} - {aeronave.modelo}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -340,11 +340,11 @@ function BalancoClienteContent() {
             <span className="hidden sm:inline">Aeronave</span>
           </TabsTrigger>
           <TabsTrigger
-            value="compartilhamento"
+            value="centro-custo"
             className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
           >
-            <Share2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Compartilhamento</span>
+            <Calculator className="h-4 w-4" />
+            <span className="hidden sm:inline">Centro de Custo</span>
           </TabsTrigger>
           <TabsTrigger
             value="acesso-portal"
@@ -430,17 +430,18 @@ function BalancoClienteContent() {
           )}
         </TabsContent>
 
-        <TabsContent value="compartilhamento" className="space-y-6">
+        <TabsContent value="centro-custo" className="space-y-6">
           {clienteId && aeronaveId ? (
-            <GestaoCompartilhamento
+            <CentroCusto
               clienteId={clienteId}
+              socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
             />
           ) : (
             <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
-                Selecione um cliente e uma aeronave para visualizar o compartilhamento
+                Selecione um cliente e uma aeronave para visualizar o centro de custo
               </CardContent>
             </Card>
           )}

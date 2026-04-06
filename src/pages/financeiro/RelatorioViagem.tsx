@@ -5,66 +5,101 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw, FolderOpen, Send, Folder } from 'lucide-react';
+import {
+  Plus, Trash2, Eye, FileText, Edit, AlertCircle,
+  RotateCcw, FolderOpen, Send,
+} from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { downloadPDF, previewPDFForPrint } from '@/lib/travelReportPDF';
 import type { TravelReport as PDFTravelReport, TravelExpense } from '@/lib/travelReportPDF';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog, DialogContent, DialogHeader,
+  DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+// ---------------------------------------------------------------------------
+// Type — mirrors travel_expense_reports columns
+// ---------------------------------------------------------------------------
 type TravelReport = {
   id?: string;
-  report_number: string;
-  client_id: string;
-  client: string;
-  aircraft_id: string;
-  aircraft_registration: string;
-  crew_member_id: string;
-  crew_member_name: string;
-  crew_member_id2: string;
-  crew_member_name2: string;
-  crew_member_source?: 'crew' | 'crew_members';
-  client_partner?: string;
-  route: string;
-  start_date: string;
-  end_date: string;
-  days_count: number;
-  observations: string;
-  expenses: any[];
-  total_amount: number;
-  total_fuel: number;
-  total_lodging: number;
-  total_food: number;
-  total_transport: number;
-  total_other: number;
-  total_crew: number;
-  total_crew1: number;
-  total_crew2: number;
-  total_client: number;
+  numero_relatorio: string;
+
+  // Relations
+  clientes_id: string;
+  socios_cliente_id?: string | null;
+  aeronave_id: string;
+  matricula_aeronave: string;       // text column
+
+  tripulacao_id: string;            // FK → tripulacao (crew 1)
+  nome_tripulante: string;
+  tripulante_id2?: string | null;   // FK → membros_tripulacao (crew 2)
+  nome_tripulante_2?: string | null;
+
+  rota: string;
+  data_inicio: string;
+  data_fim: string;
+  dias_count: number;
+  observacoes: string;
+
+  expenses: any[];                  // stored as `despesas` JSON text in DB
+
+  // Totals
+  total_valor: number;
+  total_combustivel: number;
+  total_hospedagem: number;
+  total_alimentacao: number;
+  total_transporte: number;
+  total_outros: number;
+  total_tripulacao: number;
+  total_trip: number;               // crew 1
+  total_trip2: number;              // crew 2
+  total_clientes: number;
   total_sharebrasil: number;
+
   status: 'Rascunho' | 'Finalizado' | 'Enviado';
-  pdf_url?: string;
+  url_pdf?: string;
   created_at?: string;
-  created_by?: string;
   updated_at?: string;
+  criado_por?: string;
+
+  // Display-only
+  client?: string;
 };
 
-
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 const normalizeStatus = (status: string): TravelReport['status'] => {
-  const validStatuses: TravelReport['status'][] = ['Rascunho', 'Finalizado', 'Enviado'];
-  return validStatuses.includes(status as TravelReport['status']) ? (status as TravelReport['status']) : 'Rascunho';
+  const valid: TravelReport['status'][] = ['Rascunho', 'Finalizado', 'Enviado'];
+  return valid.includes(status as TravelReport['status'])
+    ? (status as TravelReport['status'])
+    : 'Rascunho';
 };
 
+const fmt = (val = 0) => `R$ ${val.toFixed(2).replace('.', ',')}`;
+
+// ---------------------------------------------------------------------------
+// Imports
+// ---------------------------------------------------------------------------
 import { draftStorage } from '@/lib/travelReportDraft';
 import type { TravelReportDraft } from '@/lib/travelReportDraft';
-import { calculateReportTotals, Expense, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
+import {
+  calculateReportTotals,
+  type Expense,
+  extractPayerTotals,
+  getValidExpenses,
+} from '@/lib/travelReportUtils';
 import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
 import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
 import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 export default function RelatorioViagem() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -86,281 +121,188 @@ export default function RelatorioViagem() {
   const [sendDueDate, setSendDueDate] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [selectedReportIdToLoad, setSelectedReportIdToLoad] = useState<string | null>(
-    navigationState.selectedReportId || null
+    navigationState.selectedReportId || null,
   );
 
-  // ✅ FIX: useEffect inicial para carregar relatórios e verificar rascunho salvo
+  // -------------------------------------------------------------------------
+  // Effects
+  // -------------------------------------------------------------------------
   useEffect(() => {
     loadReports();
-    const hasDraft = draftStorage.hasDraft();
-    setHasSavedDraft(hasDraft);
+    setHasSavedDraft(draftStorage.hasDraft());
   }, []);
 
-  // ✅ FIX: Carregar e abrir relatório selecionado quando navegado do RelatorioMensal
   useEffect(() => {
     if (selectedReportIdToLoad && reports.length > 0) {
-      const report = reports.find(r => r.id === selectedReportIdToLoad);
-      if (report) {
+      const found = reports.find(r => r.id === selectedReportIdToLoad);
+      if (found) {
         editReport(selectedReportIdToLoad);
-        setSelectedReportIdToLoad(null); // Limpar para evitar re-trigger
+        setSelectedReportIdToLoad(null);
       }
     }
   }, [selectedReportIdToLoad, reports]);
 
-  // ✅ FIX: Auto-save do rascunho a cada 30 segundos
   useEffect(() => {
     if (!isCreating || !currentReport || isEditing) return;
-
-    const autoSaveInterval = setInterval(() => {
+    const interval = setInterval(() => {
       draftStorage.saveDraft(currentReport as unknown as TravelReportDraft);
-    }, 30000);
-
-    return () => clearInterval(autoSaveInterval);
+    }, 30_000);
+    return () => clearInterval(interval);
   }, [currentReport, isCreating, isEditing]);
 
-  // Separar relatórios: Rascunhos no Histórico, Finalizados nas Pastas
-  const reportsWithClient = useMemo(() => 
-    reports.filter(r => r.client && r.client.trim() && (r.status === 'Finalizado' || r.status === 'Enviado')), 
-    [reports]
+  // -------------------------------------------------------------------------
+  // Derived lists
+  // -------------------------------------------------------------------------
+  const reportsWithClient = useMemo(
+    () => reports.filter(r => r.client?.trim() && (r.status === 'Finalizado' || r.status === 'Enviado')),
+    [reports],
   );
-  const reportsWithoutClient = useMemo(() => 
-    reports.filter(r => r.status === 'Rascunho'), 
-    [reports]
+  const reportsWithoutClient = useMemo(
+    () => reports.filter(r => r.status === 'Rascunho'),
+    [reports],
   );
 
-  const discardDraft = () => {
-    draftStorage.clearDraft();
-    setHasSavedDraft(false);
-    toast.info('Rascunho descartado');
-  };
-
-  const handleSendReport = async () => {
-    if (!sendReportTarget?.id || !sendDueDate) {
-      toast.error('Informe o prazo de vencimento');
-      return;
-    }
-    setIsSending(true);
-    try {
-      // Update report status to Enviado
-      const { error: updateError } = await supabase
-        .from('travel_expense_reports')
-        .update({ status: 'Enviado', updated_at: new Date().toISOString() })
-        .eq('id', sendReportTarget.id);
-
-      if (updateError) throw updateError;
-
-      // Update bank_reconciliations linked to this report with status 'enviado' and due_date
-      const { error: reconcError } = await supabase
-        .from('bank_reconciliations')
-        .update({ 
-          status: 'enviado', 
-          due_date: sendDueDate,
-          updated_at: new Date().toISOString()
-        } as any)
-        .eq('reference_id', sendReportTarget.id)
-        .eq('reference_type', 'travel_report');
-
-      if (reconcError) {
-        console.error('Erro ao atualizar conciliação:', reconcError);
-      }
-
-      toast.success('✓ Relatório enviado ao cliente com sucesso!');
-      setSendDialogOpen(false);
-      setSendReportTarget(null);
-      setSendDueDate('');
-      loadReports();
-    } catch (error: any) {
-      console.error('Erro ao enviar relatório:', error);
-      toast.error(`❌ Erro ao enviar: ${error.message}`);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
+  // -------------------------------------------------------------------------
+  // Data loading
+  // -------------------------------------------------------------------------
   const loadReports = async () => {
     const { data, error } = await supabase
       .from('travel_expense_reports')
       .select(`
         *,
-        client_id_rel:client_id(company_name),
-        partner_id_rel:client_partner(name)
+        clientes_id_rel:clientes_id(razao_social),
+        partner_id_rel:socios_cliente_id(nome)
       `)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      toast.error('❌ Erro ao carregar relatórios');
-      return;
-    }
+    if (error) { toast.error('❌ Erro ao carregar relatórios'); return; }
 
-    const reportsWithDefaults = (data || []).map((r: any) => {
+    const mapped = (data || []).map((r: any) => {
       const expenses = (() => {
-        try {
-          if (typeof r.expenses === 'string') {
-            return JSON.parse(r.expenses);
-          }
-          return r.expenses || [];
-        } catch {
-          return [];
-        }
+        try { return typeof r.despesas === 'string' ? JSON.parse(r.despesas) : r.despesas || []; }
+        catch { return []; }
       })();
 
-      const clientName = r.client_partner && r.partner_id_rel?.name
-        ? r.partner_id_rel.name
-        : r.client_id_rel?.company_name || '';
+      const clientName = r.socios_cliente_id && r.partner_id_rel?.nome
+        ? r.partner_id_rel.nome
+        : r.clientes_id_rel?.razao_social || '';
 
       return {
         ...r,
         client: clientName,
-        expenses: expenses,
-        status: normalizeStatus(r.status)
-      };
+        expenses,
+        status: normalizeStatus(r.status),
+      } as TravelReport;
     });
-    setReports(reportsWithDefaults as TravelReport[]);
+
+    setReports(mapped);
   };
 
-  const loadReportDetails = async (reportId: string) => {
-    const { data: reportData, error: reportError } = await supabase
+  const loadReportDetails = async (reportId: string): Promise<TravelReport> => {
+    const { data, error } = await supabase
       .from('travel_expense_reports')
       .select(`
         *,
-        client_id_rel:client_id(company_name),
-        partner_id_rel:client_partner(name)
+        clientes_id_rel:clientes_id(razao_social),
+        partner_id_rel:socios_cliente_id(nome)
       `)
       .eq('id', reportId)
       .single();
 
-    if (reportError || !reportData) throw reportError;
-
-    const rData = reportData as any;
+    if (error || !data) throw error;
+    const r = data as any;
 
     const expenses = (() => {
-      try {
-        if (typeof rData.expenses === 'string') {
-          return JSON.parse(rData.expenses);
-        }
-        return rData.expenses || [];
-      } catch {
-        return [];
-      }
+      try { return typeof r.despesas === 'string' ? JSON.parse(r.despesas) : r.despesas || []; }
+      catch { return []; }
     })();
 
-    const clientName = rData.client_partner && rData.partner_id_rel?.name
-      ? rData.partner_id_rel.name
-      : rData.client_id_rel?.company_name || '';
+    const clientName = r.socios_cliente_id && r.partner_id_rel?.nome
+      ? r.partner_id_rel.nome
+      : r.clientes_id_rel?.razao_social || '';
 
     return {
-      ...rData,
+      ...r,
       client: clientName,
       expenses: expenses as Expense[],
-      status: normalizeStatus(rData.status)
+      status: normalizeStatus(r.status),
     } as TravelReport;
   };
 
+  // -------------------------------------------------------------------------
+  // Report number generation
+  // -------------------------------------------------------------------------
   const generateReportNumber = async (clientName: string): Promise<string> => {
-    if (!clientName || clientName.trim() === '') {
+    if (!clientName?.trim()) {
       return `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`;
     }
 
-    const year = new Date().getFullYear();
-    const yearShort = year.toString().slice(-2);
+    const yearShort = new Date().getFullYear().toString().slice(-2);
+    const initials = clientName
+      .trim()
+      .replace(/\s+/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z]/g, '')
+      .substring(0, 3)
+      .padEnd(3, 'X');
 
-    const getClientInitials = (name: string): string => {
-      // Remover espaços e accents, pegar as 3 primeiras letras
-      const cleanName = name
-        .trim()
-        .replace(/\s+/g, '') // Remove todos os espaços
-        .toUpperCase();
-      
-      // Pegar os primeiros 3 caracteres alfabéticos
-      const letters = cleanName.replace(/[^A-Z]/g, '').substring(0, 3);
-      
-      // Completar com 'X' se tiver menos de 3 caracteres
-      return letters.padEnd(3, 'X');
-    };
-
-    const clientInitials = getClientInitials(clientName);
-
-    // ✅ FIX: Melhorar geração de números com verificação robusta
-    let attempts = 0;
-    const maxAttempts = 5;
-    
-    while (attempts < maxAttempts) {
-      // Buscar todos os relatórios deste cliente para encontrar o próximo número
-      const { data: existingReports } = await supabase
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: existing } = await supabase
         .from('travel_expense_reports')
-        .select('report_number')
-        .ilike('report_number', `REL-${clientInitials}%`)
-        .order('report_number', { ascending: false });
+        .select('numero_relatorio')
+        .ilike('numero_relatorio', `REL-${initials}%`)
+        .order('numero_relatorio', { ascending: false });
 
-      let nextNumber = 1;
-      
-      if (existingReports && existingReports.length > 0) {
-        // Extrair o maior número entre todos os relatórios
-        let maxNumber = 0;
-        for (const report of existingReports) {
-          // Regex padrão: REL-GAS-001/26
-          const match = report.report_number.match(/REL-[A-Z]{3}-(\d+)\/\d{2}/);
-          if (match && match[1]) {
-            const num = parseInt(match[1]);
-            if (num > maxNumber) maxNumber = num;
-          }
-        }
-        nextNumber = maxNumber + 1;
+      let maxNum = 0;
+      for (const rep of existing || []) {
+        const m = rep.numero_relatorio.match(/REL-[A-Z]{3}-(\d+)\/\d{2}/);
+        if (m) maxNum = Math.max(maxNum, parseInt(m[1]));
       }
 
-      const candidateReportNumber = `REL-${clientInitials}-${String(nextNumber).padStart(3, '0')}/${yearShort}`;
-      
-      // ✅ Verificar se o número candidato já existe
-      const { data: checkExists } = await supabase
+      const candidate = `REL-${initials}-${String(maxNum + 1).padStart(3, '0')}/${yearShort}`;
+      const { data: exists } = await supabase
         .from('travel_expense_reports')
         .select('id')
-        .eq('report_number', candidateReportNumber)
+        .eq('numero_relatorio', candidate)
         .maybeSingle();
-      
-      if (!checkExists) {
-        return candidateReportNumber;
-      }
-      
-      // Se o número já existe, tentar novamente
-      attempts++;
-      if (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
+
+      if (!exists) return candidate;
+      await new Promise(r => setTimeout(r, 50));
     }
-    
-    // Fallback: se não conseguir após tentativas, gerar com timestamp
-    // Garante número único sem usar string aleatória
-    const timestamp = Date.now().toString().slice(-3);
-    return `REL-${clientInitials}-${timestamp}/${yearShort}`;
+
+    return `REL-${initials}-${Date.now().toString().slice(-3)}/${yearShort}`;
   };
 
+  // -------------------------------------------------------------------------
+  // CRUD
+  // -------------------------------------------------------------------------
   const createNewReport = () => {
     const newReport: TravelReport = {
-      report_number: `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`,
-      client_id: '',
-      client: '',
-      aircraft_id: '',
-      aircraft_registration: '',
-      crew_member_id: '',
-      crew_member_name: '',
-      crew_member_id2: '',
-      crew_member_name2: '',
-      route: '',
-      start_date: new Date().toISOString().split('T')[0],
-      end_date: new Date().toISOString().split('T')[0],
-      days_count: 1,
-      observations: '',
+      numero_relatorio: `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`,
+      clientes_id: '',
+      socios_cliente_id: null,
+      aeronave_id: '',
+      matricula_aeronave: '',
+      tripulacao_id: '',
+      nome_tripulante: '',
+      tripulante_id2: '',
+      nome_tripulante_2: '',
+      rota: '',
+      data_inicio: new Date().toISOString().split('T')[0],
+      data_fim: new Date().toISOString().split('T')[0],
+      dias_count: 1,
+      observacoes: '',
       expenses: [{ category: '', description: '', amount: 0, paid_by: '' }],
-      total_amount: 0,
-      total_fuel: 0,
-      total_lodging: 0,
-      total_food: 0,
-      total_transport: 0,
-      total_other: 0,
-      total_crew: 0,
-      total_crew1: 0,
-      total_crew2: 0,
-      total_client: 0,
+      total_valor: 0,
+      total_combustivel: 0,
+      total_hospedagem: 0,
+      total_alimentacao: 0,
+      total_transporte: 0,
+      total_outros: 0,
+      total_tripulacao: 0,
+      total_trip: 0,
+      total_trip2: 0,
+      total_clientes: 0,
       total_sharebrasil: 0,
       status: 'Rascunho',
     };
@@ -373,98 +315,81 @@ export default function RelatorioViagem() {
 
   const editReport = async (reportId: string) => {
     try {
-      const reportDetails = await loadReportDetails(reportId);
-      setCurrentReport(reportDetails);
+      const details = await loadReportDetails(reportId);
+      setCurrentReport(details);
       setIsCreating(true);
       setIsEditing(true);
       setActiveTab('criar');
-    } catch (error) {
-      console.error('Erro ao carregar relatório para edição:', error);
+    } catch {
       toast.error('❌ Não foi possível carregar os detalhes do relatório.');
     }
   };
 
   const deleteReport = async (reportId?: string) => {
-    if (!reportId || !window.confirm('⚠ Tem certeza que deseja excluir este relatório e todas as suas despesas? Esta ação não pode ser desfeita.')) {
-      return;
-    }
-
+    if (!reportId || !window.confirm('⚠ Tem certeza que deseja excluir este relatório? Esta ação não pode ser desfeita.')) return;
     try {
       await (supabase as any).from('expense_items').delete().eq('report_id', reportId);
-
-      const { error } = await supabase
-        .from('travel_expense_reports')
-        .delete()
-        .eq('id', reportId);
-
+      const { error } = await supabase.from('travel_expense_reports').delete().eq('id', reportId);
       if (error) throw error;
-
       toast.success('✓ Relatório excluído com sucesso!');
       loadReports();
-    } catch (error) {
-      console.error('Erro ao excluir relatório:', error);
+    } catch {
       toast.error('❌ Erro ao excluir o relatório.');
     }
   };
 
+  // -------------------------------------------------------------------------
+  // PDF preview
+  // -------------------------------------------------------------------------
   const handleViewPDF = async (reportId: string) => {
     try {
-      const reportWithDetails = await loadReportDetails(reportId);
-      const correctedTotals = calculateReportTotals(reportWithDetails.expenses || []);
+      const r = await loadReportDetails(reportId);
+      const totals = calculateReportTotals(r.expenses || []);
+
       const pdfReport: PDFTravelReport = {
-        numero: reportWithDetails.report_number,
-        cliente_nome: reportWithDetails.client,
-        aeronave: reportWithDetails.aircraft_registration,
-        tripulante: reportWithDetails.crew_member_name,
-        tripulante2: reportWithDetails.crew_member_name2,
-        trecho: reportWithDetails.route,
-        destino: reportWithDetails.route,
-        data_inicio: reportWithDetails.start_date,
-        data_fim: reportWithDetails.end_date,
-        observacoes: reportWithDetails.observations,
-        despesas: (reportWithDetails.expenses || []).map(e => ({
+        numero: r.numero_relatorio,
+        cliente_nome: r.client || '',
+        aeronave: r.matricula_aeronave,
+        tripulante: r.nome_tripulante,
+        tripulante2: r.nome_tripulante_2 || '',
+        trecho: r.rota,
+        destino: r.rota,
+        data_inicio: r.data_inicio,
+        data_fim: r.data_fim,
+        observacoes: r.observacoes,
+        despesas: (r.expenses || []).map(e => ({
           categoria: e.category,
           descricao: e.description,
           valor: e.amount,
           pago_por: e.paid_by,
-          data: (e as any).expense_date || '',
-          comprovante_url: e.receipt_url
+          data: e.expense_date || '',
+          comprovante_url: e.receipt_url,
         })) as TravelExpense[],
-        total_combustivel: correctedTotals.total_fuel,
-        total_hospedagem: correctedTotals.total_lodging,
-        total_alimentacao: correctedTotals.total_food,
-        total_transporte: correctedTotals.total_transport,
-        total_outros: correctedTotals.total_other,
-        total_tripulante: correctedTotals.total_crew,
-        total_tripulante1: correctedTotals.total_crew1,
-        total_tripulante2: correctedTotals.total_crew2,
-        total_cliente: correctedTotals.total_client,
-        total_sharebrasil: correctedTotals.total_sharebrasil,
-        valor_total: correctedTotals.total_amount
+        total_combustivel: totals.total_fuel,
+        total_hospedagem: totals.total_lodging,
+        total_alimentacao: totals.total_food,
+        total_transporte: totals.total_transport,
+        total_outros: totals.total_other,
+        total_tripulante: totals.total_crew,
+        total_tripulante1: totals.total_crew1,
+        total_tripulante2: totals.total_crew2,
+        total_cliente: totals.total_client,
+        total_sharebrasil: totals.total_sharebrasil,
+        valor_total: totals.total_amount,
       };
 
-      // Use report creator's name instead of current user
       let userName = 'Usuário';
-      const reportCreatedBy = reportWithDetails.created_by;
-      if (reportCreatedBy) {
-        const { data: creatorProfile } = await supabase
-          .from('user_profiles')
-          .select('full_name')
-          .eq('id', reportCreatedBy)
-          .single();
-        if (creatorProfile?.full_name) userName = creatorProfile.full_name;
+      if (r.criado_por) {
+        const { data: profile } = await supabase.from('user_profiles').select('full_name').eq('id', r.criado_por).single();
+        if (profile?.full_name) userName = profile.full_name;
       } else {
-        // Fallback to current user if created_by is null (old reports)
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.id) {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single();
+          const { data: profile } = await supabase.from('user_profiles').select('full_name').eq('id', user.id).single();
           if (profile?.full_name) userName = profile.full_name;
         }
       }
+
       await previewPDFForPrint(pdfReport, userName);
     } catch (error) {
       console.error('Erro ao visualizar PDF:', error);
@@ -472,18 +397,17 @@ export default function RelatorioViagem() {
     }
   };
 
+  // -------------------------------------------------------------------------
+  // Save
+  // -------------------------------------------------------------------------
   const saveReport = async (newStatus: TravelReport['status'], reportToSave?: TravelReport) => {
     const reportData = reportToSave || currentReport;
     if (!reportData) return;
 
-    // Quando vindo do TravelReportForm, o report já tem o novo status.
-    // Verificar edição usando o status original (no DB) ou se é update com status não-rascunho
     if (isEditing && reportData.id) {
-      // Buscar status original no banco para verificação correta
-      const originalReport = reports.find(r => r.id === reportData.id);
-      const originalStatus = originalReport?.status || 'Rascunho';
-      if (originalStatus !== 'Rascunho' && newStatus === 'Finalizado') {
-        toast.error('⚠️ Não é possível finalizar relatórios que já foram finalizados. Apenas rascunhos podem ser editados.');
+      const original = reports.find(r => r.id === reportData.id);
+      if (original?.status !== 'Rascunho' && newStatus === 'Finalizado') {
+        toast.error('⚠️ Não é possível finalizar relatórios que já foram finalizados.');
         return;
       }
     }
@@ -493,410 +417,333 @@ export default function RelatorioViagem() {
 
     try {
       const validExpenses = getValidExpenses(reportData.expenses);
+      const totals = calculateReportTotals(validExpenses);
 
-      let reportNumber = reportData.report_number;
+      let reportNumber = reportData.numero_relatorio;
       if (!isUpdate) {
-        // Sempre gerar novo número para inserts para evitar conflito de chave única
-        reportNumber = await generateReportNumber(reportData.client);
+        reportNumber = await generateReportNumber(reportData.client || '');
       }
 
-      const recalculatedTotals = calculateReportTotals(validExpenses);
-      const totalAmount = recalculatedTotals.total_amount;
-      const days = reportData.days_count;
-
-      let crew_member_id_value = null;
-      let crew_value = null;
-
-      if (reportData.crew_member_id) {
-        if (reportData.crew_member_source === 'crew') {
-          crew_value = reportData.crew_member_id;
-        } else {
-          crew_member_id_value = reportData.crew_member_id;
-        }
-      }
-
-      // Get current user for created_by
       const { data: { user } } = await supabase.auth.getUser();
 
-      const reportDataToSave: any = {
-        report_number: reportNumber,
-        client_id: reportData.client_id || null,
-        client_partner: reportData.client_partner || null,
-        aircraft_id: reportData.aircraft_id || null,
-        aircraft_registration: reportData.aircraft_registration,
-        crew_member_id: crew_member_id_value,
-        crew: crew_value,
-        crew_member_name: reportData.crew_member_name,
-        crew_member_name2: reportData.crew_member_name2 || null,
-        crew_member_id2: reportData.crew_member_id2 || null,
-        route: reportData.route,
-        start_date: reportData.start_date,
-        end_date: reportData.end_date,
-        days_count: days,
-        observations: reportData.observations || null,
-        expenses: JSON.stringify(validExpenses),
-        total_amount: totalAmount,
-        total_fuel: recalculatedTotals.total_fuel,
-        total_lodging: recalculatedTotals.total_lodging,
-        total_food: recalculatedTotals.total_food,
-        total_transport: recalculatedTotals.total_transport,
-        total_other: recalculatedTotals.total_other,
-        total_crew: recalculatedTotals.total_crew,
-        total_client: recalculatedTotals.total_client,
-        total_sharebrasil: recalculatedTotals.total_sharebrasil,
+      const payload: any = {
+        numero_relatorio: reportNumber,
+        clientes_id: reportData.clientes_id || null,
+        socios_cliente_id: reportData.socios_cliente_id || null,
+        aeronave_id: reportData.aeronave_id || null,
+        matricula_aeronave: reportData.matricula_aeronave || null,
+        tripulacao_id: reportData.tripulacao_id || null,
+        nome_tripulante: reportData.nome_tripulante,
+        tripulante_id2: reportData.tripulante_id2 || null,
+        nome_tripulante_2: reportData.nome_tripulante_2 || null,
+        rota: reportData.rota,
+        data_inicio: reportData.data_inicio,
+        data_fim: reportData.data_fim,
+        dias_count: reportData.dias_count,
+        observacoes: reportData.observacoes || null,
+        despesas: JSON.stringify(validExpenses),
+        total_valor: totals.total_amount,
+        total_combustivel: totals.total_fuel,
+        total_hospedagem: totals.total_lodging,
+        total_alimentacao: totals.total_food,
+        total_transporte: totals.total_transport,
+        total_outros: totals.total_other,
+        total_tripulacao: totals.total_crew,
+        total_trip: totals.total_crew1,
+        total_trip2: totals.total_crew2,
+        total_clientes: totals.total_client,
+        total_sharebrasil: totals.total_sharebrasil,
         status: newStatus,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
-      // Only set created_by on new inserts
-      if (!isUpdate && user?.id) {
-        reportDataToSave.created_by = user.id;
-      }
+      if (!isUpdate && user?.id) payload.criado_por = user.id;
 
       let savedReport: any;
 
       if (isUpdate) {
         const { data, error } = await supabase
           .from('travel_expense_reports')
-          .update(reportDataToSave)
+          .update(payload)
           .eq('id', reportData.id)
           .select()
           .single();
         if (error) throw error;
         savedReport = data;
       } else {
+        // Retry on unique constraint collision
         let insertError: any = null;
-        let insertAttempts = 0;
-        const maxInsertAttempts = 10;
-
-        while (insertAttempts < maxInsertAttempts) {
+        for (let attempt = 0; attempt < 10; attempt++) {
           const { data, error } = await supabase
             .from('travel_expense_reports')
-            .insert([reportDataToSave])
+            .insert([payload])
             .select()
             .single();
 
-          if (error) {
-            // Se o erro for de constraint única no report_number, tentar com um novo número
-            if (error.code === '23505' && error.message?.includes('report_number')) {
-              insertAttempts++;
-              if (insertAttempts < maxInsertAttempts) {
-                // Regenerar o número e tentar novamente
-                const newReportNumber = await generateReportNumber(reportData.client);
-                reportDataToSave.report_number = newReportNumber;
-                // Pequeno delay para evitar race conditions
-                await new Promise(resolve => setTimeout(resolve, 100 * insertAttempts));
-                continue;
-              }
-            }
+          if (!error) { savedReport = data; insertError = null; break; }
+
+          if (error.code === '23505' && error.message?.includes('numero_relatorio')) {
+            payload.numero_relatorio = await generateReportNumber(reportData.client || '');
+            await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
             insertError = error;
-            break;
+          } else {
+            insertError = error; break;
           }
-
-          savedReport = data;
-          insertError = null;
-          break;
         }
-
         if (insertError) throw insertError;
       }
 
+      // --- Attachments ---
       try {
         if (isUpdate) {
-          await supabase
-            .from('travel_report_attachments')
-            .delete()
-            .eq('travel_report_id', savedReport.id);
+          await supabase.from('travel_report_attachments').delete().eq('travel_report_id', savedReport.id);
         }
 
-        const attachmentsToInsert = validExpenses
-          .map((expense, index) => {
-            if (!expense.receipt_url) return null;
-
-            const urlParts = expense.receipt_url.split('/');
-            const fileName = urlParts[urlParts.length - 1] || 'comprovante';
-            const filePath = `receipts/${fileName}`;
-
+        const attachments = validExpenses
+          .map((e, i) => {
+            if (!e.receipt_url) return null;
+            const parts = e.receipt_url.split('/');
+            const fileName = parts[parts.length - 1] || 'comprovante';
             let fileType = 'application/octet-stream';
-            if (expense.receipt_url.includes('.pdf')) fileType = 'application/pdf';
-            else if (expense.receipt_url.includes('.jpg') || expense.receipt_url.includes('.jpeg')) fileType = 'image/jpeg';
-            else if (expense.receipt_url.includes('.png')) fileType = 'image/png';
-            else if (expense.receipt_url.includes('.gif')) fileType = 'image/gif';
-            else if (expense.receipt_url.includes('.webp')) fileType = 'image/webp';
-
+            if (e.receipt_url.includes('.pdf')) fileType = 'application/pdf';
+            else if (/\.(jpe?g)/.test(e.receipt_url)) fileType = 'image/jpeg';
+            else if (e.receipt_url.includes('.png')) fileType = 'image/png';
+            else if (e.receipt_url.includes('.webp')) fileType = 'image/webp';
             return {
               travel_report_id: savedReport.id,
-              expense_index: index,
+              expense_index: i,
               file_name: fileName,
-              file_path: filePath,
-              file_url: expense.receipt_url,
+              file_path: `receipts/${fileName}`,
+              file_url: e.receipt_url,
               file_type: fileType,
               file_size: null,
             } as any;
           })
-          .filter((item) => item !== null);
+          .filter(Boolean);
 
-        if (attachmentsToInsert.length > 0) {
-          const { error: attachmentError } = await supabase
-            .from('travel_report_attachments')
-            .insert(attachmentsToInsert);
+        if (attachments.length > 0) {
+          const { error } = await supabase.from('travel_report_attachments').insert(attachments);
+          if (error) console.error('❌ Erro ao salvar attachments:', error);
+        }
+      } catch (e) { console.error('❌ Erro ao processar attachments:', e); }
 
-          if (attachmentError) {
-            console.error('❌ Erro ao salvar attachments:', attachmentError);
+      // --- Conciliações + PDF (only when finalizing) ---
+      if ((newStatus === 'Finalizado' || newStatus === 'Enviado') && user) {
+        const today = new Date().toISOString().split('T')[0];
+        const payerTotals = extractPayerTotals(validExpenses);
+        const { totalCrew1, totalCrew2, totalSharebrasil } = payerTotals;
+        const totalClientOwes = totalSharebrasil + totalCrew1 + totalCrew2;
+        const reconcToInsert: any[] = [];
+
+        // Cliente
+        if (totalClientOwes > 0 && reportData.clientes_id) {
+          const { data: existing } = await supabase
+            .from('conciliacoes_bancarias').select('id')
+            .eq('referencia_id', savedReport.id).eq('tipo', 'cliente').maybeSingle();
+          if (!existing) {
+            reconcToInsert.push({
+              type: 'cliente', client_id: reportData.clientes_id,
+              aeronave_id: reportData.aeronave_id || null,
+              amount: totalClientOwes, status: 'pendente',
+              category: 'relatório_viagem',
+              description: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - A RECEBER DO CLIENTE`,
+              date: today, criado_por: user.id,
+              reference_id: savedReport.id, reference_type: 'travel_report',
+            });
           }
         }
-      } catch (attachmentError: any) {
-        console.error('❌ Erro ao processar attachments:', attachmentError);
-      }
 
-      if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
-        const { data: { user } } = await supabase.auth.getUser();
+        // Tripulante 1
+        if (totalCrew1 > 0 && reportData.tripulacao_id) {
+          const { data: crew } = await supabase
+            .from('membros_tripulacao').select('user_id')
+            .eq('id', reportData.tripulacao_id).maybeSingle();
 
-        if (user) {
-          const today = new Date().toISOString().split('T')[0];
-          const reconciliationsToInsert: any[] = [];
+          const { data: existing } = await supabase
+            .from('conciliacoes_bancarias').select('id')
+            .eq('referencia_id', savedReport.id).eq('tipo', 'colaborador')
+            .ilike('description', '%TRIPULANTE 1%').maybeSingle();
 
-          const payerTotals = extractPayerTotals(validExpenses);
-          const totalCrew1 = payerTotals.totalCrew1;
-          const totalCrew2 = payerTotals.totalCrew2;
-          const totalSharebrasil = payerTotals.totalSharebrasil;
-          const totalClientOwes = totalSharebrasil + totalCrew1 + totalCrew2;
-
-          if (totalClientOwes > 0 && reportData.client_id) {
-            const { data: existingClientPayment } = await supabase
-              .from('bank_reconciliations')
-              .select('id')
-              .eq('reference_id', savedReport.id)
-              .eq('type', 'cliente')
-              .maybeSingle();
-
-            if (!existingClientPayment) {
-              reconciliationsToInsert.push({
-                type: 'cliente',
-                client_id: reportData.client_id,
-                aircraft_id: reportData.aircraft_id || null,
-                amount: totalClientOwes,
-                status: 'pendente',
-                category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - A RECEBER DO CLIENTE`,
-                date: today,
-                criado_por: user.id,
-                reference_id: savedReport.id,
-                reference_type: 'travel_report'
-              });
-            }
+          if (!existing) {
+            reconcToInsert.push({
+              type: 'colaborador', receiver_id: crew?.user_id || null,
+              aeronave_id: reportData.aeronave_id || null,
+              amount: totalCrew1, status: 'pendente',
+              category: 'relatório_viagem',
+              description: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - REEMBOLSO TRIPULANTE 1 (${reportData.nome_tripulante.toUpperCase()})`,
+              date: today, criado_por: user.id,
+              reference_id: savedReport.id, reference_type: 'travel_report',
+            });
           }
+        }
 
-          if (totalCrew1 > 0 && reportData.crew_member_id) {
-            const { data: crewMember } = await supabase
-              .from('crew_members')
-              .select('user_id')
-              .eq('id', reportData.crew_member_id)
-              .maybeSingle();
+        // Tripulante 2
+        if (totalCrew2 > 0 && reportData.nome_tripulante_2) {
+          const { data: crew2 } = await supabase
+            .from('membros_tripulacao').select('id, user_id')
+            .eq('nome_completo', reportData.nome_tripulante_2).maybeSingle();
 
-            const receiverId = crewMember?.user_id || null;
+          const { data: existing } = await supabase
+            .from('conciliacoes_bancarias').select('id')
+            .eq('referencia_id', savedReport.id).eq('tipo', 'colaborador')
+            .ilike('description', '%TRIPULANTE 2%').maybeSingle();
 
-            const { data: existingCrewPayment } = await supabase
-              .from('bank_reconciliations')
-              .select('id')
-              .eq('reference_id', savedReport.id)
-              .eq('type', 'colaborador')
-              .ilike('description', '%TRIPULANTE 1%')
-              .maybeSingle();
-
-            if (!existingCrewPayment) {
-              reconciliationsToInsert.push({
-                type: 'colaborador',
-                receiver_id: receiverId,
-                aircraft_id: reportData.aircraft_id || null,
-                amount: totalCrew1,
-                status: 'pendente',
-                category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 1 (${reportData.crew_member_name.toUpperCase()})`,
-                date: today,
-                criado_por: user.id,
-                reference_id: savedReport.id,
-                reference_type: 'travel_report'
-              });
-            }
+          if (!existing) {
+            reconcToInsert.push({
+              type: 'colaborador', receiver_id: crew2?.user_id || null,
+              aeronave_id: reportData.aeronave_id || null,
+              amount: totalCrew2, status: 'pendente',
+              category: 'relatório_viagem',
+              description: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - REEMBOLSO TRIPULANTE 2 (${reportData.nome_tripulante_2.toUpperCase()})`,
+              date: today, criado_por: user.id,
+              reference_id: savedReport.id, reference_type: 'travel_report',
+            });
           }
+        }
 
-          if (totalCrew2 > 0 && reportData.crew_member_name2) {
-            const { data: secondCrew } = await supabase
-              .from('crew_members')
-              .select('id, user_id')
-              .eq('full_name', reportData.crew_member_name2)
-              .maybeSingle();
+        if (reconcToInsert.length > 0) {
+          const { error } = await supabase.from('conciliacoes_bancarias').insert(reconcToInsert);
+          if (error) console.error('Erro ao registrar conciliações:', error);
+        }
 
-            const receiverId = secondCrew?.user_id || null;
+        // Generate PDF
+        try {
+          let pdfUserName = 'Usuário';
+          const { data: creatorProfile } = await supabase
+            .from('user_profiles').select('full_name').eq('id', user.id).single();
+          if (creatorProfile?.full_name) pdfUserName = creatorProfile.full_name;
 
-            const { data: existingCrewPayment2 } = await supabase
-              .from('bank_reconciliations')
-              .select('id')
-              .eq('reference_id', savedReport.id)
-              .eq('type', 'colaborador')
-              .ilike('description', '%TRIPULANTE 2%')
-              .maybeSingle();
+          const pdfData: PDFTravelReport = {
+            numero: savedReport.numero_relatorio,
+            cliente_nome: reportData.client || '',
+            aeronave: reportData.matricula_aeronave,
+            tripulante: reportData.nome_tripulante,
+            tripulante2: reportData.nome_tripulante_2 || '',
+            trecho: reportData.rota,
+            destino: reportData.rota,
+            data_inicio: reportData.data_inicio,
+            data_fim: reportData.data_fim,
+            observacoes: reportData.observacoes,
+            despesas: validExpenses.map(e => ({
+              categoria: e.category,
+              descricao: e.description,
+              valor: e.amount,
+              pago_por: e.paid_by,
+              data: e.expense_date || '',
+              comprovante_url: e.receipt_url,
+            })) as TravelExpense[],
+            total_combustivel: totals.total_fuel,
+            total_hospedagem: totals.total_lodging,
+            total_alimentacao: totals.total_food,
+            total_transporte: totals.total_transport,
+            total_outros: totals.total_other,
+            total_tripulante: totals.total_crew,
+            total_tripulante1: totals.total_crew1,
+            total_tripulante2: totals.total_crew2,
+            total_cliente: totals.total_client,
+            total_sharebrasil: totals.total_sharebrasil,
+            valor_total: totals.total_amount,
+          };
 
-            if (!existingCrewPayment2) {
-              reconciliationsToInsert.push({
-                type: 'colaborador',
-                receiver_id: receiverId,
-                aircraft_id: reportData.aircraft_id || null,
-                amount: totalCrew2,
-                status: 'pendente',
-                category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${reportData.crew_member_name2.toUpperCase()})`,
-                date: today,
-                criado_por: user.id,
-                reference_id: savedReport.id,
-                reference_type: 'travel_report'
-              });
-            }
+          const { generatePDF } = await import('@/lib/travelReportPDF');
+          const pdfBlob = await generatePDF(pdfData, pdfUserName);
+          const pdfPath = `reports/${savedReport.numero_relatorio.replace(/\//g, '-')}-${Date.now()}.pdf`;
+
+          const { error: uploadErr } = await supabase.storage
+            .from('travel-reports')
+            .upload(pdfPath, pdfBlob, { contentType: 'application/pdf' });
+
+          if (!uploadErr) {
+            const { data: { publicUrl } } = supabase.storage.from('travel-reports').getPublicUrl(pdfPath);
+            await supabase.from('travel_expense_reports').update({ url_pdf: publicUrl }).eq('id', savedReport.id);
+            navigator.clipboard.writeText(publicUrl).catch(() => {});
           }
-
-          if (reconciliationsToInsert.length > 0) {
-            const { error: paymentError } = await supabase
-              .from('bank_reconciliations')
-              .insert(reconciliationsToInsert);
-
-            if (paymentError) {
-              console.error('Erro ao registrar conciliações:', paymentError);
-            }
-          }
-
-          try {
-            const pdfData: PDFTravelReport = {
-              numero: savedReport.report_number,
-              cliente_nome: reportData.client,
-              aeronave: reportData.aircraft_registration,
-              tripulante: reportData.crew_member_name,
-              tripulante2: reportData.crew_member_name2,
-              trecho: reportData.route,
-              destino: reportData.route,
-              data_inicio: reportData.start_date,
-              data_fim: reportData.end_date,
-              observacoes: reportData.observations,
-              despesas: validExpenses.map(e => ({
-                categoria: e.category,
-                descricao: e.description,
-                valor: e.amount,
-                pago_por: e.paid_by,
-                data: (e as any).expense_date || '',
-                comprovante_url: e.receipt_url
-              })) as TravelExpense[],
-              total_combustivel: recalculatedTotals.total_fuel,
-              total_hospedagem: recalculatedTotals.total_lodging,
-              total_alimentacao: recalculatedTotals.total_food,
-              total_transporte: recalculatedTotals.total_transport,
-              total_outros: recalculatedTotals.total_other,
-              total_tripulante: recalculatedTotals.total_crew,
-              total_tripulante1: recalculatedTotals.total_crew1,
-              total_tripulante2: recalculatedTotals.total_crew2,
-              total_cliente: recalculatedTotals.total_client,
-              total_sharebrasil: recalculatedTotals.total_sharebrasil,
-              valor_total: recalculatedTotals.total_amount
-            };
-
-            // Get creator name for PDF
-            let pdfUserName = 'Usuário';
-            if (user?.id) {
-              const { data: creatorProfile } = await supabase
-                .from('user_profiles')
-                .select('full_name')
-                .eq('id', user.id)
-                .single();
-              if (creatorProfile?.full_name) pdfUserName = creatorProfile.full_name;
-            }
-
-            const { generatePDF } = await import('@/lib/travelReportPDF');
-            const pdfBlob = await generatePDF(pdfData, pdfUserName);
-
-            const pdfFileName = `${savedReport.report_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
-            const pdfPath = `reports/${pdfFileName}`;
-
-            const { error: pdfUploadError } = await supabase.storage
-              .from('travel-reports')
-              .upload(pdfPath, pdfBlob, { contentType: 'application/pdf' });
-
-            if (!pdfUploadError) {
-              const { data: { publicUrl: pdfUrl } } = supabase.storage
-                .from('travel-reports')
-                .getPublicUrl(pdfPath);
-
-              await supabase
-                .from('travel_expense_reports')
-                .update({ pdf_url: pdfUrl })
-                .eq('id', savedReport.id);
-
-              // PDF gerado com sucesso - URL será copiada automaticamente
-              navigator.clipboard.writeText(pdfUrl).catch(err => {
-                console.warn('Não foi possível copiar URL automaticamente:', err);
-              });
-            }
-          } catch (pdfError: any) {
-            console.error('Erro ao gerar/salvar PDF:', pdfError);
-            toast.warning(`⚠️ Erro ao gerar PDF: ${pdfError?.message || 'Tente novamente'}`);
-          }
+        } catch (pdfErr: any) {
+          console.error('Erro ao gerar PDF:', pdfErr);
+          toast.warning(`⚠️ Erro ao gerar PDF: ${pdfErr?.message || 'Tente novamente'}`);
         }
       }
 
-      const statusLabel = newStatus === 'Finalizado' ? 'finalizado' : newStatus === 'Enviado' ? 'enviado' : 'salvo como rascunho';
-      const steps = [`Relatório ${statusLabel} com sucesso`];
+      const label = newStatus === 'Finalizado' ? 'finalizado' : newStatus === 'Enviado' ? 'enviado' : 'salvo como rascunho';
+      const steps = [`Relatório ${label} com sucesso`];
       if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
-        steps.push('Conciliações financeiras registradas');
-        steps.push('PDF gerado');
+        steps.push('Conciliações financeiras registradas', 'PDF gerado');
       }
       toast.success(`✅ ${steps.join(' · ')}`);
       draftStorage.clearDraft();
       setHasSavedDraft(false);
 
-      // Sempre fechar o formulário quando o relatório for finalizado ou enviado
       if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         setIsCreating(false);
         setCurrentReport(null);
-        setActiveTab('relatorios'); // Voltar para a aba de relatórios
+        setActiveTab('relatorios');
+      } else if (!isUpdate && savedReport?.id) {
+        setCurrentReport(prev => prev ? { ...prev, id: savedReport.id } : null);
       } else {
-        // Se foi um INSERT bem-sucedido (novo relatório), atualizar currentReport com o novo ID
-        // para evitar erro de constraint única se o usuário tentar editar novamente
-        if (!isUpdate && savedReport?.id) {
-          setCurrentReport(prev => prev ? { ...prev, id: savedReport.id } : null);
-        } else {
-          setIsCreating(false);
-          setCurrentReport(null);
-        }
+        setIsCreating(false);
+        setCurrentReport(null);
       }
 
       loadReports();
     } catch (error: any) {
       console.error('Erro ao salvar relatório:', error);
-      const errorMessage = error.message || 'Erro desconhecido';
-      const errorDetails = error.details || error.hint || '';
-      const fullErrorMsg = errorDetails ? `${errorMessage} - ${errorDetails}` : errorMessage;
-      toast.error(`❌ Erro ao salvar: ${fullErrorMsg}`);
+      toast.error(`❌ Erro ao salvar: ${error.message}${error.details ? ` - ${error.details}` : ''}`);
     } finally {
       setIsSaving(false);
     }
   };
 
+  // -------------------------------------------------------------------------
+  // Send dialog
+  // -------------------------------------------------------------------------
+  const handleSendReport = async () => {
+    if (!sendReportTarget?.id || !sendDueDate) {
+      toast.error('Informe o prazo de vencimento');
+      return;
+    }
+    setIsSending(true);
+    try {
+      const { error } = await supabase
+        .from('travel_expense_reports')
+        .update({ status: 'Enviado', updated_at: new Date().toISOString() })
+        .eq('id', sendReportTarget.id);
+      if (error) throw error;
+
+      await supabase
+        .from('conciliacoes_bancarias')
+        .update({ status: 'enviado', due_date: sendDueDate, updated_at: new Date().toISOString() } as any)
+        .eq('referencia_id', sendReportTarget.id)
+        .eq('tipo_referencia', 'travel_report');
+
+      toast.success('✓ Relatório enviado ao cliente com sucesso!');
+      setSendDialogOpen(false);
+      setSendReportTarget(null);
+      setSendDueDate('');
+      loadReports();
+    } catch (error: any) {
+      toast.error(`❌ Erro ao enviar: ${error.message}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // UI helpers
+  // -------------------------------------------------------------------------
   const statusBadgeColors: Record<TravelReport['status'], string> = {
-    'Rascunho': 'bg-amber-100/80 text-amber-800 ring-amber-200',
-    'Finalizado': 'bg-blue-100/80 text-blue-800 ring-blue-200',
-    'Enviado': 'bg-green-100/80 text-green-800 ring-green-200',
+    Rascunho: 'bg-amber-100/80 text-amber-800 ring-amber-200',
+    Finalizado: 'bg-blue-100/80 text-blue-800 ring-blue-200',
+    Enviado: 'bg-green-100/80 text-green-800 ring-green-200',
   };
-
   const statusBorderColors: Record<TravelReport['status'], string> = {
-    'Rascunho': 'border-l-4 border-l-amber-400',
-    'Finalizado': 'border-l-4 border-l-blue-400',
-    'Enviado': 'border-l-4 border-l-green-400',
+    Rascunho: 'border-l-4 border-l-amber-400',
+    Finalizado: 'border-l-4 border-l-blue-400',
+    Enviado: 'border-l-4 border-l-green-400',
   };
 
-  // Cyan Folder Icon SVG
   const CyanFolderIcon = () => (
     <svg viewBox="0 0 120 100" className="w-full h-full drop-shadow-lg" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Folder tab */}
       <path d="M10 25 L10 15 Q10 8 17 8 L42 8 Q46 8 48 12 L54 22 Q56 25 60 25 Z" fill="#06b6d4" opacity="0.9" />
-      {/* Folder body */}
       <rect x="6" y="25" width="108" height="68" rx="8" fill="#06b6d4" />
     </svg>
   );
@@ -905,24 +752,24 @@ export default function RelatorioViagem() {
     <div
       key={report.id}
       className={cn(
-        "flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:border-border group",
-        statusBorderColors[report.status]
+        'flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:border-border group',
+        statusBorderColors[report.status],
       )}
     >
       <div className="mb-3 sm:mb-0 min-w-[240px] flex-1">
         <div className="flex items-start gap-3 mb-2">
           <FileText className="h-5 w-5 text-muted-foreground/60 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <p className="font-semibold text-foreground text-base">{report.report_number}</p>
+            <p className="font-semibold text-foreground text-base">{report.numero_relatorio}</p>
             <div className="flex items-center gap-2 mt-1">
-              <span className={cn("inline-block text-xs font-bold px-3 py-1 rounded-full ring-1", statusBadgeColors[report.status])}>
+              <span className={cn('inline-block text-xs font-bold px-3 py-1 rounded-full ring-1', statusBadgeColors[report.status])}>
                 {report.status}
               </span>
               {report.status === 'Finalizado' && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     setSendReportTarget(report);
                     setSendDueDate('');
@@ -930,8 +777,7 @@ export default function RelatorioViagem() {
                   }}
                   className="h-6 px-2 text-xs gap-1 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
                 >
-                  <Send className="h-3 w-3" />
-                  Enviar
+                  <Send className="h-3 w-3" /> Enviar
                 </Button>
               )}
             </div>
@@ -939,46 +785,43 @@ export default function RelatorioViagem() {
         </div>
         <p className="text-sm text-muted-foreground font-medium">
           {report.client}
-          <span className="text-xs text-muted-foreground/70 ml-1">({report.aircraft_registration})</span>
+          <span className="text-xs text-muted-foreground/70 ml-1">({report.matricula_aeronave})</span>
         </p>
         <p className="text-xs text-muted-foreground/70 mt-1">
-          {format(parseISO(report.start_date), "dd MMM", { locale: ptBR })} a {format(parseISO(report.end_date), "dd MMM yyyy", { locale: ptBR })}
+          {format(parseISO(report.data_inicio), 'dd MMM', { locale: ptBR })} a{' '}
+          {format(parseISO(report.data_fim), 'dd MMM yyyy', { locale: ptBR })}
         </p>
       </div>
+
       <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
         <div className="text-right">
           <p className="text-xs text-muted-foreground/70 font-medium">Total</p>
-          <p className="font-bold text-lg text-green-600 font-mono">
-            R$ {report.total_amount.toFixed(2).replace('.', ',')}
-          </p>
+          <p className="font-bold text-lg text-green-600 font-mono">{fmt(report.total_valor)}</p>
         </div>
         <div className="flex gap-1 ml-auto sm:ml-0">
           {report.status === 'Rascunho' && (
             <Button
-              variant="ghost"
-              size="sm"
+              variant="ghost" size="sm"
               onClick={() => editReport(report.id!)}
               title="Editar Relatório"
-              className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
+              className="rounded-lg hover:bg-primary/10 hover:text-primary"
             >
               <Edit className="h-4 w-4" />
             </Button>
           )}
           <Button
-            variant="ghost"
-            size="sm"
+            variant="ghost" size="sm"
             onClick={() => handleViewPDF(report.id!)}
-            title="Visualizar Relatório"
-            className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
+            title="Visualizar PDF"
+            className="rounded-lg hover:bg-primary/10 hover:text-primary"
           >
             <Eye className="h-4 w-4" />
           </Button>
           <Button
-            variant="ghost"
-            size="sm"
+            variant="ghost" size="sm"
             onClick={() => deleteReport(report.id)}
             title="Excluir Relatório"
-            className="rounded-lg transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
+            className="rounded-lg hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -987,11 +830,15 @@ export default function RelatorioViagem() {
     </div>
   );
 
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
   return (
     <Layout>
       <div className="p-6 space-y-6">
         {!isCreating ? (
           <>
+            {/* Draft restore banner */}
             {hasSavedDraft && (
               <Card className="border-amber-200/50 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md rounded-xl">
                 <CardContent className="p-6">
@@ -1000,19 +847,18 @@ export default function RelatorioViagem() {
                       <div className="p-2 rounded-lg bg-amber-100/50">
                         <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 animate-pulse" />
                       </div>
-                      <div className="flex-1">
+                      <div>
                         <h3 className="font-bold text-amber-900 text-base">Rascunho salvo automaticamente</h3>
-                        <p className="text-sm text-amber-700/80 mt-1 leading-relaxed">
+                        <p className="text-sm text-amber-700/80 mt-1">
                           Você tem um relatório anterior em rascunho. Deseja continuar editando?
                         </p>
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={discardDraft}
-                        className="text-amber-600 hover:bg-amber-100/50 hover:text-amber-700 rounded-lg transition-all duration-200"
+                        size="sm" variant="ghost"
+                        onClick={() => { draftStorage.clearDraft(); setHasSavedDraft(false); toast.info('Rascunho descartado'); }}
+                        className="text-amber-600 hover:bg-amber-100/50 rounded-lg"
                       >
                         Descartar
                       </Button>
@@ -1025,13 +871,12 @@ export default function RelatorioViagem() {
                             setIsCreating(true);
                             setIsEditing(false);
                             setActiveTab('criar');
-                            toast.success('✓ Rascunho restaurado com sucesso!');
+                            toast.success('✓ Rascunho restaurado!');
                           }
                         }}
-                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg"
                       >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Restaurar
+                        <RotateCcw className="h-4 w-4 mr-2" /> Restaurar
                       </Button>
                     </div>
                   </div>
@@ -1042,135 +887,110 @@ export default function RelatorioViagem() {
             <Card className="shadow-md rounded-xl border-border/50">
               <CardHeader className="p-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                  <CardTitle className="text-2xl font-bold text-foreground">Relatório de Despesa de Viagem</CardTitle>
+                  <CardTitle className="text-2xl font-bold">Relatório de Despesa de Viagem</CardTitle>
                 </div>
 
-                {/* Tabs Navigation */}
+                {/* Tabs */}
                 <div className="flex gap-2 border-b border-border">
-                  <Button
-                    onClick={() => setActiveTab('criar')}
-                    variant={activeTab === 'criar' ? 'default' : 'ghost'}
-                    className={cn(
-                      'px-4 py-2 rounded-none border-b-2 font-medium transition-all',
-                      activeTab === 'criar'
-                        ? 'border-b-primary text-primary bg-primary/5'
-                        : 'border-b-transparent text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Novo
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab('historico')}
-                    variant={activeTab === 'historico' ? 'default' : 'ghost'}
-                    className={cn(
-                      'px-4 py-2 rounded-none border-b-2 font-medium transition-all',
-                      activeTab === 'historico'
-                        ? 'border-b-primary text-primary bg-primary/5'
-                        : 'border-b-transparent text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Rascunhos ({reportsWithoutClient.length})
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab('relatorios')}
-                    variant={activeTab === 'relatorios' ? 'default' : 'ghost'}
-                    className={cn(
-                      'px-4 py-2 rounded-none border-b-2 font-medium transition-all',
-                      activeTab === 'relatorios'
-                        ? 'border-b-primary text-primary bg-primary/5'
-                        : 'border-b-transparent text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <FolderOpen className="h-4 w-4 mr-2" />
-                    Relatórios Finalizados ({reportsWithClient.length})
-                  </Button>
+                  {(['criar', 'historico', 'relatorios'] as const).map(tab => {
+                    const labels: Record<typeof tab, { icon: React.ReactNode; label: string }> = {
+                      criar: { icon: <Plus className="h-4 w-4 mr-2" />, label: 'Criar Novo' },
+                      historico: { icon: <FileText className="h-4 w-4 mr-2" />, label: `Rascunhos (${reportsWithoutClient.length})` },
+                      relatorios: { icon: <FolderOpen className="h-4 w-4 mr-2" />, label: `Relatórios Finalizados (${reportsWithClient.length})` },
+                    };
+                    return (
+                      <Button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        variant={activeTab === tab ? 'default' : 'ghost'}
+                        className={cn(
+                          'px-4 py-2 rounded-none border-b-2 font-medium transition-all',
+                          activeTab === tab
+                            ? 'border-b-primary text-primary bg-primary/5'
+                            : 'border-b-transparent text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {labels[tab].icon}{labels[tab].label}
+                      </Button>
+                    );
+                  })}
                 </div>
               </CardHeader>
 
               <CardContent className="p-6">
-                {/* Tab: Criar Novo */}
+                {/* Criar */}
                 {activeTab === 'criar' && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 text-foreground">Criar Novo Relatório</h3>
+                    <h3 className="text-lg font-semibold mb-4">Criar Novo Relatório</h3>
                     <p className="text-muted-foreground mb-6">Preencha os dados do relatório de despesa de viagem abaixo.</p>
-                    <div className="flex">
-                      <Button
-                        onClick={createNewReport}
-                        className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Iniciar Novo Relatório
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={createNewReport}
+                      className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 text-white rounded-lg"
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Iniciar Novo Relatório
+                    </Button>
                   </div>
                 )}
 
-                {/* Tab: Rascunhos */}
+                {/* Rascunhos */}
                 {activeTab === 'historico' && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 text-foreground">Rascunhos</h3>
+                    <h3 className="text-lg font-semibold mb-4">Rascunhos</h3>
                     {reportsWithoutClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                        <p className="text-center text-muted-foreground font-medium">Nenhum rascunho</p>
-                        <p className="text-center text-muted-foreground text-sm">Crie um novo relatório para começar</p>
+                        <p className="text-muted-foreground font-medium">Nenhum rascunho</p>
+                        <p className="text-muted-foreground text-sm">Crie um novo relatório para começar</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {reportsWithoutClient.map(report => renderReportCard(report))}
-                      </div>
+                      <div className="space-y-3">{reportsWithoutClient.map(renderReportCard)}</div>
                     )}
                   </div>
                 )}
 
-                {/* Tab: Relatórios Finalizados */}
+                {/* Finalizados — pastas por cliente */}
                 {activeTab === 'relatorios' && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 text-foreground">Pastas de Clientes</h3>
+                    <h3 className="text-lg font-semibold mb-4">Pastas de Clientes</h3>
                     {reportsWithClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                        <p className="text-center text-muted-foreground font-medium">Nenhum relatório finalizado</p>
-                        <p className="text-center text-muted-foreground text-sm">Finalize um rascunho para vê-lo aqui</p>
+                        <p className="text-muted-foreground font-medium">Nenhum relatório finalizado</p>
+                        <p className="text-muted-foreground text-sm">Finalize um rascunho para vê-lo aqui</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
                         {Object.entries(
-                          reportsWithClient.reduce((acc, report) => {
-                            const key = report.client || 'Sem Cliente';
+                          reportsWithClient.reduce((acc, r) => {
+                            const key = r.client || 'Sem Cliente';
                             if (!acc[key]) acc[key] = [];
-                            acc[key].push(report);
+                            acc[key].push(r);
                             return acc;
-                          }, {} as Record<string, TravelReport[]>)
-                        ).map(([clientName, group]) => {
-                          // Get client_id and client_partner from first report in group
-                          const clientId = group[0]?.client_id;
-                          const clientPartner = group[0]?.client_partner;
-
-                          return (
-                            <button
-                              key={clientName}
-                              onClick={() => {
-                                if (clientId) {
-                                  navigate(`/financeiro/relatorios-cliente/${clientId}`, { state: { clientName, clientPartner } });
-                                }
-                              }}
-                              className="group flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                            >
-                              <div className="w-24 h-20 relative group-hover:scale-105 transition-transform duration-200">
-                                <CyanFolderIcon />
-                              </div>
-                              <div className="text-center w-full">
-                                <p className="text-sm font-semibold text-foreground truncate">{clientName}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {group.length} {group.length === 1 ? 'relatório' : 'relatórios'}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
+                          }, {} as Record<string, TravelReport[]>),
+                        ).map(([clientName, group]) => (
+                          <button
+                            key={clientName}
+                            onClick={() => {
+                              const clientId = group[0]?.clientes_id;
+                              if (clientId) {
+                                navigate(`/financeiro/relatorios-cliente/${clientId}`, {
+                                  state: { clientName, clientPartner: group[0]?.socios_cliente_id },
+                                });
+                              }
+                            }}
+                            className="group flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200"
+                          >
+                            <div className="w-24 h-20 relative group-hover:scale-105 transition-transform duration-200">
+                              <CyanFolderIcon />
+                            </div>
+                            <div className="text-center w-full">
+                              <p className="text-sm font-semibold text-foreground truncate">{clientName}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {group.length} {group.length === 1 ? 'relatório' : 'relatórios'}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -1182,14 +1002,9 @@ export default function RelatorioViagem() {
           <TravelReportForm
             report={currentReport}
             onSave={async (report, status) => {
-              // Manter o ID se já existir, caso contrário usar o report como está
-              const reportToSave = {
-                ...report,
-                // Se não tem ID, deixar vazio para que o saveReport gere
-                id: report.id || undefined
-              };
-              setCurrentReport(reportToSave);
-              await saveReport(status, reportToSave);
+              const toSave = { ...report, id: report.id || undefined };
+              setCurrentReport(toSave);
+              await saveReport(status, toSave);
             }}
             onCancel={() => {
               if (draftStorage.hasDraft()) {
@@ -1202,44 +1017,47 @@ export default function RelatorioViagem() {
                 setIsCreating(false);
               }
             }}
-            onAutoSave={(report) => {
-              if (!isEditing) {
-                draftStorage.saveDraft(report);
-              }
-            }}
+            onAutoSave={report => { if (!isEditing) draftStorage.saveDraft(report); }}
             showPartnerModal={() => setShowPartnerModal(true)}
-            onReceiptView={(url) => {
-              setReceiptViewerUrl(url);
-              setReceiptViewerOpen(true);
-            }}
+            onReceiptView={url => { setReceiptViewerUrl(url); setReceiptViewerOpen(true); }}
           />
         )}
       </div>
 
+      {/* Partner modal */}
       <PartnerSelectModal
         open={showPartnerModal}
         onOpenChange={setShowPartnerModal}
         clientName={currentReport?.client || ''}
         partners={clientPartners}
         selectedPartner={currentReport?.client || null}
-        onSelectPartner={(partnerName) => {
-          const partner = clientPartners.find(p => p.name === partnerName);
+        onSelectPartner={partnerName => {
+          const partner = clientPartners.find(p => p.nome === partnerName);
           if (partner) {
-            setCurrentReport(prev => prev ? { ...prev, client_partner: partner.id, client: partner.name } : null);
+            setCurrentReport(prev => prev
+              ? { ...prev, socios_cliente_id: partner.id, client: partner.nome }
+              : null,
+            );
             if (currentReport && !isEditing) {
-              draftStorage.saveDraft({ ...currentReport, client_partner: partner.id, client: partner.name } as unknown as TravelReportDraft);
+              draftStorage.saveDraft({
+                ...currentReport,
+                socios_cliente_id: partner.id,
+                client: partner.nome,
+              } as unknown as TravelReportDraft);
             }
           }
         }}
       />
 
+      {/* Receipt viewer */}
       <ReceiptViewer
         open={receiptViewerOpen}
         onOpenChange={setReceiptViewerOpen}
         url={receiptViewerUrl}
         title="Comprovante Anexado"
       />
-      {/* Send Report Dialog */}
+
+      {/* Send dialog */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1251,12 +1069,13 @@ export default function RelatorioViagem() {
           <div className="space-y-4 mt-2">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Relatório</p>
-              <p className="font-semibold text-foreground">{sendReportTarget?.report_number}</p>
+              <p className="font-semibold">{sendReportTarget?.numero_relatorio}</p>
               <p className="text-xs text-muted-foreground">{sendReportTarget?.client}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">
-                Total: <span className="font-bold text-foreground">R$ {sendReportTarget?.total_amount.toFixed(2).replace('.', ',')}</span>
+                Total:{' '}
+                <span className="font-bold text-foreground">{fmt(sendReportTarget?.total_valor)}</span>
               </p>
             </div>
             <div>
@@ -1265,26 +1084,19 @@ export default function RelatorioViagem() {
                 id="due-date"
                 type="date"
                 value={sendDueDate}
-                onChange={(e) => setSendDueDate(e.target.value)}
+                onChange={e => setSendDueDate(e.target.value)}
                 className="mt-1"
               />
             </div>
           </div>
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setSendDialogOpen(false)}>
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Cancelar</Button>
             <Button
               onClick={handleSendReport}
               disabled={!sendDueDate || isSending}
               className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
             >
-              {isSending ? 'Enviando...' : (
-                <>
-                  <Send className="h-4 w-4" />
-                  Enviar
-                </>
-              )}
+              {isSending ? 'Enviando...' : <><Send className="h-4 w-4" /> Enviar</>}
             </Button>
           </DialogFooter>
         </DialogContent>

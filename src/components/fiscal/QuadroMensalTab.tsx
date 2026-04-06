@@ -274,23 +274,23 @@ export function QuadroMensalTab() {
         t.numero_documento?.toLowerCase().includes(advancedFilters.search.toLowerCase());
 
       const matchesStatus =
-        advancedFilters.status === "all" || t.status === advancedFilters.status;
+        advancedFilters.situacao === "all" || t.situacao === advancedFilters.situacao;
 
       const matchesValue =
-        Number(t.valor) >= advancedFilters.amountRange[0] &&
-        Number(t.valor) <= advancedFilters.amountRange[1];
+        Number(t.valor) >= advancedFilters.valorRange[0] &&
+        Number(t.valor) <= advancedFilters.valorRange[1];
 
       const matchesTipo =
         filterTipo === "todas" || t.tipo_movimento === filterTipo;
 
       let matchesDateRange = true;
-      if (advancedFilters.dateRange?.from) {
+      if (advancedFilters.dataRange?.from) {
         const transacaoDate = new Date(t.data);
-        const rangeStart = new Date(advancedFilters.dateRange.from);
+        const rangeStart = new Date(advancedFilters.dataRange.from);
         rangeStart.setHours(0, 0, 0, 0);
         matchesDateRange = transacaoDate >= rangeStart;
-        if (advancedFilters.dateRange.to) {
-          const rangeEnd = new Date(advancedFilters.dateRange.to);
+        if (advancedFilters.dataRange.to) {
+          const rangeEnd = new Date(advancedFilters.dataRange.to);
           rangeEnd.setHours(23, 59, 59, 999);
           matchesDateRange = matchesDateRange && transacaoDate <= rangeEnd;
         }
@@ -589,8 +589,8 @@ export function QuadroMensalTab() {
               </TableHeader>
               <TableBody>
                 {transacoesFiltradas.map((transacao) => {
-                  const valorColor = getValorColorClass(transacao.tipo_movimento, transacao.status);
-                  const statusBadgeClass = getStatusBadgeClass(transacao.tipo_movimento, transacao.status);
+                  const valorColor = getValorColorClass(transacao.tipo_movimento, transacao.situacao);
+                  const statusBadgeClass = getStatusBadgeClass(transacao.tipo_movimento, transacao.situacao);
 
                   // Tipo icon/label: entrada sempre verde, saída sempre vermelho
                   const tipoIsEntrada = transacao.tipo_movimento === "entrada";
@@ -669,7 +669,7 @@ export function QuadroMensalTab() {
                       {/* Status — badge com cor por tipo+status */}
                       <TableCell>
                         <span className={statusBadgeClass}>
-                          {transacao.status || "—"}
+                          {transacao.situacao || "—"}
                         </span>
                       </TableCell>
                     </TableRow>

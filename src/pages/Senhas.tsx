@@ -47,7 +47,7 @@ export default function Senhas() {
       const { data, error } = await supabase
         .from("senhas")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       if (error) {
         toast.error("Erro ao carregar senhas");

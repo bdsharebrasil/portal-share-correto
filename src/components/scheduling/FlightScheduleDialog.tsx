@@ -24,12 +24,12 @@ interface Aircraft {
 
 interface CrewMember {
   id: string;
-  full_name: string;
+  nome_completo: string;
 }
 
 interface Client {
   id: string;
-  company_name: string;
+  razao_social: string;
 }
 
 interface Aerodrome {
@@ -46,7 +46,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    aircraft_id: "",
+    aeronave_id: "",
     flight_date: "",
     flight_time: "",
     estimated_duration: "",
@@ -71,9 +71,9 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
     setLoading(true);
     try {
       const [aircraftRes, crewRes, clientsRes, aerodromeRes] = await Promise.all([
-        supabase.from("aircraft").select("id, registration, model").eq("status", "ativa"),
-        supabase.from("crew_members").select("id, full_name").eq("status", "ativo"),
-        supabase.from("clients").select("id, company_name"),
+        supabase.from('aeronave').select('id, matricula, modelo').eq("status", "ativa"),
+        supabase.from("tripulacao").select("id, nome_completo").eq("status", "ativo"),
+        supabase.from("clientes").select("id, razao_social"),
         supabase.from("aerodromes").select("id, name, designativo"),
       ]);
 
@@ -95,7 +95,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
   };
 
   const handleSubmit = async () => {
-    if (!formData.aircraft_id || !formData.flight_date || !formData.flight_time || 
+    if (!formData.aeronave_id || !formData.flight_date || !formData.flight_time || 
         !formData.origin || !formData.destination) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
@@ -104,11 +104,11 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
     try {
       setLoading(true);
       const { error } = await supabase.from("flight_schedules").insert({
-        aircraft_id: formData.aircraft_id,
+        aeronave_id: formData.aeronave_id,
         flight_date: formData.flight_date,
         flight_time: formData.flight_time,
         estimated_duration: formData.estimated_duration || null,
-        client_id: formData.client_id || null,
+        client_id: formData.cliente_id || null,
         contact: formData.contact || null,
         passengers: parseInt(formData.passengers),
         flight_type: formData.flight_type,
@@ -116,7 +116,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
         destination: formData.destination,
         crew_member_id: formData.crew_member_id || null,
         status: formData.status,
-        observations: formData.observations || null,
+        observations: formData.observacoes || null,
       });
 
       if (error) throw error;
@@ -135,7 +135,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
 
   const resetForm = () => {
     setFormData({
-      aircraft_id: "",
+      aeronave_id: "",
       flight_date: "",
       flight_time: "",
       estimated_duration: "",
@@ -165,10 +165,10 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
           {/* Basic Flight Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="aircraft">Aeronave *</Label>
+              <Label htmlFor="aeronave">Aeronave *</Label>
               <Select
-                value={formData.aircraft_id}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, aircraft_id: value }))}
+                value={formData.aeronave_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, aeronave_id: value }))}
               >
                 <SelectTrigger className="bg-secondary">
                   <SelectValue placeholder="Selecione a aeronave..." />
@@ -187,7 +187,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
               <Label htmlFor="flight_date">Data do Voo *</Label>
               <Input
                 id="flight_date"
-                type="date"
+                type="data"
                 className="bg-secondary"
                 value={formData.flight_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, flight_date: e.target.value }))}
@@ -227,7 +227,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
               <div className="space-y-2">
                 <Label htmlFor="client">Nome do Cliente *</Label>
                 <Select
-                  value={formData.client_id}
+                  value={formData.cliente_id}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}
                 >
                   <SelectTrigger className="bg-secondary">
@@ -236,7 +236,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
                   <SelectContent>
                     {clients.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
-                        {client.company_name}
+                        {client.razao_social}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -300,7 +300,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
                   onChange={(value) => setFormData(prev => ({ ...prev, origin: value.toUpperCase() }))}
                   options={aerodromes.map(a => ({
                     id: a.id,
-                    label: `${a.designativo} - ${a.name}`
+                    label: `${a.designativo} - ${a.nome}`
                   }))}
                   placeholder="Busque ou digite o aeroporto..."
                   isLoading={loading}
@@ -315,7 +315,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
                   onChange={(value) => setFormData(prev => ({ ...prev, destination: value.toUpperCase() }))}
                   options={aerodromes.map(a => ({
                     id: a.id,
-                    label: `${a.designativo} - ${a.name}`
+                    label: `${a.designativo} - ${a.nome}`
                   }))}
                   placeholder="Busque ou digite o aeroporto..."
                   isLoading={loading}
@@ -336,7 +336,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
                   <SelectContent>
                     {crewMembers.map((crew) => (
                       <SelectItem key={crew.id} value={crew.id}>
-                        {crew.full_name}
+                        {crew.nome_completo}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -344,7 +344,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="situacao">Status</Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
@@ -362,12 +362,12 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="observations">Observações</Label>
+              <Label htmlFor="observacoes">Observações</Label>
               <Textarea
-                id="observations"
+                id="observacoes"
                 placeholder="Observações adicionais sobre o voo..."
                 className="bg-secondary min-h-[80px]"
-                value={formData.observations}
+                value={formData.observacoes}
                 onChange={(e) => setFormData(prev => ({ ...prev, observations: e.target.value }))}
               />
             </div>

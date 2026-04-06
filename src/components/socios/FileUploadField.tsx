@@ -32,7 +32,7 @@ export function FileUploadField({
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitized = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_").substring(0, 100);
+      const sanitized = file.nome.replace(/[^a-zA-Z0-9.\-_]/g, "_").substring(0, 100);
       const ext = sanitized.split(".").pop();
       const fileName = `${prefix}_${timestamp}.${ext}`;
       const { error } = await supabase.storage.from(bucket).upload(fileName, file);

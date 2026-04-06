@@ -22,7 +22,7 @@ function ClientesComSociosSelectorContent() {
   
   // Filtrar por termo de busca
   const clientesFiltrados = clientesComPartners.filter(cliente =>
-    cliente.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cliente.razao_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cliente.cnpj?.includes(searchTerm)
   );
@@ -71,7 +71,7 @@ function ClientesComSociosSelectorContent() {
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
-                    {cliente.company_name || cliente.proprietario}
+                    {cliente.razao_social || cliente.proprietario}
                   </CardTitle>
                   {cliente.cnpj && (
                     <CardDescription className="text-xs mt-1">

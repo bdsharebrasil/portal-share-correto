@@ -419,7 +419,7 @@ export function FeriasDecimosTab() {
                           <div>
                             <Label>Data de Início</Label>
                             <Input
-                              type="date"
+                              type="data"
                               value={newVacation.scheduled_date}
                               onChange={(e) => setNewVacation({ ...newVacation, scheduled_date: e.target.value })}
                             />

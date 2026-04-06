@@ -112,8 +112,8 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
                         <h4 className="font-bold text-foreground">{report.number || 'RAS'}</h4>
                         <p className="text-sm text-muted-foreground">{report.maintenance_type}</p>
                       </div>
-                      <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-                        {report.status === 'completed' ? 'Concluído' : 'Registrado'}
+                      <Badge variant={report.situacao === 'completed' ? 'default' : 'secondary'}>
+                        {report.situacao === 'completed' ? 'Concluído' : 'Registrado'}
                       </Badge>
                     </div>
 
@@ -225,12 +225,12 @@ function RASReportView({ report, aircraftRegistration, onBack }: RASReportViewPr
       }
 
       // Description
-      if (report.description) {
+      if (report.descricao) {
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'normal');
 
         // Draw description box
-        const descLines = pdf.splitTextToSize(report.description, pageWidth - margin * 2 - 10);
+        const descLines = pdf.splitTextToSize(report.descricao, pageWidth - margin * 2 - 10);
         const descHeight = descLines.length * 5 + 10;
 
         pdf.setFillColor(245, 245, 245);
@@ -322,9 +322,9 @@ function RASReportView({ report, aircraftRegistration, onBack }: RASReportViewPr
               </div>
             )}
 
-            {report.description && (
+            {report.descricao && (
               <div className="bg-muted/30 p-4 rounded-lg border">
-                <p className="text-sm whitespace-pre-wrap">{report.description}</p>
+                <p className="text-sm whitespace-pre-wrap">{report.descricao}</p>
               </div>
             )}
           </div>

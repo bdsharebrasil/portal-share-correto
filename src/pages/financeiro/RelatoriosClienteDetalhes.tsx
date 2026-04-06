@@ -22,20 +22,21 @@ import {
 } from "@/components/ui/select";
 
 type TravelReport = {
+  observacoes: string;
   id?: string;
-  report_number: string;
-  client_id: string;
+  numero_relatorio: string;
+  clientes_id: string;
   client: string;
-  aircraft_id: string;
+  aeronave_id: string;
   aircraft_registration: string;
   crew_member_id: string;
   crew_member_name: string;
   crew_member_id2: string;
   crew_member_name2: string;
-  route: string;
-  start_date: string;
-  end_date: string;
-  days_count: number;
+  rota: string;
+  data_inicio: string;
+  data_fim: string;
+  dias_count: number;
   observations: string;
   expenses: any[];
   total_amount: number;
@@ -50,7 +51,7 @@ type TravelReport = {
   total_client: number;
   total_sharebrasil: number;
   status: 'Rascunho' | 'Finalizado' | 'Enviado';
-  pdf_url?: string;
+  url_pdf?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -82,13 +83,13 @@ export default function RelatoriosClienteDetalhes() {
 
       // Get client name first
       const { data: clientData } = await supabase
-        .from('clients')
-        .select('company_name')
+        .from('clientes')
+        .select('razao_social')
         .eq('id', clientId)
         .single();
 
       if (clientData) {
-        setClientName(clientData.company_name);
+        setClientName(clientData.razao_social);
       }
 
       // Get reports for this client
@@ -96,12 +97,12 @@ export default function RelatoriosClienteDetalhes() {
         .from('travel_expense_reports')
         .select(`
           *,
-          client_id_rel:client_id(company_name),
-          partner_id_rel:client_partner(name)
+          clientes_id_rel:clientes_id(razao_social),
+          partner_id_rel:socios_cliente_id(nome)
         `)
-        .eq('client_id', clientId)
+        .eq('clientes_id', clientId)
         .in('status', ['Finalizado', 'Enviado'])
-        .order('start_date', { ascending: false });
+        .order('data_inicio', { ascending: false });
 
       if (error) {
         toast.error('❌ Erro ao carregar relatórios');
@@ -120,15 +121,15 @@ export default function RelatoriosClienteDetalhes() {
           }
         })();
 
-        const clientName = r.client_partner && r.partner_id_rel?.name
-          ? r.partner_id_rel.name
-          : r.client_id_rel?.company_name || '';
+        const clientName = r.socios_cliente_id && r.partner_id_rel?.nome
+          ? r.partner_id_rel.nome
+          : r.clientes_id_rel?.razao_social || '';
 
         return {
           ...r,
           client: clientName,
           expenses: expenses,
-          status: r.status
+          status: r.situacao
         };
       });
 
@@ -149,13 +150,13 @@ export default function RelatoriosClienteDetalhes() {
       }
 
       // Filter by report number
-      if (searchNumber && !report.report_number.toLowerCase().includes(searchNumber.toLowerCase())) {
+      if (searchNumber && !report.numero_relatorio.toLowerCase().includes(searchNumber.toLowerCase())) {
         return false;
       }
 
       // Filter by month and year
       if (selectedMonth || selectedYear) {
-        const reportDate = parseISO(report.start_date);
+        const reportDate = parseISO(report.data_inicio);
         const reportMonth = (reportDate.getMonth() + 1).toString();
         const reportYear = reportDate.getFullYear().toString();
 
@@ -185,7 +186,7 @@ export default function RelatoriosClienteDetalhes() {
   const months = useMemo(() => {
     const monthSet = new Set<string>();
     reports.forEach(report => {
-      const month = (parseISO(report.start_date).getMonth() + 1).toString();
+      const month = (parseISO(report.data_inicio).getMonth() + 1).toString();
       monthSet.add(month);
     });
     return Array.from(monthSet).sort();
@@ -194,7 +195,7 @@ export default function RelatoriosClienteDetalhes() {
   const years = useMemo(() => {
     const yearSet = new Set<string>();
     reports.forEach(report => {
-      const year = parseISO(report.start_date).getFullYear().toString();
+      const year = parseISO(report.data_inicio).getFullYear().toString();
       yearSet.add(year);
     });
     return Array.from(yearSet).sort((a, b) => parseInt(b) - parseInt(a));
@@ -207,20 +208,20 @@ export default function RelatoriosClienteDetalhes() {
 
       const correctedTotals = calculateReportTotals(report.expenses || []);
       const pdfReport: PDFTravelReport = {
-        numero: report.report_number,
+        numero: report.numero_relatorio,
         cliente_nome: report.client,
-        aeronave: report.aircraft_registration,
+        aeronave: report.matricula_aeronave,
         tripulante: report.crew_member_name,
         tripulante2: report.crew_member_name2,
-        trecho: report.route,
-        destino: report.route,
-        data_inicio: report.start_date,
-        data_fim: report.end_date,
-        observacoes: report.observations,
+        trecho: report.rota,
+        destino: report.rota,
+        data_inicio: report.data_inicio,
+        data_fim: report.data_fim,
+        observacoes: report.observacoes,
         despesas: (report.expenses || []).map(e => ({
-          categoria: e.category,
-          descricao: e.description,
-          valor: e.amount,
+          categoria: e.categoria,
+          descricao: e.descricao,
+          valor: e.valor,
           pago_por: e.paid_by,
           data: (e as any).expense_date || '',
           comprovante_url: e.receipt_url
@@ -430,7 +431,7 @@ export default function RelatoriosClienteDetalhes() {
                     <div className="mb-3 sm:mb-0 min-w-[240px] flex-1">
                       <div className="flex items-start gap-3 mb-2">
                         <div className="flex-1">
-                          <p className="font-semibold text-foreground text-base">{report.report_number}</p>
+                          <p className="font-semibold text-foreground text-base">{report.numero_relatorio}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className={cn("inline-block text-xs font-bold px-3 py-1 rounded-full ring-1", statusBadgeColors[report.status])}>
                               {report.status}
@@ -439,10 +440,10 @@ export default function RelatoriosClienteDetalhes() {
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground font-medium">
-                        {report.aircraft_registration}
+                        {report.matricula_aeronave}
                       </p>
                       <p className="text-xs text-muted-foreground/70 mt-1">
-                        {format(parseISO(report.start_date), "dd MMM", { locale: ptBR })} a {format(parseISO(report.end_date), "dd MMM yyyy", { locale: ptBR })}
+                        {format(parseISO(report.data_inicio), "dd MMM", { locale: ptBR })} a {format(parseISO(report.data_fim), "dd MMM yyyy", { locale: ptBR })}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">

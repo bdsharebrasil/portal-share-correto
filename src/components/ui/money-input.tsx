@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface MoneyInputProps extends Omit<React.ComponentProps<"input">, "type"> {
+interface MoneyInputProps extends Omit<React.ComponentProps<"input">, "tipo"> {
   value?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onValueChange?: (value: string) => void;

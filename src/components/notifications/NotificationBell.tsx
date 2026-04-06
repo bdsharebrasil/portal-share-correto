@@ -193,14 +193,14 @@ function NotificationBell() {
                   onClick={() => !notification.read && markAsRead(notification.id)}
                 >
                   <div className="flex items-start gap-2">
-                    <div className={`mt-1 ${getNotificationColor(notification.type)}`}>
+                    <div className={`mt-1 ${getNotificationColor(notification.tipo)}`}>
                       <Bell className="h-4 w-4" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <p className="font-medium text-sm">{notification.title}</p>
                       <p className="text-xs text-muted-foreground">{notification.message}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDate(notification.created_at)}
+                        {formatDate(notification.criado_em)}
                       </p>
                     </div>
                     {!notification.read && (

@@ -156,7 +156,7 @@ export default function Cobranca() {
                   <TableRow key={cobranca.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        {getStatusIcon(cobranca.status)}
+                        {getStatusIcon(cobranca.situacao)}
                         {cobranca.cliente}
                       </div>
                     </TableCell>
@@ -165,13 +165,13 @@ export default function Cobranca() {
                       {formatCurrency(cobranca.valor)}
                     </TableCell>
                     <TableCell>{cobranca.vencimento}</TableCell>
-                    <TableCell>{getStatusBadge(cobranca.status)}</TableCell>
+                    <TableCell>{getStatusBadge(cobranca.situacao)}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm">
                           Ver Detalhes
                         </Button>
-                        {cobranca.status !== "Paga" && (
+                        {cobranca.situacao !== "Paga" && (
                           <Button variant="default" size="sm">
                             <Send className="h-3 w-3 mr-1" />
                             Enviar

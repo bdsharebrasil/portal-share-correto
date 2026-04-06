@@ -113,7 +113,7 @@ export function CreateMonthDialog({
     setLoading(true);
     try {
       await onCreate({
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         month: selectedMonth,
         year: selectedYear,
         celula_anterior: formData.celula_anterior,

@@ -1,20 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export interface Aircraft {
+export interface Aeronave {
   id: string;
-  registration: string;
-  model: string;
+  matricula: string;
+  modelo: string;
   status?: string | null;
 }
 
-export const fetchAircrafts = async (): Promise<Aircraft[]> => {
+export const fetchAeronaves = async (): Promise<Aeronave[]> => {
   const { data, error } = await supabase
-    .from("aircraft")
-    .select("id, registration, model, status")
-    .order("registration");
+    .from("aeronave")
+    .select('id, matricula, modelo, status')
+    .order("matricula");
   if (error) throw error;
   return data || [];
 };
+
+// Backward compatibility
+export const fetchAircrafts = fetchAeronaves;
+export type Aircraft = Aeronave;
 
 export const createMaintenance = async (payload: {
   aeronave_id: string;

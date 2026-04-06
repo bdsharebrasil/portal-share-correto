@@ -2,20 +2,20 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
 type FlightScheduleRow = Database["public"]["Tables"]["flight_schedules"]["Row"];
-type AircraftRow = Database["public"]["Tables"]["aircraft"]["Row"];
-type ClientRow = Database["public"]["Tables"]["clients"]["Row"];
-type CrewMemberRow = Database["public"]["Tables"]["crew_members"]["Row"];
+type AeronaveRow = Database["public"]["Tables"]["aeronave"]["Row"];
+type ClientRow = Database["public"]["Tables"]["clientes"]["Row"];
+type CrewMemberRow = Database["public"]["Tables"]["membros_tripulacao"]["Row"];
 type FlightPlanRow = Database["public"]["Tables"]["flight_plans"]["Row"];
 
 type FlightScheduleRelations = {
-  aircraft?: Pick<AircraftRow, "id" | "registration" | "model"> | null;
-  clients?: Pick<ClientRow, "id" | "company_name"> | null;
+  aircraft?: Pick<AeronaveRow, "id" | "registration" | "model"> | null;
+  clients?: Pick<ClientRow, "id" | "razao_social"> | null;
   flight_plans?: Pick<FlightPlanRow, "id">[] | null;
 };
 
 export type FlightScheduleWithDetails = FlightScheduleRow &
   FlightScheduleRelations & {
-    crew_members?: Pick<CrewMemberRow, "full_name"> | null;
+    crew_members?: Pick<CrewMemberRow, "nome_completo"> | null;
   };
 
 type FetchFlightSchedulesOptions = {
@@ -29,7 +29,7 @@ export async function fetchFlightSchedulesWithDetails(
   const { status, includeFlightPlans = false } = options;
 
   let selectString =
-    "*, aircraft:aircraft_id(id, registration, model)";
+    "*, aircraft:aeronave_id(id, registration, model)";
 
   if (includeFlightPlans) {
     selectString += ", flight_plans(id)";
@@ -73,14 +73,14 @@ export async function fetchFlightSchedulesWithDetails(
     const rows = (baseRows ?? []) as Tables<'flight_schedules'>[];
 
     // Collect IDs
-    const aircraftIds = Array.from(new Set(rows.map(r => r.aircraft_id).filter((v): v is string => Boolean(v))));
+    const aircraftIds = Array.from(new Set(rows.map(r => r.aeronave_id).filter((v): v is string => Boolean(v))));
 
     // Fetch related tables
-    const { data: aircraftRows } = await (aircraftIds.length ? supabase.from("aircraft").select("id, registration, model").in("id", aircraftIds) : Promise.resolve({ data: [], error: null } as any));
+    const { data: aircraftRows } = await (aircraftIds.length ? supabase.from('aeronave').select('id, matricula, modelo').in("id", aircraftIds) : Promise.resolve({ data: [], error: null } as any));
 
-    const aircraftMap = new Map<string, Pick<AircraftRow, "id" | "registration" | "model">>();
+    const aircraftMap = new Map<string, Pick<AeronaveRow, "id" | "registration" | "model">>();
 
-    (aircraftRows as Pick<AircraftRow, "id" | "registration" | "model">[] | undefined)?.forEach(a => aircraftMap.set(a.id, a));
+    (aircraftRows as Pick<AeronaveRow, "id" | "registration" | "model">[] | undefined)?.forEach(a => aircraftMap.set(a.id, a));
 
     let plansBySchedule = new Map<string, Pick<FlightPlanRow, "id">[]>();
     if (includeFlightPlans) {
@@ -95,7 +95,7 @@ export async function fetchFlightSchedulesWithDetails(
 
     schedules = rows.map((r) => ({
       ...(r as any),
-      aircraft: r.aircraft_id ? aircraftMap.get(r.aircraft_id) ?? null : null,
+      aircraft: r.aeronave_id ? aircraftMap.get(r.aeronave_id) ?? null : null,
       clients: null,
       flight_plans: includeFlightPlans ? plansBySchedule.get(r.id) ?? [] : null,
     }));
@@ -111,12 +111,12 @@ export async function fetchFlightSchedulesWithDetails(
     )
   );
 
-  let crewMap = new Map<string, CrewMemberRow["full_name"] | null>();
+  let crewMap = new Map<string, CrewMemberRow["nome_completo"] | null>();
 
   if (crewIds.length > 0) {
     const { data: crewData, error: crewError } = await supabase
-      .from("crew_members")
-      .select("id, full_name")
+      .from("membros_tripulacao")
+      .select("id, nome_completo")
       .in("id", crewIds);
 
     if (crewError) {
@@ -124,14 +124,14 @@ export async function fetchFlightSchedulesWithDetails(
     }
 
     (crewData ?? []).forEach((crew) => {
-      crewMap.set(crew.id, crew.full_name ?? null);
+      crewMap.set(crew.id, crew.nome_completo ?? null);
     });
   }
 
   return schedules.map((schedule) => ({
     ...schedule,
     crew_members: schedule.crew_member_id
-      ? { full_name: crewMap.get(schedule.crew_member_id) ?? null }
+      ? { nome_completo: crewMap.get(schedule.crew_member_id) ?? null }
       : null,
   }));
 }

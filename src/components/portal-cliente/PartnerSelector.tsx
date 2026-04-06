@@ -37,10 +37,10 @@ export function PartnerSelector({
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('client_partners')
-        .select('name, cpf, share_percentage')
-        .eq('client_id', clientId)
-        .order('created_at');
+        .from('socios_cliente')
+        .select('nome, cpf, percentual_participacao')
+        .eq('cliente_id', clientId)
+        .order('criado_em');
 
       if (error) {
         console.error('Erro ao buscar sócios:', error);
@@ -50,9 +50,9 @@ export function PartnerSelector({
 
       const partnersList: PartnerInfo[] = (data || []).map((partner, index) => ({
         index: index + 1,
-        name: partner.name,
+        name: partner.nome,
         cpf: partner.cpf || undefined,
-        percentage: partner.share_percentage || 33.33
+        percentage: partner.percentual_participacao || 33.33
       }));
 
       setPartners(partnersList);
@@ -149,7 +149,7 @@ export function PartnerSelector({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-lg font-semibold text-foreground truncate">
-                    {partner.name}
+                    {partner.nome}
                   </p>
                   {partner.cpf && (
                     <p className="text-xs text-muted-foreground">

@@ -52,7 +52,7 @@ export function ClientCombobox({ clients, value, onChange, disabled }: ClientCom
           <div className="flex items-center gap-2 truncate">
             <Building2 className="h-4 w-4 flex-shrink-0 text-muted-foreground/70" />
             <span className="truncate text-sm tracking-tight">
-              {selectedClient ? selectedClient.name : "Selecione um cliente..."}
+              {selectedClient ? selectedClient.nome : "Selecione um cliente..."}
             </span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -75,9 +75,9 @@ export function ClientCombobox({ clients, value, onChange, disabled }: ClientCom
               {clients.map((client) => (
                 <CommandItem
                   key={client.id}
-                  value={client.name} // O Command usa o value internamente para a busca (texto)
+                  value={client.nome} // O Command usa o value internamente para a busca (texto)
                   onSelect={() => {
-                    onChange(client.id, client.name)
+                    onChange(client.id, client.nome)
                     setOpen(false)
                   }}
                   className="flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary transition-colors"
@@ -92,7 +92,7 @@ export function ClientCombobox({ clients, value, onChange, disabled }: ClientCom
                     "truncate",
                     value === client.id ? "font-semibold" : "font-medium text-foreground/80"
                   )}>
-                    {client.name}
+                    {client.nome}
                   </span>
                 </CommandItem>
               ))}

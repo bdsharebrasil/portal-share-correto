@@ -49,7 +49,7 @@ export interface AppState {
 export interface FlightEntry {
   id?: string;
   logbook_month_id?: string | null;
-  aircraft_id?: string;
+  aeronave_id?: string;
   entry_date: string;
   departure_aerodrome: string;
   arrival_aerodrome: string;
@@ -147,7 +147,7 @@ export interface Aerodrome {
  */
 export interface LogbookMonth {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   month: number;
   year: number;
   base_aerodrome?: string;

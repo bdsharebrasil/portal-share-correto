@@ -264,7 +264,7 @@ export async function syncBankReconciliationToFinancial(
 
     // Buscar dados da reconciliação
     const { data: reconciliation, error: fetchError } = await (supabase as any)
-      .from('bank_reconciliations')
+      .from('conciliacoes_bancarias')
       .select('*')
       .eq('id', reconciliationId)
       .single();
@@ -277,21 +277,21 @@ export async function syncBankReconciliationToFinancial(
     // Criar entrada no controle_bancario se ainda não existir
     if (!reconciliation.controle_bancario_id) {
       const entry = {
-        data: reconciliation.date,
-        tipo_movimento: reconciliation.type === 'receita' ? 'entrada' : 'saida',
+        data: reconciliation.data,
+        tipo_movimento: reconciliation.tipo === 'receita' ? 'entrada' : 'saida',
         categoria_id: reconciliation.categoria_movimentacao_id,
-        descricao: reconciliation.description,
-        valor: reconciliation.amount,
+        descricao: reconciliation.descricao,
+        valor: reconciliation.valor,
         conta_banco: 'Conta Principal',
-        status: reconciliation.status === 'conciliado' ? 'pago' : 'pendente',
-        client_id: reconciliation.client_id,
-        aeronave_id: reconciliation.aircraft_id,
+        status: reconciliation.situacao === 'conciliado' ? 'pago' : 'pendente',
+        client_id: reconciliation.cliente_id,
+        aeronave_id: reconciliation.aeronave_id,
         comprovante_url: reconciliation.comprovante_url,
         nf_url: reconciliation.nf_url,
         boleto_url: reconciliation.boleto_url,
         criado_por: userId,
         atualizado_por: userId,
-        grupo_categoria: reconciliation.category || 'OUTROS',
+        grupo_categoria: reconciliation.categoria || 'OUTROS',
         reembolsavel: false,
       };
 
@@ -308,7 +308,7 @@ export async function syncBankReconciliationToFinancial(
 
       // Atualizar reconciliação com o ID do controle_bancario
       await (supabase as any)
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .update({ controle_bancario_id: newEntry.id })
         .eq('id', reconciliationId);
 
@@ -356,7 +356,7 @@ export async function deleteReconciliationFromFinancial(reconciliationId: string
     
     // Buscar e deletar entrada do controle_bancario associada
     const { data: reconciliation } = await (supabase as any)
-      .from('bank_reconciliations')
+      .from('conciliacoes_bancarias')
       .select('controle_bancario_id')
       .eq('id', reconciliationId)
       .single();

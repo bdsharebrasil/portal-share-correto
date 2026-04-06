@@ -83,7 +83,7 @@ export function RelatorioFinanceiro() {
       .reduce((sum, m) => sum + parseFloat(m.valor), 0);
 
     const pendentes = agendamentos
-      .filter(a => a.status === 'agendado')
+      .filter(a => a.situacao === 'agendado')
       .reduce((sum, a) => sum + parseFloat(a.valor), 0);
 
     return { entradas, saidas, saldo: entradas - saidas, pendentes };
@@ -153,7 +153,7 @@ export function RelatorioFinanceiro() {
       Categoria: m.categoria,
       Tipo: m.tipo_movimento,
       Valor: parseFloat(m.valor).toFixed(2),
-      Status: m.status
+      Status: m.situacao
     }));
 
     const csv = [
@@ -284,7 +284,7 @@ export function RelatorioFinanceiro() {
               R$ {totals.pendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {agendamentos.filter(a => a.status === 'agendado').length} agendados
+              {agendamentos.filter(a => a.situacao === 'agendado').length} agendados
             </p>
           </CardContent>
         </Card>
@@ -380,7 +380,7 @@ export function RelatorioFinanceiro() {
                 <BarChart data={categoriaData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis dataKey="name" type="category" width={150} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis dataKey="nome" type="categoria" width={150} stroke="hsl(var(--muted-foreground))" fontSize={11} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',

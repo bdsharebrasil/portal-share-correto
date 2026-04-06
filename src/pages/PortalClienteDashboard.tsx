@@ -43,9 +43,9 @@ const PortalClienteDashboard = () => {
     const parsed = JSON.parse(sessionData);
     const parsedSession: ClientSession = {
       clientId: parsed.clientId,
-      aircraftId: parsed.aircraftId,
+      aircraftId: parsed.aeronaveId,
       clientName: parsed.clientName || parsed.companyName,
-      registration: parsed.aircraftInfo?.registration || parsed.registration,
+      registration: parsed.aeronaveInfo?.registration || parsed.registration,
       sharePercentage: parsed.sharePercentage || 0,
     };
 
@@ -57,36 +57,36 @@ const PortalClienteDashboard = () => {
     try {
       // Dados do cliente (empresa) - para exibir informações completas no portal
       const { data: clientData } = await supabase
-        .from("clients")
-        .select("company_name, cnpj, email, phone, address, city, uf")
+        .from("clientes")
+        .select("razao_social, cnpj, email, phone, address, city, uf")
         .eq("id", s.clientId)
         .maybeSingle();
 
       if (clientData) {
         setClientDetails({
-          company_name: clientData.company_name ?? null,
+          company_name: clientData.razao_social ?? null,
           cnpj: clientData.cnpj ?? null,
           email: clientData.email ?? null,
-          phone: clientData.phone ?? null,
-          address: clientData.address ?? null,
-          city: clientData.city ?? null,
+          phone: clientData.telefone ?? null,
+          address: clientData.endereco ?? null,
+          city: clientData.cidade ?? null,
           uf: clientData.uf ?? null,
         });
       }
 
       // Load pending payments from bank_reconciliations (inclui status null)
       const { data: bankData } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .select("amount, saldo_pendente, status")
-        .eq("client_id", s.clientId)
+        .eq("cliente_id", s.clientId)
         .or("status.is.null,status.in.(pendente,enviado,aberto)") as any;
 
-      // Load pending receipts (reembolsos) from receipts table (inclui status null)
+      // Load pending receipts (reembolsos) from recibos table (inclui status null)
       const { data: receiptsData } = await supabase
-        .from("receipts")
-        .select("amount, status")
-        .eq("client_id", s.clientId)
-        .eq("receipt_type", "reembolso")
+        .from("recibos")
+        .select("valor, status")
+        .eq("cliente_id", s.clientId)
+        .eq("tipo_recibo", "reembolso")
         .or("status.is.null,status.in.(pendente,enviado,aberto)") as any;
 
       let totalCount = 0;
@@ -95,7 +95,7 @@ const PortalClienteDashboard = () => {
       if (bankData) {
         totalCount += bankData.length;
         totalAmount += bankData.reduce((sum: number, p: any) => {
-          const valor = p.saldo_pendente ?? p.amount ?? 0;
+          const valor = p.saldo_pendente ?? p.valor ?? 0;
           return sum + Number(valor || 0);
         }, 0);
       }
@@ -103,7 +103,7 @@ const PortalClienteDashboard = () => {
       if (receiptsData) {
         totalCount += receiptsData.length;
         totalAmount += receiptsData.reduce((sum: number, r: any) => {
-          return sum + Math.abs(Number(r.amount || 0));
+          return sum + Math.abs(Number(r.valor || 0));
         }, 0);
       }
 
@@ -114,10 +114,10 @@ const PortalClienteDashboard = () => {
 
       // Load files
       const { data: filesData } = await supabase
-        .from("client_portal_files")
+        .from("arquivos_portal_cliente")
         .select("*")
-        .eq("client_id", s.clientId)
-        .order("created_at", { ascending: false })
+        .eq("cliente_id", s.clientId)
+        .order("criado_em", { ascending: false })
         .limit(5);
 
       if (filesData) setFiles(filesData);
@@ -141,26 +141,26 @@ const PortalClienteDashboard = () => {
           <div className="flex justify-between items-start bg-card border border-border rounded-lg p-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
-                {clientDetails?.company_name || session.clientName}
+                {clientDetails?.razao_social || session.clientName}
               </h1>
               <p className="text-muted-foreground text-sm md:text-base">
                 Aeronave: {session.registration} • {session.sharePercentage}% de participação
               </p>
-              {(clientDetails?.cnpj || clientDetails?.email || clientDetails?.phone || clientDetails?.address) && (
+              {(clientDetails?.cnpj || clientDetails?.email || clientDetails?.telefone || clientDetails?.endereco) && (
                 <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                   {clientDetails?.cnpj && <p>CNPJ: {clientDetails.cnpj}</p>}
-                  {(clientDetails?.email || clientDetails?.phone) && (
+                  {(clientDetails?.email || clientDetails?.telefone) && (
                     <p>
                       {clientDetails?.email ? `Email: ${clientDetails.email}` : ""}
-                      {clientDetails?.email && clientDetails?.phone ? " • " : ""}
-                      {clientDetails?.phone ? `Tel: ${clientDetails.phone}` : ""}
+                      {clientDetails?.email && clientDetails?.telefone ? " • " : ""}
+                      {clientDetails?.telefone ? `Tel: ${clientDetails.telefone}` : ""}
                     </p>
                   )}
-                  {clientDetails?.address && (
+                  {clientDetails?.endereco && (
                     <p>
-                      Endereço: {clientDetails.address}
-                      {(clientDetails.city || clientDetails.uf) &&
-                        `, ${clientDetails.city || ""}${clientDetails.city && clientDetails.uf ? " - " : ""}${clientDetails.uf || ""}`}
+                      Endereço: {clientDetails.endereco}
+                      {(clientDetails.cidade || clientDetails.uf) &&
+                        `, ${clientDetails.cidade || ""}${clientDetails.cidade && clientDetails.uf ? " - " : ""}${clientDetails.uf || ""}`}
                     </p>
                   )}
                 </div>
@@ -208,8 +208,8 @@ const PortalClienteDashboard = () => {
           {/* Client Data Tabs */}
           <ClientDataTabs
             clientId={session.clientId}
-            clientName={clientDetails?.company_name || session.clientName}
-            aircraftId={session.aircraftId}
+            clientName={clientDetails?.razao_social || session.clientName}
+            aircraftId={session.aeronaveId}
             aircraftRegistration={session.registration}
             isAdmin={false}
           />
@@ -220,4 +220,3 @@ const PortalClienteDashboard = () => {
 };
 
 export default PortalClienteDashboard;
-

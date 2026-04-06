@@ -12,9 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Calendar, Plus, Trash2, Upload, X } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
-type CrewMember = Database['public']['Tables']['crew_members']['Row'];
-type CrewLicense = Database['public']['Tables']['crew_licenses']['Row'];
-type LicenseInsert = Database['public']['Tables']['crew_licenses']['Insert'];
+type CrewMember = Database['public']['Tables']['membros_tripulacao']['Row'];
+type CrewLicense = Database['public']['Tables']['habilitacoes_tripulante']['Row'];
+type LicenseInsert = Database['public']['Tables']['habilitacoes_tripulante']['Insert'];
 
 interface CrewMemberWithLicenses extends CrewMember {
   licenses: CrewLicense[];
@@ -36,11 +36,11 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
   // Form state
   const [formData, setFormData] = useState({
     canac: '',
-    full_name: '',
-    birth_date: '',
+    nome_completo: '',
+    data_nascimento: '',
     email: '',
-    phone: '',
-    photo_url: '',
+    telefone: '',
+    url_avatar: '',
   });
 
   const [licenses, setLicenses] = useState<Partial<LicenseInsert>[]>([]);
@@ -52,14 +52,14 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
     if (crewMember) {
       setFormData({
         canac: crewMember.canac,
-        full_name: crewMember.full_name,
-        birth_date: crewMember.birth_date,
+        nome_completo: crewMember.nome_completo,
+        data_nascimento: crewMember.data_nascimento || '',
         email: (crewMember as any).email || '',
-        phone: crewMember.phone || '',
-        photo_url: crewMember.avatar_url || '',
+        telefone: crewMember.telefone || '',
+        url_avatar: crewMember.url_avatar || '',
       });
       setLicenses(crewMember.licenses || []);
-      setPhotoPreview(crewMember.avatar_url || '');
+      setPhotoPreview(crewMember.url_avatar || '');
       setPhotoFile(null);
     } else {
       resetForm();
@@ -69,11 +69,11 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
   const resetForm = () => {
     setFormData({
       canac: '',
-      full_name: '',
-      birth_date: '',
+      nome_completo: '',
+      data_nascimento: '',
       email: '',
-      phone: '',
-      photo_url: '',
+      telefone: '',
+      url_avatar: '',
     });
     setLicenses([]);
     setPhotoFile(null);
@@ -107,17 +107,17 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
     setLoading(true);
 
     try {
-      let photoUrl = formData.photo_url;
+      let photoUrl = formData.url_avatar;
 
       if (photoFile) {
         photoUrl = await uploadPhoto(photoFile);
       }
 
-      const dataToSave = { ...formData, photo_url: photoUrl };
+      const dataToSave = { ...formData, url_avatar: photoUrl };
 
       if (crewMember) {
         const { error: memberError } = await supabase
-          .from('crew_members')
+          .from('membros_tripulacao')
           .update(dataToSave)
           .eq('id', crewMember.id);
 
@@ -125,18 +125,18 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
 
         // Delete existing licenses and insert new ones
         await supabase
-          .from('crew_licenses')
+          .from('habilitacoes_tripulante')
           .delete()
-          .eq('crew_member_id', crewMember.id);
+          .eq('membro_tripulacao_id', crewMember.id);
 
         if (licenses.length > 0) {
           const licensesToInsert = licenses.map(l => ({
             ...l,
-            crew_member_id: crewMember.id,
+            membro_tripulacao_id: crewMember.id,
           }));
 
           const { error: licensesError } = await supabase
-            .from('crew_licenses')
+            .from('habilitacoes_tripulante')
             .insert(licensesToInsert as LicenseInsert[]);
 
           if (licensesError) throw licensesError;
@@ -148,7 +148,7 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
         });
       } else {
         const { data: newMember, error: memberError } = await supabase
-          .from('crew_members')
+          .from('membros_tripulacao')
           .insert([dataToSave])
           .select()
           .single();
@@ -159,11 +159,11 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
         if (licenses.length > 0) {
           const licensesToInsert = licenses.map(l => ({
             ...l,
-            crew_member_id: newMember.id,
+            membro_tripulacao_id: newMember.id,
           }));
 
           const { error: licensesError } = await supabase
-            .from('crew_licenses')
+            .from('habilitacoes_tripulante')
             .insert(licensesToInsert as LicenseInsert[]);
 
           if (licensesError) throw licensesError;
@@ -190,9 +190,9 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
 
   const addLicense = () => {
     setLicenses([...licenses, {
-      license_type: 'CMA',
-      license_number: '',
-      expiry_date: '',
+      tipo_habilitacao: 'CMA',
+      numero_habilitacao: '',
+      data_validade: '',
     }]);
   };
 
@@ -249,7 +249,7 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
 
   const clearPhoto = () => {
     setPhotoFile(null);
-    setPhotoPreview(crewMember?.avatar_url || '');
+    setPhotoPreview(crewMember?.url_avatar || '');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -288,24 +288,24 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                   <Label htmlFor="birth_date">Data de Nascimento *</Label>
                   <Input
                     id="birth_date"
-                    type="date"
+                    type="data"
                     required
-                    value={formData.birth_date}
-                    onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                    value={formData.data_nascimento}
+                    onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="full_name">Nome Completo *</Label>
-                <Input
-                  id="full_name"
-                  required
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  placeholder="Nome completo do tripulante"
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Nome Completo *</Label>
+                  <Input
+                    id="full_name"
+                    required
+                    value={formData.nome_completo}
+                    onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
+                    placeholder="Nome completo do tripulante"
+                  />
+                </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -320,11 +320,11 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
+                  <Label htmlFor="telefone">Telefone</Label>
                   <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    id="telefone"
+                    value={formData.telefone}
+                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                     placeholder="(00) 00000-0000"
                   />
                 </div>
@@ -334,9 +334,9 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                 <Label>Foto do Perfil</Label>
                 <div className="flex items-center gap-4">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={photoPreview || formData.photo_url} />
+                    <AvatarImage src={photoPreview || formData.url_avatar} />
                     <AvatarFallback>
-                      {formData.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      {formData.nome_completo.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col gap-2">
@@ -387,15 +387,15 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
 
               <div className="space-y-3">
                 {licenses.map((license, index) => {
-                  const status = getLicenseStatus(license.expiry_date || '');
+                  const status = getLicenseStatus(license.data_validade || '');
                   return (
                     <Card key={index}>
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex items-center gap-2">
                             <select
-                              value={license.license_type}
-                              onChange={(e) => updateLicense(index, 'license_type', e.target.value)}
+                              value={license.tipo_habilitacao}
+                              onChange={(e) => updateLicense(index, 'tipo_habilitacao', e.target.value)}
                               className="px-3 py-1.5 rounded-md border border-input bg-background"
                             >
                               {LICENSE_TYPES.map(type => (
@@ -420,8 +420,8 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                           <div className="space-y-1">
                             <Label className="text-xs">Número</Label>
                             <Input
-                              value={license.license_number || ''}
-                              onChange={(e) => updateLicense(index, 'license_number', e.target.value)}
+                              value={license.numero_habilitacao || ''}
+                              onChange={(e) => updateLicense(index, 'numero_habilitacao', e.target.value)}
                               placeholder="Número"
                               size={1}
                             />
@@ -429,10 +429,10 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                           <div className="space-y-1">
                             <Label className="text-xs">Vencimento *</Label>
                             <Input
-                              type="date"
+                              type="data"
                               required
-                              value={license.expiry_date || ''}
-                              onChange={(e) => updateLicense(index, 'expiry_date', e.target.value)}
+                              value={license.data_validade || ''}
+                              onChange={(e) => updateLicense(index, 'data_validade', e.target.value)}
                             />
                           </div>
                         </div>

@@ -1,14 +1,21 @@
 import { supabase } from '@/integrations/supabase/client';
 
+// ---------------------------------------------------------------------------
+// Expense — campos em inglês alinhados ao schema (despesas salvas como JSON)
+// ---------------------------------------------------------------------------
 export interface Expense {
+  id?: string;
   category: string;
   description: string;
   amount: number;
   paid_by: string;
   receipt_url?: string;
-  id?: string;
+  expense_date?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Totals
+// ---------------------------------------------------------------------------
 export interface TravelTotals {
   total_fuel: number;
   total_lodging: number;
@@ -23,6 +30,10 @@ export interface TravelTotals {
   total_amount: number;
 }
 
+// ---------------------------------------------------------------------------
+// Shape used by enrichReportWithCorrectTotals / getCrewTotalsWithNames
+// Fields match travel_expense_reports columns
+// ---------------------------------------------------------------------------
 export interface TravelReportWithTotals {
   total_fuel: number;
   total_lodging: number;
@@ -35,20 +46,17 @@ export interface TravelReportWithTotals {
   total_client: number;
   total_sharebrasil: number;
   total_amount: number;
-  crew_member_name?: string;
-  crew_member_name_2?: string;
+  nome_tripulante?: string;       // was crew_member_name
+  nome_tripulante_2?: string;     // was crew_member_name_2
   [key: string]: any;
 }
 
+// ---------------------------------------------------------------------------
+// calculateReportTotals
+// ---------------------------------------------------------------------------
 /**
- * Recalcula todos os totais de um relatório a partir das despesas.
- * Esta função deve ser chamada SEMPRE que um relatório é carregado ou processado
- * para garantir que os totais estão corretos, mesmo se foram salvos com lógica antiga.
- * 
- * Suporta separação de pagamentos entre Tripulante 1 e Tripulante 2.
- * 
- * @param expenses - Array de despesas do relatório
- * @returns Objeto com todos os totais recalculados
+ * Recalcula todos os totais a partir das despesas.
+ * Deve ser chamada sempre que um relatório é carregado ou processado.
  */
 export function calculateReportTotals(expenses: Expense[]): TravelTotals {
   const totals: TravelTotals = {
@@ -65,193 +73,150 @@ export function calculateReportTotals(expenses: Expense[]): TravelTotals {
     total_amount: 0,
   };
 
-  if (!expenses || !Array.isArray(expenses)) {
-    return totals;
-  }
+  if (!Array.isArray(expenses)) return totals;
 
-  expenses.forEach((expense) => {
+  for (const expense of expenses) {
     const amount = Number(expense.amount) || 0;
+    if (amount <= 0) continue;
 
-    // Se não há valor válido, pula este item
-    if (amount <= 0) {
-      return;
-    }
-
-    // Acumula por categoria
+    // By category
     switch (expense.category) {
-      case 'Combustível':
-        totals.total_fuel += amount;
-        break;
-      case 'Hospedagem':
-        totals.total_lodging += amount;
-        break;
-      case 'Alimentação':
-        totals.total_food += amount;
-        break;
-      case 'Transporte':
-        totals.total_transport += amount;
-        break;
-      default:
-        totals.total_other += amount;
+      case 'Combustível':  totals.total_fuel      += amount; break;
+      case 'Hospedagem':   totals.total_lodging   += amount; break;
+      case 'Alimentação':  totals.total_food      += amount; break;
+      case 'Transporte':   totals.total_transport += amount; break;
+      default:             totals.total_other     += amount;
     }
 
-    // Acumula por quem pagou - suporta Tripulante 1 e Tripulante 2
+    // By payer — keep backward-compat with old "Tripulante" value
     const paidBy = expense.paid_by || '';
     if (paidBy === 'Tripulante 1' || paidBy === 'Tripulante') {
-      // Compatibilidade com dados antigos que usavam "Tripulante"
       totals.total_crew1 += amount;
-      totals.total_crew += amount;
+      totals.total_crew  += amount;
     } else if (paidBy === 'Tripulante 2') {
       totals.total_crew2 += amount;
-      totals.total_crew += amount;
+      totals.total_crew  += amount;
     } else if (paidBy === 'Cliente') {
       totals.total_client += amount;
     } else if (paidBy === 'ShareBrasil') {
       totals.total_sharebrasil += amount;
     }
-  });
+  }
 
-  // O total geral é a soma dos valores pagos por cada tipo de pagador
-  totals.total_amount = totals.total_crew + totals.total_client + totals.total_sharebrasil;
+  totals.total_amount =
+    totals.total_crew + totals.total_client + totals.total_sharebrasil;
 
   return totals;
 }
 
+// ---------------------------------------------------------------------------
+// enrichReportWithCorrectTotals
+// ---------------------------------------------------------------------------
 /**
- * Enriquece um relatório carregado do banco com totais recalculados.
- * Isto garante que mesmo se os totais no banco estiverem errados (por terem sido
- * calculados com lógica anterior), eles serão corrigidos.
- * 
- * @param report - Relatório carregado do banco
- * @param expenses - Despesas do relatório (já parsed)
- * @returns Relatório com totais recalculados
+ * Enriquece um relatório carregado do banco com totais recalculados,
+ * corrigindo eventuais divergências salvas com lógica anterior.
  */
 export function enrichReportWithCorrectTotals<T extends TravelReportWithTotals>(
   report: T,
-  expenses: Expense[]
+  expenses: Expense[],
 ): T {
-  const correctedTotals = calculateReportTotals(expenses);
-  return {
-    ...report,
-    ...correctedTotals,
-  };
+  return { ...report, ...calculateReportTotals(expenses) };
 }
 
+// ---------------------------------------------------------------------------
+// extractPayerTotals
+// ---------------------------------------------------------------------------
 /**
- * Extrai os totais de pagadores de um relatório para criar conciliações.
- * Isto é essencial para garantir que as conciliações bancárias sejam criadas
- * com os valores CORRETOS, recalculados a partir das despesas.
+ * Extrai os totais por pagador para criação de conciliações bancárias.
  *
- * IMPORTANTE para uso correto em RelatorioViagem.tsx:
- * - Para CLIENTE: amount = totalSharebrasil + totalCrew1 + totalCrew2
- *   (O que o cliente deve pagar = tudo que não foi pago por ele)
- * - Para TRIPULANTE 1: amount = totalCrew1 (reembolso)
- * - Para TRIPULANTE 2: amount = totalCrew2 (reembolso)
- * - Para SHAREBRASIL: amount = totalSharebrasil (custos de operação)
- *
- * @param expenses - Despesas do relatório
- * @returns Objeto com totais por tipo de pagador, incluindo separação por tripulante
+ * - Cliente deve pagar: totalSharebrasil + totalCrew1 + totalCrew2
+ * - Tripulante 1 recebe reembolso: totalCrew1
+ * - Tripulante 2 recebe reembolso: totalCrew2
  */
 export function extractPayerTotals(expenses: Expense[]) {
-  const totals = calculateReportTotals(expenses);
+  const t = calculateReportTotals(expenses);
   return {
-    totalCrew: totals.total_crew,
-    totalCrew1: totals.total_crew1,
-    totalCrew2: totals.total_crew2,
-    totalClient: totals.total_client,
-    totalSharebrasil: totals.total_sharebrasil,
+    totalCrew:        t.total_crew,
+    totalCrew1:       t.total_crew1,
+    totalCrew2:       t.total_crew2,
+    totalClient:      t.total_client,
+    totalSharebrasil: t.total_sharebrasil,
   };
 }
 
-/**
- * Valida se um conjunto de despesas tem pelo menos um item válido.
- * Despesas válidas são aquelas com categoria e valor > 0.
- * 
- * @param expenses - Array de despesas
- * @returns true se há pelo menos uma despesa válida
- */
+// ---------------------------------------------------------------------------
+// hasValidExpenses / getValidExpenses
+// ---------------------------------------------------------------------------
+/** Retorna true se há pelo menos uma despesa com categoria e valor > 0. */
 export function hasValidExpenses(expenses: Expense[]): boolean {
-  return expenses.some((e) => e.category && Number(e.amount) > 0);
+  return expenses.some(e => e.category && Number(e.amount) > 0);
 }
 
-/**
- * Filtra apenas as despesas válidas de um array.
- * 
- * @param expenses - Array de despesas
- * @returns Array contendo apenas despesas válidas
- */
+/** Filtra apenas as despesas com categoria e valor > 0. */
 export function getValidExpenses(expenses: Expense[]): Expense[] {
-  return expenses.filter((e) => e.category && Number(e.amount) > 0);
+  return expenses.filter(e => e.category && Number(e.amount) > 0);
 }
 
+// ---------------------------------------------------------------------------
+// getCrewTotalsWithNames
+// ---------------------------------------------------------------------------
 /**
- * Retorna os totais separados por tripulante com seus nomes
- * @param report - Relatório com informações dos tripulantes
- * @param expenses - Despesas do relatório
- * @returns Objeto com totais e nomes dos tripulantes
+ * Retorna os totais separados por tripulante com seus nomes.
+ * Usa nome_tripulante / nome_tripulante_2 (colunas do banco).
  */
-export function getCrewTotalsWithNames(report: TravelReportWithTotals, expenses: Expense[]) {
+export function getCrewTotalsWithNames(
+  report: TravelReportWithTotals,
+  expenses: Expense[],
+) {
   const totals = calculateReportTotals(expenses);
-
   return {
     tripulante1: {
-      name: report.crew_member_name || 'Tripulante 1',
+      name:  report.nome_tripulante || 'Tripulante 1',
       total: totals.total_crew1,
     },
     tripulante2: {
-      name: report.crew_member_name_2 || null,
+      name:  report.nome_tripulante_2 || null,
       total: totals.total_crew2,
     },
-    hasSecondCrew: !!report.crew_member_name_2 && report.crew_member_name_2.trim() !== '',
+    hasSecondCrew:
+      !!report.nome_tripulante_2 && report.nome_tripulante_2.trim() !== '',
   };
 }
 
+// ---------------------------------------------------------------------------
+// generateReportNumber
+// ---------------------------------------------------------------------------
 /**
- * Gera o próximo número de relatório de viagem para um determinado cliente.
- * A lógica espelha exatamente o que era usado originalmente em
- * `RelatorioViagem.tsx`:
- *
- * 1. Extrai as iniciais do nome do cliente (até 3 letras, preenchidas com X).
- * 2. Busca o último relatório existente com o mesmo prefixo.
- * 3. Incrementa a numeração e formata no padrão `REL-XXX-000/Nº`.
- *
- * @param clientName Nome do cliente (utilizado apenas para gerar as iniciais).
- * @returns Sequência formatada do número de relatório.
+ * Gera o próximo número de relatório para um determinado cliente.
+ * Padrão: REL-XXX-001/YY
  */
 export async function generateReportNumber(clientName: string): Promise<string> {
-  if (!clientName || clientName.trim() === '') {
+  if (!clientName?.trim()) {
     return `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`;
   }
 
-  const year = new Date().getFullYear();
-  const yearShort = year.toString().slice(-2);
+  const yearShort = new Date().getFullYear().toString().slice(-2);
 
-  const getClientInitials = (name: string): string => {
-    const words = name.trim().split(/\s+/);
-    return words
-      .map(w => w.charAt(0).toUpperCase())
-      .join('')
-      .substring(0, 3)
-      .padEnd(3, 'X');
-  };
+  const initials = clientName
+    .trim()
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase())
+    .join('')
+    .substring(0, 3)
+    .padEnd(3, 'X');
 
-  const clientInitials = getClientInitials(clientName);
-
-  const { data: existingReports } = await supabase
+  const { data: existing } = await supabase
     .from('travel_expense_reports')
-    .select('report_number')
-    .ilike('report_number', `REL-${clientInitials}-%`)
+    .select('numero_relatorio')
+    .ilike('numero_relatorio', `REL-${initials}-%`)
     .order('created_at', { ascending: false })
     .limit(1);
 
   let nextNumber = 1;
-  if (existingReports && existingReports.length > 0) {
-    const lastNumber = existingReports[0].report_number;
-    const match = lastNumber.match(/REL-[A-Z]{3}-(\d+)/);
-    if (match && match[1]) {
-      nextNumber = parseInt(match[1]) + 1;
-    }
+  if (existing && existing.length > 0) {
+    const match = existing[0].numero_relatorio.match(/REL-[A-Z]{3}-(\d+)/);
+    if (match?.[1]) nextNumber = parseInt(match[1]) + 1;
   }
 
-  return `REL-${clientInitials}-${String(nextNumber).padStart(3, '0')}/${yearShort}`;
+  return `REL-${initials}-${String(nextNumber).padStart(3, '0')}/${yearShort}`;
 }

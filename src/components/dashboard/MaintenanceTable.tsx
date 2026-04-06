@@ -18,7 +18,7 @@ export function MaintenanceTable() {
         .from("vencimentos")
         .select(`
           *,
-          aircraft:aircraft_id(registration, model)
+          aircraft:aeronave_id(registration, model)
         `)
         .order("data_vencimento", { ascending: true })
         .limit(5);
@@ -79,7 +79,7 @@ export function MaintenanceTable() {
             {vencimentos.map((v: any) => (
               <TableRow key={v.id} className="border-border hover:bg-accent/50">
                 <TableCell className="font-medium text-foreground">
-                  {v.aircraft?.registration || "N/A"}
+                  {v.aeronave?.matricula || "N/A"}
                 </TableCell>
                 <TableCell className="text-foreground">{v.tipo || v.descricao}</TableCell>
                 <TableCell className="text-foreground">

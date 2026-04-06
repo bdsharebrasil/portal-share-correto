@@ -40,7 +40,7 @@ export async function signUp(email: string, password: string, fullName?: string)
       id: data.user.id,
       email: data.user.email || '',
       full_name: fullName,
-      created_at: data.user.created_at,
+      created_at: data.user.criado_em,
     };
 
     return { user, token, error: null };
@@ -69,7 +69,7 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
       id: data.user.id,
       email: data.user.email || '',
       full_name: data.user.user_metadata?.full_name,
-      created_at: data.user.created_at,
+      created_at: data.user.criado_em,
     };
 
     return { user, token: data.session.access_token, error: null };
@@ -91,7 +91,7 @@ export async function verifyToken(token: string): Promise<User | null> {
       id: data.user.id,
       email: data.user.email || '',
       full_name: data.user.user_metadata?.full_name,
-      created_at: data.user.created_at,
+      created_at: data.user.criado_em,
     };
   } catch (error) {
     console.error('Token verification error:', error);
@@ -115,7 +115,7 @@ export async function getUserById(userId: string): Promise<User | null> {
       id: data.id,
       email: data.email || '',
       full_name: data.full_name,
-      created_at: data.created_at,
+      created_at: data.criado_em,
     };
   } catch (error) {
     console.error('Get user error:', error);

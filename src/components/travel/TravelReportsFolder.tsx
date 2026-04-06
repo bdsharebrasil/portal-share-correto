@@ -14,15 +14,15 @@ interface Client {
 
 interface TravelReport {
   id: string;
-  report_number: string;
-  client_id: string;
+  numero_relatorio: string;
+  clientes_id: string;
   client: string;
   aircraft_registration: string;
   crew_member_name: string;
   crew_member_name_2?: string;
-  route: string;
-  start_date: string;
-  end_date: string;
+  rota: string;
+  data_inicio: string;
+  data_fim: string;
   total_amount: number;
   created_at: string;
 }
@@ -47,10 +47,9 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
   const loadClients = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('clients')
-      .select('id, company_name, status')
-      .eq('status', 'ativo')
-      .order('company_name');
+      .from('clientes')
+      .select('id, razao_social')
+      .order('razao_social');
 
     if (error) {
       toast.error("Erro ao carregar clientes");
@@ -71,8 +70,8 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
       setLoadingHistory(true);
       const { data, error } = await supabase
         .from('travel_expense_reports')
-        .select('id, report_number, created_at')
-        .not('report_number', 'is', null)
+        .select('id, numero_relatorio, created_at')
+        .not('numero_relatorio', 'is', null)
         .order('created_at', { ascending: false });
       if (!error) setHistory(data || []);
     } finally {
@@ -111,7 +110,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
     const { data, error } = await supabase
       .from('travel_expense_reports')
       .select('*')
-      .eq('client_id', clientId)
+      .eq('clientes_id', clientId)
       .eq('status', 'finalizado')
       .order('created_at', { ascending: false });
 
@@ -146,8 +145,8 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
 
       const newWindow = window.open('', '_blank');
       if (newWindow) {
-        newWindow.document.write(data as string);
-        newWindow.document.close();
+        newWindow.documentoument.write(data as string);
+        newWindow.documentoument.close();
       }
 
       toast.success("Relatório gerado com sucesso!");
@@ -206,7 +205,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
               </Button>
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="h-5 w-5 text-primary" />
-                {selectedClient.company_name}
+                {selectedClient.razao_social}
               </CardTitle>
             </div>
             <Badge variant="outline">
@@ -236,14 +235,14 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
                       <div className="flex items-center gap-2">
                         <h4 className="font-semibold text-foreground">{report.client}</h4>
                         <Badge variant="outline" className="text-xs">
-                          {report.aircraft_registration}
+                          {report.aeronave_registration}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {report.crew_member_name} • {report.route}
+                        {report.crew_member_name} • {report.rota}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {formatDate(report.start_date)} - {formatDate(report.end_date)} • {formatCurrency(report.total_amount || 0)}
+                        {formatDate(report.data_inicio)} - {formatDate(report.data_fim)} • {formatCurrency(report.total_amount || 0)}
                       </p>
                     </div>
                   </div>
@@ -259,7 +258,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDownloadPDF(report.id, report.report_number || 'relatorio')}
+                      onClick={() => handleDownloadPDF(report.id, report.numero_relatorio || 'relatorio')}
                     >
                       <Download className="h-4 w-4 mr-1" />
                       Baixar
@@ -277,7 +276,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
   // Filtro por busca
   const filteredClients = searchTerm
     ? clients.filter((c) =>
-      c.company_name.toLowerCase().includes(searchTerm.toLowerCase())
+      c.razao_social.toLowerCase().includes(searchTerm.toLowerCase())
     )
     : clients;
 
@@ -310,7 +309,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
                   </div>
                   <div className="flex-1">
                     <h4 className="font-semibold text-foreground group-hover:text-primary transition-smooth">
-                      {client.company_name}
+                      {client.razao_social}
                     </h4>
                     <p className="text-sm text-muted-foreground">
                       Clique para ver relatórios
@@ -341,7 +340,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
                 <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
                   <div>
                     <div className="font-semibold text-foreground">{item.numero}</div>
-                    <div className="text-sm text-muted-foreground">{item.cliente_nome} • {new Date(item.created_at).toLocaleDateString('pt-BR')}</div>
+                    <div className="text-sm text-muted-foreground">{item.cliente_nome} • {new Date(item.criado_em).toLocaleDateString('pt-BR')}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => viewHistory(item)}>

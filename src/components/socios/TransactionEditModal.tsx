@@ -52,7 +52,7 @@ interface Transaction {
   invoice_url?: string | null
   due_date?: string | null
   paid_date?: string | null
-  aircraft_id?: string | null
+  aeronave_id?: string | null
   reference_id?: string | null
 }
 
@@ -74,8 +74,8 @@ export function TransactionEditModal({
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias()
   const { data: fuelSuppliers = [] } = useFuelSuppliers()
 
-  const isAbastecimento = transaction?.reference_type === "abastecimento" || transaction?.expense_type === "abastecimento"
-  const isExpense = transaction?.reference_type === "partner_expense" || transaction?.transaction_type === "expense"
+  const isAbastecimento = transaction?.tipo_referencia === "abastecimento" || transaction?.expense_type === "abastecimento"
+  const isExpense = transaction?.tipo_referencia === "partner_expense" || transaction?.transaction_type === "expense"
 
   const [aircraftId, setAircraftId] = useState<string | null>(null)
   const [selectedMaintenanceId, setSelectedMaintenanceId] = useState<string>("")
@@ -108,7 +108,7 @@ export function TransactionEditModal({
 
     const normalizedTarget = partnerName.trim().toLowerCase()
     const matchedPartner = partners.find(
-      (partner) => partner.name.trim().toLowerCase() === normalizedTarget
+      (partner) => partner.nome.trim().toLowerCase() === normalizedTarget
     )
 
     return matchedPartner?.cpf || "none"
@@ -144,7 +144,7 @@ export function TransactionEditModal({
       let sourceTransaction: any = { ...transaction }
 
       if (isAbastecimento) {
-        const fuelId = transaction.reference_id || transaction.id
+        const fuelId = transaction.referencia_id || transaction.id
         const { data: fuel } = await supabase
           .from("abastecimentos")
           .select("id, data, data_pagamento, data_vencimento_boleto, descricao, local, observacao, abastecedor, status_pagamento, partner_name, nf, nota_url, banco")
@@ -154,7 +154,7 @@ export function TransactionEditModal({
         if (fuel) {
           sourceTransaction = {
             ...sourceTransaction,
-            description: fuel.descricao || sourceTransaction.description || `Abastecimento - ${fuel.local || ""}`.trim(),
+            description: fuel.descricao || sourceTransaction.descricao || `Abastecimento - ${fuel.local || ""}`.trim(),
             payment_date: fuel.data_pagamento || fuel.data || sourceTransaction.payment_date,
             due_date: fuel.data_vencimento_boleto || null,
             notes: fuel.observacao || "",
@@ -162,9 +162,9 @@ export function TransactionEditModal({
             category: "ABASTECIMENTO",
             expense_type: "ABASTECIMENTO",
             supplier_name: fuel.abastecedor || "",
-            status: fuel.status_pagamento || sourceTransaction.status,
-            assigned_partner_name: fuel.partner_name || null,
-            assigned_partner_cpf: resolvePartnerCpf(fuel.partner_name, sourceTransaction.assigned_partner_cpf),
+            status: fuel.situacao_pagamento || sourceTransaction.situacao,
+            assigned_partner_name: fuel.nome_socio || null,
+            assigned_partner_cpf: resolvePartnerCpf(fuel.nome_socio, sourceTransaction.assigned_partner_cpf),
             invoice_number: fuel.nf || "",
             invoice_url: fuel.nota_url || "",
           }
@@ -172,7 +172,7 @@ export function TransactionEditModal({
       } else if (isExpense) {
         const { data: expense } = await supabase
           .from("partner_expenses")
-          .select("description, total_amount, due_date, paid_date, notes, bank_name, prazo, category, expense_type, supplier_name, payment_method, status, assigned_partner_cpf, assigned_partner_name, invoice_number, invoice_url, reference_id, reference_type, aircraft_id")
+          .select("descricao, valor_total, data_pagamento, data_vencimento, observacoes, nome_banco, prazo, categoria, tipo_despesa, nome_fornecedor, metodo_pagamento, status, cpf_socio, nome_socio, numero_fatura, url_fatura, id_referencia, tipo_referencia, id_aeronave")
           .eq("id", transaction.id)
           .maybeSingle()
 
@@ -180,19 +180,19 @@ export function TransactionEditModal({
           sourceTransaction = {
             ...sourceTransaction,
             ...expense,
-            amount: expense.total_amount,
-            payment_date: expense.paid_date || transaction.payment_date || expense.due_date,
+            amount: expense.valor_total,
+            payment_date: expense.data_pagamento || transaction.payment_date || expense.data_vencimento,
           }
         }
       }
 
-      const rawPaymentDate = sourceTransaction.paid_date || sourceTransaction.payment_date || sourceTransaction.created_at
+      const rawPaymentDate = sourceTransaction.paid_date || sourceTransaction.payment_date || sourceTransaction.criado_em
       const dateObj = new Date(rawPaymentDate.includes("T") ? rawPaymentDate : rawPaymentDate + "T12:00:00")
       const formattedDate = dateObj.toISOString().split("T")[0]
 
       let dueDateFormatted = ""
-      if (sourceTransaction.due_date) {
-        const dueDateObj = new Date(sourceTransaction.due_date.includes("T") ? sourceTransaction.due_date : sourceTransaction.due_date + "T12:00:00")
+      if (sourceTransaction.data_vencimento) {
+        const dueDateObj = new Date(sourceTransaction.data_vencimento.includes("T") ? sourceTransaction.data_vencimento : sourceTransaction.data_vencimento + "T12:00:00")
         dueDateFormatted = dueDateObj.toISOString().split("T")[0]
       }
 
@@ -203,35 +203,35 @@ export function TransactionEditModal({
       }
 
       setFormData({
-        description: sourceTransaction.description || "",
-        amount: Number(sourceTransaction.amount || sourceTransaction.total_amount || 0),
+        description: sourceTransaction.descricao || "",
+        amount: Number(sourceTransaction.valor || sourceTransaction.total_amount || 0),
         paymentDate: formattedDate,
         dueDate: dueDateFormatted,
         notes: sourceTransaction.notes || "",
         bankName: bankId,
         prazo: sourceTransaction.prazo || "",
-        category: normalizeCategoryValue(sourceTransaction.category || sourceTransaction.expense_type || (isAbastecimento ? "ABASTECIMENTO" : "")),
-        expenseType: normalizeCategoryValue(sourceTransaction.expense_type || sourceTransaction.category || (isAbastecimento ? "ABASTECIMENTO" : "")),
+        category: normalizeCategoryValue(sourceTransaction.categoria || sourceTransaction.expense_type || (isAbastecimento ? "ABASTECIMENTO" : "")),
+        expenseType: normalizeCategoryValue(sourceTransaction.expense_type || sourceTransaction.categoria || (isAbastecimento ? "ABASTECIMENTO" : "")),
         supplierName: sourceTransaction.supplier_name || "",
         paymentMethod: sourceTransaction.payment_method || "nao_informado",
-        status: sourceTransaction.status || "pago",
+        status: sourceTransaction.situacao || "pago",
         assignedPartnerCpf: resolvePartnerCpf(sourceTransaction.assigned_partner_name, sourceTransaction.assigned_partner_cpf),
         invoiceNumber: sourceTransaction.invoice_number || "",
         invoiceUrl: sourceTransaction.invoice_url || "",
       })
 
-      // Determine aircraft_id for loading manutenções/OAS
-      let currentAircraftId = sourceTransaction.aircraft_id || null
+      // Determine aeronave_id for loading manutenções/OAS
+      let currentAircraftId = sourceTransaction.aeronave_id || null
 
       // If this expense is linked to a travel report, try to get the aircraft from the report
-      if (!currentAircraftId && sourceTransaction.reference_type === "travel_expense_report" && sourceTransaction.reference_id) {
+      if (!currentAircraftId && sourceTransaction.tipo_referencia === "travel_expense_report" && sourceTransaction.referencia_id) {
         try {
           const { data: report } = await supabase
             .from("travel_expense_reports")
-            .select("aircraft_id")
-            .eq("id", sourceTransaction.reference_id)
+            .select("aeronave_id")
+            .eq("id", sourceTransaction.referencia_id)
             .single()
-          currentAircraftId = report?.aircraft_id || null
+          currentAircraftId = report?.aeronave_id || null
         } catch {
           // ignore
         }
@@ -240,12 +240,12 @@ export function TransactionEditModal({
       if (!currentAircraftId) {
         try {
           const { data: clientAircraft } = await supabase
-            .from("client_aircraft")
-            .select("aircraft_id")
-            .eq("client_id", clientId)
+            .from("cotistas_aeronave")
+            .select("id_aeronave")
+            .eq("id_clientes", clientId)
             .limit(1)
             .single()
-          currentAircraftId = clientAircraft?.aircraft_id || null
+          currentAircraftId = clientAircraft?.aeronave_id || null
         } catch {
           currentAircraftId = null
         }
@@ -254,8 +254,8 @@ export function TransactionEditModal({
       setAircraftId(currentAircraftId)
 
       // If the transaction was already linked to an active OAS, keep it selected
-      if (sourceTransaction.reference_type === "ctm_service_order" && sourceTransaction.reference_id) {
-        setSelectedOasId(sourceTransaction.reference_id)
+      if (sourceTransaction.tipo_referencia === "ctm_service_order" && sourceTransaction.referencia_id) {
+        setSelectedOasId(sourceTransaction.referencia_id)
       }
 
       // Load linked manutenções (OAs) for this expense
@@ -288,10 +288,10 @@ export function TransactionEditModal({
 
     setLoadingServiceOrders(true);
     supabase
-      .from("ctm_service_orders")
+      .from("service_orders")
       .select("id, numero, status, tipo_manutencao, oficina_nome, data_entrada")
-      .eq("aircraft_id", aircraftId)
-      .order("created_at", { ascending: false })
+      .eq("id_aeronave", aircraftId)
+      .order("criado_em", { ascending: false })
       .then(({ data, error }) => {
         if (error) {
           console.error("Erro ao carregar OAS:", error);
@@ -304,11 +304,11 @@ export function TransactionEditModal({
   }, [aircraftId]);
 
   useEffect(() => {
-    if (formData.category !== "MANUTENCAO") {
+    if (formData.categoria !== "MANUTENCAO") {
       setSelectedMaintenanceId("")
       setSelectedOasId("")
     }
-  }, [formData.category])
+  }, [formData.categoria])
 
   const handleSave = async () => {
     if (!transaction) return
@@ -318,7 +318,7 @@ export function TransactionEditModal({
       return
     }
 
-    const transactionType = transaction.reference_type || transaction.transaction_type
+    const transactionType = transaction.tipo_referencia || transaction.transaction_type
 
     // Resolve bank name from ID
     const selectedConta = contasBancarias.find((c) => c.id === formData.bankName)
@@ -330,47 +330,47 @@ export function TransactionEditModal({
 
     // For bank expenses without assigned partner, use uppercase bank name
     const finalAssignedPartnerName = isAbastecimento
-      ? assignedPartner?.name || null
-      : assignedPartner?.name || (bankNameResolved ? bankNameResolved.toUpperCase() : null)
+      ? assignedPartner?.nome || null
+      : assignedPartner?.nome || (bankNameResolved ? bankNameResolved.toUpperCase() : null)
 
     try {
       await updateTransaction.mutateAsync({
         id: transaction.id,
         clientId,
         transactionType,
-        description: formData.description,
-        amount: formData.amount,
+        description: formData.descricao,
+        amount: formData.valor,
         paymentDate: formData.paymentDate,
         dueDate: formData.dueDate || null,
         notes: formData.notes || null,
         bankName: bankNameResolved,
         prazo: formData.prazo || null,
-        category: formData.category || null,
+        category: formData.categoria || null,
         expenseType: formData.expenseType || null,
         supplierName: formData.supplierName || null,
         paymentMethod: formData.paymentMethod === "nao_informado" ? null : formData.paymentMethod || null,
-        status: formData.status || null,
+        status: formData.situacao || null,
         assignedPartnerCpf: assignedPartner?.cpf || null,
         assignedPartnerName: finalAssignedPartnerName,
         invoiceNumber: formData.invoiceNumber || null,
         invoiceUrl: formData.invoiceUrl || null,
-        referenceType: selectedOasId ? "ctm_service_order" : transaction.reference_type || null,
-        referenceId: selectedOasId || transaction.reference_id || null,
+        referenceType: selectedOasId ? "ctm_service_order" : transaction.tipo_referencia || null,
+        referenceId: selectedOasId || transaction.referencia_id || null,
         aircraftId,
       })
 
       // Se categoria for Manutenção, garantir que a despesa seja vinculada à OAS e criar rateio
-      if (formData.category === "MANUTENCAO") {
+      if (formData.categoria === "MANUTENCAO") {
         try {
           if (selectedMaintenanceId || selectedOasId) {
             const oasId = selectedOasId || selectedMaintenanceId;
             const payload = {
               service_order_id: oasId,
               manutencao_id: null,
-              aircraft_id: aircraftId,
+              aeronave_id: aircraftId,
               client_id: clientId,
-              descricao: formData.description,
-              valor: formData.amount,
+              descricao: formData.descricao,
+              valor: formData.valor,
               tipo_rateio: "igual",
               partner_expense_id: transaction.id,
             }
@@ -414,7 +414,7 @@ export function TransactionEditModal({
 
               // Criar rateio igual entre todos os sócios
               const pctPerPartner = Math.round((100 / partners.length) * 100) / 100;
-              const valPerPartner = Math.round((formData.amount / partners.length) * 100) / 100;
+              const valPerPartner = Math.round((formData.valor / partners.length) * 100) / 100;
 
               const rateioRecords = partners.map((p) => ({
                 despesa_manutencao_id: despesaId!,
@@ -490,7 +490,7 @@ export function TransactionEditModal({
                   {partners.map((partner) => (
                     <SelectItem key={partner.id} value={partner.cpf}>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{partner.name}</span>
+                        <span className="font-medium text-sm">{partner.nome}</span>
                         <span className="text-xs text-muted-foreground font-mono">
                           {formatCPF(partner.cpf)}
                         </span>
@@ -507,7 +507,7 @@ export function TransactionEditModal({
             <div className="space-y-2">
               <Label className="text-sm font-medium">Categoria</Label>
               <Select
-                value={formData.category}
+                value={formData.categoria}
                 onValueChange={(v) => setFormData({ ...formData, category: v })}
               >
                 <SelectTrigger className="text-sm">
@@ -543,13 +543,13 @@ export function TransactionEditModal({
 
           {/* Descrição */}
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-medium">
+            <Label htmlFor="descricao" className="text-sm font-medium">
               Descrição
             </Label>
             <Input
-              id="description"
+              id="descricao"
               placeholder="Ex: Depósito inicial, Combustível, etc"
-              value={formData.description}
+              value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="text-sm"
             />
@@ -558,14 +558,14 @@ export function TransactionEditModal({
           {/* Valor + Status */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-sm font-medium">Valor (R$)</Label>
+              <Label htmlFor="valor" className="text-sm font-medium">Valor (R$)</Label>
               <Input
-                id="amount"
+                id="valor"
                 type="number"
                 step="0.01"
                 min="0"
                 placeholder="0.00"
-                value={formData.amount}
+                value={formData.valor}
                 onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                 className="text-sm"
               />
@@ -574,7 +574,7 @@ export function TransactionEditModal({
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Status</Label>
                 <Select
-                  value={formData.status}
+                  value={formData.situacao}
                   onValueChange={(v) => setFormData({ ...formData, status: v })}
                 >
                   <SelectTrigger className="text-sm">
@@ -612,7 +612,7 @@ export function TransactionEditModal({
           </div>
 
           {/* Vincular Manutenção (OAS) */}
-          {isExpense && formData.category === "MANUTENCAO" && (
+          {isExpense && formData.categoria === "MANUTENCAO" && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Ordem de Acompanhamento de Serviço (OAS)</Label>
@@ -653,7 +653,7 @@ export function TransactionEditModal({
                             <div className="text-sm space-y-0.5">
                               <div className="font-medium">
                                 OAS #{so.numero}
-                                {so.status ? ` • ${getStatusLabel(so.status)}` : ""}
+                                {so.situacao ? ` • ${getStatusLabel(so.situacao)}` : ""}
                               </div>
                               <div className="text-xs text-muted-foreground flex gap-2">
                                 {so.data_entrada && (
@@ -680,7 +680,7 @@ export function TransactionEditModal({
               </Label>
               <Input
                 id="paymentDate"
-                type="date"
+                type="data"
                 value={formData.paymentDate}
                 onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
                 className="text-sm"
@@ -693,7 +693,7 @@ export function TransactionEditModal({
                 </Label>
                 <Input
                   id="dueDate"
-                  type="date"
+                  type="data"
                   value={formData.dueDate}
                   onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                   className="text-sm"
@@ -722,7 +722,7 @@ export function TransactionEditModal({
                     <SelectContent>
                       {fuelSuppliers.map((f: any) => (
                         <SelectItem key={f.id} value={f.id}>
-                          {f.supplier_name} - {f.city_name} ({f.icao_code})
+                          {f.supplier_name} - {f.cidade_name} ({f.icao_code})
                         </SelectItem>
                       ))}
                     </SelectContent>

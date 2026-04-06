@@ -106,9 +106,9 @@ export function AddAerodromeDialog({ open, onOpenChange, aerodrome }: AddAerodro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="name">Nome do Aeródromo *</Label>
+            <Label htmlFor="nome">Nome do Aeródromo *</Label>
             <Input
-              id="name"
+              id="nome"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Aeroporto de Congonhas"

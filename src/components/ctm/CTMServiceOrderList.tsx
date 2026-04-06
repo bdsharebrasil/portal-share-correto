@@ -118,7 +118,10 @@ export function CTMServiceOrderList({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((order) => (
+                {orders.map((order) => {
+                  const currentStatus = order.situacao || order.status || '';
+
+                  return (
                   <TableRow key={order.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{order.numero}</TableCell>
                     <TableCell>
@@ -128,8 +131,8 @@ export function CTMServiceOrderList({
                     </TableCell>
                     <TableCell>{order.oficina_nome || '-'}</TableCell>
                     <TableCell>
-                      <Badge variant={statusColors[order.status || ''] as any}>
-                        {statusLabels[order.status || ''] || order.status}
+                      <Badge variant={statusColors[currentStatus] as any}>
+                        {statusLabels[currentStatus] || currentStatus || '-'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -164,7 +167,8 @@ export function CTMServiceOrderList({
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

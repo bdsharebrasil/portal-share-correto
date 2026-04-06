@@ -8,24 +8,24 @@ import { Layout } from '../components/layout/Layout';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface AircraftLoan {
+interface AeronaveEmprestimo {
   id: string;
-  hours_borrowed: number;
-  hours_paid_back: number | null;
-  entry_date: string;
+  horas_emprestadas: number;
+  horas_devolvidas: number | null;
+  data_lancamento: string;
   status: string;
-  logbook_entry_id: string | null;
-  payback_entry_id: string | null;
-  departure_aerodrome?: string | null;
-  arrival_aerodrome?: string | null;
+  lancamento_diario_id: string | null;
+  lancamento_devolucao_id: string | null;
+  aerodromo_partida?: string | null;
+  aerodromo_chegada?: string | null;
   trecho?: string | null;
-  fuel_added?: number | null;
-  pic_name?: string | null;
-  notes?: string | null;
-  lender_client_id?: string;
-  lender_name?: string;
-  borrower_client_id?: string;
-  borrower_name?: string;
+  combustivel_adicionado?: number | null;
+  nome_piloto?: string | null;
+  observacoes?: string | null;
+  cliente_emprestador_id?: string;
+  cliente_emprestador_nome?: string;
+  cliente_tomador_id?: string;
+  cliente_tomador_nome?: string;
 }
 
 interface ClientInfo {
@@ -64,7 +64,7 @@ const decimalToHM = (decimal: number | null | undefined): string => {
 const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [aircraft, setAircraft] = useState<Aircraft | null>(null);
-  const [loans, setLoans] = useState<AircraftLoan[]>([]);
+  const [loans, setLoans] = useState<AeronaveEmprestimo[]>([]);
   const [view, setView] = useState<'lenders' | 'borrowers' | 'details'>('lenders');
   const [selectedLenderId, setSelectedLenderId] = useState<string | null>(null);
   const [selectedBorrowerId, setSelectedBorrowerId] = useState<string | null>(null);
@@ -74,7 +74,7 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
     setLoading(true);
     try {
       const acRes = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
         .eq('id', aircraftId)
         .single();
@@ -97,24 +97,23 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
       // PASSO 2: Buscar apenas os aircraft_loans vinculados a esses logbook_entries
       const loansRes = await supabase
-        .from('aircraft_loans')
+        .from('emprestimos_aeronave')
         .select(`
           id,
-          hours_borrowed,
-          hours_paid_back,
-          logbook_entry_id,
-          payback_entry_id,
-          entry_date,
-          status,
-          departure_aerodrome,
-          arrival_aerodrome,
+          horas_emprestadas,
+          horas_devolvidas,
+          lancamento_diario_id,
+          lancamento_devolucao_id,
+          data_lancamento,
+          aerodromo_partida,
+          aerodromo_chegada,
           trecho,
-          fuel_added,
-          pic_name,
-          notes
+          combustivel_adicionado,
+          nome_piloto,
+          observacoes
         `)
-        .in('logbook_entry_id', logbookIds)
-        .order('entry_date', { ascending: false });
+        .in('lancamento_diario_id', logbookIds)
+        .order('data_lancamento', { ascending: false });
 
       if (loansRes.data && loansRes.data.length > 0) {
         // PASSO 3: Buscar os detalhes dos logbook_entries para enriquecer os dados
@@ -122,7 +121,7 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           .from('logbook_entries')
           .select(`
             id,
-            aircraft_id,
+            aeronave_id,
             client_id,
             loan_recipient_client_id,
             loan_recipient_partner_id,
@@ -144,13 +143,13 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
         // Buscar nomes dos clientes (lenders e borrowers)
         const allClientIds = new Set<string>();
         Object.values(logbookMap).forEach((entry: any) => {
-          if (entry.client_id) allClientIds.add(entry.client_id);
+          if (entry.cliente_id) allClientIds.add(entry.cliente_id);
           if (entry.loan_recipient_client_id) allClientIds.add(entry.loan_recipient_client_id);
         });
 
         const clientsList = Array.from(allClientIds);
         const clientsRes = clientsList.length > 0
-          ? await supabase.from('clients').select('id, company_name').in('id', clientsList)
+          ? await supabase.from('clientes').select('id, razao_social').in('id', clientsList)
           : { data: [] };
 
         const clientsMap: Record<string, any> = {};
@@ -159,28 +158,28 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
         });
 
         const transformedLoans = loansRes.data.map((loan: any) => {
-          const logbookEntry = logbookMap[loan.logbook_entry_id];
+          const logbookEntry = logbookMap[loan.lancamento_diario_id];
           return {
             id: loan.id,
-            hours_borrowed: loan.hours_borrowed || 0,
-            hours_paid_back: loan.hours_paid_back || 0,
-            entry_date: loan.entry_date,
-            departure_aerodrome: loan.departure_aerodrome || logbookEntry?.departure_aerodrome,
-            arrival_aerodrome: loan.arrival_aerodrome || logbookEntry?.arrival_aerodrome,
+            horas_emprestadas: loan.horas_emprestadas || 0,
+            horas_devolvidas: loan.horas_devolvidas || 0,
+            data_lancamento: loan.data_lancamento,
+            aerodromo_partida: loan.aerodromo_partida || logbookEntry?.aerodromo_partida,
+            aerodromo_chegada: loan.aerodromo_chegada || logbookEntry?.aerodromo_chegada,
             trecho: loan.trecho,
-            fuel_added: loan.fuel_added,
-            pic_name: loan.pic_name,
-            logbook_entry_id: logbookEntry?.id,
-            payback_entry_id: loan.payback_entry_id,
+            combustivel_adicionado: loan.combustivel_adicionado,
+            nome_piloto: loan.nome_piloto,
+            lancamento_diario_id: logbookEntry?.id,
+            lancamento_devolucao_id: loan.lancamento_devolucao_id,
             status: loan.status,
-            lender_client_id: logbookEntry?.client_id,
-            lender_name: clientsMap[logbookEntry?.client_id]?.company_name || 'Cliente desconhecido',
-            borrower_client_id: logbookEntry?.loan_recipient_client_id,
-            borrower_name: clientsMap[logbookEntry?.loan_recipient_client_id]?.company_name || 'Cliente desconhecido'
+            cliente_emprestador_id: logbookEntry?.cliente_id,
+            cliente_emprestador_nome: clientsMap[logbookEntry?.cliente_id]?.razao_social || 'Cliente desconhecido',
+            cliente_tomador_id: logbookEntry?.loan_recipient_client_id,
+            cliente_tomador_nome: clientsMap[logbookEntry?.loan_recipient_client_id]?.razao_social || 'Cliente desconhecido'
           };
         });
 
-        setLoans(transformedLoans as unknown as AircraftLoan[]);
+        setLoans(transformedLoans as unknown as AeronaveEmprestimo[]);
       } else {
         setLoans([]);
       }
@@ -200,11 +199,11 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   const lendersData = useMemo(() => {
     const lenders: Record<string, ClientInfo> = {};
     loans.forEach(loan => {
-      const lenderId = loan.lender_client_id || 'unknown';
+      const lenderId = loan.cliente_emprestador_id || 'unknown';
       if (!lenders[lenderId]) {
         lenders[lenderId] = {
           client_id: lenderId,
-          client_name: loan.lender_name || 'Cliente desconhecido'
+          client_name: loan.cliente_emprestador_nome || 'Cliente desconhecido'
         };
       }
     });
@@ -218,12 +217,12 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
     const borrowers: Record<string, ClientBalance> = {};
 
     loans
-      .filter(loan => loan.lender_client_id === selectedLenderId)
+      .filter(loan => loan.cliente_emprestador_id === selectedLenderId)
       .forEach(loan => {
-        const borrowerId = loan.borrower_client_id || loan.id;
-        const borrowerName = loan.borrower_name || 'Cliente desconhecido';
-        const hoursBorrowed = loan.hours_borrowed || 0;
-        const hoursPaidBack = loan.hours_paid_back || 0;
+        const borrowerId = loan.cliente_tomador_id || loan.id;
+        const borrowerName = loan.cliente_tomador_nome || 'Cliente desconhecido';
+        const hoursBorrowed = loan.horas_emprestadas || 0;
+        const hoursPaidBack = loan.horas_devolvidas || 0;
 
         if (!borrowers[borrowerId]) {
           borrowers[borrowerId] = {
@@ -247,7 +246,7 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   const loansForBorrower = useMemo(() => {
     if (!selectedLenderId || !selectedBorrowerId) return [];
     return loans.filter(
-      loan => loan.lender_client_id === selectedLenderId && loan.borrower_client_id === selectedBorrowerId
+      loan => loan.cliente_emprestador_id === selectedLenderId && loan.cliente_tomador_id === selectedBorrowerId
     );
   }, [loans, selectedLenderId, selectedBorrowerId]);
 
@@ -285,9 +284,9 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
             <div>
               <h1 className="text-3xl font-black text-white uppercase tracking-tight">Banco de Horas</h1>
               <p className="text-slate-500 text-xs uppercase mt-1">
-                {view === 'lenders' && `Gestão de Cotistas • ${aircraft?.registration}`}
-                {view === 'borrowers' && `Clientes que pegaram emprestado • ${aircraft?.registration}`}
-                {view === 'details' && `Histórico de voos • ${aircraft?.registration}`}
+                {view === 'lenders' && `Gestão de Cotistas • ${aircraft?.matricula}`}
+                {view === 'borrowers' && `Clientes que pegaram emprestado • ${aircraft?.matricula}`}
+                {view === 'details' && `Histórico de voos • ${aircraft?.matricula}`}
               </p>
             </div>
           </div>
@@ -328,7 +327,7 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           <>
             <div className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-6 rounded-2xl">
               <p className="text-slate-400 text-sm">
-                Emprestador: <span className="text-white font-black">{lendersData.find(l => l.client_id === selectedLenderId)?.client_name}</span>
+                Emprestador: <span className="text-white font-black">{lendersData.find(l => l.cliente_id === selectedLenderId)?.client_name}</span>
               </p>
             </div>
 
@@ -344,9 +343,9 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
                   return (
                     <button
-                      key={borrower.client_id}
+                      key={borrower.cliente_id}
                       onClick={() => {
-                        setSelectedBorrowerId(borrower.client_id);
+                        setSelectedBorrowerId(borrower.cliente_id);
                         setView('details');
                       }}
                       className="bg-gradient-to-br from-slate-900/60 to-slate-950/60 border border-slate-800/50 p-8 rounded-3xl shadow-xl hover:border-slate-700/50 hover:shadow-2xl transition-all text-left"
@@ -412,10 +411,10 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           <>
             <div className="bg-gradient-to-br from-slate-900/40 to-slate-950/40 border border-slate-800/50 p-6 rounded-2xl">
               <p className="text-slate-400 text-sm">
-                Emprestador: <span className="text-white font-black">{lendersData.find(l => l.client_id === selectedLenderId)?.client_name}</span>
+                Emprestador: <span className="text-white font-black">{lendersData.find(l => l.cliente_id === selectedLenderId)?.client_name}</span>
               </p>
               <p className="text-slate-400 text-sm mt-2">
-                Cliente Mutuário: <span className="text-white font-black">{borrowersForLender.find(b => b.client_id === selectedBorrowerId)?.client_name}</span>
+                Cliente Mutuário: <span className="text-white font-black">{borrowersForLender.find(b => b.cliente_id === selectedBorrowerId)?.client_name}</span>
               </p>
             </div>
 
@@ -439,16 +438,16 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
                     </thead>
                     <tbody className="divide-y divide-slate-800/30">
                       {loansForBorrower.map(loan => {
-                        const hoursBorrowed = loan.hours_borrowed || 0;
-                        const hoursPaidBack = loan.hours_paid_back || 0;
+                        const hoursBorrowed = loan.horas_emprestadas || 0;
+                        const hoursPaidBack = loan.horas_devolvidas || 0;
                         const balance = hoursBorrowed - hoursPaidBack;
                         const isPending = balance > 0;
-                        const formattedDate = new Date(loan.entry_date).toLocaleDateString('pt-BR');
-                        const trecho = loan.departure_aerodrome && loan.arrival_aerodrome
-                          ? `${loan.departure_aerodrome.trim()} → ${loan.arrival_aerodrome.trim()}`
+                        const formattedDate = new Date(loan.data_lancamento).toLocaleDateString('pt-BR');
+                        const trecho = loan.aerodromo_partida && loan.aerodromo_chegada
+                          ? `${loan.aerodromo_partida.trim()} → ${loan.aerodromo_chegada.trim()}`
                           : loan.trecho || '-';
-                        const fuelAdded = loan.fuel_added ? loan.fuel_added.toFixed(1) : '-';
-                        const picName = loan.pic_name || '-';
+                        const fuelAdded = loan.combustivel_adicionado ? loan.combustivel_adicionado.toFixed(1) : '-';
+                        const picName = loan.nome_piloto || '-';
 
                         return (
                           <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">

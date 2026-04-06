@@ -168,7 +168,7 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
               <Label htmlFor="start-date">Data Início</Label>
               <Input
                 id="start-date"
-                type="date"
+                type="data"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
@@ -179,7 +179,7 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
               <Label htmlFor="end-date">Data Fim</Label>
               <Input
                 id="end-date"
-                type="date"
+                type="data"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
@@ -197,9 +197,9 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="reason">Motivo (opcional)</Label>
+              <Label htmlFor="motivo">Motivo (opcional)</Label>
               <Textarea
-                id="reason"
+                id="motivo"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Descreva o motivo das férias..."

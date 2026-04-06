@@ -50,7 +50,7 @@ type SupabaseClientRow = {
   city: string | null;
   uf: string | null;
   status: string | null;
-  aircraft_id: string | null;
+  aeronave_id: string | null;
 };
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -98,31 +98,31 @@ const buildContactPayload = (data: Partial<ContactFormData>): TablesInsert<'cont
     name: data.nome || "",
     category: mappedType
   };
-  if (data.nome !== undefined) payload.name = data.nome;
-  if (data.telefone !== undefined) payload.phone = data.telefone || null;
+  if (data.nome !== undefined) payload.nome = data.nome;
+  if (data.telefone !== undefined) payload.telefone = data.telefone || null;
   if (data.email !== undefined) payload.email = data.email || null;
-  if (data.empresa !== undefined) payload.company_name = data.empresa || null;
+  if (data.empresa !== undefined) payload.razao_social = data.empresa || null;
   if (data.cargo !== undefined) payload.position = data.cargo || null;
   if (data.observacoes !== undefined) payload.notes = data.observacoes || null;
-  if (data.endereco !== undefined) payload.address = data.endereco || null;
-  if (data.cidade !== undefined) payload.city = data.cidade || null;
+  if (data.endereco !== undefined) payload.endereco = data.endereco || null;
+  if (data.cidade !== undefined) payload.cidade = data.cidade || null;
   return payload;
 };
 const mapSupabaseContact = (row: SupabaseContactRow): any => ({
   id: row.id,
-  nome: row.name,
-  name: row.name,
-  telefone: row.phone ?? "",
+  nome: row.nome,
+  name: row.nome,
+  telefone: row.telefone ?? "",
   email: row.email ?? undefined,
-  empresa: row.company_name ?? undefined,
+  empresa: row.razao_social ?? undefined,
   cargo: row.position ?? undefined,
-  categoria: mapCategoryFromSupabase(row.category),
+  categoria: mapCategoryFromSupabase(row.categoria),
   observacoes: row.notes ?? undefined,
-  endereco: row.address ?? undefined,
-  cidade: row.city ?? undefined,
+  endereco: row.endereco ?? undefined,
+  cidade: row.cidade ?? undefined,
   origin: "contacts",
-  created_at: row.created_at ?? undefined,
-  updated_at: row.updated_at ?? undefined
+  created_at: row.criado_em ?? undefined,
+  updated_at: row.atualizado_em ?? undefined
 });
 const mapSupabaseHotel = (row: SupabaseHotelRow): any => ({
   id: row.id,
@@ -183,12 +183,12 @@ export default function AgendaPage() {
         id: profile.id,
         nome: profile.full_name,
         name: profile.full_name,
-        telefone: profile.phone ?? "",
+        telefone: profile.telefone ?? "",
         email: profile.email ?? undefined,
         categoria: "colaboradores" as const,
         origin: "user_profiles",
         roles: rolesMap.get(profile.id) ?? [],
-        created_at: profile.created_at ?? undefined
+        created_at: profile.criado_em ?? undefined
       })).filter(user => {
         const roles = user.roles;
         const isAdmin = roles.includes("admin");
@@ -224,11 +224,11 @@ export default function AgendaPage() {
       if (likePattern) {
         hotelsQuery.or(`nome.ilike.${likePattern},cidade.ilike.${likePattern},telefone.ilike.${likePattern}`);
       }
-      const clientsQuery = supabase.from("clients").select("id,cnpj,observations,created_at,updated_at,company_name,address,phone,email,city,uf,status,financial_contact").eq("status", "ativo").order("company_name", {
+      const clientsQuery = supabase.from("clientes").select("id,cnpj,observations,created_at,updated_at,razao_social,address,phone,email,city,uf,status,financial_contact").eq("status", "ativo").order("razao_social", {
         ascending: true
       });
       if (likePattern) {
-        clientsQuery.or(`company_name.ilike.${likePattern},phone.ilike.${likePattern},email.ilike.${likePattern},city.ilike.${likePattern}`);
+        clientsQuery.or(`razao_social.ilike.${likePattern},phone.ilike.${likePattern},email.ilike.${likePattern},city.ilike.${likePattern}`);
       }
       const [contactsResult, hotelsResult, clientsResult] = await Promise.all([contactsQuery, hotelsQuery, clientsQuery]);
       if (contactsResult.error) throw contactsResult.error;
@@ -238,20 +238,20 @@ export default function AgendaPage() {
       const hotelsData = (hotelsResult.data as SupabaseHotelRow[] | null)?.map(mapSupabaseHotel) ?? [];
       const clientsData = (clientsResult.data as any[] | null)?.map(row => ({
         id: row.id,
-        nome: row.company_name ?? "",
-        name: row.company_name ?? "",
-        telefone: row.phone ?? "",
+        nome: row.razao_social ?? "",
+        name: row.razao_social ?? "",
+        telefone: row.telefone ?? "",
         email: row.email ?? undefined,
-        empresa: row.company_name ?? undefined,
+        empresa: row.razao_social ?? undefined,
         cargo: undefined,
         categoria: "clientes" as const,
-        observacoes: row.observations ?? undefined,
-        endereco: row.address ?? undefined,
-        cidade: row.city ?? undefined,
-        financial_contact: row.financial_contact ?? undefined,
-        origin: "clients",
-        created_at: row.created_at ?? undefined,
-        updated_at: row.updated_at ?? undefined
+        observacoes: row.observacoes ?? undefined,
+        endereco: row.endereco ?? undefined,
+        cidade: row.cidade ?? undefined,
+        financial_contact: row.contato_financeiro ?? undefined,
+        origin: "clientes",
+        created_at: row.criado_em ?? undefined,
+        updated_at: row.atualizado_em ?? undefined
       })) ?? [];
       setContacts([...contactsData, ...clientsData, ...hotelsData] as any);
     } catch (error) {

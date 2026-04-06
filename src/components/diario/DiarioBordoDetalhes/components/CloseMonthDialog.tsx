@@ -97,9 +97,9 @@ export function CloseMonthDialog({
 
           {hasObservations === "yes" && (
             <div className="space-y-2">
-              <Label htmlFor="observations">Observações</Label>
+              <Label htmlFor="observacoes">Observações</Label>
               <Textarea
-                id="observations"
+                id="observacoes"
                 placeholder="Digite suas observações sobre este mês..."
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}

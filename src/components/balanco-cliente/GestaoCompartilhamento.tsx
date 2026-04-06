@@ -18,8 +18,8 @@ interface Props {
 }
 
 interface PartnerDebt {
-  fromPartner: { id: string; name: string; cpf: string; share_percentage: number };
-  toPartner: { id: string; name: string; cpf: string; share_percentage: number };
+  fromPartner: { id: string; name: string; cpf: string; percentual_sociedade: number };
+  toPartner: { id: string; name: string; cpf: string; percentual_sociedade: number };
   amount: number;
 }
 
@@ -46,24 +46,24 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
     queryFn: async () => {
       if (!aeronaveId) return [];
       const { data: aircraftClients, error } = await supabase
-        .from("client_aircraft")
-        .select("client_id, share_percentage")
-        .eq("aircraft_id", aeronaveId);
+        .from("cotistas_aeronave")
+        .select("client_id, percentual_sociedade")
+        .eq("id_aeronave", aeronaveId);
       if (error) throw error;
       if (!aircraftClients || aircraftClients.length < 2) return [];
-      const clientIds = aircraftClients.map((ac: any) => ac.client_id);
-      const { data: clients, error: clErr } = await supabase
-        .from("clients")
-        .select("id, company_name, cnpj")
+      const clientIds = aircraftClients.map((ac: any) => ac.cliente_id);
+      const { data: clients, error: clErr } = await (supabase as any)
+        .from("clientes")
+        .select("id, razao_social, cnpj")
         .in("id", clientIds);
       if (clErr) throw clErr;
       return aircraftClients.map((ac: any) => {
-        const client = clients?.find((c: any) => c.id === ac.client_id);
+        const client = clients?.find((c: any) => c.id === ac.cliente_id);
         return {
-          id: ac.client_id,
-          name: client?.company_name || "Unknown",
+          id: ac.cliente_id,
+          name: client?.razao_social || "Unknown",
           cpf: client?.cnpj || "",
-          share_percentage: parseFloat(ac.share_percentage || "0"),
+          percentual_sociedade: parseFloat(ac.percentual_participacao || "0"),
         };
       });
     },
@@ -88,7 +88,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
     queryFn: async () => {
       if (despesaIds.length === 0) return new Map();
       const { data, error } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .select(`
           id, description, fornecedor_nome, category, type, date,
           forma_pagamento, prazo_pagamento, partner_name, percentual,
@@ -139,18 +139,18 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
 
   // Extract unique partner names
   const rateioPartnerNames = Array.from(
-    new Set(despesasRaw.map((d: any) => (d.partner_name || d.client_name || "").toString().trim()).filter(Boolean))
+    new Set(despesasRaw.map((d: any) => (d.nome_socio || d.client_name || "").toString().trim()).filter(Boolean))
   );
 
   const partners = (partnersData && partnersData.length >= 2
     ? partnersData
     : rateioPartnerNames.map((name, index) => {
-        const exemplar = despesasRaw.find((d: any) => (d.partner_name || d.client_name || "").toString().trim() === name);
+        const exemplar = despesasRaw.find((d: any) => (d.nome_socio || d.client_name || "").toString().trim() === name);
         return {
-          id: exemplar?.client_id || `rf-${index}`,
+          id: exemplar?.cliente_id || `rf-${index}`,
           name,
-          cpf: exemplar?.client_id || `rf-${index}`,
-          share_percentage: exemplar?.percentual || 0
+          cpf: exemplar?.cliente_id || `rf-${index}`,
+          percentual_sociedade: exemplar?.percentual || 0
         };
       })
   ).reduce((uniquePartners: any[], p) => {
@@ -172,12 +172,12 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
   // Calculate balances
   const partnerBalances: Record<string, { totalPago: number; totalDevido: number }> = {};
   partners.forEach(p => {
-    partnerBalances[p.name] = { totalPago: 0, totalDevido: 0 };
+    partnerBalances[p.nome] = { totalPago: 0, totalDevido: 0 };
   });
 
   groupedDespesas.forEach(group => {
     group.rateios.forEach((rateio: any) => {
-      const partnerName = rateio.partner_name || rateio.client_name;
+      const partnerName = rateio.nome_socio || rateio.client_name;
       if (partnerBalances[partnerName]) {
         partnerBalances[partnerName].totalDevido += rateio.valor_por_voo || 0;
         if (rateio.pago_diretamente) {
@@ -190,7 +190,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
   });
 
   const summaryArray = partners.map(p => {
-    const bal = partnerBalances[p.name];
+    const bal = partnerBalances[p.nome];
     const saldo = bal.totalPago - bal.totalDevido;
     return { ...p, totalPago: bal.totalPago, totalDevido: bal.totalDevido, saldo };
   });
@@ -229,7 +229,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         "DATA", "DOC", "FORNECEDOR", "DESCRIÇÃO",
         "CATEGORIA", "TIPO", "PRAZO",
         "FLUXO", "PAGO POR", "VALOR PAGO",
-        ...partners.flatMap(p => [`${p.name} %`, `${p.name} R$`])
+        ...partners.flatMap(p => [`${p.nome} %`, `${p.nome} R$`])
       ]
     ];
 
@@ -237,16 +237,16 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
       const enrich = getEnrichment(group.despesa_id);
       const firstRateio = group.rateios[0] || {};
       const pagoPor = firstRateio.pago_diretamente
-        ? (firstRateio.partner_name || firstRateio.client_name || "-")
+        ? (firstRateio.nome_socio || firstRateio.client_name || "-")
         : "EMPRESA";
-      const categoria = enrich.categorias_movimentacao?.nome || enrich.category || firstRateio.receipt_category || "-";
-      const tipo = enrich.categorias_movimentacao?.tipo || enrich.type || "-";
+      const categoria = enrich.categorias_movimentacao?.nome || enrich.categoria || firstRateio.receipt_category || "-";
+      const tipo = enrich.categorias_movimentacao?.tipo || enrich.tipo || "-";
 
       return [
         group.data || "-",
-        firstRateio.doc_number || firstRateio.nota_fiscal || enrich.doc || "-",
+        firstRateio.documento_number || firstRateio.nota_fiscal || enrich.documento || "-",
         enrich.fornecedor_nome || "-",
-        enrich.description || "-",
+        enrich.descricao || "-",
         categoria.toUpperCase(),
         tipo.toUpperCase(),
         (enrich.prazo_pagamento || "-").toUpperCase(),
@@ -254,7 +254,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         pagoPor,
         fmt(group.valor_total),
         ...partners.flatMap(p => {
-          const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+          const rateio = group.rateios.find((r: any) => (r.nome_socio || r.client_name) === p.nome);
           const pct = rateio ? (rateio.percentual || 0) : 0;
           const valorRateado = rateio
             ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
@@ -268,7 +268,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
     body.push([
       "TOTAL", "", "", "", "", "", "", "", "",
       fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0)),
-      ...partners.flatMap(p => ["", fmt(partnerBalances[p.name].totalPago)])
+      ...partners.flatMap(p => ["", fmt(partnerBalances[p.nome].totalPago)])
     ]);
 
     autoTable(doc, {
@@ -338,7 +338,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     <TableHead className="text-[10px] font-bold min-w-[100px] border-r border-border/50">VALOR PAGO</TableHead>
                     {partners.map(p => (
                       <TableHead key={`pct-${p.id}`} className="text-[10px] font-bold text-center min-w-[80px]">
-                        {p.name.split(" ")[0].toUpperCase()}
+                        {p.nome.split(" ")[0].toUpperCase()}
                       </TableHead>
                     ))}
                     {partners.length > 0 && (
@@ -356,12 +356,12 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     <TableHead colSpan={10} className="border-r border-border/50"></TableHead>
                     {partners.map(p => (
                       <TableHead key={`pct-sub-${p.id}`} className="text-[9px] text-center text-muted-foreground">
-                        {p.share_percentage.toFixed(2)}%
+                        {p.percentual_participacao.toFixed(2)}%
                       </TableHead>
                     ))}
                     {partners.map(p => (
                       <TableHead key={`rat-sub-${p.id}`} className={`text-[9px] text-center text-muted-foreground ${partners.indexOf(p) === 0 ? 'border-l border-border/50' : ''}`}>
-                        R$ {p.name.split(" ")[0].toUpperCase()}
+                        R$ {p.nome.split(" ")[0].toUpperCase()}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -371,23 +371,23 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     const enrich = getEnrichment(group.despesa_id);
                     const firstRateio = group.rateios[0] || {};
                     const pagoPor = firstRateio.pago_diretamente
-                      ? (firstRateio.partner_name || firstRateio.client_name || "-")
+                      ? (firstRateio.nome_socio || firstRateio.client_name || "-")
                       : "DGA ADM";
-                    const categoria = enrich.categorias_movimentacao?.nome || enrich.category || firstRateio.receipt_category || "-";
-                    const tipo = enrich.categorias_movimentacao?.tipo || enrich.type || "-";
+                    const categoria = enrich.categorias_movimentacao?.nome || enrich.categoria || firstRateio.receipt_category || "-";
+                    const tipo = enrich.categorias_movimentacao?.tipo || enrich.tipo || "-";
                     const prazo = enrich.prazo_pagamento || "-";
 
                     return (
                       <TableRow key={i} className="border-border/50 hover:bg-muted/20">
                         <TableCell className="text-[10px] whitespace-nowrap">{group.data || "-"}</TableCell>
                         <TableCell className="text-[10px] whitespace-nowrap">
-                          {firstRateio.doc_number || firstRateio.nota_fiscal || "-"}
+                          {firstRateio.documento_number || firstRateio.nota_fiscal || "-"}
                         </TableCell>
                         <TableCell className="text-[10px] whitespace-nowrap truncate max-w-[140px]">
                           {enrich.fornecedor_nome || "-"}
                         </TableCell>
                         <TableCell className="text-[10px] whitespace-nowrap truncate max-w-[160px] border-r border-border/50">
-                          {enrich.description || "-"}
+                          {enrich.descricao || "-"}
                         </TableCell>
                         <TableCell className="text-[10px] whitespace-nowrap uppercase">
                           {categoria.toString().toUpperCase().replace(/_/g, " ")}
@@ -405,7 +405,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                         </TableCell>
                         {/* % columns */}
                         {partners.map(p => {
-                          const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+                          const rateio = group.rateios.find((r: any) => (r.nome_socio || r.client_name) === p.nome);
                           const pct = rateio ? (rateio.percentual || 0) : 0;
                           const isFullOwner = Math.abs(pct - 100) < 0.01;
                           return (
@@ -419,7 +419,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                         })}
                         {/* Rateio R$ columns */}
                         {partners.map((p, pi) => {
-                          const rateio = group.rateios.find((r: any) => (r.partner_name || r.client_name) === p.name);
+                          const rateio = group.rateios.find((r: any) => (r.nome_socio || r.client_name) === p.nome);
                           const valorRateado = rateio
                             ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
                             : 0;
@@ -451,7 +451,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                         key={`total-rat-${p.id}`}
                         className={`text-[10px] text-center font-bold ${pi === 0 ? 'border-l border-border/50' : ''}`}
                       >
-                        {fmt(partnerBalances[p.name].totalPago)}
+                        {fmt(partnerBalances[p.nome].totalPago)}
                       </TableCell>
                     ))}
                   </TableRow>
@@ -473,9 +473,9 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold">
-                      {s.name.charAt(0).toUpperCase()}
+                      {s.nome.charAt(0).toUpperCase()}
                     </div>
-                    <span className="font-medium text-sm">{s.name}</span>
+                    <span className="font-medium text-sm">{s.nome}</span>
                   </div>
                   {hasCredit && (
                     <Badge className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-200">
@@ -543,7 +543,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <ArrowRight className="h-5 w-5 text-primary" />
-                    <span className="text-lg font-bold text-destructive">{fmt(debt.amount)}</span>
+                    <span className="text-lg font-bold text-destructive">{fmt((debt as any).valor || (debt as any).amount || 0)}</span>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">deve</span>
                   </div>
                   <div className="flex items-center gap-3">

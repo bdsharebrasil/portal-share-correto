@@ -37,7 +37,7 @@ export function FuelPaymentDialog({
     const file = e.target.files?.[0];
     if (file) {
       setReceiptFile(file);
-      setReceiptFileName(file.name);
+      setReceiptFileName(file.nome);
     }
   };
 
@@ -60,7 +60,7 @@ export function FuelPaymentDialog({
       // Upload comprovante se fornecido
       if (receiptFile) {
         const timestamp = Date.now();
-        const sanitizedFileName = receiptFile.name
+        const sanitizedFileName = receiptFile.nome
           .replace(/[^a-zA-Z0-9.\-_]/g, "_")
           .substring(0, 100);
         const fileExt = sanitizedFileName.split(".").pop();
@@ -159,7 +159,7 @@ export function FuelPaymentDialog({
             </Label>
             <Input
               id="payment-date"
-              type="date"
+              type="data"
               value={paymentDate}
               onChange={(e) => setPaymentDate(e.target.value)}
               className="bg-slate-900/50 border-white/10"
@@ -198,7 +198,7 @@ export function FuelPaymentDialog({
                 id="receipt"
                 type="file"
                 onChange={handleFileChange}
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                accept=".pdf,.jpg,.jpeg,.png,.documento,.documentox"
                 className="bg-slate-900/50 border-white/10 flex-1"
               />
             </div>

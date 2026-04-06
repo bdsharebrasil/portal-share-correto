@@ -140,7 +140,7 @@ export function CTMBudgetHistory({ budgetId }: CTMBudgetHistoryProps) {
                       )}
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
-                      {format(new Date(version.changed_at || version.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })}
+                      {format(new Date(version.changed_at || (version as any).created_at), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })}
                     </p>
                   </div>
                 </div>

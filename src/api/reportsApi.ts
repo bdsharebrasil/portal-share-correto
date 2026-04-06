@@ -5,14 +5,14 @@ import type { FinancialSummary } from '@/types/maintenance';
 export async function generateFinancialReport(aircraftId: string): Promise<FinancialSummary> {
   // Placeholder - returns basic financial data
   const { data: maintenanceRecords } = await supabase
-    .from('aircraft_maintenance_records')
-    .select('cost')
-    .eq('aircraft_id', aircraftId);
+    .from('registros_manutencao_aeronave')
+    .select('custo')
+    .eq('aeronave_id', aircraftId);
 
-  const totalCost = maintenanceRecords?.reduce((sum, r) => sum + (r.cost || 0), 0) || 0;
+  const totalCost = maintenanceRecords?.reduce((sum, r: any) => sum + (r.custo || 0), 0) || 0;
 
   return {
-    aircraftId,
+    aeronaveId: aircraftId,
     totalMaintenanceCost: totalCost,
     totalMotorCost: 0,
     totalPartsCost: 0,
@@ -25,13 +25,13 @@ export async function generateFinancialReport(aircraftId: string): Promise<Finan
 
 export async function generateMaintenanceReport(aircraftId: string) {
   const { data: items } = await supabase
-    .from('aircraft_maintenance_records')
+    .from('registros_manutencao_aeronave')
     .select('*')
-    .eq('aircraft_id', aircraftId)
-    .order('performed_date', { ascending: false });
+    .eq('aeronave_id', aircraftId)
+    .order('data_realizada', { ascending: false });
 
   const { data: aircraft } = await supabase
-    .from('aircraft')
+    .from('aeronave')
     .select('*')
     .eq('id', aircraftId)
     .single();
@@ -78,7 +78,7 @@ export async function generateComponentReport(aircraftId: string) {
 
 export async function generateComplianceReport(aircraftId: string) {
   const { data: aircraft } = await supabase
-    .from('aircraft')
+    .from('aeronave')
     .select('*')
     .eq('id', aircraftId)
     .single();

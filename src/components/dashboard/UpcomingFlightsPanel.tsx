@@ -17,7 +17,7 @@ export function UpcomingFlightsPanel() {
         .from("flight_schedules")
         .select(`
           *,
-          aircraft:aircraft_id(registration)
+          aircraft:aeronave_id(registration)
         `)
         .gte("flight_date", new Date().toISOString().split("T")[0])
         .order("flight_date", { ascending: true })
@@ -75,7 +75,7 @@ export function UpcomingFlightsPanel() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {flight.aircraft?.registration || "N/A"}
+                    {flight.aeronave?.matricula || "N/A"}
                   </Badge>
                   {flight.passengers && (
                     <span className="text-xs text-muted-foreground">
@@ -85,8 +85,8 @@ export function UpcomingFlightsPanel() {
                 </div>
               </div>
 
-              {flight.status === 'pendente' && (
-                <Badge className={getStatusStyle(flight.status)}>
+              {flight.situacao === 'pendente' && (
+                <Badge className={getStatusStyle(flight.situacao)}>
                   Pendente
                 </Badge>
               )}

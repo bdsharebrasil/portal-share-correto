@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 export interface Abastecimento {
   id: string;
-  client_id: string;
+  id_clientes: string | null;
   aeronave_id: string | null;
   data: string;
   trecho: string;
@@ -14,11 +14,10 @@ export interface Abastecimento {
   valor_total: number;
   abastecedor: string | null;
   status_pagamento: string | null;
-  created_at: string;
-  updated_at: string;
-  partner_name: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  socio_nome: string | null;
   comanda: string | null;
-  data_pagamento?: string | null;
 }
 
 /**
@@ -31,24 +30,24 @@ export function useClientAbastecimentos(clientId: string | null) {
     queryFn: async () => {
       if (!clientId) return [];
 
-      // 1. Buscar aircraft_id vinculado ao cliente via client_aircraft
+      // 1. Buscar id_aeronave vinculado ao cliente via cotistas_aeronave
       const { data: clientAircraft } = await supabase
-        .from("client_aircraft")
-        .select("aircraft_id")
-        .eq("client_id", clientId);
+        .from("cotistas_aeronave")
+        .select("id_aeronave")
+        .eq("id_clientes", clientId);
 
-      const aircraftIds = (clientAircraft || []).map((ca) => ca.aircraft_id);
+      const aircraftIds = (clientAircraft || []).map((ca: any) => ca.id_aeronave);
 
-      // 2. Buscar abastecimentos pendentes por client_id ou aeronave_id
+      // 2. Buscar abastecimentos pendentes por id_clientes ou aeronave_id
       let query = supabase
         .from("abastecimentos")
         .select("*")
         .or("status_pagamento.is.null,status_pagamento.eq.em_aberto,status_pagamento.eq.em aberto,status_pagamento.eq.pendente");
 
       if (aircraftIds.length > 0) {
-        query = query.or(`client_id.eq.${clientId},aeronave_id.in.(${aircraftIds.join(",")})`);
+        query = query.or(`id_clientes.eq.${clientId},aeronave_id.in.(${aircraftIds.join(",")})`);
       } else {
-        query = query.eq("client_id", clientId);
+        query = query.eq("id_clientes", clientId);
       }
 
       const { data, error } = await query;
@@ -58,7 +57,7 @@ export function useClientAbastecimentos(clientId: string | null) {
         return [];
       }
 
-      return (data || []) as Abastecimento[];
+      return (data || []) as unknown as Abastecimento[];
     },
   });
 }
@@ -134,7 +133,9 @@ export function useAbastecimentosByPeriod(
       const { data, error } = await supabase
         .from("abastecimentos")
         .select("*")
-        .eq("client_id", clientId)
+        .eq("id_clientes", clientId)
+        .gte("data", startDate)
+        .lte("data", endDate)
         .order("data", { ascending: false });
 
       if (error) {
@@ -142,16 +143,7 @@ export function useAbastecimentosByPeriod(
         return [];
       }
 
-      return ((data || []) as Abastecimento[])
-        .filter((item) => {
-          const effectiveDate = (item.data_pagamento || item.data || "").slice(0, 10);
-          return effectiveDate >= startDate && effectiveDate <= endDate;
-        })
-        .sort((a, b) => {
-          const dateA = (a.data_pagamento || a.data || "").slice(0, 10);
-          const dateB = (b.data_pagamento || b.data || "").slice(0, 10);
-          return dateB.localeCompare(dateA);
-        });
+      return (data || []) as Abastecimento[];
     },
   });
 }
@@ -177,7 +169,7 @@ export function useCreateAbastecimento() {
       const { data: result, error } = await supabase
         .from("abastecimentos")
         .insert({
-          client_id: data.clientId,
+          id_clientes: data.clientId,
           aeronave_id: data.aeronaveId || null,
           data: data.data,
           trecho: data.trecho,
@@ -185,7 +177,7 @@ export function useCreateAbastecimento() {
           litros: data.litros,
           valor_unitario: data.valorUnitario,
           abastecedor: data.abastecedor || null,
-          partner_name: data.partnerName || null,
+          socio_nome: data.partnerName || null,
           status_pagamento: null,
         })
         .select()
@@ -196,7 +188,7 @@ export function useCreateAbastecimento() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({
-        queryKey: ["client-abastecimentos", data.client_id],
+        queryKey: ["client-abastecimentos", data.id_clientes],
       });
       toast.success("Abastecimento criado com sucesso!");
     },

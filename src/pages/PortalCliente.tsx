@@ -9,46 +9,46 @@ import { Building, ArrowLeft, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { ClientDataTabs } from "@/components/portal-cliente/ClientDataTabs";
 import { ClientSelectionCards } from "@/components/portal-cliente/ClientSelectionCards";
-import { AircraftSelector } from "@/components/portal-cliente/AircraftSelector";
+import { AeronaveSelector } from "@/components/portal-cliente/AircraftSelector";
 import { SaldosDevedoresResume } from "@/components/portal-cliente/SaldosDevedoresResume";
 import { PartnerSelector, type PartnerInfo } from "@/components/portal-cliente/PartnerSelector";
 
 interface ClientAircraft {
-  aircraft_id: string;
-  share_percentage: number;
-  aircraft: {
+  id_aeronave: string;
+  percentual_sociedade: number;
+  aeronave: {
     id: string;
-    registration: string;
-    manufacturer: string;
-    model: string;
-    year: string;
+    matricula: string;
+    fabricante: string;
+    modelo: string;
+    ano: string;
   };
 }
 
 interface Client {
   id: string;
-  company_name: string;
+  razao_social: string;
   status: string;
   cnpj?: string;
   inscricao_estadual?: string;
   email?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
+  telefone?: string;
+  endereco?: string;
+  cidade?: string;
   uf?: string;
   proprietario?: string;
-  financial_contact?: string;
-  observations?: string;
-  logo_url?: string;
-  client_aircraft?: ClientAircraft[];
+  contato_financeiro?: string;
+  observacoes?: string;
+  url_logo?: string;
+  cotistas_aeronave?: ClientAircraft[];
 }
 
 interface Aircraft {
   id: string;
-  registration: string;
-  manufacturer: string;
-  model: string;
-  year: string;
+  matricula: string;
+  fabricante: string;
+  modelo: string;
+  ano: string;
   status: string;
   total_hours?: number;
 }
@@ -82,7 +82,7 @@ export default function PortalCliente() {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedPartner, setSelectedPartner] = useState<PartnerInfo | null | undefined>(undefined);
-  const [selectedAircraft, setSelectedAircraft] = useState<ClientAircraft | null>(null);
+  const [selectedAeronave, setSelectedAircraft] = useState<ClientAircraft | null>(null);
   const [aircraft, setAircraft] = useState<Aircraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [flightActivity, setFlightActivity] = useState<FlightActivity>({
@@ -98,19 +98,19 @@ export default function PortalCliente() {
   }, []);
 
   useEffect(() => {
-    if (selectedClient && !selectedAircraft && selectedClient.client_aircraft && selectedClient.client_aircraft.length > 0) {
-      setSelectedAircraft(selectedClient.client_aircraft[0]);
+    if (selectedClient && !selectedAeronave && selectedClient.cotistas_aeronave && selectedClient.cotistas_aeronave.length > 0) {
+      setSelectedAircraft(selectedClient.cotistas_aeronave[0]);
     }
   }, [selectedClient]);
 
   useEffect(() => {
-    if (selectedClient && selectedAircraft) {
+    if (selectedClient && selectedAeronave) {
       loadClientData();
     }
-  }, [selectedClient, selectedAircraft]);
+  }, [selectedClient, selectedAeronave]);
 
   useEffect(() => {
-    if (!selectedAircraft?.aircraft_id) return;
+    if (!selectedAeronave?.id_aeronave) return;
 
     const interval = setInterval(() => {
       if (logbookMonthData) {
@@ -119,20 +119,20 @@ export default function PortalCliente() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [selectedAircraft?.aircraft_id, logbookMonthData]);
+  }, [selectedAeronave?.id_aeronave, logbookMonthData]);
 
   useEffect(() => {
-    if (!selectedAircraft?.aircraft_id) return;
+    if (!selectedAeronave?.id_aeronave) return;
 
     const subscription = supabase
-      .channel(`logbook_months_${selectedAircraft.aircraft_id}`)
+      .channel(`logbook_months_${selectedAeronave.aeronave_id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'logbook_months',
-          filter: `aircraft_id=eq.${selectedAircraft.aircraft_id}`
+          filter: `aircraft_id=eq.${selectedAeronave.aeronave_id}`
         },
         () => {
           loadClientData();
@@ -143,49 +143,66 @@ export default function PortalCliente() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [selectedAircraft?.aircraft_id]);
+  }, [selectedAeronave?.id_aeronave]);
 
   const loadClients = async () => {
     try {
       setLoading(true);
 
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .select(`
           id,
-          company_name,
-          status,
+          razao_social,
           cnpj,
           inscricao_estadual,
           email,
-          phone,
-          address,
-          city,
+          telefone,
+          endereco,
+          cidade,
           uf,
           proprietario,
-          financial_contact,
-          observations,
-          logo_url,
-          client_aircraft (
-            aircraft_id,
-            share_percentage,
-            aircraft:aircraft_id (
-              id,
-              registration,
-              manufacturer,
-              model,
-              year
-            )
-          )
+          contato_financeiro,
+          observacoes,
+          url_logo
         `)
-        .order('company_name', { ascending: true });
+        .order('razao_social', { ascending: true });
 
       if (error) {
         console.error('Erro ao carregar clientes:', error);
         throw error;
       }
 
-      setClients(data || []);
+      // Buscar aeronaves de cada cliente separadamente
+      const clientsWithAircraft = await Promise.all(
+        (data || []).map(async (client) => {
+          const { data: aircraftData, error: aircraftError } = await supabase
+            .from('cotistas_aeronave')
+            .select(`
+              id_aeronave,
+              percentual_sociedade,
+              aeronave!id_aeronave (
+                id,
+                matricula,
+                fabricante,
+                modelo,
+                ano
+              )
+            `)
+            .eq('id_clientes', client.id);
+
+          if (aircraftError) {
+            console.warn(`Erro ao carregar aeronaves do cliente ${client.id}:`, aircraftError);
+          }
+
+          return {
+            ...client,
+            cotistas_aeronave: aircraftData || []
+          };
+        })
+      );
+
+      setClients(clientsWithAircraft);
     } catch (error: any) {
       console.error('Erro ao carregar clientes:', error);
       toast.error(`Erro ao carregar clientes: ${error?.message || 'Erro desconhecido'}`);
@@ -195,15 +212,15 @@ export default function PortalCliente() {
   };
 
   const loadClientData = async () => {
-    if (!selectedAircraft?.aircraft_id) return;
+    if (!selectedAeronave?.id_aeronave) return;
 
     try {
       setLoading(true);
 
       const { data: aircraftData } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
-        .eq('id', selectedAircraft.aircraft_id)
+        .eq('id', selectedAeronave.id_aeronave)
         .single();
 
       if (aircraftData) setAircraft(aircraftData);
@@ -216,7 +233,7 @@ export default function PortalCliente() {
       const { data: currentMonthData } = await supabase
         .from('logbook_months')
         .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
-        .eq('aircraft_id', selectedAircraft.aircraft_id)
+        .eq('aircraft_id', selectedAeronave.aeronave_id)
         .eq('month', currentMonth)
         .eq('year', currentYear)
         .maybeSingle();
@@ -229,7 +246,7 @@ export default function PortalCliente() {
         const { data: latestMonths } = await supabase
           .from('logbook_months')
           .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
-          .eq('aircraft_id', selectedAircraft.aircraft_id)
+          .eq('aircraft_id', selectedAeronave.aeronave_id)
           .order('year', { ascending: false })
           .order('month', { ascending: false })
           .limit(1);
@@ -251,7 +268,7 @@ export default function PortalCliente() {
       const { data: logbookData } = await supabase
         .from('logbook_entries')
         .select('total_time, pousos, arrival_aerodrome')
-        .eq('aircraft_id', selectedAircraft.aircraft_id)
+        .eq('aircraft_id', selectedAeronave.aeronave_id)
         .order('entry_date', { ascending: false })
         .limit(10);
 
@@ -358,7 +375,7 @@ export default function PortalCliente() {
           ) : selectedPartner === undefined ? (
             <PartnerSelector
               clientId={selectedClient.id}
-              clientName={selectedClient.company_name}
+              clientName={selectedClient.razao_social}
               onSelectPartner={handlePartnerSelect}
               onBack={handleBackFromPartnerSelection}
             />
@@ -376,10 +393,10 @@ export default function PortalCliente() {
                     <ArrowLeft className="h-5 w-5" />
                   </Button>
 
-                  {selectedClient.logo_url && (
+                  {selectedClient.url_logo && (
                     <img
-                      src={selectedClient.logo_url}
-                      alt={selectedClient.company_name}
+                      src={selectedClient.url_logo}
+                      alt={selectedClient.razao_social}
                       className="h-16 w-16 object-contain rounded-lg p-2 border"
                       style={{
                         backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -390,7 +407,7 @@ export default function PortalCliente() {
 
                   <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                      {selectedClient.company_name}
+                      {selectedClient.razao_social}
                     </h1>
                     {selectedClient.proprietario && (
                       <p className="text-sm text-muted-foreground">
@@ -410,9 +427,9 @@ export default function PortalCliente() {
                 </Button>
               </div>
 
-              <AircraftSelector
-                aircrafts={selectedClient.client_aircraft || []}
-                selectedAircraftId={selectedAircraft?.aircraft_id || ""}
+              <AeronaveSelector
+                aircrafts={selectedClient.cotistas_aeronave || []}
+                selectedAircraftId={selectedAeronave?.id_aeronave || ""}
                 onSelect={handleAircraftChange}
               >
                 {/* Dados da Empresa ou Sócio */}
@@ -435,7 +452,7 @@ export default function PortalCliente() {
                           </thead>
                           <tbody>
                             <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                              <td className="py-4 px-4 text-foreground font-medium">{selectedPartner.name}</td>
+                              <td className="py-4 px-4 text-foreground font-medium">{selectedPartner.nome}</td>
                               <td className="py-4 px-4 text-foreground">{selectedPartner.cpf || '—'}</td>
                             </tr>
                           </tbody>
@@ -453,11 +470,11 @@ export default function PortalCliente() {
                           </thead>
                           <tbody>
                             <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                              <td className="py-4 px-4 text-foreground font-medium">{selectedClient.company_name}</td>
+                              <td className="py-4 px-4 text-foreground font-medium">{selectedClient.razao_social}</td>
                               <td className="py-4 px-4 text-foreground">{selectedClient.cnpj || '—'}</td>
                               <td className="py-4 px-4 text-foreground">{selectedClient.inscricao_estadual || '—'}</td>
                               <td className="py-4 px-4 text-foreground">{selectedClient.email || '—'}</td>
-                              <td className="py-4 px-4 text-foreground">{selectedClient.phone || '—'}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.telefone || '—'}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -476,7 +493,7 @@ export default function PortalCliente() {
                       <CardContent className="space-y-4 pt-6">
                         <div className="pb-4 border-b border-white/10">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contato Financeiro</p>
-                          <p className="text-foreground font-medium">{selectedClient.financial_contact || '—'}</p>
+                          <p className="text-foreground font-medium">{selectedClient.contato_financeiro || '—'}</p>
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Proprietário</p>
@@ -494,15 +511,15 @@ export default function PortalCliente() {
                             <div>
                               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Aeronave</p>
                               <CardTitle className="text-foreground text-lg">
-                                <span className="text-2xl font-bold text-blue-400">{aircraft.registration}</span>
+                                <span className="text-2xl font-bold text-blue-400">{aircraft.matricula}</span>
                               </CardTitle>
                               <p className="text-sm text-muted-foreground mt-2">
-                                {aircraft.manufacturer} {aircraft.model} - {aircraft.year}
+                                {aircraft.fabricante} {aircraft.modelo} - {aircraft.ano}
                               </p>
                             </div>
-                            {selectedAircraft && (
+                            {selectedAeronave && (
                               <Badge className="bg-emerald-500 text-white h-fit">
-                                {selectedPartner ? selectedPartner.percentage : selectedAircraft.share_percentage}% Cota
+                                {selectedPartner ? selectedPartner.percentage : selectedAeronave.percentual_participacao}% Cota
                               </Badge>
                             )}
                           </div>
@@ -538,21 +555,21 @@ export default function PortalCliente() {
 
                 {/* Saldos Devedores */}
                 <div className="mb-8">
-                  <SaldosDevedoresResume clienteId={selectedClient.id} aircraftId={selectedAircraft?.aircraft_id || ""} />
+                  <SaldosDevedoresResume clienteId={selectedClient.id} aircraftId={selectedAeronave?.id_aeronave || ""} />
                 </div>
 
                 {/* Tabs */}
                 <div className="mb-6">
                   <ClientDataTabs
                     clientId={selectedClient.id}
-                    clientName={selectedClient.company_name}
-                    aircraftId={selectedAircraft?.aircraft_id || ""}
-                    aircraftRegistration={selectedAircraft?.aircraft?.registration || ""}
+                    clientName={selectedClient.razao_social}
+                    aircraftId={selectedAeronave?.id_aeronave || ""}
+                    aircraftRegistration={selectedAeronave?.aeronave?.matricula || ""}
                     isAdmin={false}
                     selectedPartner={selectedPartner}
                   />
                 </div>
-              </AircraftSelector>
+              </AeronaveSelector>
             </>
           )}
         </div>

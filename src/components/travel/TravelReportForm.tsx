@@ -12,332 +12,331 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
-import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import { ControlledSelect, SelectItem as ControlledSelectItem } from "@/components/ui/controlled-select";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, Save, Send, Upload, Eye, FileText, AlertTriangle, CalendarIcon, Building2, Plane, User } from "lucide-react";
+import {
+  Plus, Trash2, Save, Send, Upload, Eye, FileText,
+  AlertTriangle, CalendarIcon, Building2, Plane, User,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useClientes } from "@/hooks/useClientes";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { useTripulantes } from "@/hooks/useTripulantes";
-import { calculateReportTotals, extractPayerTotals, getValidExpenses } from "@/lib/travelReportUtils";
+import {
+  calculateReportTotals,
+  getValidExpenses,
+} from "@/lib/travelReportUtils";
 import { validateReceiptFile } from "@/lib/receiptUtils";
-import { draftStorage } from "@/lib/travelReportDraft";
 import type { TravelReportDraft } from "@/lib/travelReportDraft";
-import { cn } from "@/lib/utils";
 import { ReceiptPreviewModal } from "./ReceiptPreviewModal";
 
-const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const EXPENSE_CATEGORIES = [
+  "Combustível",
+  "Hospedagem",
+  "Alimentação",
+  "Transporte",
+  "Outros",
+];
 
-interface Expense {
+// ---------------------------------------------------------------------------
+// Types – fields match the travel_expense_reports table columns
+// ---------------------------------------------------------------------------
+export interface Expense {
   id?: string;
-  category: string;
+  category: string;       // mapped to category inside despesas JSON
   description: string;
   amount: number;
   paid_by: string;
   receipt_url?: string;
   expense_date?: string;
+  
 }
 
-interface TravelReport {
+export interface TravelReport {
+  // PK / identifiers
   id?: string;
-  report_number: string;
-  client_id: string;
-  client: string;
-  client_partner?: string | null;
-  aircraft_id: string;
-  aircraft_registration: string;
-  crew_member_id: string;
-  crew_member_name: string;
-  crew_member_source?: 'crew_members' | 'crew' | null;
-  crew_member_name2: string;
-  crew_member_id2: string;
-  crew_member_2_source?: 'crew_members' | 'crew' | null;
-  route: string;
-  start_date: string;
-  end_date: string;
-  days_count: number;
-  observations: string;
+  numero_relatorio: string;
+
+  // Relations
+  clientes_id: string;          // FK → clientes.id
+  socios_cliente_id?: string | null; // FK → socios_cliente.id
+
+  aeronave_id: string;          // FK → aeronave.id
+  matricula_aeronave: string;   // text column
+
+  tripulacao_id: string;        // FK → tripulacao.id  (crew 1)
+  nome_tripulante: string;      // text column
+
+  tripulante_id2?: string;      // FK → membros_tripulacao.id  (crew 2)
+  nome_tripulante_2?: string;   // text column
+
+  rota: string;
+  data_inicio: string;          // date  yyyy-MM-dd
+  data_fim: string;             // date  yyyy-MM-dd
+  dias_count: number;
+
+  observacoes: string;
+
+  // Expenses stored as JSON text in `despesas` column
   expenses: Expense[];
-  total_amount: number;
-  total_fuel: number;
-  total_lodging: number;
-  total_food: number;
-  total_transport: number;
-  total_other: number;
-  total_crew: number;
-  total_crew1: number;
-  total_crew2: number;
-  total_client: number;
+
+  // Totals
+  total_valor: number;          // total_valor
+  total_combustivel: number;
+  total_hospedagem: number;
+  total_alimentacao: number;
+  total_transporte: number;
+  total_outros: number;
+  total_tripulacao: number;     // crew combined
+  total_trip: number;           // crew 1
+  total_trip2: number;          // crew 2
+  total_clientes: number;
   total_sharebrasil: number;
-  status: 'Rascunho' | 'Finalizado' | 'Enviado';
+
+  status: "Rascunho" | "Finalizado" | "Enviado";
+
+  // Display-only helpers (not persisted directly)
+  client?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 interface TravelReportFormProps {
   report?: TravelReport | null;
-  onSave: (report: TravelReport, status: 'Rascunho' | 'Finalizado') => Promise<void>;
+  onSave: (report: TravelReport, status: "Rascunho" | "Finalizado") => Promise<void>;
   onCancel: () => void;
   onAutoSave?: (report: TravelReportDraft) => void;
   showPartnerModal?: () => void;
   onReceiptView?: (url: string) => void;
 }
 
-export function TravelReportForm({ 
-  report, 
-  onSave, 
-  onCancel, 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const emptyReport = (): TravelReport => ({
+  numero_relatorio: "R-0001",
+  clientes_id: "",
+  socios_cliente_id: null,
+  aeronave_id: "",
+  matricula_aeronave: "",
+  tripulacao_id: "",
+  nome_tripulante: "",
+  tripulante_id2: "",
+  nome_tripulante_2: "",
+  rota: "",
+  data_inicio: format(new Date(), "yyyy-MM-dd"),
+  data_fim: format(new Date(), "yyyy-MM-dd"),
+  dias_count: 1,
+  observacoes: "",
+  expenses: [],
+  total_valor: 0,
+  total_combustivel: 0,
+  total_hospedagem: 0,
+  total_alimentacao: 0,
+  total_transporte: 0,
+  total_outros: 0,
+  total_tripulacao: 0,
+  total_trip: 0,
+  total_trip2: 0,
+  total_clientes: 0,
+  total_sharebrasil: 0,
+  status: "Rascunho",
+});
+
+const calculateDays = (startDate: string, endDate: string): number => {
+  if (!startDate || !endDate) return 1;
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+  const diffMs = Math.abs(end.getTime() - start.getTime());
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
+};
+
+const fmt = (val: number) =>
+  `R$ ${val.toFixed(2).replace(".", ",")}`;
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+export function TravelReportForm({
+  report,
+  onSave,
+  onCancel,
   onAutoSave,
-  showPartnerModal, 
-  onReceiptView 
+  showPartnerModal,
+  onReceiptView,
 }: TravelReportFormProps) {
-  const { clientes, isLoadingClientes } = useClientes();
-  const { aeronaves, isLoadingAeronaves } = useAeronaves();
-  const { tripulantes, isLoadingTripulantes } = useTripulantes();
+  const { clientes } = useClientes();
+  const { aeronaves } = useAeronaves();
+  const { tripulantes } = useTripulantes();
 
-  const [currentReport, setCurrentReport] = useState<TravelReport>(
-    report || {
-      report_number: 'R-0001',
-      client_id: '',
-      client: '',
-      client_partner: null,
-      aircraft_id: '',
-      aircraft_registration: '',
-      crew_member_id: '',
-      crew_member_name: '',
-      crew_member_id2: '',
-      crew_member_name2: '',
-      route: '',
-      start_date: format(new Date(), 'yyyy-MM-dd'),
-      end_date: format(new Date(), 'yyyy-MM-dd'),
-      days_count: 1,
-      observations: '',
-      expenses: [],
-      total_amount: 0,
-      total_fuel: 0,
-      total_lodging: 0,
-      total_food: 0,
-      total_transport: 0,
-      total_other: 0,
-      total_crew: 0,
-      total_crew1: 0,
-      total_crew2: 0,
-      total_client: 0,
-      total_sharebrasil: 0,
-      status: 'Rascunho'
-    }
+  const [current, setCurrent] = useState<TravelReport>(
+    report ?? emptyReport()
   );
-
-  const [partners, setPartners] = useState<{id?: string; name: string; cpf?: string; index: number}[]>([]);
-
-  const [showSecondCrew, setShowSecondCrew] = useState(!!currentReport.crew_member_name2);
+  const [partners, setPartners] = useState<
+    { id?: string; nome: string; cpf?: string; index: number }[]
+  >([]);
+  const [showSecondCrew, setShowSecondCrew] = useState(
+    !!current.nome_tripulante_2
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+
+  // Calendar open states
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [expenseDateOpenIndex, setExpenseDateOpenIndex] = useState<number | null>(null);
 
-  // Preview modal states
+  // Receipt preview
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ index: number; file: File } | null>(null);
   const [previewImage, setPreviewImage] = useState<string | undefined>();
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | undefined>();
 
-  // Load partners when form initializes with an existing client_id or when client_id changes
+  // -------------------------------------------------------------------------
+  // Side-effects
+  // -------------------------------------------------------------------------
+
+  // Load partners when client changes
   useEffect(() => {
-    if (currentReport.client_id) {
-      fetchPartnersForClient(currentReport.client_id);
-    }
-  }, [currentReport.client_id]);
+    if (current.clientes_id) fetchPartnersForClient(current.clientes_id);
+  }, [current.clientes_id]);
 
-  // Auto-save draft - salva a cada 30s para novos relatórios (sem id)
+  // Auto-save (new reports only)
   useEffect(() => {
-    if (!onAutoSave || currentReport.id) return;
+    if (!onAutoSave || current.id) return;
+    onAutoSave(current as unknown as TravelReportDraft);
+    const interval = setInterval(
+      () => onAutoSave(current as unknown as TravelReportDraft),
+      30_000
+    );
+    return () => clearInterval(interval);
+  }, [current, onAutoSave]);
 
-    // Salvar imediatamente ao montar e quando currentReport mudar
-    onAutoSave(currentReport as unknown as TravelReportDraft);
-
-    const autoSaveInterval = setInterval(() => {
-      onAutoSave(currentReport as unknown as TravelReportDraft);
-    }, 30000);
-    return () => clearInterval(autoSaveInterval);
-  }, [currentReport, onAutoSave]);
-
-  // Salvar rascunho ao fechar a página
+  // Save on page unload
   useEffect(() => {
-    if (!onAutoSave || currentReport.id) return;
+    if (!onAutoSave || current.id) return;
+    const handler = () => onAutoSave(current as unknown as TravelReportDraft);
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [current, onAutoSave]);
 
-    const handleBeforeUnload = () => {
-      onAutoSave(currentReport as unknown as TravelReportDraft);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [currentReport, onAutoSave]);
-
-  // Recalcular totais em tempo real quando as despesas mudam
+  // Recalculate totals whenever expenses change
   useEffect(() => {
-    const validExpenses = getValidExpenses(currentReport.expenses);
-    const recalculatedTotals = calculateReportTotals(validExpenses);
-
-    // Atualizar apenas se os totais mudaram (evita re-renders desnecessários)
-    setCurrentReport(prev => ({
+    const valid = getValidExpenses(current.expenses);
+    const t = calculateReportTotals(valid);
+    setCurrent((prev) => ({
       ...prev,
-      total_amount: recalculatedTotals.total_amount,
-      total_fuel: recalculatedTotals.total_fuel,
-      total_lodging: recalculatedTotals.total_lodging,
-      total_food: recalculatedTotals.total_food,
-      total_transport: recalculatedTotals.total_transport,
-      total_other: recalculatedTotals.total_other,
-      total_crew: recalculatedTotals.total_crew,
-      total_crew1: recalculatedTotals.total_crew1,
-      total_crew2: recalculatedTotals.total_crew2,
-      total_client: recalculatedTotals.total_client,
-      total_sharebrasil: recalculatedTotals.total_sharebrasil,
+      total_valor: t.total_amount,
+      total_combustivel: t.total_fuel,
+      total_hospedagem: t.total_lodging,
+      total_alimentacao: t.total_food,
+      total_transporte: t.total_transport,
+      total_outros: t.total_other,
+      total_tripulacao: t.total_crew,
+      total_trip: t.total_crew1,
+      total_trip2: t.total_crew2,
+      total_clientes: t.total_client,
+      total_sharebrasil: t.total_sharebrasil,
     }));
-  }, [currentReport.expenses]);
+  }, [current.expenses]);
 
-  const handleInputChange = (field: keyof TravelReport, value: any) => {
-    setCurrentReport(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  // -------------------------------------------------------------------------
+  // Handlers
+  // -------------------------------------------------------------------------
 
-  // Helper para encontrar um tripulante pelo ID
-  const getCrewSource = (crewId: string) => {
-    const found = tripulantes.find(t => t.id === crewId);
-    return found ? 'crew_members' : null;
-  };
+  const set = <K extends keyof TravelReport>(field: K, value: TravelReport[K]) =>
+    setCurrent((prev) => ({ ...prev, [field]: value }));
 
   const fetchPartnersForClient = async (clientId: string) => {
     try {
       const { data, error } = await supabase
-        .from('client_partners')
-        .select('id, name, cpf')
-        .eq('client_id', clientId)
-        .order('name');
-
-      if (error || !data) {
-        setPartners([]);
-        return [];
-      }
-
-      const mapped = data.map((p: any, i: number) => ({ id: p.id, name: p.name, cpf: p.cpf || undefined, index: i }));
-      setPartners(mapped);
-      return mapped;
-    } catch (err) {
+        .from("socios_cliente")
+        .select("id, nome, cpf")
+        .eq("cliente_id", clientId)
+        .order("nome");
+      if (error || !data) { setPartners([]); return; }
+      setPartners(data.map((p: any, i: number) => ({ id: p.id, nome: p.nome, cpf: p.cpf, index: i })));
+    } catch {
       setPartners([]);
-      return [];
     }
   };
 
   const handleExpenseChange = (index: number, field: keyof Expense, value: any) => {
-    const newExpenses = [...currentReport.expenses];
-    newExpenses[index] = { ...newExpenses[index], [field]: value };
-    setCurrentReport(prev => ({
-      ...prev,
-      expenses: newExpenses
-    }));
-  };
-
-  const calculateDays = (startDate: string, endDate: string): number => {
-    if (!startDate || !endDate) return 1;
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T00:00:00');
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays;
+    const next = [...current.expenses];
+    next[index] = { ...next[index], [field]: value };
+    set("expenses", next);
   };
 
   const addExpense = () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    setCurrentReport(prev => ({
+    const today = format(new Date(), "yyyy-MM-dd");
+    setCurrent((prev) => ({
       ...prev,
-      expenses: [{
-        category: '',
-        description: '',
-        amount: 0,
-        paid_by: '',
-        expense_date: today
-      }, ...prev.expenses]
+      expenses: [
+        { category: "", descricao: "", description: "", amount: 0, paid_by: "", expense_date: today },
+        ...prev.expenses,
+      ],
     }));
   };
 
-  const removeExpense = (index: number) => {
-    setCurrentReport(prev => ({
+  const removeExpense = (index: number) =>
+    setCurrent((prev) => ({
       ...prev,
-      expenses: prev.expenses.filter((_, i) => i !== index)
+      expenses: prev.expenses.filter((_, i) => i !== index),
     }));
-  };
 
-  const handleFileUpload = async (index: number, file: File | undefined) => {
+  // --- File upload with preview ---
+  const handleFileUpload = (index: number, file: File | undefined) => {
     if (!file) return;
-
-    // Validar arquivo
-    const validationErrors = validateReceiptFile(file, 10); // 10MB máximo
-    if (validationErrors.length > 0) {
-      const errorMessage = validationErrors.map(e => e.message).join('\n');
-      toast.error(`❌ Arquivo inválido:\n${errorMessage}`);
+    const errors = validateReceiptFile(file, 10);
+    if (errors.length > 0) {
+      toast.error(`❌ Arquivo inválido:\n${errors.map((e: any) => e.message).join("\n")}`);
       return;
     }
-
-    // Mostrar preview
     setPreviewFile({ index, file });
     setPreviewOpen(true);
     setPreviewLoading(true);
     setPreviewError(undefined);
 
-    try {
-      // Gerar preview da imagem
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setPreviewImage(result);
-        setPreviewLoading(false);
-      };
-      reader.onerror = () => {
-        setPreviewError("Erro ao ler arquivo");
-        setPreviewLoading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch (error: any) {
-      setPreviewError(error.message || "Erro ao processar arquivo");
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewImage(e.target?.result as string);
       setPreviewLoading(false);
-    }
+    };
+    reader.onerror = () => {
+      setPreviewError("Erro ao ler arquivo");
+      setPreviewLoading(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePreviewConfirm = async () => {
     if (!previewFile) return;
-
     const { index, file } = previewFile;
     setPreviewOpen(false);
     setUploadingIndex(index);
-    const toastId = toast.loading('📤 Enviando comprovante...');
-
+    const toastId = toast.loading("📤 Enviando comprovante...");
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-      const filePath = `receipts/${fileName}`;
-
+      const ext = file.name.split(".").pop();
+      const filePath = `receipts/${Date.now()}-${Math.random()}.${ext}`;
       const { error: uploadError } = await supabase.storage
-        .from('travel-reports')
+        .from("travel-reports")
         .upload(filePath, file);
-
       if (uploadError) throw uploadError;
-
       const { data: { publicUrl } } = supabase.storage
-        .from('travel-reports')
+        .from("travel-reports")
         .getPublicUrl(filePath);
-
-      handleExpenseChange(index, 'receipt_url', publicUrl);
-      toast.success('✓ Comprovante enviado com sucesso!', { id: toastId });
+      handleExpenseChange(index, "receipt_url", publicUrl);
+      toast.success("✓ Comprovante enviado!", { id: toastId });
     } catch (error: any) {
-      console.error('Erro ao fazer upload:', error);
-      toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`, { id: toastId });
+      toast.error(`❌ Erro no upload: ${error?.message ?? "Tente novamente"}`, { id: toastId });
     } finally {
       setUploadingIndex(null);
       setPreviewFile(null);
@@ -345,96 +344,88 @@ export function TravelReportForm({
     }
   };
 
-  const handleSave = async (status: 'Rascunho' | 'Finalizado') => {
-    // Validação: não permitir salvar como finalizado se o status atual não é rascunho
-    if (status === 'Finalizado' && currentReport.status !== 'Rascunho') {
-      toast.error('⚠️ Este relatório já foi finalizado anteriormente. Não é possível finalizá-lo novamente.');
+  // --- Save ---
+  const handleSave = async (status: "Rascunho" | "Finalizado") => {
+    if (status === "Finalizado" && current.status !== "Rascunho") {
+      toast.error("⚠️ Este relatório já foi finalizado. Não é possível finalizá-lo novamente.");
       return;
     }
-
-    if (!currentReport.client_id && (!currentReport.client || currentReport.client.trim() === '')) {
-      toast.error('⚠️ Preencha o campo obrigatório: Cliente');
+    if (!current.clientes_id) {
+      toast.error("⚠️ Preencha o campo obrigatório: Cliente");
       return;
     }
-
-    if (!currentReport.aircraft_id && (!currentReport.aircraft_registration || currentReport.aircraft_registration.trim() === '')) {
-      toast.error('⚠️ Preencha o campo obrigatório: Aeronave');
+    if (!current.aeronave_id) {
+      toast.error("⚠️ Preencha o campo obrigatório: Aeronave");
       return;
     }
-
-    if (!currentReport.route || currentReport.route.trim() === '') {
-      toast.error('⚠️ Preencha o campo obrigatório: Trecho');
+    if (!current.rota?.trim()) {
+      toast.error("⚠️ Preencha o campo obrigatório: Trecho");
       return;
     }
-
-    if (!currentReport.crew_member_id && (!currentReport.crew_member_name || currentReport.crew_member_name.trim() === '')) {
-      toast.error('⚠️ Preencha o campo obrigatório: Tripulante 1');
+    if (!current.tripulacao_id && !current.nome_tripulante?.trim()) {
+      toast.error("⚠️ Preencha o campo obrigatório: Tripulante 1");
       return;
     }
-
-    if (!currentReport.start_date || !currentReport.end_date) {
-      toast.error('⚠️ Preencha as datas de início e fim');
+    if (!current.data_inicio || !current.data_fim) {
+      toast.error("⚠️ Preencha as datas de início e fim");
       return;
     }
-
-    if (new Date(currentReport.start_date) > new Date(currentReport.end_date)) {
-      toast.error('⚠️ A data final deve ser igual ou posterior à data inicial');
+    if (new Date(current.data_inicio) > new Date(current.data_fim)) {
+      toast.error("⚠️ A data final deve ser igual ou posterior à data inicial");
       return;
     }
-
-    if (status !== 'Rascunho') {
-      const validExpenses = currentReport.expenses.filter(e => e.category && e.amount > 0);
-      if (validExpenses.length === 0) {
-        toast.error('⚠️ Adicione pelo menos uma despesa válida');
+    if (status !== "Rascunho") {
+      const valid = current.expenses.filter((e) => e.category && e.amount > 0);
+      if (valid.length === 0) {
+        toast.error("⚠️ Adicione pelo menos uma despesa válida");
         return;
       }
     }
 
     setIsSaving(true);
     try {
-      const days = calculateDays(currentReport.start_date, currentReport.end_date);
-      
-      // Recalculate totals
-      const validExpenses = getValidExpenses(currentReport.expenses);
-      const recalculatedTotals = calculateReportTotals(validExpenses);
-      
+      const validExpenses = getValidExpenses(current.expenses);
+      const t = calculateReportTotals(validExpenses);
       const reportToSave: TravelReport = {
-        ...currentReport,
-        days_count: days,
+        ...current,
+        dias_count: calculateDays(current.data_inicio, current.data_fim),
         expenses: validExpenses,
-        total_amount: recalculatedTotals.total_amount,
-        total_fuel: recalculatedTotals.total_fuel,
-        total_lodging: recalculatedTotals.total_lodging,
-        total_food: recalculatedTotals.total_food,
-        total_transport: recalculatedTotals.total_transport,
-        total_other: recalculatedTotals.total_other,
-        total_crew: recalculatedTotals.total_crew,
-        total_crew1: recalculatedTotals.total_crew1,
-        total_crew2: recalculatedTotals.total_crew2,
-        total_client: recalculatedTotals.total_client,
-        total_sharebrasil: recalculatedTotals.total_sharebrasil,
-        status
+        total_valor: t.total_amount,
+        total_combustivel: t.total_fuel,
+        total_hospedagem: t.total_lodging,
+        total_alimentacao: t.total_food,
+        total_transporte: t.total_transport,
+        total_outros: t.total_other,
+        total_tripulacao: t.total_crew,
+        total_trip: t.total_crew1,
+        total_trip2: t.total_crew2,
+        total_clientes: t.total_client,
+        total_sharebrasil: t.total_sharebrasil,
+        status,
       };
-
       await onSave(reportToSave, status);
-      // Mensagem consolidada é exibida pelo componente pai (RelatorioViagem)
     } catch (error: any) {
-      console.error('Erro ao salvar:', error);
-      // Erro também tratado pelo componente pai
+      console.error("Erro ao salvar:", error);
     } finally {
       setIsSaving(false);
     }
   };
 
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
   return (
     <div className="space-y-6">
+      {/* Rules alert */}
       <Alert className="border-amber-200/50 bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm rounded-xl">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-amber-100/50 flex-shrink-0">
             <AlertTriangle className="h-5 w-5 text-amber-600" />
           </div>
           <div className="flex-1">
-            <AlertTitle className="text-amber-900 font-bold text-base">Regras para Lançamento de Despesas</AlertTitle>
+            <AlertTitle className="text-amber-900 font-bold text-base">
+              Regras para Lançamento de Despesas
+            </AlertTitle>
             <AlertDescription className="text-amber-700/80 mt-3 space-y-2 leading-relaxed">
               <ul className="list-disc list-inside space-y-2">
                 <li>É obrigatório anexar o comprovante de pagamento para cada despesa.</li>
@@ -446,21 +437,27 @@ export function TravelReportForm({
         </div>
       </Alert>
 
+      {/* Trip info */}
       <Card className="shadow-md rounded-xl border-border/50">
         <CardHeader className="p-6 border-b border-border/30">
-          <CardTitle className="text-xl font-bold text-foreground">Informações da Viagem</CardTitle>
+          <CardTitle className="text-xl font-bold">Informações da Viagem</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Cliente */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Cliente</Label>
+              <Label className="text-sm font-semibold text-slate-700">Cliente *</Label>
               <SearchableCombobox
-                items={clientes.map(c => ({ id: c.id, label: c.company_name || '' }))}
-                value={currentReport.client_id}
+                items={clientes.map((c) => ({ id: c.id, label: c.razao_social || "" }))}
+                value={current.clientes_id}
                 onChange={(id, label) => {
-                  handleInputChange('client_id', id);
-                  handleInputChange('client', label);
-                  handleInputChange('client_partner', null);
+                  setCurrent((prev) => ({
+                    ...prev,
+                    clientes_id: id,
+                    client: label,
+                    socios_cliente_id: null,
+                  }));
                   fetchPartnersForClient(id);
                 }}
                 icon={<Building2 className="h-4 w-4" />}
@@ -472,30 +469,34 @@ export function TravelReportForm({
                 <div className="mt-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Sócio</Label>
                   <ControlledSelect
-                    value={currentReport.client_partner || ''}
+                    value={current.socios_cliente_id || ""}
                     onValueChange={(val) => {
-                      const sel = partners.find(p => p.id === val);
+                      const sel = partners.find((p) => p.id === val);
                       if (sel) {
-                        handleInputChange('client_partner', sel.id || null);
-                        handleInputChange('client', sel.name);
+                        setCurrent((prev) => ({
+                          ...prev,
+                          socios_cliente_id: sel.id ?? null,
+                          client: sel.nome,
+                        }));
                       }
                     }}
                     placeholder="Selecione o sócio"
                   >
-                    {partners.map(p => (
-                      <ControlledSelectItem key={p.id || p.index} value={p.id as string}>
-                        {p.name}
+                    {partners.map((p) => (
+                      <ControlledSelectItem key={p.id ?? p.index} value={p.id as string}>
+                        {p.nome}
                       </ControlledSelectItem>
                     ))}
                   </ControlledSelect>
                 </div>
               )}
-              {currentReport.client_id && (
+              {current.clientes_id && (
                 <p className="text-xs text-green-600">✓ Cliente selecionado</p>
               )}
-              {currentReport.client_partner && (
+              {current.socios_cliente_id && (
                 <p className="text-xs text-amber-500">
-                  👤 Sócio: <span className="font-semibold">{currentReport.client}</span>
+                  👤 Sócio:{" "}
+                  <span className="font-semibold">{current.client}</span>
                   {showPartnerModal && (
                     <button
                       type="button"
@@ -509,51 +510,73 @@ export function TravelReportForm({
               )}
             </div>
 
+            {/* Aeronave */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Aeronave</Label>
+              <Label className="text-sm font-semibold text-slate-700">Aeronave *</Label>
               <SearchableCombobox
-                items={Array.isArray(aeronaves) ? aeronaves.map(a => ({ id: a.id, label: a.registration || '' })) : []}
-                value={currentReport.aircraft_id}
+                items={
+                  Array.isArray(aeronaves)
+                    ? aeronaves.map((a) => ({ id: a.id, label: a.matricula || "" }))
+                    : []
+                }
+                value={current.aeronave_id}
                 onChange={(id, label) => {
-                  handleInputChange('aircraft_id', id);
-                  handleInputChange('aircraft_registration', label);
+                  setCurrent((prev) => ({
+                    ...prev,
+                    aeronave_id: id,
+                    matricula_aeronave: label,
+                  }));
                 }}
                 icon={<Plane className="h-4 w-4" />}
                 placeholder="Selecione a aeronave..."
                 searchPlaceholder="Buscar por prefixo..."
                 emptyMessage="Aeronave não encontrada."
               />
-              {currentReport.aircraft_id && (
+              {current.aeronave_id && (
                 <p className="text-xs text-green-600">✓ Aeronave selecionada</p>
               )}
             </div>
 
+            {/* Comandante */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-slate-700">Comandante</Label>
+              <Label className="text-sm font-semibold text-slate-700">Comandante *</Label>
               <SearchableCombobox
-                items={tripulantes.map(t => ({ id: t.id, label: t.full_name || '' }))}
-                value={currentReport.crew_member_id}
+                items={tripulantes.map((t) => ({ id: t.id, label: t.nome_completo || "" }))}
+                value={current.tripulacao_id}
                 onChange={(id, label) => {
-                  handleInputChange('crew_member_id', id);
-                  handleInputChange('crew_member_name', label);
+                  setCurrent((prev) => ({
+                    ...prev,
+                    tripulacao_id: id,
+                    nome_tripulante: label,
+                  }));
                 }}
                 icon={<User className="h-4 w-4" />}
                 placeholder="Selecione o comandante..."
                 searchPlaceholder="Buscar tripulante..."
                 emptyMessage="Tripulante não encontrado."
-                allowFreeText={true}
+                allowFreeText
               />
-              {currentReport.crew_member_id && (
+              {current.tripulacao_id && (
                 <p className="text-xs text-green-600">✓ Tripulante selecionado</p>
               )}
             </div>
 
+            {/* Second crew toggle */}
             <div className="space-y-2 flex items-end">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="showSecondCrew"
-                  checked={showSecondCrew || !!currentReport.crew_member_name2}
-                  onCheckedChange={(checked) => setShowSecondCrew(!!checked)}
+                  checked={showSecondCrew || !!current.nome_tripulante_2}
+                  onCheckedChange={(checked) => {
+                    setShowSecondCrew(!!checked);
+                    if (!checked) {
+                      setCurrent((prev) => ({
+                        ...prev,
+                        tripulante_id2: "",
+                        nome_tripulante_2: "",
+                      }));
+                    }
+                  }}
                 />
                 <Label htmlFor="showSecondCrew" className="cursor-pointer">
                   Adicionar Segundo Tripulante
@@ -561,45 +584,52 @@ export function TravelReportForm({
               </div>
             </div>
 
-            {(showSecondCrew || currentReport.crew_member_name2) && (
+            {/* Co-pilot */}
+            {(showSecondCrew || current.nome_tripulante_2) && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">Co-piloto</Label>
                 <SearchableCombobox
-                  items={tripulantes.map(t => ({ id: t.id, label: t.full_name || '' }))}
-                  value={tripulantes.find(t => t.full_name === currentReport.crew_member_name2)?.id || currentReport.crew_member_name2 || ''}
+                  items={tripulantes.map((t) => ({ id: t.id, label: t.nome_completo || "" }))}
+                  value={current.tripulante_id2 || ""}
                   onChange={(id, label) => {
-                    handleInputChange('crew_member_name2', label);
+                    setCurrent((prev) => ({
+                      ...prev,
+                      tripulante_id2: id,
+                      nome_tripulante_2: label,
+                    }));
                   }}
                   icon={<User className="h-4 w-4" />}
                   placeholder="Selecione o co-piloto..."
                   searchPlaceholder="Buscar tripulante..."
                   emptyMessage="Tripulante não encontrado."
-                  allowFreeText={true}
+                  allowFreeText
                 />
               </div>
             )}
 
+            {/* Rota */}
             <div className="space-y-2">
               <Label>Trecho (Ex: SBPF-SBGR) *</Label>
               <Input
-                value={currentReport.route || ''}
-                onChange={(e) => handleInputChange('route', e.target.value)}
+                value={current.rota}
+                onChange={(e) => set("rota", e.target.value)}
                 placeholder="Trecho"
               />
             </div>
 
+            {/* Data início */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Data Início *</Label>
               <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
+                    className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="flex-1">
-                      {currentReport.start_date
-                        ? format(new Date(currentReport.start_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
+                      {current.data_inicio
+                        ? format(new Date(current.data_inicio + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })
                         : "Selecione a data"}
                     </span>
                   </Button>
@@ -607,39 +637,40 @@ export function TravelReportForm({
                 <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
                   <UICalendar
                     mode="single"
-                    selected={currentReport.start_date ? new Date(currentReport.start_date + 'T00:00:00') : undefined}
+                    selected={current.data_inicio ? new Date(current.data_inicio + "T00:00:00") : undefined}
                     onSelect={(date) => {
-                      if (date) {
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        const formattedDate = `${year}-${month}-${day}`;
-                        handleInputChange('start_date', formattedDate);
-                        if (currentReport.end_date && new Date(formattedDate) > new Date(currentReport.end_date)) {
-                          handleInputChange('end_date', formattedDate);
-                        }
-                        setStartDateOpen(false);
-                      }
+                      if (!date) return;
+                      const formatted = format(date, "yyyy-MM-dd");
+                      setCurrent((prev) => ({
+                        ...prev,
+                        data_inicio: formatted,
+                        data_fim:
+                          prev.data_fim && new Date(formatted) > new Date(prev.data_fim)
+                            ? formatted
+                            : prev.data_fim,
+                      }));
+                      setStartDateOpen(false);
                     }}
-                    disabled={(date) => date > new Date()}
+                    disabled={(d) => d > new Date()}
                     locale={ptBR}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
+            {/* Data fim */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">Data Fim *</Label>
               <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
+                    className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="flex-1">
-                      {currentReport.end_date
-                        ? format(new Date(currentReport.end_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
+                      {current.data_fim
+                        ? format(new Date(current.data_fim + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })
                         : "Selecione a data"}
                     </span>
                   </Button>
@@ -647,35 +678,37 @@ export function TravelReportForm({
                 <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
                   <UICalendar
                     mode="single"
-                    selected={currentReport.end_date ? new Date(currentReport.end_date + 'T00:00:00') : undefined}
+                    selected={current.data_fim ? new Date(current.data_fim + "T00:00:00") : undefined}
                     onSelect={(date) => {
-                      if (date) {
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        const formattedDate = `${year}-${month}-${day}`;
-
-                        if (currentReport.start_date && new Date(formattedDate) < new Date(currentReport.start_date)) {
-                          toast.error('A data final deve ser igual ou posterior à data inicial');
-                          return;
-                        }
-
-                        handleInputChange('end_date', formattedDate);
-                        setEndDateOpen(false);
+                      if (!date) return;
+                      const formatted = format(date, "yyyy-MM-dd");
+                      if (current.data_inicio && new Date(formatted) < new Date(current.data_inicio)) {
+                        toast.error("A data final deve ser igual ou posterior à data inicial");
+                        return;
                       }
+                      set("data_fim", formatted);
+                      setEndDateOpen(false);
                     }}
-                    disabled={(date) => date > new Date() || (currentReport.start_date ? date < new Date(currentReport.start_date) : false)}
+                    disabled={(d) =>
+                      d > new Date() ||
+                      (current.data_inicio ? d < new Date(current.data_inicio + "T00:00:00") : false)
+                    }
                     locale={ptBR}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
-            {currentReport.start_date && currentReport.end_date && (
+            {/* Duration badge */}
+            {current.data_inicio && current.data_fim && (
               <div className="md:col-span-2">
                 <div className="text-sm font-semibold p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 rounded-lg">
                   <span className="text-green-700">
-                    ✓ Duração da Viagem: <strong className="text-lg text-green-600">{calculateDays(currentReport.start_date, currentReport.end_date)}</strong> dia{calculateDays(currentReport.start_date, currentReport.end_date) > 1 ? 's' : ''}
+                    ✓ Duração:{" "}
+                    <strong className="text-lg text-green-600">
+                      {calculateDays(current.data_inicio, current.data_fim)}
+                    </strong>{" "}
+                    dia{calculateDays(current.data_inicio, current.data_fim) > 1 ? "s" : ""}
                   </span>
                 </div>
               </div>
@@ -684,31 +717,40 @@ export function TravelReportForm({
         </CardContent>
       </Card>
 
+      {/* Observations */}
       <Card className="shadow-md rounded-xl border-border/50">
         <CardHeader className="p-6 border-b border-border/30">
-          <CardTitle className="text-xl font-bold text-foreground">Observações</CardTitle>
+          <CardTitle className="text-xl font-bold">Observações</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
           <Textarea
-            value={currentReport.observations || ''}
-            onChange={(e) => handleInputChange('observations', e.target.value)}
+            value={current.observacoes}
+            onChange={(e) => set("observacoes", e.target.value)}
             className="h-32 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary resize-none"
             placeholder="Adicione observações importantes sobre a viagem ou despesas..."
           />
         </CardContent>
       </Card>
 
+      {/* Expenses */}
       <Card className="shadow-md rounded-xl border-border/50">
         <CardHeader className="flex flex-row items-center justify-between p-6 border-b border-border/30">
-          <CardTitle className="text-xl font-bold text-foreground">Despesas da Viagem</CardTitle>
-          <Button onClick={addExpense} size="sm" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+          <CardTitle className="text-xl font-bold">Despesas da Viagem</CardTitle>
+          <Button
+            onClick={addExpense}
+            size="sm"
+            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Adicionar Despesa
           </Button>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
-          {currentReport.expenses?.map((expense, index) => (
-            <div key={expense.id || index} className="border border-border/50 p-5 rounded-xl bg-card/50 shadow-sm hover:shadow-md transition-all duration-200 relative">
+          {current.expenses.map((expense, index) => (
+            <div
+              key={expense.id ?? index}
+              className="border border-border/50 p-5 rounded-xl bg-card/50 shadow-sm hover:shadow-md transition-all duration-200 relative"
+            >
               <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
                   {index + 1}
@@ -717,11 +759,12 @@ export function TravelReportForm({
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Categoria */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Categoria *</Label>
                   <ControlledSelect
                     value={expense.category}
-                    onValueChange={(value) => handleExpenseChange(index, 'category', value)}
+                    onValueChange={(v) => handleExpenseChange(index, "category", v)}
                     placeholder="Selecione"
                   >
                     {EXPENSE_CATEGORIES.map((cat) => (
@@ -732,18 +775,22 @@ export function TravelReportForm({
                   </ControlledSelect>
                 </div>
 
+                {/* Data da despesa */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Data da Despesa</Label>
-                  <Popover open={expenseDateOpenIndex === index} onOpenChange={(open) => setExpenseDateOpenIndex(open ? index : null)}>
+                  <Popover
+                    open={expenseDateOpenIndex === index}
+                    onOpenChange={(open) => setExpenseDateOpenIndex(open ? index : null)}
+                  >
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
+                        className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span className="flex-1 truncate">
                           {expense.expense_date
-                            ? format(new Date(expense.expense_date + 'T00:00:00'), "dd/MM", { locale: ptBR })
+                            ? format(new Date(expense.expense_date + "T00:00:00"), "dd/MM", { locale: ptBR })
                             : "Data"}
                         </span>
                       </Button>
@@ -751,70 +798,78 @@ export function TravelReportForm({
                     <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
                       <UICalendar
                         mode="single"
-                        selected={expense.expense_date ? new Date(expense.expense_date + 'T00:00:00') : undefined}
+                        selected={expense.expense_date ? new Date(expense.expense_date + "T00:00:00") : undefined}
                         onSelect={(date) => {
-                          if (date) {
-                            const year = date.getFullYear();
-                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                            const day = String(date.getDate()).padStart(2, '0');
-                            const formattedDate = `${year}-${month}-${day}`;
-                            handleExpenseChange(index, 'expense_date', formattedDate);
-                            setExpenseDateOpenIndex(null);
-                          }
+                          if (!date) return;
+                          handleExpenseChange(index, "expense_date", format(date, "yyyy-MM-dd"));
+                          setExpenseDateOpenIndex(null);
                         }}
-                        disabled={(date) => date > new Date()}
+                        disabled={(d) => d > new Date()}
                         locale={ptBR}
-                        defaultMonth={expense.expense_date ? new Date(expense.expense_date + 'T00:00:00') : new Date()}
+                        defaultMonth={
+                          expense.expense_date
+                            ? new Date(expense.expense_date + "T00:00:00")
+                            : new Date()
+                        }
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
 
+                {/* Valor */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Valor (R$) *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={expense.amount}
-                    onChange={(e) => handleExpenseChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleExpenseChange(index, "amount", parseFloat(e.target.value) || 0)
+                    }
                     placeholder="0.00"
-                    className="h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary font-mono"
+                    className="h-11 rounded-lg border-border/50 font-mono"
                   />
                 </div>
 
+                {/* Pago por */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Pago Por *</Label>
                   <ControlledSelect
                     value={expense.paid_by}
-                    onValueChange={(value) => handleExpenseChange(index, 'paid_by', value)}
+                    onValueChange={(v) => handleExpenseChange(index, "paid_by", v)}
                     placeholder="Selecione"
                   >
                     <ControlledSelectItem value="Tripulante 1">
-                      {currentReport.crew_member_name ? `T1 (${currentReport.crew_member_name.split(' ')[0]})` : 'Tripulante 1'}
+                      {current.nome_tripulante
+                        ? `T1 (${current.nome_tripulante.split(" ")[0]})`
+                        : "Tripulante 1"}
                     </ControlledSelectItem>
-                    {(showSecondCrew || currentReport.crew_member_name2) && (
+                    {(showSecondCrew || current.nome_tripulante_2) && (
                       <ControlledSelectItem value="Tripulante 2">
-                        {currentReport.crew_member_name2 ? `T2 (${currentReport.crew_member_name2.split(' ')[0]})` : 'Tripulante 2'}
+                        {current.nome_tripulante_2
+                          ? `T2 (${current.nome_tripulante_2.split(" ")[0]})`
+                          : "Tripulante 2"}
                       </ControlledSelectItem>
                     )}
                     <ControlledSelectItem value="Cliente">Cliente</ControlledSelectItem>
                     <ControlledSelectItem value="ShareBrasil">ShareBrasil</ControlledSelectItem>
                   </ControlledSelect>
                 </div>
-
               </div>
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Descrição */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Descrição Detalhada</Label>
                   <Input
                     value={expense.description}
-                    onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
+                    onChange={(e) => handleExpenseChange(index, "description", e.target.value)}
                     placeholder="Breve descrição"
-                    className="h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary"
+                    className="h-11 rounded-lg border-border/50"
                   />
                 </div>
 
+                {/* Comprovante */}
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Comprovante</Label>
                   <div className="flex items-center gap-2">
@@ -828,7 +883,7 @@ export function TravelReportForm({
                           <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         )}
                         <span className="text-sm truncate">
-                          {expense.receipt_url ? 'Anexado' : 'Enviar'}
+                          {expense.receipt_url ? "Anexado" : "Enviar"}
                         </span>
                       </div>
                     </label>
@@ -840,13 +895,9 @@ export function TravelReportForm({
                       onChange={(e) => handleFileUpload(index, e.target.files?.[0])}
                       disabled={uploadingIndex !== null}
                     />
-                    {expense.receipt_url && (
+                    {expense.receipt_url && onReceiptView && (
                       <button
-                        onClick={() => {
-                          if (onReceiptView) {
-                            onReceiptView(expense.receipt_url!);
-                          }
-                        }}
+                        onClick={() => onReceiptView(expense.receipt_url!)}
                         className="p-2 rounded-lg hover:bg-accent transition-all duration-200"
                         title="Ver Comprovante"
                       >
@@ -857,50 +908,52 @@ export function TravelReportForm({
                 </div>
               </div>
 
-              {currentReport.expenses.length > 0 && (
-                <button
-                  onClick={() => removeExpense(index)}
-                  className="absolute top-4 right-4 text-destructive/60 hover:text-destructive hover:bg-destructive/10 p-2 rounded-lg transition-all duration-200 active:scale-[0.95]"
-                  title="Remover Despesa"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
+              {/* Remove expense */}
+              <button
+                onClick={() => removeExpense(index)}
+                className="absolute top-4 right-4 text-destructive/60 hover:text-destructive hover:bg-destructive/10 p-2 rounded-lg transition-all duration-200"
+                title="Remover Despesa"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </CardContent>
       </Card>
 
+      {/* Action buttons */}
       <div className="flex gap-4 flex-wrap">
         <Button
-          onClick={() => handleSave('Rascunho')}
+          onClick={() => handleSave("Rascunho")}
           disabled={isSaving}
           variant="outline"
-          className="rounded-lg border-border/50 hover:bg-accent transition-all duration-200 active:scale-[0.98]"
+          className="rounded-lg border-border/50 hover:bg-accent"
         >
           <Save className="h-4 w-4 mr-2" />
-          {isSaving ? 'Salvando...' : 'Salvar Rascunho'}
+          {isSaving ? "Salvando..." : "Salvar Rascunho"}
         </Button>
         <Button
-          onClick={() => handleSave('Finalizado')}
+          onClick={() => handleSave("Finalizado")}
           disabled={isSaving}
-          className="flex-1 md:flex-initial bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] font-semibold"
           size="lg"
+          className="flex-1 md:flex-initial bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg font-semibold"
         >
           <Send className="h-4 w-4 mr-2" />
-          {isSaving ? 'Salvando...' : 'Finalizar Relatório'}
+          {isSaving ? "Salvando..." : "Finalizar Relatório"}
         </Button>
         <Button
           variant="outline"
           onClick={onCancel}
           disabled={isSaving}
-          className="rounded-lg border-border/50 hover:bg-accent transition-all duration-200 active:scale-[0.98]"
+          className="rounded-lg border-border/50 hover:bg-accent"
         >
           Voltar
         </Button>
       </div>
 
+      {/* Totals summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Por pagador */}
         <Card className="shadow-md rounded-xl border-border/50">
           <CardHeader className="p-6 border-b border-border/30">
             <CardTitle className="text-lg font-bold">Por Pagador</CardTitle>
@@ -908,82 +961,78 @@ export function TravelReportForm({
           <CardContent className="p-6">
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{currentReport.crew_member_name ? `Tripulante 1` : 'Tripulante 1'}</span>
-                <span className="font-semibold text-foreground font-mono">R$ {(currentReport.total_crew1 || 0).toFixed(2).replace('.', ',')}</span>
+                <span className="text-muted-foreground">Tripulante 1</span>
+                <span className="font-semibold font-mono">{fmt(current.total_trip)}</span>
               </div>
-              {(showSecondCrew || currentReport.crew_member_name2) && (
+              {(showSecondCrew || current.nome_tripulante_2) && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tripulante 2</span>
-                  <span className="font-semibold text-foreground font-mono">R$ {(currentReport.total_crew2 || 0).toFixed(2).replace('.', ',')}</span>
+                  <span className="font-semibold font-mono">{fmt(current.total_trip2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Cliente</span>
-                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_client.toFixed(2).replace('.', ',')}</span>
+                <span className="font-semibold font-mono">{fmt(current.total_clientes)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">ShareBrasil</span>
-                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_sharebrasil.toFixed(2).replace('.', ',')}</span>
+                <span className="font-semibold font-mono">{fmt(current.total_sharebrasil)}</span>
               </div>
               <div className="flex justify-between pt-3 mt-3 border-t border-border/30">
-                <span className="font-bold text-foreground">TOTAL</span>
-                <span className="font-bold text-lg text-green-600 font-mono">R$ {currentReport.total_amount.toFixed(2).replace('.', ',')}</span>
+                <span className="font-bold">TOTAL</span>
+                <span className="font-bold text-lg text-green-600 font-mono">{fmt(current.total_valor)}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Por categoria */}
         <Card className="shadow-md rounded-xl border-border/50">
           <CardHeader className="p-6 border-b border-border/30">
             <CardTitle className="text-lg font-bold">Por Categoria</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Combustível</span>
-                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_fuel.toFixed(2).replace('.', ',')}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Hospedagem</span>
-                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_lodging.toFixed(2).replace('.', ',')}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Alimentação</span>
-                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_food.toFixed(2).replace('.', ',')}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Transporte</span>
-                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_transport.toFixed(2).replace('.', ',')}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Outros</span>
-                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_other.toFixed(2).replace('.', ',')}</span>
-              </div>
+              {(
+                [
+                  ["Combustível", current.total_combustivel],
+                  ["Hospedagem", current.total_hospedagem],
+                  ["Alimentação", current.total_alimentacao],
+                  ["Transporte", current.total_transporte],
+                  ["Outros", current.total_outros],
+                ] as [string, number][]
+              ).map(([label, val]) => (
+                <div key={label} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-semibold font-mono">{fmt(val)}</span>
+                </div>
+              ))}
               <div className="flex justify-between pt-3 mt-3 border-t border-border/30">
-                <span className="font-bold text-foreground">TOTAL</span>
-                <span className="font-bold text-lg text-green-600 font-mono">R$ {currentReport.total_amount.toFixed(2).replace('.', ',')}</span>
+                <span className="font-bold">TOTAL</span>
+                <span className="font-bold text-lg text-green-600 font-mono">{fmt(current.total_valor)}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {currentReport.observations && currentReport.observations.trim() !== '' && (
+        {/* Observações resumo */}
+        {current.observacoes?.trim() && (
           <Card className="shadow-md rounded-xl border-border/50 border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
             <CardHeader className="p-6 border-b border-border/30">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <span className="text-xl">📝</span>
-                Observações
+                <span>📝</span> Observações
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                {currentReport.observations}
+                {current.observacoes}
               </p>
             </CardContent>
           </Card>
         )}
       </div>
 
+      {/* Receipt preview modal */}
       <ReceiptPreviewModal
         open={previewOpen}
         onClose={() => {

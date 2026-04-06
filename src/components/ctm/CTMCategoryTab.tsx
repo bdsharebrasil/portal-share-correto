@@ -47,10 +47,10 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
   const { data: allOrders = [], refetch } = useQuery({
     queryKey: ["oas-by-category", aircraftId, categoryName],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ctm_service_orders")
+      const { data, error } = await (supabase as any)
+        .from("service_orders")
         .select("*")
-        .eq("aircraft_id", aircraftId)
+        .eq("aeronave_id", aircraftId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -66,8 +66,8 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
     orders.forEach((o) => {
       const year = o.data_entrada
         ? parseISODateString(o.data_entrada).getFullYear()
-        : o.created_at
-        ? new Date(o.created_at).getFullYear()
+        : o.criado_em
+        ? new Date(o.criado_em).getFullYear()
         : new Date().getFullYear();
       if (!groups[year]) groups[year] = [];
       groups[year].push(o);
@@ -218,8 +218,8 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
                                     R$ {(order.total_geral || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                                   </p>
                                 </div>
-                                <Badge className={cn("text-xs shrink-0", statusColor(order.status))}>
-                                  {statusLabel(order.status)}
+                                <Badge className={cn("text-xs shrink-0", statusColor(order.situacao))}>
+                                  {statusLabel(order.situacao)}
                                 </Badge>
                                 {expandedOrderId === order.id ? (
                                   <ChevronDown className="h-4 w-4 text-muted-foreground" />

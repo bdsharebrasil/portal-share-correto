@@ -34,9 +34,9 @@ import { syncBankReconciliationToFinancial } from "@/services/financialSyncClien
 // --- Interfaces ---
 interface ColaboradorReconciliation {
   id: string;
-  date: string;
-  description: string;
-  amount: number;
+  data: string;
+  descricao: string;
+  valor: number;
   status: string;
   category: string | null;
   receiver_id?: string | null;
@@ -99,15 +99,15 @@ export function ConciliacaoColaborador() {
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
       const { data, error } = await supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .select(`
           *,
-          user_profiles:receiver_id (full_name)
+          user_profiles:recebedor_id (full_name)
         `)
-        .eq('type', 'colaborador' as any)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0])
-        .order('date', { ascending: false });
+        .eq('tipo', 'colaborador' as any)
+        .gte('data', startDate.toISOString().split('T')[0])
+        .lte('data', endDate.toISOString().split('T')[0])
+        .order('data', { ascending: false });
 
       if (error) throw error;
 
@@ -174,7 +174,7 @@ export function ConciliacaoColaborador() {
                 {colaboradorData.map((item) => (
                   <TableRow key={item.id} className="hover:bg-accent/30 transition-colors group">
                     <TableCell className="px-4 py-4 whitespace-nowrap">
-                      {format(new Date(item.date), 'dd/MM/yyyy')}
+                      {format(new Date(item.data), 'dd/MM/yyyy')}
                     </TableCell>
                     <TableCell className="px-4 py-4">
                       <Badge variant="outline" className={`${getIdBadgeColor(getShortUserId(item.criado_por || ''))} font-semibold shadow-none border-border/50`}>
@@ -184,11 +184,11 @@ export function ConciliacaoColaborador() {
                     <TableCell className="px-4 py-4 font-medium text-foreground whitespace-normal break-words leading-tight">
                       {item.user_profiles?.full_name || "-"}
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-muted-foreground truncate max-w-[300px]" title={item.description}>
-                      {item.description}
+                    <TableCell className="px-4 py-4 text-muted-foreground truncate max-w-[300px]" title={item.descricao}>
+                      {item.descricao}
                     </TableCell>
                     <TableCell className="px-4 py-4 text-emerald-400 font-medium whitespace-nowrap">
-                      {formatCurrency(Number(item.amount))}
+                      {formatCurrency(Number(item.valor))}
                     </TableCell>
                     <TableCell className="px-4 py-4 text-muted-foreground text-sm whitespace-nowrap">
                       {item.prazo_pagamento ? format(new Date(item.prazo_pagamento), 'dd/MM/yyyy') : "-"}
@@ -241,7 +241,7 @@ function PrazoPagamentoEditor({ reconciliation, onSave }: PrazoPagamentoEditorPr
     const dateStr = format(selectedDate, "yyyy-MM-dd");
 
     const { error } = await supabase
-      .from('bank_reconciliations')
+      .from('conciliacoes_bancarias')
       .update({ prazo_pagamento: dateStr } as any)
       .eq('id', reconciliation.id);
 
@@ -256,7 +256,7 @@ function PrazoPagamentoEditor({ reconciliation, onSave }: PrazoPagamentoEditorPr
   return (
     <div className="flex gap-2">
       <Input
-        type="date"
+        type="data"
         value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
         onChange={(e) =>
           setSelectedDate(e.target.value ? new Date(e.target.value) : undefined)

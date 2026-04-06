@@ -48,7 +48,7 @@ export function HistoricoRateioConsolidado({
   useEffect(() => {
     const hoje = new Date();
     const umAnoAtras = new Date(hoje.getFullYear() - 1, hoje.getMonth(), hoje.getDate());
-    
+
     setDataFim(format(hoje, 'yyyy-MM-dd'));
     setDataInicio(format(umAnoAtras, 'yyyy-MM-dd'));
   }, []);
@@ -65,13 +65,13 @@ export function HistoricoRateioConsolidado({
       if (!selectedClienteId) return [];
 
       let query = supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .select(`
           *,
           categorias_movimentacao:categoria_movimentacao_id (id, nome, grupo_categoria),
-          aircraft:aircraft_id (id, registration, model)
+          aircraft:aeronave_id (id, registration, model)
         `)
-        .eq('client_id', selectedClienteId)
+        .eq('clientes_id', selectedClienteId)
         .order('date', { ascending: false });
 
       if (dataInicio) {
@@ -86,22 +86,22 @@ export function HistoricoRateioConsolidado({
 
       return (data || []).map((item: any) => ({
         id: item.id,
-        data_competencia: item.date,
-        aeronave_registro: item.aircraft?.registration || 'N/A',
-        categoria_nome: item.categorias_movimentacao?.nome || item.category || 'Sem categoria',
+        data_competencia: item.data,
+        aeronave_registro: item.aeronave?.matricula || 'N/A',
+        categoria_nome: item.categorias_movimentacao?.nome || item.categoria || 'Sem categoria',
         categoria_grupo: item.categorias_movimentacao?.grupo_categoria || 'Outros',
-        descricao: item.description,
+        descricao: item.descricao,
         tipo_rateio: item.percentual ? 'percentual' : 'valor',
         horas_voadas: 0, // Seria calculado com base em logbook
         percentual_uso: parseFloat(item.percentual || '0'),
-        valor_total_lancamento: item.amount || 0,
-        valor_rateado: item.amount || 0,
+        valor_total_lancamento: item.valor || 0,
+        valor_rateado: item.valor || 0,
         valor_pago: item.valor_reembolsado || 0,
-        saldo_devedor: (item.amount || 0) - (item.valor_reembolsado || 0),
-        status_pagamento: item.status === 'reembolsado' ? 'Pago' : 
-                          item.status === 'pendente' ? 'Pendente' : 
-                          item.status === 'inadimplente' ? 'Inadimplente' : item.status,
-        tipo: item.type,
+        saldo_devedor: (item.valor || 0) - (item.valor_reembolsado || 0),
+        status_pagamento: item.situacao === 'reembolsado' ? 'Pago' :
+          item.situacao === 'pendente' ? 'Pendente' :
+            item.situacao === 'inadimplente' ? 'Inadimplente' : item.situacao,
+        tipo: item.tipo,
       }));
     },
     enabled: !!selectedClienteId,
@@ -148,7 +148,7 @@ export function HistoricoRateioConsolidado({
       'R$ ' + item.valor_rateado.toFixed(2),
       'R$ ' + item.valor_pago.toFixed(2),
       'R$ ' + item.saldo_devedor.toFixed(2),
-      item.status_pagamento,
+      item.situacao_pagamento,
     ]);
 
     const csvContent = [
@@ -191,7 +191,7 @@ export function HistoricoRateioConsolidado({
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Data Inicial</label>
               <Input
-                type="date"
+                type="data"
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
                 className="bg-slate-700/50 border-slate-600"
@@ -201,7 +201,7 @@ export function HistoricoRateioConsolidado({
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Data Final</label>
               <Input
-                type="date"
+                type="data"
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
                 className="bg-slate-700/50 border-slate-600"
@@ -366,16 +366,16 @@ export function HistoricoRateioConsolidado({
                       <TableCell>
                         <Badge
                           className={
-                            item.status_pagamento === 'Pago'
+                            item.situacao_pagamento === 'Pago'
                               ? 'bg-green-900/50 text-green-400 border-green-700'
-                              : item.status_pagamento === 'Pendente'
-                              ? 'bg-amber-900/50 text-amber-400 border-amber-700'
-                              : item.status_pagamento === 'Inadimplente'
-                              ? 'bg-red-900/50 text-red-400 border-red-700'
-                              : 'bg-slate-700 text-slate-300'
+                              : item.situacao_pagamento === 'Pendente'
+                                ? 'bg-amber-900/50 text-amber-400 border-amber-700'
+                                : item.situacao_pagamento === 'Inadimplente'
+                                  ? 'bg-red-900/50 text-red-400 border-red-700'
+                                  : 'bg-slate-700 text-slate-300'
                           }
                         >
-                          {item.status_pagamento}
+                          {item.situacao_pagamento}
                         </Badge>
                       </TableCell>
                     </TableRow>

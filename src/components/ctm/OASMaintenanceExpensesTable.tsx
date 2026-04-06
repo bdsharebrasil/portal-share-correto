@@ -22,7 +22,7 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
         .from("despesas_manutencao")
         .select("*")
         .eq("service_order_id", orderId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -66,9 +66,9 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
       if (!clientId) return {};
 
       const { data, error } = await supabase
-        .from("client_partners")
-        .select("id, name, cpf")
-        .eq("client_id", clientId);
+        .from("socios_cliente")
+        .select("id, nome, cpf")
+        .eq("cliente_id", clientId);
 
       if (error) throw error;
 
@@ -111,10 +111,10 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
   despesasManutencao.forEach((despesa) => {
     const rateios = allRateios[despesa.id] || [];
     rateios.forEach((rateio) => {
-      if (!totaisPorSocio[rateio.client_partner_id]) {
-        totaisPorSocio[rateio.client_partner_id] = 0;
+      if (!totaisPorSocio[rateio.socio_cliente_id_id]) {
+        totaisPorSocio[rateio.socio_cliente_id_id] = 0;
       }
-      totaisPorSocio[rateio.client_partner_id] += rateio.valor || 0;
+      totaisPorSocio[rateio.socio_cliente_id_id] += rateio.valor || 0;
     });
   });
 
@@ -137,7 +137,7 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
               return (
                 <div key={partnerId} className="bg-white/5 border border-white/10 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">
-                    {partner?.name || "Sócio desconhecido"}
+                    {partner?.nome || "Sócio desconhecido"}
                   </p>
                   <p className="text-lg font-bold text-blue-400">
                     R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -226,7 +226,7 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
                               </p>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {rateios.map((rateio) => {
-                                  const partner = partners[rateio.client_partner_id];
+                                  const partner = partners[rateio.socio_cliente_id_id];
                                   return (
                                     <div
                                       key={rateio.id}
@@ -234,22 +234,22 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
                                     >
                                       <div className="flex justify-between items-start mb-2">
                                         <p className="font-medium text-white">
-                                          {partner?.name || "Desconhecido"}
+                                          {partner?.nome || "Desconhecido"}
                                         </p>
                                         <Badge
                                           variant="outline"
                                           className={cn(
                                             "text-xs",
-                                            rateio.status_pagamento === "pago"
+                                            rateio.situacao_pagamento === "pago"
                                               ? "bg-green-500/20 border-green-500/30 text-green-300"
-                                              : rateio.status_pagamento === "parcial"
+                                              : rateio.situacao_pagamento === "parcial"
                                                 ? "bg-yellow-500/20 border-yellow-500/30 text-yellow-300"
                                                 : "bg-gray-500/20 border-gray-500/30 text-gray-300"
                                           )}
                                         >
-                                          {rateio.status_pagamento === "pago"
+                                          {rateio.situacao_pagamento === "pago"
                                             ? "Pago"
-                                            : rateio.status_pagamento === "parcial"
+                                            : rateio.situacao_pagamento === "parcial"
                                               ? "Parcial"
                                               : "Pendente"}
                                         </Badge>

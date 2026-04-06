@@ -90,7 +90,7 @@ export function PayslipsManagement() {
         throw new Error("Arquivo e funcionário são obrigatórios");
       }
 
-      const fileName = `${uploadData.employee_id}/${uploadData.year}/${String(uploadData.month).padStart(2, "0")}_${uploadData.file.name}`;
+      const fileName = `${uploadData.employee_id}/${uploadData.year}/${String(uploadData.month).padStart(2, "0")}_${uploadData.file.nome}`;
       
       const { error: uploadError, data } = await supabase.storage
         .from("holerites")
@@ -136,7 +136,7 @@ export function PayslipsManagement() {
 
       const { error: storageError } = await supabase.storage
         .from("holerites")
-        .remove([payslip.file_path]);
+        .remove([payslip.caminho_arquivo]);
 
       if (storageError) throw storageError;
 
@@ -313,13 +313,13 @@ export function PayslipsManagement() {
                                   {months[payslip.month - 1]?.label}
                                 </TableCell>
                                 <TableCell>
-                                  {payslip.uploaded_at
-                                    ? new Date(payslip.uploaded_at).toLocaleDateString("pt-BR")
+                                  {payslip.enviado_em
+                                    ? new Date(payslip.enviado_em).toLocaleDateString("pt-BR")
                                     : "—"}
                                 </TableCell>
                                 <TableCell>
-                                  {payslip.file_path
-                                    ? payslip.file_path.split("/").pop()
+                                  {payslip.caminho_arquivo
+                                    ? payslip.caminho_arquivo.split("/").pop()
                                     : "—"}
                                 </TableCell>
                                 <TableCell className="flex gap-2">
@@ -330,7 +330,7 @@ export function PayslipsManagement() {
                                     title="Visualizar holerite"
                                   >
                                     <a
-                                      href={getPayslipPublicUrl(payslip.file_path)}
+                                      href={getPayslipPublicUrl(payslip.caminho_arquivo)}
                                       target="_blank"
                                       rel="noreferrer"
                                     >

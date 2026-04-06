@@ -10,12 +10,11 @@ export function useAircraftList() {
   const fetchAircraft = useCallback(async () => {
     setLoading(true);
     try {
-      // Primeiro, tenta com filtro de status 'ativa'
+      // Tenta carregar todas as aeronaves
       const { data, error } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
-        .eq('status', 'ativa')
-        .order('registration', { ascending: true });
+        .order('matricula', { ascending: true });
 
       if (error) {
         console.error('Erro ao carregar aeronaves com filtro ativa:', error);
@@ -34,9 +33,9 @@ export function useAircraftList() {
       // Fallback: tenta sem filtro
       try {
         const { data: allData, error: fallbackError } = await supabase
-          .from('aircraft')
+          .from('aeronave')
           .select('*')
-          .order('registration', { ascending: true });
+          .order('matricula', { ascending: true });
 
         if (fallbackError) {
           console.error('Erro no fallback:', fallbackError);
@@ -92,4 +91,9 @@ export function useAircraftList() {
     loading,
     refetch: fetchAircraft,
   };
+}
+
+// Backward compatibility
+export function useAeronaveList() {
+  return useAircraftList();
 }

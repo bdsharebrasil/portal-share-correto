@@ -40,17 +40,17 @@ interface DocumentsByFolder {
   };
 }
 
-interface AircraftDocumentsViewerProps {
+interface AeronaveDocumentosViewerProps {
   aircraftId: string;
   clientId: string;
   isAdmin?: boolean;
 }
 
-export function AircraftDocumentsViewer({
+export function AeronaveDocumentosViewer({
   aircraftId,
   clientId,
   isAdmin = false,
-}: AircraftDocumentsViewerProps) {
+}: AeronaveDocumentosViewerProps) {
   const [documentsByFolder, setDocumentsByFolder] = useState<DocumentsByFolder>({});
   const [folders, setFolders] = useState<DocumentFolder[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -70,8 +70,8 @@ export function AircraftDocumentsViewer({
       const { data: docsData, error: docsError } = await supabase
         .from("flight_documents")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .order("created_at", { ascending: false });
+        .eq("id_aeronave", aircraftId)
+        .order("criado_em", { ascending: false });
 
       if (docsError) throw docsError;
 
@@ -205,7 +205,7 @@ export function AircraftDocumentsViewer({
   }
 
   const hasDocuments = Object.values(documentsByFolder).some(
-    (item) => item.documents.length > 0
+    (item) => item.documentouments.length > 0
   );
 
   return (
@@ -272,8 +272,8 @@ export function AircraftDocumentsViewer({
                   if (a[0] === "no-folder") return 1;
                   if (b[0] === "no-folder") return -1;
                   return (
-                    new Date(b[1].folder?.created_at || 0).getTime() -
-                    new Date(a[1].folder?.created_at || 0).getTime()
+                    new Date(b[1].folder?.criado_em || 0).getTime() -
+                    new Date(a[1].folder?.criado_em || 0).getTime()
                   );
                 })
                 .map(([folderId, { folder, documents }]) => {
@@ -300,11 +300,11 @@ export function AircraftDocumentsViewer({
                                 {folder ? (
                                   <>
                                     <p className="font-semibold text-foreground text-sm">
-                                      {folder.name}
+                                      {folder.nome}
                                     </p>
-                                    {folder.description && (
+                                    {folder.descricao && (
                                       <p className="text-xs text-muted-foreground truncate">
-                                        {folder.description}
+                                        {folder.descricao}
                                       </p>
                                     )}
                                   </>
@@ -335,7 +335,7 @@ export function AircraftDocumentsViewer({
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <p className="font-medium text-foreground text-sm truncate">
-                                    {doc.name}
+                                    {doc.nome}
                                   </p>
                                   {expiryStatus && (
                                     <Badge className={`text-xs flex-shrink-0 ${expiryStatus.className}`}>
@@ -344,15 +344,15 @@ export function AircraftDocumentsViewer({
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                  <span>{formatFileSize(doc.file_size)}</span>
+                                  <span>{formatFileSize(doc.tamanho_arquivo)}</span>
                                   <span>•</span>
                                   <span>
-                                    {new Date(doc.created_at).toLocaleDateString("pt-BR")}
+                                    {new Date(doc.criado_em).toLocaleDateString("pt-BR")}
                                   </span>
                                 </div>
-                                {doc.description && (
+                                {doc.descricao && (
                                   <p className="text-xs text-muted-foreground truncate mt-1">
-                                    {doc.description}
+                                    {doc.descricao}
                                   </p>
                                 )}
                               </div>
@@ -362,7 +362,7 @@ export function AircraftDocumentsViewer({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => downloadFile(doc.file_path)}
+                                onClick={() => downloadFile(doc.caminho_arquivo)}
                                 className="h-8 w-8 p-0"
                                 title="Baixar"
                               >
@@ -383,7 +383,7 @@ export function AircraftDocumentsViewer({
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem
                                       onClick={() =>
-                                        deleteDocument(doc.id, doc.file_path)
+                                        deleteDocument(doc.id, doc.caminho_arquivo)
                                       }
                                       className="text-destructive"
                                     >

@@ -19,10 +19,10 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
   const { data: horasData = [], isLoading: loadingHoras } = useQuery({
     queryKey: ['horas-aeronave', clienteId, aeronaveId, periodo],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from('horas_mensais_consolidadas')
         .select('*')
-        .eq('cliente_id', clienteId)
+        .eq('clientes_id', clienteId)
         .order('ano', { ascending: false })
         .order('mes', { ascending: false });
 
@@ -34,23 +34,23 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
 
       // Se não houver dados consolidados, buscar de logbook_entries
       if (!error && (!data || data.length === 0)) {
-        let fallbackQuery = supabase
+        let fallbackQuery = (supabase as any)
           .from('logbook_entries')
           .select(`
             id,
             client_id,
-            aircraft_id,
+            aeronave_id,
             entry_date,
             total_time,
-            aircraft:aircraft_id(registration)
+            aircraft:aeronave_id(registration)
           `)
-          .eq('client_id', clienteId)
+          .eq('clientes_id', clienteId)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim)
           .order('entry_date', { ascending: false });
 
         if (aeronaveId) {
-          fallbackQuery = fallbackQuery.eq('aircraft_id', aeronaveId);
+          fallbackQuery = fallbackQuery.eq('aeronave_id', aeronaveId);
         }
 
         const { data: fallbackData, error: fallbackError } = await fallbackQuery;
@@ -75,7 +75,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
                 id: `${entry.aircraft_id}-${ano}-${mes}`,
                 cliente_id: entry.client_id,
                 aeronave_id: entry.aircraft_id,
-                aeronave_registro: entry.aircraft?.registration || 'N/A',
+                aeronave_registro: entry.aircraft?.matricula || 'N/A',
                 ano,
                 mes,
                 data_referencia: new Date(ano, mes - 1, 1).toISOString().split('T')[0],
@@ -99,8 +99,8 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
               .filter((e: any) => {
                 const d = new Date(e.entry_date);
                 return d.getFullYear() === hora.ano &&
-                       (d.getMonth() + 1) === hora.mes &&
-                       e.aircraft_id === hora.aeronave_id;
+                  (d.getMonth() + 1) === hora.mes &&
+                  e.aircraft_id === hora.aeronave_id;
               })
               .reduce((sum: number, e: any) => sum + (e.total_time || 0), 0);
 
@@ -126,12 +126,12 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
 
       if (aeronaveId) {
         const { data: aeronaveSelecionada } = await supabase
-          .from('aircraft')
-          .select('registration')
+          .from('aeronave')
+          .select('matricula')
           .eq('id', aeronaveId)
           .single();
 
-        aeronaveRegistro = aeronaveSelecionada?.registration ?? null;
+        aeronaveRegistro = aeronaveSelecionada?.matricula ?? null;
       }
 
       let query = supabase
@@ -293,18 +293,18 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px'
                     }}
                     formatter={(value: number) => [`${value.toFixed(1)}h`, 'Horas']}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="horas" 
-                    stroke="hsl(var(--primary))" 
+                  <Area
+                    type="monotone"
+                    dataKey="horas"
+                    stroke="hsl(var(--primary))"
                     fill="hsl(var(--primary) / 0.2)"
                     strokeWidth={2}
                   />
@@ -332,16 +332,16 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
                 <BarChart data={custosCategoriaData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
-                    stroke="hsl(var(--muted-foreground))" 
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    stroke="hsl(var(--muted-foreground))"
                     fontSize={11}
                     width={100}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px'
                     }}
@@ -374,18 +374,18 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                   formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="valor" 
-                  stroke="hsl(var(--primary))" 
+                <Line
+                  type="monotone"
+                  dataKey="valor"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--primary))' }}
                 />

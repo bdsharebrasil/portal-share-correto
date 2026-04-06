@@ -128,7 +128,7 @@ export function NewComponentDialog({
       if (error) throw error;
 
       toast.success(`Componente "${formData.name}" cadastrado com sucesso!`);
-      onComponentCreated?.(data as Component);
+      onComponentCreated?.(data as unknown as Component);
       
       // Reset form
       setFormData({
@@ -161,9 +161,9 @@ export function NewComponentDialog({
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Identificação do Componente</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-1">
-                <Label htmlFor="name">Nome do Componente *</Label>
+                <Label htmlFor="nome">Nome do Componente *</Label>
                 <Input
-                  id="name"
+                  id="nome"
                   placeholder="Ex: Motor PT6A-42A"
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
@@ -193,9 +193,9 @@ export function NewComponentDialog({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="category">Categoria</Label>
+                <Label htmlFor="categoria">Categoria</Label>
                 <Select value={formData.category} onValueChange={(val) => handleChange("category", val)}>
-                  <SelectTrigger id="category">
+                  <SelectTrigger id="categoria">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -316,15 +316,15 @@ export function NewComponentDialog({
                 <Label htmlFor="installed_date">Data de Instalação na Célula</Label>
                 <Input
                   id="installed_date"
-                  type="date"
+                  type="data"
                   value={formData.installed_date}
                   onChange={(e) => handleChange("installed_date", e.target.value)}
                 />
               </div>
               <div>
-                <Label htmlFor="due_date">Data de Vencimento (Itens por Tempo)</Label>
+                <Label htmlFor="data_vencimento">Data de Vencimento (Itens por Tempo)</Label>
                 <Input
-                  id="due_date"
+                  id="data_vencimento"
                   type="date"
                   value={formData.due_date}
                   onChange={(e) => handleChange("due_date", e.target.value)}
@@ -341,9 +341,9 @@ export function NewComponentDialog({
             <h3 className="text-sm font-semibold text-foreground border-b pb-2">Status Operacional</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="status">Condição do Componente</Label>
+                <Label htmlFor="situacao">Condição do Componente</Label>
                 <Select value={formData.status} onValueChange={(val) => handleChange("status", val)}>
-                  <SelectTrigger id="status">
+                  <SelectTrigger id="situacao">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -357,9 +357,9 @@ export function NewComponentDialog({
               </div>
             </div>
             <div>
-              <Label htmlFor="observations">Observações (MICCA / Etiqueta)</Label>
+              <Label htmlFor="observacoes">Observações (MICCA / Etiqueta)</Label>
               <Textarea
-                id="observations"
+                id="observacoes"
                 placeholder="Insira notas sobre a etiqueta 8130-3, Ficha de Histórico ou observações gerais..."
                 value={formData.observations}
                 onChange={(e) => handleChange("observations", e.target.value)}

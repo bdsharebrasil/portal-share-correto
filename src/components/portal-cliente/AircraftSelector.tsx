@@ -4,30 +4,36 @@ import { Badge } from "@/components/ui/badge";
 import { Plane } from "lucide-react";
 
 interface ClientAircraft {
-  aircraft_id: string;
-  share_percentage: number;
-  aircraft: {
+  aeronave_id: string;
+  id_aeronave: string;
+  percentual_sociedade: number;
+  percentual_participacao?: number;
+  aeronave: {
     id: string;
-    registration: string;
-    manufacturer: string;
-    model: string;
-    year: string;
+    registration?: string;
+    matricula?: string;
+    manufacturer?: string;
+    fabricante?: string;
+    model?: string;
+    modelo?: string;
+    year?: string;
+    ano?: string;
   };
 }
 
-interface AircraftSelectorProps {
+interface AeronaveSelectorProps {
   aircrafts: ClientAircraft[];
   selectedAircraftId: string;
   onSelect: (aircraft: ClientAircraft) => void;
   children?: React.ReactNode;
 }
 
-export function AircraftSelector({
+export function AeronaveSelector({
   aircrafts,
   selectedAircraftId,
   onSelect,
   children
-}: AircraftSelectorProps) {
+}: AeronaveSelectorProps) {
   if (aircrafts.length <= 1) {
     return <>{children}</>;
   }
@@ -35,36 +41,36 @@ export function AircraftSelector({
   return (
     <>
       <style>{`
-        .aircraft-tab[data-state="active"] {
+        .aeronave-tab[data-state="active"] {
           background-color: rgba(12, 158, 31, 0.1) !important;
           border-color: rgba(3, 117, 43, 1) !important;
         }
-        .aircraft-tab:hover {
+        .aeronave-tab:hover {
           border-color: rgba(3, 117, 43, 0.5) !important;
         }
       `}</style>
       <Tabs defaultValue={selectedAircraftId} onValueChange={(value) => {
-        const selected = aircrafts.find(a => a.aircraft_id === value);
+        const selected = aircrafts.find(a => a.aeronave_id === value);
         if (selected) onSelect(selected);
       }}>
         <TabsList className="w-full bg-transparent rounded-none p-0 h-auto gap-3 flex-wrap md:flex-nowrap px-0 border-b border-border">
           {aircrafts.map((aircraft) => (
             <TabsTrigger
-              key={aircraft.aircraft_id}
-              value={aircraft.aircraft_id}
+              key={aircraft.aeronave_id}
+              value={aircraft.aeronave_id}
               className="aircraft-tab gap-2 px-4 py-3 rounded-lg border-2 border-transparent transition-all"
             >
               <Plane className="h-4 w-4" />
-              <span>{aircraft.aircraft.registration}</span>
+              <span>{aircraft.aeronave?.matricula || aircraft.aeronave?.registration || '-'}</span>
               <Badge variant="secondary" className="text-xs">
-                {aircraft.share_percentage}%
+                {(aircraft.percentual_participacao || aircraft.percentual_sociedade || 0)}%
               </Badge>
             </TabsTrigger>
           ))}
         </TabsList>
 
         {aircrafts.map((aircraft) => (
-          <TabsContent key={aircraft.aircraft_id} value={aircraft.aircraft_id} className="mt-6">
+          <TabsContent key={aircraft.aeronave_id} value={aircraft.aeronave_id} className="mt-6">
             {children}
           </TabsContent>
         ))}

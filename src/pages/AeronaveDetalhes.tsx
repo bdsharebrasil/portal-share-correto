@@ -17,9 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DocumentViewer } from "@/components/DocumentViewer";
-interface AircraftDocument {
+interface AeronaveDocumento {
   id: string;
-  aircraft_id: string | null;
+  aeronave_id: string | null;
   document_type: string | null;
   name: string;
   file_path: string;
@@ -89,7 +89,7 @@ export default function AeronaveDetalhes() {
   const [alertDays, setAlertDays] = useState("30");
   const [isUploading, setIsUploading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [previewDoc, setPreviewDoc] = useState<AircraftDocument | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<AeronaveDocumento | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const {
     data: aircraft,
@@ -100,7 +100,7 @@ export default function AeronaveDetalhes() {
       const {
         data,
         error
-      } = await supabase.from("aircraft").select("*").eq("id", id).single();
+      } = await supabase.from('aeronave').select("*").eq("id", id).single();
       if (error) throw error;
       return data;
     },
@@ -116,18 +116,18 @@ export default function AeronaveDetalhes() {
         data: clientAircraft,
         error: caError
       } = await supabase
-        .from("client_aircraft")
-        .select("client_id, share_percentage")
-        .eq("aircraft_id", id);
+        .from("cotistas_aeronave")
+        .select("id_cliente, percentual_sociedade")
+        .eq("id_aeronave", id);
 
       if (caError) throw caError;
       if (!clientAircraft || clientAircraft.length === 0) return [];
 
       // Depois buscar os dados dos clientes
-      const clientIds = clientAircraft.map((ca: any) => ca.client_id);
+      const clientIds = clientAircraft.map((ca: any) => ca.cliente_id);
       const { data: clientsData, error: clientsError } = await supabase
-        .from("clients")
-        .select("id, company_name")
+        .from("clientes")
+        .select("id, razao_social")
         .in("id", clientIds);
 
       if (clientsError) throw clientsError;
@@ -139,10 +139,10 @@ export default function AeronaveDetalhes() {
       });
 
       return clientAircraft.map((ca: any) => ({
-        share_percentage: ca.share_percentage,
-        clients: clientsMap[ca.client_id] || { id: ca.client_id, company_name: null }
+        percentual_sociedade: ca.percentual_participacao,
+        clients: clientsMap[ca.cliente_id] || { id: ca.cliente_id, company_name: null }
       })) as Array<{
-        share_percentage: number;
+        percentual_sociedade: number;
         clients: {
           id: string;
           company_name: string | null;
@@ -160,9 +160,22 @@ export default function AeronaveDetalhes() {
       const {
         data,
         error
-      } = await supabase.from("flight_documents").select("*").eq("aircraft_id", id).order("document_type");
+      } = await supabase.from("documentos_voo").select("*").eq("aeronave_id", id).order("tipo_documento");
       if (error) throw error;
-      return data as AircraftDocument[];
+      return (data || []).map((d: any) => ({
+        id: d.id,
+        aeronave_id: d.aeronave_id,
+        document_type: d.tipo_documento,
+        name: d.nome,
+        file_path: d.caminho_arquivo,
+        file_size: d.tamanho_arquivo,
+        file_type: d.tipo_arquivo,
+        expiry_date: d.data_validade,
+        alert_days: d.dias_alerta,
+        description: d.descricao,
+        created_at: d.criado_em,
+        uploaded_by: d.enviado_por,
+      })) as AeronaveDocumento[];
     },
     enabled: !!id
   });
@@ -181,20 +194,20 @@ export default function AeronaveDetalhes() {
       const existingDoc = documents?.find(d => d.document_type === selectedDocType);
       if (existingDoc) {
         await supabase.storage.from("flight-documents").remove([existingDoc.file_path]);
-        await supabase.from("flight_documents").delete().eq("id", existingDoc.id);
+        await supabase.from("documentos_voo").delete().eq("id", existingDoc.id);
       }
       const {
         error: insertError
-      } = await supabase.from("flight_documents").insert({
-        aircraft_id: id,
-        document_type: selectedDocType,
-        name: uploadFile.name,
-        file_path: fileName,
-        file_size: uploadFile.size,
-        file_type: uploadFile.type,
-        description: notes || null,
-        expiry_date: expiryDate || null,
-        alert_days: alertDays ? parseInt(alertDays) : 30
+      } = await supabase.from("documentos_voo").insert({
+        aeronave_id: id,
+        tipo_documento: selectedDocType,
+        nome: uploadFile.name,
+        caminho_arquivo: fileName,
+        tamanho_arquivo: uploadFile.size,
+        tipo_arquivo: uploadFile.type,
+        descricao: notes || null,
+        data_validade: expiryDate || null,
+        dias_alerta: alertDays ? parseInt(alertDays) : 30
       });
       if (insertError) throw insertError;
       toast.success("Documento enviado com sucesso!");
@@ -220,7 +233,7 @@ export default function AeronaveDetalhes() {
       }
       const {
         error
-      } = await supabase.from("flight_documents").delete().eq("id", deleteConfirmId);
+      } = await supabase.from("documentos_voo").delete().eq("id", deleteConfirmId);
       if (error) throw error;
       toast.success("Documento excluído!");
       setDeleteConfirmId(null);
@@ -229,7 +242,7 @@ export default function AeronaveDetalhes() {
       toast.error(`Erro ao excluir: ${error.message}`);
     }
   };
-  const handleViewDocument = async (doc: AircraftDocument) => {
+  const handleViewDocument = async (doc: AeronaveDocumento) => {
     try {
       const {
         data
@@ -242,7 +255,7 @@ export default function AeronaveDetalhes() {
       toast.error(`Erro ao abrir documento: ${error.message}`);
     }
   };
-  const handleDownloadDocument = async (doc: AircraftDocument) => {
+  const handleDownloadDocument = async (doc: AeronaveDocumento) => {
     const {
       data
     } = await supabase.storage.from("flight-documents").download(doc.file_path);
@@ -305,14 +318,14 @@ export default function AeronaveDetalhes() {
               </div>
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold tracking-wider uppercase">
-                  {aircraft.registration}
+                  {aeronave.matricula}
                 </h1>
-                <p className="text-white/70 mt-1">{aircraft.model} • {aircraft.manufacturer}</p>
+                <p className="text-white/70 mt-1">{aircraft.modelo} • {aircraft.fabricante}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge className={`px-4 py-2 text-sm font-medium rounded-xl ${aircraft.status === "inativa" ? "bg-red-500/20 text-red-200 border-red-400/30" : "bg-emerald-500/20 text-emerald-200 border-emerald-400/30"}`} variant="outline">
-                {aircraft.status === "inativa" ? "Inativa" : "Ativa"}
+              <Badge className={`px-4 py-2 text-sm font-medium rounded-xl ${aeronave.status === "inativa" ? "bg-red-500/20 text-red-200 border-red-400/30" : "bg-emerald-500/20 text-emerald-200 border-emerald-400/30"}`} variant="outline">
+                {aeronave.status === "inativa" ? "Inativa" : "Ativa"}
               </Badge>
               <Button variant="secondary" className="rounded-xl" onClick={() => setEditDialogOpen(true)}>
                 <Edit className="h-4 w-4 mr-2" />
@@ -332,7 +345,7 @@ export default function AeronaveDetalhes() {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-blue-300/80 uppercase tracking-widest font-semibold mb-1">Ano de Fabricação</p>
-                  <p className="text-2xl font-bold text-blue-100">{aircraft.year || "—"}</p>
+                  <p className="text-2xl font-bold text-blue-100">{aircraft.ano || "—"}</p>
                 </div>
               </div>
             </CardContent>
@@ -360,7 +373,7 @@ export default function AeronaveDetalhes() {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-orange-300/80 uppercase tracking-widest font-semibold mb-1">Consumo Combustível</p>
-                  <p className="text-2xl font-bold text-orange-100">{aircraft.fuel_consumption ? `${aircraft.fuel_consumption} L/H` : "—"}</p>
+                  <p className="text-2xl font-bold text-orange-100">{aircraft.consumo_combustivel ? `${aircraft.consumo_combustivel} L/H` : "—"}</p>
                 </div>
               </div>
             </CardContent>
@@ -379,8 +392,8 @@ export default function AeronaveDetalhes() {
                   <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-3">Clientes Vinculados</p>
                   <div className="flex flex-wrap gap-2">
                     {clients.map((c, i) => <Badge key={i} className="rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 text-cyan-200 border-cyan-500/50 text-xs font-medium px-3 py-1.5 hover:from-cyan-600/40 hover:to-blue-600/40 transition-colors">
-                        {c.clients?.company_name || "Sem nome"}
-                        <span className="ml-1.5 font-bold text-cyan-300">({c.share_percentage}%)</span>
+                        {c.clients?.razao_social || "Sem nome"}
+                        <span className="ml-1.5 font-bold text-cyan-300">({c.percentual_participacao}%)</span>
                       </Badge>)}
                   </div>
                 </div>
@@ -400,25 +413,25 @@ export default function AeronaveDetalhes() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 py-0 px-0 my-0 mx-[3px]">
               <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Nº Série</p>
-                <p className="text-base font-bold text-slate-100">{aircraft.serial_number || "N/A"}</p>
+                <p className="text-base font-bold text-slate-100">{aircraft.numero_serie || "N/A"}</p>
               </div>
               <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Fabricante</p>
-                <p className="text-base font-bold text-slate-100">{aircraft.manufacturer || "N/A"}</p>
+                <p className="text-base font-bold text-slate-100">{aircraft.fabricante || "N/A"}</p>
               </div>
               <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Modelo</p>
-                <p className="text-base font-bold text-slate-100">{aircraft.model || "N/A"}</p>
+                <p className="text-base font-bold text-slate-100">{aircraft.modelo || "N/A"}</p>
               </div>
               
               
               <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Proprietário</p>
-                <p className="text-base font-bold text-slate-100 truncate">{aircraft.owner_name || "N/A"}</p>
+                <p className="text-base font-bold text-slate-100 truncate">{aircraft.nome_proprietario || "N/A"}</p>
               </div>
               <div className="p-4 bg-gradient-to-br from-amber-900/30 to-amber-800/20 rounded-xl border border-amber-700/50 hover:border-amber-600/70 transition-colors">
                 <p className="text-xs text-amber-300 uppercase tracking-wider font-medium mb-2">Valor Hora</p>
-                <p className="text-base font-bold text-amber-100">{aircraft.hourly_price ? `R$ ${aircraft.hourly_price}` : "N/A"}</p>
+                <p className="text-base font-bold text-amber-100">{aircraft.preco_hora ? `R$ ${aircraft.preco_hora}` : "N/A"}</p>
               </div>
               
             </div>

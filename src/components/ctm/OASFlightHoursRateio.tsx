@@ -69,19 +69,19 @@ export function OASFlightHoursRateio({
     queryFn: async () => {
       // Get clients linked to this aircraft
       const { data: clientAircraft } = await supabase
-        .from("client_aircraft")
-        .select("client_id")
-        .eq("aircraft_id", aircraftId);
+        .from("cotistas_aeronave")
+        .select("id_clientes")
+        .eq("id_aeronave", aircraftId);
 
       if (!clientAircraft || clientAircraft.length === 0) return { partners: [] };
 
-      const clientIds = clientAircraft.map(ca => ca.client_id);
+      const clientIds = clientAircraft.map(ca => ca.id_clientes);
 
       // Get partners for these clients
       const { data: partners } = await (supabase as any)
-        .from("client_partners")
-        .select("id, name, client_id")
-        .in("client_id", clientIds);
+        .from("socios_cliente")
+        .select("id, nome, cliente_id")
+        .in("cliente_id", clientIds);
 
       return { partners: partners || [] };
     },
@@ -114,14 +114,14 @@ export function OASFlightHoursRateio({
     }
 
     const partners = aircraftData?.partners || [];
-    const partnerMap = new Map(partners.map((p: any) => [p.id, p.name]));
+    const partnerMap = new Map(partners.map((p: any) => [p.id, p.nome]));
 
     // Group by client_partner_id
     const byPartner: Record<string, { name: string; minutes: number; isNonPartner: boolean }> = {};
     let total = 0;
 
     flightData.forEach((entry: any) => {
-      const partnerId = entry.client_partner_id || "__shared__";
+      const partnerId = entry.socio_cliente_id_id || "__shared__";
       const minutes = decimalToMinutes(entry.total_time || 0);
 
       if (!byPartner[partnerId]) {
@@ -166,7 +166,7 @@ export function OASFlightHoursRateio({
   const saveRateio = async () => {
     setSaving(true);
     try {
-      await supabase.from("ctm_cost_sharing").delete().eq("service_order_id", orderId);
+      await (supabase as any).from("ctm_cost_sharing").delete().eq("service_order_id", orderId);
 
       const inserts = partnerData.map(p => ({
         service_order_id: orderId,
@@ -178,7 +178,7 @@ export function OASFlightHoursRateio({
       }));
 
       if (inserts.length > 0) {
-        const { error } = await supabase.from("ctm_cost_sharing").insert(inserts);
+        const { error } = await (supabase as any).from("ctm_cost_sharing").insert(inserts);
         if (error) throw error;
       }
 
@@ -196,7 +196,7 @@ export function OASFlightHoursRateio({
     const updateData: any = { status_pagamento: newStatus };
     if (newStatus === "pago") updateData.data_pagamento = new Date().toISOString().split("T")[0];
     else updateData.data_pagamento = null;
-    const { error } = await supabase.from("ctm_cost_sharing").update(updateData).eq("id", id);
+    const { error } = await (supabase as any).from("ctm_cost_sharing").update(updateData).eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success(newStatus === "pago" ? "Marcado como pago" : "Revertido"); onRefetch(); }
   };
@@ -448,16 +448,16 @@ export function OASFlightHoursRateio({
             <TableBody>
               {costSharing.map((cs: any) => (
                 <TableRow key={cs.id}>
-                  <TableCell className="font-medium">{cs.client?.company_name || cs.client?.proprietario || "-"}</TableCell>
+                  <TableCell className="font-medium">{cs.client?.razao_social || cs.client?.proprietario || "-"}</TableCell>
                   <TableCell>{cs.horas_voadas ? formatHHMM(decimalToMinutes(cs.horas_voadas)) : "-"}</TableCell>
                   <TableCell>{cs.percentual?.toFixed(1)}%</TableCell>
                   <TableCell>R$ {(cs.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell>
                     <Badge
-                      className={cn("cursor-pointer", cs.status_pagamento === "pago" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400")}
-                      onClick={() => togglePago(cs.id, cs.status_pagamento)}
+                      className={cn("cursor-pointer", cs.situacao_pagamento === "pago" ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400")}
+                      onClick={() => togglePago(cs.id, cs.situacao_pagamento)}
                     >
-                      {cs.status_pagamento === "pago" ? "✓ Pago" : "Pendente"}
+                      {cs.situacao_pagamento === "pago" ? "✓ Pago" : "Pendente"}
                     </Badge>
                   </TableCell>
                 </TableRow>

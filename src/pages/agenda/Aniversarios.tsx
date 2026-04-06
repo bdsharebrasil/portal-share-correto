@@ -312,7 +312,7 @@ export default function Aniversarios() {
               </div>
 
               <div>
-                <Label htmlFor="category">Categoria *</Label>
+                <Label htmlFor="categoria">Categoria *</Label>
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData({ ...formData, category: value })}

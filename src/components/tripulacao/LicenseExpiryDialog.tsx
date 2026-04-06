@@ -25,11 +25,14 @@ interface LicenseExpiryDialogProps {
   onOpenChange: (open: boolean) => void;
   license: {
     id: string;
-    license_type: string;
-    expiry_date?: string | null;
+    tipo_habilitacao: string;
+    data_validade?: string | null;
     validade_cma?: string | null;
     CMA?: string | null;
     FS_RH?: string | null;
+    // Backward compatibility
+    license_type?: string;
+    expiry_date?: string | null;
   } | null;
   isCMA?: boolean;
   onSuccess: () => void;
@@ -43,7 +46,7 @@ export function LicenseExpiryDialog({
   onSuccess,
 }: LicenseExpiryDialogProps) {
 
-  const currentDate = isCMA ? license?.validade_cma : license?.expiry_date;
+  const currentDate = isCMA ? license?.validade_cma : license?.data_validade;
   const [expiryDate, setExpiryDate] = useState(currentDate || "");
   const [cmaClass, setCmaClass] = useState(license?.CMA || "");
   const [fsRh, setFsRh] = useState(license?.FS_RH || "");
@@ -64,7 +67,7 @@ export function LicenseExpiryDialog({
 
       const updateData: any = isCMA
         ? { validade_cma: expiryDate }
-        : { expiry_date: expiryDate };
+        : { data_validade: expiryDate };
 
       // Add CMA-specific fields if editing CMA
       if (isCMA) {
@@ -75,7 +78,7 @@ export function LicenseExpiryDialog({
       console.log("[License] Attempting to update:", { id: license.id, ...updateData });
 
       const { error } = await (supabase as any)
-        .from("crew_licenses")
+        .from("habilitacoes_tripulante")
         .update(updateData)
         .eq("id", license.id);
 
@@ -170,7 +173,7 @@ export function LicenseExpiryDialog({
                 <Label htmlFor="expiry-date">Validade do CMA</Label>
                 <Input
                   id="expiry-date"
-                  type="date"
+                  type="data"
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
                   className="w-full"
@@ -189,7 +192,7 @@ export function LicenseExpiryDialog({
                 <Label htmlFor="expiry-date">Nova Data de Validade</Label>
                 <Input
                   id="expiry-date"
-                  type="date"
+                  type="data"
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
                   className="w-full"

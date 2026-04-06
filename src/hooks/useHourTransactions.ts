@@ -12,11 +12,11 @@ export function useHourTransactions(aircraftId: string | null | undefined) {
         .from('hour_transactions')
         .select(`
           *,
-          from_partner:clients!hour_transactions_from_partner_id_fkey(id, company_name),
-          to_partner:clients!hour_transactions_to_partner_id_fkey(id, company_name)
+          from_partner:clientes!hour_transactions_from_partner_id_fkey(id, razao_social),
+          to_partner:clientes!hour_transactions_to_partner_id_fkey(id, razao_social)
         `)
         .eq('aircraft_id', aircraftId)
-        .order('created_at', { ascending: false })
+        .order('criado_em', { ascending: false })
         .limit(100);
 
       if (error) throw error;
@@ -47,8 +47,8 @@ export function useCreateHourTransaction() {
       return result;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['hour-transactions', variables.aircraft_id] });
-      queryClient.invalidateQueries({ queryKey: ['aircraft-partners', variables.aircraft_id] });
+      queryClient.invalidateQueries({ queryKey: ['hour-transactions', variables.aeronave_id] });
+      queryClient.invalidateQueries({ queryKey: ['aircraft-partners', variables.aeronave_id] });
     },
   });
 }
@@ -85,12 +85,12 @@ export function useHourTransactionsByPartner(
         .from('hour_transactions')
         .select(`
           *,
-          from_partner:clients!hour_transactions_from_partner_id_fkey(id, company_name),
-          to_partner:clients!hour_transactions_to_partner_id_fkey(id, company_name)
+          from_partner:clientes!hour_transactions_from_partner_id_fkey(id, razao_social),
+          to_partner:clientes!hour_transactions_to_partner_id_fkey(id, razao_social)
         `)
         .eq('aircraft_id', aircraftId)
         .or(`from_partner_id.eq.${partnerId},to_partner_id.eq.${partnerId}`)
-        .order('created_at', { ascending: false })
+        .order('criado_em', { ascending: false })
         .limit(50);
 
       if (error) throw error;

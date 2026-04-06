@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { fromUntyped, rpcUntyped } from "@/lib/supabase-helpers";
 import { toast } from "sonner";
 import { AlertCircle, Plus, Trash2, Edit2, Scale, TrendingUp, Check, X } from "lucide-react";
 
 interface WeightBalanceData {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   peso_vazio_padrao: number;
   braço_cg_padrao?: number;
   braco_cg_padrao?: number;
@@ -88,26 +89,24 @@ export function CTMWeightBalanceComplete({
       setLoading(true);
       
       // Load weight balance data
-      const { data: wbData, error: wbError } = await supabase
-        .from("weight_balance")
+      const { data: wbData, error: wbError } = await fromUntyped("weight_balance")
         .select("*")
-        .eq("aircraft_id", aircraftId)
+        .eq("aeronave_id", aircraftId)
         .single();
 
       if (wbError && wbError.code !== "PGRST116") throw wbError;
 
       if (wbData) {
-        setWeightData(wbData);
+        setWeightData(wbData as WeightBalanceData);
 
         // Load items
-        const { data: itemsData, error: itemsError } = await supabase
-          .from("weight_balance_items")
+        const { data: itemsData, error: itemsError } = await fromUntyped("weight_balance_items")
           .select("*")
           .eq("weight_balance_id", wbData.id)
-          .order("created_at");
+          .order("criado_em");
 
         if (itemsError) throw itemsError;
-        setItems(itemsData || []);
+        setItems((itemsData || []) as WeightItem[]);
       }
     } catch (error: any) {
       console.error("Erro ao carregar dados de peso:", error);
@@ -121,7 +120,7 @@ export function CTMWeightBalanceComplete({
     if (!weightData) return;
 
     try {
-      const { data, error } = await supabase.rpc("calculate_weight_and_cg", {
+      const { data, error } = await rpcUntyped("calculate_weight_and_cg", {
         _weight_balance_id: weightData.id,
         _combustivel_utilizado: combustivel,
       });
@@ -152,8 +151,7 @@ export function CTMWeightBalanceComplete({
 
     try {
       if (editingItem) {
-        const { error } = await supabase
-          .from("weight_balance_items")
+        const { error } = await fromUntyped("weight_balance_items")
           .update({
             descricao: formData.descricao,
             categoria: formData.categoria || null,
@@ -168,8 +166,7 @@ export function CTMWeightBalanceComplete({
         if (error) throw error;
         toast.success("Item atualizado com sucesso!");
       } else {
-        const { error } = await supabase
-          .from("weight_balance_items")
+        const { error } = await fromUntyped("weight_balance_items")
           .insert({
             weight_balance_id: weightData.id,
             descricao: formData.descricao,
@@ -194,8 +191,7 @@ export function CTMWeightBalanceComplete({
 
   const handleDeleteItem = async (itemId: string) => {
     try {
-      const { error } = await supabase
-        .from("weight_balance_items")
+      const { error } = await fromUntyped("weight_balance_items")
         .delete()
         .eq("id", itemId);
 
@@ -248,7 +244,7 @@ export function CTMWeightBalanceComplete({
       const { data, error } = await (supabase as any)
         .from("weight_balance")
         .insert({
-          aircraft_id: aircraftId,
+          aeronave_id: aircraftId,
           peso_vazio_padrao: 0,
           braco_cg_padrao: 0,
           peso_maximo_decolagem: 0,

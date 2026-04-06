@@ -67,7 +67,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
       setSubmitting(true);
 
       const insertData = {
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         [`${fieldPrefix}_number`]: data.number,
         title: data.title,
         issue_date: data.issueDate,
@@ -92,7 +92,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
       if (isAD) {
         onSuccess({
           id: newItem.id,
-          aircraftId: newItem.aircraft_id,
+          aeronaveId: newItem.aeronave_id,
           adNumber: newItem.ad_number,
           title: newItem.title,
           issueDate: newItem.issue_date,
@@ -107,7 +107,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
       } else {
         onSuccess({
           id: newItem.id,
-          aircraftId: newItem.aircraft_id,
+          aeronaveId: newItem.aeronave_id,
           sbNumber: newItem.sb_number,
           title: newItem.title,
           issueDate: newItem.issue_date,
@@ -173,7 +173,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
             <div className="space-y-2">
               <Label>Data de Emissão</Label>
               <Input
-                type="date"
+                type="data"
                 {...register('issueDate')}
                 className={errors.issueDate ? 'border-red-500' : ''}
               />
@@ -184,7 +184,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
 
             <div className="space-y-2">
               <Label>Data de Vencimento (Opcional)</Label>
-              <Input type="date" {...register('dueDate')} />
+              <Input type="data" {...register('dueDate')} />
             </div>
           </div>
 
@@ -216,7 +216,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data de Conclusão (se aplicável)</Label>
-              <Input type="date" {...register('completionDate')} />
+              <Input type="data" {...register('completionDate')} />
             </div>
           </div>
 

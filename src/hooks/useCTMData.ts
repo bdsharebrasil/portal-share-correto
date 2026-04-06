@@ -4,7 +4,7 @@ import type { Component } from "@/types/ctm";
 
 export interface CTMTracking {
   id: string;
-  aircraft_id: string | null;
+  aeronave_id: string | null;
   client_id: string | null;
   item_name: string;
   control_type: string;
@@ -24,7 +24,7 @@ export interface CTMTracking {
 
 export interface CTMServiceOrder {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   numero: string | null;
   os_oficina: string | null;
   horas_celula: number | null;
@@ -68,7 +68,7 @@ export interface CTMCostSharing {
   };
 }
 
-export interface AircraftDetails {
+export interface AeronaveDetalhes {
   id: string;
   registration: string;
   model: string;
@@ -88,13 +88,25 @@ export function useCTMData(aircraftId: string) {
     queryKey: ["ctm-aircraft", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model, manufacturer, status, cell_hours_current, cell_hours_prev, celula_prox_revisao, horimeter_active, horimeter_start, horimeter_end")
+        .from('aeronave')
+        .select('id, matricula, modelo, fabricante, status')
         .eq("id", aircraftId)
         .single();
 
       if (error) throw error;
-      return data as AircraftDetails;
+      return {
+        id: data.id,
+        registration: data.matricula,
+        model: data.modelo,
+        manufacturer: data.fabricante,
+        status: data.status,
+        cell_hours_current: null,
+        cell_hours_prev: null,
+        celula_prox_revisao: null,
+        horimeter_active: null,
+        horimeter_start: null,
+        horimeter_end: null,
+      } as AeronaveDetalhes;
     },
     enabled: !!aircraftId,
   });
@@ -106,7 +118,7 @@ export function useCTMData(aircraftId: string) {
       const { data, error } = await supabase
         .from("ctm_tracking")
         .select("*")
-        .eq("aircraft_id", aircraftId)
+        .eq("id_aeronave", aircraftId)
         .order("item_name");
 
       if (error) throw error;
@@ -120,10 +132,10 @@ export function useCTMData(aircraftId: string) {
     queryKey: ["ctm-service-orders", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ctm_service_orders")
+        .from("service_orders")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .order("created_at", { ascending: false });
+        .eq("id_aeronave", aircraftId)
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       return (data || []) as CTMServiceOrder[];
@@ -142,7 +154,7 @@ export function useCTMData(aircraftId: string) {
         .from("ctm_cost_sharing")
         .select(`
           *,
-          client:clients(id, company_name, proprietario)
+          client:clientes(id, razao_social, proprietario)
         `)
         .in("service_order_id", orderIds);
 
@@ -159,7 +171,7 @@ export function useCTMData(aircraftId: string) {
       const { data, error } = await supabase
         .from("logbook_entries")
         .select("entry_date, departure_aerodrome, arrival_aerodrome, total_time, celula")
-        .eq("aircraft_id", aircraftId)
+        .eq("id_aeronave", aircraftId)
         .order("entry_date", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -206,8 +218,8 @@ export function useCTMData(aircraftId: string) {
       const remainingHours = item.remaining_hours || 9999;
 
       let daysRemaining = 9999;
-      if (item.due_date) {
-        const due = new Date(item.due_date);
+      if (item.data_vencimento) {
+        const due = new Date(item.data_vencimento);
         const today = new Date();
         daysRemaining = Math.ceil((due.getTime() - today.getTime()) / (1000 * 3600 * 24));
       }
@@ -270,12 +282,12 @@ export function useCTMClients(aircraftId: string) {
     queryKey: ["ctm-aircraft-clients", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("client_aircraft")
+        .from("cotistas_aeronave")
         .select(`
           *,
-          client:clients(id, company_name, proprietario, share_percentage)
+          client:id_cliente(id, razao_social, proprietario)
         `)
-        .eq("aircraft_id", aircraftId);
+        .eq("id_aeronave", aircraftId);
 
       if (error) throw error;
       return data || [];
@@ -287,7 +299,7 @@ export function useCTMClients(aircraftId: string) {
 export interface ClientFlightHours {
   client_id: string;
   client_name: string;
-  share_percentage: number;
+  percentual_sociedade: number;
   total_hours: number;
   percentage_used: number;
 }
@@ -298,13 +310,13 @@ export function useClientFlightHours(aircraftId: string, startDate?: string, end
     queryFn: async () => {
       // First, get all clients for this aircraft
       const { data: clients, error: clientsError } = await supabase
-        .from("client_aircraft")
+        .from("cotistas_aeronave")
         .select(`
-          client_id,
-          share_percentage,
-          client:clients(id, company_name, proprietario)
+          id_cliente,
+          percentual_sociedade,
+          client:id_cliente(id, razao_social, proprietario)
         `)
-        .eq("aircraft_id", aircraftId);
+        .eq("id_aeronave", aircraftId);
 
       if (clientsError) throw clientsError;
 
@@ -312,8 +324,8 @@ export function useClientFlightHours(aircraftId: string, startDate?: string, end
       let query = supabase
         .from("logbook_entries")
         .select("client_id, total_time")
-        .eq("aircraft_id", aircraftId)
-        .not("client_id", "is", null);
+        .eq("id_aeronave", aircraftId)
+        .not("cliente_id", "is", null);
 
       if (startDate) {
         query = query.gte("entry_date", startDate);
@@ -331,22 +343,22 @@ export function useClientFlightHours(aircraftId: string, startDate?: string, end
       let totalHoursAll = 0;
 
       (flights || []).forEach((flight) => {
-        if (flight.client_id) {
-          const current = hoursMap.get(flight.client_id) || 0;
-          hoursMap.set(flight.client_id, current + (flight.total_time || 0));
+        if (flight.cliente_id) {
+          const current = hoursMap.get(flight.cliente_id) || 0;
+          hoursMap.set(flight.cliente_id, current + (flight.total_time || 0));
           totalHoursAll += flight.total_time || 0;
         }
       });
 
       // Map clients with their hours
       const result: ClientFlightHours[] = (clients || []).map((ca: any) => ({
-        client_id: ca.client_id,
-        client_name: ca.client?.company_name || ca.client?.proprietario || "Cliente",
-        share_percentage: ca.share_percentage || 0,
-        total_hours: hoursMap.get(ca.client_id) || 0,
+        client_id: ca.cliente_id,
+        client_name: ca.client?.razao_social || ca.client?.proprietario || "Cliente",
+        percentual_sociedade: ca.percentual_participacao || 0,
+        total_hours: hoursMap.get(ca.cliente_id) || 0,
         percentage_used:
           totalHoursAll > 0
-            ? Math.round(((hoursMap.get(ca.client_id) || 0) / totalHoursAll) * 100)
+            ? Math.round(((hoursMap.get(ca.cliente_id) || 0) / totalHoursAll) * 100)
             : 0,
       }));
 
@@ -366,8 +378,8 @@ export function useAircraftComponents(aircraftId: string) {
       const { data, error } = await supabase
         .from("components")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .order("name", { ascending: true });
+        .eq("id_aeronave", aircraftId)
+        .order("nome", { ascending: true });
 
       if (error) throw error;
       return (data || []) as Component[];
@@ -381,10 +393,10 @@ export function useCTMServiceOrders(aircraftId: string) {
     queryKey: ["ctm-service-orders", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ctm_service_orders")
+        .from("service_orders")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .order("created_at", { ascending: false });
+        .eq("id_aeronave", aircraftId)
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       return (data || []) as CTMServiceOrder[];
@@ -396,7 +408,7 @@ export function useCTMServiceOrders(aircraftId: string) {
 export interface PartnerFlightHours {
   client_id: string;
   client_name: string;
-  share_percentage: number;
+  percentual_sociedade: number;
   total_hours: number;
 }
 
@@ -406,13 +418,13 @@ export function usePartnerFlightHours(aircraftId: string) {
     queryFn: async () => {
       // Get clients and their share
       const { data: clients, error: clientsError } = await supabase
-        .from("client_aircraft")
+        .from("cotistas_aeronave")
         .select(`
-          client_id,
-          share_percentage,
-          client:clients(id, company_name, proprietario)
+          id_cliente,
+          percentual_sociedade,
+          client:id_cliente(id, razao_social, proprietario)
         `)
-        .eq("aircraft_id", aircraftId);
+        .eq("id_aeronave", aircraftId);
 
       if (clientsError) throw clientsError;
 
@@ -420,34 +432,34 @@ export function usePartnerFlightHours(aircraftId: string) {
       const { data: flights, error: flightsError } = await supabase
         .from("logbook_entries")
         .select("client_id, total_time")
-        .eq("aircraft_id", aircraftId)
-        .not("client_id", "is", null);
+        .eq("id_aeronave", aircraftId)
+        .not("cliente_id", "is", null);
 
       if (flightsError) throw flightsError;
 
       // Calculate hours per client
       const hoursMap = new Map<string, number>();
       (flights || []).forEach((flight) => {
-        if (flight.client_id) {
-          const current = hoursMap.get(flight.client_id) || 0;
-          hoursMap.set(flight.client_id, current + (flight.total_time || 0));
+        if (flight.cliente_id) {
+          const current = hoursMap.get(flight.cliente_id) || 0;
+          hoursMap.set(flight.cliente_id, current + (flight.total_time || 0));
         }
       });
 
       // Map to result
       return ((clients || []).map((ca: any) => ({
-        client_id: ca.client_id,
-        client_name: ca.client?.company_name || ca.client?.proprietario || "Cliente",
-        share_percentage: ca.share_percentage || 0,
-        total_hours: hoursMap.get(ca.client_id) || 0,
+        client_id: ca.cliente_id,
+        client_name: ca.client?.razao_social || ca.client?.proprietario || "Cliente",
+        percentual_sociedade: ca.percentual_participacao || 0,
+        total_hours: hoursMap.get(ca.cliente_id) || 0,
       })) || []) as PartnerFlightHours[];
     },
     enabled: !!aircraftId,
   });
 }
 
-export interface AircraftCellData {
-  aircraft_id: string;
+export interface AeronaveData {
+  aeronave_id: string;
   cell_hours_current: number;
   cell_hours_prev?: number;
   celula_prox_revisao?: number;
@@ -458,13 +470,13 @@ export function useAircraftCellHours(aircraftId: string) {
     queryKey: ["aircraft-cell-hours", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, cell_hours_current, cell_hours_prev, celula_prox_revisao")
+        .from('aeronave')
+        .select("id")
         .eq("id", aircraftId)
         .single();
 
       if (error) throw error;
-      return { ...data, aircraft_id: aircraftId } as AircraftCellData;
+      return { ...data, aeronave_id: aircraftId } as AeronaveData;
     },
     enabled: !!aircraftId,
   });
@@ -477,7 +489,7 @@ export function useRASReports(aircraftId: string) {
       const { data, error } = await supabase
         .from("ras")
         .select("*")
-        .eq("aircraft_id", aircraftId)
+        .eq("id_aeronave", aircraftId)
         .order("entry_date", { ascending: false });
 
       if (error) throw error;
@@ -495,7 +507,7 @@ export function useRASItems(rasId: string) {
         .from("ras_items")
         .select("*")
         .eq("ras_id", rasId)
-        .order("created_at");
+        .order("criado_em");
 
       if (error) throw error;
       return (data || []) as any[];
@@ -512,7 +524,7 @@ export function useRASPhotos(rasId: string) {
         .from("ras_photos")
         .select("*")
         .eq("ras_id", rasId)
-        .order("created_at");
+        .order("criado_em");
 
       if (error) throw error;
       return (data || []) as any[];

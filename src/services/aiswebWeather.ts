@@ -157,7 +157,7 @@ export const transformAISWebMETAR = (data: any, icao: string): AISWebMETARData =
     wgst:           parsed.wgst,
     visib:          parsed.visib,
     flightCategory: determineFlightCategory(catRaw, parsed.visib),
-    updatedTime:    data.date ?? new Date().toISOString(),
+    updatedTime:    data.data ?? new Date().toISOString(),
     taf:            tafRaw || undefined,
   };
 };

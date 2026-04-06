@@ -55,7 +55,7 @@ export async function fetchCrewMembers(): Promise<CrewMember[]> {
 
   const { data: profiles, error: profilesError } = await supabase
     .from("user_profiles")
-    .select("id, full_name, email, phone, avatar_url")
+    .select("id, nome_completo as full_name, email, telefone as phone, url_avatar as avatar_url")
     .in("id", userIds);
 
   if (profilesError) {
@@ -80,7 +80,7 @@ export async function fetchCrewMembers(): Promise<CrewMember[]> {
         id: profile.id,
         full_name: profile.full_name,
         email: profile.email,
-        phone: profile.phone !== null && profile.phone !== undefined ? String(profile.phone) : null,
+        phone: profile.telefone !== null && profile.telefone !== undefined ? String(profile.telefone) : null,
         avatar_url: profile.avatar_url,
         roles: roles,
       } satisfies CrewMember;

@@ -36,17 +36,17 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
   useEffect(() => { loadClients(); }, []);
 
   useEffect(() => {
-    if (form.client_id) loadPartners(form.client_id);
+    if (form.cliente_id) loadPartners(form.cliente_id);
     else setPartners([]);
-  }, [form.client_id]);
+  }, [form.cliente_id]);
 
   const loadClients = async () => {
-    const { data } = await supabase.from("clients").select("id, company_name, proprietario, has_partner").order("company_name");
+    const { data } = await supabase.from("clientes").select("id, razao_social, proprietario, tem_socio").order("razao_social");
     setClients(data || []);
   };
 
   const loadPartners = async (clientId: string) => {
-    const { data } = await supabase.from("client_partners").select("id, name, cpf").eq("client_id", clientId);
+    const { data } = await supabase.from("socios_cliente").select("id, nome, cpf").eq("cliente_id", clientId);
     setPartners(data || []);
   };
 
@@ -63,10 +63,10 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
         <div className="space-y-1">
           <label className="text-xs font-bold mb-1 block">CLIENTE *</label>
           <AutocompleteInput
-            value={clients.find(c => c.id === form.client_id)?.company_name || ""}
+            value={clients.find(c => c.id === form.cliente_id)?.razao_social || ""}
             onChange={(v) => {}}
             onSelect={(opt) => setForm({ ...form, client_id: opt.id, client_partner_id: null })}
-            options={clients.map(c => ({ id: c.id, label: c.company_name || c.proprietario || "Sem nome" }))}
+            options={clients.map(c => ({ id: c.id, label: c.razao_social || c.proprietario || "Sem nome" }))}
             placeholder="Buscar cliente..."
           />
         </div>
@@ -103,10 +103,10 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
       {partners.length > 0 && (
         <div className="space-y-1">
           <label className="text-xs font-bold mb-1 block">SÓCIO / PARCEIRO</label>
-          <RegularSelect value={form.client_partner_id || ""} onValueChange={v => setForm({ ...form, client_partner_id: v })}>
+          <RegularSelect value={form.socio_cliente_id_id || ""} onValueChange={v => setForm({ ...form, client_partner_id: v })}>
             <SelectTrigger><SelectValue placeholder="Selecione o sócio..." /></SelectTrigger>
             <SelectContent>
-              {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
             </SelectContent>
           </RegularSelect>
         </div>

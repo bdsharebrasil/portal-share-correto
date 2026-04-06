@@ -43,7 +43,7 @@ interface ClientPartner {
   id: string;
   name: string;
   cpf: string;
-  share_percentage: number;
+  percentual_sociedade: number;
 }
 
 export function ReceiptForm({
@@ -156,7 +156,7 @@ export function ReceiptForm({
       const { data } = await supabase
         .from("receipt_descriptions")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       setFavoriteDescriptions(data || []);
     };
@@ -231,10 +231,10 @@ export function ReceiptForm({
     if (client) {
       setFormData((prev) => ({
         ...prev,
-        pagadorNome: client.company_name || "",
+        pagadorNome: client.razao_social || "",
         pagadorDocumento: client.cnpj || "",
-        pagadorEndereco: client.address || "",
-        pagadorCidade: client.city || "",
+        pagadorEndereco: client.endereco || "",
+        pagadorCidade: client.cidade || "",
         pagadorUF: client.uf || "",
       }));
     }
@@ -248,10 +248,10 @@ export function ReceiptForm({
       if (client && formData.clienteId) {
         setFormData((prev) => ({
           ...prev,
-          pagadorNome: client.company_name || "",
+          pagadorNome: client.razao_social || "",
           pagadorDocumento: client.cnpj || "",
-          pagadorEndereco: client.address || "",
-          pagadorCidade: client.city || "",
+          pagadorEndereco: client.endereco || "",
+          pagadorCidade: client.cidade || "",
           pagadorUF: client.uf || "",
         }));
       }
@@ -261,7 +261,7 @@ export function ReceiptForm({
     if (partner) {
       setFormData((prev) => ({
         ...prev,
-        pagadorNome: partner.name || "",
+        pagadorNome: partner.nome || "",
         pagadorDocumento: partner.cpf || "",
       }));
     }
@@ -269,21 +269,21 @@ export function ReceiptForm({
 
   const loadAircrafts = async (clientId: string) => {
     const { data } = await supabase
-      .from("client_aircraft")
-      .select(`aircraft:aircraft_id ( id, registration, model )`)
-      .eq("client_id", clientId);
+      .from("cotistas_aeronave")
+      .select(`aircraft:aeronave_id ( id, registration, model )`)
+      .eq("id_clientes", clientId);
 
     if (data) {
-      setAircrafts(data.map((c) => c.aircraft).filter(Boolean));
+      setAircrafts(data.map((c) => c.aeronave).filter(Boolean));
     }
   };
 
   const loadClientPartners = async (clientId: string) => {
     const { data } = await supabase
-      .from("client_partners")
-      .select("id, name, cpf, share_percentage")
-      .eq("client_id", clientId)
-      .order("name");
+      .from("socios_cliente")
+      .select("id, nome, cpf, percentual_participacao")
+      .eq("cliente_id", clientId)
+      .order("nome");
     setClientPartners(data || []);
   };
 
@@ -321,7 +321,7 @@ export function ReceiptForm({
   // Prepare items for SearchableCombobox
   const clienteItems = clientesAtivos.map(c => ({
     id: c.id,
-    label: c.company_name || "Sem nome",
+    label: c.razao_social || "Sem nome",
   }));
 
   const aeronaveItems = aircrafts.map((a: any) => ({
@@ -394,7 +394,7 @@ export function ReceiptForm({
               <Label>Aeronave</Label>
               <SearchableCombobox
                 items={aeronaveItems}
-                value={formData.aircraftId}
+                value={formData.aeronaveId}
                 onChange={(id) =>
                   setFormData((p) => ({ ...p, aircraftId: id }))
                 }
@@ -422,11 +422,11 @@ export function ReceiptForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__client__">
-                    {clientesAtivos.find(c => c.id === formData.clienteId)?.company_name || "Cliente Principal"}
+                    {clientesAtivos.find(c => c.id === formData.clienteId)?.razao_social || "Cliente Principal"}
                   </SelectItem>
                   {clientPartners.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} {p.cpf ? `(${p.cpf})` : ""} — {p.share_percentage}%
+                      {p.nome} {p.cpf ? `(${p.cpf})` : ""} — {p.percentual_participacao}%
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -541,7 +541,7 @@ export function ReceiptForm({
                 <div>
                   <Label>Data de Vencimento do Boleto *</Label>
                   <Input
-                    type="date"
+                    type="data"
                     value={formData.dataVencimentoBoleto}
                     onChange={(e) => setFormData(p => ({ ...p, dataVencimentoBoleto: e.target.value }))}
                     required
@@ -596,7 +596,7 @@ export function ReceiptForm({
                 <div>
                   <Label>Data de Vencimento do Boleto *</Label>
                   <Input
-                    type="date"
+                    type="data"
                     value={formData.dataVencimentoBoleto}
                     onChange={(e) => setFormData(p => ({ ...p, dataVencimentoBoleto: e.target.value }))}
                     required
@@ -837,10 +837,10 @@ export function ReceiptForm({
                   <button
                     key={desc.id}
                     type="button"
-                    onClick={() => selectFavoriteDescription(desc.description)}
+                    onClick={() => selectFavoriteDescription(desc.descricao)}
                     className="w-full text-left p-2 text-sm hover:bg-accent rounded transition-colors"
                   >
-                    {desc.description}
+                    {desc.descricao}
                   </button>
                 ))}
               </div>

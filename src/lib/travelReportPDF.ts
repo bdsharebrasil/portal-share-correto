@@ -552,9 +552,9 @@ const loadHtml2PdfFromCdn = () => {
 // Helper para gerar nome profissional do PDF
 const generatePdfFilename = (report: TravelReport): string => {
   try {
-    // Usar report_number se disponível (formato: REL-ARG-001 ou similar)
+    // Usar numero_relatorio se disponível (formato: REL-ARG-001 ou similar)
     // Caso contrário, usar numero (formato: R-0001)
-    const reportId = (report as any).report_number || report.numero || 'REL-0001';
+    const reportId = (report as any).numero_relatorio || report.numero || 'REL-0001';
 
     // Extrair apenas números e letras para filename (remover caracteres especiais)
     const cleanId = reportId.replace(/[^a-zA-Z0-9]/g, '');
@@ -1024,8 +1024,8 @@ export const viewHTMLPreview = async (report: TravelReport, currentFullName?: st
   await Promise.all(imagePromises);
 
   const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
-  newWindow.document.write(htmlContent);
-  newWindow.document.close();
+  newWindow.documentoument.write(htmlContent);
+  newWindow.documentoument.close();
 };
 
 export const previewPDFForPrint = async (report: TravelReport, currentFullName?: string) => {
@@ -1111,8 +1111,8 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
       </html>
     `;
 
-    newWindow.document.write(htmlDoc);
-    newWindow.document.close();
+    newWindow.documentoument.write(htmlDoc);
+    newWindow.documentoument.close();
   } catch (error) {
     console.error('Erro ao visualizar prévia:', error);
     newWindow.close();

@@ -54,7 +54,7 @@ async function calculatePercentualVoo(
     const { data, error } = await supabase
       .from("logbook_entries")
       .select("client_id, total_time, is_loan, loan_recipient_client_id")
-      .eq("aircraft_id", aeronaveId)
+      .eq("id_aeronave", aeronaveId)
       .gte("entry_date", inicio)
       .lte("entry_date", fim);
 
@@ -66,7 +66,7 @@ async function calculatePercentualVoo(
     let totalHoras = 0;
 
     data.forEach((entry: any) => {
-      const clienteEfetivo = entry.is_loan ? entry.loan_recipient_client_id : entry.client_id;
+      const clienteEfetivo = entry.is_loan ? entry.loan_recipient_client_id : entry.cliente_id;
       const horas = entry.total_time || 0;
 
       if (clienteEfetivo) {
@@ -109,12 +109,12 @@ export function useRateioDespesas({
       let query = supabase
         .from("rateio_despesas")
         .select("*")
-        .eq("client_id", clienteId)
+        .eq("cliente_id", clienteId)
         .gte("data_vencimento", periodo.inicio)
         .lte("data_vencimento", periodo.fim);
 
       if (aeronaveId) {
-        query = query.eq("aeronave_id", aeronaveId);
+        query = query.eq("id_aeronave", aeronaveId);
       }
 
       const { data: rateioDespesas, error: rdErr } = await query;
@@ -149,8 +149,8 @@ export function useRateioDespesas({
       const receiptMap = new Map<string, any>();
       if (despesaIds.length > 0) {
         const { data: receipts, error: rcErr } = await supabase
-          .from("receipts")
-          .select("id, receipt_number, category_name, nf_url, boleto_url, doc_number")
+          .from("recibos")
+          .select("id, numero_recibo, nome_categoria, url_nf, url_boleto, numero_documento")
           .in("id", despesaIds);
 
         if (!rcErr && receipts) {
@@ -166,7 +166,7 @@ export function useRateioDespesas({
           ? percentualVooPorAeronave.get(despesa.aeronave_id)
           : undefined;
 
-        const vooData = vooDataMap?.get(despesa.client_id);
+        const vooData = vooDataMap?.get(despesa.cliente_id);
 
         // Calculate valor_por_voo based on flight hours percentage
         const valorPorVoo = vooData
@@ -181,11 +181,11 @@ export function useRateioDespesas({
           percentual_voo: vooData?.percentual_voo,
           horas_voadas: vooData?.total_hours,
           valor_por_voo: valorPorVoo,
-          receipt_number: receiptInfo?.receipt_number,
-          receipt_category: receiptInfo?.category_name,
-          receipt_nf: receiptInfo?.nf_url,
-          receipt_boleto: receiptInfo?.boleto_url,
-          doc_number: receiptInfo?.doc_number,
+          receipt_number: receiptInfo?.numero_recibo,
+          receipt_category: receiptInfo?.nome_categoria,
+          receipt_nf: receiptInfo?.url_nf,
+          receipt_boleto: receiptInfo?.url_boleto,
+          doc_number: receiptInfo?.numero_documento,
         };
       });
 
@@ -243,9 +243,9 @@ export function useRateioDespesasPartners({
   > = new Map();
 
   (despesas as RateioDespesaRow[]).forEach((despesa) => {
-    const partnerId = despesa.partner_name || despesa.client_name;
+    const partnerId = despesa.nome_socio || despesa.client_name;
     const existing = partnerView.get(partnerId) || {
-      partner_name: despesa.partner_name || "",
+      partner_name: despesa.nome_socio || "",
       client_name: despesa.client_name || "",
       totalPorPropriedade: 0,
       totalPorUso: 0,

@@ -131,10 +131,10 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
     if (task) {
       setFormData({
         title: task.title ?? "",
-        description: task.description ?? "",
-        due_date: task.due_date ?? "",
+        description: task.descricao ?? "",
+        due_date: task.data_vencimento ?? "",
         priority: task.priority ?? "media",
-        status: task.status ?? "pendente",
+        status: task.situacao ?? "pendente",
         assigned_to: task.assigned_to ?? currentUserId,
       });
     } else {
@@ -166,10 +166,10 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
 
     const taskPayload = {
       title: formData.title.trim(),
-      description: formData.description.trim() || null,
-      due_date: formData.due_date ? formData.due_date : null,
+      description: formData.descricao.trim() || null,
+      due_date: formData.data_vencimento ? formData.data_vencimento : null,
       priority: formData.priority,
-      status: formData.status,
+      status: formData.situacao,
       assigned_to: canAssignToOthers ? formData.assigned_to : currentUserId,
       created_by: currentUserId,
     };
@@ -231,7 +231,7 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
             <Label htmlFor="task-description">Descrição</Label>
             <Textarea
               id="task-description"
-              value={formData.description}
+              value={formData.descricao}
               onChange={(event) =>
                 setFormData((prev) => ({ ...prev, description: event.target.value }))
               }
@@ -251,15 +251,15 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
                     disabled={loading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                    {formData.due_date
-                      ? format(new Date(formData.due_date), "dd/MM/yyyy", { locale: ptBR })
+                    {formData.data_vencimento
+                      ? format(new Date(formData.data_vencimento), "dd/MM/yyyy", { locale: ptBR })
                       : "Selecione a data"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
                   <Calendar
                     mode="single"
-                    selected={formData.due_date ? new Date(formData.due_date) : undefined}
+                    selected={formData.data_vencimento ? new Date(formData.data_vencimento) : undefined}
                     onSelect={(date) => {
                       if (date) {
                         const year = date.getFullYear();
@@ -301,8 +301,8 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
           <div className="space-y-2">
             <Label htmlFor="task-status">Status</Label>
             <Select
-              value={formData.status}
-              onValueChange={(value: TaskFormData["status"]) =>
+              value={formData.situacao}
+              onValueChange={(value: TaskFormData["situacao"]) =>
                 setFormData((prev) => ({ ...prev, status: value }))
               }
               disabled={loading}

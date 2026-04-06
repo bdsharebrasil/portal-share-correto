@@ -221,7 +221,7 @@ export function ReceiptHistory({
                 <div>
                   <div className="font-semibold text-white">{receipt.payer_name}</div>
                   <div className="text-sm text-slate-400">
-                    {formatDate(receipt.issue_date)} • {formatCurrency(receipt.amount)}
+                    {formatDate(receipt.issue_date)} • {formatCurrency(receipt.valor)}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">{receipt.receipt_number}</div>
                 </div>

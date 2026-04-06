@@ -42,7 +42,7 @@ interface EmployeeDocumentsManagerProps {
   currentUserId?: string;
 }
 
-const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.documentoument"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export function EmployeeDocumentsManager({
@@ -77,22 +77,22 @@ export function EmployeeDocumentsManager({
         .from("user_documents")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
 
       // Enrich with uploader names if needed
       const enrichedData = await Promise.all(
         (data || []).map(async (doc: any) => {
-          if (doc.uploaded_by && !doc.uploaded_by_name) {
+          if (doc.enviado_por && !doc.enviado_por_name) {
             const { data: profile } = await supabase
               .from("user_profiles")
               .select("full_name")
-              .eq("id", doc.uploaded_by)
+              .eq("id", doc.enviado_por)
               .single();
-            return { ...doc, uploaded_by_name: profile?.full_name || "Desconhecido" };
+            return { ...documento, uploaded_by_name: profile?.full_name || "Desconhecido" };
           }
-          return { ...doc, uploaded_by_name: doc.uploaded_by_name || null };
+          return { ...documento, uploaded_by_name: doc.enviado_por_name || null };
         })
       );
 
@@ -109,7 +109,7 @@ export function EmployeeDocumentsManager({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
 
-      if (!ALLOWED_TYPES.includes(file.type)) {
+      if (!ALLOWED_TYPES.includes(file.tipo)) {
         toast.error("Formato não permitido. Use: PDF, Imagem, Word");
         return;
       }
@@ -132,7 +132,7 @@ export function EmployeeDocumentsManager({
     try {
       setUploading(true);
 
-      const fileExt = selectedFile.name.split(".").pop() || '';
+      const fileExt = selectedFile.nome.split(".").pop() || '';
       const timestamp = Date.now();
       // Sanitizar categoria: remover acentos e espaços
       const sanitizedCategory = selectedCategory
@@ -157,10 +157,10 @@ export function EmployeeDocumentsManager({
         .from("user_documents")
         .insert({
           user_id: userId,
-          file_name: selectedFile.name,
+          file_name: selectedFile.nome,
           file_path: fileName,
           file_size: selectedFile.size,
-          file_type: selectedFile.type,
+          file_type: selectedFile.tipo,
           uploaded_by: user?.id,
           category: selectedCategory,
           created_at: new Date().toISOString()
@@ -229,7 +229,7 @@ export function EmployeeDocumentsManager({
     try {
       const { data, error } = await supabase.storage
         .from("documents_colaborador")
-        .createSignedUrl(doc.file_path, 60 * 60); // 1 hour expiry
+        .createSignedUrl(doc.caminho_arquivo, 60 * 60); // 1 hour expiry
 
       if (error) throw error;
 
@@ -324,7 +324,7 @@ export function EmployeeDocumentsManager({
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {DOCUMENT_CATEGORIES.map((cat) => {
-                    const count = documents.filter(d => d.category === cat.value).length;
+                    const count = documents.filter(d => d.categoria === cat.value).length;
                     const isSelected = expandedCategory === cat.value;
                     return (
                       <Button
@@ -358,7 +358,7 @@ export function EmployeeDocumentsManager({
                   <h3 className="text-sm font-semibold text-foreground">{expandedCategory}</h3>
                   <div className="space-y-2">
                     {documents
-                      .filter(d => d.category === expandedCategory)
+                      .filter(d => d.categoria === expandedCategory)
                       .map((doc) => (
                         <div
                           key={doc.id}
@@ -369,14 +369,14 @@ export function EmployeeDocumentsManager({
                               <FileText className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm text-foreground truncate">{doc.file_name}</p>
+                              <p className="font-medium text-sm text-foreground truncate">{doc.nome_arquivo}</p>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(doc.file_size)}
+                                  {formatFileSize(doc.tamanho_arquivo)}
                                 </p>
                                 <span className="text-xs text-muted-foreground">•</span>
                                 <p className="text-xs text-muted-foreground">
-                                  {new Date(doc.created_at).toLocaleDateString("pt-BR")}
+                                  {new Date(doc.criado_em).toLocaleDateString("pt-BR")}
                                 </p>
                               </div>
                             </div>
@@ -396,7 +396,7 @@ export function EmployeeDocumentsManager({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleDownload(doc.file_path, doc.file_name)}
+                              onClick={() => handleDownload(doc.caminho_arquivo, doc.nome_arquivo)}
                               className="gap-2"
                             >
                               <Download className="h-4 w-4" />
@@ -406,7 +406,7 @@ export function EmployeeDocumentsManager({
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDelete(doc.id, doc.file_path)}
+                                onClick={() => handleDelete(doc.id, doc.caminho_arquivo)}
                                 disabled={deleting === doc.id}
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
@@ -420,7 +420,7 @@ export function EmployeeDocumentsManager({
                           </div>
                         </div>
                       ))}
-                    {documents.filter(d => d.category === expandedCategory).length === 0 && (
+                    {documents.filter(d => d.categoria === expandedCategory).length === 0 && (
                       <p className="text-sm text-muted-foreground py-4 text-center">Nenhum documento nesta pasta</p>
                     )}
                   </div>
@@ -459,11 +459,11 @@ export function EmployeeDocumentsManager({
 
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="category" className="text-sm font-medium">
+              <Label htmlFor="categoria" className="text-sm font-medium">
                 Categoria *
               </Label>
               <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as DocumentCategory)} disabled={uploading}>
-                <SelectTrigger id="category" className="mt-2">
+                <SelectTrigger id="categoria" className="mt-2">
                   <SelectValue placeholder="Selecione uma categoria" />
                 </SelectTrigger>
                 <SelectContent>
@@ -485,12 +485,12 @@ export function EmployeeDocumentsManager({
                 type="file"
                 onChange={handleFileSelect}
                 disabled={uploading}
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                accept=".pdf,.jpg,.jpeg,.png,.documento,.documentox"
                 className="mt-2"
               />
               {selectedFile && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Arquivo: {selectedFile.name} ({formatFileSize(selectedFile.size)})
+                  Arquivo: {selectedFile.nome} ({formatFileSize(selectedFile.size)})
                 </p>
               )}
               <p className="text-xs text-muted-foreground mt-1">
@@ -534,12 +534,12 @@ export function EmployeeDocumentsManager({
       <Dialog open={!!viewingDocument} onOpenChange={(open) => !open && setViewingDocument(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>{viewingDocument?.file_name}</DialogTitle>
+            <DialogTitle>{viewingDocument?.nome_arquivo}</DialogTitle>
             <DialogDescription>
               {viewingDocument && (
                 <>
                   <p className="text-xs mt-2">
-                    Tamanho: {formatFileSize(viewingDocument.file_size)} • Data: {new Date(viewingDocument.created_at).toLocaleDateString("pt-BR")}
+                    Tamanho: {formatFileSize(viewingDocument.tamanho_arquivo)} • Data: {new Date(viewingDocument.criado_em).toLocaleDateString("pt-BR")}
                   </p>
                 </>
               )}
@@ -549,16 +549,16 @@ export function EmployeeDocumentsManager({
           <div className="flex-1 overflow-auto bg-muted/50 rounded-lg min-h-[500px] flex items-center justify-center">
             {documentUrl && viewingDocument ? (
               <>
-                {viewingDocument.file_type === "application/pdf" ? (
+                {viewingDocument.tipo_arquivo === "application/pdf" ? (
                   <iframe
                     src={documentUrl}
                     className="w-full h-full rounded"
-                    title={viewingDocument.file_name}
+                    title={viewingDocument.nome_arquivo}
                   />
                 ) : (
                   <img
                     src={documentUrl}
-                    alt={viewingDocument.file_name}
+                    alt={viewingDocument.nome_arquivo}
                     className="max-h-full max-w-full object-contain"
                   />
                 )}
@@ -573,7 +573,7 @@ export function EmployeeDocumentsManager({
               variant="outline"
               onClick={() => {
                 if (viewingDocument) {
-                  handleDownload(viewingDocument.file_path, viewingDocument.file_name);
+                  handleDownload(viewingDocument.caminho_arquivo, viewingDocument.nome_arquivo);
                 }
               }}
               className="gap-2"

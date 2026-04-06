@@ -48,9 +48,9 @@ export function FolderManagementDialog({
       const { data, error } = await (supabase as any)
         .from("flight_document_folders")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
+        .eq("id_aeronave", aircraftId)
+        .eq("cliente_id", clientId)
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       setFolders((data || []) as DocumentFolder[]);
@@ -74,7 +74,7 @@ export function FolderManagementDialog({
       const { data, error } = await (supabase as any)
         .from("flight_document_folders")
         .insert({
-          aircraft_id: aircraftId,
+          aeronave_id: aircraftId,
           client_id: clientId,
           name: newFolderName.trim(),
           description: newFolderDescription.trim(),
@@ -205,9 +205,9 @@ export function FolderManagementDialog({
                   <Card key={folder.id} className="border-border">
                     <CardContent className="pt-4 flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="font-medium text-sm text-foreground">{folder.name}</p>
-                        {folder.description && (
-                          <p className="text-xs text-muted-foreground mt-1">{folder.description}</p>
+                        <p className="font-medium text-sm text-foreground">{folder.nome}</p>
+                        {folder.descricao && (
+                          <p className="text-xs text-muted-foreground mt-1">{folder.descricao}</p>
                         )}
                       </div>
                       <Button

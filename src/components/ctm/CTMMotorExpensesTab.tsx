@@ -20,8 +20,8 @@ export function CTMMotorExpensesTab({ aircraftId }: Props) {
     queryFn: async () => {
       const { data, error } = await fromUntyped("motor_expenses")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .order("date", { ascending: false });
+        .eq("id_aeronave", aircraftId)
+        .order("data", { ascending: false });
       if (error) throw error;
       return (data || []) as MotorExpense[];
     },

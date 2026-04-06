@@ -14,9 +14,9 @@ export function AircraftFuelComparisonChart() {
     queryKey: ["all-aircraft"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model")
-        .order("registration");
+        .from('aeronave')
+        .select('id, matricula, modelo')
+        .order("matricula");
       if (error) throw error;
       return data || [];
     },
@@ -30,17 +30,17 @@ export function AircraftFuelComparisonChart() {
 
       const result: Record<string, any> = {};
 
-      for (const aircraft of aircraftList) {
+      for (const ac of aircraftList) {
         const { data, error } = await supabase
           .from("logbook_entries")
           .select("fuel_added, flight_time_hours, flight_time_minutes")
-          .eq("aircraft_id", aircraft.id);
+          .eq("aircraft_id", ac.id);
 
         if (error) {
-          console.error(`Erro ao buscar combustível para ${aircraft.registration}:`, error);
-          result[aircraft.id] = { entries: [] };
+          console.error(`Erro ao buscar combustível para ${ac.matricula}:`, error);
+          result[ac.id] = { entries: [] };
         } else {
-          result[aircraft.id] = { entries: data || [] };
+          result[ac.id] = { entries: data || [] };
         }
       }
 
@@ -52,8 +52,8 @@ export function AircraftFuelComparisonChart() {
   // ── 3. Calcula consumo médio por aeronave ────────────────────────────────
   const chartData = useMemo(() => {
     return aircraftList
-      .map((aircraft: any) => {
-        const entries = fuelDataByAircraft[aircraft.id]?.entries || [];
+      .map((ac: any) => {
+        const entries = fuelDataByAircraft[ac.id]?.entries || [];
 
         if (entries.length === 0) {
           return null;
@@ -76,8 +76,8 @@ export function AircraftFuelComparisonChart() {
           totalFlightHours > 0 ? totalFuelAdded / totalFlightHours : 0;
 
         return {
-          registration: aircraft.registration,
-          model: aircraft.model || "—",
+          registration: ac.matricula,
+          model: ac.modelo || "—",
           avgConsumption: parseFloat(avgConsumption.toFixed(2)),
           totalFlights: entries.length,
           totalFuel: parseFloat(totalFuelAdded.toFixed(2)),

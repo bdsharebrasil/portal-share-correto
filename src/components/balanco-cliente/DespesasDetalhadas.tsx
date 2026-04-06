@@ -52,19 +52,19 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
     queryKey: ['despesas-bank-rec', clienteId, aeronaveId, periodo],
     queryFn: async () => {
       let query = supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .select(`
           *,
           categorias_movimentacao:categoria_movimentacao_id (id, nome, grupo_categoria),
-          aircraft:aircraft_id (registration)
+          aircraft:aeronave_id (id, matricula)
         `)
-        .eq('client_id', clienteId)
-        .gte('date', periodo.inicio)
-        .lte('date', periodo.fim)
-        .order('date', { ascending: false });
+        .eq('clientes_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim)
+        .order('data', { ascending: false });
 
       if (aeronaveId) {
-        query = query.eq('aircraft_id', aeronaveId);
+        query = query.eq('aeronave_id', aeronaveId);
       }
 
       const { data, error } = await query;
@@ -72,11 +72,12 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
       return (data || []).map((d: any) => ({
         ...d,
         fonte: 'bank_reconciliations',
-        valor: d.amount,
-        data: d.date,
-        descricao: d.description,
+        valor: d.valor,
+        data: d.data,
+        descricao: d.descricao,
+        situacao: d.status || 'pendente',
         categoria_nome: d.categorias_movimentacao?.nome || 'Sem categoria',
-        aeronave_registro: d.aircraft?.registration || '-',
+        aeronave_registro: d.aircraft?.matricula || '-',
       }));
     },
     enabled: !!clienteId,
@@ -90,9 +91,9 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         .from('despesas_cliente_direto')
         .select(`
           *,
-          aircraft:aeronave_id (registration)
+          aircraft:aeronave_id (id, matricula)
         `)
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('data_vencimento', periodo.inicio)
         .lte('data_vencimento', periodo.fim)
         .order('data_vencimento', { ascending: false });
@@ -109,8 +110,9 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         valor: d.valor,
         data: d.data_vencimento,
         descricao: d.descricao,
+        situacao: d.status || 'pendente',
         categoria_nome: d.categoria || 'Pagamento Direto',
-        aeronave_registro: d.aircraft?.registration || '-',
+        aeronave_registro: d.aircraft?.matricula || '-',
         comprovante_url: d.comprovante_url,
         boleto_url: d.boleto_url,
         nf_url: null,
@@ -127,9 +129,9 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         .from('abastecimentos')
         .select(`
           *,
-          aircraft:aeronave_id (registration)
+          aircraft:aeronave_id (id, matricula)
         `)
-        .eq('client_id', clienteId)
+        .eq('id_clientes', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim)
         .order('data', { ascending: false });
@@ -146,9 +148,9 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         valor: d.valor_total,
         data: d.data,
         descricao: `Abastecimento - ${d.local} (${d.trecho})`,
+        situacao: d.status_pagamento || 'pendente',
         categoria_nome: 'Combustível',
-        aeronave_registro: d.aircraft?.registration || '-',
-        status: d.status_pagamento || 'pendente',
+        aeronave_registro: d.aircraft?.matricula || '-',
         comprovante_url: d.comanda_url,
         boleto_url: d.boleto_url,
         nf_url: d.nota_url,
@@ -189,11 +191,11 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
 
   // Filtrar despesas
   const despesasFiltradas = despesas.filter((d: any) => {
-    const matchBusca = !busca || 
+    const matchBusca = !busca ||
       d.descricao?.toLowerCase().includes(busca.toLowerCase()) ||
       d.fornecedor_nome?.toLowerCase().includes(busca.toLowerCase());
-    const matchStatus = statusFilter === 'todos' || d.status === statusFilter;
-    const matchCategoria = categoriaFilter === 'todas' || 
+    const matchStatus = statusFilter === 'todos' || d.situacao === statusFilter;
+    const matchCategoria = categoriaFilter === 'todas' ||
       d.categorias_movimentacao?.id === categoriaFilter ||
       d.categoria_nome?.toLowerCase().includes(categoriaFilter.toLowerCase());
     const matchFonte = fonteFilter === 'todas' || d.fonte === fonteFilter;
@@ -255,7 +257,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas as fontes</SelectItem>
-                <SelectItem value="bank_reconciliations">Reembolsos</SelectItem>
+                <SelectItem value="conciliacoes_bancarias">Reembolsos</SelectItem>
                 <SelectItem value="despesas_cliente_direto">Pagamento Direto</SelectItem>
                 <SelectItem value="abastecimentos">Combustível</SelectItem>
               </SelectContent>
@@ -306,20 +308,20 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                         {format(new Date(despesa.data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell>
-                        <Badge 
+                        <Badge
                           variant={
-                            despesa.fonte === 'despesas_cliente_direto' 
-                              ? 'outline' 
-                              : despesa.fonte === 'abastecimentos' 
-                                ? 'default' 
+                            despesa.fonte === 'despesas_cliente_direto'
+                              ? 'outline'
+                              : despesa.fonte === 'abastecimentos'
+                                ? 'default'
                                 : 'secondary'
-                          } 
+                          }
                           className="text-xs"
                         >
-                          {despesa.fonte === 'despesas_cliente_direto' 
-                            ? 'Pag. Direto' 
-                            : despesa.fonte === 'abastecimentos' 
-                              ? 'Combustível' 
+                          {despesa.fonte === 'despesas_cliente_direto'
+                            ? 'Pag. Direto'
+                            : despesa.fonte === 'abastecimentos'
+                              ? 'Combustível'
                               : 'Reembolso'}
                         </Badge>
                       </TableCell>
@@ -335,8 +337,8 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                         R$ {(despesa.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={STATUS_LABELS[despesa.status]?.variant || 'secondary'}>
-                          {STATUS_LABELS[despesa.status]?.label || despesa.status}
+                        <Badge variant={STATUS_LABELS[despesa.situacao]?.variant || 'secondary'}>
+                          {STATUS_LABELS[despesa.situacao]?.label || despesa.situacao}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -345,9 +347,9 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
                           {despesa.comprovante_url && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8"
                               onClick={() => openDocumento(despesa.comprovante_url, 'Comprovante')}
                               title="Ver Comprovante"
@@ -356,9 +358,9 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                             </Button>
                           )}
                           {despesa.boleto_url && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8"
                               onClick={() => openDocumento(despesa.boleto_url, 'Boleto')}
                               title="Ver Boleto"
@@ -367,9 +369,9 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                             </Button>
                           )}
                           {despesa.nf_url && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8"
                               onClick={() => openDocumento(despesa.nf_url, 'Nota Fiscal')}
                               title="Ver Nota Fiscal"

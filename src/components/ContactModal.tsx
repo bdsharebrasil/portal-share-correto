@@ -47,7 +47,7 @@ export function ContactModal({ isOpen, onClose, contact, onSave, onUpdate }: Con
         email: contact.email || "",
         empresa: contact.company_name || "",
         cargo: contact.position || "",
-        categoria: contact.category || "clientes",
+        categoria: (contact.category as ContactCategory) || "clientes",
         observacoes: contact.notes || "",
         endereco: "",
         cidade: "",

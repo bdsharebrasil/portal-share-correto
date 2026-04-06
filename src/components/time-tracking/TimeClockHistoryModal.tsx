@@ -80,9 +80,9 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
         .from("time_clock")
         .select("*")
         .eq("user_id", user.id)
-        .gte("date", format(monthStart, "yyyy-MM-dd"))
-        .lte("date", format(monthEnd, "yyyy-MM-dd"))
-        .order("date", { ascending: false });
+        .gte("data", format(monthStart, "yyyy-MM-dd"))
+        .lte("data", format(monthEnd, "yyyy-MM-dd"))
+        .order("data", { ascending: false });
 
       if (error) throw error;
 
@@ -103,7 +103,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
       if (entry.total_hours) {
         totalHours += entry.total_hours;
       }
-      if (entry.status === "concluido") {
+      if (entry.situacao === "concluido") {
         completedDays += 1;
       }
     });
@@ -116,7 +116,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
   };
 
   const getEntryForDate = (date: Date): TimeEntry | undefined => {
-    return entries.find((entry) => entry.date === format(date, "yyyy-MM-dd"));
+    return entries.find((entry) => entry.data === format(date, "yyyy-MM-dd"));
   };
 
   const previousMonth = () => {
@@ -160,18 +160,18 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   "aspect-square p-2 rounded-lg border text-center flex flex-col items-center justify-center text-xs cursor-pointer transition-all",
                   isToday && "border-primary/50 bg-primary/10",
                   !entry && "border-slate-700/50 bg-slate-800/30",
-                  entry && entry.status === "concluido" && "border-emerald-500/50 bg-emerald-500/10",
-                  entry && entry.status === "incompleto" && "border-amber-500/50 bg-amber-500/10",
-                  entry && entry.status === "ativo" && "border-blue-500/50 bg-blue-500/10"
+                  entry && entry.situacao === "concluido" && "border-emerald-500/50 bg-emerald-500/10",
+                  entry && entry.situacao === "incompleto" && "border-amber-500/50 bg-amber-500/10",
+                  entry && entry.situacao === "ativo" && "border-blue-500/50 bg-blue-500/10"
                 )}
               >
                 <span className="font-semibold text-white">{date.getDate()}</span>
                 {entry && (
                   <div className="flex items-center gap-0.5 mt-1">
-                    {entry.status === "concluido" && (
+                    {entry.situacao === "concluido" && (
                       <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                     )}
-                    {entry.status === "incompleto" && (
+                    {entry.situacao === "incompleto" && (
                       <AlertCircle className="h-3 w-3 text-amber-400" />
                     )}
                   </div>
@@ -209,21 +209,21 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
                     <span className="font-semibold text-white">
-                      {format(new Date(entry.date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      {format(new Date(entry.data), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </span>
                     <Badge
                       className={cn(
                         "ml-auto",
-                        entry.status === "concluido" &&
+                        entry.situacao === "concluido" &&
                           "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-                        entry.status === "incompleto" &&
+                        entry.situacao === "incompleto" &&
                           "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                        entry.status === "ativo" && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        entry.situacao === "ativo" && "bg-blue-500/20 text-blue-400 border-blue-500/30"
                       )}
                     >
-                      {entry.status === "concluido" && "Concluído"}
-                      {entry.status === "incompleto" && "Incompleto"}
-                      {entry.status === "ativo" && "Em andamento"}
+                      {entry.situacao === "concluido" && "Concluído"}
+                      {entry.situacao === "incompleto" && "Incompleto"}
+                      {entry.situacao === "ativo" && "Em andamento"}
                     </Badge>
                   </div>
 

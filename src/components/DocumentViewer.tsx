@@ -241,7 +241,7 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
 
   // Renderizar Word/Excel usando Google Docs Viewer
   if (
-    fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.documentoument" ||
     fileType === "application/msword" ||
     fileType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
     fileType === "application/vnd.ms-excel" ||

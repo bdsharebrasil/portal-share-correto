@@ -62,19 +62,19 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         // ✅ FIX 1: order por quota_hours (campo correto da tabela aircraft_shareholders)
         const { data } = await supabase
           .from('aircraft_shareholders')
-          .select('*, client:client_id(id, company_name)')
+          .select('*, client:client_id(id, razao_social)')
           .eq('aircraft_id', aircraftId)
           .order('quota_hours', { ascending: false });
 
-        // ✅ FIX 2: mapear quota_hours no lugar de share_percentage (que não existe na tabela)
+        // ✅ FIX 2: mapear quota_hours no lugar de percentual_sociedade (que não existe na tabela)
         const partnerList = (data || []).map((p: any) => ({
-          client_id: p.client_id,
-          company_name: p.client?.company_name || p.client_name || p.partner_name || p.client_id,
-          share_percentage: p.quota_hours || 0,
+          client_id: p.cliente_id,
+          company_name: p.client?.razao_social || p.client_name || p.nome_socio || p.cliente_id,
+          percentual_sociedade: p.quota_hours || 0,
         }));
 
-        if (!partnerList.find((p: any) => p.client_id === clientId)) {
-          partnerList.unshift({ client_id: clientId, company_name: clientName, share_percentage: 100 });
+        if (!partnerList.find((p: any) => p.cliente_id === clientId)) {
+          partnerList.unshift({ client_id: clientId, company_name: clientName, percentual_sociedade: 100 });
         }
 
         setPartners(partnerList);
@@ -113,13 +113,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     try {
       setLoading(true);
 
-      const normalizedPartnerName = selectedPartner?.name?.trim() || '';
+      const normalizedPartnerName = selectedPartner?.nome?.trim() || '';
       const clientIds = [forClientId];
 
       if (partners.length > 1) {
         partners.forEach((partner: any) => {
-          if (partner.client_id && partner.client_id !== forClientId && !clientIds.includes(partner.client_id)) {
-            clientIds.push(partner.client_id);
+          if (partner.cliente_id && partner.cliente_id !== forClientId && !clientIds.includes(partner.cliente_id)) {
+            clientIds.push(partner.cliente_id);
           }
         });
       }
@@ -130,7 +130,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         const result = await supabase
           .from('client_portal_files')
           .select('*')
-          .eq('client_id', forClientId)
+          .eq('cliente_id', forClientId)
           .order('created_at', { ascending: false });
         filesData = result.data;
         if (result.error) console.warn('Erro ao carregar arquivos:', result.error);
@@ -142,10 +142,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       let contractsData = null;
       try {
         const result = await supabase
-          .from('client_contracts')
+          .from('contratos_cliente')
           .select('*')
-          .eq('client_id', forClientId)
-          .order('created_at', { ascending: false });
+          .eq('cliente_id', forClientId)
+          .order('criado_em', { ascending: false });
         contractsData = result.data;
         if (result.error) console.warn('Erro ao carregar contratos:', result.error);
       } catch (err) {
@@ -171,7 +171,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             client_partner_id
           `)
           .eq('aircraft_id', aircraftId)
-          .eq('client_id', forClientId)
+          .eq('cliente_id', forClientId)
           .order('entry_date', { ascending: false })
           .limit(100);
 
@@ -208,7 +208,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             const aerodromes = result.data as any[];
             if (aerodromes && aerodromes.length > 0) {
               aerodromes.forEach((aero: any) => {
-                aerodromeMap[aero.designativo] = { code: aero.designativo, name: aero.name };
+                aerodromeMap[aero.designativo] = { code: aero.designativo, name: aero.nome };
               });
             }
           } catch (err) {
@@ -239,9 +239,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       try {
         const { data: allFuelData, error } = await supabase
           .from('abastecimentos')
-          .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
-          .eq('aeronave_id', aircraftId)
-          .eq('client_id', forClientId)
+          .select('*, aeronave:aeronave_id(matricula), client:client_id(razao_social)')
+          .eq('aircraft_id', aircraftId)
+          .eq('cliente_id', forClientId)
           .order('data', { ascending: false })
           .limit(50);
 
@@ -249,8 +249,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
         if (selectedPartner && normalizedPartnerName && allFuelData) {
           fuelData = allFuelData.filter((record: any) => {
-            if (!record.partner_name) return false;
-            const recordPartnerName = record.partner_name
+            if (!record.nome_socio) return false;
+            const recordPartnerName = record.nome_socio
               .replace(/^\[|\]$/g, '')
               .trim()
               .toUpperCase();
@@ -268,9 +268,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       try {
         const result = await supabase
           .from('ctm_tracking')
-          .select('*, aircraft:aircraft_id(registration)')
+          .select('*, aircraft:aeronave(matricula)')
           .eq('aircraft_id', aircraftId)
-          .eq('client_id', forClientId)
+          .eq('cliente_id', forClientId)
           .order('created_at', { ascending: false });
         ctmData = result.data;
         if (result.error) console.warn('Erro ao carregar CTM:', result.error);
@@ -282,9 +282,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       let reportsData: TravelReportReconciliation[] = [];
       try {
         const { data: reconData, error } = await supabase
-          .from('bank_reconciliations')
+          .from('conciliacoes_bancarias')
           .select('id, description, amount, status, date, prazo_pagamento, reference_id, doc, partner_name')
-          .eq('client_id', forClientId)
+          .eq('cliente_id', forClientId)
           .eq('aircraft_id', aircraftId)
           .eq('category', 'RELATORIO DE DESPESA DE VIAGENS')
           .order('date', { ascending: false })
@@ -294,7 +294,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
         if (reconData && reconData.length > 0) {
           const referenceIds = reconData
-            .map((r: any) => r.reference_id)
+            .map((r: any) => r.referencia_id)
             .filter(Boolean) as string[];
 
           let pdfMap: Record<string, string | null> = {};
@@ -302,32 +302,32 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           if (referenceIds.length > 0) {
             const { data: pdfData, error: pdfError } = await supabase
               .from('travel_expense_reports')
-              .select('id, pdf_url')
+              .select('id, url_pdf')
               .in('id', referenceIds);
 
-            if (pdfError) console.warn('Erro ao buscar pdf_url dos relatórios:', pdfError);
+            if (pdfError) console.warn('Erro ao buscar url_pdf dos relatórios:', pdfError);
 
             (pdfData || []).forEach((row: any) => {
-              pdfMap[row.id] = row.pdf_url || null;
+              pdfMap[row.id] = row.url_pdf || null;
             });
           }
 
           reportsData = reconData.map((r: any) => ({
             ...r,
-            pdf_url: r.reference_id ? (pdfMap[r.reference_id] ?? null) : null,
+            pdf_url: r.referencia_id ? (pdfMap[r.referencia_id] ?? null) : null,
           }));
         }
       } catch (err) {
         console.error('Erro crítico ao carregar relatórios de viagem:', err);
       }
 
-      // Load bank reconciliations (filtrando por aircraft_id para mostrar apenas dados do avião selecionado)
+      // Load bank reconciliations (filtrando por aeronave_id para mostrar apenas dados do avião selecionado)
       let bankReconData = null;
       try {
         const result = await supabase
-          .from('bank_reconciliations')
+          .from('conciliacoes_bancarias')
           .select('*')
-          .eq('client_id', forClientId)
+          .eq('cliente_id', forClientId)
           .eq('aircraft_id', aircraftId)
           .order('date', { ascending: false })
           .limit(100);
@@ -467,7 +467,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                       'recebido': 'bg-green-500/10 border-green-500/30 text-green-300',
                       'cancelado': 'bg-red-500/10 border-red-500/30 text-red-300',
                     };
-                    const statusColor = statusColorMap[record.status?.toLowerCase()] || 'bg-gray-500/10 border-gray-500/30 text-gray-300';
+                    const statusColor = statusColorMap[record.situacao?.toLowerCase()] || 'bg-gray-500/10 border-gray-500/30 text-gray-300';
 
                     const categoryEmoji: any = {
                       'ADM SHARE': '📋',
@@ -477,8 +477,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                       'ALIMENTAÇÃO': '🍽️',
                       'TRANSPORTE': '🚗',
                     };
-                    const emoji = Object.keys(categoryEmoji).find(key => record.category?.includes(key))
-                      ? categoryEmoji[Object.keys(categoryEmoji).find(key => record.category?.includes(key))!]
+                    const emoji = Object.keys(categoryEmoji).find(key => record.categoria?.includes(key))
+                      ? categoryEmoji[Object.keys(categoryEmoji).find(key => record.categoria?.includes(key))!]
                       : '💳';
 
                     return (
@@ -494,10 +494,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-foreground truncate">
-                                {record.description}
+                                {record.descricao}
                               </h3>
                               <Badge className={`shrink-0 border ${statusColor} capitalize text-xs`}>
-                                {record.status}
+                                {record.situacao}
                               </Badge>
                             </div>
 
@@ -506,12 +506,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 <p className="text-xs text-muted-foreground mb-0.5">Data</p>
                                 <p className="text-foreground font-medium">
                                   {(() => {
-                                    if (!record.date) return '';
+                                    if (!record.data) return '';
                                     try {
-                                      const [year, month, day] = record.date.split('T')[0].split('-');
+                                      const [year, month, day] = record.data.split('T')[0].split('-');
                                       return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('pt-BR');
                                     } catch {
-                                      return record.date;
+                                      return record.data;
                                     }
                                   })()}
                                 </p>
@@ -520,7 +520,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               <div>
                                 <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
                                 <p className="text-foreground font-medium text-sm">
-                                  {record.category || '—'}
+                                  {record.categoria || '—'}
                                 </p>
                               </div>
 
@@ -546,7 +546,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           <div className="text-right flex-shrink-0">
                             <p className="text-xs text-muted-foreground mb-1">Valor</p>
                             <p className="text-lg font-bold text-emerald-400">
-                              R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              R$ {Number(record.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                           </div>
                         </div>
@@ -590,16 +590,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                   {contracts.map((contract) => (
                     <div key={contract.id} className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center">
                       <div className="flex-1">
-                        <p className="font-medium text-foreground">{contract.file_name}</p>
+                        <p className="font-medium text-foreground">{contract.nome_arquivo}</p>
                         <p className="text-sm text-muted-foreground">
-                          Enviado em: {new Date(contract.created_at).toLocaleDateString('pt-BR')}
+                          Enviado em: {new Date(contract.criado_em).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => downloadFile(contract.file_path)}>
+                        <Button variant="outline" size="sm" onClick={() => downloadFile(contract.caminho_arquivo)}>
                           <Download className="h-4 w-4" /> Baixar
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => deleteContract(contract.id, contract.file_path)}>
+                        <Button variant="destructive" size="sm" onClick={() => deleteContract(contract.id, contract.caminho_arquivo)}>
                           <Trash className="h-4 w-4" /> Remover
                         </Button>
                       </div>
@@ -656,7 +656,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                   {entry.departure_aero.code} x {entry.arrival_aero.code}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {entry.departure_aero.name} → {entry.arrival_aero.name}
+                                  {entry.departure_aero.nome} → {entry.arrival_aero.nome}
                                 </div>
                               </div>
                             ) : '—'}
@@ -673,7 +673,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           {partners.length > 1 && (
                             <td className="py-4 px-4 text-foreground">
                               {/* partner_name não existe na tabela — exibe indicador se voo tem sócio vinculado */}
-                              {entry.client_partner_id ? (
+                              {entry.socio_cliente_id_id ? (
                                 <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
                                   Sócio
                                 </span>
@@ -693,7 +693,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         {/* ── Abastecimentos ──────────────────────────────────────────────────── */}
         <TabsContent value="fuel" className="space-y-4">
           {(() => {
-            const pendingFuel = fuelRecords.filter((r: any) => r.status_pagamento === 'pendente');
+            const pendingFuel = fuelRecords.filter((r: any) => r.situacao_pagamento === 'pendente');
             const totalPending = pendingFuel.reduce((sum: number, r: any) => sum + (Number(r.valor_total) || 0), 0);
 
             return (
@@ -745,9 +745,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                   <p className="font-medium text-foreground">
                                     {record.aeronave?.registration || 'N/A'} - {record.local}
                                   </p>
-                                  {record.partner_name && (
+                                  {record.nome_socio && (
                                     <Badge variant="outline" className="bg-blue-500/20 text-blue-300 text-xs">
-                                      {record.partner_name}
+                                      {record.nome_socio}
                                     </Badge>
                                   )}
                                 </div>
@@ -773,15 +773,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Status</p>
                                 <Badge className={
-                                  record.status_pagamento === 'pago'
+                                  record.situacao_pagamento === 'pago'
                                     ? 'bg-green-500/20 text-green-300'
-                                    : record.status_pagamento === 'pendente'
+                                    : record.situacao_pagamento === 'pendente'
                                     ? 'bg-yellow-500/20 text-yellow-300'
                                     : 'bg-gray-500/20 text-gray-300'
                                 }>
-                                  {record.status_pagamento === 'pago' ? 'Pago'
-                                    : record.status_pagamento === 'pendente' ? 'Pendente'
-                                    : record.status_pagamento || 'N/A'}
+                                  {record.situacao_pagamento === 'pago' ? 'Pago'
+                                    : record.situacao_pagamento === 'pendente' ? 'Pendente'
+                                    : record.situacao_pagamento || 'N/A'}
                                 </Badge>
                               </div>
                             </div>
@@ -798,7 +798,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
                             </div>
 
-                            {record.status_pagamento === 'pendente' && (
+                            {record.situacao_pagamento === 'pendente' && (
                               <Button
                                 onClick={() => {
                                   setSelectedFuelRecord(record);
@@ -812,7 +812,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               </Button>
                             )}
 
-                            {record.status_pagamento === 'pago' && record.comprovante_url && (
+                            {record.situacao_pagamento === 'pago' && record.comprovante_url && (
                               <Button
                                 onClick={() => window.open(record.comprovante_url, '_blank')}
                                 size="sm"
@@ -886,11 +886,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               ) : (
                 travelReports.map((report) => {
                   const isPago =
-                    report.status?.toLowerCase() === 'pago' ||
-                    report.status?.toLowerCase() === 'recebido' ||
-                    report.status?.toLowerCase() === 'conferido';
+                    report.situacao?.toLowerCase() === 'pago' ||
+                    report.situacao?.toLowerCase() === 'recebido' ||
+                    report.situacao?.toLowerCase() === 'conferido';
 
-                  const isEnviado = report.status?.toLowerCase() === 'enviado';
+                  const isEnviado = report.situacao?.toLowerCase() === 'enviado';
 
                   return (
                     <div key={report.id} className="p-4 bg-muted/50 rounded-lg border border-border">
@@ -899,7 +899,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <p className="font-medium text-foreground">
-                                {report.doc || report.description}
+                                {report.documento || report.descricao}
                               </p>
                               <Badge
                                 variant="outline"
@@ -915,24 +915,24 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
                             <p className="text-sm text-muted-foreground">
                               Emitido em:{' '}
-                              {report.date
+                              {report.data
                                 ? (() => {
                                     try {
-                                      const [y, m, d] = report.date.split('T')[0].split('-');
+                                      const [y, m, d] = report.data.split('T')[0].split('-');
                                       return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
                                     } catch {
-                                      return report.date;
+                                      return report.data;
                                     }
                                   })()
                                 : '—'}
                             </p>
 
                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {report.description}
+                              {report.descricao}
                             </p>
 
                             <p className="text-sm font-semibold text-green-400 mt-1">
-                              Valor: R$ {Number(report.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              Valor: R$ {Number(report.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </p>
                           </div>
 

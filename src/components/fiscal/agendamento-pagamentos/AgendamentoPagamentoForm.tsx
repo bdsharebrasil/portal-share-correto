@@ -73,7 +73,7 @@ export function AgendamentoPagamentoForm({
       setValue("fornecedor", agendamento.fornecedor);
       setValue("valor", agendamento.valor.toString());
       setValue("categoria", agendamento.categoria || "");
-      setValue("status", agendamento.status);
+      setValue("situacao", agendamento.situacao);
       setValue("eh_recorrente", agendamento.eh_recorrente || false);
       setValue("frequencia_recorrencia", agendamento.frequencia_recorrencia || "mensal");
       setValue("dia_recorrencia", agendamento.dia_recorrencia?.toString() || "");
@@ -83,7 +83,7 @@ export function AgendamentoPagamentoForm({
     } else {
       reset();
       setValue("data_agendamento", format(new Date(), "yyyy-MM-dd"));
-      setValue("status", "agendado");
+      setValue("situacao", "agendado");
     }
   }, [agendamento, setValue, reset]);
 
@@ -106,7 +106,7 @@ export function AgendamentoPagamentoForm({
         fornecedor: formData.fornecedor,
         valor,
         categoria: formData.categoria || null,
-        status: formData.status,
+        status: formData.situacao,
         eh_recorrente: formData.eh_recorrente || false,
         frequencia_recorrencia: formData.eh_recorrente ? formData.frequencia_recorrencia : null,
         dia_recorrencia: formData.eh_recorrente && formData.dia_recorrencia ? parseInt(formData.dia_recorrencia) : null,
@@ -166,7 +166,7 @@ export function AgendamentoPagamentoForm({
               <Label htmlFor="data_agendamento">Data de Agendamento *</Label>
               <Input
                 id="data_agendamento"
-                type="date"
+                type="data"
                 {...register("data_agendamento", { required: "Data é obrigatória" })}
                 className={errors.data_agendamento ? "border-destructive" : ""}
               />
@@ -226,8 +226,8 @@ export function AgendamentoPagamentoForm({
             </div>
 
             <div>
-              <Label htmlFor="status">Status</Label>
-              <Select defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
+              <Label htmlFor="situacao">Status</Label>
+              <Select defaultValue="agendado" onValueChange={(value) => setValue("situacao", value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

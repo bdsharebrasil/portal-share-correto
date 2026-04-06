@@ -75,8 +75,8 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
     try {
       const [aircraftRes, aerodromesRes] = await Promise.all([
         supabase
-          .from('aircraft')
-          .select('id, registration, model, manufacturer')
+          .from('aeronave')
+          .select('id, matricula, modelo, fabricante')
           .eq('status', 'ativa'),
         supabase.from('aerodromes').select('*').order('designativo'),
       ]);
@@ -88,7 +88,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
         setAerodromes(aerodromesRes.data);
         const options: AutocompleteOption[] = aerodromesRes.data.map((a) => ({
           id: a.designativo,
-          label: `${a.designativo} - ${a.name}`,
+          label: `${a.designativo} - ${a.nome}`,
         }));
         setAerodromesOptions(options);
       }
@@ -272,7 +272,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
             <div className="space-y-2">
               <Label className="text-muted-foreground">Aeronave *</Label>
               <Select
-                value={formData.aircraftId || ''}
+                value={formData.aeronaveId || ''}
                 onValueChange={handleAircraftChange}
               >
                 <SelectTrigger className="bg-background border-border text-foreground">
@@ -290,7 +290,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
             <div className="space-y-2">
               <Label className="text-muted-foreground">Tipo de Aeronave</Label>
               <Input
-                value={formData.aircraftType || ''}
+                value={formData.aeronaveType || ''}
                 readOnly
                 placeholder="—"
                 className="bg-background border-border text-foreground"
@@ -309,10 +309,10 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
                 placeholder="N0150"
                 className="bg-background border-border text-foreground font-mono"
               />
-              {formData.aircraftRegistration && (
+              {formData.aeronaveRegistration && (
                 <p className="text-xs text-primary flex items-center gap-1">
                   <Info className="h-3 w-3" />
-                  Velocidade sugerida para {formData.aircraftRegistration}
+                  Velocidade sugerida para {formData.aeronaveRegistration}
                 </p>
               )}
             </div>

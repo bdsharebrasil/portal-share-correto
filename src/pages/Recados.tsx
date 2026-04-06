@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MessageSquare, Send, Search, Plus, Pin, Clock, Trash2, Check } from "lucide-react";
@@ -16,7 +15,6 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 type Role = 'admin' | 'tripulante' | 'financeiro' | 'financeiro_master' | 'operacoes' | 'ctm' | 'piloto_chefe' | 'cotista' | 'gestor_master' | 'operador' | 'coordenador_voo';
-type TargetType = 'user' | 'role' | 'all';
 
 interface Message {
   id: string;
@@ -24,10 +22,11 @@ interface Message {
   author_name: string;
   author_role: string | null;
   content: string;
-  target_type: string;
+  departamento: string | null;
   is_pinned: boolean;
   created_at: string;
   is_read: boolean;
+  lido_por?: string[];
 }
 
 interface UserProfile {
@@ -64,31 +63,50 @@ export default function Recados() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserRoles, setCurrentUserRoles] = useState<Role[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [targetType, setTargetType] = useState<TargetType>('all');
-  const [targetUserId, setTargetUserId] = useState<string>("");
   const [targetRoles, setTargetRoles] = useState<Role[]>([]);
   const [isPinned, setIsPinned] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Load from localStorage on mount
+  // Load from Supabase on mount
   useEffect(() => {
-    const stored = localStorage.getItem('recados');
-    if (stored) {
-      try {
-        setMessages(JSON.parse(stored));
-      } catch (e) {
-        console.error('Error loading messages from localStorage:', e);
-      }
-    }
     loadCurrentUser();
     loadUsers();
+    loadMessages();
   }, []);
+
+  // Realtime subscription to messages
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const subscription = supabase
+      .channel('recados')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recados' }, (payload) => {
+        loadMessages();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentUserId]);
 
   const loadCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) setCurrentUserId(user.id);
+    if (user) {
+      setCurrentUserId(user.id);
+
+      // Load user roles
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+
+      const roles = roleData?.map(r => r.role) || [];
+      setCurrentUserRoles(roles as Role[]);
+    }
   };
 
   const loadUsers = async () => {
@@ -115,8 +133,62 @@ export default function Recados() {
     setUsers(usersWithRoles as any);
   };
 
-  const saveMessagesToLocalStorage = (msgs: Message[]) => {
-    localStorage.setItem('recados', JSON.stringify(msgs));
+  const loadMessages = async () => {
+    const { data, error } = await supabase
+      .from('recados')
+      .select('*')
+      .order('fixado', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading messages:', error);
+      return;
+    }
+
+    // Mapa de autores para obter nomes e roles
+    const authorMap = new Map<string, { name: string; role: string | null }>();
+
+    // Enriquecer mensagens com informações do autor
+    const enrichedMessages = await Promise.all(
+      (data || []).map(async (msg) => {
+        if (!authorMap.has(msg.autor_id)) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('full_name')
+            .eq('id', msg.autor_id)
+            .single();
+
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', msg.autor_id)
+            .limit(1)
+            .maybeSingle();
+
+          authorMap.set(msg.autor_id, {
+            name: profile?.full_name || 'Usuário',
+            role: roleData?.role || null
+          });
+        }
+
+        const author = authorMap.get(msg.autor_id)!;
+
+        return {
+          id: msg.id,
+          author_id: msg.autor_id,
+          author_name: author.nome,
+          author_role: author.role,
+          content: msg.mensagem,
+          departamento: msg.departamento,
+          is_pinned: msg.fixado || false,
+          created_at: msg.criado_em,
+          is_read: currentUserId ? (msg.lido_por?.includes(currentUserId) || false) : false,
+          lido_por: msg.lido_por || []
+        } as Message;
+      })
+    );
+
+    setMessages(enrichedMessages);
   };
 
   const handleSendMessage = async () => {
@@ -131,35 +203,29 @@ export default function Recados() {
         .eq('id', currentUserId)
         .single();
 
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', currentUserId)
-        .limit(1)
-        .maybeSingle();
+      let departamento = 'todos';
+      if (targetRoles.length > 0) {
+        departamento = targetRoles.join(',');
+      }
 
-      const newMsg: Message = {
-        id: crypto.randomUUID(),
-        author_id: currentUserId,
-        author_name: profile?.full_name || 'Usuário',
-        author_role: roleData?.role || null,
-        content: newMessage,
-        target_type: targetType,
-        is_pinned: isPinned,
-        created_at: new Date().toISOString(),
-        is_read: false
-      };
+      const { data: newMsg, error } = await supabase
+        .from('recados')
+        .insert({
+          autor_id: currentUserId,
+          mensagem: newMessage,
+          fixado: isPinned,
+          departamento: departamento
+        })
+        .select()
+        .single();
 
-      const updatedMessages = [newMsg, ...messages];
-      setMessages(updatedMessages);
-      saveMessagesToLocalStorage(updatedMessages);
+      if (error) throw error;
 
       toast.success('Recado enviado com sucesso!');
       setNewMessage("");
-      setTargetType('all');
-      setTargetUserId("");
       setTargetRoles([]);
       setIsPinned(false);
+      loadMessages();
     } catch (error: any) {
       toast.error(error.message || 'Erro ao enviar recado');
     } finally {
@@ -167,58 +233,98 @@ export default function Recados() {
     }
   };
 
-  const handleMarkAsRead = (messageId: string) => {
-    const updatedMessages = messages.map(m =>
-      m.id === messageId ? { ...m, is_read: true } : m
-    );
-    setMessages(updatedMessages);
-    saveMessagesToLocalStorage(updatedMessages);
+  const handleMarkAsRead = async (messageId: string) => {
+    if (!currentUserId) return;
+
+    try {
+      const msg = messages.find(m => m.id === messageId);
+      if (!msg) return;
+
+      const updatedLidoPor = msg.lido_por || [];
+      if (!updatedLidoPor.includes(currentUserId)) {
+        updatedLidoPor.push(currentUserId);
+      }
+
+      const { error } = await supabase
+        .from('recados')
+        .update({ lido_por: updatedLidoPor })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      loadMessages();
+    } catch (error: any) {
+      toast.error('Erro ao marcar como lido');
+    }
   };
 
-  const handleTogglePin = (messageId: string, currentPinned: boolean) => {
-    const updatedMessages = messages.map(m =>
-      m.id === messageId ? { ...m, is_pinned: !currentPinned } : m
-    ).sort((a, b) => {
-      if (a.is_pinned && !b.is_pinned) return -1;
-      if (!a.is_pinned && b.is_pinned) return 1;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-    setMessages(updatedMessages);
-    saveMessagesToLocalStorage(updatedMessages);
-    toast.success(currentPinned ? 'Recado desafixado' : 'Recado fixado');
+  const handleTogglePin = async (messageId: string, currentPinned: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('recados')
+        .update({ fixado: !currentPinned })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      toast.success(currentPinned ? 'Recado desafixado' : 'Recado fixado');
+      loadMessages();
+    } catch (error: any) {
+      toast.error('Erro ao fixar/desafixar recado');
+    }
   };
 
-  const handleDeleteMessage = (messageId: string, authorId: string) => {
-    if (currentUserId !== authorId) {
+  const handleDeleteMessage = async (messageId: string, authorId: string) => {
+    if (currentUserId !== authorId && !currentUserRoles.includes('admin')) {
       toast.error('Você pode deletar apenas seus próprios recados');
       return;
     }
 
-    const updatedMessages = messages.filter(m => m.id !== messageId);
-    setMessages(updatedMessages);
-    saveMessagesToLocalStorage(updatedMessages);
-    toast.success('Recado deletado com sucesso');
+    try {
+      const { error } = await supabase
+        .from('recados')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      toast.success('Recado deletado com sucesso');
+      loadMessages();
+    } catch (error: any) {
+      toast.error('Erro ao deletar recado');
+    }
   };
 
-  const handleToggleRole = (role: Role) => {
-    setTargetRoles(prev =>
-      prev.includes(role)
-        ? prev.filter(r => r !== role)
-        : [...prev, role]
-    );
-  };
+  const filteredMessages = messages.filter(msg => {
+    // Sempre filtra por search
+    const matchesSearch = msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      msg.author_name.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const filteredMessages = messages.filter(msg =>
-    msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    msg.author_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    if (!matchesSearch) return false;
+
+    // Admin veem tudo
+    if (currentUserRoles.includes('admin') || currentUserRoles.includes('financeiro_master')) {
+      return true;
+    }
+
+    // Se for "todos", mostra para todos
+    if (msg.departamento === 'todos') return true;
+
+    // Se for para departamentos específicos, verifica se o usuário está em algum deles
+    if (msg.departamento) {
+      const msgDepartamentos = msg.departamento.split(',');
+      return msgDepartamentos.some((dept: string) => currentUserRoles.includes(dept));
+    }
+
+    return false;
+  });
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const unreadCount = messages.filter(m => !m.is_read).length;
-  const pinnedCount = messages.filter(m => m.is_pinned).length;
+  const unreadCount = filteredMessages.filter(m => !m.is_read).length;
+  const pinnedCount = filteredMessages.filter(m => m.is_pinned).length;
 
   return (
     <Layout>
@@ -230,10 +336,6 @@ export default function Recados() {
               Central de comunicação interna da equipe
             </p>
           </div>
-          <Button className="flex items-center gap-2 self-start">
-            <Plus className="h-4 w-4" />
-            Novo Recado
-          </Button>
         </div>
 
         <Card className="mb-6">
@@ -241,34 +343,76 @@ export default function Recados() {
             <CardTitle>Enviar Recado</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <div className="flex-1 space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="mensagem">
-                  Mensagem
-                </label>
-                <Textarea
-                  id="mensagem"
-                  placeholder="Digite sua mensagem..."
-                  rows={2}
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="fixar"
-                    checked={isPinned}
-                    onCheckedChange={(checked) => setIsPinned(checked === true)}
+            <div className="space-y-4">
+              <div className="flex flex-col gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground" htmlFor="mensagem">
+                    Mensagem
+                  </label>
+                  <Textarea
+                    id="mensagem"
+                    placeholder="Digite sua mensagem..."
+                    rows={2}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
                   />
-                  <Label htmlFor="fixar" className="text-sm text-foreground cursor-pointer">
-                    Fixar no mural
-                  </Label>
                 </div>
-                <Button onClick={handleSendMessage} disabled={loading || !newMessage.trim()}>
-                  <Send className="mr-2 h-4 w-4" />
-                  {loading ? 'Enviando...' : 'Enviar'}
-                </Button>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Enviar para
+                  </label>
+                  <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={targetRoles.length === 0}
+                        onCheckedChange={() => setTargetRoles([])}
+                      />
+                      <span className="text-sm">Todos</span>
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+                      {Object.entries(GROUPS).map(([groupName, roles]) => (
+                        <label key={groupName} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={roles.every(r => targetRoles.includes(r))}
+                            onCheckedChange={() => {
+                              const allSelected = roles.every(r => targetRoles.includes(r));
+                              if (allSelected) {
+                                setTargetRoles(prev => prev.filter(r => !roles.includes(r)));
+                              } else {
+                                setTargetRoles(prev => {
+                                  const newRoles = [...prev];
+                                  roles.forEach(r => {
+                                    if (!newRoles.includes(r)) newRoles.push(r);
+                                  });
+                                  return newRoles;
+                                });
+                              }
+                            }}
+                          />
+                          <span className="text-sm">{groupName}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="fixar"
+                      checked={isPinned}
+                      onCheckedChange={(checked) => setIsPinned(checked === true)}
+                    />
+                    <Label htmlFor="fixar" className="text-sm text-foreground cursor-pointer">
+                      Fixar no mural
+                    </Label>
+                  </div>
+                  <Button onClick={handleSendMessage} disabled={loading || !newMessage.trim()}>
+                    <Send className="mr-2 h-4 w-4" />
+                    {loading ? 'Enviando...' : 'Enviar'}
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -283,7 +427,12 @@ export default function Recados() {
               </CardTitle>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Buscar recados..." className="w-full pl-10 sm:w-64" />
+                <Input
+                  placeholder="Buscar recados..."
+                  className="w-full pl-10 sm:w-64"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </div>
           </CardHeader>
@@ -291,7 +440,11 @@ export default function Recados() {
             {filteredMessages.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <MessageSquare className="mx-auto h-12 w-12 mb-2 opacity-50" />
-                <p>Nenhum recado encontrado</p>
+                <p>Nenhum recado criado</p>
+                <Button variant="link" className="mt-2">
+                  <Plus className="mr-1 h-4 w-4" />
+                  Criar primeiro recado
+                </Button>
               </div>
             ) : (
               filteredMessages.map((msg) => (
@@ -322,11 +475,11 @@ export default function Recados() {
                           </Badge>
                         )}
                       </div>
-                      <p className="mb-2 text-foreground">{msg.content}</p>
+                      <p className="mb-2 text-foreground whitespace-pre-wrap">{msg.content}</p>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Clock className="h-3 w-3" />
-                          {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ptBR })}
+                          {formatDistanceToNow(new Date(msg.criado_em), { addSuffix: true, locale: ptBR })}
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {!msg.is_read && (
@@ -338,7 +491,7 @@ export default function Recados() {
                               title="Marcar como lido"
                             >
                               <Check className="h-3 w-3" />
-                              lido
+                              Lido
                             </Button>
                           )}
                           <Button
@@ -349,7 +502,7 @@ export default function Recados() {
                           >
                             <Pin className="h-4 w-4" />
                           </Button>
-                          {currentUserId === msg.author_id && (
+                          {(currentUserId === msg.author_id || currentUserRoles.includes('admin')) && (
                             <Button
                               variant="outline"
                               size="sm"

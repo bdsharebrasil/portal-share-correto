@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Clock, CheckCircle, Wrench } from 'lucide-react';
-import { AircraftCard } from '@/components/dashboard/AircraftCard';
+import { AeronaveCard } from '@/components/dashboard/AircraftCard';
 import { StatusCard } from '@/components/dashboard/StatusCard';
 import { MaintenanceList } from '@/components/dashboard/MaintenanceList';
 import { ComponentLifeCard } from '@/components/dashboard/ComponentLifeCard';
@@ -28,7 +28,7 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
 
       // Load aircraft data
       const { data: aircraftData, error: aircraftError } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
         .eq('id', aircraftId)
         .single();
@@ -38,14 +38,14 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
       if (aircraftData) {
         setAircraft({
           id: aircraftData.id,
-          registration: aircraftData.registration,
-          model: aircraftData.model,
-          manufacturer: (aircraftData as any).fabricante || aircraftData.manufacturer,
-          serialNumber: aircraftData.serial_number,
-          totalHours: aircraftData.cell_hours_current || 0,
-          totalCycles: (aircraftData as any).pousos_atuais || 0,
-          lastRevisionDate: (aircraftData as any).ultima_revisao,
-          nextRevisionHours: aircraftData.celula_prox_revisao,
+          registration: aircraftData.matricula,
+          model: aircraftData.modelo,
+          manufacturer: aircraftData.fabricante,
+          serialNumber: aircraftData.numero_serie,
+          totalHours: 0, // Será carregado do logbook_months
+          totalCycles: 0,
+          lastRevisionDate: undefined,
+          nextRevisionHours: undefined,
           status: aircraftData.status,
         });
       }
@@ -60,25 +60,25 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
 
       if (maintenanceData) {
         setMaintenanceItems(
-          maintenanceData.map((item: any) => ({
+          (maintenanceData as any[]).map((item: any) => ({
             id: item.id,
-            aircraftId: item.aircraft_id,
-            type: item.type,
-            description: item.description,
+            aeronaveId: item.aeronave_id || item.aircraft_id,
+            type: item.tipo,
+            description: item.descricao,
             dueHours: item.next_due_hours,
             dueCycles: item.next_due_cycles,
             dueDate: item.next_due_date,
-            currentHours: aircraftData?.cell_hours_current || 0,
+            currentHours: (aircraftData as any)?.cell_hours_current || 0,
             currentCycles: (aircraftData as any)?.pousos_atuais || 0,
-            status: item.status || 'ok',
+            status: item.situacao || 'ok',
             interval: `${item.interval_value} ${item.interval_type}`,
             lastDone: item.last_done_date,
             nextDue: item.next_due_date || 'N/A',
             responsibleMechanic: item.responsible_mechanic,
-            observations: item.observations,
+            observations: item.observacoes,
             intervalType: item.interval_type,
             intervalValue: item.interval_value,
-          }))
+          })) as any
         );
       }
 
@@ -95,8 +95,8 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
         setComponents(
           componentsData.map((comp: any) => ({
             id: comp.id,
-            aircraftId: comp.aircraft_id,
-            name: comp.name,
+            aircraftId: comp.aeronave_id,
+            name: comp.nome,
             partNumber: comp.part_number,
             serialNumber: comp.serial_number,
             totalLife: comp.total_life,
@@ -140,10 +140,10 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
     );
   }
 
-  const expiredCount = maintenanceItems.filter(i => i.status === 'expired').length;
-  const urgentCount = maintenanceItems.filter(i => i.status === 'urgent').length;
-  const attentionCount = maintenanceItems.filter(i => i.status === 'attention').length;
-  const okCount = maintenanceItems.filter(i => i.status === 'ok').length;
+  const expiredCount = maintenanceItems.filter(i => (i as any).status === 'expired').length;
+  const urgentCount = maintenanceItems.filter(i => (i as any).status === 'urgent').length;
+  const attentionCount = maintenanceItems.filter(i => (i as any).status === 'attention').length;
+  const okCount = maintenanceItems.filter(i => (i as any).status === 'ok').length;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -157,7 +157,7 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
 
       {/* Aircraft Info and Status Overview */}
       <div className="grid gap-6 md:grid-cols-3">
-        <AircraftCard aircraft={aircraft} />
+        <AeronaveCard aircraft={aircraft} />
 
         {/* Status Overview */}
         <div className="md:col-span-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

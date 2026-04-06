@@ -21,7 +21,7 @@ export function DescriptionManager() {
   async function loadDescriptions() {
     const {
       data
-    } = await supabase.from("receipt_descriptions").select("*").order("created_at", {
+    } = await supabase.from("receipt_descriptions").select("*").order("criado_em", {
       ascending: false
     });
     setDescriptions(data || []);
@@ -140,11 +140,11 @@ export function DescriptionManager() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div> : <>
-                  <p className="text-foreground">{desc.description}</p>
+                  <p className="text-foreground">{desc.descricao}</p>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => {
               setEditingId(desc.id);
-              setEditingText(desc.description);
+              setEditingText(desc.descricao);
             }}>
                       <Edit2 className="h-4 w-4" />
                     </Button>

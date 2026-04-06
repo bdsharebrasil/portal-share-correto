@@ -111,7 +111,7 @@ export function OSDialog({ os, onSave, mode = "create" }: OSDialogProps) {
               <Label htmlFor="data">Data*</Label>
               <Input
                 id="data"
-                type="date"
+                type="data"
                 value={formData.data}
                 onChange={(e) => setFormData({ ...formData, data: e.target.value })}
                 required
@@ -131,9 +131,9 @@ export function OSDialog({ os, onSave, mode = "create" }: OSDialogProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Status*</Label>
+              <Label htmlFor="situacao">Status*</Label>
               <Select
-                value={formData.status}
+                value={formData.situacao}
                 onValueChange={(value) => setFormData({ ...formData, status: value })}
               >
                 <SelectTrigger>

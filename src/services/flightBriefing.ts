@@ -74,7 +74,7 @@ function notamSummary(alerts: string[]): string {
 function alternatesSummary(alternates: FlightPlanResponse['alternates']): string {
   if (!alternates.length) return 'Nenhum alternado identificado na faixa de 150 km.'
   return alternates
-    .map(a => `  • ${a.icao} — ${a.name} (${a.distance_km} km)`)
+    .map(a => `  • ${a.icao} — ${a.nome} (${a.distance_km} km)`)
     .join('\n')
 }
 
@@ -100,8 +100,8 @@ export function generateFlightBriefing(plan: FlightPlanResponse): string {
 Emitido em: ${timestamp}
 
 ▶ ROTA
-  Origem  : ${dep.icao} — ${dep.name}
-  Destino : ${dest.icao} — ${dest.name}
+  Origem  : ${dep.icao} — ${dep.nome}
+  Destino : ${dest.icao} — ${dest.nome}
   Rota ATC: ${fp.route}
   Distância: ${fp.distance_nm} NM / ${distKm} km
 

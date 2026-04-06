@@ -90,7 +90,7 @@ export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
               <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5", isActive && "text-cyan-400")} />
               <div className="flex-1">
                 <p className="font-semibold">{tab.label}</p>
-                <p className="text-xs opacity-75">{tab.description}</p>
+                <p className="text-xs opacity-75">{tab.descricao}</p>
               </div>
               {isActive && (
                 <div className="h-2 w-2 rounded-full bg-cyan-400 mt-2 flex-shrink-0" />

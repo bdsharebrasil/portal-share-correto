@@ -14,7 +14,7 @@ export async function processReceiptRateio(receiptId: string) {
 
     // 1. Buscar o recibo
     const { data: receipt, error: receiptError } = await supabase
-      .from("receipts")
+      .from("recibos")
       .select("*")
       .eq("id", receiptId)
       .single();
@@ -26,15 +26,15 @@ export async function processReceiptRateio(receiptId: string) {
     console.log("Receipt found:", receipt);
 
     // Verificar se é rateado
-    if (!receipt.is_shared || !receipt.aircraft_id) {
+    if (!receipt.compartilhado || !receipt.aeronave_id) {
       throw new Error("Recibo não é rateado ou não tem aeronave associada");
     }
 
     // 2. Buscar todos os clients que compartilham esta aeronave
     const { data: aircraftClients, error: acError } = await supabase
-      .from("client_aircraft")
-      .select("client_id, share_percentage, clients(id, company_name)")
-      .eq("aircraft_id", receipt.aircraft_id);
+      .from("cotistas_aeronave")
+      .select("id_cliente, percentual_sociedade, clientes:id_cliente(id, razao_social)")
+      .eq("id_aeronave", receipt.aeronave_id);
 
     if (acError) {
       throw new Error(`Erro ao buscar clients da aeronave: ${acError.message}`);
@@ -51,13 +51,13 @@ export async function processReceiptRateio(receiptId: string) {
     const { data: conta, error: contaError } = await supabase
       .from("contas_apagar")
       .select("id")
-      .eq("created_at", receipt.created_at as string)
-      .eq("client_id", receipt.client_id as string)
+      .eq("criado_em" as any, receipt.criado_em as string)
+      .eq("cliente_id", receipt.cliente_id as string)
       .single();
 
     const despesa_id = conta?.id || receipt.id;
-    const valorTotalDespesa = receipt.total_amount || receipt.amount;
-    const percentualVoo = receipt.percentage || 100;
+    const valorTotalDespesa = receipt.valor_total || receipt.valor;
+    const percentualVoo = receipt.percentual || 100;
 
     console.log(`Using despesa_id: ${despesa_id}, valor: ${valorTotalDespesa}`);
 
@@ -65,8 +65,8 @@ export async function processReceiptRateio(receiptId: string) {
     // Registra quanto DEVERIA PAGAR cada um (valor_rateado é por propriedade, valor_por_voo é por uso)
     let successCount = 0;
     for (const ac of aircraftClients) {
-      const clientData = ac.clients as any;
-      const sharePercentage = parseFloat(String(ac.share_percentage || 0));
+      const clientData = ac.clientes as any;
+      const sharePercentage = parseFloat(String(ac.percentual_participacao || 0));
 
       // Quanto este client DEVERIA pagar
       const valorPorPropriedade = (valorTotalDespesa * sharePercentage) / 100;
@@ -74,10 +74,10 @@ export async function processReceiptRateio(receiptId: string) {
 
       const rateioPayload = {
         despesa_id,
-        client_id: ac.client_id,
-        client_name: clientData?.company_name || "Unknown",
-        aeronave_id: receipt.aircraft_id,
-        aeronave_registro: receipt.doc_number || null,
+        client_id: ac.id_cliente,
+        client_name: clientData?.razao_social || "Unknown",
+        aeronave_id: receipt.aeronave_id,
+        aeronave_registro: receipt.documento_number || null,
         percentual: sharePercentage, // % de propriedade
         percentual_voo: percentualVoo, // % de uso/voo
         valor_rateado: valorPorPropriedade, // O que deveria pagar por propriedade
@@ -97,12 +97,12 @@ export async function processReceiptRateio(receiptId: string) {
 
       if (rateioErr) {
         console.error(
-          `❌ Erro ao criar rateio para ${clientData?.company_name}:`,
+          `❌ Erro ao criar rateio para ${clientData?.razao_social}:`,
           rateioErr
         );
       } else {
         console.log(
-          `✅ Rateio criado para ${clientData?.company_name} (${sharePercentage}% / ${percentualVoo}%)`
+          `✅ Rateio criado para ${clientData?.razao_social} (${sharePercentage}% / ${percentualVoo}%)`
         );
         successCount++;
       }

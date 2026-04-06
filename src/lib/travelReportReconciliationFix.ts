@@ -80,7 +80,7 @@ export async function fixTravelReportReconciliations(reportId: string) {
 
     // 5. Buscar conciliações atuais para este relatório
     const { data: currentReconciliations, error: reconcError } = await supabase
-      .from('bank_reconciliations')
+      .from('conciliacoes_bancarias')
       .select('*')
       .eq('reference_id', reportId)
       .eq('reference_type', 'travel_report');
@@ -101,13 +101,13 @@ export async function fixTravelReportReconciliations(reportId: string) {
     };
 
     // 6. Atualizar conciliação de cliente se necessário
-    const clientRecon = currentReconciliations?.find(r => r.type === 'cliente');
+    const clientRecon = currentReconciliations?.find(r => r.tipo === 'cliente');
     if (clientRecon) {
-      if (Math.abs(clientRecon.amount - correctTotalForClient) > 0.01) {
-        console.log(`🔄 Corrigindo conciliação de cliente: ${clientRecon.amount} → ${correctTotalForClient}`);
+      if (Math.abs(clientRecon.valor - correctTotalForClient) > 0.01) {
+        console.log(`🔄 Corrigindo conciliação de cliente: ${clientRecon.valor} → ${correctTotalForClient}`);
         
         const { error: updateError } = await supabase
-          .from('bank_reconciliations')
+          .from('conciliacoes_bancarias')
           .update({ amount: correctTotalForClient })
           .eq('id', clientRecon.id);
 
@@ -118,7 +118,7 @@ export async function fixTravelReportReconciliations(reportId: string) {
           corrections.cliente = true;
           corrections.details.push({
             type: 'cliente',
-            valorAnterior: clientRecon.amount,
+            valorAnterior: clientRecon.valor,
             valorCorreto: correctTotalForClient
           });
           console.log('✅ Conciliação de cliente corrigida');
@@ -128,14 +128,14 @@ export async function fixTravelReportReconciliations(reportId: string) {
 
     // 7. Atualizar conciliação de tripulante 1 se necessário
     const crew1Recon = currentReconciliations?.find(
-      r => r.type === 'colaborador' && r.description?.includes('TRIPULANTE 1')
+      r => r.tipo === 'colaborador' && r.descricao?.includes('TRIPULANTE 1')
     );
     if (crew1Recon && correctTotalForCrew1 > 0) {
-      if (Math.abs(crew1Recon.amount - correctTotalForCrew1) > 0.01) {
-        console.log(`🔄 Corrigindo reembolso tripulante 1: ${crew1Recon.amount} → ${correctTotalForCrew1}`);
+      if (Math.abs(crew1Recon.valor - correctTotalForCrew1) > 0.01) {
+        console.log(`🔄 Corrigindo reembolso tripulante 1: ${crew1Recon.valor} → ${correctTotalForCrew1}`);
         
         const { error: updateError } = await supabase
-          .from('bank_reconciliations')
+          .from('conciliacoes_bancarias')
           .update({ amount: correctTotalForCrew1 })
           .eq('id', crew1Recon.id);
 
@@ -146,7 +146,7 @@ export async function fixTravelReportReconciliations(reportId: string) {
           corrections.crew1 = true;
           corrections.details.push({
             type: 'crew1',
-            valorAnterior: crew1Recon.amount,
+            valorAnterior: crew1Recon.valor,
             valorCorreto: correctTotalForCrew1
           });
           console.log('✅ Reembolso tripulante 1 corrigido');
@@ -156,14 +156,14 @@ export async function fixTravelReportReconciliations(reportId: string) {
 
     // 8. Atualizar conciliação de tripulante 2 se necessário
     const crew2Recon = currentReconciliations?.find(
-      r => r.type === 'colaborador' && r.description?.includes('TRIPULANTE 2')
+      r => r.tipo === 'colaborador' && r.descricao?.includes('TRIPULANTE 2')
     );
     if (crew2Recon && correctTotalForCrew2 > 0) {
-      if (Math.abs(crew2Recon.amount - correctTotalForCrew2) > 0.01) {
-        console.log(`🔄 Corrigindo reembolso tripulante 2: ${crew2Recon.amount} → ${correctTotalForCrew2}`);
+      if (Math.abs(crew2Recon.valor - correctTotalForCrew2) > 0.01) {
+        console.log(`🔄 Corrigindo reembolso tripulante 2: ${crew2Recon.valor} → ${correctTotalForCrew2}`);
         
         const { error: updateError } = await supabase
-          .from('bank_reconciliations')
+          .from('conciliacoes_bancarias')
           .update({ amount: correctTotalForCrew2 })
           .eq('id', crew2Recon.id);
 
@@ -174,7 +174,7 @@ export async function fixTravelReportReconciliations(reportId: string) {
           corrections.crew2 = true;
           corrections.details.push({
             type: 'crew2',
-            valorAnterior: crew2Recon.amount,
+            valorAnterior: crew2Recon.valor,
             valorCorreto: correctTotalForCrew2
           });
           console.log('✅ Reembolso tripulante 2 corrigido');
@@ -208,7 +208,7 @@ export async function findIncorrectReconciliations() {
   try {
     const { data: reports, error: reportsError } = await supabase
       .from('travel_expense_reports')
-      .select('id, report_number, status')
+      .select('id, numero_relatorio, status')
       .in('status', ['Finalizado', 'Enviado']);
 
     if (reportsError || !reports) {
@@ -222,7 +222,7 @@ export async function findIncorrectReconciliations() {
     for (const report of reports) {
       // Buscar conciliações
       const { data: recons } = await supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .select('*')
         .eq('reference_id', report.id)
         .eq('reference_type', 'travel_report');
@@ -250,15 +250,15 @@ export async function findIncorrectReconciliations() {
         const payerTotals = extractPayerTotals(validExpenses);
         
         const correctClientTotal = payerTotals.totalSharebrasil + payerTotals.totalCrew1 + payerTotals.totalCrew2;
-        const clientRecon = recons.find(r => r.type === 'cliente');
+        const clientRecon = recons.find(r => r.tipo === 'cliente');
 
-        if (clientRecon && Math.abs(clientRecon.amount - correctClientTotal) > 0.01) {
+        if (clientRecon && Math.abs(clientRecon.valor - correctClientTotal) > 0.01) {
           incorrectReports.push({
             reportId: report.id,
-            reportNumber: report.report_number,
-            reconAmount: clientRecon.amount,
+            reportNumber: report.numero_relatorio,
+            reconAmount: clientRecon.valor,
             correctAmount: correctClientTotal,
-            difference: clientRecon.amount - correctClientTotal
+            difference: clientRecon.valor - correctClientTotal
           });
         }
       }

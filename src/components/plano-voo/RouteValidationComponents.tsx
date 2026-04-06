@@ -159,7 +159,7 @@ export function NavaidsDisplay({ rotaerData, origin, destination }: NavaidsDispl
             <div className="flex flex-wrap gap-1">
               {originRotaer.navaids.map((nav: any, idx: number) => (
                 <Badge key={idx} variant="outline" className="text-foreground text-xs">
-                  {nav.type} {nav.identifier}
+                  {nav.tipo} {nav.identifier}
                 </Badge>
               ))}
             </div>
@@ -172,7 +172,7 @@ export function NavaidsDisplay({ rotaerData, origin, destination }: NavaidsDispl
             <div className="flex flex-wrap gap-1">
               {destRotaer.navaids.map((nav: any, idx: number) => (
                 <Badge key={idx} variant="outline" className="text-foreground text-xs">
-                  {nav.type} {nav.identifier}
+                  {nav.tipo} {nav.identifier}
                 </Badge>
               ))}
             </div>

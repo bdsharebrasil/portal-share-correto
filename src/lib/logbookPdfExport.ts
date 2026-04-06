@@ -98,12 +98,12 @@ const generateCoverPage = (doc: jsPDF, options: ExportOptions, logoDataUrl?: str
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Aeronave: ${options.aircraftRegistration}`, pageWidth / 2, 130, { align: 'center' });
+  doc.text(`Aeronave: ${options.aeronaveRegistration}`, pageWidth / 2, 130, { align: 'center' });
 
-  if (options.aircraftModel) {
+  if (options.aeronaveModel) {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(options.aircraftModel, pageWidth / 2, 140, { align: 'center' });
+    doc.text(options.aeronaveModel, pageWidth / 2, 140, { align: 'center' });
   }
 
   doc.setFontSize(12);
@@ -148,7 +148,7 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
     entry.fuel_added ? `${entry.fuel_added}L` : '-',
     entry.celula ? entry.celula.toFixed(1) : '-',
     entry.pic_name || '-',
-    entry.client_company_name || entry.partner_name || '-',
+    entry.client_company_name || entry.nome_socio || '-',
   ]);
 
   let finalY = 25;
@@ -223,7 +223,7 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
   let hasPartners = false;
 
   filteredEntries.forEach(entry => {
-    const partnerName = entry.partner_name;
+    const partnerName = entry.nome_socio;
     if (partnerName) {
       hasPartners = true;
       const key = partnerName;
@@ -234,7 +234,7 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
       partnerTotals[key].voos += 1;
     } else {
       // For loans, use the recipient client; otherwise the owner client
-      const clientId = entry.is_loan ? entry.loan_recipient_client_id : entry.client_id;
+      const clientId = entry.is_loan ? entry.loan_recipient_client_id : entry.cliente_id;
       const clientName = entry.is_loan
         ? (entry.loan_recipient_client_name || entry.client_company_name || 'Sem Cliente')
         : (entry.client_company_name || 'Sem Cliente');
@@ -265,7 +265,7 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
 
     // Draw summary as small table
     const summaryTableData = summaryEntries.map(s => [
-      s.name,
+      s.nome,
       s.voos.toString(),
       decimalToHHMM(s.hours)
     ]);
@@ -364,7 +364,7 @@ export const downloadLogbookPDF = async (options: ExportOptions) => {
       .map(m => `${m.month}-${m.year}`)
       .join('_');
     a.href = url;
-    a.download = `diario-bordo-${options.aircraftRegistration}-${monthsStr}.pdf`;
+    a.download = `diario-bordo-${options.aeronaveRegistration}-${monthsStr}.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

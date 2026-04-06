@@ -58,14 +58,14 @@ export default function AgendamentoPagamentos() {
     const today = new Date();
     const next7Days = addDays(today, 7);
 
-    const totalAgendados = agendamentos.filter(a => a.status === 'agendado').length;
+    const totalAgendados = agendamentos.filter(a => a.situacao === 'agendado').length;
     const proximosPorVencer = agendamentos.filter(a =>
-      a.status === 'agendado' &&
+      a.situacao === 'agendado' &&
       isWithinInterval(new Date(a.data_agendamento), { start: today, end: next7Days })
     ).length;
-    const recorrentes = agendamentos.filter(a => a.eh_recorrente && a.status === 'agendado').length;
+    const recorrentes = agendamentos.filter(a => a.eh_recorrente && a.situacao === 'agendado').length;
     const valorTotal = agendamentos
-      .filter(a => a.status === 'agendado')
+      .filter(a => a.situacao === 'agendado')
       .reduce((sum, a) => sum + parseFloat(a.valor), 0);
 
     return { totalAgendados, proximosPorVencer, recorrentes, valorTotal };
@@ -75,7 +75,7 @@ export default function AgendamentoPagamentos() {
     const today = new Date();
     const next7Days = addDays(today, 7);
     return agendamentos.filter(a => {
-      return a.status === 'agendado' &&
+      return a.situacao === 'agendado' &&
         isWithinInterval(new Date(a.data_agendamento), { start: today, end: next7Days });
     });
   }, [agendamentos]);
@@ -305,8 +305,8 @@ export default function AgendamentoPagamentos() {
             ) : (
               <div className="space-y-3">
                 {agendamentos.map((agendamento) => {
-                  const isOverdue = isBefore(new Date(agendamento.data_agendamento), new Date()) && agendamento.status === 'agendado';
-                  const rowClass = agendamento.status === 'pago' 
+                  const isOverdue = isBefore(new Date(agendamento.data_agendamento), new Date()) && agendamento.situacao === 'agendado';
+                  const rowClass = agendamento.situacao === 'pago' 
                     ? 'bg-green-500/10 border-l-4 border-l-green-500' 
                     : isOverdue 
                       ? 'bg-red-500/10 border-l-4 border-l-red-500' 
@@ -319,8 +319,8 @@ export default function AgendamentoPagamentos() {
                           <h3 className="font-semibold text-foreground">{agendamento.descricao}</h3>
                           <p className="text-sm text-muted-foreground">Fornecedor: {agendamento.fornecedor}</p>
                           <div className="flex items-center gap-4 mt-2 flex-wrap">
-                            <Badge className={getStatusColor(agendamento.status)}>
-                              {getStatusLabel(agendamento.status, isOverdue)}
+                            <Badge className={getStatusColor(agendamento.situacao)}>
+                              {getStatusLabel(agendamento.situacao, isOverdue)}
                             </Badge>
                             <span className="text-sm text-muted-foreground">
                               {format(new Date(agendamento.data_agendamento), "dd/MM/yyyy", { locale: ptBR })}
@@ -353,7 +353,7 @@ export default function AgendamentoPagamentos() {
                             R$ {parseFloat(agendamento.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </p>
                           <div className="flex gap-2">
-                            {agendamento.status === 'agendado' && (
+                            {agendamento.situacao === 'agendado' && (
                               <Button
                                 variant="outline"
                                 size="sm"

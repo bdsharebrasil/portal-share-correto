@@ -36,7 +36,7 @@ export function TasksQuickAccess() {
         .from("tasks")
         .select("*")
         .or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`)
-        .eq("status", "pendente")
+        .eq("status", "aberto")
         .order("due_date", { ascending: true });
 
       if (!error && data) {

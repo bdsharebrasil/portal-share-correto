@@ -28,7 +28,7 @@ export const useReceiptPdfGenerator = () => {
         throw new Error("ID do recibo não encontrado");
       }
 
-      if (!receiptData?.receipt_number) {
+      if (!receiptData?.numero_recibo && !receiptData?.receipt_number) {
         throw new Error("Número do recibo não encontrado");
       }
 
@@ -49,7 +49,7 @@ export const useReceiptPdfGenerator = () => {
       // Upload para Storage
       console.log("📤 Fazendo upload do PDF...");
       const { error: uploadError } = await supabase.storage
-        .from("receipts")
+        .from("recibos")
         .upload(pdfFileName, pdfBlob, {
           contentType: "application/pdf",
           cacheControl: "3600",
@@ -62,7 +62,7 @@ export const useReceiptPdfGenerator = () => {
 
       // Obter URL pública
       const { data: urlData } = supabase.storage
-        .from("receipts")
+        .from("recibos")
         .getPublicUrl(pdfFileName);
 
       if (!urlData?.publicUrl) {
@@ -74,10 +74,10 @@ export const useReceiptPdfGenerator = () => {
       // Atualizar registro no banco de dados
       console.log("💾 Atualizando banco de dados...");
       const { error: updateError } = await supabase
-        .from("receipts")
-        .update({ pdf_url: urlData.publicUrl })
+        .from("recibos")
+        .update({ url_pdf: urlData.publicUrl })
         .eq("id", receiptData.id)
-        .eq("user_id", userId);
+        .eq("usuario_id", userId);
 
       if (updateError) {
         throw new Error(`Erro ao atualizar banco: ${updateError.message}`);
@@ -109,7 +109,7 @@ export const useReceiptPdfGenerator = () => {
 
       const response = await fetch(pdfUrl);
       if (!response.ok) {
-        throw new Error(`Erro ao baixar: ${response.statusText}`);
+        throw new Error(`Erro ao baixar: ${response.situacaoText}`);
       }
 
       const blob = await response.blob();

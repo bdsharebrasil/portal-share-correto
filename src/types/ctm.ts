@@ -68,7 +68,7 @@ export interface RASItem {
 
 export interface RASReport {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   numero?: string;
   number?: string;
   data_relatorio: string;
@@ -173,7 +173,7 @@ export const COMPONENT_CATEGORIES: ComponentCategoryConfig[] = [
 // Component interface (Atualizada com a nova estrutura aeronáutica)
 export interface Component {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   name: string;
   part_number: string;
   serial_number: string;
@@ -220,7 +220,7 @@ export interface CTMAircraft {
 // Service Order types
 export interface CTMServiceOrder {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   numero: string;
   os_oficina?: string;
   horas_celula?: number;
@@ -262,9 +262,9 @@ export interface CTMServiceOrder {
 }
 
 // Component tracking types
-export interface AircraftComponent {
+export interface AeronaveComponente {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   nome: string;
   parte_numero?: string;
   data_instalacao: string;
@@ -276,7 +276,7 @@ export interface AircraftComponent {
 // Weight and balance types
 export interface WeightBalanceEntry {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   data: string;
   peso_total?: number;
   cg_posicao?: number;

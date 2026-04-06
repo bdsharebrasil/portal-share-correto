@@ -1,23 +1,23 @@
-// components/AircraftCard.tsx
+// components/AeronaveCard.tsx
 import { BookOpen, Banknote } from 'lucide-react';
 import type { Aircraft } from '@/types';
 import type { LogbookMonthData } from '../types';
 import { CellStatusBadge } from './CellStatusBadge';
 import { decimalToHM } from '../utils/timeFormatting';
 
-interface AircraftCardProps {
+interface AeronaveCardProps {
   aircraft: Aircraft;
   logbookData: LogbookMonthData | null;
   onViewDiario: () => void;
   onViewBanco: () => void;
 }
 
-export function AircraftCard({
+export function AeronaveCard({
   aircraft,
   logbookData,
   onViewDiario,
   onViewBanco,
-}: AircraftCardProps) {
+}: AeronaveCardProps) {
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-4 cursor-pointer hover:border-slate-700 hover:shadow-lg transition-all duration-300 hover:scale-102">
       {/* Header */}
@@ -35,9 +35,9 @@ export function AircraftCard({
       {/* Aircraft Info */}
       <div className="mb-4">
         <h3 className="text-xl font-black text-white mb-0.5">
-          {aircraft.registration}
+          {aircraft.matricula}
         </h3>
-        <p className="text-slate-500 text-xs uppercase">{aircraft.model}</p>
+        <p className="text-slate-500 text-xs uppercase">{aircraft.modelo}</p>
       </div>
 
       {/* Status Badges */}

@@ -49,7 +49,7 @@ export function ChartSection() {
               vertical={false} />
 
               <XAxis
-              dataKey="name"
+              dataKey="nome"
               stroke="hsl(var(--muted-foreground))"
               fontSize={12}
               tickLine={false}

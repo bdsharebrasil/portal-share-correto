@@ -43,9 +43,9 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
         .from('despesas_cliente_direto')
         .select(`
           *,
-          aircraft:aeronave_id (registration)
+          aircraft:aeronave_id (id, matricula)
         `)
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado'])
         .order('data_vencimento', { ascending: false });
 
@@ -64,19 +64,19 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
   const { data: aguardandoReembolso = [], isLoading: loadingReembolso } = useQuery({
     queryKey: ['aguardando-reembolso', clienteId, aeronaveId],
     queryFn: async () => {
-      let query = supabase
-        .from('bank_reconciliations')
+      let query = (supabase as any)
+        .from('conciliacoes_bancarias')
         .select(`
           *,
           categorias_movimentacao:categoria_movimentacao_id (nome),
-          aircraft:aircraft_id (registration)
+          aircraft:aeronave_id (matricula)
         `)
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .eq('status', 'aguardando_reembolso')
-        .order('date', { ascending: false });
+        .order('data', { ascending: false });
 
       if (aeronaveId) {
-        query = query.eq('aircraft_id', aeronaveId);
+        query = query.eq('aeronave_id', aeronaveId);
       }
 
       const { data, error } = await query;
@@ -90,13 +90,13 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
   const { data: combustivelPendente = [], isLoading: loadingCombustivel } = useQuery({
     queryKey: ['combustivel-pendente', clienteId, aeronaveId],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from('abastecimentos')
         .select(`
           *,
-          aircraft:aeronave_id (registration)
+          aircraft:aeronave_id (matricula)
         `)
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .neq('status_pagamento', 'pago')
         .order('data', { ascending: false });
 
@@ -112,7 +112,7 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
   });
 
   const totalDireto = pagamentoDiretoPendente.reduce((sum: number, d: any) => sum + (d.valor || 0), 0);
-  const totalReembolso = aguardandoReembolso.reduce((sum: number, d: any) => sum + ((d.saldo_pendente || d.amount) || 0), 0);
+  const totalReembolso = aguardandoReembolso.reduce((sum: number, d: any) => sum + ((d.saldo_pendente || d.valor) || 0), 0);
   const totalCombustivel = combustivelPendente.reduce((sum: number, d: any) => sum + (d.valor_total || 0), 0);
 
   return (
@@ -172,10 +172,10 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
                       <TableCell className="text-right font-medium">
                         R$ {(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell>{item.aircraft?.registration || '-'}</TableCell>
+                      <TableCell>{item.aeronave?.matricula || '-'}</TableCell>
                       <TableCell>
                         <Badge variant={isAtrasado ? 'destructive' : 'secondary'}>
-                          {isAtrasado ? `${diasAtraso} dias atrasado` : item.status}
+                          {isAtrasado ? `${diasAtraso} dias atrasado` : item.situacao}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -242,18 +242,18 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
               </TableHeader>
               <TableBody>
                 {aguardandoReembolso.map((item: any) => {
-                  const diasPendente = differenceInDays(new Date(), new Date(item.date + 'T00:00:00'));
+                  const diasPendente = differenceInDays(new Date(), new Date(item.data + 'T00:00:00'));
                   const isAtrasado = diasPendente > 30;
                   
                   return (
                     <TableRow key={item.id} className={isAtrasado ? 'bg-destructive/10' : ''}>
                       <TableCell>
-                        {format(new Date(item.date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
+                        {format(new Date(item.data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell>{item.categorias_movimentacao?.nome || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{item.descricao || '-'}</TableCell>
                       <TableCell className="text-right font-medium">
-                        R$ {((item.saldo_pendente || item.amount) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {((item.saldo_pendente || item.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
                         <Badge variant={isAtrasado ? 'destructive' : 'secondary'}>
@@ -337,7 +337,7 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
                     <TableCell className="text-right font-medium">
                       R$ {(item.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
-                    <TableCell>{item.aircraft?.registration || '-'}</TableCell>
+                    <TableCell>{item.aeronave?.matricula || '-'}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
                         <Button

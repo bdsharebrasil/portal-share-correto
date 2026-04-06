@@ -122,7 +122,7 @@ export function useFlightPlanner() {
         const alternates = nearby
           .map((a: any) => ({
             icao: a.icao,
-            name: a.name,
+            name: a.nome,
             lat: a.lat,
             lon: a.lon,
             distNm: haversineNm(destLat, destLon, a.lat, a.lon),

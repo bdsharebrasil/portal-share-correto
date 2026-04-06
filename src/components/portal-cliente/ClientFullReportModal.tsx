@@ -103,14 +103,14 @@ export function ClientFullReportModal({
 
       // Load client details
       const { data: clientData } = await supabase
-        .from('clients')
+        .from('clientes')
         .select('*')
         .eq('id', clientId)
         .single();
 
       // Load aircraft details
       const { data: aircraftData } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
         .eq('id', aircraftId)
         .single();
@@ -119,8 +119,8 @@ export function ClientFullReportModal({
       const { data: financialData } = await supabase
         .from('controle_bancario')
         .select('*')
-        .eq('client_id', clientId)
-        .eq('aeronave_id', aircraftId);
+        .eq('cliente_id', clientId)
+        .eq('aircraft_id', aircraftId);
 
       // Load logbook entries
       const { data: logbookData } = await supabase
@@ -133,8 +133,8 @@ export function ClientFullReportModal({
       const { data: fuelData } = await supabase
         .from('abastecimentos')
         .select('*')
-        .eq('aeronave_id', aircraftId)
-        .eq('client_id', clientId)
+        .eq('aircraft_id', aircraftId)
+        .eq('cliente_id', clientId)
         .order('data', { ascending: false });
 
       // Load CTM tracking
@@ -148,7 +148,7 @@ export function ClientFullReportModal({
         .from('lancamentos_rateio')
         .select('*')
         .eq('cliente_id', clientId)
-        .eq('aeronave_id', aircraftId)
+        .eq('aircraft_id', aircraftId)
         .order('data_lancamento', { ascending: false });
 
       // Calculate financial totals
@@ -161,7 +161,7 @@ export function ClientFullReportModal({
         .reduce((sum, f) => sum + (f.valor || 0), 0);
 
       const pendente = (financialData || [])
-        .filter(f => f.status !== 'pago' && f.status !== 'confirmado')
+        .filter(f => f.situacao !== 'pago' && f.situacao !== 'confirmado')
         .reduce((sum, f) => sum + (f.valor || 0), 0);
 
       const reembolsoPendente = (financialData || [])
@@ -198,16 +198,16 @@ export function ClientFullReportModal({
 
       setReportData({
         client: {
-          name: clientData?.company_name || clientName,
+          name: clientData?.razao_social || clientName,
           cnpj: clientData?.cnpj,
           email: clientData?.email,
-          phone: clientData?.phone
+          phone: clientData?.telefone
         },
         aircraft: {
-          registration: aircraftData?.registration || aircraftRegistration,
-          manufacturer: aircraftData?.manufacturer || '',
-          model: aircraftData?.model || '',
-          year: aircraftData?.year || '',
+          registration: aircraftData?.matricula || aircraftRegistration,
+          manufacturer: aircraftData?.fabricante || '',
+          model: aircraftData?.modelo || '',
+          year: aircraftData?.ano || '',
           status: aircraftData?.status || 'Operacional',
           totalHours: aircraftData?.cell_hours_current || totalHours
         },
@@ -284,7 +284,7 @@ export function ClientFullReportModal({
 
       const opt = {
         margin: 10,
-        filename: `relatorio-${reportData.client.name.replace(/\s+/g, '-')}-${reportData.aircraft.registration}-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+        filename: `relatorio-${reportData.client.nome.replace(/\s+/g, '-')}-${reportData.aeronave.matricula}-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -358,10 +358,10 @@ export function ClientFullReportModal({
                     <span className="text-emerald-500">●</span> Dados do Cliente
                   </h2>
                   <div className="space-y-2 text-sm">
-                    <p><strong>Nome:</strong> {reportData.client.name}</p>
+                    <p><strong>Nome:</strong> {reportData.client.nome}</p>
                     {reportData.client.cnpj && <p><strong>CNPJ:</strong> {reportData.client.cnpj}</p>}
                     {reportData.client.email && <p><strong>Email:</strong> {reportData.client.email}</p>}
-                    {reportData.client.phone && <p><strong>Telefone:</strong> {reportData.client.phone}</p>}
+                    {reportData.client.telefone && <p><strong>Telefone:</strong> {reportData.client.telefone}</p>}
                     <p><strong>Percentual de Cota:</strong> <span className="text-emerald-600 font-bold">{reportData.sharePercentage}%</span></p>
                   </div>
                 </div>

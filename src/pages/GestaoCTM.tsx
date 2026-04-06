@@ -19,7 +19,7 @@ interface Aircraft {
 }
 export default function GestaoCTM() {
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
-  const [selectedAircraft, setSelectedAircraft] = useState<string>("");
+  const [selectedAeronave, setSelectedAircraft] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
   const [viewMode, setViewMode] = useState<"dashboard" | "settings">("dashboard");
@@ -33,7 +33,7 @@ export default function GestaoCTM() {
       const {
         data,
         error
-      } = await supabase.from("aircraft").select("id, registration, model, status, image_url, cell_hours_current").order("registration");
+      } = await supabase.from('aeronave').select('id, matricula, modelo, status, url_imagem').order("matricula");
       if (error) throw error;
       setAircraft(data || []);
     } catch (error: any) {
@@ -87,8 +87,8 @@ export default function GestaoCTM() {
   }
 
   // If aircraft is selected, show the detail view
-  if (selectedAircraft) {
-    const selectedAircraftData = aircraft.find(ac => ac.id === selectedAircraft);
+  if (selectedAeronave) {
+    const selectedAircraftData = aircraft.find(ac => ac.id === selectedAeronave);
     if (!selectedAircraftData) return null;
     return <Layout>
         <div className="p-6">
@@ -101,8 +101,8 @@ export default function GestaoCTM() {
   const normalizeStatus = (s: string | null | undefined) => (s ?? "").toString().trim().toLowerCase();
   const isActiveStatus = (s: string | null | undefined) => ["ativo", "ativa", "active"].includes(normalizeStatus(s));
   const isInactiveStatus = (s: string | null | undefined) => ["inativo", "inativa", "inactive"].includes(normalizeStatus(s));
-  const activeAircraft = aircraft.filter(a => isActiveStatus(a.status));
-  const inactiveAircraft = aircraft.filter(a => isInactiveStatus(a.status));
+  const activeAircraft = aircraft.filter(a => isActiveStatus(a.situacao));
+  const inactiveAircraft = aircraft.filter(a => isInactiveStatus(a.situacao));
   return <Layout>
       <div className="p-6 space-y-8">
         {/* Hero Header */}

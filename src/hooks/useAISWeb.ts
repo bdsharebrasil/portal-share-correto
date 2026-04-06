@@ -225,7 +225,7 @@ export function useAISWeb() {
         .filter((a: any) => a?.icao)
         .map((a: any) => ({
           icao:   a.icao,
-          name:   a.name ?? a.icao,
+          name:   a.nome ?? a.icao,
           lat:    a.lat,
           lon:    a.lon,
           distNm: haversineNm(destLat, destLon, a.lat, a.lon),

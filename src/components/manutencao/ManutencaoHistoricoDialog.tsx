@@ -63,7 +63,7 @@ export function ManutencaoHistoricoDialog({
                           )}
                         </div>
                         <p className="text-sm text-gray-300 mt-1">
-                          {record.description || 'Sem descrição'}
+                          {record.descricao || 'Sem descrição'}
                         </p>
                       </div>
                     </div>
@@ -116,10 +116,10 @@ export function ManutencaoHistoricoDialog({
                   </div>
 
                   {/* Observations */}
-                  {record.observations && (
+                  {record.observacoes && (
                     <div className="pt-2 border-t border-white/5">
                       <p className="text-xs text-gray-400">
-                        <span className="font-semibold">Obs:</span> {record.observations}
+                        <span className="font-semibold">Obs:</span> {record.observacoes}
                       </p>
                     </div>
                   )}

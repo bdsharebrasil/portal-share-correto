@@ -47,7 +47,7 @@ export function ClienteSearchInput({
         const {
           data,
           error
-        } = await supabase.from("clients").select("*").eq("status", "ativo").order("company_name");
+        } = await supabase.from("clientes").select("*").order("razao_social");
         if (error) throw error;
         setClientesAtivos(data || []);
       } catch (err) {
@@ -67,17 +67,17 @@ export function ClienteSearchInput({
       return;
     }
     const query = searchQuery.toLowerCase();
-    const filtered = clientesAtivos.filter(c => c.company_name.toLowerCase().includes(query) || c.cnpj?.includes(query.replace(/\D/g, "")));
+    const filtered = clientesAtivos.filter(c => c.razao_social.toLowerCase().includes(query) || c.cnpj?.includes(query.replace(/\D/g, "")));
     setFilteredClientes(filtered);
     setShowSuggestions(true);
   }, [searchQuery, clientesAtivos]);
   const handleSelectCliente = (cliente: ClienteData) => {
     onChange({
       clienteId: cliente.id,
-      nome: cliente.company_name || "",
+      nome: cliente.razao_social || "",
       documento: cliente.cnpj || "",
-      endereco: cliente.address || "",
-      cidade: cliente.city || "",
+      endereco: cliente.endereco || "",
+      cidade: cliente.cidade || "",
       uf: cliente.uf || "",
       useFromDatabase: true
     });
@@ -136,13 +136,13 @@ export function ClienteSearchInput({
               {isLoadingClientes && <p className="text-sm text-muted-foreground">Carregando...</p>}
 
               {!isLoadingClientes && filteredClientes.length > 0 ? filteredClientes.map(cliente => <button key={cliente.id} type="button" onClick={() => handleSelectCliente(cliente)} className="w-full text-left p-3 border border-border rounded hover:bg-accent transition-colors">
-                    <div className="font-medium text-sm">{cliente.company_name}</div>
+                    <div className="font-medium text-sm">{cliente.razao_social}</div>
                     {cliente.cnpj && <div className="text-xs text-muted-foreground">
                         CNPJ: {cliente.cnpj}
                       </div>}
-                    {(cliente.city || cliente.uf) && <div className="text-xs text-muted-foreground">
-                        {cliente.city}
-                        {cliente.city && cliente.uf ? ", " : ""}
+                    {(cliente.cidade || cliente.uf) && <div className="text-xs text-muted-foreground">
+                        {cliente.cidade}
+                        {cliente.cidade && cliente.uf ? ", " : ""}
                         {cliente.uf}
                       </div>}
                   </button>) : !isLoadingClientes ? <p className="text-sm text-muted-foreground text-center py-4">
@@ -162,7 +162,7 @@ export function ClienteSearchInput({
 
             <div>
               <Label>CNPJ/CPF</Label>
-              <Input value={value.documento} onChange={e => handleManualChange("documento", e.target.value)} placeholder="00.000.000/0000-00" disabled={disabled} />
+              <Input value={value.documentoumento} onChange={e => handleManualChange("documento", e.target.value)} placeholder="00.000.000/0000-00" disabled={disabled} />
             </div>
           </div>
 

@@ -72,7 +72,7 @@ export const GestaoSalariosContent = () => {
       if (!selectedCrewMember) return [];
       const { data, error } = await supabase
         .from("crew_flight_hours")
-        .select(`*, aircraft:aircraft_id ( registration, model )`)
+        .select(`*, aircraft:aeronave_id ( registration, model )`)
         .eq("crew_member_id", selectedCrewMember)
         .eq("month", selectedMonth)
         .eq("year", selectedYear);
@@ -88,15 +88,15 @@ export const GestaoSalariosContent = () => {
     queryFn: async () => {
       // Primeiro busca os dados de aircraft_hourly_rates
       const { data: rates, error: ratesError } = await supabase
-        .from("aircraft_hourly_rates")
-        .select("aircraft_id, hourly_rate, effective_date");
+        .from('taxas_hora_aeronave')
+        .select("aeronave_id, hourly_rate, effective_date");
 
       if (ratesError) throw ratesError;
 
       // Busca dados básicos de aeronaves
       const { data: aircraft, error: aircraftError } = await supabase
-        .from("aircraft")
-        .select("id, registration")
+        .from('aeronave')
+        .select('id, matricula')
         .eq("status", "ativa");
 
       if (aircraftError) throw aircraftError;
@@ -107,7 +107,7 @@ export const GestaoSalariosContent = () => {
       for (const plane of aircraft || []) {
         // Encontra a taxa mais recente para este mês/ano
         const applicableRate = (rates || []).find((r: any) => {
-          if (r.aircraft_id !== plane.id) return false;
+          if (r.aeronave_id !== plane.id) return false;
           const rateDate = new Date(r.effective_date);
           const rateMonth = rateDate.getMonth() + 1;
           const rateYear = rateDate.getFullYear();
@@ -118,7 +118,7 @@ export const GestaoSalariosContent = () => {
         let rate = applicableRate?.hourly_rate || 0;
         if (!rate) {
           const prevRate = (rates || [])
-            .filter((r: any) => r.aircraft_id === plane.id)
+            .filter((r: any) => r.aeronave_id === plane.id)
             .sort((a: any, b: any) =>
               new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime()
             )[0];
@@ -159,7 +159,7 @@ export const GestaoSalariosContent = () => {
 
       // Calculate payment based on crew flight hours and aircraft rates
       for (const hours of crewFlightHours as any[]) {
-        const aircraftRate = aircraftWithRates.find((a: any) => a.id === hours.aircraft_id);
+        const aircraftRate = aircraftWithRates.find((a: any) => a.id === hours.aeronave_id);
 
         const flightHours = Number(hours.total_hours) || 0;
         const hourlyRate = aircraftRate?.hourly_rate || 0;
@@ -281,7 +281,7 @@ export const GestaoSalariosContent = () => {
       </TabsTrigger>
 
       <TabsTrigger
-        value="aircraft"
+        value="aeronave"
         className="rounded-lg overflow-hidden transition-all p-0 flex-1 min-w-max data-[state=inactive]:hover:shadow-md data-[state=active]:bg-gradient-to-br data-[state=active]:from-violet-500/20 data-[state=active]:to-purple-500/10"
       >
         <div className="border border-violet-500/40 rounded-lg overflow-hidden px-3 py-2 flex flex-col items-center gap-1 w-full h-full">
@@ -379,12 +379,12 @@ export const GestaoSalariosContent = () => {
                         </TableHeader>
                         <TableBody>
                           {(crewFlightHours as any[]).map((hours) => {
-                            const aircraftRate = aircraftWithRates.find((a: any) => a.id === hours.aircraft_id);
+                            const aircraftRate = aircraftWithRates.find((a: any) => a.id === hours.aeronave_id);
                             const subtotal = Number(hours.total_hours) * (aircraftRate?.hourly_rate || 0);
                             const hasRate = aircraftRate && aircraftRate.hourly_rate > 0;
                             return (
                               <TableRow key={hours.id} className={!hasRate ? "bg-red-50" : ""}>
-                                <TableCell className="font-semibold">{hours.aircraft?.registration} - {hours.aircraft?.model}</TableCell>
+                                <TableCell className="font-semibold">{hours.aeronave?.matricula} - {hours.aeronave?.modelo}</TableCell>
                                 <TableCell>{Number(hours.total_hours).toFixed(2)}h</TableCell>
                                 <TableCell>
                                   {hasRate ? (
@@ -401,7 +401,7 @@ export const GestaoSalariosContent = () => {
                       </Table>
                     )}
                     {crewFlightHours.length > 0 && (crewFlightHours as any[]).some((h: any) => {
-                      const rate = aircraftWithRates.find((a: any) => a.id === h.aircraft_id);
+                      const rate = aircraftWithRates.find((a: any) => a.id === h.aeronave_id);
                       return !rate || rate.hourly_rate === 0;
                     }) && (
                       <div className="bg-red-50 border border-red-200 rounded p-3 mt-3">
@@ -457,7 +457,7 @@ export const GestaoSalariosContent = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="aircraft" className="space-y-4">
+        <TabsContent value="aeronave" className="space-y-4">
           <AircraftSalariesMonthly />
         </TabsContent>
       </Tabs>

@@ -45,31 +45,31 @@ import { syncBankReconciliationToFinancial } from "@/services/financialSyncClien
 // --- Interfaces ---
 interface Client {
   id: string;
-  company_name: string;
+  razao_social: string;
 }
 
 interface Aircraft {
   id: string;
-  registration: string;
+  matricula: string;
 }
 
 interface BankReconciliation {
   id: string;
-  date: string;
-  description: string;
-  amount: number;
+  data: string;
+  descricao: string;
+  valor: number;
   status: string;
-  category: string | null;
+  categoria: string | null;
   categoria_movimentacao_id?: string | null;
-  client_id: string | null;
-  aircraft_id: string | null;
+  clientes_id: string | null;
+  aeronave_id: string | null;
   prazo_pagamento: string | null;
   criado_por?: string;
-  client_partner: string | null;
-  partner_name: string | null;
-  clients: { company_name: string } | null;
-  client_partners: { name: string } | null;
-  aircraft: { registration: string } | null;
+  socio_cliente_id: string | null;
+  nome_socio: string | null;
+  clientes: { razao_social: string } | null;
+  socios_cliente: { nome: string; cpf?: string } | null;
+  aircraft: { matricula: string } | null;
   forma_pagamento?: string | null;
   saldo_pendente?: number | null;
 }
@@ -120,8 +120,8 @@ export function ConciliacaoClientes() {
   const loadClientsAndAircraft = async () => {
     try {
       const [clientsResponse, aircraftResponse] = await Promise.all([
-        supabase.from("clients").select("id, company_name").order("company_name"),
-        supabase.from("aircraft").select("id, registration").order("registration"),
+        supabase.from("clientes").select("id, razao_social").order("razao_social"),
+        supabase.from('aeronave').select('id, matricula').order("matricula"),
       ]);
 
       if (clientsResponse.error) throw clientsResponse.error;
@@ -149,17 +149,17 @@ export function ConciliacaoClientes() {
       const nomesCategoriasProtegidas = new Set(categoriasProtegidas?.map(c => c.nome?.toLowerCase()) || []);
 
       const { data, error } = await supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .select(`
           *,
-          clients:client_id (company_name),
-          client_partners:client_partner (name),
-          aircraft:aircraft_id (registration)
+          clientes:clientes_id (razao_social),
+          socios_cliente:socio_cliente_id (nome, cpf),
+          aircraft:aeronave_id (matricula)
         `)
-        .eq('type', 'cliente' as any)
-        .gte('date', startDate.toISOString().split('T')[0])
-        .lte('date', endDate.toISOString().split('T')[0])
-        .order('date', { ascending: false });
+        .eq('tipo', 'cliente' as any)
+        .gte('data', startDate.toISOString().split('T')[0])
+        .lte('data', endDate.toISOString().split('T')[0])
+        .order('data', { ascending: false });
 
       if (error) throw error;
 
@@ -167,11 +167,11 @@ export function ConciliacaoClientes() {
         if (item.categoria_movimentacao_id && idsCategoriasProtegidas.has(item.categoria_movimentacao_id)) {
           return false;
         }
-        const categoryName = item.category?.toLowerCase() || '';
+        const categoryName = item.categoria?.toLowerCase() || '';
         if (nomesCategoriasProtegidas.has(categoryName)) {
           return false;
         }
-        const description = item.description?.toLowerCase() || '';
+        const description = item.descricao?.toLowerCase() || '';
         if (description.includes('receita operacional')) {
           return false;
         }
@@ -240,19 +240,19 @@ export function ConciliacaoClientes() {
   const resumoClientes = {
     totalRecebido: conciliacaoClientes
       .filter(item => getDisplayStatus(item) === 'recebido')
-      .reduce((sum, item) => sum + Number(item.amount), 0),
+      .reduce((sum, item) => sum + Number(item.valor), 0),
     totalEnviado: conciliacaoClientes
       .filter(item => getDisplayStatus(item) === 'enviado')
-      .reduce((sum, item) => sum + Number(item.amount), 0),
+      .reduce((sum, item) => sum + Number(item.valor), 0),
     totalPendente: conciliacaoClientes
       .filter(item => getDisplayStatus(item) === 'pendente')
-      .reduce((sum, item) => sum + Number(item.amount), 0),
+      .reduce((sum, item) => sum + Number(item.valor), 0),
   };
 
   const filteredData = showTravelDebtsOnly
     ? conciliacaoClientes.filter(item => {
       const isDebt = item.status?.toLowerCase() !== 'recebido';
-      const textToSearch = (item.category || '') + ' ' + (item.description || '');
+      const textToSearch = (item.categoria || '') + ' ' + (item.descricao || '');
       const keywords = ['viagem', 'reembolso', 'ressarcimento', 'combustivel', 'relatorio', 'hospedagem', 'alimentacao'];
       const isTravelRelated = keywords.some(key => textToSearch.toLowerCase().includes(key));
 
@@ -383,7 +383,7 @@ export function ConciliacaoClientes() {
                       <React.Fragment key={item.id}>
                         <TableRow className={`hover:bg-accent/30 transition-colors group ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
                           <TableCell className="px-4 py-4 whitespace-nowrap">
-                            {item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}
+                            {item.data ? format(new Date(item.data + 'T12:00:00'), 'dd/MM/yyyy') : '-'}
                           </TableCell>
                           <TableCell className="px-4 py-4">
                             <Badge className={`${getIdBadgeColor(getShortUserId(item.criado_por || ''))} font-semibold shadow-none border-border/50`}>
@@ -393,17 +393,17 @@ export function ConciliacaoClientes() {
                           <TableCell className="px-4 py-4 max-w-xs">
                             <div className="flex items-center gap-2">
                               {getStatusIcon(getDisplayStatus(item))}
-                              <span className="truncate" title={item.description}>{item.description}</span>
+                              <span className="truncate" title={item.descricao}>{item.descricao}</span>
                             </div>
                           </TableCell>
                           <TableCell className="px-4 py-4">
                             <div className="flex flex-col gap-1 items-start">
                               <span className="font-medium text-foreground whitespace-normal break-words leading-tight">
-                                {item.client_partner && item.client_partners?.name
-                                  ? item.client_partners.name
-                                  : item.clients?.company_name || '-'}
+                                {item.socio_cliente_id && item.socios_cliente?.nome
+                                  ? item.socios_cliente.nome
+                                  : item.clientes?.razao_social || '-'}
                               </span>
-                              {item.client_partner && item.client_partners?.name && (
+                              {item.socio_cliente_id && item.socios_cliente?.nome && (
                                 <Badge variant="secondary" className="w-fit text-[10px] h-5 px-1.5 rounded-md">
                                   Sócio
                                 </Badge>
@@ -412,16 +412,16 @@ export function ConciliacaoClientes() {
                           </TableCell>
                           <TableCell className="px-4 py-4">
                             <Badge variant="outline" className="rounded-md border-border/80">
-                              {item.aircraft?.registration || '-'}
+                              {item.aircraft?.matricula || '-'}
                             </Badge>
                           </TableCell>
                           <TableCell className="px-4 py-4">
                             <div className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-500/10 text-slate-300 border border-slate-500/20 whitespace-normal break-words max-w-full text-center leading-snug">
-                              {formatCategoryName(item.category)}
+                              {formatCategoryName(item.categoria)}
                             </div>
                           </TableCell>
                           <TableCell className="px-4 py-4 text-primary font-medium whitespace-nowrap">
-                            {formatCurrency(Math.abs(Number(item.amount)))}
+                            {formatCurrency(Math.abs(Number(item.valor)))}
                           </TableCell>
                           <TableCell className="px-4 py-4 whitespace-nowrap">
                             {item.status?.toLowerCase() === 'pendente' ? (
@@ -552,21 +552,21 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
       const dateStr = `${year}-${month}-${day}`;
 
       const { error } = await supabase
-        .from('bank_reconciliations')
+        .from('conciliacoes_bancarias')
         .update({ prazo_pagamento: dateStr } as any)
         .eq('id', reconciliation.id as any);
 
       if (error) throw error;
 
-      if (reconciliation.description?.includes('RELATORIO DE VIAGEM')) {
-        const reportNumberMatch = reconciliation.description.match(/RELATORIO DE VIAGEM - (.+?) - /);
+      if (reconciliation.descricao?.includes('RELATORIO DE VIAGEM')) {
+        const reportNumberMatch = reconciliation.descricao.match(/RELATORIO DE VIAGEM - (.+?) - /);
         if (reportNumberMatch && reportNumberMatch[1]) {
           const reportNumber = reportNumberMatch[1];
           const { data: relatedReport } = await supabase
             .from('travel_expense_reports')
             .select('id')
-            .eq('report_number', reportNumber as any)
-            .eq('client_id', reconciliation.client_id as any)
+            .eq('numero_relatorio', reportNumber as any)
+            .eq('clientes_id', reconciliation.clientes_id as any)
             .maybeSingle();
 
           if (relatedReport) {
@@ -654,7 +654,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
       date: new Date().toLocaleDateString('en-CA'),
       description: "",
       amount: "",
-      category: parentReconciliation.category || "",
+      category: parentReconciliation.categoria || "",
       status: "pendente",
     },
   });
@@ -664,16 +664,16 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
     try {
       setSubmitting(true);
 
-      const { data: inserted, error } = await supabase.from("bank_reconciliations").insert([{
-        type: "cliente",
-        date: data.date,
-        description: data.description,
-        amount: parseFloat(data.amount),
-        category: data.category,
+      const { data: inserted, error } = await supabase.from("conciliacoes_bancarias").insert([{
+        tipo: "cliente",
+        data: data.date,
+        descricao: data.description,
+        valor: parseFloat(data.amount),
+        categoria: data.category,
         status: data.status,
-        client_id: parentReconciliation.client_id,
-        aircraft_id: parentReconciliation.aircraft_id,
-        client_partner: parentReconciliation.client_partner,
+        clientes_id: parentReconciliation.clientes_id,
+        aeronave_id: parentReconciliation.aeronave_id,
+        socio_cliente_id: parentReconciliation.socio_cliente_id,
         criado_por: user.id,
       }] as any)
         .select()
@@ -681,41 +681,41 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
 
       if (error) throw error;
 
-      if ((parentReconciliation.client_id || parentReconciliation.client_partner) && inserted) {
+      if ((parentReconciliation.clientes_id || parentReconciliation.socio_cliente_id) && inserted) {
         try {
           let clienteNome = "Cliente";
           let clienteCnpj = "";
 
-          if (parentReconciliation.client_partner) {
+          if (parentReconciliation.socio_cliente_id) {
             const { data: partnerData } = await supabase
-              .from("client_partners")
-              .select("name, cpf")
-              .eq("id", parentReconciliation.client_partner)
+              .from("socios_cliente")
+              .select("nome, cpf")
+              .eq("id", parentReconciliation.socio_cliente_id)
               .single();
             if (partnerData) {
-              clienteNome = partnerData.name || "Cliente";
+              clienteNome = partnerData.nome || "Cliente";
               clienteCnpj = partnerData.cpf || "";
             }
-          } else if (parentReconciliation.client_id) {
+          } else if (parentReconciliation.clientes_id) {
             const { data: clientData } = await supabase
-              .from("clients")
-              .select("company_name, cnpj")
-              .eq("id", parentReconciliation.client_id)
+              .from("clientes")
+              .select("razao_social, cnpj")
+              .eq("id", parentReconciliation.clientes_id)
               .single();
             if (clientData) {
-              clienteNome = clientData.company_name || "Cliente";
+              clienteNome = clientData?.razao_social || "Cliente";
               clienteCnpj = clientData.cnpj || "";
             }
           }
 
           let aircraftRegistration = "";
-          if (parentReconciliation.aircraft_id) {
+          if (parentReconciliation.aeronave_id) {
             const { data: aircraftData } = await supabase
-              .from("aircraft")
-              .select("registration")
-              .eq("id", parentReconciliation.aircraft_id)
+              .from('aeronave')
+              .select('matricula')
+              .eq("id", parentReconciliation.aeronave_id)
               .single();
-            if (aircraftData) aircraftRegistration = aircraftData.registration;
+            if (aircraftData) aircraftRegistration = aircraftData?.matricula;
           }
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;

@@ -15,10 +15,10 @@ import { ReciboDocument } from "@/lib/reciboGenerator";
 
 interface Cliente {
   id: string;
-  company_name: string | null;
+  razao_social?: string | null;
   cnpj?: string | null;
-  address?: string | null;
-  city?: string | null;
+  endereco?: string | null;
+  cidade?: string | null;
   uf?: string | null;
   status?: string | null;
 }
@@ -51,7 +51,12 @@ export default function EmissaoRecibo() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           setUserId(user.id);
-          await Promise.all([loadFavoritePayers(user.id), loadRecentReceipts(user.id), loadActiveClients(), loadCompanySettings()]);
+          await Promise.all([
+            loadFavoritePayers(user.id),
+            loadRecentReceipts(user.id),
+            loadActiveClients(),
+            loadCompanySettings(),
+          ]);
         }
       } catch (err) {
         console.error("Erro ao inicializar:", err);
@@ -63,7 +68,11 @@ export default function EmissaoRecibo() {
 
   const loadActiveClients = async () => {
     try {
-      const { data, error } = await supabase.from("clients").select("*").eq("status", "ativo").order("company_name");
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, razao_social, cnpj, endereco, cidade, uf, status")
+        .eq("status", "ativo")
+        .order("razao_social");
       if (error) throw error;
       setClientesAtivos(data || []);
     } catch (err) {
@@ -82,9 +91,21 @@ export default function EmissaoRecibo() {
 
   const loadFavoritePayers = async (uid: string) => {
     try {
-      const { data, error } = await supabase.from("favorite_payers").select("*").eq("user_id", uid);
+      const { data, error } = await supabase
+        .from("favorite_payers")
+        .select("*")
+        .eq("user_id", uid);
       if (error) throw error;
-      setFavoritePayers(data?.map((d) => ({ id: d.id, name: d.name, document: d.document, address: d.address, city: d.city, uf: d.uf })) || []);
+      setFavoritePayers(
+        (data || []).map((d) => ({
+          id: d.id,
+          name: d.nome,
+          document: d.documento, // corrigido: era "d.documentoument" (typo)
+          address: d.endereco,
+          city: d.cidade,
+          uf: d.uf,
+        }))
+      );
     } catch (err) {
       console.error("Erro ao carregar pagadores favoritos:", err);
     }
@@ -92,9 +113,15 @@ export default function EmissaoRecibo() {
 
   const loadRecentReceipts = async (_uid?: string) => {
     try {
-      const { data, error } = await supabase.from("receipts").select("*").order("created_at", { ascending: false }).limit(100);
+      const { data, error } = await supabase
+        .from("recibos")
+        .select("*")
+        .order("criado_em", { ascending: false })
+        .limit(100);
       if (error) throw error;
-      setRecentReceipts((data || []).map((d: any) => ({ ...d, receipt_type: d.receipt_type as ReceiptType })));
+      setRecentReceipts(
+        (data || []).map((d: any) => ({ ...d, receipt_type: d.tipo_recibo as ReceiptType }))
+      );
     } catch (err) {
       console.error("Erro ao carregar recibos:", err);
     }
@@ -122,7 +149,6 @@ export default function EmissaoRecibo() {
 
       if (!nomePagador) throw new Error("Nome do pagador não foi preenchido corretamente.");
 
-      // O valor do recibo é o que foi REALMENTE PAGO (formData.valor)
       const valorNumerico = parseFloat(String(formData.valor || "0").replace(",", "."));
       if (!valorNumerico || valorNumerico <= 0) throw new Error("Valor deve ser maior que zero");
       if (!(formData.servicoDescricao || "").trim()) throw new Error("Descrição do serviço é obrigatória");
@@ -138,10 +164,14 @@ export default function EmissaoRecibo() {
 
       const uploadFile = async (file: File, prefix: string, storage: string) => {
         const timestamp = Date.now();
-        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_').substring(0, 100);
+        const sanitizedFileName = file.name // corrigido: era "file.nome"
+          .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+          .substring(0, 100);
         const randomSuffix = Math.random().toString(36).substring(2, 8);
         const fileName = `${prefix}_${timestamp}_${randomSuffix}_${sanitizedFileName}`;
-        const { error } = await supabase.storage.from(storage).upload(fileName, file, { cacheControl: '3600', upsert: false });
+        const { error } = await supabase.storage
+          .from(storage)
+          .upload(fileName, file, { cacheControl: "3600", upsert: false });
         if (error) throw error;
         const { data: publicUrlData } = supabase.storage.from(storage).getPublicUrl(fileName);
         if (!publicUrlData?.publicUrl) throw new Error("Falha ao obter URL pública do arquivo");
@@ -149,57 +179,79 @@ export default function EmissaoRecibo() {
         return publicUrlData.publicUrl;
       };
 
-      if (formData.files?.boleto instanceof File) boletoUrl = await uploadFile(formData.files.boleto, "boleto", "n.f-boletos-clients");
-      if (formData.files?.notaFiscal instanceof File) notaFiscalUrl = await uploadFile(formData.files.notaFiscal, "nf", "n.f-boletos-clients");
-      if (originalForm.decealFile instanceof File) deceeaUrl = await uploadFile(originalForm.decealFile, "decea", "n.f-boletos-clients");
-      if (originalForm.infraeroFile instanceof File) infraeroUrl = await uploadFile(originalForm.infraeroFile, "infraero", "n.f-boletos-clients");
+      if (formData.files?.boleto instanceof File)
+        boletoUrl = await uploadFile(formData.files.boleto, "boleto", "n.f-boletos-clients");
+      if (formData.files?.notaFiscal instanceof File)
+        notaFiscalUrl = await uploadFile(formData.files.notaFiscal, "nf", "n.f-boletos-clients");
+      if (originalForm.decealFile instanceof File)
+        deceeaUrl = await uploadFile(originalForm.decealFile, "decea", "n.f-boletos-clients");
+      if (originalForm.infraeroFile instanceof File)
+        infraeroUrl = await uploadFile(originalForm.infraeroFile, "infraero", "n.f-boletos-clients");
 
       // ===================== INSERIR RECIBO =====================
-      let finalDescription = (formData.servicoDescricao || "").trim();
-
+      // Mapeamento completo EN → PT conforme schema da tabela recibos
       const receiptPayload = {
-        user_id: currentUserId,
-        payer_name: nomePagador,
-        payer_document: originalForm.pagadorDocumento?.trim() || "",
-        payer_address: originalForm.pagadorEndereco?.trim() || null,
-        payer_city: originalForm.pagadorCidade?.trim() || null,
-        payer_uf: originalForm.pagadorUF?.trim() || null,
-        amount: valorNumerico,
-        service_description: finalDescription,
-        receipt_type: originalForm.receiptType || "pagamento",
-        issue_date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
-        receipt_number: receiptNumber,
-        max_payment_date: originalForm.prazoMaximoQuitacao || originalForm.dataVencimentoBoleto || null,
-        payment_method: originalForm.formaPagamento?.trim() || null,
-        client_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,
-        boleto_url: boletoUrl,
-        nf_url: notaFiscalUrl,
-        doc_number: originalForm.reembolsoNumeroDocumento || originalForm.numeroDocumentoDecea || originalForm.numeroDocumentoInfraero || null,
-        aircraft_id: originalForm.aircraftId || null,
-        category_name: formData.categoriaNome || null,
-        is_shared: originalForm.reembolsoRateado || false,
-        percentage: originalForm.reembolsoPorcentagem ? parseFloat(originalForm.reembolsoPorcentagem) : null,
-        total_amount: originalForm.reembolsoValorTotal ? parseFloat(originalForm.reembolsoValorTotal) : null,
+        usuario_id: currentUserId,                                                          // user_id
+        nome_pagador: nomePagador,                                                          // payer_name
+        documento_pagador: originalForm.pagadorDocumento?.trim() || "",                    // payer_document
+        endereco_pagador: originalForm.pagadorEndereco?.trim() || null,                    // payer_address
+        cidade_pagador: originalForm.pagadorCidade?.trim() || null,                        // payer_city
+        uf_pagador: originalForm.pagadorUF?.trim() || null,                                // payer_uf
+        valor: valorNumerico,                                                               // amount
+        descricao_servico: (formData.servicoDescricao || "").trim(),                       // service_description
+        tipo_recibo: originalForm.receiptType || "pagamento",                              // receipt_type
+        data_emissao: originalForm.dataEmissao || new Date().toISOString().split("T")[0], // issue_date
+        numero_recibo: receiptNumber,                                                       // receipt_number
+        data_max_pagamento: originalForm.prazoMaximoQuitacao || originalForm.dataVencimentoBoleto || null, // max_payment_date
+        forma_pagamento: originalForm.formaPagamento?.trim() || null,                      // payment_method
+        cliente_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,       // client_id
+        url_boleto: boletoUrl,                                                              // boleto_url
+        url_nf: notaFiscalUrl,                                                             // nf_url
+        numero_documento: originalForm.reembolsoNumeroDocumento                            // doc_number
+          || originalForm.numeroDocumentoDecea
+          || originalForm.numeroDocumentoInfraero
+          || null,
+        aeronave_id: originalForm.aeronaveId || null,
+        nome_categoria: formData.categoriaNome || null,                                    // category_name
+        compartilhado: originalForm.reembolsoRateado || false,                             // is_shared
+        percentual: originalForm.reembolsoPorcentagem                                      // percentage
+          ? parseFloat(originalForm.reembolsoPorcentagem)
+          : null,
+        valor_total: originalForm.reembolsoValorTotal                                      // total_amount
+          ? parseFloat(originalForm.reembolsoValorTotal)
+          : null,
       };
 
-      const { data: existing } = await supabase.from("receipts").select("id").eq("receipt_number", receiptNumber).eq("user_id", currentUserId).single();
+      // Verificar duplicata pelo numero_recibo + usuario_id
+      const { data: existing } = await supabase
+        .from("recibos")
+        .select("id")
+        .eq("numero_recibo", receiptNumber)
+        .eq("usuario_id", currentUserId)
+        .single();
       if (existing) throw new Error("Recibo já gerado anteriormente.");
 
-      // Insert receipt - use workaround for broken DB trigger on reembolso type
-      // The trigger handle_reembolso_receipt has a UUID type mismatch on banco_conciliacao_id
-      // So we insert as 'pagamento' first, then update to 'reembolso' after
+      // Insert receipt
+      // Workaround: o trigger handle_reembolso_receipt tem bug de tipo em banco_conciliacao_id
+      // Inserimos como 'pagamento' e depois atualizamos para 'reembolso' (evita o AFTER INSERT trigger)
       const needsTriggerWorkaround = isReembolso;
       const insertPayload = needsTriggerWorkaround
-        ? { ...receiptPayload, receipt_type: "pagamento" }
+        ? { ...receiptPayload, tipo_recibo: "pagamento" }
         : receiptPayload;
 
-      const { data: receiptData, error: dbError } = await supabase.from("receipts").insert(insertPayload).select("*").single();
+      const { data: receiptData, error: dbError } = await supabase
+        .from("recibos")
+        .insert(insertPayload)
+        .select("*")
+        .single();
       if (dbError) throw dbError;
 
-      // Now update to correct type (bypasses AFTER INSERT trigger)
       if (needsTriggerWorkaround) {
-        await supabase.from("receipts").update({ receipt_type: "reembolso" } as any).eq("id", receiptData.id);
-        (receiptData as any).receipt_type = "reembolso";
+        await supabase
+          .from("recibos")
+          .update({ tipo_recibo: "reembolso" })
+          .eq("id", receiptData.id);
+        receiptData.tipo_recibo = "reembolso";
       }
 
       console.log("Recibo inserido:", receiptData);
@@ -213,29 +265,37 @@ export default function EmissaoRecibo() {
           const isDECEAorINFRAERO = isDecea || isInfraero;
           const valorRecibo = valorNumerico;
           const percentual = isRateado ? originalForm.reembolsoPorcentagem : "100";
-          // Normalizar valor total: remover ponto (separador de milhares) e substituir vírgula por ponto
-          const valorTotalStr = isRateado ? String(originalForm.reembolsoValorTotal).replace(/\./g, "").replace(/,/g, ".") : String(valorRecibo);
+          const valorTotalStr = isRateado
+            ? String(originalForm.reembolsoValorTotal).replace(/\./g, "").replace(/,/g, ".")
+            : String(valorRecibo);
           const valorTotalDespesa = parseFloat(valorTotalStr);
 
-          // Get aircraft registration
+          // Buscar matrícula da aeronave
           let aeronaveRegistro = "";
-          if (originalForm.aircraftId) {
-            const { data: acData } = await supabase.from("aircraft").select("registration").eq("id", originalForm.aircraftId).single();
-            if (acData) aeronaveRegistro = acData.registration;
+          if (originalForm.aeronaveId) {
+            const { data: acData } = await supabase
+              .from("aeronave")
+              .select("matricula") // corrigido: era "registration"
+              .eq("id", originalForm.aeronaveId)
+              .single();
+            if (acData) aeronaveRegistro = acData.matricula;
           }
 
-          // Description for bank_reconciliations
           const brDescription = isDECEAorINFRAERO
-            ? (isDecea ? "DECEA pago" : "INFRAERO  pago")
-            : `Reembolso - ${finalDescription}`;
+            ? isDecea ? "DECEA pago" : "INFRAERO pago"
+            : `Reembolso - ${receiptPayload.descricao_servico}`;
 
-          // Data de vencimento
-          const dataVencimento = originalForm.dataVencimentoBoleto || originalForm.prazoMaximoQuitacao || originalForm.dataEmissao;
+          const dataVencimento =
+            originalForm.dataVencimentoBoleto ||
+            originalForm.prazoMaximoQuitacao ||
+            originalForm.dataEmissao;
 
-          // ===== 1. Create contas_apagar =====
+          // ===== 1. Criar contas_apagar =====
           const contaPayload: any = {
             data_vencimento: dataVencimento,
-            valor: isDECEAorINFRAERO ? parseFloat(originalForm.valorTotalBoleto || String(valorRecibo)) : valorRecibo,
+            valor: isDECEAorINFRAERO
+              ? parseFloat(originalForm.valorTotalBoleto || String(valorRecibo))
+              : valorRecibo,
             categoria: "Clientes - Despesas Reembolsáveis",
             descricao: brDescription,
             status: "gerada na emissão de recibo",
@@ -244,14 +304,12 @@ export default function EmissaoRecibo() {
             aeronave_registro: aeronaveRegistro,
           };
 
-          // DECEA-specific fields
           if (isDecea) {
             contaPayload.numero_documento_decea = originalForm.numeroDocumentoDecea || null;
             contaPayload.competencia_decea = originalForm.competenciaDecea || null;
             contaPayload.decea_url = deceeaUrl || null;
           }
 
-          // INFRAERO-specific fields
           if (isInfraero) {
             contaPayload.numero_documento_infraero = originalForm.numeroDocumentoInfraero || null;
             contaPayload.competencia_infraero = originalForm.competenciaInfraero || null;
@@ -269,7 +327,7 @@ export default function EmissaoRecibo() {
           } else {
             console.log("✅ Conta a pagar criada:", contaData.id);
 
-            // ===== 2. Create bank_reconciliations =====
+            // ===== 2. Criar conciliacoes_bancarias =====
             const brPayload: any = {
               type: "cliente",
               date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
@@ -277,7 +335,7 @@ export default function EmissaoRecibo() {
               amount: valorRecibo,
               status: "pendente",
               client_id: originalForm.clienteId,
-              aircraft_id: originalForm.aircraftId || null,
+              aeronave_id: originalForm.aeronaveId || null,
               categoria_movimentacao_id: originalForm.reembolsoCategoriaId || null,
               category: formData.categoriaNome || "Clientes - Despesas Reembolsáveis",
               tipo_documento: isRateado ? "rateio" : "recibo",
@@ -293,22 +351,22 @@ export default function EmissaoRecibo() {
             };
 
             const { data: brData, error: brError } = await supabase
-              .from("bank_reconciliations")
+              .from("conciliacoes_bancarias")
               .insert(brPayload)
               .select("id")
               .single();
 
             if (brError) {
-              console.error("❌ Erro ao criar bank_reconciliation:", brError);
+              console.error("❌ Erro ao criar conciliacao bancaria:", brError);
             } else {
-              console.log("✅ Bank reconciliation criada:", brData.id);
+              console.log("✅ Conciliacao bancaria criada:", brData.id);
             }
 
-            // ===== 3. Create contas_areceber =====
-            const clienteData = clientesAtivos.find(c => c.id === originalForm.clienteId);
+            // ===== 3. Criar contas_areceber =====
+            const clienteData = clientesAtivos.find((c) => c.id === originalForm.clienteId);
             const contaReceberPayload: any = {
-              numero: receiptData.receipt_number || `REC-${receiptData.id.substring(0, 8)}`,
-              cliente_nome: clienteData?.company_name || nomePagador,
+              numero: receiptData.numero_recibo || `REC-${receiptData.id.substring(0, 8)}`,
+              cliente_nome: clienteData?.razao_social || nomePagador,
               cliente_cnpj: clienteData?.cnpj || originalForm.pagadorDocumento || "",
               categoria: "Clientes - Despesas Reembolsáveis",
               valor: valorRecibo,
@@ -336,96 +394,115 @@ export default function EmissaoRecibo() {
             }
           }
 
-          // ===== 3. Rateio if applicable =====
-          if (isRateado && originalForm.aircraftId) {
-            // Buscar todos os clients que compartilham esta aeronave
+          // ===== 4. Rateio se aplicável =====
+          if (isRateado && originalForm.aeronaveId) {
             const { data: aircraftClients, error: acError } = await supabase
-              .from("client_aircraft")
-              .select("client_id, share_percentage, clients(id, company_name)")
-              .eq("aircraft_id", originalForm.aircraftId);
+              .from("cotistas_aeronave")
+              .select("id_clientes, percentual_sociedade, clientes:id_clientes(id, razao_social)") // corrigido: id_cliente → id_clientes
+              .eq("id_aeronave", originalForm.aeronaveId);
 
             if (acError) {
-              console.error("❌ Erro ao buscar clients da aeronave:", acError);
+              console.error("❌ Erro ao buscar cotistas da aeronave:", acError);
             } else if (aircraftClients && aircraftClients.length > 0) {
-              // Criar registro em rateio_despesas para CADA client que compartilha a aeronave
-              // Registra quanto DEVERIA PAGAR cada um (valor_rateado é por propriedade, valor_por_voo é por uso)
               for (const ac of aircraftClients) {
-                const clientData = ac.clients as any;
-                const sharePercentage = parseFloat(String(ac.share_percentage || 0));
+                const clientData = ac.clientes as any;
+                const sharePercentage = parseFloat(String(ac.percentual_sociedade || 0)); // corrigido: era percentual_participacao
 
-                // Quanto este client DEVERIA pagar
                 const valorPorPropriedade = (valorTotalDespesa * sharePercentage) / 100;
                 const valorPorUso = (valorTotalDespesa * parseFloat(percentual)) / 100;
 
                 const rateioPayload = {
                   despesa_id: contaData?.id || receiptData.id,
-                  client_id: ac.client_id,
-                  client_name: clientData?.company_name || "Unknown",
-                  aeronave_id: originalForm.aircraftId || null,
+                  client_id: ac.id_clientes,          // corrigido: era ac.cliente_id
+                  client_name: clientData?.razao_social || "Desconhecido",
+                  aeronave_id: originalForm.aeronaveId || null,
                   aeronave_registro: aeronaveRegistro,
-                  percentual: sharePercentage, // % de propriedade
-                  percentual_voo: parseFloat(percentual), // % de uso/voo
-                  valor_rateado: valorPorPropriedade, // O que deveria pagar por propriedade
-                  valor_por_voo: valorPorUso, // O que deveria pagar por uso
-                  valor: valorTotalDespesa, // Valor total da despesa
+                  percentual: sharePercentage,
+                  percentual_voo: parseFloat(percentual),
+                  valor_rateado: valorPorPropriedade,
+                  valor_por_voo: valorPorUso,
+                  valor: valorTotalDespesa,
                   status: "pendente",
                   data_vencimento: dataVencimento,
                   categoria_id: originalForm.reembolsoCategoriaId || null,
                   boleto: boletoUrl,
                   nota_fiscal: notaFiscalUrl || deceeaUrl || infraeroUrl,
-                  observacoes: `Rateio - ${sharePercentage}% propriedade / ${percentual}% uso. ${ac.client_id === originalForm.clienteId ? "Cliente pagou o valor total de" : "Cliente deve"} R$ ${valorTotalDespesa.toFixed(2)}`,
+                  observacoes: `Rateio - ${sharePercentage}% propriedade / ${percentual}% uso. ${
+                    ac.id_clientes === originalForm.clienteId
+                      ? "Cliente pagou o valor total de"
+                      : "Cliente deve"
+                  } R$ ${valorTotalDespesa.toFixed(2)}`,
                 };
 
-                const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioPayload);
-                if (rateioErr) console.error(`❌ Erro ao criar rateio para ${clientData?.company_name}:`, rateioErr);
-                else console.log(`✅ Rateio criado para ${clientData?.company_name} (${sharePercentage}% / ${percentual}%)`);
+                const { error: rateioErr } = await supabase
+                  .from("rateio_despesas")
+                  .insert(rateioPayload);
+                if (rateioErr)
+                  console.error(`❌ Erro ao criar rateio para ${clientData?.razao_social}:`, rateioErr);
+                else
+                  console.log(`✅ Rateio criado para ${clientData?.razao_social} (${sharePercentage}% / ${percentual}%)`);
               }
             }
           }
         } catch (reembolsoErr) {
           console.error("❌ Erro ao processar reembolso:", reembolsoErr);
-          toast({ title: "⚠️ Reembolso não processado", description: "Recibo criado, mas falhou ao processar reembolso.", variant: "default" });
+          toast({
+            title: "⚠️ Reembolso não processado",
+            description: "Recibo criado, mas falhou ao processar reembolso.",
+            variant: "default",
+          });
         }
       }
-
 
       // ===================== GERAR PDF =====================
       try {
         setIsGeneratingPdf(true);
         const pdfData = {
           ...receiptData,
-          boleto_url: boletoUrl,
-          nf_url: notaFiscalUrl,
+          url_boleto: boletoUrl,
+          url_nf: notaFiscalUrl,
           numero_documento_decea: originalForm.numeroDocumentoDecea || null,
           competencia_decea: originalForm.competenciaDecea || null,
           numero_documento_infraero: originalForm.numeroDocumentoInfraero || null,
           competencia_infraero: originalForm.competenciaInfraero || null,
           data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
-          emissor: companySettings ? {
-            razao_social: companySettings.razao_social,
-            cnpj: companySettings.cnpj,
-            telefone: companySettings.telefone,
-            endereco: companySettings.endereco,
-            cidade: companySettings.cidade,
-            cep: companySettings.cep,
-          } : null,
+          emissor: companySettings
+            ? {
+                razao_social: companySettings.razao_social,
+                cnpj: companySettings.cnpj,
+                telefone: companySettings.telefone,
+                endereco: companySettings.endereco,
+                cidade: companySettings.cidade,
+                cep: companySettings.cep,
+              }
+            : null,
         };
 
         const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
         const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
-        const { error: uploadError } = await supabase.storage.from("receipts").upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+        const { error: uploadError } = await supabase.storage
+          .from("receipts")
+          .upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
         if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
         if (!urlData?.publicUrl) throw new Error("Falha ao obter URL pública do PDF");
 
-        await supabase.from("receipts").update({ pdf_url: urlData.publicUrl }).eq("id", receiptData.id);
-        await loadRecentReceipts(currentUserId);
+        // Atualiza url_pdf no recibo
+        await supabase
+          .from("recibos")
+          .update({ url_pdf: urlData.publicUrl })
+          .eq("id", receiptData.id);
 
+        await loadRecentReceipts(currentUserId);
         toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso!` });
       } catch (pdfErr) {
         console.error("❌ Erro ao gerar PDF:", pdfErr);
-        toast({ title: "⚠️ Aviso", description: `Recibo criado, mas houve erro ao gerar PDF.`, variant: "default" });
+        toast({
+          title: "⚠️ Aviso",
+          description: "Recibo criado, mas houve erro ao gerar PDF.",
+          variant: "default",
+        });
       }
     } catch (err) {
       console.error("Erro ao gerar recibo:", err);
@@ -441,9 +518,9 @@ export default function EmissaoRecibo() {
   const handleViewReceipt = async (receiptId: string) => {
     setIsLoadingPdf(true);
     try {
-      const receipt = recentReceipts.find(r => r.id === receiptId);
-      if (!receipt || !receipt.pdf_url) throw new Error("PDF não disponível");
-      setViewPdfUrl(receipt.pdf_url);
+      const receipt = recentReceipts.find((r) => r.id === receiptId);
+      if (!receipt || !receipt.url_pdf) throw new Error("PDF não disponível"); // corrigido: usa url_pdf
+      setViewPdfUrl(receipt.url_pdf);
       setIsPdfViewerOpen(true);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Erro desconhecido";
@@ -456,7 +533,7 @@ export default function EmissaoRecibo() {
   // ===================== EXCLUIR RECIBO =====================
   const handleDeleteReceipt = async (receiptId: string) => {
     try {
-      const { error } = await supabase.from("receipts").delete().eq("id", receiptId);
+      const { error } = await supabase.from("recibos").delete().eq("id", receiptId); // corrigido: era "receipts"
       if (error) throw error;
       await loadRecentReceipts(userId);
       toast({ title: "Sucesso!", description: "Recibo excluído" });
@@ -469,7 +546,10 @@ export default function EmissaoRecibo() {
   const handleClearHistory = async () => {
     if (!confirm("Tem certeza que deseja limpar todos os recibos? Esta ação é irreversível.")) return;
     try {
-      const { error } = await supabase.from("receipts").delete().eq("user_id", userId);
+      const { error } = await supabase
+        .from("recibos") // corrigido: era "receipts"
+        .delete()
+        .eq("usuario_id", userId); // corrigido: era "user_id"
       if (error) throw error;
       await loadRecentReceipts(userId);
       toast({ title: "Sucesso!", description: "Histórico limpo" });
@@ -481,15 +561,15 @@ export default function EmissaoRecibo() {
   // ===================== DOWNLOAD PDF =====================
   const handleDownloadReceipt = async (receiptId: string) => {
     try {
-      const receipt = recentReceipts.find(r => r.id === receiptId);
-      if (!receipt || !receipt.pdf_url) throw new Error("PDF não disponível");
-      const response = await fetch(receipt.pdf_url);
+      const receipt = recentReceipts.find((r) => r.id === receiptId);
+      if (!receipt || !receipt.url_pdf) throw new Error("PDF não disponível"); // corrigido: usa url_pdf
+      const response = await fetch(receipt.url_pdf);
       if (!response.ok) throw new Error(`Erro ao baixar: ${response.statusText}`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = `${receipt.receipt_number.replace(/\//g, '-')}.pdf`;
+      link.download = `${(receipt.numero_recibo || "recibo").replace(/\//g, "-")}.pdf`; // corrigido: usa numero_recibo
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -511,22 +591,32 @@ export default function EmissaoRecibo() {
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
               Emissão de Recibos
             </h1>
-            <p className="text-muted-foreground text-lg">Gerar e gerenciar recibos PDF de forma simples e segura</p>
+            <p className="text-muted-foreground text-lg">
+              Gerar e gerenciar recibos PDF de forma simples e segura
+            </p>
           </div>
 
           <Tabs defaultValue="emitir" className="w-full">
-            {/* Tab Navigation */}
             <div className="overflow-x-auto">
               <TabsList className="flex gap-2 bg-card/50 backdrop-blur-sm p-1.5 rounded-xl border border-border/50 w-fit md:w-auto">
-                <TabsTrigger value="emitir" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
+                <TabsTrigger
+                  value="emitir"
+                  className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all"
+                >
                   <FileText className="h-4 w-4 mr-2" />
                   Emitir
                 </TabsTrigger>
-                <TabsTrigger value="historico" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
+                <TabsTrigger
+                  value="historico"
+                  className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all"
+                >
                   <Clock className="h-4 w-4 mr-2" />
                   Histórico
                 </TabsTrigger>
-                <TabsTrigger value="descricoes" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
+                <TabsTrigger
+                  value="descricoes"
+                  className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all"
+                >
                   <Star className="h-4 w-4 mr-2" />
                   Descrições Favoritas
                 </TabsTrigger>
@@ -548,7 +638,6 @@ export default function EmissaoRecibo() {
             {/* Tab Content - Histórico */}
             <TabsContent value="historico" className="mt-6">
               <div className="space-y-4">
-                {/* Clear History Button */}
                 <div className="flex justify-end">
                   <button
                     onClick={handleClearHistory}
@@ -558,7 +647,6 @@ export default function EmissaoRecibo() {
                   </button>
                 </div>
 
-                {/* Receipts Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {recentReceipts.length > 0 ? (
                     recentReceipts.map((r) => (
@@ -566,37 +654,41 @@ export default function EmissaoRecibo() {
                         key={r.id}
                         className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-5 hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
                       >
-                        {/* Receipt Header */}
                         <div className="space-y-3 mb-4">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-muted-foreground">Recibo</p>
-                              <p className="text-primary font-bold truncate group-hover:text-primary/80">{r.receipt_number}</p>
+                              <p className="text-primary font-bold truncate group-hover:text-primary/80">
+                                {r.numero_recibo}  {/* corrigido: era receipt_number */}
+                              </p>
                             </div>
                             <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full whitespace-nowrap">
-                              {r.receipt_type === 'reembolso' ? 'Reembolso' : 'Pagamento'}
+                              {r.tipo_recibo === "reembolso" ? "Reembolso" : "Pagamento"} {/* corrigido: era receipt_type */}
                             </span>
                           </div>
 
                           <div>
                             <p className="text-sm text-muted-foreground mb-1">Pagador</p>
-                            <p className="font-medium text-foreground truncate">{r.payer_name}</p>
+                            <p className="font-medium text-foreground truncate">
+                              {r.nome_pagador}  {/* corrigido: era payer_name */}
+                            </p>
                           </div>
 
-                          {r.payer_document && (
+                          {r.documento_pagador && ( // corrigido: era payer_document
                             <div>
                               <p className="text-sm text-muted-foreground mb-1">Documento</p>
-                              <p className="text-sm font-mono text-foreground">{r.payer_document}</p>
+                              <p className="text-sm font-mono text-foreground">{r.documento_pagador}</p>
                             </div>
                           )}
 
                           <div className="pt-2 border-t border-border/30">
                             <p className="text-sm text-muted-foreground mb-1">Valor</p>
-                            <p className="text-lg font-bold text-primary">R$ {r.amount?.toFixed(2).replace('.', ',') || '0,00'}</p>
+                            <p className="text-lg font-bold text-primary">
+                              R$ {r.valor?.toFixed(2).replace(".", ",") || "0,00"} {/* corrigido: era r.valor já existia */}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleViewReceipt(r.id)}
@@ -646,14 +738,19 @@ export default function EmissaoRecibo() {
             <DialogTitle>Visualizar Recibo</DialogTitle>
           </DialogHeader>
           {viewPdfUrl && (
-            <DocumentViewer url={viewPdfUrl} fileName="recibo.pdf" fileType="application/pdf" onDownload={() => {
-              const link = document.createElement('a');
-              link.href = viewPdfUrl;
-              link.download = 'recibo.pdf';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }} />
+            <DocumentViewer
+              url={viewPdfUrl}
+              fileName="recibo.pdf"
+              fileType="application/pdf"
+              onDownload={() => {
+                const link = document.createElement("a");
+                link.href = viewPdfUrl;
+                link.download = "recibo.pdf";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+            />
           )}
         </DialogContent>
       </Dialog>

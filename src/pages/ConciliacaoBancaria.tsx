@@ -56,11 +56,11 @@ export default function ConciliacaoBancaria() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Data Inicial</label>
-                <Input type="date" className="rounded-lg" />
+                <Input type="data" className="rounded-lg" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Data Final</label>
-                <Input type="date" className="rounded-lg" />
+                <Input type="data" className="rounded-lg" />
               </div>
             </div>
           </CardContent>

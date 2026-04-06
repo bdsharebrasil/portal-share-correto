@@ -99,7 +99,7 @@ export function AgendamentoPagamentoForm({
         fornecedor: formData.fornecedor,
         valor,
         categoria: formData.categoria || null,
-        status: formData.status,
+        status: formData.situacao,
         eh_recorrente: formData.eh_recorrente || false,
         frequencia_recorrencia: formData.eh_recorrente ? formData.frequencia_recorrencia : null,
         dia_recorrencia: formData.eh_recorrente && formData.dia_recorrencia ? parseInt(formData.dia_recorrencia) : null,
@@ -111,12 +111,12 @@ export function AgendamentoPagamentoForm({
 
       if (agendamento?.id) {
         // Se o status está sendo alterado para 'pago', sincroniza com controle bancário
-        if (formData.status === 'pago' && agendamento.status !== 'pago') {
+        if (formData.situacao === 'pago' && agendamento.situacao !== 'pago') {
           const agendamentoAtualizado = { ...agendamento, ...data };
           await syncAgendamentoPagamentoToControle(agendamentoAtualizado, user?.id);
         }
         // Se o status está sendo alterado de 'pago' para 'cancelado', remove do controle
-        else if (formData.status === 'cancelado' && agendamento.status === 'pago') {
+        else if (formData.situacao === 'cancelado' && agendamento.situacao === 'pago') {
           await removeAgendamentoPagamentoFromControle(agendamento.id);
         }
 
@@ -145,7 +145,7 @@ export function AgendamentoPagamentoForm({
         }
 
         // Se o novo agendamento é criado já como 'pago', sincroniza imediatamente
-        if (formData.status === 'pago' && insertedData && insertedData.length > 0) {
+        if (formData.situacao === 'pago' && insertedData && insertedData.length > 0) {
           await syncAgendamentoPagamentoToControle({
             ...insertedData[0],
             valor: parseFloat(String(insertedData[0].valor))
@@ -179,7 +179,7 @@ export function AgendamentoPagamentoForm({
               <Label htmlFor="data_agendamento">Data de Agendamento *</Label>
               <Input
                 id="data_agendamento"
-                type="date"
+                type="data"
                 {...register("data_agendamento", { required: "Data é obrigatória" })}
                 className={errors.data_agendamento ? "border-destructive" : ""}
               />
@@ -244,7 +244,7 @@ export function AgendamentoPagamentoForm({
             </div>
 
             <div>
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="situacao">Status</Label>
               <Select defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />

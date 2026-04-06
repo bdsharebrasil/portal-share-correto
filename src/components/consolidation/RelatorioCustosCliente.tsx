@@ -198,7 +198,7 @@ export function RelatorioCustosCliente({
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={resumoChart}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                    <XAxis dataKey="nome" angle={-45} textAnchor="end" height={80} />
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip
@@ -306,7 +306,7 @@ export function RelatorioCustosCliente({
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={analiseChart}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                  <XAxis dataKey="nome" angle={-45} textAnchor="end" height={80} />
                   <YAxis />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}

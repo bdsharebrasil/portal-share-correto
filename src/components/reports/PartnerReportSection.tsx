@@ -72,14 +72,14 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
   const totalExpR = expenses.reduce((s, e) => s + e.total_amount, 0);
   const totalBankControlR = bankControlExpenses.reduce((s, e) => s + e.valor, 0);
   const totalTravelR = travelReports.reduce((s, r) => s + (r.total_amount || 0), 0);
-  const paidExp = expenses.filter(e => e.status === "pago" || e.status === "paid").length;
+  const paidExp = expenses.filter(e => e.situacao === "pago" || e.situacao === "paid").length;
   const pctPaid = expenses.length > 0 ? (paidExp / expenses.length) * 100 : 0;
   const pctHours = totalFlightHours > 0 ? (totalHours / totalFlightHours) * 100 : 0;
 
   // Group expenses by category (prioriza category sobre expense_type)
   const expByCategory: Record<string, number> = {};
   expenses.forEach(e => {
-    const cat = getCategoryPriority(e.category, e.expense_type);
+    const cat = getCategoryPriority(e.categoria, e.expense_type);
     expByCategory[cat] = (expByCategory[cat] || 0) + e.total_amount;
   });
 
@@ -98,12 +98,12 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
           className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shrink-0"
           style={{ backgroundColor: color }}
         >
-          {getInitials(partner.name)}
+          {getInitials(partner.nome)}
         </div>
         <div className="flex-1">
-          <h3 className="text-xl font-bold text-[#1a1a2e]">{partner.name}</h3>
+          <h3 className="text-xl font-bold text-[#1a1a2e]">{partner.nome}</h3>
           <p className="text-sm text-gray-500">
-            CPF: {formatCPF(partner.cpf)} • Participação: {partner.share_percentage?.toFixed(2) || "0"}%
+            CPF: {formatCPF(partner.cpf)} • Participação: {partner.percentual_participacao?.toFixed(2) || "0"}%
           </p>
         </div>
       </div>
@@ -180,9 +180,9 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium">{fmt(f.valor_total || 0)}</td>
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      f.status_pagamento === "pago" ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                      f.situacao_pagamento === "pago" ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                     }`}>
-                      {f.status_pagamento || "pendente"}
+                      {f.situacao_pagamento || "pendente"}
                     </span>
                   </td>
                 </tr>
@@ -222,19 +222,19 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
               <tbody>
                 {expenses.map((e, i) => (
                   <tr key={e.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"}>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.due_date ? fmtDate(e.due_date) : "—"}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] max-w-[150px] truncate">{e.description}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{getCategoryPriority(e.category, e.expense_type)}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-blue-600">{e.reference_id && travelReportMap[e.reference_id] ? travelReportMap[e.reference_id].report_number : "—"}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.data_vencimento ? fmtDate(e.data_vencimento) : "—"}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] max-w-[150px] truncate">{e.descricao}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{getCategoryPriority(e.categoria, e.expense_type)}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-blue-600">{e.referencia_id && travelReportMap[e.referencia_id] ? travelReportMap[e.referencia_id].numero_relatorio : "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.prazo || "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.payment_method || "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.bank_name || "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.total_amount)}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (e.status === "pago" || e.status === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                        (e.situacao === "pago" || e.situacao === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                       }`}>
-                        {e.status || "pendente"}
+                        {e.situacao || "pendente"}
                       </span>
                     </td>
                   </tr>
@@ -300,9 +300,9 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.valor)}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (e.status === "recebido" || e.status === "pago") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                        (e.situacao === "recebido" || e.situacao === "pago") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                       }`}>
-                        {e.status || "pendente"}
+                        {e.situacao || "pendente"}
                       </span>
                     </td>
                   </tr>

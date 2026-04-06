@@ -94,10 +94,10 @@ export default function Invoices() {
     }
   };
 
-  const issuedCount = invoices.filter(i => i.status === 'issued').length;
-  const paidCount = invoices.filter(i => i.status === 'paid').length;
+  const issuedCount = invoices.filter(i => i.situacao === 'issued').length;
+  const paidCount = invoices.filter(i => i.situacao === 'paid').length;
   const totalValue = invoices.reduce((sum, i) => sum + parseFloat(i.value || "0"), 0);
-  const openReceivables = accountsReceivable.filter(r => r.status === 'open').length;
+  const openReceivables = accountsReceivable.filter(r => r.situacao === 'open').length;
 
   return (
     <Layout>
@@ -221,7 +221,7 @@ export default function Invoices() {
                       <TableCell className="text-gray-200 font-medium">{formatCurrency(parseFloat(invoice.value || "0"))}</TableCell>
                       <TableCell className="text-gray-200">{formatDate(invoice.issueDate)}</TableCell>
                       <TableCell className="text-gray-200">{invoice.dueDate ? formatDate(invoice.dueDate) : "-"}</TableCell>
-                      <TableCell>{getStatusBadge(invoice.status || "issued")}</TableCell>
+                      <TableCell>{getStatusBadge(invoice.situacao || "issued")}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex gap-2 justify-center">
                           <Button
@@ -316,7 +316,7 @@ export default function Invoices() {
                   <Label htmlFor="issueDate">Data de Emissão *</Label>
                   <Input
                     id="issueDate"
-                    type="date"
+                    type="data"
                     value={formData.issueDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, issueDate: e.target.value }))}
                   />
@@ -326,7 +326,7 @@ export default function Invoices() {
                   <Label htmlFor="dueDate">Data de Vencimento</Label>
                   <Input
                     id="dueDate"
-                    type="date"
+                    type="data"
                     value={formData.dueDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
                   />
@@ -356,11 +356,11 @@ export default function Invoices() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="observations">Observações</Label>
+                <Label htmlFor="observacoes">Observações</Label>
                 <Textarea
-                  id="observations"
+                  id="observacoes"
                   placeholder="Observações adicionais..."
-                  value={formData.observations}
+                  value={formData.observacoes}
                   onChange={(e) => setFormData(prev => ({ ...prev, observations: e.target.value }))}
                   rows={2}
                 />
@@ -424,10 +424,10 @@ export default function Invoices() {
                   <p className="text-white">{selectedInvoice.serviceDescription}</p>
                 </div>
                 
-                {selectedInvoice.observations && (
+                {selectedInvoice.observacoes && (
                   <div>
                     <Label className="text-gray-400">Observações</Label>
-                    <p className="text-white">{selectedInvoice.observations}</p>
+                    <p className="text-white">{selectedInvoice.observacoes}</p>
                   </div>
                 )}
                 
@@ -435,7 +435,7 @@ export default function Invoices() {
                   <div>
                     <Label className="text-gray-400">Status</Label>
                     <div className="mt-1">
-                      {getStatusBadge(selectedInvoice.status)}
+                      {getStatusBadge(selectedInvoice.situacao)}
                     </div>
                   </div>
                   <Button onClick={() => setSelectedInvoice(null)}>

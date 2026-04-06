@@ -21,7 +21,7 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
 
 function ExpenseRow({ exp, accounts, onPay }: { exp: PartnerExpense; accounts: PartnerAccount[]; onPay: (e: PartnerExpense) => void }) {
   const st = statusMap[exp.status] || { label: exp.status, variant: "outline" as const };
-  const typeLabel = EXPENSE_TYPES.find((t) => t.value === exp.expense_type)?.label || exp.expense_type;
+  const typeLabel = EXPENSE_TYPES.find((t) => t.value === exp.tipo_despesa)?.label || exp.tipo_despesa;
 
   return (
     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
@@ -33,15 +33,15 @@ function ExpenseRow({ exp, accounts, onPay }: { exp: PartnerExpense; accounts: P
             <Badge variant="secondary" className="text-xs">{Number((exp as any).percentual_socio).toFixed(0)}%</Badge>
           )}
         </div>
-        <p className="text-sm font-medium text-foreground">{exp.description}</p>
+        <p className="text-sm font-medium text-foreground">{exp.descricao}</p>
         <p className="text-xs text-muted-foreground">
-          {exp.supplier_name && `${exp.supplier_name} • `}
-          {exp.due_date && `Venc: ${format(new Date(exp.due_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })} • `}
-          {exp.assigned_partner_name && `Pago por: ${exp.assigned_partner_name}`}
+          {exp.nome_fornecedor && `${exp.nome_fornecedor} • `}
+          {exp.data_vencimento && `Venc: ${format(new Date(exp.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })} • `}
+          {exp.nome_socio && `Pago por: ${exp.nome_socio}`}
         </p>
       </div>
       <div className="flex items-center gap-3">
-        <span className="font-bold text-foreground">{fmt(Number(exp.total_amount))}</span>
+        <span className="font-bold text-foreground">{fmt(Number(exp.valor_total))}</span>
         {exp.status === "pending" && (
           <Button size="sm" variant="outline" className="gap-1" onClick={() => onPay(exp)}>
             <CreditCard className="h-3 w-3" />
@@ -56,8 +56,8 @@ function ExpenseRow({ exp, accounts, onPay }: { exp: PartnerExpense; accounts: P
 export function ExpensesTable({ expenses, accounts, clienteId }: { expenses: PartnerExpense[]; accounts: PartnerAccount[]; clienteId: string }) {
   const [payExpense, setPayExpense] = useState<PartnerExpense | null>(null);
 
-  const pending = expenses.filter((e) => e.status === "pending");
-  const paid = expenses.filter((e) => e.status === "paid");
+  const pending = expenses.filter((e) => e.situacao === "pending");
+  const paid = expenses.filter((e) => e.situacao === "paid");
 
   return (
     <>

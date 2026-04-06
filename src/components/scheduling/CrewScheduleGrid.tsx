@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
 
 interface CrewMember {
   id: string;
-  full_name: string;
+  nome_completo: string;
   canac: string;
-  status: string;
+  situacao: string;
 }
 
 interface Aircraft {
@@ -25,7 +25,7 @@ interface Aircraft {
 
 interface FlightSchedule {
   id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   crew_member_id: string | null;
   flight_date: string;
   flight_time: string | null;
@@ -56,10 +56,10 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
     queryKey: ["crew-members-active"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("crew_members")
-        .select("id, full_name, canac, status")
+        .from("tripulacao")
+        .select("id, nome_completo, canac, status")
         .eq("status", "ativo")
-        .order("full_name");
+        .order("nome_completo");
       if (error) throw error;
       return (data || []) as CrewMember[];
     }
@@ -70,10 +70,10 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
     queryKey: ["aircraft-active"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model")
+        .from('aeronave')
+        .select('id, matricula, modelo')
         .eq("status", "ativa")
-        .order("registration");
+        .order("matricula");
       if (error) throw error;
       return (data || []) as Aircraft[];
     }
@@ -87,18 +87,18 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         .from("flight_schedules")
         .select(`
           id,
-          aircraft_id,
+          aeronave_id,
           crew_member_id,
           flight_date,
           flight_time,
           origin,
           destination,
           status,
-          aircraft:aircraft_id(registration)
+          aircraft:aeronave_id(registration)
         `)
         .gte("flight_date", startDate)
         .lte("flight_date", endDate)
-        .in("status", ["pendente", "confirmado"]);
+        .in("situacao", ["pendente", "confirmado"]);
       if (error) throw error;
       return (data || []) as FlightSchedule[];
     }
@@ -112,18 +112,18 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         .from("flight_booking_requests")
         .select(`
           id,
-          aircraft_id,
+          aeronave_id,
           scheduled_date,
           departure_time,
           return_date,
           origin,
           destination,
           status,
-          aircraft:aircraft_id(registration)
+          aircraft:aeronave_id(registration)
         `)
         .gte("scheduled_date", startDate)
         .lte("scheduled_date", endDate)
-        .in("status", ["pendente", "confirmado"]);
+        .in("situacao", ["pendente", "confirmado"]);
       if (error) throw error;
       return data || [];
     }
@@ -168,10 +168,10 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
     if (schedule) {
       return {
         type: "schedule" as const,
-        aircraftReg: schedule.aircraft?.registration || "N/A",
+        aircraftReg: schedule.aeronave?.matricula || "N/A",
         route: `${schedule.origin || "---"} → ${schedule.destination || "---"}`,
         time: schedule.flight_time?.slice(0, 5) || "",
-        status: schedule.status
+        status: schedule.situacao
       };
     }
 
@@ -188,10 +188,10 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
     if (booking) {
       return {
         type: "booking" as const,
-        aircraftReg: (booking as any).aircraft?.registration || "N/A",
+        aircraftReg: (booking as any).aeronave?.matricula || "N/A",
         route: `${(booking as any).origin || "---"} → ${(booking as any).destination || "---"}`,
         time: (booking as any).departure_time?.slice(0, 5) || "",
-        status: (booking as any).status,
+        status: (booking as any).situacao,
         role: (booking as any).assigned_pilot_id === crewId ? "PIC" : "SIC"
       };
     }
@@ -204,7 +204,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
     const dateStr = format(date, "yyyy-MM-dd");
 
     const schedule = schedules.find(
-      (s) => s.aircraft_id === aircraftId && s.flight_date === dateStr
+      (s) => s.aeronave_id === aircraftId && s.flight_date === dateStr
     );
 
     if (schedule) {
@@ -214,12 +214,12 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         crewName: crew?.full_name || "Sem tripulação",
         route: `${schedule.origin || "---"} → ${schedule.destination || "---"}`,
         time: schedule.flight_time?.slice(0, 5) || "",
-        status: schedule.status
+        status: schedule.situacao
       };
     }
 
     const booking = bookingRequests.find((b: any) => 
-      b.aircraft_id === aircraftId && isSameDay(parseISO(b.scheduled_date), date)
+      b.aeronave_id === aircraftId && isSameDay(parseISO(b.scheduled_date), date)
     );
 
     if (booking) {
@@ -229,7 +229,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         crewName: pilot?.full_name || "Sem tripulação",
         route: `${(booking as any).origin || "---"} → ${(booking as any).destination || "---"}`,
         time: (booking as any).departure_time?.slice(0, 5) || "",
-        status: (booking as any).status
+        status: (booking as any).situacao
       };
     }
 
@@ -282,7 +282,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
               {crewMembers.map((crew) => (
                 <div key={crew.id} className="flex border-b border-border hover:bg-muted/20 transition-colors">
                   <div className="min-w-[180px] p-3 bg-muted/10 sticky left-0 z-10 border-r border-border">
-                    <div className="font-medium text-sm truncate">{crew.full_name}</div>
+                    <div className="font-medium text-sm truncate">{crew.nome_completo}</div>
                     <div className="text-xs text-muted-foreground">{crew.canac}</div>
                   </div>
                   {dates.map((date) => {
@@ -305,13 +305,13 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                   variant="secondary"
                                   className={cn(
                                     "text-xs font-medium px-2 py-1",
-                                    assignment.status === "confirmado"
+                                    assignment.situacao === "confirmado"
                                       ? "bg-destructive/20 text-destructive border-destructive/30"
                                       : "bg-warning/20 text-warning border-warning/30"
                                   )}
                                 >
                                   <XCircle className="h-3 w-3 mr-1" />
-                                  {assignment.aircraftReg}
+                                  {assignment.aeronaveReg}
                                 </Badge>
                               ) : (
                                 <Badge
@@ -327,12 +327,12 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                           {assignment && (
                             <TooltipContent side="top" className="max-w-[200px]">
                               <div className="text-xs space-y-1">
-                                <p className="font-semibold">{assignment.aircraftReg}</p>
+                                <p className="font-semibold">{assignment.aeronaveReg}</p>
                                 <p>{assignment.route}</p>
                                 {assignment.time && <p>Horário: {assignment.time}</p>}
                                 {"role" in assignment && <p>Função: {assignment.role}</p>}
                                 <Badge variant="outline" className="text-xs mt-1">
-                                  {assignment.status === "confirmado" ? "Confirmado" : "Pendente"}
+                                  {assignment.situacao === "confirmado" ? "Confirmado" : "Pendente"}
                                 </Badge>
                               </div>
                             </TooltipContent>
@@ -423,7 +423,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                   variant="secondary"
                                   className={cn(
                                     "text-xs font-medium px-2 py-1 truncate max-w-[90px]",
-                                    assignment.status === "confirmado"
+                                    assignment.situacao === "confirmado"
                                       ? "bg-destructive/20 text-destructive border-destructive/30"
                                       : "bg-warning/20 text-warning border-warning/30"
                                   )}
@@ -449,7 +449,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                 <p>{assignment.route}</p>
                                 {assignment.time && <p>Horário: {assignment.time}</p>}
                                 <Badge variant="outline" className="text-xs mt-1">
-                                  {assignment.status === "confirmado" ? "Confirmado" : "Pendente"}
+                                  {assignment.situacao === "confirmado" ? "Confirmado" : "Pendente"}
                                 </Badge>
                               </div>
                             </TooltipContent>

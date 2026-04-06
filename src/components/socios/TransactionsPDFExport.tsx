@@ -57,10 +57,10 @@ export function TransactionsPDFExport({
   // Cálculos de Resumo
   const totalDeposits = transactions
     .filter((t) => t.transaction_type === "deposit")
-    .reduce((s, t) => s + Number(t.amount), 0);
+    .reduce((s, t) => s + Number(t.valor), 0);
   const totalExpenses = transactions
     .filter((t) => t.transaction_type !== "deposit")
-    .reduce((s, t) => s + Number(t.amount), 0);
+    .reduce((s, t) => s + Number(t.valor), 0);
   const netResult = totalDeposits - totalExpenses;
 
   // Filtros em texto
@@ -72,10 +72,10 @@ export function TransactionsPDFExport({
 
   // DADOS DOS GRÁFICOS (mantidos para a pré-visualização na tela)
   const byPartner = transactions.reduce((acc: Record<string, { deposits: number; expenses: number }>, tx) => {
-    const name = tx.partner_name || "Geral";
+    const name = tx.nome_socio || "Geral";
     if (!acc[name]) acc[name] = { deposits: 0, expenses: 0 };
-    if (tx.transaction_type === "deposit") acc[name].deposits += Number(tx.amount);
-    else acc[name].expenses += Number(tx.amount);
+    if (tx.transaction_type === "deposit") acc[name].deposits += Number(tx.valor);
+    else acc[name].expenses += Number(tx.valor);
     return acc;
   }, {});
 
@@ -121,16 +121,16 @@ export function TransactionsPDFExport({
     // 3. Preparar dados da Tabela
     const tableColumn = ["Data", "Sócio", "Descrição", "Tipo", "Valor"];
     const tableRows = transactions.map((tx: any) => {
-      const date = tx.payment_date || tx.created_at;
+      const date = tx.payment_date || tx.criado_em;
       const formattedDate = format(new Date(date.includes?.("T") ? date : date + "T12:00:00"), "dd/MM/yyyy");
       const isDeposit = tx.transaction_type === "deposit";
       
       return [
         formattedDate,
-        tx.partner_name || "-",
-        tx.description || "-",
+        tx.nome_socio || "-",
+        tx.descricao || "-",
         isDeposit ? "Entrada" : "Saída",
-        `${isDeposit ? "+" : "-"}${fmt(Number(tx.amount))}`
+        `${isDeposit ? "+" : "-"}${fmt(Number(tx.valor))}`
       ];
     });
 

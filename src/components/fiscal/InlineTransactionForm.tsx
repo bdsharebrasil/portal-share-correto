@@ -46,7 +46,7 @@ export function InlineTransactionForm({ onClose }: InlineTransactionFormProps) {
         valor: parseFloat(form.valor),
         tipo: form.tipo,
         data: form.data,
-        status: form.status,
+        status: form.situacao,
         grupo_categoria: form.grupo_categoria || null,
         criado_por: user?.id || "",
       });
@@ -135,7 +135,7 @@ export function InlineTransactionForm({ onClose }: InlineTransactionFormProps) {
             </div>
             <div>
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+              <Select value={form.situacao} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pendente">Pendente</SelectItem>

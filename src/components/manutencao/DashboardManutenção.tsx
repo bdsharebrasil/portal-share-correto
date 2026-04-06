@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
 
-interface AircraftMaintenanceCardProps {
+interface AeronaveManutencaoCardProps {
   aircraft: {
     id: string;
     registration: string;
@@ -21,8 +21,8 @@ interface AircraftMaintenanceCardProps {
   };
 }
 
-function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
-  const { statuses, mostCritical, hasBlocking, isLoading, currentHours } = useMaintenanceStatuses(aircraft.id);
+function AircraftMaintenanceCard({ aircraft }: AeronaveManutencaoCardProps) {
+  const { statuses, mostCritical, hasBlocking, isLoading, currentHours } = useMaintenanceStatuses(aeronave.id);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
@@ -67,8 +67,8 @@ function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
               )} />
             </div>
             <div>
-              <h3 className="font-bold text-white text-lg">{aircraft.registration}</h3>
-              <p className="text-xs text-gray-400">{aircraft.manufacturer} {aircraft.model}</p>
+              <h3 className="font-bold text-white text-lg">{aeronave.matricula}</h3>
+              <p className="text-xs text-gray-400">{aircraft.manufacturer} {aeronave.modelo}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
             >
               <ManutencaoAlertCard
                 status={status}
-                aircraftRegistration={aircraft.registration}
+                aircraftRegistration={aeronave.matricula}
               />
             </motion.div>
           ))}
@@ -169,21 +169,21 @@ function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
       <ManutencaoRegistroDialog
         open={registerOpen}
         onOpenChange={setRegisterOpen}
-        aircraftId={aircraft.id}
-        aircraftRegistration={aircraft.registration}
+        aircraftId={aeronave.id}
+        aircraftRegistration={aeronave.matricula}
         currentHours={currentHours || 0}
       />
       <ManutencaoHistoricoDialog
         open={historyOpen}
         onOpenChange={setHistoryOpen}
-        aircraftId={aircraft.id}
-        aircraftRegistration={aircraft.registration}
+        aircraftId={aeronave.id}
+        aircraftRegistration={aeronave.matricula}
       />
       <ManutencaoConfigDialog
         open={configOpen}
         onOpenChange={setConfigOpen}
-        aircraftId={aircraft.id}
-        aircraftRegistration={aircraft.registration}
+        aircraftId={aeronave.id}
+        aircraftRegistration={aeronave.matricula}
       />
     </motion.div>
   );
@@ -198,7 +198,7 @@ export function DashboardManutenção({ aircraftWithHours }: DashboardManutencao
   const [selectedTab, setSelectedTab] = useState<'all' | 'critical' | 'ok'>('all');
 
   const activeAircraft = aeronaves.filter(a => {
-    const isActive = a.status?.toLowerCase() === 'ativa' || a.status?.toLowerCase() === 'ativo';
+    const isActive = a.situacao?.toLowerCase() === 'ativa' || a.situacao?.toLowerCase() === 'ativo';
     const hasHours = aircraftWithHours ? aircraftWithHours.has(a.id) : true;
     return isActive && hasHours;
   });
@@ -242,11 +242,11 @@ export function DashboardManutenção({ aircraftWithHours }: DashboardManutencao
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {activeAircraft.map((aircraft) => (
           <AircraftMaintenanceCard
-            key={aircraft.id}
+            key={aeronave.id}
             aircraft={{
-              id: aircraft.id,
-              registration: aircraft.registration,
-              model: aircraft.model,
+              id: aeronave.id,
+              registration: aeronave.matricula,
+              model: aeronave.modelo,
               manufacturer: aircraft.manufacturer,
             }}
           />

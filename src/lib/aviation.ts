@@ -63,8 +63,8 @@ export function divideRoute(
     const heading = calculateMagneticHeading(from.lat, from.lon, to.lat, to.lon);
     const time = (distance / cruiseSpeed) * 60; // minutes
     segments.push({
-      from: from.name,
-      to: to.name,
+      from: from.nome,
+      to: to.nome,
       distance: Math.round(distance * 10) / 10,
       heading,
       time: Math.round(time),
@@ -184,7 +184,7 @@ export async function fetchAISWebNOTAMs(icao: string): Promise<NOTAMData[]> {
           console.debug(`[fetchAISWebNOTAMs] No NOTAMs found for ${icaoUpper}`);
           return [];
         }
-        console.warn(`[fetchAISWebNOTAMs] API error for ${icaoUpper}: ${response.status}`);
+        console.warn(`[fetchAISWebNOTAMs] API error for ${icaoUpper}: ${response.statuso}`);
         return [];
       }
 
@@ -194,7 +194,7 @@ export async function fetchAISWebNOTAMs(icao: string): Promise<NOTAMData[]> {
       return parsed;
     } catch (fetchError) {
       clearTimeout(timeout);
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.nome === 'AbortError') {
         console.warn(`[fetchAISWebNOTAMs] Timeout fetching NOTAMs for ${icaoUpper}`);
       } else {
         console.warn(`[fetchAISWebNOTAMs] Failed to fetch NOTAMs for ${icaoUpper}:`, fetchError);
@@ -265,7 +265,7 @@ function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
       }
 
       // Extrair mensagem de múltiplos campos
-      const message = notam.e || notam.message || notam.text || notam.description || 'Sem descrição';
+      const message = notam.e || notam.message || notam.text || notam.descricao || 'Sem descrição';
 
       // Determinar prioridade
       let priority: NOTAMData['priority'] = 'low';
@@ -290,8 +290,8 @@ function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
         id: notam.id || `${icao}-${notam.number}-${Date.now()}`,
         icao,
         number: String(notam.n || notam.number || '0000'),
-        type: notam.tp || notam.type || 'NOTAM',
-        category: notam.cat || notam.category || 'AIRSPACE',
+        type: notam.tp || notam.tipo || 'NOTAM',
+        category: notam.cat || notam.categoria || 'AIRSPACE',
         traffic: notam.traffic || 'ALL',
         purpose: notam.purpose || notam.p || 'M',
         scope: notam.scope || notam.s || 'AOR',
@@ -414,7 +414,7 @@ export async function fetchROTAER(icao: string): Promise<ROTAERData | null> {
       return parsed;
     } catch (fetchError) {
       clearTimeout(timeout);
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.nome === 'AbortError') {
         console.warn(`[fetchROTAER] Timeout fetching ROTAER for ${icaoUpper}`);
       } else {
         console.warn(`[fetchROTAER] Failed to fetch ROTAER for ${icaoUpper}:`, fetchError);
@@ -468,7 +468,7 @@ function parseROTAERData(rawData: any): ROTAERData | null {
           freqArray.forEach((freq: any) => {
             if (freq) {
               frequencies.push({
-                type: service.type || 'Unknown',
+                type: service.tipo || 'Unknown',
                 frequency: String(freq['#text'] || freq || ''),
               });
             }
@@ -482,9 +482,9 @@ function parseROTAERData(rawData: any): ROTAERData | null {
     const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
     if (serviceArray) {
       serviceArray.forEach((service: any) => {
-        if (service['@_type'] === 'NAV' && service.type) {
+        if (service['@_type'] === 'NAV' && service.tipo) {
           navaids.push({
-            type: service.type || 'UNKNOWN',
+            type: service.tipo || 'UNKNOWN',
             identifier: service.ident || '',
             frequency: String(service.freq || ''),
           });
@@ -517,11 +517,11 @@ function parseROTAERData(rawData: any): ROTAERData | null {
     // Build ROTAERData
     return {
       icao: (airport.AeroCode || airport.loc || airport.icao || 'UNKN').toUpperCase(),
-      name: airport.name || airport.aero || '',
-      city: airport.city || '',
+      name: airport.nome || airport.aero || '',
+      city: airport.cidade || '',
       state: airport.uf || airport.state || '',
       country: 'BR',
-      type: airport.type || 'AD',
+      type: airport.tipo || 'AD',
       coordinates: {
         lat: parseFloat(airport.lat || airport.latitude || '0'),
         lng: parseFloat(airport.lng || airport.longitude || '0'),
@@ -618,7 +618,7 @@ export async function checkRouteRestrictions(
       return await response.json();
     } catch (fetchError) {
       clearTimeout(timeout);
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.nome === 'AbortError') {
         console.warn('Airspace restrictions check timed out');
       } else {
         console.debug('Airspace restrictions unavailable, continuing with empty restrictions');
@@ -686,7 +686,7 @@ export function calculateOptimalAltitude(
 
   if (conflictingRestrictions.length > 0) {
     warnings.push(
-      `Altitude ${baseAlt}ft conflita com: ${conflictingRestrictions.map(r => r.name).join(', ')}`
+      `Altitude ${baseAlt}ft conflita com: ${conflictingRestrictions.map(r => r.nome).join(', ')}`
     );
   }
 

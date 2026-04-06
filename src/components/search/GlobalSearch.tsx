@@ -51,7 +51,7 @@ export function GlobalSearch() {
     if (query.length >= 2) {
       const filtered = searchData.filter(item =>
         item.title.toLowerCase().includes(query.toLowerCase()) ||
-        item.description.toLowerCase().includes(query.toLowerCase())
+        item.descricao.toLowerCase().includes(query.toLowerCase())
       );
       setResults(filtered.slice(0, 8));
       setIsOpen(true);
@@ -111,10 +111,10 @@ export function GlobalSearch() {
                 className="w-full justify-start p-3 h-auto hover:bg-accent"
                 onClick={() => handleResultClick(result)}
               >
-                <result.icon className={`h-4 w-4 mr-3 ${getTypeColor(result.type)}`} />
+                <result.icon className={`h-4 w-4 mr-3 ${getTypeColor(result.tipo)}`} />
                 <div className="text-left">
                   <div className="font-medium text-foreground">{result.title}</div>
-                  <div className="text-sm text-muted-foreground">{result.description}</div>
+                  <div className="text-sm text-muted-foreground">{result.descricao}</div>
                 </div>
               </Button>
             ))}

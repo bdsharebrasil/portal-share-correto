@@ -9,21 +9,29 @@ import { formatDateToBR } from "@/lib/date-utils";
 
 interface CrewLicense {
   id: string;
-  license_type: string;
-  expiry_date: string | null;
+  tipo_habilitacao: string;
+  data_validade: string | null;
   CMA?: string;
   validade_cma?: string | null;
   FS_RH?: string | null;
+  // Backward compatibility
+  license_type?: string;
+  expiry_date?: string | null;
 }
 
 interface CrewMember {
   id: string;
-  full_name: string;
+  nome_completo: string;
   canac: string;
   email?: string;
+  telefone?: string;
+  url_avatar?: string;
+  situacao: string;
+  // Backward compatibility
+  full_name?: string;
   phone?: string;
   avatar_url?: string;
-  status: string;
+  status?: string;
   user_id?: string;
 }
 
@@ -70,16 +78,16 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
   const navigate = useNavigate();
   const [licenses, setLicenses] = useState<CrewLicense[]>([]);
   const [loading, setLoading] = useState(true);
-  const formattedPhone = formatPhone(member.phone);
+  const formattedPhone = formatPhone(member.telefone);
 
   useEffect(() => {
     const fetchLicenses = async () => {
       try {
         const { data, error } = await (supabase as any)
-          .from("crew_licenses")
-          .select("id, license_type, expiry_date, CMA, validade_cma, FS_RH")
-          .eq("crew_member_id", member.id)
-          .order("expiry_date", { ascending: true });
+          .from("habilitacoes_tripulante")
+          .select("id, tipo_habilitacao, data_validade, CMA, validade_cma, FS_RH")
+          .eq("membro_tripulacao_id", member.id)
+          .order("data_validade", { ascending: true });
 
         if (!error && data) {
           setLicenses(data);
@@ -142,7 +150,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {displayLicenses.map((license) => {
-              const expiryDate = license.license_type === 'CMA' ? license.validade_cma : license.expiry_date;
+              const expiryDate = license.tipo_habilitacao === 'CMA' ? license.validade_cma : license.data_validade;
               const status = getLicenseStatus(expiryDate);
               const config = statusConfig[status];
 
@@ -151,7 +159,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
                   key={license.id}
                   className={`${config.cardBg} border ${config.cardBorder} rounded-lg p-3 hover:border-opacity-50 transition-colors`}
                 >
-                  <p className="text-xs font-semibold text-slate-300 mb-2">{license.license_type}</p>
+                  <p className="text-xs font-semibold text-slate-300 mb-2">{license.tipo_habilitacao}</p>
                   <p className="text-xs text-slate-400 mb-2">{formatDateToBR(expiryDate)}</p>
                   <Badge className={`${config.badgeColor} ${config.textColor} text-xs font-semibold w-full justify-center border`}>
                     {config.label}

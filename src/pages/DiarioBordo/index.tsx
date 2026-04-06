@@ -9,7 +9,7 @@ import { ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { EmptyState } from "./components/EmptyState";
-import { AircraftCard } from "./components/AircraftCard";
+import { AeronaveCard } from "./components/AircraftCard";
 
 // pages/DiarioBordo/index.tsx - FINAL
 interface DiarioBordoProps {
@@ -95,7 +95,7 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {aircraft.map(ac => (
-              <AircraftCard
+              <AeronaveCard
                 key={ac.id}
                 aircraft={ac}
                 logbookData={logbookMonthData[ac.id] || null}

@@ -27,7 +27,7 @@ export function useAtividadesRecentes() {
           id: item.id,
           descricao: item.descricao,
           valor: Number(item.valor),
-          status: item.status || "pending",
+          status: item.situacao || "pending",
           tipo_movimento: item.tipo_movimento,
           timeAgo: getTimeAgo(item.data),
         })) || []

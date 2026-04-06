@@ -87,8 +87,8 @@ export function RateioDialog({
                 const { data: logbookData, error: logErr } = await (supabase as any)
                   .from("logbook_entries")
                   .select("total_time, is_loan, loan_recipient_client_id")
-                  .eq("aircraft_id", aeronaveId)
-                  .eq("client_id", socio.cliente_id)
+                  .eq("id_aeronave", aeronaveId)
+                  .eq("cliente_id", socio.cliente_id)
                   .gte("entry_date", periodo.inicio)
                   .lte("entry_date", periodo.fim);
 

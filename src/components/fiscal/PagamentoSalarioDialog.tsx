@@ -145,7 +145,7 @@ export function PagamentoSalarioDialog({
     setIsUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.name
+      const sanitizedFileName = file.nome
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();

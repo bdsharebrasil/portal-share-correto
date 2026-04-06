@@ -107,7 +107,7 @@ export default function MinhasTarefas() {
       .select("*")
       .eq("user_id", user.id)
       .eq("read", false)
-      .order("created_at", { ascending: false });
+      .order("criado_em", { ascending: false });
 
     if (error) {
       console.error("Erro ao carregar notificações:", error);
@@ -163,7 +163,7 @@ export default function MinhasTarefas() {
   };
 
   const toggleTask = async (task: Task, checked: boolean) => {
-    const nextStatus: Task["status"] = checked ? "concluida" : "pendente";
+    const nextStatus: Task["status"] = checked ? "concluida" : "aberto";
     const { error } = await supabase
       .from("tasks")
       .update({ status: nextStatus })
@@ -337,9 +337,9 @@ export default function MinhasTarefas() {
                                       }`}>
                                       {task.title}
                                     </h3>
-                                    {task.description && (
+                                    {task.descricao && (
                                       <p className="text-muted-foreground text-xs mt-1 line-clamp-1">
-                                        {task.description}
+                                        {task.descricao}
                                       </p>
                                     )}
                                   </div>
@@ -404,11 +404,11 @@ export default function MinhasTarefas() {
                         {viewingTask?.id === task.id && (
                           <Card className="rounded-t-none border-t-0 bg-muted/30 animate-in fade-in slide-in-from-top-1 duration-200">
                             <CardContent className="p-4 space-y-4">
-                              {task.description && (
+                              {task.descricao && (
                                 <div>
                                   <h3 className="font-semibold text-sm mb-2 text-foreground">Descrição</h3>
                                   <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
-                                    {task.description}
+                                    {task.descricao}
                                   </p>
                                 </div>
                               )}

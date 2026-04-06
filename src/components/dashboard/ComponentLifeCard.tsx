@@ -39,7 +39,7 @@ export function ComponentLifeCard({ component }: ComponentLifeCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-base font-semibold">{component.name}</CardTitle>
+            <CardTitle className="text-base font-semibold">{component.nome}</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">{component.location}</p>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">

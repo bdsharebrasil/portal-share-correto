@@ -55,7 +55,7 @@ export default function FinanceiroSocios() {
 
   const clientesFiltrados = useMemo(
     () => clientesComPartners.filter((cliente) =>
-      cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.razao_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.cnpj?.includes(searchTerm)
     ),
@@ -209,7 +209,7 @@ export default function FinanceiroSocios() {
             transactions={transactions}
             limit={5}
             clienteId={clienteSelecionado}
-            clienteName={selectedClientData?.company_name || selectedClientData?.proprietario || "Cliente"}
+            clienteName={selectedClientData?.razao_social || selectedClientData?.proprietario || "Cliente"}
           />
         )}
       </div>
@@ -233,7 +233,7 @@ function ClienteCard({ cliente, onSelect }: ClienteCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
-              {cliente.company_name || cliente.proprietario}
+              {cliente.razao_social || cliente.proprietario}
             </CardTitle>
             {cliente.cnpj && (
               <p className="text-xs text-muted-foreground mt-1.5">CNPJ: {cliente.cnpj}</p>
@@ -288,7 +288,7 @@ interface DashboardHeaderProps {
 }
 
 function DashboardHeader({ cliente, onBack }: DashboardHeaderProps) {
-  const clientName = cliente?.company_name || cliente?.proprietario || "Cliente"
+  const clientName = cliente?.razao_social || cliente?.proprietario || "Cliente"
   const clientCnpj = cliente?.cnpj
 
   return (

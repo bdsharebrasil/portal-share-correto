@@ -61,7 +61,7 @@ import { toast } from "@/components/ui/use-toast";
 interface BookingRequest {
   id: string;
   client_id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   origin: string;
   destination: string;
   scheduled_date: string;
@@ -79,19 +79,19 @@ interface BookingRequest {
   client?: { id: string; company_name: string };
 }
 
-interface AircraftLiveStatus {
+interface AeronaveStatusAtivo {
   id: string;
-  aircraft_id: string;
-  current_status: string;
-  current_location?: string;
-  current_flight_id?: string;
-  updated_at: string;
+  aeronave_id: string;
+  status_atual: string;
+  localizacao_atual?: string;
+  voo_atual_id?: string;
+  atualizado_em: string;
   aircraft?: { id: string; registration: string; model: string };
 }
 
 interface BlockedDate {
   id: string;
-  aircraft_id?: string;
+  aeronave_id?: string;
   block_date: string;
   reason?: string;
   is_fleet_wide: boolean;
@@ -121,13 +121,13 @@ export default function PainelAgendamentos() {
 
   // Fetch aircraft
   const { data: aircraft } = useQuery({
-    queryKey: ["aircraft"],
+    queryKey: ["aeronave"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
+        .from('aeronave')
         .select("*")
         .eq("status", "ativa")
-        .order("registration");
+        .order("matricula");
       if (error) throw error;
       return data || [];
     }
@@ -141,13 +141,13 @@ export default function PainelAgendamentos() {
         .from("flight_booking_requests")
         .select(`
           *,
-          aircraft:aircraft_id(id, registration, model),
+          aircraft:aeronave_id(id, registration, model),
           client:client_id(id, company_name)
         `)
         .order("scheduled_date", { ascending: true });
 
       if (selectedAircraftId) {
-        query = query.eq("aircraft_id", selectedAircraftId);
+        query = query.eq("id_aeronave", selectedAircraftId);
       }
 
       const { data, error } = await query;
@@ -161,12 +161,12 @@ export default function PainelAgendamentos() {
     queryKey: ["blocked-flight-dates", selectedAircraftId],
     queryFn: async () => {
       let query = supabase
-        .from("blocked_flight_dates")
+        .from("datas_bloqueadas_voo")
         .select("*")
-        .order("block_date");
+        .order("data_bloqueio");
 
       if (selectedAircraftId) {
-        query = query.or(`aircraft_id.eq.${selectedAircraftId},is_fleet_wide.eq.true`);
+        query = query.or(`aeronave_id.eq.${selectedAircraftId},is_fleet_wide.eq.true`);
       }
 
       const { data, error } = await query;
@@ -180,13 +180,13 @@ export default function PainelAgendamentos() {
     queryKey: ["aircraft-live-status"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft_live_status")
+        .from('status_tempo_real_aeronave')
         .select(`
           *,
-          aircraft:aircraft_id(id, registration, model)
+          aircraft:aeronave_id(id, registration, model)
         `);
       if (error) throw error;
-      return (data || []) as AircraftLiveStatus[];
+      return (data || []) as AeronaveStatusAtivo[];
     }
   });
 
@@ -195,10 +195,10 @@ export default function PainelAgendamentos() {
     queryKey: ["crew-members"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("crew_members")
+        .from("membros_tripulacao")
         .select("*")
-        .eq("status", "ativo")
-        .order("full_name");
+        .eq("situacao", "ativo")
+        .order("nome_completo");
       if (error) throw error;
       return data || [];
     }
@@ -209,7 +209,7 @@ export default function PainelAgendamentos() {
     queryKey: ["scheduling-aircraft-config"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("scheduling_aircraft_config")
+        .from('config_agendamento_aeronave')
         .select("*");
       if (error) throw error;
       return data || [];
@@ -323,7 +323,7 @@ export default function PainelAgendamentos() {
       const userId = user?.id;
 
       const datesToBlock = selectedDatesRange.map(date => ({
-        aircraft_id: isFleetWide ? null : selectedAircraftId,
+        aeronave_id: isFleetWide ? null : selectedAircraftId,
         block_date: format(date, "yyyy-MM-dd"),
         reason: blockReason,
         is_fleet_wide: isFleetWide,
@@ -331,19 +331,19 @@ export default function PainelAgendamentos() {
       }));
 
       // Check for duplicates
-      const blockedDateStrings = datesToBlock.map(d => d.block_date);
+      const blockedDateStrings = datesToBlock.map(d => d.data_bloqueio);
       const { data: existingBlocks } = await supabase
-        .from("blocked_flight_dates")
-        .select("block_date")
-        .in("block_date", blockedDateStrings);
+        .from("datas_bloqueadas_voo")
+        .select("data_bloqueio")
+        .in("data_bloqueio", blockedDateStrings);
 
       if (existingBlocks && existingBlocks.length > 0) {
-        const duplicateDates = existingBlocks.map(b => b.block_date).join(", ");
+        const duplicateDates = existingBlocks.map(b => b.data_bloqueio).join(", ");
         throw new Error(`As datas já bloqueadas: ${duplicateDates}`);
       }
 
       // Insert all dates at once
-      const { error } = await supabase.from("blocked_flight_dates").insert(datesToBlock);
+      const { error } = await supabase.from("datas_bloqueadas_voo").insert(datesToBlock);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -370,7 +370,7 @@ export default function PainelAgendamentos() {
   // Unblock date mutation
   const unblockDateMutation = useMutation({
     mutationFn: async (blockId: string) => {
-      const { error } = await supabase.from("blocked_flight_dates").delete().eq("id", blockId);
+      const { error } = await supabase.from("datas_bloqueadas_voo").delete().eq("id", blockId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -383,29 +383,29 @@ export default function PainelAgendamentos() {
   const updateStatusMutation = useMutation({
     mutationFn: async ({ aircraftId, status, flightId }: { aircraftId: string; status: string; flightId?: string }) => {
       const { data: existing } = await supabase
-        .from("aircraft_live_status")
+        .from('status_tempo_real_aeronave')
         .select("id")
-        .eq("aircraft_id", aircraftId)
+        .eq("id_aeronave", aircraftId)
         .single();
 
       if (existing) {
         const { error } = await supabase
-          .from("aircraft_live_status")
+          .from('status_tempo_real_aeronave')
           .update({
-            current_status: status,
-            current_flight_id: flightId || null,
-            last_departure: status === "em_voo" ? new Date().toISOString() : undefined,
-            updated_by: (await supabase.auth.getUser()).data.user?.id,
-            updated_at: new Date().toISOString()
+            status_atual: status,
+            voo_atual_id: flightId || null,
+            ultima_partida: status === "em_voo" ? new Date().toISOString() : undefined,
+            atualizado_por: (await supabase.auth.getUser()).data.user?.id,
+            atualizado_em: new Date().toISOString()
           })
-          .eq("aircraft_id", aircraftId);
+          .eq("id_aeronave", aircraftId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("aircraft_live_status").insert({
-          aircraft_id: aircraftId,
-          current_status: status,
-          current_flight_id: flightId || null,
-          updated_by: (await supabase.auth.getUser()).data.user?.id
+        const { error } = await supabase.from('status_tempo_real_aeronave').insert({
+          aeronave_id: aircraftId,
+          status_atual: status,
+          voo_atual_id: flightId || null,
+          atualizado_por: (await supabase.auth.getUser()).data.user?.id
         });
         if (error) throw error;
       }
@@ -420,21 +420,21 @@ export default function PainelAgendamentos() {
   const toggleAircraftConfigMutation = useMutation({
     mutationFn: async ({ aircraftId, enabled }: { aircraftId: string; enabled: boolean }) => {
       const { data: existing } = await supabase
-        .from("scheduling_aircraft_config")
+        .from('config_agendamento_aeronave')
         .select("id")
-        .eq("aircraft_id", aircraftId)
+        .eq("id_aeronave", aircraftId)
         .single();
 
       if (existing) {
         const { error } = await supabase
-          .from("scheduling_aircraft_config")
+          .from('config_agendamento_aeronave')
           .update({ enabled_for_scheduling: enabled, updated_at: new Date().toISOString() })
-          .eq("aircraft_id", aircraftId);
+          .eq("id_aeronave", aircraftId);
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from("scheduling_aircraft_config")
-          .insert({ aircraft_id: aircraftId, enabled_for_scheduling: enabled });
+          .from('config_agendamento_aeronave')
+          .insert({ aeronave_id: aircraftId, enabled_for_scheduling: enabled });
         if (error) throw error;
       }
     },
@@ -494,8 +494,8 @@ export default function PainelAgendamentos() {
     }
   };
 
-  const pendingCount = bookings?.filter(b => b.status === "pendente").length || 0;
-  const confirmedCount = bookings?.filter(b => b.status === "confirmado").length || 0;
+  const pendingCount = bookings?.filter(b => b.situacao === "pendente").length || 0;
+  const confirmedCount = bookings?.filter(b => b.situacao === "confirmado").length || 0;
 
   // Calendar days
   const monthStart = startOfMonth(selectedMonth);
@@ -505,13 +505,13 @@ export default function PainelAgendamentos() {
   const getBookingsForDay = (date: Date) => {
     return bookings?.filter(b =>
       isSameDay(new Date(b.scheduled_date), date) &&
-      b.status !== "rejeitado" &&
-      b.status !== "cancelado"
+      b.situacao !== "rejeitado" &&
+      b.situacao !== "cancelado"
     ) || [];
   };
 
   const isDateBlocked = (date: Date) => {
-    return blockedDates?.some(b => isSameDay(new Date(b.block_date), date)) || false;
+    return blockedDates?.some(b => isSameDay(new Date(b.data_bloqueio), date)) || false;
   };
 
   const getMaintenancesForDay = (date: Date) => {
@@ -630,7 +630,7 @@ export default function PainelAgendamentos() {
               <div className="flex items-center gap-3">
                 <Plane className="h-8 w-8 text-blue-500" />
                 <div>
-                  <p className="text-2xl font-bold">{liveStatuses?.filter(s => s.current_status === "em_voo").length || 0}</p>
+                  <p className="text-2xl font-bold">{liveStatuses?.filter(s => s.status_atual === "em_voo").length || 0}</p>
                   <p className="text-xs text-muted-foreground">Em Voo</p>
                 </div>
               </div>
@@ -694,27 +694,27 @@ export default function PainelAgendamentos() {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <AlertCircle className="h-5 w-5 text-yellow-500" />
-                    Pendentes ({bookings?.filter(b => b.status === "pendente").length || 0})
+                    Pendentes ({bookings?.filter(b => b.situacao === "pendente").length || 0})
                   </h3>
-                  {bookings?.filter(b => b.status === "pendente").length === 0 ? (
+                  {bookings?.filter(b => b.situacao === "pendente").length === 0 ? (
                     <Card>
                       <CardContent className="py-6 text-center">
                         <p className="text-muted-foreground">Nenhuma solicitação pendente</p>
                       </CardContent>
                     </Card>
                   ) : (
-                    bookings?.filter(b => b.status === "pendente").map((booking) => (
+                    bookings?.filter(b => b.situacao === "pendente").map((booking) => (
                       <Card key={booking.id} className="border-yellow-500/30">
                         <CardContent className="pt-4">
                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div className="space-y-2 flex-1">
                               <div className="flex items-center gap-3">
                                 <Badge className="bg-primary/20 text-primary">
-                                  {booking.aircraft?.registration}
+                                  {booking.aeronave?.matricula}
                                 </Badge>
-                                <span className="font-semibold">{booking.client?.company_name}</span>
-                                <Badge variant="outline" className={getStatusColor(booking.status)}>
-                                  {booking.status}
+                                <span className="font-semibold">{booking.client?.razao_social}</span>
+                                <Badge variant="outline" className={getStatusColor(booking.situacao)}>
+                                  {booking.situacao}
                                 </Badge>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -769,27 +769,27 @@ export default function PainelAgendamentos() {
                 <div className="space-y-3">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    Confirmados - Prontos para Iniciar ({bookings?.filter(b => b.status === "confirmado").length || 0})
+                    Confirmados - Prontos para Iniciar ({bookings?.filter(b => b.situacao === "confirmado").length || 0})
                   </h3>
-                  {bookings?.filter(b => b.status === "confirmado").length === 0 ? (
+                  {bookings?.filter(b => b.situacao === "confirmado").length === 0 ? (
                     <Card>
                       <CardContent className="py-6 text-center">
                         <p className="text-muted-foreground">Nenhum voo confirmado aguardando início</p>
                       </CardContent>
                     </Card>
                   ) : (
-                    bookings?.filter(b => b.status === "confirmado").map((booking) => (
+                    bookings?.filter(b => b.situacao === "confirmado").map((booking) => (
                       <Card key={booking.id} className="border-green-500/30">
                         <CardContent className="pt-4">
                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div className="space-y-2 flex-1">
                               <div className="flex items-center gap-3">
                                 <Badge className="bg-primary/20 text-primary">
-                                  {booking.aircraft?.registration}
+                                  {booking.aeronave?.matricula}
                                 </Badge>
-                                <span className="font-semibold">{booking.client?.company_name}</span>
-                                <Badge variant="outline" className={getStatusColor(booking.status)}>
-                                  ✅ {booking.status}
+                                <span className="font-semibold">{booking.client?.razao_social}</span>
+                                <Badge variant="outline" className={getStatusColor(booking.situacao)}>
+                                  ✅ {booking.situacao}
                                 </Badge>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -930,9 +930,9 @@ export default function PainelAgendamentos() {
                           {dayBookings.slice(0, 2).map((b) => (
                             <div
                               key={b.id}
-                              className={`text-xs p-1 rounded truncate ${getStatusColor(b.status)}`}
+                              className={`text-xs p-1 rounded truncate ${getStatusColor(b.situacao)}`}
                             >
-                              {b.aircraft?.registration} - {b.origin}→{b.destination}
+                              {b.aeronave?.matricula} - {b.origin}→{b.destination}
                             </div>
                           ))}
                           {dayBookings.length > 2 && (
@@ -942,7 +942,7 @@ export default function PainelAgendamentos() {
                           )}
                           {dayMaintenances.slice(0, 1).map((m: any) => (
                             <div key={m.id} className="text-xs p-1 rounded bg-orange-500/20 text-orange-600 truncate">
-                              🔧 {m.aircraft?.registration}
+                              🔧 {m.aeronave?.matricula}
                             </div>
                           ))}
                         </div>
@@ -967,13 +967,13 @@ export default function PainelAgendamentos() {
                       <div key={block.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                         <div>
                           <span className="font-medium">
-                            {format(new Date(block.block_date), "dd/MM/yyyy")}
+                            {format(new Date(block.data_bloqueio), "dd/MM/yyyy")}
                           </span>
-                          {block.is_fleet_wide && (
+                          {block.frota_inteira && (
                             <Badge variant="outline" className="ml-2">Toda Frota</Badge>
                           )}
-                          {block.reason && (
-                            <span className="text-sm text-muted-foreground ml-2">- {block.reason}</span>
+                          {block.motivo && (
+                            <span className="text-sm text-muted-foreground ml-2">- {block.motivo}</span>
                           )}
                         </div>
                         <Button
@@ -995,11 +995,11 @@ export default function PainelAgendamentos() {
           <TabsContent value="frota" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {aircraft?.filter((ac) => {
-                const config = aircraftConfig?.find(c => c.aircraft_id === ac.id);
+                const config = aircraftConfig?.find(c => c.aeronave_id === ac.id);
                 return config?.enabled_for_scheduling !== false;
               }).map((ac) => {
-                const status = liveStatuses?.find(s => s.aircraft_id === ac.id);
-                const currentStatus = status?.current_status || "disponivel";
+                const status = liveStatuses?.find(s => s.aeronave_id === ac.id);
+                const currentStatus = status?.status_atual || "disponivel";
                 const isAvailable = currentStatus === "disponivel";
 
                 return (
@@ -1073,14 +1073,14 @@ export default function PainelAgendamentos() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {bookings?.filter(b => b.status === "confirmado").length === 0 ? (
+                {bookings?.filter(b => b.situacao === "confirmado").length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
                     <p>Nenhum voo confirmado neste período</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {bookings?.filter(b => b.status === "confirmado").map((booking) => {
+                    {bookings?.filter(b => b.situacao === "confirmado").map((booking) => {
                       const pilot = crewMembers?.find(c => c.id === booking.assigned_pilot_id);
                       const copilot = crewMembers?.find(c => c.id === booking.assigned_copilot_id);
 
@@ -1089,8 +1089,8 @@ export default function PainelAgendamentos() {
                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div className="space-y-1">
                               <div className="flex items-center gap-3">
-                                <Badge className="bg-primary/20 text-primary">{booking.aircraft?.registration}</Badge>
-                                <span className="font-medium">{booking.client?.company_name}</span>
+                                <Badge className="bg-primary/20 text-primary">{booking.aeronave?.matricula}</Badge>
+                                <span className="font-medium">{booking.client?.razao_social}</span>
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
@@ -1143,7 +1143,7 @@ export default function PainelAgendamentos() {
                       <div key={m.id} className="p-3 border rounded-lg bg-orange-500/5 border-orange-500/20">
                         <div className="flex items-center justify-between">
                           <div>
-                            <Badge variant="outline">{m.aircraft?.registration}</Badge>
+                            <Badge variant="outline">{m.aeronave?.matricula}</Badge>
                             <span className="ml-2 font-medium">{m.tipo || m.descricao}</span>
                           </div>
                           <span className="text-sm text-muted-foreground">
@@ -1174,7 +1174,7 @@ export default function PainelAgendamentos() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {aircraft?.map((ac) => {
-                    const config = aircraftConfig?.find(c => c.aircraft_id === ac.id);
+                    const config = aircraftConfig?.find(c => c.aeronave_id === ac.id);
                     const isEnabled = config?.enabled_for_scheduling ?? true;
 
                     return (

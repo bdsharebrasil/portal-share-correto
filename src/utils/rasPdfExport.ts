@@ -26,7 +26,7 @@ export async function exportRAStoPDF(ras: RAS) {
       ['Número de OS:', ras.serviceOrderNumber],
       ['Centro de Manutenção:', ras.maintenanceCenter],
       ['Tipo de Manutenção:', ras.maintenanceType.toUpperCase()],
-      ['Status:', ras.status.toUpperCase()],
+      ['Status:', ras.situacao.toUpperCase()],
     ];
 
     basicInfo.forEach(([label, value]) => {
@@ -43,7 +43,7 @@ export async function exportRAStoPDF(ras: RAS) {
     pdf.setFontSize(10);
     const responsibleInfo = [
       ['Mecânico Responsável:', ras.responsibleMechanic],
-      ['Data de Serviço:', new Date(ras.date).toLocaleDateString('pt-BR')],
+      ['Data de Serviço:', new Date(ras.data).toLocaleDateString('pt-BR')],
       ...(ras.completionDate ? [['Data de Conclusão:', new Date(ras.completionDate).toLocaleDateString('pt-BR')]] : []),
     ];
 
@@ -59,7 +59,7 @@ export async function exportRAStoPDF(ras: RAS) {
     pdf.text('Descrição dos Trabalhos', margin, yPosition);
     yPosition += 6;
     pdf.setFontSize(10);
-    const descriptionLines = pdf.splitTextToSize(ras.description, pageWidth - 2 * margin);
+    const descriptionLines = pdf.splitTextToSize(ras.descricao, pageWidth - 2 * margin);
     pdf.text(descriptionLines, margin, yPosition);
     yPosition += descriptionLines.length * 5 + 5;
 
@@ -91,7 +91,7 @@ export async function exportRAStoPDF(ras: RAS) {
       yPosition += 10;
 
       const tableData = ras.costItems.map((item) => [
-        item.description,
+        item.descricao,
         item.quantity.toString(),
         `R$ ${item.unitValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
         `R$ ${(item.quantity * item.unitValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
@@ -134,12 +134,12 @@ export async function exportRAStoPDF(ras: RAS) {
     }
 
     // Observations if available
-    if (ras.observations) {
+    if (ras.observacoes) {
       pdf.setFontSize(11);
       pdf.text('Observações', margin, yPosition);
       yPosition += 6;
       pdf.setFontSize(10);
-      const observationsLines = pdf.splitTextToSize(ras.observations, pageWidth - 2 * margin);
+      const observationsLines = pdf.splitTextToSize(ras.observacoes, pageWidth - 2 * margin);
       pdf.text(observationsLines, margin, yPosition);
     }
 

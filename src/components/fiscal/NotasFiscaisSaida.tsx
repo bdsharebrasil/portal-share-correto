@@ -96,7 +96,7 @@ const ReciboDocument = ({ data }: { data: any }) => (
       </View>
       <View>
         <Text style={styles.sectionHeader}>DESCRIÇÃO DO SERVIÇO</Text>
-        <Text style={styles.description}>
+        <Text style={styles.descricao}>
           {data.descricao}
           {data.aeronave_registro ? `\nReferente à aeronave: ${data.aeronave_registro}` : ''}
         </Text>
@@ -121,7 +121,7 @@ const ReciboDocument = ({ data }: { data: any }) => (
 // --- TIPAGENS ---
 
 interface NotaFiscalSaida {
-  aircraft_id: string;
+  aeronave_id: string;
   id: string;
   numero: string;
   cliente_nome: string;
@@ -153,7 +153,7 @@ interface Cliente {
 const validarNotaFiscal = (formData: any): string | null => {
   if (!formData.numero || formData.numero.trim() === "") return "Número da nota fiscal é obrigatório";
   if (!formData.cliente_nome || formData.cliente_nome.trim() === "") return "Cliente/Empresa é obrigatório";
-  if (!formData.client_id || formData.client_id.trim() === "") return "Selecione um cliente válido";
+  if (!formData.cliente_id || formData.cliente_id.trim() === "") return "Selecione um cliente válido";
   if (!formData.cliente_cnpj || formData.cliente_cnpj.trim() === "") return "CNPJ/CPF do cliente é obrigatório";
   if (!formData.valor || formData.valor.trim() === "") return "Valor é obrigatório";
 
@@ -170,7 +170,7 @@ const validarNotaFiscal = (formData: any): string | null => {
   }
 
   const statusValidos = ["pendente", "recebido", "cancelado"];
-  if (!statusValidos.includes(formData.status)) return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
+  if (!statusValidos.includes(formData.situacao)) return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
 
   return null;
 };
@@ -296,8 +296,8 @@ export function NotasFiscaisSaida() {
   const loadClientes = async () => {
     try {
       let { data: clientsData, error } = await supabase
-        .from("clients")
-        .select("id, company_name, cnpj, proprietario, status");
+        .from("clientes")
+        .select("id, razao_social, cnpj, proprietario, status");
 
       if (error) {
         console.error("Erro ao carregar clientes:", error);
@@ -308,7 +308,7 @@ export function NotasFiscaisSaida() {
 
       if (clientsData) {
         clientsData.forEach(client => {
-          const nomeCliente = client.company_name || client.proprietario || client.cnpj || "Cliente";
+          const nomeCliente = client.razao_social || client.proprietario || client.cnpj || "Cliente";
           if (nomeCliente && nomeCliente !== "Cliente") {
             clientesList.push({
               id: client.id,
@@ -353,15 +353,15 @@ export function NotasFiscaisSaida() {
       setIsLoadingRecibos(true);
 
       const { data, error } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .select(`
           *,
-          clients:client_id (id, company_name, cnpj),
-          aircraft:aircraft_id (id, registration)
+          clientes:clientes_id (id, razao_social, cnpj),
+          aircraft:aeronave_id (id, matricula)
         `)
-        .eq("type", "cliente")
-        .eq("reference_type", "contas_areceber")
-        .order("created_at", { ascending: false });
+        .eq("tipo", "cliente")
+        .eq("tipo_referencia", "contas_areceber")
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       setRecibos(data || []);
@@ -442,7 +442,7 @@ export function NotasFiscaisSaida() {
 
       const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
 
-      const clientId = formData.client_id?.trim() || null;
+      const clientId = formData.cliente_id?.trim() || null;
       const aircraftId = formData.aeronave_id?.trim() || null;
 
       if (clientId && !uuidPattern.test(clientId)) {
@@ -473,10 +473,10 @@ export function NotasFiscaisSaida() {
         valor: parseFloat(formData.valor),
         categoria: categoriaNome,
         descricao: formData.descricao || null,
-        status: formData.status,
+        status: formData.situacao,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave_registro || null,
-        aircraft_id: aircraftId,
+        aeronave_id: aircraftId,
         criado_por: currentUser.id,
       };
 
@@ -580,14 +580,14 @@ export function NotasFiscaisSaida() {
       numero: nota.numero,
       cliente_nome: nota.cliente_nome,
       cliente_cnpj: nota.cliente_cnpj,
-      client_id: nota.client_id || "",
+      client_id: nota.cliente_id || "",
       data_criacao: nota.data_criacao,
       data_vencimento: nota.data_vencimento,
       valor: nota.valor.toString(),
       categoria: nota.categoria,
       descricao: nota.descricao || "",
-      status: nota.status,
-      aeronave_id: nota.aircraft_id || nota.aeronave_id || "",
+      status: nota.situacao,
+      aeronave_id: nota.aeronave_id || nota.aeronave_id || "",
       aeronave_registro: nota.aeronave || nota.aeronave_registro || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
@@ -598,7 +598,7 @@ export function NotasFiscaisSaida() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
+    if (file.tipo !== "application/pdf") {
       toast({
         title: "Erro",
         description: "Por favor, selecione um arquivo PDF",
@@ -824,7 +824,7 @@ export function NotasFiscaisSaida() {
       }
 
       let aeronaveId = null;
-      const { data: aeroData } = await supabase.from("aircraft").select("id").eq("registration", reciboData.aeronave_registro).single();
+      const { data: aeroData } = await supabase.from('aeronave').select("id").eq('matricula', reciboData.aeronave_registro).single();
       aeronaveId = aeroData?.id || null;
 
       const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
@@ -856,18 +856,18 @@ export function NotasFiscaisSaida() {
 
       // Insert into bank_reconciliations to populate the receipts history
       const { error: bankReconciliationError } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .insert({
-          doc: numeroRecibo,
-          date: new Date().toISOString().split("T")[0],
-          description: reciboData.descricao || "Recibo de Saída - Serviços",
-          amount: parseFloat(reciboData.valor),
-          type: "cliente",
-          reference_type: "contas_areceber",
+          documento: numeroRecibo,
+          data: new Date().toISOString().split("T")[0],
+          descricao: reciboData.descricao || "Recibo de Saída - Serviços",
+          valor: parseFloat(reciboData.valor),
+          tipo: "cliente",
+          tipo_referencia: "contas_areceber",
           status: "pendente",
-          category: reciboData.categoriaRecibo || "Recibo de Serviço",
-          client_id: clientId,
-          aircraft_id: aeronaveId,
+          categoria: reciboData.categoriaRecibo || "Recibo de Serviço",
+          clientes_id: clientId,
+          aeronave_id: aeronaveId,
           nf_url: reciboUrl,
           prazo_pagamento: reciboData.data_vencimento,
           criado_por: currentUser.id,
@@ -933,14 +933,14 @@ export function NotasFiscaisSaida() {
     });
   };
 
-  const notasExibicao = notas.filter((n) => n.status !== "recebido");
+  const notasExibicao = notas.filter((n) => n.situacao !== "recebido");
 
   const totalPendente = notas
-    .filter((n) => n.status === "pendente")
+    .filter((n) => n.situacao === "pendente")
     .reduce((acc, n) => acc + n.valor, 0);
 
   const totalRecebido = notas
-    .filter((n) => n.status === "recebido")
+    .filter((n) => n.situacao === "recebido")
     .reduce((acc, n) => acc + n.valor, 0);
 
   const formatDateSafe = (dateStr: string | null | undefined): string => {
@@ -957,11 +957,11 @@ export function NotasFiscaisSaida() {
   const handleEditRecibo = (recibo: any) => {
     setEditingRecibo(recibo);
     setReciboEditData({
-      amount: recibo.amount.toString(),
-      service_description: recibo.description,
+      amount: recibo.valor.toString(),
+      service_description: recibo.descricao,
       max_payment_date: recibo.prazo_pagamento || "",
-      status: recibo.status || "enviado",
-      category_name: recibo.category || "",
+      status: recibo.situacao || "enviado",
+      category_name: recibo.categoria || "",
     });
     setShowReciboEditDialog(true);
   };
@@ -971,11 +971,11 @@ export function NotasFiscaisSaida() {
 
     setPendingReciboUpdate({
       id: editingRecibo.id,
-      amount: parseFloat(reciboEditData.amount),
+      amount: parseFloat(reciboEditData.valor),
       description: reciboEditData.service_description,
       prazo_pagamento: reciboEditData.max_payment_date || null,
-      status: reciboEditData.status,
-      category: reciboEditData.category_name,
+      status: reciboEditData.situacao,
+      category: reciboEditData.categoria_name,
     });
 
     setShowPdfConfirmDialog(true);
@@ -991,12 +991,12 @@ export function NotasFiscaisSaida() {
         setIsGeneratingPdfEdit(true);
 
         const dadosParaPDF = {
-          numero_recibo: editingRecibo.doc,
-          cliente_nome: editingRecibo.clients?.company_name || "Não informado",
+          numero_recibo: editingRecibo.documento,
+          cliente_nome: editingRecibo.clients?.razao_social || "Não informado",
           cliente_cnpj: editingRecibo.clients?.cnpj || "Não informado",
-          descricao: pendingReciboUpdate.description,
-          aeronave_registro: editingRecibo.aircraft?.registration || "",
-          valor: pendingReciboUpdate.amount,
+          descricao: pendingReciboUpdate.descricao,
+          aeronave_registro: editingRecibo.aeronave?.matricula || "",
+          valor: pendingReciboUpdate.valor,
         };
 
         const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
@@ -1024,15 +1024,15 @@ export function NotasFiscaisSaida() {
       }
 
       const { error } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .update({
-          amount: pendingReciboUpdate.amount,
-          description: pendingReciboUpdate.description,
+          valor: pendingReciboUpdate.valor,
+          descricao: pendingReciboUpdate.descricao,
           prazo_pagamento: pendingReciboUpdate.prazo_pagamento,
-          status: pendingReciboUpdate.status,
-          category: pendingReciboUpdate.category,
+          status: pendingReciboUpdate.situacao,
+          categoria: pendingReciboUpdate.categoria,
           nf_url: nfUrl,
-          updated_at: new Date().toISOString(),
+          atualizado_em: new Date().toISOString(),
         })
         .eq("id", String(pendingReciboUpdate.id).trim());
 
@@ -1066,7 +1066,7 @@ export function NotasFiscaisSaida() {
 
     try {
       const { error } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .delete()
         .eq("id", String(deleteReciboId).trim());
 
@@ -1123,7 +1123,7 @@ export function NotasFiscaisSaida() {
 
     try {
       const { error: updateError } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .update({
           status: newStatus,
           updated_at: new Date().toISOString(),
@@ -1157,7 +1157,7 @@ export function NotasFiscaisSaida() {
     try {
       setIsUploadingComprovante(true);
 
-      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${file.name.substring(file.name.lastIndexOf("."))}`;
+      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${file.nome.substring(file.nome.lastIndexOf("."))}`;
 
       const { error: uploadError } = await supabase.storage
         .from("nfs-share-saida")
@@ -1376,14 +1376,14 @@ export function NotasFiscaisSaida() {
                       <Label className="text-foreground">Cliente/Empresa *</Label>
                       <SearchableCombobox
                         items={clientes.map(c => ({ id: c.id, label: c.nome }))}
-                        value={formData.client_id}
+                        value={formData.cliente_id}
                         onChange={(id, label) => {
                           const clienteSelecionado = clientes.find(c => c.id === id);
                           setFormData({
                             ...formData,
                             client_id: id,
                             cliente_nome: label,
-                            cliente_cnpj: clienteSelecionado?.documento || ""
+                            cliente_cnpj: clienteSelecionado?.documentoumento || ""
                           });
                         }}
                         icon={<Building2 className="h-4 w-4" />}
@@ -1512,7 +1512,7 @@ export function NotasFiscaisSaida() {
                     </div>
                     <div>
                       <Label className="text-foreground">Status *</Label>
-                      <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
+                      <Select value={formData.situacao} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
                         <SelectTrigger className="w-full bg-background border-border">
                           <SelectValue />
                         </SelectTrigger>
@@ -1650,7 +1650,7 @@ export function NotasFiscaisSaida() {
                             ...reciboData,
                             cliente_id: id,
                             cliente_nome: label,
-                            cliente_cnpj: clienteSelecionado?.documento || ""
+                            cliente_cnpj: clienteSelecionado?.documentoumento || ""
                           });
                         }}
                         icon={<Building2 className="h-4 w-4" />}
@@ -1698,7 +1698,7 @@ export function NotasFiscaisSaida() {
                     <div>
                       <Label className="text-foreground font-medium mb-2 block">Data de Vencimento *</Label>
                       <Input
-                        type="date"
+                        type="data"
                         value={reciboData.data_vencimento}
                         onChange={(e) => setReciboData({ ...reciboData, data_vencimento: e.target.value })}
                         className="bg-background border-border"
@@ -1836,7 +1836,7 @@ export function NotasFiscaisSaida() {
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-4 text-sm">{nota.categoria}</TableCell>
                           <TableCell className="px-4 py-4 text-sm">
-                            {getStatusBadge(nota.status)}
+                            {getStatusBadge(nota.situacao)}
                           </TableCell>
                           <TableCell className="px-4 py-4 text-center">
                             {nota.arquivo_pdf_url ? (
@@ -1983,29 +1983,29 @@ export function NotasFiscaisSaida() {
                     <TableBody>
                       {recibos.map((recibo, idx) => (
                         <TableRow key={recibo.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
-                          <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.doc}</TableCell>
-                          <TableCell className="text-foreground px-4 py-3">{recibo.clients?.company_name || "-"}</TableCell>
+                          <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.documento}</TableCell>
+                          <TableCell className="text-foreground px-4 py-3">{recibo.clients?.razao_social || "-"}</TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {recibo.aircraft?.registration || "-"}
+                            {recibo.aeronave?.matricula || "-"}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {formatDateSafe(recibo.date)}
+                            {formatDateSafe(recibo.data)}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                             {formatDateSafe(recibo.prazo_pagamento)}
                           </TableCell>
                           <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
-                            R$ {parseFloat(recibo.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            R$ {parseFloat(recibo.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.category || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.categoria || "-"}</TableCell>
                           <TableCell className="px-4 py-3">
                             <Select
-                              value={recibo.status || "enviado"}
+                              value={recibo.situacao || "enviado"}
                               onValueChange={(newStatus) => handleUpdateReciboStatus(recibo.id, newStatus)}
                             >
-                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
-                                  recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
-                                  recibo.status === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
+                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.situacao === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
+                                  recibo.situacao === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
+                                  recibo.situacao === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
                                     "bg-gray-500/10 text-gray-600 border-gray-500/30"
                                 }`}>
                                 <SelectValue />
@@ -2082,11 +2082,11 @@ export function NotasFiscaisSaida() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Cliente</p>
-                    <p className="text-foreground font-medium">{editingRecibo.clients?.company_name || "-"}</p>
+                    <p className="text-foreground font-medium">{editingRecibo.clients?.razao_social || "-"}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Aeronave</p>
-                    <p className="text-foreground font-medium">{editingRecibo.aircraft?.registration || "-"}</p>
+                    <p className="text-foreground font-medium">{editingRecibo.aeronave?.matricula || "-"}</p>
                   </div>
                 </div>
               </div>
@@ -2097,7 +2097,7 @@ export function NotasFiscaisSaida() {
                   <Input
                     type="number"
                     step="0.01"
-                    value={reciboEditData.amount}
+                    value={reciboEditData.valor}
                     onChange={(e) => setReciboEditData({ ...reciboEditData, amount: e.target.value })}
                     className="bg-background border-border"
                   />
@@ -2105,7 +2105,7 @@ export function NotasFiscaisSaida() {
                 <div>
                   <Label className="text-foreground mb-2 block">Data de Vencimento</Label>
                   <Input
-                    type="date"
+                    type="data"
                     value={reciboEditData.max_payment_date}
                     onChange={(e) => setReciboEditData({ ...reciboEditData, max_payment_date: e.target.value })}
                     className="bg-background border-border"
@@ -2124,7 +2124,7 @@ export function NotasFiscaisSaida() {
               <div>
                 <Label className="text-foreground mb-2 block">Categoria</Label>
                 <Input
-                  value={reciboEditData.category_name}
+                  value={reciboEditData.categoria_name}
                   onChange={(e) => setReciboEditData({ ...reciboEditData, category_name: e.target.value })}
                   placeholder="Categoria"
                   className="bg-background border-border"
@@ -2132,7 +2132,7 @@ export function NotasFiscaisSaida() {
               </div>
               <div>
                 <Label className="text-foreground mb-2 block">Status</Label>
-                <Select value={reciboEditData.status} onValueChange={(value) => setReciboEditData({ ...reciboEditData, status: value })}>
+                <Select value={reciboEditData.situacao} onValueChange={(value) => setReciboEditData({ ...reciboEditData, status: value })}>
                   <SelectTrigger className="bg-background border-border">
                     <SelectValue />
                   </SelectTrigger>
@@ -2245,7 +2245,7 @@ export function NotasFiscaisSaida() {
               <div>
                 <Label className="text-foreground mb-2 block">Data de Recebimento *</Label>
                 <Input
-                  type="date"
+                  type="data"
                   value={recebimentoData.data_recebimento}
                   onChange={(e) => setRecebimentoData({ ...recebimentoData, data_recebimento: e.target.value })}
                   className="bg-background border-border"

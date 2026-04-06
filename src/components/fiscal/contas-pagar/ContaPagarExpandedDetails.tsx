@@ -34,7 +34,7 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Building2 className="h-3.5 w-3.5" />
-            <span className="truncate">{conta.clients?.company_name || "Administrativo"}</span>
+            <span className="truncate">{conta.clients?.razao_social || "Administrativo"}</span>
           </div>
         </div>
 

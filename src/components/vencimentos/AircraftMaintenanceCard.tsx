@@ -28,7 +28,7 @@ interface Vencimento {
   periodoValor?: any;
 }
 
-interface AircraftMaintenanceCardProps {
+interface AeronaveManutencaoCardProps {
   aeronave: string;
   aeronaveId: string;
   vencimentos: Vencimento[];
@@ -51,7 +51,7 @@ export function AircraftMaintenanceCard({
   vencimentos,
   onStatusChange,
   getStatusInfo,
-}: AircraftMaintenanceCardProps) {
+}: AeronaveManutencaoCardProps) {
   return (
     <Card className="bg-gradient-card border-border shadow-card overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="bg-gradient-to-r from-blue-500/15 via-primary/15 to-blue-500/5 px-6 py-5 border-b border-border/50">
@@ -115,7 +115,7 @@ export function AircraftMaintenanceCard({
             const statusInfo = getStatusInfo(
               vencimento.diasRestantes,
               vencimento.diasAlerta,
-              vencimento.status
+              vencimento.situacao
             );
             const StatusIcon = statusInfo.icon;
 

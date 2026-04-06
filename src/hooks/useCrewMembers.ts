@@ -13,14 +13,25 @@ export function useCrewMembers() {
       setError(null);
       
       const { data, error: fetchError } = await supabase
-        .from('crew_members')
-        .select('id, user_id, canac, full_name, birth_date, phone, avatar_url, status')
+        .from('membros_tripulacao')
+        .select('id, user_id, canac, nome_completo, data_nascimento, telefone, url_avatar, status')
         .eq('status', 'ativo')
-        .order('full_name', { ascending: true });
+        .order('nome_completo', { ascending: true });
 
       if (fetchError) throw fetchError;
       
-      setCrewMembers((data || []) as CrewMember[]);
+      const mappedData = (data || []).map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        canac: item.canac,
+        full_name: item.nome_completo,
+        birth_date: item.data_nascimento,
+        phone: item.telefone,
+        avatar_url: item.url_avatar,
+        status: item.status,
+      })) as CrewMember[];
+      
+      setCrewMembers(mappedData);
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching crew members:', err);

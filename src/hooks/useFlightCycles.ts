@@ -16,7 +16,7 @@ export function useFlightCycles() {
         .from('flight_cycles')
         .select(`
           *,
-          client:clients(company_name, proprietario),
+          client:clientes(razao_social, proprietario),
           aircraft:aircraft(registration, model),
           expenses:flight_expenses(*)
         `)
@@ -67,7 +67,7 @@ export function useFlightCycles() {
       flight_cycle_id: cycle.id,
       expense_type: 'tarifa_decea',
       expense_category: 'regulatoria',
-      expense_name: EXPENSE_TYPES.tarifa_decea.name,
+      expense_name: EXPENSE_TYPES.tarifa_decea.nome,
       status: 'aguardando',
       expected_date: format(addDays(flightDate, 30), 'yyyy-MM-dd'),
       deadline_days: 30,
@@ -79,7 +79,7 @@ export function useFlightCycles() {
         flight_cycle_id: cycle.id,
         expense_type: 'tarifa_infraero',
         expense_category: 'regulatoria',
-        expense_name: EXPENSE_TYPES.tarifa_infraero.name,
+        expense_name: EXPENSE_TYPES.tarifa_infraero.nome,
         status: 'aguardando',
         expected_date: format(addDays(flightDate, 30), 'yyyy-MM-dd'),
         deadline_days: 30,
@@ -92,7 +92,7 @@ export function useFlightCycles() {
         flight_cycle_id: cycle.id,
         expense_type: 'hospedagem',
         expense_category: 'relatorio_viagem',
-        expense_name: EXPENSE_TYPES.hospedagem.name,
+        expense_name: EXPENSE_TYPES.hospedagem.nome,
         status: 'aguardando',
         expected_date: format(addDays(flightDate, 3), 'yyyy-MM-dd'),
         deadline_days: 3,
@@ -101,7 +101,7 @@ export function useFlightCycles() {
         flight_cycle_id: cycle.id,
         expense_type: 'alimentacao',
         expense_category: 'relatorio_viagem',
-        expense_name: EXPENSE_TYPES.alimentacao.name,
+        expense_name: EXPENSE_TYPES.alimentacao.nome,
         status: 'aguardando',
         expected_date: format(addDays(flightDate, 3), 'yyyy-MM-dd'),
         deadline_days: 3,
@@ -114,7 +114,7 @@ export function useFlightCycles() {
         flight_cycle_id: cycle.id,
         expense_type: 'hangar_particular',
         expense_category: 'variavel',
-        expense_name: EXPENSE_TYPES.hangar_particular.name,
+        expense_name: EXPENSE_TYPES.hangar_particular.nome,
         status: 'aguardando',
         expected_date: format(addDays(flightDate, 5), 'yyyy-MM-dd'),
         deadline_days: 5,
@@ -127,7 +127,7 @@ export function useFlightCycles() {
         flight_cycle_id: cycle.id,
         expense_type: 'combustivel_emergencia',
         expense_category: 'imediata',
-        expense_name: EXPENSE_TYPES.combustivel_emergencia.name,
+        expense_name: EXPENSE_TYPES.combustivel_emergencia.nome,
         status: 'aguardando',
         expected_date: format(addDays(flightDate, 7), 'yyyy-MM-dd'),
         deadline_days: 7,
@@ -261,16 +261,16 @@ export function useFlightCycles() {
 
   // Calculate statistics
   const getStatistics = useCallback(() => {
-    const activeFlights = cycles.filter(c => !['finalizado'].includes(c.status)).length;
-    const completedFlights = cycles.filter(c => c.status === 'finalizado').length;
+    const activeFlights = cycles.filter(c => !['finalizado'].includes(c.situacao)).length;
+    const completedFlights = cycles.filter(c => c.situacao === 'finalizado').length;
     
     let overdueExpenses = 0;
     let pendingExpenses = 0;
     
     cycles.forEach(cycle => {
       cycle.expenses?.forEach(expense => {
-        if (expense.status === 'atrasada') overdueExpenses++;
-        if (['aguardando', 'recebida', 'enviada'].includes(expense.status)) pendingExpenses++;
+        if (expense.situacao === 'atrasada') overdueExpenses++;
+        if (['aguardando', 'recebida', 'enviada'].includes(expense.situacao)) pendingExpenses++;
       });
     });
 

@@ -47,7 +47,7 @@ import { toast } from "@/components/ui/use-toast";
 interface BookingRequest {
   id: string;
   client_id: string;
-  aircraft_id: string;
+  aeronave_id: string;
   aircraft?: any;
   origin: string;
   destination: string;
@@ -82,14 +82,14 @@ export default function AprovacaoAgendamentos() {
         .select(
           `
           *,
-          aircraft:aircraft_id(id, registration, model),
+          aircraft:aeronave_id(id, registration, model),
           user:client_id(id, full_name, email)
         `
         )
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       if (filterStatus !== "all") {
-        query = query.eq("status", filterStatus);
+        query = query.eq("situacao", filterStatus);
       }
 
       const { data, error } = await query;
@@ -175,7 +175,7 @@ export default function AprovacaoAgendamentos() {
   // Group bookings by aircraft
   const groupedByAircraft = (bookings || []).reduce(
     (acc, booking) => {
-      const aircraftKey = booking.aircraft?.registration || "Desconhecido";
+      const aircraftKey = booking.aeronave?.matricula || "Desconhecido";
       if (!acc[aircraftKey]) {
         acc[aircraftKey] = [];
       }
@@ -187,9 +187,9 @@ export default function AprovacaoAgendamentos() {
 
   const stats = {
     total: bookings?.length || 0,
-    pending: bookings?.filter(b => b.status === "pendente").length || 0,
-    approved: bookings?.filter(b => b.status === "confirmado").length || 0,
-    rejected: bookings?.filter(b => b.status === "rejeitado").length || 0
+    pending: bookings?.filter(b => b.situacao === "pendente").length || 0,
+    approved: bookings?.filter(b => b.situacao === "confirmado").length || 0,
+    rejected: bookings?.filter(b => b.situacao === "rejeitado").length || 0
   };
 
   const getStatusColor = (status: string) => {
@@ -337,9 +337,9 @@ export default function AprovacaoAgendamentos() {
                               <h4 className="text-base font-semibold text-foreground">
                                 {booking.user?.full_name || "Cliente"}
                               </h4>
-                              <Badge variant="outline" className={getStatusColor(booking.status)}>
-                                {getStatusIcon(booking.status)}
-                                {booking.status}
+                              <Badge variant="outline" className={getStatusColor(booking.situacao)}>
+                                {getStatusIcon(booking.situacao)}
+                                {booking.situacao}
                               </Badge>
                             </div>
 
@@ -390,14 +390,14 @@ export default function AprovacaoAgendamentos() {
                             {/* Created At */}
                             <p className="text-xs text-muted-foreground mt-2">
                               Solicitado em{" "}
-                              {format(new Date(booking.created_at), "dd/MM/yyyy HH:mm", {
+                              {format(new Date(booking.criado_em), "dd/MM/yyyy HH:mm", {
                                 locale: ptBR
                               })}
                             </p>
                           </div>
 
                           {/* Actions */}
-                          {booking.status === "pendente" && (
+                          {booking.situacao === "pendente" && (
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -432,7 +432,7 @@ export default function AprovacaoAgendamentos() {
                             </div>
                           )}
 
-                          {booking.status !== "pendente" && (
+                          {booking.situacao !== "pendente" && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -469,9 +469,9 @@ export default function AprovacaoAgendamentos() {
               {/* Status */}
               <div>
                 <label className="text-sm font-semibold text-foreground">Status</label>
-                <Badge className={`mt-2 ${getStatusColor(selectedBooking.status)}`}>
-                  {getStatusIcon(selectedBooking.status)}
-                  {selectedBooking.status}
+                <Badge className={`mt-2 ${getStatusColor(selectedBooking.situacao)}`}>
+                  {getStatusIcon(selectedBooking.situacao)}
+                  {selectedBooking.situacao}
                 </Badge>
               </div>
 
@@ -486,7 +486,7 @@ export default function AprovacaoAgendamentos() {
               <div>
                 <label className="text-sm font-semibold text-foreground">Aeronave</label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {selectedBooking.aircraft?.model} ({selectedBooking.aircraft?.registration})
+                  {selectedBooking.aeronave?.modelo} ({selectedBooking.aeronave?.matricula})
                 </p>
               </div>
 

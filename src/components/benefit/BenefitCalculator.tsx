@@ -318,7 +318,7 @@ export function BenefitCalculatorReal({
           <CardContent className="space-y-4 pt-6">
             <div className="space-y-2">
               <Label htmlFor="transactionDate" className="font-medium text-sm text-slate-300">Data</Label>
-              <Input id="transactionDate" type="date" value={newTransaction.transaction_date} onChange={e => setNewTransaction(prev => ({
+              <Input id="transactionDate" type="data" value={newTransaction.transaction_date} onChange={e => setNewTransaction(prev => ({
               ...prev,
               transaction_date: e.target.value
             }))} className="bg-slate-700 border-slate-600 text-white" />

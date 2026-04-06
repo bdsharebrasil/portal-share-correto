@@ -7,15 +7,15 @@ import type { Tables } from "@/integrations/supabase/types";
 // =======================================================
 
 // Tabela 'clients' (Para o Select de Cliente)
-export type Cliente = Tables<"clients">;
+export type Cliente = Tables<"clientes">;
 const clientesQueryKey = ["clientes-list"];
 
 // Tabela 'aircraft' (Para o Select de Aeronave)
-export type Aeronave = Tables<"aircraft">;
+export type Aeronave = Tables<"aeronave">;
 const aeronavesQueryKey = ["aeronaves-list"];
 
-// Tabela 'crew_members' (Para o Select de Tripulante)
-export type Tripulante = Tables<"crew_members">;
+// Tabela 'membros_tripulacao' (Para o Select de Tripulante)
+export type Tripulante = Tables<"membros_tripulacao">;
 const tripulantesQueryKey = ["tripulantes-list"];
 
 
@@ -32,9 +32,9 @@ export const useClientes = () => {
     queryKey: clientesQueryKey,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("clients")
-        .select("id, company_name, email, phone")
-        .order("company_name", { ascending: true });
+        .from("clientes")
+        .select("id, razao_social, email, phone")
+        .order("razao_social", { ascending: true });
 
       if (error) {
         console.error("Erro ao buscar clientes:", error);
@@ -70,10 +70,10 @@ export const useAeronaves = () => {
     queryKey: aeronavesQueryKey,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model, manufacturer")
+        .from('aeronave')
+        .select('id, matricula, modelo, fabricante')
         .eq("status", "ativa")
-        .order("registration", { ascending: true });
+        .order('matricula', { ascending: true });
 
       if (error) {
         console.error("Erro ao buscar aeronaves:", error);
@@ -101,7 +101,7 @@ export const useAeronaves = () => {
 // =======================================================
 
 /**
- * Busca todos os membros ativos da tripulação na tabela 'crew_members'.
+ * Busca todos os membros ativos da tripulação na tabela 'membros_tripulacao'.
  * Retorna uma lista ordenada pelo nome completo.
  */
 export const useTripulantes = () => {
@@ -109,10 +109,10 @@ export const useTripulantes = () => {
     queryKey: tripulantesQueryKey,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("crew_members")
-        .select("id, full_name, canac, status")
-        .eq("status", "active")
-        .order("full_name", { ascending: true });
+        .from("membros_tripulacao")
+        .select("id, nome_completo, canac, status")
+        .eq("status", "ativo")
+        .order("nome_completo", { ascending: true });
 
       if (error) {
         console.error("Erro ao buscar tripulantes:", error);
@@ -127,7 +127,7 @@ export const useTripulantes = () => {
 
   // Retornamos 'uniqueTripulantesNames' para simplificar o Select do formulário
   const uniqueTripulantesNames = query.data
-    ?.map(t => t.full_name)
+    ?.map(t => t.nome_completo)
     .filter(Boolean) ?? [];
 
   return {

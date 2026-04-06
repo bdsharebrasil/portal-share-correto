@@ -176,7 +176,7 @@ export function TimeClockWidget() {
           </p>
         </div>
 
-        {todayEntry?.status === 'concluido' ? (
+        {todayEntry?.situacao === 'concluido' ? (
           <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
             <p className="text-green-600 font-medium">Ponto encerrado</p>
             <p className="text-sm text-muted-foreground">

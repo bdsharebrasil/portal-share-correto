@@ -59,7 +59,7 @@ export default function Ferias() {
         .from("vacation_requests")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       return data;
@@ -73,7 +73,7 @@ export default function Ferias() {
       const { data, error } = await supabase
         .from("vacation_requests")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       return data;
@@ -88,8 +88,8 @@ export default function Ferias() {
       const { data, error } = await supabase
         .from("vacation_requests")
         .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+        .eq("situacao", "pending")
+        .order("criado_em", { ascending: false });
 
       if (error) throw error;
       return data;
@@ -212,9 +212,9 @@ export default function Ferias() {
                         {format(new Date(request.start_date), "dd/MM/yyyy", { locale: ptBR })} - {format(new Date(request.end_date), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{request.days_requested} dias</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{request.reason || "-"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{request.motivo || "-"}</TableCell>
                       <TableCell>
-                        {format(new Date(request.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        {format(new Date(request.criado_em), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       {canManageVacations && (
                         <TableCell>
@@ -282,10 +282,10 @@ export default function Ferias() {
                         {format(new Date(request.start_date), "dd/MM/yyyy", { locale: ptBR })} - {format(new Date(request.end_date), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{request.days_requested} dias</TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{request.reason || "-"}</TableCell>
+                      <TableCell>{getStatusBadge(request.situacao)}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{request.motivo || "-"}</TableCell>
                       <TableCell>
-                        {format(new Date(request.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        {format(new Date(request.criado_em), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -365,7 +365,7 @@ export default function Ferias() {
                         {format(new Date(request.start_date), "dd/MM/yyyy", { locale: ptBR })} - {format(new Date(request.end_date), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{request.days_requested} dias</TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
+                      <TableCell>{getStatusBadge(request.situacao)}</TableCell>
                       <TableCell>
                         {request.approved_by ? getUserName(request.approved_by) : "-"}
                       </TableCell>

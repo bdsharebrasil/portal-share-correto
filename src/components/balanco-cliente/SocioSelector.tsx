@@ -72,7 +72,7 @@ export function SocioSelector({
                 <>
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <span className="truncate">
-                    {clienteAtual.company_name || clienteAtual.proprietario}
+                    {clienteAtual.razao_social || clienteAtual.proprietario}
                   </span>
                   {clienteAtual.temMultiplosSocios && (
                     <Badge variant="outline" className="ml-1 text-xs">
@@ -93,7 +93,7 @@ export function SocioSelector({
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
                 <span className="font-medium">
-                  {cliente.company_name || cliente.proprietario}
+                  {cliente.razao_social || cliente.proprietario}
                 </span>
                 {cliente.temMultiplosSocios && (
                   <Badge variant="outline" className="ml-1 text-xs">

@@ -330,14 +330,14 @@ export function FluxoCaixa() {
         t.numero_documento?.toLowerCase().includes(advancedFilters.search.toLowerCase());
 
       const matchesStatus =
-        advancedFilters.status === "all" || t.status === advancedFilters.status;
+        advancedFilters.situacao === "all" || t.situacao === advancedFilters.situacao;
 
       const val = Number(t.valor);
       const matchesValue =
-        val >= advancedFilters.amountRange[0] && val <= advancedFilters.amountRange[1];
+        val >= advancedFilters.valorRange[0] && val <= advancedFilters.valorRange[1];
 
       let matchesDate = true;
-      if (advancedFilters.dateRange?.from) {
+      if (advancedFilters.dataRange?.from) {
         const dateStr = t.data;
         let txDate: Date;
         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -346,8 +346,8 @@ export function FluxoCaixa() {
         } else {
           txDate = new Date(t.data);
         }
-        const from = advancedFilters.dateRange.from;
-        const to = advancedFilters.dateRange.to ?? from;
+        const from = advancedFilters.dataRange.from;
+        const to = advancedFilters.dataRange.to ?? from;
         matchesDate = txDate >= from && txDate <= to;
       }
 
@@ -457,7 +457,7 @@ export function FluxoCaixa() {
   // ── Render da célula do body por coluna ──────────────────────────────────────
   const renderCell = (column: string, transacao: any, lineNumber: number) => {
     const isEntrada = transacao.tipo_movimento === "entrada";
-    const isPendente = transacao.status === "pendente";
+    const isPendente = transacao.situacao === "pendente";
     const colWidth = columnWidths[column] ?? defaultColumnWidths[column as keyof typeof defaultColumnWidths];
     const style = { width: colWidth, minWidth: colWidth, maxWidth: colWidth };
 
@@ -587,12 +587,12 @@ export function FluxoCaixa() {
             </TooltipProvider>
           </TableCell>
         );
-      case "status":
+      case "situacao":
         return (
-          <TableCell key="status" style={style}>
-            {transacao.status ? (
-              <Badge variant="outline" className={getStatusColor(transacao.status, transacao.tipo_movimento)}>
-                {transacao.status}
+          <TableCell key="situacao" style={style}>
+            {transacao.situacao ? (
+              <Badge variant="outline" className={getStatusColor(transacao.situacao, transacao.tipo_movimento)}>
+                {transacao.situacao}
               </Badge>
             ) : (
               <span className="text-muted-foreground">-</span>
@@ -836,7 +836,7 @@ export function FluxoCaixa() {
                   {paginatedTransacoes.map((transacao: any, idx: number) => {
                     const isEntrada = transacao.tipo_movimento === "entrada";
                     const isSelected = selectedIds.has(transacao.id);
-                    const isPendente = transacao.status === "pendente";
+                    const isPendente = transacao.situacao === "pendente";
                     const lineNumber = startIndex + idx + 1;
 
                     return (

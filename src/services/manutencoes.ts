@@ -23,12 +23,12 @@ export interface ManutencaoWithAircraft extends ManutencaoRow {
 }
 
 export const fetchAircraftMap = async (): Promise<Record<string, string>> => {
-  // Try primary table name "aircraft" first (mais comum), fallback to "aeronave"
+  // Try primary table name "aeronave" first (mais comum), fallback to "aeronave"
   const maps: Record<string, string> = {};
 
   const tryFetch = async (table: any) => {
     try {
-      const { data, error } = await supabase.from(table as any).select("id, registration");
+      const { data, error } = await supabase.from(table as any).select('id, matricula');
       if (!error && data && data.length > 0) {
         for (const row of data as any[]) {
           if (row.id && row.registration) {
@@ -45,8 +45,8 @@ export const fetchAircraftMap = async (): Promise<Record<string, string>> => {
     }
   };
 
-  // Tentar "aircraft" primeiro
-  const ok = await tryFetch("aircraft");
+  // Tentar "aeronave" primeiro
+  const ok = await tryFetch("aeronave");
   if (!ok) {
     // Fallback para "aeronave"
     await tryFetch("aeronave");
@@ -61,7 +61,7 @@ export const fetchManutencoesWithAircraft = async (): Promise<ManutencaoWithAirc
     const { data, error } = await supabase
       .from("manutencoes")
       .select("*")
-      .order("updated_at", { ascending: false }); // Ordenar por updated_at para incluir manutenções por horas
+      .order("atualizado_em", { ascending: false }); // Ordenar por updated_at para incluir manutenções por horas
 
     if (error) {
       console.error("Erro ao buscar manutenções:", error);
@@ -169,10 +169,10 @@ export const fetchManutencaoRevisao = async (
   const { data, error } = await supabase
     .from("manutencoes")
     .select("*")
-    .eq("aeronave_id", aircraftId)
+    .eq("id_aeronave", aircraftId)
     .eq("vencimento_tipo", "horas")
     .ilike("tipo", "%revisão%")
-    .order("created_at", { ascending: false })
+    .order("criado_em", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -193,12 +193,12 @@ export const fetchManutencaoRevisaoAtiva = async (
   const { data, error } = await supabase
     .from("manutencoes")
     .select("*")
-    .eq("aeronave_id", aircraftId)
+    .eq("id_aeronave", aircraftId)
     .eq("vencimento_tipo", "horas")
     .ilike("tipo", "%revisão%")
     .neq("etapa", "concluida")
     .neq("etapa", "cancelada")
-    .order("created_at", { ascending: false })
+    .order("criado_em", { ascending: false })
     .limit(1)
     .maybeSingle();
 

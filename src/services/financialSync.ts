@@ -32,12 +32,12 @@ export async function syncBankReconciliationToFinancial(
   try {
     // Buscar a reconciliation com dados relacionados
     const { data: rec, error: recError } = await supabase
-      .from("bank_reconciliations")
+      .from("conciliacoes_bancarias")
       .select(`
         *,
-        clients:client_id(company_name, cnpj),
-        aircraft:aircraft_id(registration),
-        user_profiles:receiver_id(full_name)
+        clientes:cliente_id(razao_social, cnpj),
+        aircraft:aeronave_id(registration),
+        user_profiles:recebedor_id(full_name)
       `)
       .eq("id", reconciliationId)
       .single();
@@ -50,12 +50,12 @@ export async function syncBankReconciliationToFinancial(
     let contaAreceberId: string | undefined;
 
     // Determinar tipo de movimento baseado no type
-    const tipoMovimento = rec.type === "cliente" ? "entrada" : "saída";
-    const grupoCategoria = rec.type === "cliente" ? "Clientes" : "Colaboradores";
+    const tipoMovimento = rec.tipo === "cliente" ? "entrada" : "saída";
+    const grupoCategoria = rec.tipo === "cliente" ? "Clientes" : "Colaboradores";
 
     // Criar registro no controle_bancario (fluxo de caixa)
-    const descricaoBase = rec.type === "cliente"
-      ? `Reembolso - ${(rec.clients as any)?.company_name || "Cliente"}${(rec.aircraft as any)?.registration ? ` (${(rec.aircraft as any).registration})` : ""}`
+    const descricaoBase = rec.tipo === "cliente"
+      ? `Reembolso - ${(rec.clients as any)?.razao_social || "Cliente"}${(rec.aeronave as any)?.registration ? ` (${(rec.aeronave as any).registration})` : ""}`
       : `Pagamento - ${(rec.user_profiles as any)?.full_name || "Colaborador"}`;
 
     const referencia = `REC-${reconciliationId.slice(0, 8)}`;
@@ -71,15 +71,15 @@ export async function syncBankReconciliationToFinancial(
       const { data: cbData, error: cbError } = await supabase
         .from("controle_bancario")
         .insert({
-          data: rec.date,
+          data: rec.data,
           tipo_movimento: tipoMovimento,
-          categoria: rec.category || (rec.type === "cliente" ? "Reembolso" : "Pagamento"),
-          descricao: `${descricaoBase} - ${rec.description}`,
-          valor: rec.amount,
+          categoria: rec.categoria || (rec.tipo === "cliente" ? "Reembolso" : "Pagamento"),
+          descricao: `${descricaoBase} - ${rec.descricao}`,
+          valor: rec.valor,
           referencia,
-          status: mapReconciliationStatusToFluxo(rec.status, rec.type),
+          status: mapReconciliationStatusToFluxo(rec.situacao, rec.tipo),
           criado_por: userId,
-          colaborador_id: rec.receiver_id || null,
+          colaborador_id: rec.recebedor_id || null,
           comprovante_url: rec.comprovante_url || null,
           observacoes: null,
           grupo_categoria: grupoCategoria,
@@ -95,14 +95,14 @@ export async function syncBankReconciliationToFinancial(
 
         // Vincular o controle_bancario_id na bank_reconciliation
         await supabase
-          .from("bank_reconciliations")
+          .from("conciliacoes_bancarias")
           .update({ controle_bancario_id: controleBancarioId })
           .eq("id", reconciliationId);
       }
     }
 
     // Se é tipo cliente, criar conta a receber
-    if (rec.type === "cliente" && rec.client_id) {
+    if (rec.tipo === "cliente" && rec.cliente_id) {
       const { data: existingConta } = await supabase
         .from("contas_areceber")
         .select("id")
@@ -112,7 +112,7 @@ export async function syncBankReconciliationToFinancial(
       if (!existingConta) {
         const numeroDocumento = `REIMB-${reconciliationId.slice(0, 8)}`;
         // Usar partner_name quando disponível
-        const nomeExibicao = (rec as any).partner_name || (rec.clients as any)?.company_name || "Cliente";
+        const nomeExibicao = (rec as any).nome_socio || (rec.clients as any)?.razao_social || "Cliente";
         const { data: contaData, error: contaError } = await supabase
           .from("contas_areceber")
           .insert({
@@ -120,14 +120,14 @@ export async function syncBankReconciliationToFinancial(
             referencia: nomeExibicao,
             cliente_nome: nomeExibicao,
             cliente_cnpj: (rec.clients as any)?.cnpj || "",
-            data_criacao: rec.date,
-            data_vencimento: rec.prazo_pagamento || rec.date,
-            valor: rec.amount,
-            categoria: rec.category || "Reembolso de Despesa",
-            descricao: rec.description,
-            status: rec.status === "recebido" ? "recebido" : "pendente",
+            data_criacao: rec.data,
+            data_vencimento: rec.prazo_pagamento || rec.data,
+            valor: rec.valor,
+            categoria: rec.categoria || "Reembolso de Despesa",
+            descricao: rec.descricao,
+            status: rec.situacao === "recebido" ? "recebido" : "pendente",
             arquivo_pdf_url: rec.nf_url || null,
-            aeronave: (rec.aircraft as any)?.registration || "",
+            aeronave: (rec.aeronave as any)?.registration || "",
             criado_por: userId,
           })
           .select("id")

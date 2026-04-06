@@ -30,7 +30,7 @@ interface StatusUpdateDialogProps {
     category?: string;
     client_id?: string;
     receiver_id?: string;
-    aircraft_id?: string;
+    aeronave_id?: string;
     prazo_pagamento?: string;
     forma_pagamento?: string;
     saldo_pendente?: number | null;
@@ -161,7 +161,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
 
       // 1. Atualizar status na conciliação
       const { error } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .update(updateData as any)
         .eq("id", reconciliation.id as any);
 
@@ -185,7 +185,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
           category: reconciliation.category || null,
           client_id: reconciliation.client_id,
           receiver_id: reconciliation.receiver_id,
-          aircraft_id: reconciliation.aircraft_id,
+          aeronave_id: reconciliation.aeronave_id,
           saldo_pendente: reconciliation.saldo_pendente,
         };
 
@@ -222,7 +222,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
           category: reconciliation.category || null,
           client_id: reconciliation.client_id,
           receiver_id: reconciliation.receiver_id,
-          aircraft_id: reconciliation.aircraft_id,
+          aeronave_id: reconciliation.aeronave_id,
           saldo_pendente: reconciliation.saldo_pendente,
         };
 
@@ -319,7 +319,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
                 Prazo de Vencimento <span className="text-destructive">*</span>
               </Label>
               <Input
-                type="date"
+                type="data"
                 value={paymentTerm}
                 onChange={(e) => setPaymentTerm(e.target.value)}
                 min={format(new Date(), 'yyyy-MM-dd')}

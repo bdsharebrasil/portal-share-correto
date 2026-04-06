@@ -32,10 +32,10 @@ export default function CTMDashboardPage() {
   const loadAircraft = async () => {
     try {
       const { data: aircraftData, error: aircraftError } = await supabase
-        .from('aircraft')
-        .select('id, registration, model, status, cell_hours_current')
+        .from('aeronave')
+        .select('id, matricula, modelo, status')
         .eq('status', 'ativa')
-        .order('registration');
+        .order("matricula");
 
       if (aircraftError) throw aircraftError;
 
@@ -93,8 +93,8 @@ export default function CTMDashboardPage() {
     );
   };
 
-  const activeAircraft = aircraft.filter((a) => isActiveStatus(a.status) && filterAircraft(a));
-  const inactiveAircraft = aircraft.filter((a) => isInactiveStatus(a.status) && filterAircraft(a));
+  const activeAircraft = aircraft.filter((a) => isActiveStatus(a.situacao) && filterAircraft(a));
+  const inactiveAircraft = aircraft.filter((a) => isInactiveStatus(a.situacao) && filterAircraft(a));
 
   if (loading) {
     return (
@@ -108,8 +108,8 @@ export default function CTMDashboardPage() {
 
   // Show dashboard if aircraft is selected
   if (selectedAircraftId) {
-    const selectedAircraft = aircraft.find(ac => ac.id === selectedAircraftId);
-    if (!selectedAircraft) return null;
+    const selectedAeronave = aircraft.find(ac => ac.id === selectedAircraftId);
+    if (!selectedAeronave) return null;
 
     return (
       <Layout>
@@ -123,8 +123,8 @@ export default function CTMDashboardPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">{selectedAircraft.registration}</h1>
-              <p className="text-sm text-muted-foreground">{selectedAircraft.model}</p>
+              <h1 className="text-2xl font-bold">{selectedAeronave.registration}</h1>
+              <p className="text-sm text-muted-foreground">{selectedAeronave.model}</p>
             </div>
           </div>
           <CTMDashboard aircraftId={selectedAircraftId} />
@@ -134,7 +134,7 @@ export default function CTMDashboardPage() {
   }
 
   // Show aircraft selection
-  const AircraftCard = ({ ac }: { ac: Aircraft }) => (
+  const AeronaveCard = ({ ac }: { ac: Aircraft }) => (
     <button
       onClick={() => setSelectedAircraftId(ac.id)}
       className="group relative overflow-hidden rounded-lg border border-border bg-background/50 p-4 text-left transition-all hover:border-primary/50 hover:bg-background hover:shadow-md"
@@ -201,14 +201,14 @@ export default function CTMDashboardPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {activeAircraft.map((ac) => (
-                <AircraftCard key={ac.id} ac={ac} />
+                <AeronaveCard key={ac.id} ac={ac} />
               ))}
             </div>
           </div>
         )}
 
         {/* Inactive Aircraft Section */}
-        {aircraft.some((a) => isInactiveStatus(a.status)) && (
+        {aircraft.some((a) => isInactiveStatus(a.situacao)) && (
           <div className="space-y-3">
             <button
               onClick={() => setShowInactive((s) => !s)}
@@ -227,7 +227,7 @@ export default function CTMDashboardPage() {
             {showInactive && inactiveAircraft.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 {inactiveAircraft.map((ac) => (
-                  <AircraftCard key={ac.id} ac={ac} />
+                  <AeronaveCard key={ac.id} ac={ac} />
                 ))}
               </div>
             )}

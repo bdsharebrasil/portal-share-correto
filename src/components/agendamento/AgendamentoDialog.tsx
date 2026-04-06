@@ -47,7 +47,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    aircraft_id: "",
+    aeronave_id: "",
     flight_date: "",
     flight_time: "",
     estimated_duration: "",
@@ -82,11 +82,11 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
         if (!data) return;
         const scheduleData = data as any;
         setFormData({
-          aircraft_id: scheduleData.aircraft_id || "",
+          aeronave_id: scheduleData.aeronave_id || "",
           flight_date: scheduleData.flight_date || "",
           flight_time: scheduleData.flight_time || "",
           estimated_duration: scheduleData.estimated_duration || "",
-          client_id: scheduleData.client_id || "",
+          client_id: scheduleData.cliente_id || "",
           contact: scheduleData.contact || "",
           passengers: String(scheduleData.passengers ?? "1"),
           flight_type: scheduleData.flight_type || "treinamento",
@@ -94,7 +94,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
           destination: scheduleData.destination || "",
           crew_member_id: scheduleData.crew_member_id || "",
           status: scheduleData.status || "pendente",
-          observations: scheduleData.observations || "",
+          observations: scheduleData.observacoes || "",
         });
       } catch (error) {
         console.error("Error loading schedule:", error);
@@ -110,9 +110,9 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
     setLoading(true);
     try {
       const [aircraftRes, crewRes, clientsRes, aerodromeRes] = await Promise.all([
-        supabase.from("aircraft").select("id, registration, model").eq("status", "Ativa"),
-        supabase.from("crew_members").select("id, full_name").eq("status", "ativo" as any),
-        supabase.from("clients").select("id, company_name"),
+        supabase.from('aeronave').select('id, matricula, modelo'),
+        supabase.from("user_profiles").select("id, full_name"),
+        supabase.from("clientes").select("id, razao_social"),
         supabase.from("aerodromes").select("id, name, designativo"),
       ]);
 
@@ -121,9 +121,9 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
       if (clientsRes.error) throw clientsRes.error;
       if (aerodromeRes.error) throw aerodromeRes.error;
 
-      setAircraft((aircraftRes.data || []) as Aircraft[]);
+      setAircraft((aircraftRes.data || []).map((a: any) => ({ id: a.id, registration: a.matricula, model: a.modelo })) as Aircraft[]);
       setCrewMembers((crewRes.data || []) as CrewMember[]);
-      setClients((clientsRes.data || []) as Client[]);
+      setClients((clientsRes.data || []).map((c: any) => ({ id: c.id, company_name: c.razao_social })) as Client[]);
       setAerodromes((aerodromeRes.data || []) as Aerodrome[]);
     } catch (error) {
       console.error("Error loading data:", error);
@@ -134,7 +134,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
   };
 
   const handleSubmit = async () => {
-    if (!formData.aircraft_id || !formData.flight_date || !formData.origin) {
+    if (!formData.aeronave_id || !formData.flight_date || !formData.origin) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
@@ -145,7 +145,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
         const { error } = await supabase
           .from("flight_schedules")
           .update({
-            aircraft_id: formData.aircraft_id,
+            aeronave_id: formData.aeronave_id,
             flight_date: formData.flight_date,
             flight_time: formData.flight_time || null,
             estimated_duration: formData.estimated_duration || null,
@@ -164,7 +164,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
         toast.success("Agendamento atualizado com sucesso!");
       } else {
         const { error } = await supabase.from("flight_schedules").insert({
-          aircraft_id: formData.aircraft_id,
+          aeronave_id: formData.aeronave_id,
           flight_date: formData.flight_date,
           flight_time: formData.flight_time || null,
           estimated_duration: formData.estimated_duration || null,
@@ -194,7 +194,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
 
   const resetForm = () => {
     setFormData({
-      aircraft_id: "",
+      aeronave_id: "",
       flight_date: "",
       flight_time: "",
       estimated_duration: "",
@@ -224,10 +224,10 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
           {/* Basic Flight Info */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="aircraft">Aeronave *</Label>
+              <Label htmlFor="aeronave">Aeronave *</Label>
               <Select
-                value={formData.aircraft_id}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, aircraft_id: value }))}
+                value={formData.aeronave_id}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, aeronave_id: value }))}
               >
                 <SelectTrigger className="bg-secondary">
                   <SelectValue placeholder="Selecione a aeronave..." />
@@ -246,7 +246,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
               <Label htmlFor="flight_date">Data do Voo *</Label>
               <Input
                 id="flight_date"
-                type="date"
+                type="data"
                 className="bg-secondary"
                 value={formData.flight_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, flight_date: e.target.value }))}
@@ -421,9 +421,9 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="observations">Observações</Label>
+              <Label htmlFor="observacoes">Observações</Label>
               <Textarea
-                id="observations"
+                id="observacoes"
                 placeholder="Observações adicionais sobre o voo..."
                 className="bg-secondary min-h-[80px]"
                 value={formData.observations}

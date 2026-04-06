@@ -39,7 +39,7 @@ interface Client {
 
 interface Aircraft {
   id: string;
-  registration: string;
+  matricula: string;
 }
 
 interface UserProfile {
@@ -163,8 +163,8 @@ export function AddBankReconciliationDialog({
       setLoadingData(true);
 
       const [clientsResponse, aircraftResponse, usersResponse, categoriesResponse] = await Promise.all([
-        supabase.from("clients").select("id, company_name").order("company_name"),
-        supabase.from("aircraft").select("id, registration").order("registration"),
+        supabase.from("clientes").select("id, razao_social").order("razao_social"),
+        supabase.from('aeronave').select('id, matricula').order("matricula"),
         supabase
           .from("user_profiles")
           .select("id, full_name, employment_status")
@@ -214,7 +214,7 @@ export function AddBankReconciliationDialog({
       const fileName = `reconciliation/${timestamp}-${fieldName}.${fileExt}`;
 
       const { error: uploadError, data } = await supabase.storage
-        .from("documents")
+        .from("documentos")
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) {
@@ -222,7 +222,7 @@ export function AddBankReconciliationDialog({
       }
 
       const { data: urlData } = supabase.storage
-        .from("documents")
+        .from("documentos")
         .getPublicUrl(fileName);
 
       return urlData.publicUrl;
@@ -277,11 +277,11 @@ export function AddBankReconciliationDialog({
       };
 
       if (data.type === "cliente") {
-        insertData.client_id = data.clientId;
-        insertData.aircraft_id = data.aircraftId;
+        insertData.cliente_id = data.clientId;
+        insertData.aeronave_id = data.aircraftId;
 
         if (data.reembolsavel === "sim") {
-          insertData.category = data.category;
+          insertData.categoria = data.category;
         } else {
           insertData.boleto_url = boletoUrl;
           insertData.nf_url = notaUrl;
@@ -305,11 +305,11 @@ export function AddBankReconciliationDialog({
           );
         }
 
-        insertData.receiver_id = data.receiverId;
+        insertData.recebedor_id = data.receiverId;
       }
 
       const { data: inserted, error } = await supabase
-        .from("bank_reconciliations")
+        .from("conciliacoes_bancarias")
         .insert([insertData] as any)
         .select()
         .single();
@@ -353,31 +353,31 @@ export function AddBankReconciliationDialog({
       if (data.type === "cliente" && data.reembolsavel === "sim" && data.clientId && inserted) {
         try {
           const { data: clientData } = await supabase
-            .from("clients")
-            .select("company_name, cnpj")
+            .from("clientes")
+            .select("razao_social, cnpj")
             .eq("id", data.clientId)
             .single();
 
           let aircraftRegistration = "";
           if (data.aircraftId) {
             const { data: aircraftData } = await supabase
-              .from("aircraft")
-              .select("registration")
+              .from('aeronave')
+              .select('matricula')
               .eq("id", data.aircraftId)
               .single();
             if (aircraftData) {
-              aircraftRegistration = aircraftData.registration;
+              aircraftRegistration = aircraftData.matricula;
             }
           }
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
-          const clienteNome = clientData?.company_name || "Cliente";
+          const clienteNome = (clientData as any)?.razao_social || "Cliente";
 
           await supabase.from("contas_areceber").insert({
             numero: numeroDocumento,
             referencia: clienteNome,
             cliente_nome: clienteNome,
-            cliente_cnpj: clientData?.cnpj || "",
+            cliente_cnpj: (clientData as any)?.cnpj || "",
             data_criacao: data.date,
             data_vencimento: data.date,
             valor: parseFloat(data.amount),
@@ -458,7 +458,7 @@ export function AddBankReconciliationDialog({
                 <FormItem>
                   <FormLabel>Data *</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <Input type="data" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -547,7 +547,7 @@ export function AddBankReconciliationDialog({
                         <SelectContent>
                           {clients.map((client) => (
                             <SelectItem key={client.id} value={client.id}>
-                              {client.company_name}
+                              {(client as any).razao_social}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -576,7 +576,7 @@ export function AddBankReconciliationDialog({
                         <SelectContent>
                           {aircraft.map((ac) => (
                             <SelectItem key={ac.id} value={ac.id}>
-                              {ac.registration}
+                              {ac.matricula}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -740,8 +740,8 @@ export function AddBankReconciliationDialog({
               >
                 Cancelar
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={loading || loadingData || uploadingBoleto || uploadingNota}
               >
                 {loading ? "Adicionando..." : "Adicionar"}

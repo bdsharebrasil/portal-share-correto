@@ -62,7 +62,7 @@ export function FlightPlanDialog({ open, onOpenChange }: FlightPlanDialogProps) 
     arrival_airport: "",
     flight_date: "",
     flight_time: "",
-    aircraft_id: "",
+    aeronave_id: "",
     route: "",
     flight_plan: "",
     fuel_calculation: "",
@@ -199,9 +199,9 @@ Densidade usada: ${density} kg/L
     setLoading(true);
     try {
       const [aircraftRes, crewRes, clientsRes] = await Promise.all([
-        supabase.from("aircraft").select("id, registration, model").eq("status", "ativa"),
-        supabase.from("crew_members").select("id, full_name, canac").eq("status", "active"),
-        supabase.from("clients").select("id, company_name, cnpj"),
+        supabase.from('aeronave').select('id, matricula, modelo').eq("status", "ativa"),
+        supabase.from("tripulacao").select("id, nome_completo, canac").eq("status", "ativo"),
+        supabase.from("clientes").select("id, razao_social, cnpj"),
       ]);
 
       if (aircraftRes.error) throw aircraftRes.error;
@@ -236,7 +236,7 @@ Densidade usada: ${density} kg/L
       const weatherInfo = `
 METAR Consultado para ${formData.departure_airport}:
 Temperatura: ${data.main.temp}°C
-Condição: ${data.weather[0].description}
+Condição: ${data.weather[0].descricao}
 Vento: ${data.wind.speed} m/s
 Pressão: ${data.main.pressure} hPa
 Umidade: ${data.main.humidity}%
@@ -255,15 +255,15 @@ Visibilidade: ${data.visibility / 1000} km
   };
 
   const handleSubmit = async () => {
-    if (!formData.client_id || !formData.departure_airport || !formData.arrival_airport || 
-        !formData.flight_date || !formData.aircraft_id) {
+    if (!formData.cliente_id || !formData.departure_airport || !formData.arrival_airport || 
+        !formData.flight_date || !formData.aeronave_id) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
     try {
       const { error } = await supabase.from("flight_plans").insert({
-        aircraft_id: formData.aircraft_id,
+        aeronave_id: formData.aeronave_id,
         departure_airport: formData.departure_airport,
         arrival_airport: formData.arrival_airport,
         flight_date: formData.flight_date || new Date().toISOString().split('T')[0],
@@ -291,7 +291,7 @@ Visibilidade: ${data.visibility / 1000} km
       arrival_airport: "",
       flight_date: "",
       flight_time: "",
-      aircraft_id: "",
+      aeronave_id: "",
       route: "",
       flight_plan: "",
       fuel_calculation: "",
@@ -342,14 +342,14 @@ Visibilidade: ${data.visibility / 1000} km
             </div>
             <div>
               <Label>Cliente *</Label>
-              <Select value={formData.client_id} onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}>
+              <Select value={formData.cliente_id} onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o cliente" />
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((client) => (
                     <SelectItem key={client.id} value={client.id}>
-                      {client.company_name}
+                      {client.razao_social}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -377,7 +377,7 @@ Visibilidade: ${data.visibility / 1000} km
             <div>
               <Label>Data do Voo *</Label>
               <Input
-                type="date"
+                type="data"
                 value={formData.flight_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, flight_date: e.target.value }))}
               />
@@ -394,7 +394,7 @@ Visibilidade: ${data.visibility / 1000} km
 
           <div>
             <Label>Aeronave *</Label>
-            <Select value={formData.aircraft_id} onValueChange={(value) => setFormData(prev => ({ ...prev, aircraft_id: value }))}>
+            <Select value={formData.aeronave_id} onValueChange={(value) => setFormData(prev => ({ ...prev, aeronave_id: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a aeronave" />
               </SelectTrigger>
@@ -450,7 +450,7 @@ Visibilidade: ${data.visibility / 1000} km
                           onClick={() => loadFavoriteRoute(route)}
                           className="flex-1 text-left text-sm"
                         >
-                          <div className="font-medium">{route.name}</div>
+                          <div className="font-medium">{route.nome}</div>
                           <div className="text-xs text-muted-foreground">{route.route}</div>
                         </button>
                         <Button
@@ -614,7 +614,7 @@ Visibilidade: ${data.visibility / 1000} km
                         id={`aircraft-${item.id}`}
                         checked={item.checked}
                         onCheckedChange={(checked) => {
-                          const newList = [...aircraftChecklist];
+                          const newList = [...aeronaveChecklist];
                           newList[index].checked = checked as boolean;
                           setAircraftChecklist(newList);
                         }}
@@ -622,7 +622,7 @@ Visibilidade: ${data.visibility / 1000} km
                       <Input
                         value={item.item}
                         onChange={(e) => {
-                          const newList = [...aircraftChecklist];
+                          const newList = [...aeronaveChecklist];
                           newList[index].item = e.target.value;
                           setAircraftChecklist(newList);
                         }}
@@ -644,7 +644,7 @@ Visibilidade: ${data.visibility / 1000} km
                     size="sm"
                     onClick={() => {
                       setAircraftChecklist([
-                        ...aircraftChecklist,
+                        ...aeronaveChecklist,
                         { id: Date.now().toString(), item: "Novo item", checked: false }
                       ]);
                     }}

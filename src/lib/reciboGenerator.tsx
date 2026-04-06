@@ -331,7 +331,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
   const disclaimerReembolso = 'Declaro, para os devidos fins, que o presente recibo é emitido antecipadamente a título de solicitação de reembolso referente às despesas efetuadas por esta empresa em benefício do cliente acima identificado. Ressalta-se que o presente documento somente terá validade e produzirá seus efeitos legais após a efetiva quitação do valor indicado, mediante comprovação do respectivo pagamento. Para maior clareza e segurança das partes, firmo o presente recibo, que permanecerá condicionado ao cumprimento integral da obrigação de pagamento até a data de quitação.';
 
   // Determine doc number and competencia
-  const docNumber = data.numero_documento_decea || data.numero_documento_infraero || data.doc_number || '';
+  const docNumber = data.numero_documento_decea || data.numero_documento_infraero || data.documento_number || '';
   const competencia = data.competencia_decea || data.competencia_infraero || '';
   const hasCompetencia = !!competencia;
   const prazoQuitacao = data.max_payment_date || data.data_vencimento_boleto || '';
@@ -351,7 +351,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
               <Text style={styles.receiptNumberLabel}>Número do recibo:</Text>
               <Text style={styles.receiptNumberValue}>{data.receipt_number}</Text>
               <View style={styles.valorBox}>
-                <Text style={styles.valorText}>{formatCurrency(data.amount)}</Text>
+                <Text style={styles.valorText}>{formatCurrency(data.valor)}</Text>
               </View>
             </View>
           </View>
@@ -425,7 +425,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
                 </Text>
               )}
               <Text style={{ ...styles.tableCell, flex: 1 }}>
-                {formatCurrency(data.amount)}
+                {formatCurrency(data.valor)}
               </Text>
             </View>
           </View>
@@ -482,7 +482,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             <Text style={styles.reciboTitle}>RECIBO</Text>
           </View>
           <View style={styles.valorBox}>
-            <Text style={styles.valorText}>{formatCurrency(data.amount)}</Text>
+            <Text style={styles.valorText}>{formatCurrency(data.valor)}</Text>
           </View>
         </View>
 
@@ -526,17 +526,17 @@ export const ReciboDocument = ({ data }: { data: any }) => {
         <View style={styles.separator} />
 
         {/* DESCRIÇÃO */}
-        <View style={styles.descriptionHeader}>
-          <Text style={styles.descriptionHeaderText}>DESCRIÇÃO</Text>
+        <View style={styles.descricaoHeader}>
+          <Text style={styles.descricaoHeaderText}>DESCRIÇÃO</Text>
         </View>
         <View style={{ flexDirection: 'row' }}>
-          <View style={{ ...styles.descriptionContent, flex: 1 }}>
-            <Text style={styles.descriptionText}>{data.service_description || '—'}</Text>
+          <View style={{ ...styles.descricaoContent, flex: 1 }}>
+            <Text style={styles.descricaoText}>{data.service_description || '—'}</Text>
           </View>
           <View style={{ alignItems: 'flex-end', paddingLeft: 10 }}>
             <View style={styles.totalBox}>
               <Text style={styles.totalLabel}>TOTAL</Text>
-              <Text style={styles.totalValue}>{formatCurrency(data.amount)}</Text>
+              <Text style={styles.totalValue}>{formatCurrency(data.valor)}</Text>
             </View>
           </View>
         </View>

@@ -107,10 +107,10 @@ export function CTMOASInlineForm({
 
     setLoading(true);
     try {
-      // 1. Create in ctm_service_orders
-      const { data: newOrder, error: orderError } = await supabase.from("ctm_service_orders").insert([
+      // 1. Create in service_orders
+      const { data: newOrder, error: orderError } = await (supabase as any).from("service_orders").insert([
         {
-          aircraft_id: aircraftId,
+          aeronave_id: aircraftId,
           numero: formData.numero,
           tipo_manutencao: categoryName,
           os_oficina: formData.os_oficina || null,
@@ -175,19 +175,19 @@ export function CTMOASInlineForm({
         const maintenanceType = mapMaintenanceType(categoryName, performedHours);
 
         const { error: recordError } = await supabase
-          .from('aircraft_maintenance_records')
+          .from('registros_manutencao_aeronave')
           .insert([
             {
-              aircraft_id: aircraftId,
-              maintenance_type: maintenanceType,
-              performed_at_hours: performedHours,
-              performed_date: formData.data_entrada || getTodayString(),
-              next_due_hours: performedHours + 50,
-              mechanic_name: 'A designar',
-              maintenance_center: formData.oficina_nome || null,
-              service_order_number: formData.numero || null,
-              description: formData.observacoes || null,
-              cost: 0,
+              aeronave_id: aircraftId,
+              tipo_manutencao: maintenanceType,
+              horas_realizada: performedHours,
+              data_realizada: formData.data_entrada || getTodayString(),
+              proxima_vencimento_horas: performedHours + 50,
+              nome_mecanico: 'A designar',
+              centro_manutencao: formData.oficina_nome || null,
+              numero_ordem_servico: formData.numero || null,
+              descricao: formData.observacoes || null,
+              custo: 0,
             }
           ]);
 

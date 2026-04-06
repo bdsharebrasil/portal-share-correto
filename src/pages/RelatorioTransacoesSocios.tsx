@@ -118,9 +118,9 @@ export default function RelatorioTransacoesSocios() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [editTarget, setEditTarget] = useState<ClientPartner | null>(null);
   const [editForm, setEditForm] = useState({
-    name: "",
+    nome: "",
     cpf: "",
-    share_percentage: "",
+    percentual_participacao: "",
   });
 
   // Monthly report state
@@ -184,7 +184,7 @@ export default function RelatorioTransacoesSocios() {
     const term = searchTerm.toLowerCase();
     return partners.filter(
       (p) =>
-        p.name.toLowerCase().includes(term) ||
+        p.nome.toLowerCase().includes(term) ||
         p.cpf.replace(/\D/g, "").includes(term.replace(/\D/g, ""))
     );
   }, [partners, searchTerm]);
@@ -193,7 +193,7 @@ export default function RelatorioTransacoesSocios() {
   const partnerStats = useMemo(() => {
     const totalPartners = partners.length;
     const totalSharePercentage = partners.reduce(
-      (sum, p) => sum + (p.share_percentage || 0),
+      (sum, p) => sum + (p.percentual_participacao || 0),
       0
     );
     const averageSharePercentage =
@@ -239,7 +239,7 @@ export default function RelatorioTransacoesSocios() {
     // Filter by month
     if (filterMonth) {
       result = result.filter((tx: any) => {
-        const date = tx.payment_date || tx.due_date || tx.created_at;
+        const date = tx.payment_date || tx.data_vencimento || tx.criado_em;
         try {
           return date?.slice(0, 7) === filterMonth;
         } catch {
@@ -250,7 +250,7 @@ export default function RelatorioTransacoesSocios() {
 
     // Filter by partner
     if (filterPartner !== "all") {
-      result = result.filter((t: any) => t.partner_name === filterPartner);
+      result = result.filter((t: any) => t.nome_socio === filterPartner);
     }
 
     // Filter by type
@@ -261,7 +261,7 @@ export default function RelatorioTransacoesSocios() {
     // Filter by status
     if (filterStatus !== "all") {
       result = result.filter((t: any) => {
-        const status = t.status || (t.transaction_type === "deposit" ? "pago" : "pendente");
+        const status = t.situacao || (t.transaction_type === "deposit" ? "pago" : "pendente");
         return status === filterStatus;
       });
     }
@@ -286,16 +286,16 @@ export default function RelatorioTransacoesSocios() {
       const term = filterSearch.toLowerCase();
       result = result.filter(
         (t: any) =>
-          t.description?.toLowerCase().includes(term) ||
-          t.partner_name?.toLowerCase().includes(term) ||
+          t.descricao?.toLowerCase().includes(term) ||
+          t.nome_socio?.toLowerCase().includes(term) ||
           t.notes?.toLowerCase().includes(term)
       );
     }
 
     // Sort by date
     result.sort((a: any, b: any) => {
-      const dateA = new Date(a.payment_date || a.created_at).getTime();
-      const dateB = new Date(b.payment_date || b.created_at).getTime();
+      const dateA = new Date(a.payment_date || a.criado_em).getTime();
+      const dateB = new Date(b.payment_date || b.criado_em).getTime();
       return dateSortOrder === "asc" ? dateA - dateB : dateB - dateA;
     });
 
@@ -317,10 +317,10 @@ export default function RelatorioTransacoesSocios() {
   const reportSummary = useMemo(() => {
     const totalEntradas = filteredTransactions
       .filter((t: any) => t.transaction_type === "deposit")
-      .reduce((s: number, t: any) => s + Number(t.amount), 0);
+      .reduce((s: number, t: any) => s + Number(t.valor), 0);
     const totalSaidas = filteredTransactions
       .filter((t: any) => t.transaction_type !== "deposit")
-      .reduce((s: number, t: any) => s + Number(t.amount), 0);
+      .reduce((s: number, t: any) => s + Number(t.valor), 0);
     return { totalEntradas, totalSaidas, saldo: totalEntradas - totalSaidas };
   }, [filteredTransactions]);
 
@@ -345,31 +345,31 @@ export default function RelatorioTransacoesSocios() {
   const openEdit = (partner: ClientPartner) => {
     setEditTarget(partner);
     setEditForm({
-      name: partner.name,
+      nome: partner.nome,
       cpf: partner.cpf,
-      share_percentage: partner.share_percentage?.toString() || "",
+      percentual_participacao: partner.percentual_participacao?.toString() || "",
     });
   };
 
   const handleEditSave = async () => {
     if (!editTarget || !clienteId) return;
-    if (!editForm.name.trim() || !editForm.cpf.trim()) {
+    if (!editForm.nome.trim() || !editForm.cpf.trim()) {
       toast.error("Nome e CPF são obrigatórios");
       return;
     }
     try {
       const { error } = await supabase
-        .from("client_partners")
+        .from("socios_cliente")
         .update({
-          name: editForm.name.trim(),
+          nome: editForm.nome.trim(),
           cpf: editForm.cpf.replace(/\D/g, ""),
-          share_percentage: editForm.share_percentage
-            ? parseFloat(editForm.share_percentage)
+          percentual_participacao: editForm.percentual_participacao
+            ? parseFloat(editForm.percentual_participacao)
             : null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", editTarget.id)
-        .eq("client_id", clienteId);
+        .eq("cliente_id", clienteId);
 
       if (error) throw error;
       toast.success("Sócio atualizado com sucesso!");
@@ -390,16 +390,16 @@ export default function RelatorioTransacoesSocios() {
       clientId: clienteId,
       transactionType: tx.transaction_type,
       partnerCpf: tx.partner_cpf,
-      amount: Number(tx.amount),
+      amount: Number(tx.valor),
     });
   };
 
   const openEditTransaction = (tx: any) => {
     setEditingTransaction(tx);
     setEditTxForm({
-      description: tx.description || "",
-      amount: String(tx.amount || tx.total_amount || ""),
-      paymentDate: tx.payment_date || tx.due_date || tx.created_at?.slice(0, 10) || "",
+      description: tx.descricao || "",
+      amount: String(tx.valor || tx.total_amount || ""),
+      paymentDate: tx.payment_date || tx.data_vencimento || tx.criado_em?.slice(0, 10) || "",
       notes: tx.notes || "",
       bankName: tx.bank_name || "",
       prazo: tx.prazo || "",
@@ -413,8 +413,8 @@ export default function RelatorioTransacoesSocios() {
       id: editingTransaction.id,
       clientId: clienteId,
       transactionType: editingTransaction.transaction_type,
-      description: editTxForm.description,
-      amount: parseFloat(editTxForm.amount),
+      description: editTxForm.descricao,
+      amount: parseFloat(editTxForm.valor),
       paymentDate: editTxForm.paymentDate,
       notes: editTxForm.notes || null,
       bankName: editTxForm.bankName || null,
@@ -472,7 +472,7 @@ export default function RelatorioTransacoesSocios() {
   };
 
   const getCategoryLabel = (tx: any) => {
-    const catId = tx.expense_type || tx.category || tx.transaction_subtype;
+    const catId = tx.expense_type || tx.categoria || tx.transaction_subtype;
     if (!catId) return "—";
     const found = expenseCategories.find((c: any) => c.id === catId);
     return found ? `${found.icon || ""} ${found.label}`.trim() : catId;
@@ -482,15 +482,15 @@ export default function RelatorioTransacoesSocios() {
   const handleExportPDF = async () => {
     try {
       const data = filteredTransactions.map((tx: any) => {
-        const txDate = tx.payment_date || tx.due_date || tx.created_at;
-        const status = tx.status || (tx.transaction_type === "deposit" ? "pago" : "pendente");
+        const txDate = tx.payment_date || tx.data_vencimento || tx.criado_em;
+        const status = tx.situacao || (tx.transaction_type === "deposit" ? "pago" : "pendente");
         return {
           data: formatDate(txDate),
           tipo: getTypeLabel(tx),
-          doc: tx.invoice_number || tx.doc || "—",
-          descricao: tx.description || "—",
+          doc: tx.invoice_number || tx.documento || "—",
+          descricao: tx.descricao || "—",
           prazo: tx.prazo || "—",
-          valor: formatCurrency(Number(tx.amount || tx.total_amount)),
+          valor: formatCurrency(Number(tx.valor || tx.total_amount)),
           categoria: getCategoryLabel(tx),
           pagamento: tx.payment_method || "—",
           status: status,
@@ -500,13 +500,13 @@ export default function RelatorioTransacoesSocios() {
       const columns = [
         { header: "Data", dataKey: "data" },
         { header: "Tipo", dataKey: "tipo" },
-        { header: "DOC", dataKey: "doc" },
+        { header: "DOC", dataKey: "documento" },
         { header: "Descrição", dataKey: "descricao" },
         { header: "Prazo", dataKey: "prazo" },
         { header: "Valor", dataKey: "valor" },
         { header: "Categoria", dataKey: "categoria" },
         { header: "Pagamento", dataKey: "pagamento" },
-        { header: "Status", dataKey: "status" },
+        { header: "Status", dataKey: "situacao" },
       ];
 
       const monthLabel = filterMonth
@@ -515,7 +515,7 @@ export default function RelatorioTransacoesSocios() {
 
       await exportTableToPDF(data, columns, {
         filename: createFilenameWithTimestamp("relatorio_socios"),
-        title: `Relatório Mensal - ${selectedClientData?.company_name || selectedClientData?.proprietario} - ${monthLabel}`,
+        title: `Relatório Mensal - ${selectedClientData?.razao_social || selectedClientData?.proprietario} - ${monthLabel}`,
         orientation: "landscape",
       });
 
@@ -589,11 +589,11 @@ export default function RelatorioTransacoesSocios() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-foreground">
-                  Transações de {selectedPartnerData.name}
+                  Transações de {selectedPartnerData.nome}
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   CPF: {formatCPF(selectedPartnerData.cpf)} •{" "}
-                  {selectedPartnerData.share_percentage?.toFixed(2)}% de participação
+                  {selectedPartnerData.percentual_participacao?.toFixed(2)}% de participação
                 </p>
               </div>
             </div>
@@ -638,22 +638,22 @@ export default function RelatorioTransacoesSocios() {
                           className={`border-b border-border/30 hover:bg-muted/20 ${idx % 2 === 0 ? "bg-muted/5" : ""}`}
                         >
                           <td className="px-3 py-3 text-sm text-muted-foreground">
-                            {formatDate(tx.payment_date || tx.created_at)}
+                            {formatDate(tx.payment_date || tx.criado_em)}
                           </td>
                           <td className="px-3 py-3">
                             <Badge variant={getTypeBadgeVariant(tx.transaction_type) as any} className="text-xs">
                               {getTypeLabel(tx)}
                             </Badge>
                           </td>
-                          <td className="px-3 py-3 text-sm text-foreground">{tx.description}</td>
+                          <td className="px-3 py-3 text-sm text-foreground">{tx.descricao}</td>
                           <td className="px-3 py-3 text-center">
                             <Badge variant="secondary" className="text-xs">
-                              {tx.transaction_type === "deposit" ? "Recebido" : tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status ? tx.status.charAt(0).toUpperCase() + tx.status.slice(1).replace(/_/g, ' ') : "—"}
+                              {tx.transaction_type === "deposit" ? "Recebido" : tx.situacao === "paid" || tx.situacao === "pago" ? "Pago" : tx.situacao ? tx.situacao.charAt(0).toUpperCase() + tx.situacao.slice(1).replace(/_/g, ' ') : "—"}
                             </Badge>
                           </td>
                           <td className={`px-3 py-3 text-sm text-right font-mono font-medium ${tx.transaction_type === "deposit" ? "text-emerald-500" : "text-destructive"}`}>
                             {tx.transaction_type === "deposit" ? "+" : "-"}
-                            {formatCurrency(Number(tx.amount || tx.total_amount))}
+                            {formatCurrency(Number(tx.valor || tx.total_amount))}
                           </td>
                         </tr>
                       ))}
@@ -684,7 +684,7 @@ export default function RelatorioTransacoesSocios() {
                   Relatório Mensal Completo
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  {selectedClientData?.company_name || selectedClientData?.proprietario}{" "}
+                  {selectedClientData?.razao_social || selectedClientData?.proprietario}{" "}
                   • {filterMonth
                     ? format(new Date(filterMonth + "-01"), "MMMM yyyy", { locale: ptBR })
                     : "Todos os meses"}
@@ -893,11 +893,11 @@ export default function RelatorioTransacoesSocios() {
                     <tbody>
                       {filteredTransactions.map((tx: any, idx: number) => {
                         const txDate =
-                          tx.payment_date || tx.due_date || tx.created_at;
+                          tx.payment_date || tx.data_vencimento || tx.criado_em;
                         const status =
                           tx.transaction_type === "deposit"
                             ? "recebido"
-                            : tx.status || "pendente";
+                            : tx.situacao || "pendente";
                         const hasAttachment =
                           tx.receipt_url || tx.invoice_url;
 
@@ -918,11 +918,11 @@ export default function RelatorioTransacoesSocios() {
                               </Badge>
                             </td>
                             <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs">
-                              {tx.invoice_number || tx.doc || "—"}
+                              {tx.invoice_number || tx.documento || "—"}
                             </td>
                             <td className="px-3 py-2.5 text-foreground max-w-[250px] truncate">
-                              <span title={tx.description}>
-                                {tx.description || "—"}
+                              <span title={tx.descricao}>
+                                {tx.descricao || "—"}
                               </span>
                             </td>
                             <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
@@ -933,8 +933,8 @@ export default function RelatorioTransacoesSocios() {
                                 >
                                   {tx.prazo}
                                 </Badge>
-                              ) : tx.due_date ? (
-                                formatDate(tx.due_date)
+                              ) : tx.data_vencimento ? (
+                                formatDate(tx.data_vencimento)
                               ) : (
                                 "—"
                               )}
@@ -946,7 +946,7 @@ export default function RelatorioTransacoesSocios() {
                                 ? "+"
                                 : "-"}
                               {formatCurrency(
-                                Number(tx.amount || tx.total_amount)
+                                Number(tx.valor || tx.total_amount)
                               )}
                             </td>
                             <td className="px-3 py-2.5 text-muted-foreground text-xs whitespace-nowrap">
@@ -1045,7 +1045,7 @@ export default function RelatorioTransacoesSocios() {
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold text-muted-foreground">Sócio Envolvido</Label>
                   <SearchableCombobox
-                    items={[{ id: "all", label: "Todos" }, ...partners.map((p) => ({ id: p.name, label: p.name }))]}
+                    items={[{ id: "all", label: "Todos" }, ...partners.map((p) => ({ id: p.nome, label: p.nome }))]}
                     value={filterPartner}
                     onChange={(val) => setFilterPartner(val)}
                     placeholder="Selecione o sócio"
@@ -1162,7 +1162,7 @@ export default function RelatorioTransacoesSocios() {
               <div>
                 <Label>Descrição</Label>
                 <Input
-                  value={editTxForm.description}
+                  value={editTxForm.descricao}
                   onChange={(e) =>
                     setEditTxForm((p) => ({
                       ...p,
@@ -1178,7 +1178,7 @@ export default function RelatorioTransacoesSocios() {
                   <Input
                     type="number"
                     step="0.01"
-                    value={editTxForm.amount}
+                    value={editTxForm.valor}
                     onChange={(e) =>
                       setEditTxForm((p) => ({
                         ...p,
@@ -1191,7 +1191,7 @@ export default function RelatorioTransacoesSocios() {
                 <div>
                   <Label>Data</Label>
                   <Input
-                    type="date"
+                    type="data"
                     value={editTxForm.paymentDate}
                     onChange={(e) =>
                       setEditTxForm((p) => ({
@@ -1300,7 +1300,7 @@ export default function RelatorioTransacoesSocios() {
             open={showExportModal}
             onOpenChange={setShowExportModal}
             clientId={clienteId}
-            clientName={selectedClientData?.company_name || selectedClientData?.proprietario || ""}
+            clientName={selectedClientData?.razao_social || selectedClientData?.proprietario || ""}
             defaultMonth={filterMonth}
           />
         )}
@@ -1323,7 +1323,7 @@ export default function RelatorioTransacoesSocios() {
                 Sócios e Parceiros
               </h1>
               <p className="text-sm text-muted-foreground">
-                {selectedClientData?.company_name ||
+                {selectedClientData?.razao_social ||
                   selectedClientData?.proprietario}{" "}
                 • {selectedClientData?.cnpj}
               </p>
@@ -1517,25 +1517,25 @@ export default function RelatorioTransacoesSocios() {
                         onClick={() => setSelectedPartnerCpf(partner.cpf)}
                       >
                         <td className="px-4 py-3 text-sm font-medium text-foreground">
-                          {partner.name}
+                          {partner.nome}
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
                           {formatCPF(partner.cpf)}
                         </td>
                         <td className="px-4 py-3 text-sm text-center">
-                          {partner.share_percentage !== null ? (
+                          {partner.percentual_participacao !== null ? (
                             <Badge
                               variant="secondary"
                               className="bg-primary/20 text-primary border-primary/30"
                             >
-                              {partner.share_percentage.toFixed(2)}%
+                              {partner.percentual_participacao.toFixed(2)}%
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {formatDate(partner.updated_at)}
+                          {formatDate(partner.atualizado_em)}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
@@ -1578,7 +1578,7 @@ export default function RelatorioTransacoesSocios() {
               <Label htmlFor="edit-name">Nome</Label>
               <Input
                 id="edit-name"
-                value={editForm.name}
+                value={editForm.nome}
                 onChange={(e) =>
                   setEditForm((p) => ({ ...p, name: e.target.value }))
                 }
@@ -1608,11 +1608,11 @@ export default function RelatorioTransacoesSocios() {
                 step="0.01"
                 min="0"
                 max="100"
-                value={editForm.share_percentage}
+                value={editForm.percentual_participacao}
                 onChange={(e) =>
                   setEditForm((p) => ({
                     ...p,
-                    share_percentage: e.target.value,
+                    percentual_sociedade: e.target.value,
                   }))
                 }
                 className="mt-1"
@@ -1635,7 +1635,7 @@ export default function RelatorioTransacoesSocios() {
           open={showExportModal}
           onOpenChange={setShowExportModal}
           clientId={clienteId}
-          clientName={selectedClientData?.company_name || selectedClientData?.proprietario || ""}
+          clientName={selectedClientData?.razao_social || selectedClientData?.proprietario || ""}
           defaultMonth={filterMonth}
         />
       )}

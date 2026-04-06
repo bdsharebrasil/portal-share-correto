@@ -37,7 +37,7 @@ export function FilterSection({
           <div className="space-y-2">
             <Label className="text-muted-foreground">Data Inicial</Label>
             <Input
-              type="date"
+              type="data"
               value={dataInicio}
               onChange={(e) => onDataInicioChange(e.target.value)}
               className="bg-background border-border"
@@ -46,7 +46,7 @@ export function FilterSection({
           <div className="space-y-2">
             <Label className="text-muted-foreground">Data Final</Label>
             <Input
-              type="date"
+              type="data"
               value={dataFim}
               onChange={(e) => onDataFimChange(e.target.value)}
               className="bg-background border-border"

@@ -104,7 +104,7 @@ export default function ManutencaoAeronave() {
     try {
       // Carregar aeronaves
       const { data: aircraftData, error: aircraftError } = await supabase
-        .from('aircraft')
+        .from('aeronave')
         .select('*')
         .eq('status', 'ativa');
 
@@ -146,7 +146,7 @@ export default function ManutencaoAeronave() {
         return {
           id: m.id,
           aeronaveId: m.aeronave_id,
-          aeronaveRegistro: aircraft?.registration || '-',
+          aeronaveRegistro: aircraft?.matricula || '-',
           tipo: m.tipo === 'preventiva' ? 'preventiva' : 'corretiva',
           subtipo: m.vencimento_horas === 50 ? 'preventiva_50h' : m.vencimento_horas === 100 ? 'preventiva_100h' : m.tipo,
           descricao: m.observacoes || m.tipo,
@@ -158,7 +158,7 @@ export default function ManutencaoAeronave() {
           observacoes: m.observacoes,
           custoPrevisto: m.custo_estimado,
           oficina: oficinaNome,
-          createdAt: m.created_at
+          createdAt: m.criado_em
         } as ManutencaoItem;
       });
 
@@ -215,8 +215,8 @@ export default function ManutencaoAeronave() {
         const today = new Date();
         const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-        const { error: ctmError } = await supabase.from('ctm_service_orders').insert([{
-          aircraft_id: newManutencao.aeronaveId,
+        const { error: ctmError } = await supabase.from('service_orders').insert([{
+          aeronave_id: newManutencao.aeronaveId,
           numero: `MNT-${Date.now().toString().slice(-6)}`,
           tipo_manutencao: vencimentoLabel,
           description: newManutencao.descricao || serviceOrderType,
@@ -270,7 +270,7 @@ export default function ManutencaoAeronave() {
     setEditFormData({
       descricao: manutencao.descricao || '',
       mecanico: manutencao.mecanico || '',
-      statusExecutado: manutencao.statusExecutado,
+      statusExecutado: manutencao.situacaoExecutado,
       horasProximaManutencao: manutencao.horasProximaManutencao?.toString() || '',
       dataProximaManutencao: manutencao.dataProximaManutencao || '',
       observacoes: manutencao.observacoes || '',
@@ -287,7 +287,7 @@ export default function ManutencaoAeronave() {
         .update({
           observacoes: editFormData.descricao,
           mecanico: editFormData.mecanico,
-          etapa: editFormData.statusExecutado,
+          etapa: editFormData.situacaoExecutado,
           vencimento_horas: editFormData.horasProximaManutencao ? parseInt(editFormData.horasProximaManutencao) : null,
           data_programada: editFormData.dataProximaManutencao || undefined,
           oficina_id: editFormData.oficinaId || null,
@@ -330,9 +330,9 @@ export default function ManutencaoAeronave() {
   const stats = useMemo(() => ({
     preventivas: manutencoes.filter(m => m.tipo === 'preventiva').length,
     corretivas: manutencoes.filter(m => m.tipo === 'corretiva').length,
-    pendentes: manutencoes.filter(m => m.statusExecutado === 'pendente').length,
-    emAndamento: manutencoes.filter(m => m.statusExecutado === 'em_andamento').length,
-    concluidas: manutencoes.filter(m => m.statusExecutado === 'concluida').length
+    pendentes: manutencoes.filter(m => m.situacaoExecutado === 'pendente').length,
+    emAndamento: manutencoes.filter(m => m.situacaoExecutado === 'em_andamento').length,
+    concluidas: manutencoes.filter(m => m.situacaoExecutado === 'concluida').length
   }), [manutencoes]);
 
   const preventivas50h = useMemo(() => {
@@ -501,9 +501,9 @@ export default function ManutencaoAeronave() {
             {notification && (
               <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
                 <ModernNotification
-                  type={notification.type}
+                  type={notification.tipo}
                   title={notification.title}
-                  description={notification.description}
+                  description={notification.descricao}
                   duration={4000}
                   onClose={() => setNotification(null)}
                 />
@@ -641,7 +641,7 @@ export default function ManutencaoAeronave() {
                     cancelada: { bg: 'bg-gray-500/10', border: 'border-gray-500/30', text: 'text-gray-400', label: 'Cancelada' }
                   };
 
-                  const statusInfo = statusColors[manutencao.statusExecutado as keyof typeof statusColors] || statusColors.pendente;
+                  const statusInfo = statusColors[manutencao.situacaoExecutado as keyof typeof statusColors] || statusColors.pendente;
 
                   return (
                     <div
@@ -760,7 +760,7 @@ export default function ManutencaoAeronave() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Status</label>
                     <select
-                      value={editFormData.statusExecutado}
+                      value={editFormData.situacaoExecutado}
                       onChange={(e) => setEditFormData({...editFormData, statusExecutado: e.target.value})}
                       className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm"
                     >
@@ -784,7 +784,7 @@ export default function ManutencaoAeronave() {
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-white">Data Programada</label>
                       <input
-                        type="date"
+                        type="data"
                         value={editFormData.dataProximaManutencao}
                         onChange={(e) => setEditFormData({...editFormData, dataProximaManutencao: e.target.value})}
                         className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm"

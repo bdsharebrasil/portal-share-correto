@@ -39,11 +39,11 @@ export function useSolarData(icao: string | null) {
         clearTimeout(timeout);
 
         if (!response.ok) {
-          if (response.status === 404) {
+          if (response.situacao === 404) {
             console.debug(`[useSolarData] No solar data found for ${code}`);
             return;
           }
-          console.warn(`[useSolarData] API error for ${code}: ${response.status}`);
+          console.warn(`[useSolarData] API error for ${code}: ${response.situacao}`);
           return;
         }
 
@@ -51,7 +51,7 @@ export function useSolarData(icao: string | null) {
         setSolarData(data);
       } catch (fetchError) {
         clearTimeout(timeout);
-        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        if (fetchError instanceof Error && fetchError.nome === 'AbortError') {
           console.warn(`[useSolarData] Timeout fetching solar data for ${code}`);
         } else {
           console.warn(`[useSolarData] Failed to fetch solar data for ${code}:`, fetchError);

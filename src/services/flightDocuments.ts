@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface FlightDocumentPayload {
-  aircraft_id: string;
+  aeronave_id: string;
   name: string;
   document_type?: string;
   expiry_date: string;

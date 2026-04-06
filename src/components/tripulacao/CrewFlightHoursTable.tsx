@@ -32,7 +32,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
-  const [selectedAircraft, setSelectedAircraft] = useState<string>("all");
+  const [selectedAeronave, setSelectedAircraft] = useState<string>("all");
 
   // Busca horas diretamente do logbook_entries (fonte primária)
   const { data: flightHours = [], isLoading, refetch } = useQuery({
@@ -50,7 +50,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
           night_hours,
           pic_canac,
           sic_canac,
-          aircraft:aircraft_id(id, registration, model)
+          aircraft:aeronave_id(id, registration, model)
         `)
         .or(`pic_canac.eq.${crewMemberId},sic_canac.eq.${crewMemberId}`)
         .order("entry_date", { ascending: false });
@@ -73,14 +73,14 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
         const date = new Date(entry.entry_date);
         const month = date.getMonth() + 1;
         const year = date.getFullYear();
-        const aircraftId = (entry.aircraft as any)?.id || 'unknown';
+        const aircraftId = (entry.aeronave as any)?.id || 'unknown';
         const key = `${year}-${month}-${aircraftId}`;
 
         if (!aggregated[key]) {
           aggregated[key] = {
             month,
             year,
-            aircraft: entry.aircraft as any,
+            aircraft: entry.aeronave as any,
             pic_hours: 0,
             sic_hours: 0,
             total_hours: 0,
@@ -117,8 +117,8 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
   const aircraftList = useMemo(() => {
     const aircraftSet = new Set<string>();
     flightHours.forEach((record) => {
-      if (record.aircraft?.registration) {
-        aircraftSet.add(record.aircraft.registration);
+      if (record.aeronave?.matricula) {
+        aircraftSet.add(record.aeronave.matricula);
       }
     });
     return Array.from(aircraftSet).sort();
@@ -146,9 +146,9 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
     }
 
     // Filtrar por aeronave
-    if (selectedAircraft !== "all") {
+    if (selectedAeronave !== "all") {
       filtered = filtered.filter(
-        (record) => record.aircraft?.registration === selectedAircraft
+        (record) => record.aeronave?.matricula === selectedAeronave
       );
     }
 
@@ -158,7 +158,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
     }
 
     return filtered;
-  }, [flightHours, dateFrom, dateTo, selectedAircraft]);
+  }, [flightHours, dateFrom, dateTo, selectedAeronave]);
 
   const monthNames = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -191,7 +191,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
     setSelectedAircraft("all");
   };
 
-  const hasActiveFilters = dateFrom || dateTo || selectedAircraft !== "all";
+  const hasActiveFilters = dateFrom || dateTo || selectedAeronave !== "all";
 
   const handleRecalculate = async () => {
     setIsRecalculating(true);
@@ -252,7 +252,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                   </Label>
                   <Input
                     id="date-from"
-                    type="date"
+                    type="data"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     className="h-9 text-sm"
@@ -264,7 +264,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                   </Label>
                   <Input
                     id="date-to"
-                    type="date"
+                    type="data"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
                     className="h-9 text-sm"
@@ -274,7 +274,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                   <Label htmlFor="aircraft-select" className="text-xs">
                     Aeronave
                   </Label>
-                  <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
+                  <Select value={selectedAeronave} onValueChange={setSelectedAircraft}>
                     <SelectTrigger id="aircraft-select" className="h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
@@ -335,7 +335,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                   {filteredFlightHours.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">
-                        {record.aircraft?.registration || "N/A"}
+                        {record.aeronave?.matricula || "N/A"}
                       </TableCell>
                       <TableCell>
                         {monthNames[record.month - 1]} {record.year}

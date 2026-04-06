@@ -38,7 +38,7 @@ export default function Aerodromos() {
     const searchLower = searchTerm.toLowerCase();
     return (
       aerodrome.designativo?.toLowerCase().includes(searchLower) ||
-      aerodrome.name?.toLowerCase().includes(searchLower) ||
+      aerodrome.nome?.toLowerCase().includes(searchLower) ||
       (aerodrome.coordenadas && aerodrome.coordenadas.toLowerCase().includes(searchLower))
     );
   }) || [];
@@ -112,7 +112,7 @@ export default function Aerodromos() {
                 </div>
 
                 <h3 className="text-lg font-bold text-white leading-tight">{a.designativo}</h3>
-                <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-tight truncate mb-3">{a.name}</p>
+                <p className="text-slate-400 text-[10px] font-semibold uppercase tracking-tight truncate mb-3">{a.nome}</p>
 
                 <div className="bg-slate-950/50 rounded-xl p-3 flex items-center gap-3">
                   <Compass className="w-5 h-5 text-slate-600 flex-shrink-0" />

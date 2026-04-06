@@ -9,5 +9,5 @@ export { DashboardManutenção } from './DashboardManutenção';
 export { ManutencaoDialog } from './ManutencaoDialog';
 
 // Componentes Utilitários
-export { default as AircraftSelection } from './AircraftSelection';
+export { default as AeronaveSelecao } from './AircraftSelection';
 export { default as OilAnalysisDialog } from './OilAnalysisDialog';

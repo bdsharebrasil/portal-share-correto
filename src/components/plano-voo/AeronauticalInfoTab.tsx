@@ -296,7 +296,7 @@ export function AeronauticalInfoTab({
       <Card className="bg-card border-border p-4">
         <div className="flex items-center gap-2 mb-3">
           <Building className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-foreground">{rotaer.name || label}</h3>
+          <h3 className="font-semibold text-foreground">{rotaer.nome || label}</h3>
           <span className="text-muted-foreground text-sm">({icao})</span>
         </div>
 
@@ -329,7 +329,7 @@ export function AeronauticalInfoTab({
               </div>
               {rotaer.frequencies.slice(0, 4).map((freq, idx) => (
                 <div key={idx} className="text-sm text-muted-foreground">
-                  <span className="text-foreground">{freq.type}:</span> {freq.frequency}
+                  <span className="text-foreground">{freq.tipo}:</span> {freq.frequency}
                 </div>
               ))}
             </div>
@@ -381,7 +381,7 @@ export function AeronauticalInfoTab({
               <div className="flex flex-wrap gap-2">
                 {rotaer.navaids.map((nav, idx) => (
                   <Badge key={idx} variant="outline" className="text-foreground">
-                    {nav.type} {nav.identifier} {nav.frequency && `(${nav.frequency})`}
+                    {nav.tipo} {nav.identifier} {nav.frequency && `(${nav.frequency})`}
                   </Badge>
                 ))}
               </div>
@@ -393,10 +393,10 @@ export function AeronauticalInfoTab({
         <div className="mt-3 pt-3 border-t border-border flex items-center gap-4 text-sm">
           <span className="text-muted-foreground">Elevação:</span>
           <span className="text-foreground font-mono">{rotaer?.elevation || 'N/A'} ft</span>
-          {'city' in rotaer && rotaer.city && (
+          {'city' in rotaer && rotaer.cidade && (
             <>
               <span className="text-muted-foreground">Cidade:</span>
-              <span className="text-foreground">{(rotaer as any).city}/{(rotaer as any).state}</span>
+              <span className="text-foreground">{(rotaer as any).cidade}/{(rotaer as any).state}</span>
             </>
           )}
         </div>

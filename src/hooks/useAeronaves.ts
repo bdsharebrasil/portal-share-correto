@@ -2,16 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
-// --- 1. Definição do Tipo (adaptado da sua estrutura 'aircraft')
-export type Aeronave = Tables<"aircraft">;
+// --- 1. Definição do Tipo (adaptado da sua estrutura 'aeronave')
+export type Aeronave = Tables<"aeronave">;
 
 // --- 2. Chave da Query (Identificador para o React Query)
-const aeronavesQueryKey = ["aeronaves-aircraft"];
+const aeronavesQueryKey = ["aeronaves"];
 
 /**
  * Hook para buscar todas as aeronaves cadastradas diretamente do Supabase.
  * Não usa API backend - dados vêm direto da base de dados.
- * Ordena pelo registro (prefixo).
+ * Ordena pela matrícula (prefixo).
  */
 export const useAeronaves = () => {
   const query = useQuery<Aeronave[]>({
@@ -19,10 +19,9 @@ export const useAeronaves = () => {
     queryFn: async () => {
       try {
         const { data, error: supabaseError } = await supabase
-          .from('aircraft')
+          .from('aeronave')
           .select('*')
-          .eq('status', 'ativa')
-          .order('registration', { ascending: true });
+          .order('matricula', { ascending: true });
 
         if (supabaseError) {
           console.error("Erro ao buscar aeronaves do Supabase:", supabaseError);

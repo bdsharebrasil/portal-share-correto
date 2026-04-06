@@ -75,7 +75,7 @@ const STORAGE_KEY = 'share_brasil_mapa_componentes';
 
 export default function MapaComponentesPage() {
   const [components, setComponents] = useState<Component[]>([]);
-  const [selectedAircraft, setSelectedAircraft] = useState('PR-MDL');
+  const [selectedAeronave, setSelectedAircraft] = useState('PR-MDL');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -84,7 +84,7 @@ export default function MapaComponentesPage() {
 
   // Carregar dados do localStorage
   useEffect(() => {
-    const stored = localStorage.getItem(`${STORAGE_KEY}_${selectedAircraft}`);
+    const stored = localStorage.getItem(`${STORAGE_KEY}_${selectedAeronave}`);
     if (stored) {
       try {
         setComponents(JSON.parse(stored));
@@ -95,14 +95,14 @@ export default function MapaComponentesPage() {
       // Dados de exemplo para PR-MDL
       loadSampleData();
     }
-  }, [selectedAircraft]);
+  }, [selectedAeronave]);
 
   // Salvar no localStorage sempre que components mudar
   useEffect(() => {
     if (components.length > 0) {
-      localStorage.setItem(`${STORAGE_KEY}_${selectedAircraft}`, JSON.stringify(components));
+      localStorage.setItem(`${STORAGE_KEY}_${selectedAeronave}`, JSON.stringify(components));
     }
-  }, [components, selectedAircraft]);
+  }, [components, selectedAeronave]);
 
   const loadSampleData = () => {
     const sampleData: Component[] = [
@@ -170,7 +170,7 @@ export default function MapaComponentesPage() {
         comp.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         comp.numeroSerie.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesCategory = selectedCategory === 'all' || comp.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'all' || comp.categoria === selectedCategory;
       
       return matchesSearch && matchesCategory;
     });
@@ -214,7 +214,7 @@ export default function MapaComponentesPage() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `mapa_componentes_${selectedAircraft}_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `mapa_componentes_${selectedAeronave}_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     toast({
       title: 'Exportado com sucesso',
@@ -249,9 +249,9 @@ export default function MapaComponentesPage() {
   };
 
   const statsCards = useMemo(() => {
-    const vencidos = components.filter(c => c.status === 'vencido').length;
-    const atencao = components.filter(c => c.status === 'atencao').length;
-    const ok = components.filter(c => c.status === 'ok').length;
+    const vencidos = components.filter(c => c.situacao === 'vencido').length;
+    const atencao = components.filter(c => c.situacao === 'atencao').length;
+    const ok = components.filter(c => c.situacao === 'ok').length;
     
     return { vencidos, atencao, ok };
   }, [components]);
@@ -272,7 +272,7 @@ export default function MapaComponentesPage() {
                   </CardDescription>
                 </div>
               </div>
-              <Select value={selectedAircraft} onValueChange={setSelectedAircraft}>
+              <Select value={selectedAeronave} onValueChange={setSelectedAircraft}>
                 <SelectTrigger className="w-48 bg-slate-800 border-slate-700">
                   <SelectValue />
                 </SelectTrigger>
@@ -419,8 +419,8 @@ export default function MapaComponentesPage() {
                   ) : (
                     filteredComponents.map((component) => (
                       <TableRow key={component.id} className="border-slate-800">
-                        <TableCell>{getStatusBadge(component.status)}</TableCell>
-                        <TableCell className="text-xs text-slate-400">{component.category}</TableCell>
+                        <TableCell>{getStatusBadge(component.situacao)}</TableCell>
+                        <TableCell className="text-xs text-slate-400">{component.categoria}</TableCell>
                         <TableCell className="font-medium">{component.componente}</TableCell>
                         <TableCell className="text-sm text-slate-400">{component.modelo}</TableCell>
                         <TableCell className="text-sm text-slate-400">{component.numeroSerie}</TableCell>
@@ -521,7 +521,7 @@ const ComponentForm: React.FC<ComponentFormProps> = ({ component, onSave, onCanc
         <div className="col-span-2">
           <Label>Categoria</Label>
           <Select
-            value={formData.category}
+            value={formData.categoria}
             onValueChange={(value) => setFormData({ ...formData, category: value })}
           >
             <SelectTrigger className="bg-slate-800 border-slate-700">
@@ -628,7 +628,7 @@ const ComponentForm: React.FC<ComponentFormProps> = ({ component, onSave, onCanc
         <div>
           <Label>Vencimento (Data)</Label>
           <Input
-            type="date"
+            type="data"
             value={formData.vencimentoData}
             onChange={(e) => setFormData({ ...formData, vencimentoData: e.target.value })}
             className="bg-slate-800 border-slate-700"

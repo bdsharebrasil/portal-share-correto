@@ -9,7 +9,7 @@ interface ReconciliationData {
   category: string | null;
   client_id?: string | null;
   receiver_id?: string | null;
-  aircraft_id?: string | null;
+  aeronave_id?: string | null;
   prazo_pagamento?: string | null;
   forma_pagamento?: string | null;
   afeta_caixa_empresa?: boolean;
@@ -45,7 +45,7 @@ export async function createContaAReceber(
   reconciliation: ReconciliationData,
   userId: string
 ): Promise<string | null> {
-  if (!reconciliation.client_id) {
+  if (!reconciliation.cliente_id) {
     console.warn('createContaAReceber: client_id ausente');
     return null;
   }
@@ -65,9 +65,9 @@ export async function createContaAReceber(
 
     // Buscar dados do cliente
     const { data: clientData } = await supabase
-      .from('clients')
-      .select('company_name, cnpj')
-      .eq('id', reconciliation.client_id)
+      .from('clientes')
+      .select('razao_social, cnpj')
+      .eq('id', reconciliation.cliente_id)
       .single();
 
     if (!clientData) {
@@ -77,11 +77,11 @@ export async function createContaAReceber(
 
     // Buscar matrícula da aeronave se houver
     let aircraftRegistration = '';
-    if (reconciliation.aircraft_id) {
+    if (reconciliation.aeronave_id) {
       const { data: aircraftData } = await supabase
-        .from('aircraft')
-        .select('registration')
-        .eq('id', reconciliation.aircraft_id)
+        .from('aeronave')
+        .select('matricula')
+        .eq('id', reconciliation.aeronave_id)
         .single();
       if (aircraftData) {
         aircraftRegistration = aircraftData.registration;
@@ -111,27 +111,27 @@ export async function createContaAReceber(
     const numero = `CR-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
 
     // Data de vencimento: usar prazo_pagamento ou data + 30 dias
-    const dataVencimento = reconciliation.prazo_pagamento || reconciliation.date;
+    const dataVencimento = reconciliation.prazo_pagamento || reconciliation.data;
 
     // Valor: usar saldo_pendente se disponível, senão amount
-    const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.amount ?? 0);
+    const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.valor ?? 0);
 
     // Usar partner_name quando disponível, senão usar nome do cliente
-    const nomeExibicao = reconciliation.partner_name || clientData.company_name || 'Cliente';
+    const nomeExibicao = reconciliation.nome_socio || clientData.razao_social || 'Cliente';
 
     // Criar conta a receber
     const { data: newConta, error } = await supabase
       .from('contas_areceber')
       .insert({
         numero,
-        referencia: reconciliation.description,
+        referencia: reconciliation.descricao,
         cliente_nome: nomeExibicao,
         cliente_cnpj: clientData.cnpj || '',
         created_at: new Date().toISOString(),
         data_vencimento: dataVencimento,
         valor: valor,
-        categoria: reconciliation.category || 'Reembolso de Despesa',
-        descricao: reconciliation.description || 'Conta a receber - Reembolso',
+        categoria: reconciliation.categoria || 'Reembolso de Despesa',
+        descricao: reconciliation.descricao || 'Conta a receber - Reembolso',
         status: 'pendente',
         aeronave: aircraftRegistration || '',
         criado_por: userId,
@@ -161,7 +161,7 @@ export async function createContaAPagar(
   reconciliation: ReconciliationData,
   userId: string
 ): Promise<string | null> {
-  if (!reconciliation.receiver_id) {
+  if (!reconciliation.recebedor_id) {
     console.warn('createContaAPagar: receiver_id ausente');
     return null;
   }
@@ -183,7 +183,7 @@ export async function createContaAPagar(
     const { data: userProfileData } = await supabase
       .from('user_profiles')
       .select('full_name, cpf')
-      .eq('id', reconciliation.receiver_id)
+      .eq('id', reconciliation.recebedor_id)
       .single();
 
     if (!userProfileData) {
@@ -193,11 +193,11 @@ export async function createContaAPagar(
 
     // Buscar matrícula da aeronave se houver
     let aircraftRegistration = '';
-    if (reconciliation.aircraft_id) {
+    if (reconciliation.aeronave_id) {
       const { data: aircraftData } = await supabase
-        .from('aircraft')
-        .select('registration')
-        .eq('id', reconciliation.aircraft_id)
+        .from('aeronave')
+        .select('matricula')
+        .eq('id', reconciliation.aeronave_id)
         .single();
       if (aircraftData) {
         aircraftRegistration = aircraftData.registration;
@@ -225,7 +225,7 @@ export async function createContaAPagar(
     }
 
     const numero = `CP-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
-    const dataVencimento = reconciliation.prazo_pagamento || reconciliation.date;
+    const dataVencimento = reconciliation.prazo_pagamento || reconciliation.data;
 
     // Criar conta a pagar
     const { data: newConta, error } = await supabase
@@ -236,11 +236,11 @@ export async function createContaAPagar(
         fornecedor_cnpj: userProfileData.cpf || '',
         data_recebimento: new Date().toISOString().split('T')[0],
         data_vencimento: dataVencimento,
-        valor: Math.abs(reconciliation.amount || 0),
-        categoria: reconciliation.category || 'Reembolso de Viagem',
-        descricao: reconciliation.description || 'Conta a pagar - Reembolso',
+        valor: Math.abs(reconciliation.valor || 0),
+        categoria: reconciliation.categoria || 'Reembolso de Viagem',
+        descricao: reconciliation.descricao || 'Conta a pagar - Reembolso',
         status: 'recebida',
-        aeronave_id: reconciliation.aircraft_id || null,
+        aeronave_id: reconciliation.aeronave_id || null,
         criado_por: userId,
         banco_conciliacao_id: reconciliation.id
       } as any)
@@ -277,14 +277,14 @@ export async function createFluxoCaixaEntry(
   try {
     // Client partners não devem gerar controle_bancario (fluxo de caixa)
     // Eles geram partner_expenses em seu próprio fluxo
-    if (reconciliation.client_partner) {
+    if (reconciliation.socio_cliente_id) {
       console.log('Conciliação é client_partner - não criar controle_bancario');
       return true;
     }
 
     const statusLower = status?.toLowerCase() || '';
-    const isClientReconciliation = reconciliation.type === 'cliente';
-    const isColaboradorReconciliation = reconciliation.type === 'colaborador';
+    const isClientReconciliation = reconciliation.tipo === 'cliente';
+    const isColaboradorReconciliation = reconciliation.tipo === 'colaborador';
 
     // Determinar tipo de movimento e referência
     let tipoMovimento = '';
@@ -335,23 +335,23 @@ export async function createFluxoCaixaEntry(
     let clientNameToInsert: string | null = null;
     let aeronaveRegistro: string | null = null;
 
-    if (isClientReconciliation && reconciliation.client_id) {
-      clientIdToInsert = reconciliation.client_id;
+    if (isClientReconciliation && reconciliation.cliente_id) {
+      clientIdToInsert = reconciliation.cliente_id;
       const { data: clientData } = await supabase
-        .from('clients')
-        .select('company_name')
-        .eq('id', reconciliation.client_id)
+        .from('clientes')
+        .select('razao_social')
+        .eq('id', reconciliation.cliente_id)
         .single();
-      if (clientData?.company_name) {
-        clientNameToInsert = clientData.company_name;
+      if (clientData?.razao_social) {
+        clientNameToInsert = clientData.razao_social;
       }
     }
 
-    if (reconciliation.aircraft_id) {
+    if (reconciliation.aeronave_id) {
       const { data: aircraftData } = await supabase
-        .from('aircraft')
-        .select('registration')
-        .eq('id', reconciliation.aircraft_id)
+        .from('aeronave')
+        .select('matricula')
+        .eq('id', reconciliation.aeronave_id)
         .single();
       if (aircraftData?.registration) {
         aeronaveRegistro = aircraftData.registration;
@@ -359,7 +359,7 @@ export async function createFluxoCaixaEntry(
     }
 
     // Criar entrada no fluxo de caixa
-    const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.amount ?? 0);
+    const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.valor ?? 0);
 
     const { error } = await supabase
       .from('controle_bancario')
@@ -367,9 +367,9 @@ export async function createFluxoCaixaEntry(
         data: new Date().toISOString().split('T')[0],
         data_vencimento: reconciliation.prazo_pagamento || null,
         tipo_movimento: tipoMovimento,
-        categoria: reconciliation.category || (tipoMovimento === 'entrada' ? 'Receita de Reembolso' : 'Despesa'),
+        categoria: reconciliation.categoria || (tipoMovimento === 'entrada' ? 'Receita de Reembolso' : 'Despesa'),
         grupo_categoria: tipoMovimento === 'entrada' ? 'RECEITAS' : 'DESPESAS',
-        descricao: reconciliation.description || (tipoMovimento === 'entrada' ? 'Recebimento de Reembolso' : 'Pagamento'),
+        descricao: reconciliation.descricao || (tipoMovimento === 'entrada' ? 'Recebimento de Reembolso' : 'Pagamento'),
         valor: valor,
         referencia,
         status: statusFluxo,
@@ -403,19 +403,19 @@ export async function updateSaldoPendente(
 ): Promise<boolean> {
   try {
     const { data: current } = await supabase
-      .from('bank_reconciliations')
-      .select('amount, saldo_pendente, valor_reembolsado')
+      .from('conciliacoes_bancarias')
+      .select('valor, saldo_pendente, valor_reembolsado')
       .eq('id', reconciliationId)
       .single();
 
     if (!current) return false;
 
-    const saldoAtual = current.saldo_pendente ?? Math.abs(current.amount);
+    const saldoAtual = current.saldo_pendente ?? Math.abs(current.valor);
     const novoSaldo = saldoAtual - valorPago;
     const valorReembolsadoTotal = (current.valor_reembolsado || 0) + valorPago;
 
     const { error } = await supabase
-      .from('bank_reconciliations')
+      .from('conciliacoes_bancarias')
       .update({
         saldo_pendente: Math.max(0, novoSaldo),
         valor_reembolsado: valorReembolsadoTotal,
@@ -628,7 +628,7 @@ export async function marcarDespesaComoRecebida(
       id: despesa.id,
       reembolsavel: despesa.reembolsavel,
       reembolso_recebido: despesa.reembolso_recebido,
-      status: despesa.status
+      status: despesa.situacao
     });
 
     // Verificar se é reembolsável
@@ -688,7 +688,7 @@ export async function marcarDespesaComoRecebida(
         conta_banco: contaBanco || despesa.conta_banco,
         numero_documento: despesa.numero_documento ? `REIMB-${despesa.numero_documento}` : null,
         status: 'recebido',
-        client_id: despesa.client_id,
+        client_id: despesa.cliente_id,
         client_name: despesa.client_name,
         aeronave_id: despesa.aeronave_id,
         aeronave_registro: despesa.aeronave_registro,

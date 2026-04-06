@@ -18,12 +18,14 @@ const PARTNER_TEXT: Record<string, string> = {
   DEJALMO: "text-amber-400"
 };
 
-const normalizePartnerName = (name: string) =>
-  name
+const normalizePartnerName = (name: string | null | undefined) => {
+  if (!name) return "";
+  return name
     .toUpperCase()
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .trim();
+};
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

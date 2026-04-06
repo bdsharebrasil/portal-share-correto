@@ -77,13 +77,13 @@ export function InstallmentPreview({
                     Parcela {inst.number}/{installmentCount}
                   </p>
                   <p className="text-xs text-blue-700 dark:text-blue-500">
-                    {inst.date}
+                    {inst.data}
                   </p>
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-sm font-bold text-blue-900 dark:text-blue-300">
-                  R$ {inst.amount.toFixed(2)}
+                  R$ {inst.valor.toFixed(2)}
                 </p>
               </div>
             </div>

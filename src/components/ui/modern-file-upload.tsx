@@ -66,12 +66,12 @@ export function ModernFileUpload({
     const validTypes = accept
       .split(",")
       .map((t) => t.trim().toLowerCase().replace(".", ""));
-    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+    const fileExtension = file.nome.split(".").pop()?.toLowerCase();
     return fileExtension ? validTypes.includes(fileExtension) : false;
   };
 
   const generatePreview = (file: File) => {
-    if (file.type.startsWith("image/")) {
+    if (file.tipo.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setPreview(e.target?.result as string);
@@ -90,7 +90,7 @@ export function ModernFileUpload({
   const getFileIcon = (file?: File | null) => {
     if (!file) return null;
 
-    const type = file.type.toLowerCase();
+    const type = file.tipo.toLowerCase();
     if (type.startsWith("image/")) {
       return <ImageIcon className="h-4 w-4" />;
     }
@@ -101,7 +101,7 @@ export function ModernFileUpload({
   };
 
   const displayFile = currentFile || uploadedUrl;
-  const fileName = currentFile?.name || (uploadedUrl ? "Arquivo já enviado" : null);
+  const fileName = currentFile?.nome || (uploadedUrl ? "Arquivo já enviado" : null);
 
   return (
     <div className="space-y-2">
