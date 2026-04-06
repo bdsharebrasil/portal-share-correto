@@ -279,7 +279,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
   };
 
   const getStatusBadge = (entry: TimeEntry) => {
-    if (entry.situacao === 'falta' && entry.absence_reason) {
+    if (entry.status === 'falta' && entry.absence_reason) {
       if (entry.absence_approved === true) {
         return <Badge className="bg-green-600">Falta Justificada</Badge>;
       } else if (entry.absence_approved === false) {
@@ -289,7 +289,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       }
     }
 
-    switch (entry.situacao) {
+    switch (entry.status) {
       case 'concluido':
         return <Badge className="bg-green-600">Concluído</Badge>;
       case 'em_andamento':
