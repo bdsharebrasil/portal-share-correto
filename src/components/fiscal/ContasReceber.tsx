@@ -530,14 +530,14 @@ export function ContasReceber() {
   }, [filteredContas]);
 
   const contasPendentes = useMemo(() => {
-    return filteredContas.filter((c) => c.situacao !== "recebido").length;
+    return filteredContas.filter((c) => c.status !== "recebido").length;
   }, [filteredContas]);
 
   const proximoVencimento = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const futureContas = filteredContas
-      .filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.situacao !== "recebido")
+      .filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.status !== "recebido")
       .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
 
     return futureContas.length > 0 ? futureContas[0].data_vencimento : null;
