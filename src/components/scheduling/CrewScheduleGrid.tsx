@@ -191,7 +191,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         aircraftReg: (booking as any).aeronave?.matricula || "N/A",
         route: `${(booking as any).origin || "---"} → ${(booking as any).destination || "---"}`,
         time: (booking as any).departure_time?.slice(0, 5) || "",
-        status: (booking as any).situacao,
+        status: (booking as any).status,
         role: (booking as any).assigned_pilot_id === crewId ? "PIC" : "SIC"
       };
     }
