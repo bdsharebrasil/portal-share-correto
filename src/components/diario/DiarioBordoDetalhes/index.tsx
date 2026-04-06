@@ -771,7 +771,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
     try {
       // Buscar todas as entradas do mês ordenadas por sequential_number
-      const { data: monthEntries } = await supabase.
+      const { data: monthEntries } = await (supabase as any).
       from('logbook_entries').
       select('id, time, sequential_number').
       eq('aeronave_id', aircraftId).
@@ -1676,7 +1676,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const handleOpenCreateMonthDialog = async () => {
     try {
-      const { data: lastMonthData } = await supabase.
+      const { data: lastMonthData } = await (supabase as any).
       from('logbook_months').
       select('*').
       eq('aeronave_id', aircraftId).
@@ -2497,7 +2497,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     {/* Cliente que está emprestando */}
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
-                      <Select value={newEntry.cliente_id} onValueChange={(v) => {
+                      <Select value={newEntry.client_id} onValueChange={(v) => {
                       const selectedClient = clients.find((c) => c.id === v);
 
                       setNewEntry({
@@ -2912,7 +2912,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {calculatePerDiemInfo.details.map((pd, idx) => {
-                const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.data}` : `${idx}`;
+                const uniqueKey = pd.entryId ? `${pd.entryId}_${(pd as any).data || pd.date}` : `${idx}`;
                 const isMarked = markedDailies[uniqueKey] || false;
                 return (
                   <div
@@ -2937,7 +2937,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <div className="flex-1 min-w-0">
                           <p className={`text-[9px] uppercase font-bold mb-1 ${isMarked ? 'text-sky-400' : 'text-yellow-500'}`
                         }>
-                            {pd.data}
+                            {(pd as any).data || pd.date}
                           </p>
                           <p className="text-xs text-slate-400 truncate">{pd.location}</p>
                         </div>
@@ -3060,9 +3060,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <tbody className="divide-y divide-slate-800">
                   {technicalStatus.crew_records.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-2 text-center">
-                      <input type="data" value={record.data} onChange={(e) => {
+                      <input type="text" value={(record as any).data || (record as any).date} onChange={(e) => {
                         const newRecords = [...technicalStatus.crew_records];
-                        newRecords[idx].data = e.target.value;
+                        (newRecords[idx] as any).data = e.target.value;
                         setTechnicalStatus({
                           ...technicalStatus,
                           crew_records: newRecords
@@ -3147,9 +3147,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <tbody className="divide-y divide-slate-800">
                   {technicalStatus.service_return.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-2 text-center">
-                      <input type="data" value={record.data} onChange={(e) => {
+                      <input type="text" value={(record as any).data || (record as any).date} onChange={(e) => {
                         const newRecords = [...technicalStatus.service_return];
-                        newRecords[idx].data = e.target.value;
+                        (newRecords[idx] as any).data = e.target.value;
                         setTechnicalStatus({
                           ...technicalStatus,
                           service_return: newRecords
@@ -3775,7 +3775,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
                       {Object.values(clientTotals).map((ct, idx) =>
                     <span key={idx}>
-                          <span className="text-cyan-400 font-semibold">{ct.nome.split(' ')[0]}</span>
+                          <span className="text-cyan-400 font-semibold">{((ct as any).nome || ct.name || '').split(' ')[0]}</span>
                           {' '}{decimalToHHMM(ct.hours)}h
                           {logbookMonth?.has_daily_rate && ct.dailyRates > 0 &&
                       <span className="text-yellow-400"> • R${ct.dailyRates.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>

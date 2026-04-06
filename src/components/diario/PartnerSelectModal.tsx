@@ -5,7 +5,8 @@ import { Users, X } from 'lucide-react';
 
 interface Partner {
   id?: string;
-  name: string;
+  name?: string;
+  nome?: string;
   cpf?: string;
   index: number;
 }
@@ -28,7 +29,7 @@ export const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({
   onSelectPartner,
 }) => {
   const handleSelectPartner = (partner: Partner) => {
-    onSelectPartner(partner.nome);
+    onSelectPartner(partner.nome || partner.name || '');
     onOpenChange(false);
   };
 
@@ -63,21 +64,21 @@ export const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({
                     key={partner.index}
                     onClick={() => handleSelectPartner(partner)}
                     className={`text-left p-3 rounded-lg border transition-all ${
-                      selectedPartner === partner.nome
+                      selectedPartner === (partner.nome || partner.name)
                         ? 'bg-amber-500/20 border-amber-500/50 ring-2 ring-amber-500/30'
                         : 'bg-slate-950 border-slate-800 hover:border-amber-500/50 hover:bg-slate-950/70'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
-                        <p className="font-bold text-amber-400 text-sm">{partner.nome}</p>
+                        <p className="font-bold text-amber-400 text-sm">{partner.nome || partner.name}</p>
                         {partner.cpf && (
                           <p className="text-xs text-slate-400 font-mono mt-1">
                             CPF: {partner.cpf}
                           </p>
                         )}
                       </div>
-                      {selectedPartner === partner.nome && (
+                       {selectedPartner === (partner.nome || partner.name) && (
                         <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0 mt-1">
                           <span className="text-white text-xs font-bold">✓</span>
                         </div>
@@ -108,7 +109,7 @@ export const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({
               size="sm"
               disabled={!selectedPartner}
               onClick={() => {
-                const partner = partners.find(p => p.nome === selectedPartner);
+                const partner = partners.find(p => (p.nome || p.name) === selectedPartner);
                 if (partner) handleSelectPartner(partner);
               }}
               className="bg-amber-600 hover:bg-amber-700"

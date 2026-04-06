@@ -106,7 +106,7 @@ export function ContaRecorrenteForm({
       setValue("fornecedor", conta.fornecedor);
       setValue("valor", conta.valor?.toString() || "");
       setValue("categoria", conta.categoria || "");
-      setValue("situacao", conta.situacao);
+      setValue("status", conta.status || (conta as any).situacao);
       setValue("frequencia_recorrencia", conta.frequencia_recorrencia || "mensal");
       setValue("dia_recorrencia", conta.dia_recorrencia?.toString() || "1");
       setValue("lembrete_antecipado", conta.lembrete_antecipado || false);
@@ -125,7 +125,7 @@ export function ContaRecorrenteForm({
       }
     } else {
       reset();
-      setValue("situacao", "agendado");
+      setValue("status", "agendado");
       setValue("frequencia_recorrencia", "mensal");
       setValue("dia_recorrencia", "1");
       setValue("lembrete_antecipado", true);
@@ -302,7 +302,7 @@ export function ContaRecorrenteForm({
 
             <div>
               <Label htmlFor="situacao">Status</Label>
-              <RegularSelect value={watch("situacao")} onValueChange={(value) => setValue("situacao", value)}>
+              <RegularSelect value={watch("status")} onValueChange={(value) => setValue("status", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>

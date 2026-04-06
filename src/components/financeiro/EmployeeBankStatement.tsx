@@ -57,7 +57,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
     const consolidated: { [key: string]: SalaryPayment } = {};
 
     allPayments.forEach((payment) => {
-      const paymentDate = new Date(payment.criado_em);
+      const paymentDate = new Date((payment as any).criado_em || payment.created_at);
       const monthYear = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
 
       if (!consolidated[monthYear]) {
@@ -105,7 +105,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
   const consolidatedPayments = consolidatePaymentsByMonth(payments);
 
   const filteredPayments = consolidatedPayments.filter((payment) => {
-    const paymentDate = new Date(payment.criado_em);
+    const paymentDate = new Date((payment as any).criado_em || payment.created_at);
     const monthYear = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
 
     const descriptions = [
@@ -272,7 +272,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
                     return (
                       <tr key={payment.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {new Date(payment.criado_em).toLocaleDateString('pt-BR', {
+                          {new Date((payment as any).criado_em || payment.created_at).toLocaleDateString('pt-BR', {
                             month: 'long',
                             year: 'numeric'
                           })}
