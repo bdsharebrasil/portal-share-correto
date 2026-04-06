@@ -1088,7 +1088,7 @@ export function FuelRecordsByAircraft({
     } else {
       exportRecords = records.filter((r) => {
         // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
-        const dateToUse = (r.situacao_pagamento === "pago" && r.data_pagamento)
+        const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
           ? r.data_pagamento
           : r.data;
         const recordDate = new Date(dateToUse + "T00:00:00");
