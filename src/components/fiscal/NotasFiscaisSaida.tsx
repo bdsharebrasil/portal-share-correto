@@ -169,7 +169,7 @@ const validarNotaFiscal = (formData: any): string | null => {
   }
 
   const statusValidos = ["pendente", "recebido", "cancelado"];
-  if (!statusValidos.includes(formData.situacao)) return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
+  if (!statusValidos.includes(formData.status)) return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
 
   return null;
 };
@@ -1511,7 +1511,7 @@ export function NotasFiscaisSaida() {
                     </div>
                     <div>
                       <Label className="text-foreground">Status *</Label>
-                      <Select value={formData.situacao} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
+                      <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
                         <SelectTrigger className="w-full bg-background border-border">
                           <SelectValue />
                         </SelectTrigger>
@@ -2131,7 +2131,7 @@ export function NotasFiscaisSaida() {
               </div>
               <div>
                 <Label className="text-foreground mb-2 block">Status</Label>
-                <Select value={reciboEditData.situacao} onValueChange={(value) => setReciboEditData({ ...reciboEditData, status: value })}>
+                <Select value={reciboEditData.status} onValueChange={(value) => setReciboEditData({ ...reciboEditData, status: value })}>
                   <SelectTrigger className="bg-background border-border">
                     <SelectValue />
                   </SelectTrigger>

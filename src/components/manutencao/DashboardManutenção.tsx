@@ -198,7 +198,7 @@ export function DashboardManutenção({ aircraftWithHours }: DashboardManutencao
   const [selectedTab, setSelectedTab] = useState<'all' | 'critical' | 'ok'>('all');
 
   const activeAircraft = aeronaves.filter(a => {
-    const isActive = a.situacao?.toLowerCase() === 'ativa' || a.situacao?.toLowerCase() === 'ativo';
+    const isActive = a.status?.toLowerCase() === 'ativa' || a.status?.toLowerCase() === 'ativo';
     const hasHours = aircraftWithHours ? aircraftWithHours.has(a.id) : true;
     return isActive && hasHours;
   });

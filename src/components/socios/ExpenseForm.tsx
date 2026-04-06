@@ -550,7 +550,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           ? form.installmentStartDate
           : null,
       aircraftId,
-      status: form.situacao,
+      status: form.status,
       referenceType,
       referenceId,
       abastecimentoId: abastecimentoId,
@@ -1891,7 +1891,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   {!(isAbastecimento && form.criarNovoAbastecimento) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Status da Despesa">
-                      <Select value={form.situacao} onValueChange={set("situacao")}>
+                      <Select value={form.status} onValueChange={set("status")}>
                         <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>

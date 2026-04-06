@@ -14311,7 +14311,7 @@ export type Database = {
           id: string | null
           nf_url: string | null
           requer_acao: boolean | null
-          situacao_visual: string | null
+          status_visual: string | null
           status: string | null
           updated_at: string | null
         }

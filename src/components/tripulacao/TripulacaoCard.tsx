@@ -26,7 +26,7 @@ interface CrewMember {
   email?: string;
   telefone?: string;
   url_avatar?: string;
-  situacao: string;
+  status: string;
   // Backward compatibility
   full_name?: string;
   phone?: string;

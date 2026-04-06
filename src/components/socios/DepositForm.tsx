@@ -123,7 +123,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
   // Expenses available for reversal (only paid/completed ones)
   const reversableExpenses = useMemo(() => {
-    return expenses.filter((exp) => exp.situacao === "paid" || exp.situacao === "pago");
+    return expenses.filter((exp) => exp.status === "paid" || exp.status === "pago");
   }, [expenses]);
 
   // Selected expense for reversal
@@ -150,7 +150,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
       const expDate = new Date(exp.criado_em);
       const dateMatches = Math.abs(selectedDate.getTime() - expDate.getTime()) < timeTolerance;
 
-      return descMatches && dateMatches && (exp.situacao === "paid" || exp.situacao === "pago");
+      return descMatches && dateMatches && (exp.status === "paid" || exp.status === "pago");
     });
   }, [selectedExpense, expenses]);
 

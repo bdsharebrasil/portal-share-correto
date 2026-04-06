@@ -59,7 +59,7 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
       setFormData({
         title: data.title,
         description: data.descricao || "",
-        status: data.situacao,
+        status: data.status,
         priority: data.priority,
         due_date: data.data_vencimento || "",
         assigned_to: data.assigned_to || ""
@@ -85,7 +85,7 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
         description: formData.descricao || null,
         due_date: formData.data_vencimento || null,
         priority: formData.priority,
-        status: formData.situacao,
+        status: formData.status,
         assigned_to: formData.assigned_to || null,
         created_by: user.id,
       };
@@ -207,9 +207,9 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
             </div>
 
             <div>
-              <Label htmlFor="situacao">Status</Label>
+              <Label htmlFor="status">Status</Label>
               <Select
-                value={formData.situacao}
+                value={formData.status}
                 onValueChange={(value) => setFormData({ ...formData, status: value })}
               >
                 <SelectTrigger>

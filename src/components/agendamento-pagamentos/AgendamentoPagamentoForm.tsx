@@ -111,12 +111,12 @@ export function AgendamentoPagamentoForm({
 
       if (agendamento?.id) {
         // Se o status está sendo alterado para 'pago', sincroniza com controle bancário
-        if (formData.situacao === 'pago' && agendamento.situacao !== 'pago') {
+        if (formData.status === 'pago' && agendamento.status !== 'pago') {
           const agendamentoAtualizado = { ...agendamento, ...data };
           await syncAgendamentoPagamentoToControle(agendamentoAtualizado, user?.id);
         }
         // Se o status está sendo alterado de 'pago' para 'cancelado', remove do controle
-        else if (formData.situacao === 'cancelado' && agendamento.situacao === 'pago') {
+        else if (formData.status === 'cancelado' && agendamento.status === 'pago') {
           await removeAgendamentoPagamentoFromControle(agendamento.id);
         }
 
@@ -145,7 +145,7 @@ export function AgendamentoPagamentoForm({
         }
 
         // Se o novo agendamento é criado já como 'pago', sincroniza imediatamente
-        if (formData.situacao === 'pago' && insertedData && insertedData.length > 0) {
+        if (formData.status === 'pago' && insertedData && insertedData.length > 0) {
           await syncAgendamentoPagamentoToControle({
             ...insertedData[0],
             valor: parseFloat(String(insertedData[0].valor))

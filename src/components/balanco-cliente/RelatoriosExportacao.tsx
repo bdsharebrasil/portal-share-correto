@@ -351,9 +351,9 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
 
     if (tipo === 'completo') {
       doc.setFontSize(14); doc.text('Resumo Financeiro', 14, yPos); yPos += 10;
-      const pendentes = despesas.filter((d: any) => d.situacao === 'pendente');
-      const pagos = despesas.filter((d: any) => ['pago', 'conciliado'].includes(d.situacao));
-      const aguardando = despesas.filter((d: any) => d.situacao === 'aguardando_reembolso');
+      const pendentes = despesas.filter((d: any) => d.status === 'pendente');
+      const pagos = despesas.filter((d: any) => ['pago', 'conciliado'].includes(d.status));
+      const aguardando = despesas.filter((d: any) => d.status === 'aguardando_reembolso');
       autoTable(doc, {
         startY: yPos, head: [['Status', 'Quantidade', 'Valor Total']], body: [
           ['Pendente de Envio', pendentes.length.toString(), fmtCurrency(pendentes.reduce((s: number, d: any) => s + (d.valor || 0), 0))],
@@ -366,14 +366,14 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
 
     if (tipo === 'despesas' || tipo === 'completo') {
       doc.setFontSize(14); doc.text('Despesas Detalhadas', 14, yPos); yPos += 10;
-      const despesasData = despesas.slice(0, 50).map((d: any) => [format(new Date(d.data), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.descricao || '-').substring(0, 30), fmtCurrency(d.valor || 0), d.situacao]);
+      const despesasData = despesas.slice(0, 50).map((d: any) => [format(new Date(d.data), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.descricao || '-').substring(0, 30), fmtCurrency(d.valor || 0), d.status]);
       autoTable(doc, { startY: yPos, head: [['Data', 'Categoria', 'Descrição', 'Valor', 'Status']], body: despesasData, theme: 'striped', headStyles: { fillColor: [59, 130, 246] }, styles: { fontSize: 9 } });
     }
 
     if (tipo === 'pendencias') {
       doc.setFontSize(14); doc.text('Pendências Financeiras', 14, yPos); yPos += 10;
-      const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.situacao));
-      const pendenciasData = pendencias.map((d: any) => [format(new Date(d.data), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.descricao || '-').substring(0, 30), fmtCurrency(d.valor || 0), d.situacao === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso']);
+      const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.status));
+      const pendenciasData = pendencias.map((d: any) => [format(new Date(d.data), 'dd/MM/yy'), (d as any).categorias_movimentacao?.nome || '-', (d.descricao || '-').substring(0, 30), fmtCurrency(d.valor || 0), d.status === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso']);
       autoTable(doc, { startY: yPos, head: [['Data', 'Categoria', 'Descrição', 'Valor', 'Status']], body: pendenciasData.length > 0 ? pendenciasData : [['', '', 'Nenhuma pendência encontrada', '', '']], theme: 'striped', headStyles: { fillColor: [239, 68, 68] }, styles: { fontSize: 9 } });
     }
 
@@ -507,7 +507,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
               <TableCell>{d.categorias_movimentacao?.nome || '-'}</TableCell>
               <TableCell className="max-w-[250px] truncate">{d.descricao || '-'}</TableCell>
               <TableCell className="text-right font-medium">{fmtCurrency(d.valor || 0)}</TableCell>
-              <TableCell><span className={`text-[10px] px-1.5 py-0.5 rounded ${d.situacao === 'pago' ? 'bg-emerald-500/10 text-emerald-400' : d.situacao === 'pendente' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{d.situacao}</span></TableCell>
+              <TableCell><span className={`text-[10px] px-1.5 py-0.5 rounded ${d.status === 'pago' ? 'bg-emerald-500/10 text-emerald-400' : d.status === 'pendente' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>{d.status}</span></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -519,7 +519,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
   );
 
   const renderInlinePendencias = () => {
-    const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.situacao));
+    const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.status));
     return (
       <div className="overflow-x-auto">
         <Table>
@@ -541,7 +541,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
                 <TableCell>{(d as any).categorias_movimentacao?.nome || '-'}</TableCell>
                 <TableCell className="max-w-[250px] truncate">{d.descricao || '-'}</TableCell>
                 <TableCell className="text-right font-medium">{fmtCurrency(d.valor || 0)}</TableCell>
-                <TableCell><span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">{d.situacao === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso'}</span></TableCell>
+                <TableCell><span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">{d.status === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso'}</span></TableCell>
               </TableRow>
             ))}
           </TableBody>

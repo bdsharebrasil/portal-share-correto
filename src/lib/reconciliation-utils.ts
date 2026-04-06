@@ -628,7 +628,7 @@ export async function marcarDespesaComoRecebida(
       id: despesa.id,
       reembolsavel: despesa.reembolsavel,
       reembolso_recebido: despesa.reembolso_recebido,
-      status: despesa.situacao
+      status: despesa.status
     });
 
     // Verificar se é reembolsável

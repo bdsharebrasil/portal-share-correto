@@ -81,7 +81,7 @@ export function EmployeeSalariesMonthly() {
       const { data: profiles, error: profilesError } = await (supabase as any)
         .from("user_profiles")
         .select("*")
-        .eq("situacao", "ativo")
+        .eq("status", "ativo")
         .order("full_name", { ascending: true });
 
       if (profilesError) throw profilesError;

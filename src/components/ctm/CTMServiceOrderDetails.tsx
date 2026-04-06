@@ -861,12 +861,12 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
                 <div className="flex gap-4 text-sm flex-wrap">
                   <div className="bg-green-500/10 rounded-lg px-3 py-2 border border-green-500/20">
                     <span className="text-green-400 font-bold">
-                      Aprovado: R$ {oasBudgets.filter((b: any) => b.situacao === 'aprovado').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      Aprovado: R$ {oasBudgets.filter((b: any) => b.status === 'aprovado').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="bg-yellow-500/10 rounded-lg px-3 py-2 border border-yellow-500/20">
                     <span className="text-yellow-400 font-bold">
-                      Pendente: R$ {oasBudgets.filter((b: any) => b.situacao === 'pendente_aprovacao').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      Pendente: R$ {oasBudgets.filter((b: any) => b.status === 'pendente_aprovacao').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

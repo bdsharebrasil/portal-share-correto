@@ -107,7 +107,7 @@ export function ContaRecorrenteForm({
       setValue("fornecedor", conta.fornecedor);
       setValue("valor", conta.valor?.toString() || "");
       setValue("categoria", conta.categoria || "");
-      setValue("status", conta.status || (conta as any).situacao);
+      setValue("status", conta.status || (conta as any).status);
       setValue("frequencia_recorrencia", conta.frequencia_recorrencia || "mensal");
       setValue("dia_recorrencia", conta.dia_recorrencia?.toString() || "1");
       setValue("lembrete_antecipado", conta.lembrete_antecipado || false);
@@ -172,7 +172,7 @@ export function ContaRecorrenteForm({
         valor: valor !== null ? valor : null,
         categoria: formData.categoria || null,
         tipo_despesa: tipoDespesa || null,
-        status: formData.situacao,
+        status: formData.status,
         frequencia_recorrencia: formData.frequencia_recorrencia,
         dia_recorrencia: formData.dia_recorrencia ? parseInt(formData.dia_recorrencia) : null,
         lembrete_antecipado: formData.lembrete_antecipado || false,
@@ -302,7 +302,7 @@ export function ContaRecorrenteForm({
             )}
 
             <div>
-              <Label htmlFor="situacao">Status</Label>
+              <Label htmlFor="status">Status</Label>
               <RegularSelect value={watch("status")} onValueChange={(value) => setValue("status", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />

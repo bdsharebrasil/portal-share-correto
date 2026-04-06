@@ -18,7 +18,7 @@ interface CrewPerson {
   data_nascimento?: string;
   telefone?: string;
   url_avatar?: string;
-  situacao: string;
+  status: string;
   rg?: string;
   cpf?: string;
   endereco?: string;
@@ -41,7 +41,7 @@ interface FormData {
   rg: string;
   cpf: string;
   endereco: string;
-  situacao: string;
+  status: string;
   // Backward compatibility
   full_name?: string;
   birth_date?: string;
@@ -58,7 +58,7 @@ const INITIAL_FORM_STATE: FormData = {
   rg: "",
   cpf: "",
   endereco: "",
-  situacao: "ativo",
+  status: "ativo",
 };
 
 export function CrewRegistrationForm() {
@@ -179,7 +179,7 @@ export function CrewRegistrationForm() {
       rg: crew.rg || "",
       cpf: crew.cpf || "",
       endereco: crew.endereco || "",
-      situacao: crew.situacao,
+      status: crew.status,
     });
     setEditingId(crew.id);
     setIsDialogOpen(true);
@@ -282,9 +282,9 @@ export function CrewRegistrationForm() {
                     <TableCell>{crew.telefone || "-"}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={crew.situacao === "ativo" ? "default" : "secondary"}
+                        variant={crew.status === "ativo" ? "default" : "secondary"}
                       >
-                        {crew.situacao === "ativo" ? "Ativo" : "Inativo"}
+                        {crew.status === "ativo" ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
@@ -403,10 +403,10 @@ export function CrewRegistrationForm() {
 
             {/* Row 5 */}
             <div className="space-y-2">
-              <Label htmlFor="situacao">Status</Label>
+              <Label htmlFor="status">Status</Label>
               <Select
-                value={formData.situacao}
-                onValueChange={(value) => handleInputChange("situacao", value)}
+                value={formData.status}
+                onValueChange={(value) => handleInputChange("status", value)}
               >
                 <SelectTrigger>
                   <SelectValue />

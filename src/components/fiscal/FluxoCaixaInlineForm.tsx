@@ -362,7 +362,7 @@ export function FluxoCaixaInlineForm({
       setValue("valor", movimentacao.valor.toString());
       setValue("conta_banco", movimentacao.conta_banco || "");
       setValue("numero_documento", movimentacao.numero_documento || "");
-      setValue("situacao", movimentacao.situacao);
+      setValue("status", movimentacao.status);
       setValue("observacoes", movimentacao.observacoes || "");
       setValue("aeronave", movimentacao.aeronave_registro || "");
       setValue("cliente_id", movimentacao.cliente_id || "");
@@ -393,7 +393,7 @@ export function FluxoCaixaInlineForm({
     } else {
       reset();
       setValue("data", getTodayDateString());
-      setValue("situacao", "pago");
+      setValue("status", "pago");
       setSelectedSubcategoria(null);
       setIsReembolsavel(false);
       setTemRateio(false);
@@ -408,7 +408,7 @@ export function FluxoCaixaInlineForm({
   // Atualiza o status quando o tipo de movimento muda
   useEffect(() => {
     if (!movimentacao) {
-      setValue("situacao", tipoMovimento === "entrada" ? "recebido" : "pago");
+      setValue("status", tipoMovimento === "entrada" ? "recebido" : "pago");
       setSelectedSubcategoria(null);
       setValue("categoria", "");
       // Resetar reembolso quando trocar para entrada
@@ -426,9 +426,9 @@ export function FluxoCaixaInlineForm({
       const isReembolsavelGroup = selectedSubcategoria.toLowerCase().includes("reembolsáve") ||
         selectedSubcategoria.toLowerCase().includes("reembolsave");
       if (isReembolsavelGroup) {
-        const currentStatus = watch("situacao");
+        const currentStatus = watch("status");
         if (currentStatus === "pago" || currentStatus === "pendente") {
-          setValue("situacao", "aguardando_reembolso");
+          setValue("status", "aguardando_reembolso");
         }
         setIsReembolsavel(true);
       }
@@ -506,7 +506,7 @@ export function FluxoCaixaInlineForm({
         valor,
         conta_banco: formData.conta_banco || null,
         numero_documento: formData.numero_documento || null,
-        status: formData.situacao,
+        status: formData.status,
         observacoes: formData.observacoes || null,
         aeronave_id: aeronaveObj?.id || null,
         aeronave_registro: formData.aeronave || null,
@@ -534,16 +534,16 @@ export function FluxoCaixaInlineForm({
         const despesaReembolsavel = movimentacao.reembolsavel === true;
         const ehSaida = movimentacao.tipo_movimento === 'saida';
         const aindaNaoRecebido = movimentacao.reembolso_recebido !== true;
-        const statusRecebido = formData.situacao === 'recebido';
+        const statusRecebido = formData.status === 'recebido';
         // Se o status anterior era diferente de recebido OU se nunca foi processado corretamente
-        const statusMudouParaRecebido = movimentacao.situacao !== 'recebido' || aindaNaoRecebido;
+        const statusMudouParaRecebido = movimentacao.status !== 'recebido' || aindaNaoRecebido;
 
         console.log('=== Verificando reembolso ===');
         console.log('despesaReembolsavel:', despesaReembolsavel, '| movimentacao.reembolsavel:', movimentacao.reembolsavel);
         console.log('ehSaida:', ehSaida, '| movimentacao.tipo_movimento:', movimentacao.tipo_movimento);
         console.log('aindaNaoRecebido:', aindaNaoRecebido, '| movimentacao.reembolso_recebido:', movimentacao.reembolso_recebido);
-        console.log('statusRecebido:', statusRecebido, '| formData.situacao:', formData.situacao);
-        console.log('statusMudouParaRecebido:', statusMudouParaRecebido, '| movimentacao.situacao:', movimentacao.situacao);
+        console.log('statusRecebido:', statusRecebido, '| formData.status:', formData.status);
+        console.log('statusMudouParaRecebido:', statusMudouParaRecebido, '| movimentacao.status:', movimentacao.status);
 
         const isMarkingAsReceived = despesaReembolsavel && ehSaida && aindaNaoRecebido && statusRecebido;
         console.log('isMarkingAsReceived:', isMarkingAsReceived);
@@ -1328,12 +1328,12 @@ export function FluxoCaixaInlineForm({
         {/* Row 4: Status e Observações */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <Label htmlFor="situacao" className="text-sm font-semibold text-foreground mb-2">
+            <Label htmlFor="status" className="text-sm font-semibold text-foreground mb-2">
               Status
             </Label>
             <Select
               defaultValue={tipoMovimento === "entrada" ? "recebido" : "pago"}
-              onValueChange={(value) => setValue("situacao", value)}
+              onValueChange={(value) => setValue("status", value)}
             >
               <SelectTrigger className="h-10 w-full bg-background">
                 <SelectValue />

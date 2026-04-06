@@ -82,7 +82,7 @@ export default function VencimentosTripulacao() {
       const { data: crew, error: crewError } = await supabase
         .from('membros_tripulacao')
         .select('*')
-        .eq('situacao', 'ativo')
+        .eq('status', 'ativo')
         .order('nome_completo');
 
       if (crewError) throw crewError;
@@ -225,7 +225,7 @@ export default function VencimentosTripulacao() {
       // Filtrar por status: verifica se tripulante tem habilitações do status selecionado
       let matchStatus = true;
       if (activeStatus !== 'todos') {
-        matchStatus = tripulante.habilitacoes.some(h => h.situacao === activeStatus);
+        matchStatus = tripulante.habilitacoes.some(h => h.status === activeStatus);
       }
 
       return matchSearch && matchStatus;
@@ -240,9 +240,9 @@ export default function VencimentosTripulacao() {
 
     vencimentos.forEach(tripulante => {
       tripulante.habilitacoes.forEach(hab => {
-        if (hab.situacao === 'vencido') vencidosCount++;
-        else if (hab.situacao === 'proximo') proximosCount++;
-        else if (hab.situacao === 'ok') okCount++;
+        if (hab.status === 'vencido') vencidosCount++;
+        else if (hab.status === 'proximo') proximosCount++;
+        else if (hab.status === 'ok') okCount++;
       });
     });
 
@@ -475,7 +475,7 @@ export default function VencimentosTripulacao() {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {filteredVencimentos.map((tripulante) => {
-                  const statusInfo = getStatusInfo(tripulante.situacaoGeral);
+                  const statusInfo = getStatusInfo(tripulante.statusGeral);
                   const StatusIcon = statusInfo.icon;
 
                   return (
@@ -511,7 +511,7 @@ export default function VencimentosTripulacao() {
                           </div>
                         ) : (
                           tripulante.habilitacoes.map((hab) => {
-                            const habStatusInfo = getStatusInfo(hab.situacao);
+                            const habStatusInfo = getStatusInfo(hab.status);
                             return (
                               <div key={hab.id} className={`rounded-lg px-3 py-2 border ${habStatusInfo.borderColor} ${habStatusInfo.bgColor}`}>
                                 <div className="flex items-center justify-between mb-2">
@@ -540,7 +540,7 @@ export default function VencimentosTripulacao() {
                                 </div>
 
                                 {/* Status Badge */}
-                                {hab.situacao === 'vencido' ? (
+                                {hab.status === 'vencido' ? (
                                   <div className="bg-red-500/20 rounded px-2 py-1 border border-red-500/30 inline-block">
                                     <p className="text-red-300 font-semibold text-xs">Vencido há {Math.abs(hab.diasRestantes)} dias</p>
                                   </div>

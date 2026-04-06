@@ -255,7 +255,7 @@ export default function Perfil() {
     if (absences <= 32) return Math.min(baseDays, 12);
     return 0;
   })();
-  const approvedTaken = (vacationRequests as any[]).filter(r => r.situacao === "approved").reduce((sum, r) => sum + (Number(r.days) || 0), 0);
+  const approvedTaken = (vacationRequests as any[]).filter(r => r.status === "approved").reduce((sum, r) => sum + (Number(r.days) || 0), 0);
   const available = workingMonths < 12 ? 0 : Math.max(0, entitlement - approvedTaken);
   const isWeekend = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -1119,7 +1119,7 @@ export default function Perfil() {
                     <CardContent className="pt-6">
                       <div className="text-center">
                         <p className="text-sm text-muted-foreground mb-2">Agendadas</p>
-                        <p className="text-4xl font-bold text-amber-600">{vacationRequests.filter((r: any) => r.situacao === 'pending' || r.situacao === 'approved').length}</p>
+                        <p className="text-4xl font-bold text-amber-600">{vacationRequests.filter((r: any) => r.status === 'pending' || r.status === 'approved').length}</p>
                         <p className="text-xs text-muted-foreground mt-2">dias</p>
                       </div>
                     </CardContent>
@@ -1228,8 +1228,8 @@ export default function Perfil() {
                               <p className="text-sm text-muted-foreground">{r.days} dias</p>
                             </div>
                           </div>
-                          <Badge variant={r.situacao === 'approved' ? 'default' : r.situacao === 'rejected' ? 'destructive' : 'secondary'}>
-                            {r.situacao === 'approved' ? 'Aprovado' : r.situacao === 'rejected' ? 'Rejeitado' : 'Pendente'}
+                          <Badge variant={r.status === 'approved' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
+                            {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
                           </Badge>
                         </div>)}
                     </div>}

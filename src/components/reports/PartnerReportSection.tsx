@@ -72,7 +72,7 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
   const totalExpR = expenses.reduce((s, e) => s + e.total_amount, 0);
   const totalBankControlR = bankControlExpenses.reduce((s, e) => s + e.valor, 0);
   const totalTravelR = travelReports.reduce((s, r) => s + (r.total_amount || 0), 0);
-  const paidExp = expenses.filter(e => e.situacao === "pago" || e.situacao === "paid").length;
+  const paidExp = expenses.filter(e => e.status === "pago" || e.status === "paid").length;
   const pctPaid = expenses.length > 0 ? (paidExp / expenses.length) * 100 : 0;
   const pctHours = totalFlightHours > 0 ? (totalHours / totalFlightHours) * 100 : 0;
 
@@ -232,9 +232,9 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.total_amount)}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (e.situacao === "pago" || e.situacao === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                        (e.status === "pago" || e.status === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                       }`}>
-                        {e.situacao || "pendente"}
+                        {e.status || "pendente"}
                       </span>
                     </td>
                   </tr>

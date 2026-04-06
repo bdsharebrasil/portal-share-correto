@@ -83,7 +83,7 @@ export function RelatorioFinanceiro() {
       .reduce((sum, m) => sum + parseFloat(m.valor), 0);
 
     const pendentes = agendamentos
-      .filter(a => a.situacao === 'agendado')
+      .filter(a => a.status === 'agendado')
       .reduce((sum, a) => sum + parseFloat(a.valor), 0);
 
     return { entradas, saidas, saldo: entradas - saidas, pendentes };
@@ -153,7 +153,7 @@ export function RelatorioFinanceiro() {
       Categoria: m.categoria,
       Tipo: m.tipo_movimento,
       Valor: parseFloat(m.valor).toFixed(2),
-      Status: m.situacao
+      Status: m.status
     }));
 
     const csv = [
@@ -284,7 +284,7 @@ export function RelatorioFinanceiro() {
               R$ {totals.pendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {agendamentos.filter(a => a.situacao === 'agendado').length} agendados
+              {agendamentos.filter(a => a.status === 'agendado').length} agendados
             </p>
           </CardContent>
         </Card>

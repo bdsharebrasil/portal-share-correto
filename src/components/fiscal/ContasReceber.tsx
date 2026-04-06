@@ -844,7 +844,7 @@ export function ContasReceber() {
                 className="pl-9 bg-background/50 border-border/40"
               />
             </div>
-            <Select value={(filters as any).situacao || filters.status} onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}>
+            <Select value={(filters as any).status || filters.status} onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}>
               <SelectTrigger className="w-full md:w-[180px] bg-background/50 border-border/40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -900,9 +900,9 @@ export function ContasReceber() {
                         R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${getStatusColor(conta.situacao)} border text-xs gap-1`}>
-                          {getStatusIcon(conta.situacao)}
-                          {conta.situacao === "recebido" ? "Recebido" : conta.situacao === "pendente" ? "Pendente" : conta.situacao === "inadimplente" ? "Vencida" : conta.situacao}
+                        <Badge className={`${getStatusColor(conta.status)} border text-xs gap-1`}>
+                          {getStatusIcon(conta.status)}
+                          {conta.status === "recebido" ? "Recebido" : conta.status === "pendente" ? "Pendente" : conta.status === "inadimplente" ? "Vencida" : conta.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">

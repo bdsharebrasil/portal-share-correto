@@ -115,7 +115,7 @@ export function AircraftMaintenanceCard({
             const statusInfo = getStatusInfo(
               vencimento.diasRestantes,
               vencimento.diasAlerta,
-              vencimento.situacao
+              vencimento.status
             );
             const StatusIcon = statusInfo.icon;
 

@@ -768,7 +768,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
                       <TableCell className="max-w-[200px] truncate text-xs">{d.descricao || '-'}</TableCell>
                       <TableCell className="text-right font-medium">R$ {(d.saldo_pendente || d.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{d.situacao}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{d.status}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}

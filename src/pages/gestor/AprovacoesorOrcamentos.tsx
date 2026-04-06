@@ -55,7 +55,7 @@ export default function AprovacoesorOrcamentos() {
             aircraft: b.aeronave?.matricula,
             total: b.total_value,
             date: b.submitted_at || b.criado_em,
-            status: b.approval_status || b.situacao || "pendente_aprovacao",
+            status: b.approval_status || b.status || "pendente_aprovacao",
             description: b.notes,
           }))
         );

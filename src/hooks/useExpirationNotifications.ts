@@ -60,7 +60,7 @@ export function useExpirationNotifications(aircraftId: string) {
         .from('airworthiness_directives')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .eq('situacao', 'pendente');
+        .eq('status', 'pendente');
 
       if (ads) {
         ads.forEach((ad: any) => {
@@ -92,7 +92,7 @@ export function useExpirationNotifications(aircraftId: string) {
         .from('service_bulletins')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .eq('situacao', 'pendente');
+        .eq('status', 'pendente');
 
       if (sbs) {
         sbs.forEach((sb: any) => {

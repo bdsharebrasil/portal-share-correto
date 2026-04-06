@@ -12,12 +12,12 @@ interface FlightCycleCardProps {
 }
 
 export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
-  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.situacao];
+  const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
   
   // Calculate checklist completion
   const expenses = cycle.expenses || [];
   const completedExpenses = expenses.filter(e => 
-    ['paga', 'nao_aplicavel'].includes(e.situacao)
+    ['paga', 'nao_aplicavel'].includes(e.status)
   ).length;
   const totalExpenses = expenses.length;
   const completionPercentage = totalExpenses > 0 
@@ -25,7 +25,7 @@ export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
     : 0;
 
   // Check for overdue expenses
-  const hasOverdue = expenses.some(e => e.situacao === 'atrasada');
+  const hasOverdue = expenses.some(e => e.status === 'atrasada');
 
   return (
     <div

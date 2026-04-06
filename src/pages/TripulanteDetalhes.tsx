@@ -559,7 +559,7 @@ export default function TripulanteDetalhes() {
                             <p className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> {s.flight_time}</p>
                           </div>
                         </div>
-                        <Badge variant={s.situacao === 'confirmado' ? 'default' : 'secondary'}>{s.situacao}</Badge>
+                        <Badge variant={s.status === 'confirmado' ? 'default' : 'secondary'}>{s.status}</Badge>
                       </div>
                     ))}
                   </div>

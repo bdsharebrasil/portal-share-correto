@@ -331,7 +331,7 @@ export function FluxoCaixa() {
         t.numero_documento?.toLowerCase().includes(advancedFilters.search.toLowerCase());
 
       const matchesStatus =
-        advancedFilters.situacao === "all" || t.situacao === advancedFilters.situacao;
+        advancedFilters.status === "all" || t.status === advancedFilters.status;
 
       const val = Number(t.valor);
       const matchesValue =
@@ -458,7 +458,7 @@ export function FluxoCaixa() {
   // ── Render da célula do body por coluna ──────────────────────────────────────
   const renderCell = (column: string, transacao: any, lineNumber: number) => {
     const isEntrada = transacao.tipo_movimento === "entrada";
-    const isPendente = transacao.situacao === "pendente";
+    const isPendente = transacao.status === "pendente";
     const colWidth = columnWidths[column] ?? defaultColumnWidths[column as keyof typeof defaultColumnWidths];
     const style = { width: colWidth, minWidth: colWidth, maxWidth: colWidth };
 
@@ -588,12 +588,12 @@ export function FluxoCaixa() {
             </TooltipProvider>
           </TableCell>
         );
-      case "situacao":
+      case "status":
         return (
-          <TableCell key="situacao" style={style}>
-            {transacao.situacao ? (
-              <Badge variant="outline" className={getStatusColor(transacao.situacao, transacao.tipo_movimento)}>
-                {transacao.situacao}
+          <TableCell key="status" style={style}>
+            {transacao.status ? (
+              <Badge variant="outline" className={getStatusColor(transacao.status, transacao.tipo_movimento)}>
+                {transacao.status}
               </Badge>
             ) : (
               <span className="text-muted-foreground">-</span>
@@ -837,7 +837,7 @@ export function FluxoCaixa() {
                   {paginatedTransacoes.map((transacao: any, idx: number) => {
                     const isEntrada = transacao.tipo_movimento === "entrada";
                     const isSelected = selectedIds.has(transacao.id);
-                    const isPendente = transacao.situacao === "pendente";
+                    const isPendente = transacao.status === "pendente";
                     const lineNumber = startIndex + idx + 1;
 
                     return (

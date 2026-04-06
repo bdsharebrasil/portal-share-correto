@@ -129,7 +129,7 @@ export default function RelatoriosClienteDetalhes() {
           ...r,
           client: clientName,
           expenses: expenses,
-          status: r.situacao
+          status: r.status
         };
       });
 

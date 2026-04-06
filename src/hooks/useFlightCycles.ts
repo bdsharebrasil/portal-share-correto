@@ -261,16 +261,16 @@ export function useFlightCycles() {
 
   // Calculate statistics
   const getStatistics = useCallback(() => {
-    const activeFlights = cycles.filter(c => !['finalizado'].includes(c.situacao)).length;
-    const completedFlights = cycles.filter(c => c.situacao === 'finalizado').length;
+    const activeFlights = cycles.filter(c => !['finalizado'].includes(c.status)).length;
+    const completedFlights = cycles.filter(c => c.status === 'finalizado').length;
     
     let overdueExpenses = 0;
     let pendingExpenses = 0;
     
     cycles.forEach(cycle => {
       cycle.expenses?.forEach(expense => {
-        if (expense.situacao === 'atrasada') overdueExpenses++;
-        if (['aguardando', 'recebida', 'enviada'].includes(expense.situacao)) pendingExpenses++;
+        if (expense.status === 'atrasada') overdueExpenses++;
+        if (['aguardando', 'recebida', 'enviada'].includes(expense.status)) pendingExpenses++;
       });
     });
 

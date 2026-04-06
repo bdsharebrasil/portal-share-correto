@@ -56,8 +56,8 @@ function ExpenseRow({ exp, accounts, onPay }: { exp: PartnerExpense; accounts: P
 export function ExpensesTable({ expenses, accounts, clienteId }: { expenses: PartnerExpense[]; accounts: PartnerAccount[]; clienteId: string }) {
   const [payExpense, setPayExpense] = useState<PartnerExpense | null>(null);
 
-  const pending = expenses.filter((e) => e.situacao === "pending");
-  const paid = expenses.filter((e) => e.situacao === "paid");
+  const pending = expenses.filter((e) => e.status === "pending");
+  const paid = expenses.filter((e) => e.status === "paid");
 
   return (
     <>

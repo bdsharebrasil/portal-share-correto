@@ -475,7 +475,7 @@ export function TimeClockTab() {
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-medium">{format(new Date(item.entry_date), "dd/MM/yyyy")}</span>
-                          {getStatusBadge(item.situacao)}
+                          {getStatusBadge(item.status)}
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">{item.justification}</p>
                         {item.documento && (
@@ -511,7 +511,7 @@ export function TimeClockTab() {
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-medium">{format(new Date(item.entry_date), "dd/MM/yyyy")}</span>
-                          {getStatusBadge(item.situacao)}
+                          {getStatusBadge(item.status)}
                         </div>
                         <div className="text-sm space-y-1">
                           <p><span className="text-muted-foreground">Tipo:</span> {getCorrectionTypeLabel(item.correction_type)}</p>

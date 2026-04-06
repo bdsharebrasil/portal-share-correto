@@ -153,22 +153,22 @@ export function useDashboardGestorData(currentDate: Date) {
 
     // Receitas conferidas (status = pago ou confirmado)
     const receitasConferidas = receitas
-      .filter((r: any) => r.situacao === "pago" || r.situacao === "confirmado")
+      .filter((r: any) => r.status === "pago" || r.status === "confirmado")
       .reduce((acc: number, r: any) => acc + Math.abs(Number(r.valor || 0)), 0);
 
     // Despesas conferidas (status = pago ou confirmado)
     const despesasConferidas = despesas
-      .filter((d: any) => d.situacao === "pago" || d.situacao === "confirmado")
+      .filter((d: any) => d.status === "pago" || d.status === "confirmado")
       .reduce((acc: number, d: any) => acc + Math.abs(Number(d.valor || 0)), 0);
 
     // Receitas pendentes (qualquer status que não seja pago/confirmado)
     const receitasPendentes = receitas
-      .filter((r: any) => r.situacao !== "pago" && r.situacao !== "confirmado")
+      .filter((r: any) => r.status !== "pago" && r.status !== "confirmado")
       .reduce((acc: number, r: any) => acc + Math.abs(Number(r.valor || 0)), 0);
 
     // Despesas pendentes
     const despesasPendentes = despesas
-      .filter((d: any) => d.situacao !== "pago" && d.situacao !== "confirmado")
+      .filter((d: any) => d.status !== "pago" && d.status !== "confirmado")
       .reduce((acc: number, d: any) => acc + Math.abs(Number(d.valor || 0)), 0);
 
     // Contas vencidas (despesas com data passada e não pagas)
@@ -179,10 +179,10 @@ export function useDashboardGestorData(currentDate: Date) {
       return (
         dataVenc &&
         dataVenc < today &&
-        d.situacao !== "confirmado" &&
-        d.situacao !== "pago" &&
-        d.situacao !== "recebido" &&
-        d.situacao !== "reembolsado"
+        d.status !== "confirmado" &&
+        d.status !== "pago" &&
+        d.status !== "recebido" &&
+        d.status !== "reembolsado"
       );
     }).length;
 
@@ -194,21 +194,21 @@ export function useDashboardGestorData(currentDate: Date) {
       return (
         dataVenc &&
         dataVenc < today &&
-        r.situacao !== "confirmado" &&
-        r.situacao !== "pago" &&
-        r.situacao !== "recebido" &&
-        r.situacao !== "reembolsado"
+        r.status !== "confirmado" &&
+        r.status !== "pago" &&
+        r.status !== "recebido" &&
+        r.status !== "reembolsado"
       );
     }).length;
 
     // Total conferido no mês (pago ou confirmado)
     const totalConferido = transacoesDoMesAtual
-      .filter((t: any) => t.situacao === "pago" || t.situacao === "confirmado")
+      .filter((t: any) => t.status === "pago" || t.status === "confirmado")
       .reduce((sum: number, t: any) => sum + Math.abs(Number(t.valor || 0)), 0);
 
     // Total pendente no mês
     const totalPendente = transacoesDoMesAtual
-      .filter((t: any) => t.situacao !== "pago" && t.situacao !== "confirmado")
+      .filter((t: any) => t.status !== "pago" && t.status !== "confirmado")
       .reduce((sum: number, t: any) => sum + Math.abs(Number(t.valor || 0)), 0);
 
     // Saldo geral = receitas conferidas - despesas conferidas

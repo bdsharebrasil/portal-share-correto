@@ -154,8 +154,8 @@ export function CTMOASDetailPage({
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-white">{oasData.numero}</h1>
-              <Badge className={`${getStatusColor(oasData.situacao)}`}>
-                {oasData.situacao || 'N/A'}
+              <Badge className={`${getStatusColor(oasData.status)}`}>
+                {oasData.status || 'N/A'}
               </Badge>
             </div>
             <p className="text-sm text-slate-400">
@@ -268,11 +268,11 @@ export function CTMOASDetailPage({
                         <p className="text-xs text-slate-500">Versão {link.version}</p>
                       </div>
                       <Badge className={`text-xs ${
-                        link.situacao === 'approved' ? 'bg-green-500/20 text-green-300' :
-                        link.situacao === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                        link.status === 'approved' ? 'bg-green-500/20 text-green-300' :
+                        link.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
                         'bg-slate-500/20 text-slate-300'
                       }`}>
-                        {link.situacao}
+                        {link.status}
                       </Badge>
                     </div>
                     {link.budget?.total_estimado && (

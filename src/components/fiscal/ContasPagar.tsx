@@ -346,7 +346,7 @@ export function ContasPagar() {
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Status</label>
-            <RegularSelect value={(filters as any).situacao || filters.status} onValueChange={v => setFilters({ ...filters, status: v })}>
+            <RegularSelect value={(filters as any).status || filters.status} onValueChange={v => setFilters({ ...filters, status: v })}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os abertos</SelectItem>
@@ -498,7 +498,7 @@ export function ContasPagar() {
                 </tr>
               ) : (
                 filteredContas.map(conta => {
-                  const vencida = isVencida(conta.data_vencimento, conta.situacao);
+                  const vencida = isVencida(conta.data_vencimento, conta.status);
                   const isRecorrente = conta._isRecorrente;
                   return (
                     <React.Fragment key={conta.id}>
@@ -542,7 +542,7 @@ export function ContasPagar() {
                               variant={vencida ? "destructive" : "outline"}
                               className="capitalize font-medium"
                             >
-                              {vencida ? "Vencida" : conta.situacao}
+                              {vencida ? "Vencida" : conta.status}
                             </Badge>
                           )}
                         </td>

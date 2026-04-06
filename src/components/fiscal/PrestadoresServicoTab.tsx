@@ -142,7 +142,7 @@ export function PrestadoresServicoTab() {
         query = query.eq("prestador_id", filterPrestador);
       }
       if (filterStatus !== "all") {
-        query = query.eq("situacao", filterStatus);
+        query = query.eq("status", filterStatus);
       }
       
       const { data, error } = await query;
@@ -635,7 +635,7 @@ export function PrestadoresServicoTab() {
                         <div>
                           <p className="text-xs text-muted-foreground">Pendentes</p>
                           <p className="text-lg font-bold text-amber-500">
-                            R$ {notas.filter(n => n.situacao === 'pendente').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
+                            R$ {notas.filter(n => n.status === 'pendente').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -650,7 +650,7 @@ export function PrestadoresServicoTab() {
                         <div>
                           <p className="text-xs text-muted-foreground">Pagos</p>
                           <p className="text-lg font-bold text-green-500">
-                            R$ {notas.filter(n => n.situacao === 'pago').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
+                            R$ {notas.filter(n => n.status === 'pago').reduce((s, n) => s + Number(n.valor), 0).toFixed(2)}
                           </p>
                         </div>
                       </div>
@@ -745,11 +745,11 @@ function NotaFiscalRow({ nota, prestadorNome, bancos, onPay, onEdit, onDelete, o
           R$ {Number(nota.valor).toFixed(2)}
         </TableCell>
         <TableCell>
-          <Badge variant="outline" className={statusColors[nota.situacao]}>
-            {nota.situacao === "pendente" && <Clock className="h-3 w-3 mr-1" />}
-            {nota.situacao === "pago" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-            {nota.situacao === "cancelado" && <X className="h-3 w-3 mr-1" />}
-            {nota.situacao.charAt(0).toUpperCase() + nota.situacao.slice(1)}
+          <Badge variant="outline" className={statusColors[nota.status]}>
+            {nota.status === "pendente" && <Clock className="h-3 w-3 mr-1" />}
+            {nota.status === "pago" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+            {nota.status === "cancelado" && <X className="h-3 w-3 mr-1" />}
+            {nota.status.charAt(0).toUpperCase() + nota.status.slice(1)}
           </Badge>
         </TableCell>
         <TableCell>
@@ -766,7 +766,7 @@ function NotaFiscalRow({ nota, prestadorNome, bancos, onPay, onEdit, onDelete, o
                 </Button>
               </label>
             )}
-            {nota.situacao === "pago" && (
+            {nota.status === "pago" && (
               nota.comprovante_pagamento_url ? (
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onPreview(nota.comprovante_pagamento_url!)}>
                   <Receipt className="h-3.5 w-3.5 text-green-600" />
@@ -784,7 +784,7 @@ function NotaFiscalRow({ nota, prestadorNome, bancos, onPay, onEdit, onDelete, o
         </TableCell>
         <TableCell className="text-right">
           <div className="flex justify-end gap-1">
-            {nota.situacao === "pendente" && (
+            {nota.status === "pendente" && (
               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowPayDialog(true)}>
                 <DollarSign className="h-3 w-3 mr-1" />
                 Pagar

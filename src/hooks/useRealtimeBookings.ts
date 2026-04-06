@@ -30,12 +30,12 @@ export function useRealtimeBookings() {
               description: `${payload.new.origin} → ${payload.new.destination}`,
             });
           } else if (payload.eventType === 'UPDATE') {
-            if (payload.new.situacao === 'confirmado' && payload.old?.situacao !== 'confirmado') {
+            if (payload.new.status === 'confirmado' && payload.old?.status !== 'confirmado') {
               toast({
                 title: '✅ Reserva Confirmada',
                 description: 'Uma reserva foi aprovada',
               });
-            } else if (payload.new.situacao === 'em_voo' && payload.old?.situacao !== 'em_voo') {
+            } else if (payload.new.status === 'em_voo' && payload.old?.status !== 'em_voo') {
               toast({
                 title: '🛫 Voo Iniciado',
                 description: 'Ciclo de voo em andamento',

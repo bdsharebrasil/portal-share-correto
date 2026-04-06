@@ -134,7 +134,7 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
         description: task.descricao ?? "",
         due_date: task.data_vencimento ?? "",
         priority: task.priority ?? "media",
-        status: task.situacao ?? "pendente",
+        status: task.status ?? "pendente",
         assigned_to: task.assigned_to ?? currentUserId,
       });
     } else {
@@ -169,7 +169,7 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
       description: formData.descricao.trim() || null,
       due_date: formData.data_vencimento ? formData.data_vencimento : null,
       priority: formData.priority,
-      status: formData.situacao,
+      status: formData.status,
       assigned_to: canAssignToOthers ? formData.assigned_to : currentUserId,
       created_by: currentUserId,
     };
@@ -301,8 +301,8 @@ export default function TaskDialog({ open, onOpenChange, task, onSave }: TaskDia
           <div className="space-y-2">
             <Label htmlFor="task-status">Status</Label>
             <Select
-              value={formData.situacao}
-              onValueChange={(value: TaskFormData["situacao"]) =>
+              value={formData.status}
+              onValueChange={(value: TaskFormData["status"]) =>
                 setFormData((prev) => ({ ...prev, status: value }))
               }
               disabled={loading}

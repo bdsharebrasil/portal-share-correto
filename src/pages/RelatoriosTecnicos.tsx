@@ -144,9 +144,9 @@ export default function RelatoriosTecnicos() {
   }
 
   const contagemStatus = {
-    finalizado: relatorios.filter(r => r.situacao === "concluida").length,
-    andamento: relatorios.filter(r => r.situacao === "em_andamento").length,
-    pendente: relatorios.filter(r => r.situacao === "aguardando").length,
+    finalizado: relatorios.filter(r => r.status === "concluida").length,
+    andamento: relatorios.filter(r => r.status === "em_andamento").length,
+    pendente: relatorios.filter(r => r.status === "aguardando").length,
     total: relatorios.length,
   };
 
@@ -319,8 +319,8 @@ export default function RelatoriosTecnicos() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
-                      <Badge className={getStatusColor(relatorio.situacao)}>
-                        {getStatusLabel(relatorio.situacao)}
+                      <Badge className={getStatusColor(relatorio.status)}>
+                        {getStatusLabel(relatorio.status)}
                       </Badge>
                       <Button variant="outline" size="sm">
                         <Eye className="h-4 w-4 mr-1" />
@@ -498,7 +498,7 @@ function CreateOSDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="situacao">Status</Label>
+              <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.etapa}
                 onValueChange={(value) => setFormData({ ...formData, etapa: value })}
