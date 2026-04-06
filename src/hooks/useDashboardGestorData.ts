@@ -179,8 +179,8 @@ export function useDashboardGestorData(currentDate: Date) {
       return (
         dataVenc &&
         dataVenc < today &&
-        d.situacao !== "confirmado" &&
-        d.situacao !== "pago" &&
+        d.status !== "confirmado" &&
+        d.status !== "pago" &&
         d.situacao !== "recebido" &&
         d.situacao !== "reembolsado"
       );
