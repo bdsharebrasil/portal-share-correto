@@ -305,7 +305,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
                                   variant="secondary"
                                   className={cn(
                                     "text-xs font-medium px-2 py-1",
-                                    assignment.situacao === "confirmado"
+                                    assignment.status === "confirmado"
                                       ? "bg-destructive/20 text-destructive border-destructive/30"
                                       : "bg-warning/20 text-warning border-warning/30"
                                   )}
