@@ -597,7 +597,7 @@ export function NotasFiscaisSaida() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.tipo !== "application/pdf") {
+    if (file.type !== "application/pdf") {
       toast({
         title: "Erro",
         description: "Por favor, selecione um arquivo PDF",
@@ -970,11 +970,11 @@ export function NotasFiscaisSaida() {
 
     setPendingReciboUpdate({
       id: editingRecibo.id,
-      amount: parseFloat(reciboEditData.valor),
+      amount: parseFloat(reciboEditData.amount),
       description: reciboEditData.service_description,
       prazo_pagamento: reciboEditData.max_payment_date || null,
       status: reciboEditData.status,
-      category: reciboEditData.categoria_name,
+      category: reciboEditData.category_name,
     });
 
     setShowPdfConfirmDialog(true);
@@ -1156,7 +1156,7 @@ export function NotasFiscaisSaida() {
     try {
       setIsUploadingComprovante(true);
 
-      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${file.nome.substring(file.nome.lastIndexOf("."))}`;
+      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${file.name.substring(file.name.lastIndexOf("."))}`;
 
       const { error: uploadError } = await supabase.storage
         .from("nfs-share-saida")
@@ -1375,14 +1375,14 @@ export function NotasFiscaisSaida() {
                       <Label className="text-foreground">Cliente/Empresa *</Label>
                       <SearchableCombobox
                         items={clientes.map(c => ({ id: c.id, label: c.nome }))}
-                        value={formData.cliente_id}
+                        value={formData.client_id}
                         onChange={(id, label) => {
                           const clienteSelecionado = clientes.find(c => c.id === id);
                           setFormData({
                             ...formData,
                             client_id: id,
                             cliente_nome: label,
-                            cliente_cnpj: clienteSelecionado?.documentoumento || ""
+                            cliente_cnpj: clienteSelecionado?.documento || ""
                           });
                         }}
                         icon={<Building2 className="h-4 w-4" />}
@@ -1649,7 +1649,7 @@ export function NotasFiscaisSaida() {
                             ...reciboData,
                             cliente_id: id,
                             cliente_nome: label,
-                            cliente_cnpj: clienteSelecionado?.documentoumento || ""
+                            cliente_cnpj: clienteSelecionado?.documento || ""
                           });
                         }}
                         icon={<Building2 className="h-4 w-4" />}
