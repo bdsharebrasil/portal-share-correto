@@ -156,7 +156,7 @@ export function getMimeTypeFromExtension(fileName: string): string {
   const mimeTypes: Record<string, string> = {
     'pdf': 'application/pdf',
     'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.documentoument',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.documento',
     'xls': 'application/vnd.ms-excel',
     'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'ppt': 'application/vnd.ms-powerpoint',
