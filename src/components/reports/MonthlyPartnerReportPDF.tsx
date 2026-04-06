@@ -450,9 +450,9 @@ export function MonthlyPartnerReportPDF({
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.total_amount)}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (e.situacao === "pago" || e.situacao === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+                        (e.status === "pago" || e.status === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
                       }`}>
-                        {e.situacao || "pendente"}
+                        {e.status || "pendente"}
                       </span>
                     </td>
                   </tr>
