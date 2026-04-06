@@ -412,7 +412,7 @@ export function ContasReceber() {
           valor: parseFloat(formData.valor),
           categoria: formData.categoria || "Serviços",
           descricao: formData.descricao || null,
-          status: (formData as any).situacao || formData.status,
+          status: (formData as any).status || formData.status,
           arquivo_pdf_url: pdfUrl || null,
           aeronave: formData.aeronave || null,
           referencia: formData.referencia || null,
