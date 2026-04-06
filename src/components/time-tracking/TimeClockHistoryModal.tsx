@@ -103,7 +103,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
       if (entry.total_hours) {
         totalHours += entry.total_hours;
       }
-      if (entry.situacao === "concluido") {
+      if (entry.status === "concluido") {
         completedDays += 1;
       }
     });
