@@ -614,8 +614,8 @@ export function CentroCusto({ clienteId, aeronaveId, periodo, socioId }: CentroC
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={d.situacao === 'pago' ? 'default' : 'secondary'} className="text-[10px]">
-                              {(d.situacao || 'pendente').toUpperCase()}
+                            <Badge variant={d.status === 'pago' ? 'default' : 'secondary'} className="text-[10px]">
+                              {(d.status || 'pendente').toUpperCase()}
                             </Badge>
                           </TableCell>
                         </TableRow>
