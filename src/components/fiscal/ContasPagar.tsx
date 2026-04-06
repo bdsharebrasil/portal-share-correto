@@ -290,8 +290,8 @@ export function ContasPagar() {
       const search = filters.searchTerm.toLowerCase();
       const fornecedor = c.fornecedores_favoritos?.nome_completo?.toLowerCase() || c.fornecedor_nome?.toLowerCase() || "";
       const searchOk = !search || fornecedor.includes(search) || c.numero_doc?.toLowerCase().includes(search);
-      const filterStatus = (filters as any).situacao || filters.status;
-      const contaStatus = (c as any).situacao || c.status;
+      const filterStatus = (filters as any).status || filters.status;
+      const contaStatus = (c as any).status || c.status;
       const statusOk = filterStatus === "all" || (filterStatus === "vencido" ? isVencida(c.data_vencimento, contaStatus) : contaStatus === filterStatus);
       const mesOk = !filters.mes || c.data_vencimento?.startsWith(filters.mes);
       return searchOk && statusOk && mesOk;
