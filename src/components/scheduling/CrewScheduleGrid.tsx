@@ -123,7 +123,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
         `)
         .gte("scheduled_date", startDate)
         .lte("scheduled_date", endDate)
-        .in("situacao", ["pendente", "confirmado"]);
+        .in("status", ["pendente", "confirmado"]);
       if (error) throw error;
       return data || [];
     }
