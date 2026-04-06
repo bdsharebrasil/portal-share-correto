@@ -179,7 +179,7 @@ export default function VencimentosDocumentos() {
           documentos: []
         };
       }
-      grouped[d.aeronaveId].documentoumentos.push(d);
+      grouped[d.aeronaveId].documentos.push(d);
     });
     return Object.values(grouped).sort((a, b) => a.aeronave.registration.localeCompare(b.aeronave.registration));
   }, [filteredDocumentos]);
