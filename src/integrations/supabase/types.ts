@@ -8267,7 +8267,7 @@ export type Database = {
           status: string | null
           telefone: string | null
           url_avatar: string | null
-          usuario_id: string | null
+          user_id: string | null
         }
         Insert: {
           atualizado_em?: string | null
@@ -8283,7 +8283,7 @@ export type Database = {
           status?: string | null
           telefone?: string | null
           url_avatar?: string | null
-          usuario_id?: string | null
+          user_id?: string | null
         }
         Update: {
           atualizado_em?: string | null
@@ -8299,7 +8299,7 @@ export type Database = {
           status?: string | null
           telefone?: string | null
           url_avatar?: string | null
-          usuario_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -9156,7 +9156,7 @@ export type Database = {
       partner_accounts: {
         Row: {
           bank_name: string | null
-          cliente_id: string
+          clientes_id: string
           created_at: string | null
           current_balance: number | null
           id: string
@@ -9170,7 +9170,7 @@ export type Database = {
         }
         Insert: {
           bank_name?: string | null
-          cliente_id: string
+          clientes_id: string
           created_at?: string | null
           current_balance?: number | null
           id?: string
@@ -9184,7 +9184,7 @@ export type Database = {
         }
         Update: {
           bank_name?: string | null
-          cliente_id?: string
+          clientes_id?: string
           created_at?: string | null
           current_balance?: number | null
           id?: string
@@ -9198,50 +9198,50 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
@@ -9264,212 +9264,212 @@ export type Database = {
       }
       partner_expenses: {
         Row: {
-          aircraft_id: string | null
-          assigned_partner_cpf: string | null
-          assigned_partner_name: string | null
-          bank_name: string | null
+          atualizado_em: string | null
           boleto_url: string | null
-          category: string | null
-          client_id: string
-          created_at: string | null
-          created_by: string | null
+          categoria: string | null
+          clientes_id: string
+          cpf_socio: string | null
+          criado_em: string | null
+          criado_por: string | null
+          data_inicio_parcelamento: string | null
+          data_pagamento: string | null
+          data_vencimento: string | null
           demonstrativo_url: string | null
-          description: string
+          descricao: string
           doc: string | null
-          due_date: string | null
-          expense_type: string
           id: string
-          installment_count: number | null
-          installment_number: number | null
-          installment_start_date: string | null
-          invoice_number: string | null
-          invoice_url: string | null
+          id_aeronave: string | null
+          id_despesa_pai: string | null
+          id_referencia: string | null
+          metodo_pagamento: string | null
           nf_url: string | null
-          notes: string | null
-          paid_date: string | null
-          parent_expense_id: string | null
-          payment_method: string | null
+          nome_banco: string | null
+          nome_fornecedor: string | null
+          nome_socio: string | null
+          numero_fatura: string | null
+          numero_parcela: number | null
+          observacoes: string | null
           percentual_socio: number | null
           prazo: string
-          reference_id: string | null
-          reference_type: string | null
+          quantidade_parcelas: number | null
           status: string | null
-          supplier_name: string | null
-          total_amount: number
-          updated_at: string | null
+          tipo_despesa: string
+          tipo_referencia: string | null
+          url_fatura: string | null
+          valor_total: number
         }
         Insert: {
-          aircraft_id?: string | null
-          assigned_partner_cpf?: string | null
-          assigned_partner_name?: string | null
-          bank_name?: string | null
+          atualizado_em?: string | null
           boleto_url?: string | null
-          category?: string | null
-          client_id: string
-          created_at?: string | null
-          created_by?: string | null
+          categoria?: string | null
+          clientes_id: string
+          cpf_socio?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_inicio_parcelamento?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
           demonstrativo_url?: string | null
-          description: string
+          descricao: string
           doc?: string | null
-          due_date?: string | null
-          expense_type: string
           id?: string
-          installment_count?: number | null
-          installment_number?: number | null
-          installment_start_date?: string | null
-          invoice_number?: string | null
-          invoice_url?: string | null
+          id_aeronave?: string | null
+          id_despesa_pai?: string | null
+          id_referencia?: string | null
+          metodo_pagamento?: string | null
           nf_url?: string | null
-          notes?: string | null
-          paid_date?: string | null
-          parent_expense_id?: string | null
-          payment_method?: string | null
+          nome_banco?: string | null
+          nome_fornecedor?: string | null
+          nome_socio?: string | null
+          numero_fatura?: string | null
+          numero_parcela?: number | null
+          observacoes?: string | null
           percentual_socio?: number | null
           prazo: string
-          reference_id?: string | null
-          reference_type?: string | null
+          quantidade_parcelas?: number | null
           status?: string | null
-          supplier_name?: string | null
-          total_amount: number
-          updated_at?: string | null
+          tipo_despesa: string
+          tipo_referencia?: string | null
+          url_fatura?: string | null
+          valor_total: number
         }
         Update: {
-          aircraft_id?: string | null
-          assigned_partner_cpf?: string | null
-          assigned_partner_name?: string | null
-          bank_name?: string | null
+          atualizado_em?: string | null
           boleto_url?: string | null
-          category?: string | null
-          client_id?: string
-          created_at?: string | null
-          created_by?: string | null
+          categoria?: string | null
+          clientes_id?: string
+          cpf_socio?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          data_inicio_parcelamento?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
           demonstrativo_url?: string | null
-          description?: string
+          descricao?: string
           doc?: string | null
-          due_date?: string | null
-          expense_type?: string
           id?: string
-          installment_count?: number | null
-          installment_number?: number | null
-          installment_start_date?: string | null
-          invoice_number?: string | null
-          invoice_url?: string | null
+          id_aeronave?: string | null
+          id_despesa_pai?: string | null
+          id_referencia?: string | null
+          metodo_pagamento?: string | null
           nf_url?: string | null
-          notes?: string | null
-          paid_date?: string | null
-          parent_expense_id?: string | null
-          payment_method?: string | null
+          nome_banco?: string | null
+          nome_fornecedor?: string | null
+          nome_socio?: string | null
+          numero_fatura?: string | null
+          numero_parcela?: number | null
+          observacoes?: string | null
           percentual_socio?: number | null
           prazo?: string
-          reference_id?: string | null
-          reference_type?: string | null
+          quantidade_parcelas?: number | null
           status?: string | null
-          supplier_name?: string | null
-          total_amount?: number
-          updated_at?: string | null
+          tipo_despesa?: string
+          tipo_referencia?: string | null
+          url_fatura?: string | null
+          valor_total?: number
         }
         Relationships: [
           {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            columns: ["id_aeronave"]
             isOneToOne: false
             referencedRelation: "aeronave"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            columns: ["id_aeronave"]
             isOneToOne: false
             referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            columns: ["id_aeronave"]
             isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            columns: ["id_aeronave"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            columns: ["id_aeronave"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave_simples"
             referencedColumns: ["aeronave_id"]
           },
           {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            columns: ["id_aeronave"]
             isOneToOne: false
             referencedRelation: "vw_despesas_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            columns: ["id_aeronave"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "partner_expenses_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "partner_expenses_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "partner_expenses_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "partner_expenses_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "partner_expenses_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "partner_expenses_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "partner_expenses_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
           },
           {
             foreignKeyName: "partner_expenses_parent_expense_id_fkey"
-            columns: ["parent_expense_id"]
+            columns: ["id_despesa_pai"]
             isOneToOne: false
             referencedRelation: "partner_expenses"
             referencedColumns: ["id"]
@@ -14004,49 +14004,49 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_cliente_id_fkey"
+            foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
