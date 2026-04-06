@@ -971,7 +971,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   };
 
   const handleFormSuccess = async () => {
-    const { data } = await supabase.
+    const { data } = await (supabase as any).
     from('logbook_entries').
     select('*').
     eq('aeronave_id', aircraftId).
@@ -1717,7 +1717,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const targetMonth = monthData.month || selectedMonth;
       const targetYear = monthData.year || selectedYear;
 
-      const { data: existingMonth, error: checkError } = await supabase.
+      const { data: existingMonth, error: checkError } = await (supabase as any).
       from('logbook_months').
       select('id, month, year').
       eq('aeronave_id', aircraftId).
