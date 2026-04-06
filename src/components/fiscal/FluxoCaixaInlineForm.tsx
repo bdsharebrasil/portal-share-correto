@@ -1255,7 +1255,7 @@ export function FluxoCaixaInlineForm({
                               >
                                 <div>
                                   <p className="font-medium text-foreground">{r.nome}</p>
-                                  {r.documentoumento && <p className="text-xs text-muted-foreground">{r.documentoumento}</p>}
+                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
                                 </div>
                               </CommandItem>
                             ))}
@@ -1263,14 +1263,14 @@ export function FluxoCaixaInlineForm({
                       )}
                     {referencias.filter(r => r.tipo === 'user').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                      r.documentoumento.includes(referenciaSearch)
+                      r.documento.includes(referenciaSearch)
                     ) && (
                         <CommandGroup heading="Colaboradores" className="text-muted-foreground">
                           {referencias
                             .filter(r => r.tipo === 'user')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documentoumento.includes(referenciaSearch)
+                              r.documento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
