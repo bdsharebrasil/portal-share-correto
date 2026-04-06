@@ -30,7 +30,7 @@ export function StackedCardsUpload({ files, onRemove }: StackedCardsUploadProps)
           >
             <Card className="relative overflow-hidden">
               {/* Progress background */}
-              {file.situacao !== "done" && (
+              {file.status !== "done" && (
                 <div
                   className="absolute top-0 left-0 h-full bg-gray-300 dark:bg-gray-700 opacity-30 z-0 transition-all"
                   style={{ width: `${file.progress}%` }}
