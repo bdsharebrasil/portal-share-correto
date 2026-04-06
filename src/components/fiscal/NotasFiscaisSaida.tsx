@@ -121,7 +121,6 @@ const ReciboDocument = ({ data }: { data: any }) => (
 // --- TIPAGENS ---
 
 interface NotaFiscalSaida {
-  aeronave_id: string;
   id: string;
   numero: string;
   cliente_nome: string;
@@ -442,7 +441,7 @@ export function NotasFiscaisSaida() {
 
       const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
 
-      const clientId = formData.cliente_id?.trim() || null;
+      const clientId = formData.client_id?.trim() || null;
       const aircraftId = formData.aeronave_id?.trim() || null;
 
       if (clientId && !uuidPattern.test(clientId)) {
@@ -473,7 +472,7 @@ export function NotasFiscaisSaida() {
         valor: parseFloat(formData.valor),
         categoria: categoriaNome,
         descricao: formData.descricao || null,
-        status: formData.situacao,
+        status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave_registro || null,
         aeronave_id: aircraftId,
@@ -580,13 +579,13 @@ export function NotasFiscaisSaida() {
       numero: nota.numero,
       cliente_nome: nota.cliente_nome,
       cliente_cnpj: nota.cliente_cnpj,
-      client_id: nota.cliente_id || "",
+      client_id: nota.client_id || "",
       data_criacao: nota.data_criacao,
       data_vencimento: nota.data_vencimento,
       valor: nota.valor.toString(),
       categoria: nota.categoria,
       descricao: nota.descricao || "",
-      status: nota.situacao,
+      status: nota.status,
       aeronave_id: nota.aeronave_id || nota.aeronave_id || "",
       aeronave_registro: nota.aeronave || nota.aeronave_registro || "",
     });
@@ -933,14 +932,14 @@ export function NotasFiscaisSaida() {
     });
   };
 
-  const notasExibicao = notas.filter((n) => n.situacao !== "recebido");
+  const notasExibicao = notas.filter((n) => n.status !== "recebido");
 
   const totalPendente = notas
-    .filter((n) => n.situacao === "pendente")
+    .filter((n) => n.status === "pendente")
     .reduce((acc, n) => acc + n.valor, 0);
 
   const totalRecebido = notas
-    .filter((n) => n.situacao === "recebido")
+    .filter((n) => n.status === "recebido")
     .reduce((acc, n) => acc + n.valor, 0);
 
   const formatDateSafe = (dateStr: string | null | undefined): string => {
@@ -960,7 +959,7 @@ export function NotasFiscaisSaida() {
       amount: recibo.valor.toString(),
       service_description: recibo.descricao,
       max_payment_date: recibo.prazo_pagamento || "",
-      status: recibo.situacao || "enviado",
+      status: recibo.status || "enviado",
       category_name: recibo.categoria || "",
     });
     setShowReciboEditDialog(true);
@@ -974,7 +973,7 @@ export function NotasFiscaisSaida() {
       amount: parseFloat(reciboEditData.valor),
       description: reciboEditData.service_description,
       prazo_pagamento: reciboEditData.max_payment_date || null,
-      status: reciboEditData.situacao,
+      status: reciboEditData.status,
       category: reciboEditData.categoria_name,
     });
 
@@ -1029,7 +1028,7 @@ export function NotasFiscaisSaida() {
           valor: pendingReciboUpdate.valor,
           descricao: pendingReciboUpdate.descricao,
           prazo_pagamento: pendingReciboUpdate.prazo_pagamento,
-          status: pendingReciboUpdate.situacao,
+          status: pendingReciboUpdate.status,
           categoria: pendingReciboUpdate.categoria,
           nf_url: nfUrl,
           atualizado_em: new Date().toISOString(),
@@ -1836,7 +1835,7 @@ export function NotasFiscaisSaida() {
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-4 text-sm">{nota.categoria}</TableCell>
                           <TableCell className="px-4 py-4 text-sm">
-                            {getStatusBadge(nota.situacao)}
+                            {getStatusBadge(nota.status)}
                           </TableCell>
                           <TableCell className="px-4 py-4 text-center">
                             {nota.arquivo_pdf_url ? (
@@ -2000,12 +1999,12 @@ export function NotasFiscaisSaida() {
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.categoria || "-"}</TableCell>
                           <TableCell className="px-4 py-3">
                             <Select
-                              value={recibo.situacao || "enviado"}
+                              value={recibo.status || "enviado"}
                               onValueChange={(newStatus) => handleUpdateReciboStatus(recibo.id, newStatus)}
                             >
-                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.situacao === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
-                                  recibo.situacao === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
-                                  recibo.situacao === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
+                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
+                                  recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
+                                  recibo.status === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
                                     "bg-gray-500/10 text-gray-600 border-gray-500/30"
                                 }`}>
                                 <SelectValue />
