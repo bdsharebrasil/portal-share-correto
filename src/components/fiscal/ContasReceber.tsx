@@ -345,7 +345,7 @@ export function ContasReceber() {
       today.setHours(0, 0, 0, 0);
 
       const contasVencidas = todasContas.filter((conta) => {
-        if (conta.situacao !== "pendente") return false;
+        if (conta.status !== "pendente") return false;
         const vencimento = parseLocalDate(conta.data_vencimento);
         return vencimento < today;
       });
@@ -356,7 +356,7 @@ export function ContasReceber() {
         } else {
           await supabase.from("contas_areceber").update({ status: "inadimplente" }).eq("id", conta.id);
         }
-        conta.situacao = "inadimplente";
+        conta.status = "inadimplente";
       }
 
       setContas(todasContas);
