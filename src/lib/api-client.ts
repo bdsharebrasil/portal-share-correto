@@ -62,16 +62,22 @@ async function fetchJson(endpoint: string, options: RequestInit = {}, customTime
 
   try {
     console.debug(`[API] Fetching: ${url}`)
+    const timeoutMs = customTimeout ?? FETCH_TIMEOUT_MS
     const res = await fetchWithTimeout(
       url,
       { headers: { 'Content-Type': 'application/json' }, ...options },
-      customTimeout ?? FETCH_TIMEOUT_MS
+      timeoutMs
     )
     if (!res.ok) {
       const text = await res.text()
       throw new Error(`AIS API error ${res.status}: ${text}`)
     }
-    return res.json()
+    // res.json() não é abortada pelo AbortSignal — adicionar timeout explícito
+    const jsonPromise = res.json()
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`JSON parsing timeout after ${timeoutMs}ms`)), timeoutMs)
+    )
+    return await Promise.race([jsonPromise, timeoutPromise])
   } catch (error: any) {
     console.error(`[API Error] Failed to fetch ${url}:`, error.message)
     throw error
