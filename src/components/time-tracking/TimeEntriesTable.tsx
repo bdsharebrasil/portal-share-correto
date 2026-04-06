@@ -297,7 +297,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       case 'falta':
         return <Badge className="bg-red-600">Falta</Badge>;
       default:
-        return <Badge>{entry.situacao}</Badge>;
+        return <Badge>{entry.status}</Badge>;
     }
   };
 
