@@ -1237,7 +1237,7 @@ export function FluxoCaixaInlineForm({
                             .filter(r => r.tipo === 'fornecedor')
                             .filter(r =>
                               r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                              r.documentoumento.includes(referenciaSearch)
+                              r.documento.includes(referenciaSearch)
                             )
                             .slice(0, 10)
                             .map((r) => (
