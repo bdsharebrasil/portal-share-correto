@@ -1117,7 +1117,7 @@ export function FuelRecordsByAircraft({
       </tr>
     `).join("");
 
-    printWindow.documentoument.write(`
+    printWindow.documento.write(`
       <!DOCTYPE html>
       <html>
         <head>
@@ -1181,7 +1181,7 @@ export function FuelRecordsByAircraft({
         </body>
       </html>
     `);
-    printWindow.documentoument.close();
+    printWindow.documento.close();
     printWindow.focus();
     setTimeout(() => {
       printWindow.print();
