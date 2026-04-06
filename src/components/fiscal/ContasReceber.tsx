@@ -273,7 +273,7 @@ export function ContasReceber() {
           valor: valor,
           categoria: rec.categoria || "Despesa Cliente",
           descricao: rec.descricao,
-          status: rec.situacao || "pendente",
+          status: rec.status || "pendente",
           arquivo_pdf_url: rec.nf_url || rec.comprovante_url || rec.boleto_url,
           aeronave: aircraftReg,
           referencia: rec.descricao,
@@ -282,7 +282,7 @@ export function ContasReceber() {
         };
       });
 
-      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any).select("*").neq("situacao", "recebido").order("data_vencimento");
+      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any).select("*").neq("status", "recebido").order("data_vencimento");
 
       if (contasError) {
         toast.error(`Erro ao carregar: ${contasError.message}`);
