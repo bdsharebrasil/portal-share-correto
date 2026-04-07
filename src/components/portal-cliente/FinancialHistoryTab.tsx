@@ -70,7 +70,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
       
       // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
-        bankQuery = bankQuery.eq("id_aeronave", aircraftId);
+        bankQuery = bankQuery.eq("aeronave_id", aircraftId);
       }
       
       const { data: bankData } = await bankQuery.order("data", { ascending: false });
