@@ -127,7 +127,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           .lte('entry_date', periodo.fim);
 
         if (aeronaveId) {
-          qShared = qShared.eq('aircraft_id', aeronaveId);
+          qShared = qShared.eq('aeronave_id', aeronaveId);
         }
 
         const [ownedRes, sharedRes] = await Promise.all([qOwned, qShared]);

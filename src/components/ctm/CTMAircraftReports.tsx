@@ -113,7 +113,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
         const { data, error } = await supabase
           .from("logbook_entries")
           .select("fuel_added, time, total_time")
-          .eq("aircraft_id", ac.id);
+          .eq("aeronave_id", ac.id);
 
         if (error) {
           console.error(`Erro ao buscar combustível para ${ac.matricula}:`, error);

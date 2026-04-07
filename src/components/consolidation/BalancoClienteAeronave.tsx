@@ -145,7 +145,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
         .eq('clientes_id', clienteId);
 
       if (aeronaveId) {
-        query = query.eq('aircraft_id', aeronaveId);
+        query = query.eq('aeronave_id', aeronaveId);
       }
 
       // Filtro por ano

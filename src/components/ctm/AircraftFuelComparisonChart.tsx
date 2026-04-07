@@ -34,7 +34,7 @@ export function AircraftFuelComparisonChart() {
         const { data, error } = await supabase
           .from("logbook_entries")
           .select("fuel_added, flight_time_hours, flight_time_minutes")
-          .eq("aircraft_id", ac.id);
+          .eq("aeronave_id", ac.id);
 
         if (error) {
           console.error(`Erro ao buscar combustível para ${ac.matricula}:`, error);

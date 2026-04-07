@@ -1723,7 +1723,7 @@ export function FuelRecordsByAircraft({
                     </SelectTrigger>
                     <SelectContent>
                       {bankInstitutions.map(bank => (
-                        <SelectItem key={bank.id} value={bank.nome}>{bank.nome}</SelectItem>
+                        <SelectItem key={bank.id} value={bank.label}>{bank.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
