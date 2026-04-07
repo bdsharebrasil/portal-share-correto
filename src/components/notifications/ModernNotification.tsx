@@ -57,7 +57,7 @@ export const ModernNotification: React.FC<ModernNotificationProps> = ({
 
   const style = notificationStyles[type];
 
-  if (!isVisible) return null;
+  if (!isVisible || !style) return null;
 
   return (
     <div className="animate-in slide-in-from-top fade-in duration-300">

@@ -501,9 +501,9 @@ export default function ManutencaoAeronave() {
             {notification && (
               <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
                 <ModernNotification
-                  type={notification.tipo}
+                  type={notification.type}
                   title={notification.title}
-                  description={notification.descricao}
+                  description={notification.description}
                   duration={4000}
                   onClose={() => setNotification(null)}
                 />
