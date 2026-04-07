@@ -18,17 +18,25 @@ import { FolderManagementDialog } from "./FolderManagementDialog";
 interface DocumentFolder {
   id: string;
   name: string;
+  nome?: string;
   description: string;
+  descricao?: string;
   created_at: string;
+  criado_em?: string;
 }
 
 interface FlightDocument {
   id: string;
   name: string;
+  nome?: string;
   description?: string;
+  descricao?: string;
   file_path: string;
+  caminho_arquivo?: string;
   file_size: number;
+  tamanho_arquivo?: number;
   created_at: string;
+  criado_em?: string;
   folder_id?: string;
   expiry_date?: string;
 }
