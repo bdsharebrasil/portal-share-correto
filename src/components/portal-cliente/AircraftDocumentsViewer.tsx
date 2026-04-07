@@ -94,7 +94,7 @@ export function AeronaveDocumentosViewer({
           description: "Documentação da aeronave",
           created_at: new Date().toISOString(),
         },
-        documents: docsData || [],
+        documents: (docsData || []) as any as FlightDocument[],
       };
 
       setDocumentsByFolder(grouped);

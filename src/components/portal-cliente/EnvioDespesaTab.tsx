@@ -391,7 +391,7 @@ export function EnvioDespesaTab({
             <div className="space-y-2">
               <Label>Comprovante de Pagamento</Label>
               <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setComprovanteFile(e.target.files?.[0] || null)} />
-              {comprovanteFile && <p className="text-xs text-muted-foreground">{comprovanteFile.nome}</p>}
+              {comprovanteFile && <p className="text-xs text-muted-foreground">{comprovanteFile.name}</p>}
             </div>
           </div>
           <DialogFooter>

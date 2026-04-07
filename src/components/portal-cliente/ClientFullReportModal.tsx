@@ -364,7 +364,7 @@ export function ClientFullReportModal({
                     <p><strong>Nome:</strong> {reportData.client.nome || reportData.client.name}</p>
                     {reportData.client.cnpj && <p><strong>CNPJ:</strong> {reportData.client.cnpj}</p>}
                     {reportData.client.email && <p><strong>Email:</strong> {reportData.client.email}</p>}
-                    {reportData.client.telefone && <p><strong>Telefone:</strong> {reportData.client.telefone}</p>}
+                    {(reportData.client.telefone || reportData.client.phone) && <p><strong>Telefone:</strong> {reportData.client.telefone || reportData.client.phone}</p>}
                     <p><strong>Percentual de Cota:</strong> <span className="text-emerald-600 font-bold">{reportData.sharePercentage}%</span></p>
                   </div>
                 </div>

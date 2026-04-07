@@ -111,7 +111,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
 
       // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
-        receiptsQuery = receiptsQuery.eq("id_aeronave", aircraftId);
+        receiptsQuery = receiptsQuery.eq("aeronave_id", aircraftId);
       }
 
       const { data: receiptsData } = await receiptsQuery.order("data_emissao", { ascending: false });

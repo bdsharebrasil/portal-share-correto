@@ -119,7 +119,7 @@ export function ContractUploadDialog({ open, onOpenChange, clientId, onSuccess }
             />
             {file && (
               <p className="text-sm text-muted-foreground mt-2">
-                Arquivo selecionado: {file.nome} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                Arquivo selecionado: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
           </div>

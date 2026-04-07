@@ -93,7 +93,7 @@ export function FlightDocumentUploadDialog({
           name: documentName.trim(),
           description: documentDescription.trim() || null,
           file_path: fileName,
-          file_type: file.tipo,
+          file_type: file.type,
           file_size: file.size,
           uploaded_by: user?.id,
           aeronave_id: aircraftId,

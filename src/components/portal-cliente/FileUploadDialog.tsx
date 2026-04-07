@@ -57,9 +57,9 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
       const { error: dbError } = await (supabase as any)
         .from('arquivos_portal_cliente')
         .insert({
-          client_id: clientId,
+          cliente_id: clientId,
           aeronave_id: aircraftId,
-          file_name: file.nome,
+          nome_arquivo: file.name,
           file_path: fileName,
           file_type: fileType,
           file_size: file.size,
