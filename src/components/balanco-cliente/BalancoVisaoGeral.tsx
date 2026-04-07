@@ -49,7 +49,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       const qShared = supabase
         .from('logbook_entries')
         .select('total_time')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .is('socios_cliente_id', null)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim);
