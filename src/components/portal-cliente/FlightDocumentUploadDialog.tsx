@@ -87,7 +87,7 @@ export function FlightDocumentUploadDialog({
       } = await supabase.auth.getUser();
 
       // Insert into flight_documents table
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from("flight_documents")
         .insert({
           name: documentName.trim(),
