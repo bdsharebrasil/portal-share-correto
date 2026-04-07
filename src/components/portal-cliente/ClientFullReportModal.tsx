@@ -120,28 +120,28 @@ export function ClientFullReportModal({
         .from('controle_bancario')
         .select('*')
         .eq('cliente_id', clientId)
-        .eq('aircraft_id', aircraftId);
+        .eq('aeronave_id', aircraftId);
 
       // Load logbook entries
       const { data: logbookData } = await supabase
         .from('logbook_entries')
         .select('*')
-        .eq('aircraft_id', aircraftId)
+        .eq('aeronave_id', aircraftId)
         .order('entry_date', { ascending: false });
 
       // Load fuel records
       const { data: fuelData } = await supabase
         .from('abastecimentos')
         .select('*')
-        .eq('aircraft_id', aircraftId)
-        .eq('cliente_id', clientId)
+        .eq('aeronave_id', aircraftId)
+        .eq('id_clientes', clientId)
         .order('data', { ascending: false });
 
       // Load CTM tracking
-      const { data: ctmData } = await supabase
+      const { data: ctmData } = await (supabase as any)
         .from('ctm_tracking')
         .select('*')
-        .eq('aircraft_id', aircraftId);
+        .eq('aeronave_id', aircraftId);
 
       // Load rateio data
       const { data: rateioData } = await (supabase as any)
