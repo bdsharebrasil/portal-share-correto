@@ -41,7 +41,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       const qOwned = supabase
         .from('logbook_entries')
         .select('total_time')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .eq('socios_cliente_id', socioId)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim);
@@ -49,7 +49,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       const qShared = supabase
         .from('logbook_entries')
         .select('total_time')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .is('socios_cliente_id', null)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim);
@@ -88,13 +88,13 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
         let qLog = supabase
           .from('logbook_entries')
           .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, socios_nome, aircraft_id, socios_cliente_id, is_equal_split')
-          .eq('client_id', clienteId)
+          .eq('clientes_id', clienteId)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim)
           .order('entry_date', { ascending: false });
 
         if (aeronaveId) {
-          qLog = qLog.eq('aircraft_id', aeronaveId);
+          qLog = qLog.eq('aeronave_id', aeronaveId);
         }
 
         const { data: allEntries } = await qLog;
@@ -152,13 +152,13 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       let qLog = supabase
         .from('logbook_entries')
         .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, socios_nome, aircraft_id')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim)
         .order('entry_date', { ascending: false });
 
       if (aeronaveId) {
-        qLog = qLog.eq('aircraft_id', aeronaveId);
+        qLog = qLog.eq('aeronave_id', aeronaveId);
       }
 
       const { data } = await qLog;

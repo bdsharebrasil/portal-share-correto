@@ -617,7 +617,7 @@ export function FuelRecordsByAircraft({
     setClientPartners(allPartners);
   };
   const loadRecords = async () => {
-    let query = supabase.from("abastecimentos").select("*").eq("id_aeronave", aircraft.id);
+    let query = supabase.from("abastecimentos").select("*").eq("aeronave_id", aircraft.id);
     if (currentClientId !== "all") {
       query = query.eq("id_clientes", currentClientId);
     }
@@ -1723,7 +1723,7 @@ export function FuelRecordsByAircraft({
                     </SelectTrigger>
                     <SelectContent>
                       {bankInstitutions.map(bank => (
-                        <SelectItem key={bank.id} value={bank.nome}>{bank.nome}</SelectItem>
+                        <SelectItem key={bank.id} value={bank.label}>{bank.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -95,7 +95,7 @@ export function OASFlightHoursRateio({
       let query = supabase
         .from("logbook_entries")
         .select("socios_cliente_id, entry_date, total_time")
-        .eq("aircraft_id", aircraftId);
+        .eq("aeronave_id", aircraftId);
 
       if (periodoInicio) query = query.gte("entry_date", periodoInicio);
       if (periodoFim) query = query.lte("entry_date", periodoFim);

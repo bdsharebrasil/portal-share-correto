@@ -22,10 +22,13 @@ interface ClientFullReportModalProps {
 interface ReportData {
   client: {
     name: string;
+    nome?: string;
     cnpj?: string;
     email?: string;
     phone?: string;
+    telefone?: string;
   };
+  aeronave?: any;
   aircraft: {
     registration: string;
     manufacturer: string;
@@ -120,28 +123,28 @@ export function ClientFullReportModal({
         .from('controle_bancario')
         .select('*')
         .eq('cliente_id', clientId)
-        .eq('aircraft_id', aircraftId);
+        .eq('aeronave_id', aircraftId);
 
       // Load logbook entries
       const { data: logbookData } = await supabase
         .from('logbook_entries')
         .select('*')
-        .eq('aircraft_id', aircraftId)
+        .eq('aeronave_id', aircraftId)
         .order('entry_date', { ascending: false });
 
       // Load fuel records
       const { data: fuelData } = await supabase
         .from('abastecimentos')
         .select('*')
-        .eq('aircraft_id', aircraftId)
-        .eq('cliente_id', clientId)
+        .eq('aeronave_id', aircraftId)
+        .eq('id_clientes', clientId)
         .order('data', { ascending: false });
 
       // Load CTM tracking
-      const { data: ctmData } = await supabase
+      const { data: ctmData } = await (supabase as any)
         .from('ctm_tracking')
         .select('*')
-        .eq('aircraft_id', aircraftId);
+        .eq('aeronave_id', aircraftId);
 
       // Load rateio data
       const { data: rateioData } = await (supabase as any)
@@ -209,7 +212,7 @@ export function ClientFullReportModal({
           model: aircraftData?.modelo || '',
           year: aircraftData?.ano || '',
           status: aircraftData?.status || 'Operacional',
-          totalHours: aircraftData?.cell_hours_current || totalHours
+          totalHours: (aircraftData as any)?.cell_hours_current || totalHours
         },
         sharePercentage,
         financial: {
@@ -235,10 +238,10 @@ export function ClientFullReportModal({
             valor: f.valor_total || 0
           }))
         },
-        ctmItems: (ctmData || []).map(c => ({
-          item: c.item_name,
-          horasRestantes: c.remaining_hours || 0,
-          ultimaTroca: c.last_change_date || ''
+        ctmItems: (ctmData || []).map((c: any) => ({
+          item: c.item_name || c.nome_item || '',
+          horasRestantes: c.remaining_hours || c.horas_restantes || 0,
+          ultimaTroca: c.last_change_date || c.data_ultima_troca || ''
         })),
         rateioData: (rateioData || []).slice(0, 10).map((r: any) => ({
           data: r.data_lancamento,
@@ -284,7 +287,7 @@ export function ClientFullReportModal({
 
       const opt = {
         margin: 10,
-        filename: `relatorio-${reportData.client.nome.replace(/\s+/g, '-')}-${reportData.aeronave.matricula}-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
+        filename: `relatorio-${(reportData.client.nome || reportData.client.name).replace(/\s+/g, '-')}-${reportData.aircraft?.registration || reportData.aeronave?.matricula || ''}-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -358,10 +361,10 @@ export function ClientFullReportModal({
                     <span className="text-emerald-500">●</span> Dados do Cliente
                   </h2>
                   <div className="space-y-2 text-sm">
-                    <p><strong>Nome:</strong> {reportData.client.nome}</p>
+                    <p><strong>Nome:</strong> {reportData.client.nome || reportData.client.name}</p>
                     {reportData.client.cnpj && <p><strong>CNPJ:</strong> {reportData.client.cnpj}</p>}
                     {reportData.client.email && <p><strong>Email:</strong> {reportData.client.email}</p>}
-                    {reportData.client.telefone && <p><strong>Telefone:</strong> {reportData.client.telefone}</p>}
+                    {(reportData.client.telefone || reportData.client.phone) && <p><strong>Telefone:</strong> {reportData.client.telefone || reportData.client.phone}</p>}
                     <p><strong>Percentual de Cota:</strong> <span className="text-emerald-600 font-bold">{reportData.sharePercentage}%</span></p>
                   </div>
                 </div>

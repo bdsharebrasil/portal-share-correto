@@ -39,7 +39,7 @@ export function FlightDocumentUploadDialog({
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
 
-      if (!ALLOWED_TYPES.includes(selectedFile.tipo)) {
+      if (!ALLOWED_TYPES.includes(selectedFile.type)) {
         toast.error("Apenas arquivos PDF e imagens (JPG, PNG) são permitidos");
         return;
       }
@@ -51,7 +51,7 @@ export function FlightDocumentUploadDialog({
 
       setFile(selectedFile);
       if (!documentName) {
-        setDocumentName(selectedFile.nome.replace(/\.[^/.]+$/, ""));
+        setDocumentName(selectedFile.name.replace(/\.[^/.]+$/, ""));
       }
     }
   };
@@ -70,7 +70,7 @@ export function FlightDocumentUploadDialog({
     try {
       setUploading(true);
 
-      const fileExt = file.nome.split(".").pop();
+      const fileExt = file.name.split(".").pop();
       const timestamp = Date.now();
       const fileName = `${aircraftId}/${timestamp}.${fileExt}`;
 
@@ -87,13 +87,13 @@ export function FlightDocumentUploadDialog({
       } = await supabase.auth.getUser();
 
       // Insert into flight_documents table
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from("flight_documents")
         .insert({
           name: documentName.trim(),
           description: documentDescription.trim() || null,
           file_path: fileName,
-          file_type: file.tipo,
+          file_type: file.type,
           file_size: file.size,
           uploaded_by: user?.id,
           aeronave_id: aircraftId,

@@ -23,14 +23,14 @@ export interface ClientDataTabsProps {
 
 interface TravelReportReconciliation {
   id: string;
-  description: string;
-  amount: string | number;
+  descricao: string;
+  valor: string | number;
   status: string;
-  date: string;
+  data: string;
   prazo_pagamento?: string;
-  reference_id?: string;
-  doc?: string;
-  partner_name?: string;
+  referencia_id?: string;
+  documento?: string;
+  nome_socio?: string;
   pdf_url?: string | null;
 }
 
@@ -127,11 +127,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load files
       let filesData = null;
       try {
-        const result = await supabase
-          .from('client_portal_files')
+        const result = await (supabase as any)
+          .from('arquivos_portal_cliente')
           .select('*')
           .eq('cliente_id', forClientId)
-          .order('created_at', { ascending: false });
+          .order('criado_em', { ascending: false });
         filesData = result.data;
         if (result.error) console.warn('Erro ao carregar arquivos:', result.error);
       } catch (err) {
@@ -141,7 +141,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load contracts
       let contractsData = null;
       try {
-        const result = await supabase
+        const result = await (supabase as any)
           .from('contratos_cliente')
           .select('*')
           .eq('cliente_id', forClientId)
@@ -168,16 +168,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             departure_aerodrome,
             arrival_aerodrome,
             trecho,
-            client_partner_id
+            socios_cliente_id
           `)
-          .eq('aircraft_id', aircraftId)
-          .eq('cliente_id', forClientId)
+          .eq('aeronave_id', aircraftId)
+          .eq('clientes_id', forClientId)
           .order('entry_date', { ascending: false })
           .limit(100);
 
-        // Se sócio selecionado tiver id, filtra por client_partner_id
+        // Se sócio selecionado tiver id, filtra por socios_cliente_id
         if (selectedPartner?.id) {
-          query = query.eq('client_partner_id', selectedPartner.id);
+          query = query.eq('socios_cliente_id', selectedPartner.id);
         }
 
         const { data: allLogbookData, error } = await query;
@@ -239,9 +239,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       try {
         const { data: allFuelData, error } = await supabase
           .from('abastecimentos')
-          .select('*, aeronave:aeronave_id(matricula), client:client_id(razao_social)')
-          .eq('aircraft_id', aircraftId)
-          .eq('cliente_id', forClientId)
+          .select('*')
+          .eq('aeronave_id', aircraftId)
+          .eq('id_clientes', forClientId)
           .order('data', { ascending: false })
           .limit(50);
 
@@ -266,10 +266,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load CTM tracking
       let ctmData = null;
       try {
-        const result = await supabase
+        const result = await (supabase as any)
           .from('ctm_tracking')
-          .select('*, aircraft:aeronave(matricula)')
-          .eq('aircraft_id', aircraftId)
+          .select('*')
+          .eq('aeronave_id', aircraftId)
           .eq('cliente_id', forClientId)
           .order('created_at', { ascending: false });
         ctmData = result.data;
@@ -283,11 +283,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       try {
         const { data: reconData, error } = await supabase
           .from('conciliacoes_bancarias')
-          .select('id, description, amount, status, date, prazo_pagamento, reference_id, doc, partner_name')
-          .eq('cliente_id', forClientId)
-          .eq('aircraft_id', aircraftId)
-          .eq('category', 'RELATORIO DE DESPESA DE VIAGENS')
-          .order('date', { ascending: false })
+          .select('id, descricao, valor, status, data, prazo_pagamento, referencia_id, documento, nome_socio')
+          .eq('clientes_id', forClientId)
+          .eq('aeronave_id', aircraftId)
+          .eq('categoria', 'RELATORIO DE DESPESA DE VIAGENS')
+          .order('data', { ascending: false })
           .limit(20);
 
         if (error) console.warn('Erro ao carregar relatórios de viagem:', error);
@@ -327,9 +327,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         const result = await supabase
           .from('conciliacoes_bancarias')
           .select('*')
-          .eq('cliente_id', forClientId)
-          .eq('aircraft_id', aircraftId)
-          .order('date', { ascending: false })
+          .eq('clientes_id', forClientId)
+          .eq('aeronave_id', aircraftId)
+          .order('data', { ascending: false })
           .limit(100);
         bankReconData = result.data;
         if (result.error) console.warn('Erro ao carregar dados financeiros:', result.error);
@@ -394,8 +394,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
       if (storageError) throw storageError;
 
-      const { error: dbError } = await supabase
-        .from('client_contracts')
+      const { error: dbError } = await (supabase as any)
+        .from('contratos_cliente')
         .delete()
         .eq('id', contractId);
 

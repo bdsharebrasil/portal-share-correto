@@ -330,7 +330,6 @@ export type Database = {
       }
       aerodromes: {
         Row: {
-          nome: string
           coordenadas: string | null
           created_at: string | null
           designativo: string

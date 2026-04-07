@@ -329,7 +329,7 @@ export function AeronauticalInfoTab({
               </div>
               {rotaer.frequencies.slice(0, 4).map((freq, idx) => (
                 <div key={idx} className="text-sm text-muted-foreground">
-                  <span className="text-foreground">{freq.tipo}:</span> {freq.frequency}
+                  <span className="text-foreground">{freq.type}:</span> {freq.frequency}
                 </div>
               ))}
             </div>

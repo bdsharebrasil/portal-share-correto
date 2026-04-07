@@ -40,7 +40,7 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
       setUploading(true);
 
       // Upload file to storage
-      const fileExt = file.nome.split('.').pop();
+      const fileExt = file.name.split('.').pop();
       const fileName = `${clientId}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from('client-documents')
@@ -54,12 +54,12 @@ export function FileUploadDialog({ open, onOpenChange, clientId, aircraftId, onS
         .getPublicUrl(fileName);
 
       // Insert record into database
-      const { error: dbError } = await supabase
-        .from('client_portal_files')
+      const { error: dbError } = await (supabase as any)
+        .from('arquivos_portal_cliente')
         .insert({
-          client_id: clientId,
+          cliente_id: clientId,
           aeronave_id: aircraftId,
-          file_name: file.nome,
+          nome_arquivo: file.name,
           file_path: fileName,
           file_type: fileType,
           file_size: file.size,

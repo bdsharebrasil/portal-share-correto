@@ -12,7 +12,7 @@ const expenseData = [
 
 export function ExpenseChart() {
   const [type, setType] = useState<"bar" | "pie">("pie")
-  const total = expenseData.reduce((sum, item) => sum + item.valor, 0)
+  const total = expenseData.reduce((sum, item) => sum + item.amount, 0)
 
   return (
     <Card className="bg-gradient-to-br from-slate-800/60 to-slate-800/40 shadow-lg border-slate-700/50 backdrop-blur-sm">
@@ -50,8 +50,8 @@ export function ExpenseChart() {
             {expenseData.map((item, index) => (
               <div key={index} className="space-y-3">
                 <div className="flex justify-between text-base">
-                  <span className="font-medium text-white">{item.categoria}</span>
-                  <span className="text-white">R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <span className="font-medium text-white">{item.category}</span>
+                  <span className="text-white">R$ {item.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-4">
                   <div className={`h-4 rounded-full ${item.color}`} style={{ width: `${item.percentage}%` }}></div>
@@ -93,9 +93,9 @@ export function ExpenseChart() {
               {expenseData.map((item, index) => (
                 <div key={index} className="flex items-center gap-4">
                   <div className={`w-6 h-6 rounded ${item.color}`}></div>
-                  <span className="text-base text-white min-w-[120px]">{item.categoria}</span>
+                  <span className="text-base text-white min-w-[120px]">{item.category}</span>
                   <span className="text-base font-medium text-white">
-                    R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {item.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </span>
                   <span className="text-slate-400 text-sm">({item.percentage}%)</span>
                 </div>

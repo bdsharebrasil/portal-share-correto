@@ -59,9 +59,9 @@ export function HorasMensaisConsolidadas({
         .from('logbook_entries')
         .select(`
           *,
-          client:client_id (id, company_name, proprietario)
+          client:clientes_id (id, company_name, proprietario)
         `)
-        .eq('aircraft_id', aeronaveId)
+        .eq('aeronave_id', aeronaveId)
         .gte('entry_date', startDate)
         .lte('entry_date', endDate);
 

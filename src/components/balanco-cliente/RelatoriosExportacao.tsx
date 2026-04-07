@@ -108,26 +108,26 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
         let qOwned = supabase
           .from('logbook_entries')
           .select('entry_date, total_time, aircraft_id')
-          .eq('client_id', clienteId)
+          .eq('clientes_id', clienteId)
           .eq('socios_cliente_id', socioId)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim);
 
         if (aeronaveId) {
-          qOwned = qOwned.eq('aircraft_id', aeronaveId);
+          qOwned = qOwned.eq('aeronave_id', aeronaveId);
         }
 
         // Voos compartilhados
         let qShared = supabase
           .from('logbook_entries')
           .select('entry_date, total_time, aircraft_id')
-          .eq('client_id', clienteId)
+          .eq('clientes_id', clienteId)
           .is('socios_cliente_id', null)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim);
 
         if (aeronaveId) {
-          qShared = qShared.eq('aircraft_id', aeronaveId);
+          qShared = qShared.eq('aeronave_id', aeronaveId);
         }
 
         const [ownedRes, sharedRes] = await Promise.all([qOwned, qShared]);

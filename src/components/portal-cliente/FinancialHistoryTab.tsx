@@ -10,10 +10,10 @@ import { toast } from "sonner";
 
 interface ReembolsoRecord {
   id: string;
-  date: string;
-  amount: number;
+  data: string;
+  valor: number;
   status: string;
-  category?: string;
+  categoria?: string;
   grupo_categoria?: string;
   percentual?: number;
   boleto_url?: string;
@@ -65,12 +65,12 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
       let bankQuery = supabase
         .from("conciliacoes_bancarias")
         .select("*")
-        .eq("cliente_id", clientId)
+        .eq("clientes_id", clientId)
         .eq("tipo", "cliente");
       
       // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
-        bankQuery = bankQuery.eq("id_aeronave", aircraftId);
+        bankQuery = bankQuery.eq("aeronave_id", aircraftId);
       }
       
       const { data: bankData } = await bankQuery.order("data", { ascending: false });
@@ -111,7 +111,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
 
       // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
-        receiptsQuery = receiptsQuery.eq("id_aeronave", aircraftId);
+        receiptsQuery = receiptsQuery.eq("aeronave_id", aircraftId);
       }
 
       const { data: receiptsData } = await receiptsQuery.order("data_emissao", { ascending: false });

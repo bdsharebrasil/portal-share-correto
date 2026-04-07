@@ -84,7 +84,7 @@ const STATUS_LABELS: Record<string, {
 // Função auxiliar para upload de arquivos
 const uploadFile = async (file: File, folder: string, clientId?: string): Promise<string> => {
   const timestamp = Date.now();
-  const sanitizedFileName = file.nome
+  const sanitizedFileName = file.name
     .replace(/[^a-zA-Z0-9.\-_]/g, "_")
     .substring(0, 100);
   const fileExt = sanitizedFileName.split('.').pop();
@@ -391,7 +391,7 @@ export function EnvioDespesaTab({
             <div className="space-y-2">
               <Label>Comprovante de Pagamento</Label>
               <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setComprovanteFile(e.target.files?.[0] || null)} />
-              {comprovanteFile && <p className="text-xs text-muted-foreground">{comprovanteFile.nome}</p>}
+              {comprovanteFile && <p className="text-xs text-muted-foreground">{comprovanteFile.name}</p>}
             </div>
           </div>
           <DialogFooter>

@@ -23,7 +23,7 @@ export function ContractUploadDialog({ open, onOpenChange, clientId, onSuccess }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.tipo !== "application/pdf") {
+      if (selectedFile.type !== "application/pdf") {
         toast.error("Por favor, envie apenas arquivos PDF");
         return;
       }
@@ -64,7 +64,7 @@ export function ContractUploadDialog({ open, onOpenChange, clientId, onSuccess }
         .from('contratos_cliente')
         .insert({
           cliente_id: clientId,
-          nome_arquivo: file.nome,
+          nome_arquivo: file.name,
           caminho_arquivo: fileName,
           tamanho_arquivo: file.size,
           descricao: description.trim(),
@@ -119,7 +119,7 @@ export function ContractUploadDialog({ open, onOpenChange, clientId, onSuccess }
             />
             {file && (
               <p className="text-sm text-muted-foreground mt-2">
-                Arquivo selecionado: {file.nome} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                Arquivo selecionado: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
           </div>
