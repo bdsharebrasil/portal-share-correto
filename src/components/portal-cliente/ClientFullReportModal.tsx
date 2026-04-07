@@ -209,7 +209,7 @@ export function ClientFullReportModal({
           model: aircraftData?.modelo || '',
           year: aircraftData?.ano || '',
           status: aircraftData?.status || 'Operacional',
-          totalHours: aircraftData?.cell_hours_current || totalHours
+          totalHours: (aircraftData as any)?.cell_hours_current || totalHours
         },
         sharePercentage,
         financial: {
