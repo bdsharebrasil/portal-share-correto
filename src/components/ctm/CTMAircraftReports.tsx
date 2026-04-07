@@ -79,7 +79,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
       const { data, error } = await supabase
         .from("logbook_entries")
         .select("entry_date, pousos, time, total_time, fuel_added, socios_cliente_id")
-        .eq("aircraft_id", aircraftId)
+        .eq("aeronave_id", aircraftId)
         .gte("entry_date", `${year}-01-01`)
         .lte("entry_date", `${year}-12-31`);
       if (error) throw error;

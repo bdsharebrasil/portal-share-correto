@@ -94,7 +94,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
           .order('entry_date', { ascending: false });
 
         if (aeronaveId) {
-          qLog = qLog.eq('aircraft_id', aeronaveId);
+          qLog = qLog.eq('aeronave_id', aeronaveId);
         }
 
         const { data: allEntries } = await qLog;
