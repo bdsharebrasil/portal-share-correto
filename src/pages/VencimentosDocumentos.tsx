@@ -453,22 +453,22 @@ export default function VencimentosDocumentos() {
 
                           {/* Status Badges */}
                           <div className="flex flex-wrap gap-1.5 pt-3">
-                            {grupo.documentoumentos.filter(d => d.status === 'vencido').length > 0 && (
+                            {grupo.documentos.filter(d => d.status === 'vencido').length > 0 && (
                               <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] px-2 py-0.5">
                                 <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.status === 'vencido').length}
+                                {grupo.documentos.filter(d => d.status === 'vencido').length}
                               </Badge>
                             )}
-                            {grupo.documentoumentos.filter(d => d.status === 'proximo').length > 0 && (
+                            {grupo.documentos.filter(d => d.status === 'proximo').length > 0 && (
                               <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px] px-2 py-0.5">
                                 <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.status === 'proximo').length}
+                                {grupo.documentos.filter(d => d.status === 'proximo').length}
                               </Badge>
                             )}
-                            {grupo.documentoumentos.filter(d => d.status === 'ok').length > 0 && (
+                            {grupo.documentos.filter(d => d.status === 'ok').length > 0 && (
                               <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-2 py-0.5">
                                 <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.status === 'ok').length}
+                                {grupo.documentos.filter(d => d.status === 'ok').length}
                               </Badge>
                             )}
                           </div>
