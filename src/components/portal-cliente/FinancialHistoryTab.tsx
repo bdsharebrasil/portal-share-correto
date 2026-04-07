@@ -65,7 +65,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
       let bankQuery = supabase
         .from("conciliacoes_bancarias")
         .select("*")
-        .eq("cliente_id", clientId)
+        .eq("clientes_id", clientId)
         .eq("tipo", "cliente");
       
       // Só adiciona filtro de aeronave_id se foi passado
