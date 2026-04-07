@@ -327,9 +327,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         const result = await supabase
           .from('conciliacoes_bancarias')
           .select('*')
-          .eq('cliente_id', forClientId)
-          .eq('aircraft_id', aircraftId)
-          .order('date', { ascending: false })
+          .eq('clientes_id', forClientId)
+          .eq('aeronave_id', aircraftId)
+          .order('data', { ascending: false })
           .limit(100);
         bankReconData = result.data;
         if (result.error) console.warn('Erro ao carregar dados financeiros:', result.error);
