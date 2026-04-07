@@ -26,7 +26,7 @@ interface Manutencao {
 
 interface Aircraft {
   id: string;
-  registration: string;
+  matricula: string;
 }
 
 interface Oficina {
@@ -80,7 +80,7 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
         .order("matricula");
 
       if (error) throw error;
-      setAircrafts((data || []) as Aircraft[]);
+      setAircrafts((data || []) as any[]);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -230,8 +230,8 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
                 </SelectTrigger>
                 <SelectContent>
                   {aircrafts.map((aircraft) => (
-                    <SelectItem key={aeronave.id} value={aeronave.id}>
-                      {aeronave.matricula}
+                    <SelectItem key={aircraft.id} value={aircraft.id}>
+                      {aircraft.matricula}
                     </SelectItem>
                   ))}
                 </SelectContent>

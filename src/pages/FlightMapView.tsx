@@ -88,7 +88,7 @@ export default function FlightMapViewPage() {
         if (coords) {
           points.push({
             icao: originAerodrome.designativo,
-            name: originAerodrome.nome,
+            name: originAerodrome.name,
             lat: coords.lat,
             lng: coords.lng,
             type: 'departure'

@@ -214,7 +214,7 @@ export function useMaintenanceReport(manutencaoId: string | null) {
       let serviceOrders: any[] = [];
       if (aircraftId) {
         const { data } = await supabase
-          .from("service_orders")
+          .from("ctm_ordens_servico")
           .select("*")
           .eq("id_aeronave", aircraftId)
           .order("criado_em", { ascending: false });

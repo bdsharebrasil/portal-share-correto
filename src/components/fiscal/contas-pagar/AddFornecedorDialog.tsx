@@ -86,7 +86,7 @@ export function AddFornecedorDialog({ open, onOpenChange, initialName = "", onSa
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-semibold mb-1 block">Documento (CPF/CNPJ)</label>
-              <Input value={form.documentoumento} onChange={e => setForm(p => ({ ...p, documento: e.target.value }))} />
+              <Input value={form.documento} onChange={e => setForm(p => ({ ...p, documento: e.target.value }))} />
             </div>
             <div>
               <label className="text-sm font-semibold mb-1 block">Telefone</label>

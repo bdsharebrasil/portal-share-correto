@@ -15,14 +15,14 @@ import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
 interface AeronaveManutencaoCardProps {
   aircraft: {
     id: string;
-    registration: string;
-    model: string;
-    manufacturer: string;
+    matricula: string;
+    modelo: string;
+    fabricante: string;
   };
 }
 
 function AircraftMaintenanceCard({ aircraft }: AeronaveManutencaoCardProps) {
-  const { statuses, mostCritical, hasBlocking, isLoading, currentHours } = useMaintenanceStatuses(aeronave.id);
+  const { statuses, mostCritical, hasBlocking, isLoading, currentHours } = useMaintenanceStatuses(aircraft.id);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
@@ -67,8 +67,8 @@ function AircraftMaintenanceCard({ aircraft }: AeronaveManutencaoCardProps) {
               )} />
             </div>
             <div>
-              <h3 className="font-bold text-white text-lg">{aeronave.matricula}</h3>
-              <p className="text-xs text-gray-400">{aircraft.manufacturer} {aeronave.modelo}</p>
+              <h3 className="font-bold text-white text-lg">{aircraft.matricula}</h3>
+              <p className="text-xs text-gray-400">{aircraft.fabricante} {aircraft.modelo}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ function AircraftMaintenanceCard({ aircraft }: AeronaveManutencaoCardProps) {
             >
               <ManutencaoAlertCard
                 status={status}
-                aircraftRegistration={aeronave.matricula}
+                aircraftRegistration={aircraft.matricula}
               />
             </motion.div>
           ))}
@@ -169,21 +169,21 @@ function AircraftMaintenanceCard({ aircraft }: AeronaveManutencaoCardProps) {
       <ManutencaoRegistroDialog
         open={registerOpen}
         onOpenChange={setRegisterOpen}
-        aircraftId={aeronave.id}
-        aircraftRegistration={aeronave.matricula}
+        aircraftId={aircraft.id}
+        aircraftRegistration={aircraft.matricula}
         currentHours={currentHours || 0}
       />
       <ManutencaoHistoricoDialog
         open={historyOpen}
         onOpenChange={setHistoryOpen}
-        aircraftId={aeronave.id}
-        aircraftRegistration={aeronave.matricula}
+        aircraftId={aircraft.id}
+        aircraftRegistration={aircraft.matricula}
       />
       <ManutencaoConfigDialog
         open={configOpen}
         onOpenChange={setConfigOpen}
-        aircraftId={aeronave.id}
-        aircraftRegistration={aeronave.matricula}
+        aircraftId={aircraft.id}
+        aircraftRegistration={aircraft.matricula}
       />
     </motion.div>
   );
@@ -242,12 +242,12 @@ export function DashboardManutenção({ aircraftWithHours }: DashboardManutencao
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {activeAircraft.map((aircraft) => (
           <AircraftMaintenanceCard
-            key={aeronave.id}
+            key={aircraft.id}
             aircraft={{
-              id: aeronave.id,
-              registration: aeronave.matricula,
-              model: aeronave.modelo,
-              manufacturer: aircraft.manufacturer,
+              id: aircraft.id,
+              matricula: aircraft.matricula,
+              modelo: aircraft.modelo,
+              fabricante: aircraft.fabricante,
             }}
           />
         ))}

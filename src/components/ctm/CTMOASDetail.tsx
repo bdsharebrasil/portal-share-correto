@@ -51,7 +51,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const { data: order, refetch: refetchOrder } = useQuery({
     queryKey: ["oas-detail", orderId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("service_orders").select('*, aeronave(matricula, modelo)').eq("id", orderId).maybeSingle();
+      const { data, error } = await (supabase as any).from("ctm_ordens_servico").select('*, aeronave(matricula, modelo)').eq("id", orderId).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -154,7 +154,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const saveEdit = async () => {
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("service_orders").update({
+      const { error } = await (supabase as any).from("ctm_ordens_servico").update({
         numero: editForm?.numero,
         oficina_nome: editForm?.oficina_nome || null,
         oficina_contato: editForm?.oficina_contato || null,
@@ -181,7 +181,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
 
   const handleDelete = async () => {
     try {
-      const { error } = await (supabase as any).from("service_orders").delete().eq("id", orderId);
+      const { error } = await (supabase as any).from("ctm_ordens_servico").delete().eq("id", orderId);
       if (error) throw error;
       toast.success("OAS excluída com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["all-oas"] });
@@ -195,7 +195,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted, forcedSection, hideH
   const handleConcluir = async () => {
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("service_orders").update({
+      const { error } = await (supabase as any).from("ctm_ordens_servico").update({
         status: "concluido",
         data_saida: new Date().toISOString().split("T")[0],
       }).eq("id", orderId);

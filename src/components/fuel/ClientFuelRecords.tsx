@@ -18,9 +18,9 @@ interface Client {
 
 interface Aircraft {
   id: string;
-  registration: string;
-  year: number | null;
-  model?: string;
+  matricula: string;
+  ano: number | null;
+  modelo?: string;
 }
 
 interface ClientFuelRecordsProps {
@@ -72,8 +72,8 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
 
   // Selecionar aeronave quando aircrafts forem carregados
   useEffect(() => {
-    if (pendingAbastecimento?.aeronaveId && aircrafts.length > 0) {
-      const aircraftToSelect = aircrafts.find(a => a.id === pendingAbastecimento.aeronaveId);
+    if (pendingAbastecimento?.aircraftId && aircrafts.length > 0) {
+      const aircraftToSelect = aircrafts.find(a => a.id === pendingAbastecimento.aircraftId);
       if (aircraftToSelect) {
         setSelectedAircraft(aircraftToSelect);
         setPendingAbastecimento(null);
@@ -82,13 +82,13 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
         setPendingAbastecimento(null);
       }
     }
-  }, [pendingAbastecimento?.aeronaveId, aircrafts.length > 0]);
+  }, [pendingAbastecimento?.aircraftId, aircrafts.length > 0]);
 
   const loadAbastecimentoData = async () => {
     try {
       const { data: abastecimento, error } = await supabase
         .from('abastecimentos')
-        .select('client_id, aeronave_id')
+        .select('clientes_id, aeronave_id')
         .eq('id', selectedAbastecimentoId)
         .single();
 
@@ -99,8 +99,8 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
 
       // Armazenar os IDs para selecionar depois
       setPendingAbastecimento({
-        clientId: abastecimento.cliente_id,
-        aircraftId: abastecimento.aeronave_id
+        clientId: (abastecimento as any).clientes_id,
+        aircraftId: (abastecimento as any).aeronave_id
       });
     } catch (err) {
       console.error('Erro ao carregar abastecimento:', err);
@@ -126,7 +126,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
       return;
     }
 
-    setClients(data || []);
+    setClients((data || []) as any as Client[]);
   };
 
   const loadClientAircrafts = async () => {
@@ -150,9 +150,9 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
 
     const mappedAircrafts = (data || []).map(a => ({
       id: a.id,
-      registration: a.registration,
-      model: a.model,
-      year: a.year ? parseInt(a.year) : null,
+      matricula: a.matricula,
+      modelo: a.modelo,
+      ano: a.ano ? parseInt(a.ano) : null,
     }));
 
     setAircrafts(mappedAircrafts);
@@ -281,7 +281,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {aircrafts.map((aircraft) => (
                 <Card
-                  key={aeronave.id}
+                  key={aircraft.id}
                   className="cursor-pointer border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group"
                   onClick={() => handleAircraftClick(aircraft)}
                 >
@@ -291,14 +291,14 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
                         <div className="flex items-center gap-2 mb-3">
                           <Plane className="h-4 w-4 text-primary" />
                           <p className="font-bold text-foreground text-lg group-hover:text-primary transition-colors font-mono">
-                            {aeronave.matricula}
+                            {aircraft.matricula}
                           </p>
                         </div>
-                        {aeronave.modelo && (
-                          <p className="text-sm text-muted-foreground">{aeronave.modelo}</p>
+                        {aircraft.modelo && (
+                          <p className="text-sm text-muted-foreground">{aircraft.modelo}</p>
                         )}
-                        {aircraft.year && (
-                          <p className="text-xs text-muted-foreground mt-1">Ano: {aircraft.year}</p>
+                        {aircraft.ano && (
+                          <p className="text-xs text-muted-foreground mt-1">Ano: {aircraft.ano}</p>
                         )}
                       </div>
                       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />

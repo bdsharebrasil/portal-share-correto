@@ -46,7 +46,7 @@ export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-foreground">
-                {cycle.aeronave?.matricula || 'N/A'}
+                {cycle.aircraft?.matricula || 'N/A'}
               </span>
               <Badge 
                 variant="outline" 
@@ -60,7 +60,7 @@ export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {cycle.nome_socio || cycle.client?.razao_social || cycle.client?.proprietario || 'Cliente não definido'}
+              {cycle.partner_name || cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
             </p>
           </div>
         </div>

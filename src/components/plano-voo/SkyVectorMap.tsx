@@ -99,12 +99,12 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
   const [simulationProgress, setSimulationProgress] = useState(0);
 
   const routePositions = useMemo(() => {
-    return waypoints.filter(w => w.tipo !== 'alternate').map(w => [w.lat, w.lng] as [number, number]);
+    return waypoints.filter(w => w.type !== 'alternate').map(w => [w.lat, w.lng] as [number, number]);
   }, [waypoints]);
 
   const alternateRoute = useMemo((): [number, number][] => {
-    const arrival = waypoints.find(w => w.tipo === 'arrival');
-    const alt = waypoints.find(w => w.tipo === 'alternate');
+    const arrival = waypoints.find(w => w.type === 'arrival');
+    const alt = waypoints.find(w => w.type === 'alternate');
     if (arrival && alt) return [[arrival.lat, arrival.lng], [alt.lat, alt.lng]];
     return [];
   }, [waypoints]);
@@ -143,8 +143,8 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
 
   const defaultCenter: [number, number] = [-15.79, -47.88];
   const hasRoute = waypoints.length > 0;
-  const departure = waypoints.find(w => w.tipo === 'departure');
-  const arrival = waypoints.find(w => w.tipo === 'arrival');
+  const departure = waypoints.find(w => w.type === 'departure');
+  const arrival = waypoints.find(w => w.type === 'arrival');
 
   return (
     <div className="relative w-full h-full">
@@ -192,11 +192,11 @@ export const SkyVectorMap: React.FC<SkyVectorMapProps> = ({
 
         {/* Waypoint markers */}
         {waypoints.map((wp, index) => (
-          <MarkerAny key={`${wp.icao}-${index}`} position={[wp.lat, wp.lng]} icon={createWaypointIcon(wp.tipo)}>
+          <MarkerAny key={`${wp.icao}-${index}`} position={[wp.lat, wp.lng]} icon={createWaypointIcon(wp.type)}>
             <Popup>
               <div className="font-mono font-bold text-primary">{wp.icao}</div>
-              <div className="text-sm text-muted-foreground">{wp.nome}</div>
-              <div className="text-xs capitalize">{wp.tipo === 'departure' ? 'Partida' : wp.tipo === 'arrival' ? 'Destino' : wp.tipo === 'alternate' ? 'Alternativa' : 'Waypoint'}</div>
+              <div className="text-sm text-muted-foreground">{wp.name}</div>
+              <div className="text-xs capitalize">{wp.type === 'departure' ? 'Partida' : wp.type === 'arrival' ? 'Destino' : wp.type === 'alternate' ? 'Alternativa' : 'Waypoint'}</div>
             </Popup>
           </MarkerAny>
         ))}

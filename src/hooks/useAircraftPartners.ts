@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface AeronaveParcerias {
   id: string;
   id_aeronave: string;
-  id_cliente: string;
+  id_clientes: string;
   percentual_sociedade: number;
   criado_em: string;
   atualizado_em: string;
@@ -34,7 +34,7 @@ export function useCreateAeronaveParcerias() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: Omit<AeronaveParcerias, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (data: Omit<AeronaveParcerias, 'id' | 'criado_em' | 'atualizado_em'>) => {
       const { data: result, error } = await supabase
         .from('cotistas_aeronave')
         .insert([data])

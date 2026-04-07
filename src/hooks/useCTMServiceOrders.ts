@@ -377,7 +377,7 @@ export function useCTMServiceOrders() {
 
         if (orderError) throw orderError;
 
-        const { data: newBudget, error: budgetError } = await fromUntyped('ctm_budgets')
+        const { data: newBudget, error: budgetError } = await fromUntyped('ctm_orcamentos')
           .insert([
             {
               aeronave_id: order.aeronave_id,

@@ -380,7 +380,7 @@ export function RelatorioFinanceiro() {
                 <BarChart data={categoriaData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis dataKey="nome" type="categoria" width={150} stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis dataKey="nome" type="category" width={150} stroke="hsl(var(--muted-foreground))" fontSize={11} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',

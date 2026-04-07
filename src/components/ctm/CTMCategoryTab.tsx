@@ -48,7 +48,7 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
     queryKey: ["oas-by-category", aircraftId, categoryName],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from("service_orders")
+        .from("ctm_ordens_servico")
         .select("*")
         .eq("aeronave_id", aircraftId)
         .order("created_at", { ascending: false });

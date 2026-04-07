@@ -11,10 +11,10 @@ import { OficinasManager } from "@/components/ctm/OficinasManager";
 import { motion, AnimatePresence } from "framer-motion";
 interface Aircraft {
   id: string;
-  registration: string;
-  model: string;
+  matricula: string;
+  modelo: string;
   status?: string | null;
-  image_url?: string | null;
+  url_imagem?: string | null;
   cell_hours_current?: number | null;
 }
 export default function GestaoCTM() {
@@ -179,7 +179,7 @@ export default function GestaoCTM() {
                       <CardContent className="p-0">
                         {/* Aircraft Image or Placeholder */}
                         <div className="relative h-32 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent overflow-hidden">
-                          {ac.image_url ? <img src={ac.image_url} alt={ac.registration} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : <div className="absolute inset-0 flex items-center justify-center">
+                          {ac.url_imagem ? <img src={ac.url_imagem} alt={ac.matricula} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : <div className="absolute inset-0 flex items-center justify-center">
                               <motion.div className="relative" whileHover={{
                         rotate: -10
                       }} transition={{
@@ -207,9 +207,9 @@ export default function GestaoCTM() {
                         <div className="p-4 space-y-3">
                           <div>
                             <h3 className="text-xl font-black text-foreground group-hover:text-primary transition-colors">
-                              {ac.registration}
+                              {ac.matricula}
                             </h3>
-                            <p className="text-sm text-muted-foreground">{ac.model}</p>
+                            <p className="text-sm text-muted-foreground">{ac.modelo}</p>
                           </div>
 
                           <div className="flex items-center justify-between pt-2 border-t border-border/50">
@@ -287,9 +287,9 @@ export default function GestaoCTM() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h3 className="text-lg font-bold text-foreground truncate">
-                                  {ac.registration}
+                                  {ac.matricula}
                                 </h3>
-                                <p className="text-sm text-muted-foreground truncate">{ac.model}</p>
+                                <p className="text-sm text-muted-foreground truncate">{ac.modelo}</p>
                               </div>
                               <Badge variant="outline" className="border-orange-500/30 text-orange-500 shrink-0">
                                 INATIVO

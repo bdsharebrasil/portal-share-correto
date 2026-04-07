@@ -90,7 +90,7 @@ export function PayslipsManagement() {
         throw new Error("Arquivo e funcionário são obrigatórios");
       }
 
-      const fileName = `${uploadData.employee_id}/${uploadData.year}/${String(uploadData.month).padStart(2, "0")}_${uploadData.file.nome}`;
+      const fileName = `${uploadData.employee_id}/${uploadData.year}/${String(uploadData.month).padStart(2, "0")}_${uploadData.file.name}`;
       
       const { error: uploadError, data } = await supabase.storage
         .from("holerites")
@@ -136,7 +136,7 @@ export function PayslipsManagement() {
 
       const { error: storageError } = await supabase.storage
         .from("holerites")
-        .remove([payslip.caminho_arquivo]);
+        .remove([payslip.file_path]);
 
       if (storageError) throw storageError;
 

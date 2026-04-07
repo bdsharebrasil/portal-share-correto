@@ -26,8 +26,8 @@ interface Client {
 }
 interface Aircraft {
   id: string;
-  registration: string;
-  year: number | null;
+  matricula: string;
+  ano: number | null;
 }
 interface Partner {
   id: string;
@@ -35,6 +35,7 @@ interface Partner {
   cpf?: string;
   isMainClient?: boolean;
   percentual_participacao?: number;
+  percentual_sociedade?: number;
 }
 interface FuelRecord {
   id: string;
@@ -56,6 +57,7 @@ interface FuelRecord {
   observacao?: string | null;
   nf?: string | null;
   partner_name?: string | null;
+  nome_socio?: string | null;
   comprovante_pagamento?: string | null;
   data_pagamento?: string | null;
   tipo_combustivel?: string | null;
@@ -250,7 +252,7 @@ export function FuelRecordsByAircraft({
   useEffect(() => {
     const loadUserName = async () => {
       if (!user?.id) return;
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('user_profiles')
         .select('full_name')
         .eq('id', user.id)
@@ -262,34 +264,34 @@ export function FuelRecordsByAircraft({
 
   // Load logbook flights when linking is enabled
   useEffect(() => {
-    if (linkToLogbook && aeronave.id) {
+    if (linkToLogbook && aircraft.id) {
       loadLogbookFlights();
     }
-  }, [linkToLogbook, aeronave.id, formData.cliente_id]);
+  }, [linkToLogbook, aircraft.id, formData.client_id]);
 
   const loadLogbookFlights = async () => {
     setLoadingFlights(true);
     try {
       // Get IDs of flights already linked to abastecimentos
-      const { data: linkedAbast } = await supabase
+      const { data: linkedAbast } = await (supabase as any)
         .from('abastecimentos')
         .select('logbook_entry_id')
-        .eq('id_aeronave', aeronave.id)
+        .eq('id_aeronave', aircraft.id)
         .not('logbook_entry_id', 'is', null);
 
       const linkedIds = (linkedAbast || []).map(a => a.logbook_entry_id).filter(Boolean);
 
       // Get flights with fuel_added > 0 for this aircraft
-      let query = supabase
+      let query = (supabase as any)
         .from('logbook_entries')
         .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho, fuel_added, fuel_liters, client_id, total_time')
-        .eq('id_aeronave', aeronave.id)
+        .eq('id_aeronave', aircraft.id)
         .gt('fuel_added', 0)
         .order('entry_date', { ascending: false })
         .limit(50);
 
       // Filter by client if selected
-      const effectiveClientId = formData.cliente_id || client.id;
+      const effectiveClientId = formData.client_id || client.id;
       if (effectiveClientId) {
         query = query.eq('cliente_id', effectiveClientId);
       }
@@ -332,10 +334,10 @@ export function FuelRecordsByAircraft({
 
       // Busca o lançamento anterior do logbook (não apenas o dia anterior)
       try {
-        const { data: previousFlights, error } = await supabase
+        const { data: previousFlights, error } = await (supabase as any)
           .from('logbook_entries')
           .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
-          .eq('id_aeronave', aeronave.id)
+          .eq('id_aeronave', aircraft.id)
           .lt('entry_date', flight.entry_date)
           .order('entry_date', { ascending: false })
           .limit(1);
@@ -399,10 +401,10 @@ export function FuelRecordsByAircraft({
 
     const loadPreviousFlight = async () => {
       try {
-        const { data: previousFlights, error } = await supabase
+        const { data: previousFlights, error } = await (supabase as any)
           .from('logbook_entries')
           .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
-          .eq('id_aeronave', aeronave.id)
+          .eq('id_aeronave', aircraft.id)
           .lt('entry_date', formData.data)
           .order('entry_date', { ascending: false })
           .limit(1);
@@ -422,11 +424,11 @@ export function FuelRecordsByAircraft({
     };
 
     loadPreviousFlight();
-  }, [formData.data, linkToLogbook, aeronave.id]);
+  }, [formData.data, linkToLogbook, aircraft.id]);
 
   const loadBankInstitutions = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("instituicoes_bancarias")
         .select("id, label")
         .order("ordem", { ascending: true });
@@ -435,7 +437,7 @@ export function FuelRecordsByAircraft({
         console.error("Erro ao carregar instituições bancárias:", error);
         return;
       }
-      setBankInstitutions((data || []) as { id: string; label: string }[]);
+      setBankInstitutions((data || []) as any as { id: string; label: string }[]);
     } catch (err) {
       console.error("Erro ao carregar instituições bancárias:", err);
     }
@@ -448,7 +450,7 @@ export function FuelRecordsByAircraft({
     loadClientPartners();
     loadBankInstitutions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aeronave.id, currentClientId]);
+  }, [aircraft.id, currentClientId]);
 
   // Scroll para o abastecimento selecionado quando disponível
   useEffect(() => {
@@ -487,7 +489,7 @@ export function FuelRecordsByAircraft({
     // Main client is always included
     return [{
       id: clientId,
-      name: clientName,
+      nome: clientName,
       isMainClient: true,
       percentual_sociedade: 0
     }];
@@ -497,7 +499,7 @@ export function FuelRecordsByAircraft({
       const {
         data,
         error
-      } = await supabase.from("cotistas_aeronave").select("cliente_id, percentual_participacao").eq("id_aeronave", aeronave.id);
+      } = await (supabase as any).from("cotistas_aeronave").select("cliente_id, percentual_participacao").eq("id_aeronave", aircraft.id);
       if (error) {
         console.error("Error loading partner percentages:", error);
         return partnersData;
@@ -522,7 +524,7 @@ export function FuelRecordsByAircraft({
   };
   const getClientPartnersFromDB = async (clientId: string): Promise<Partner[]> => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("socios_cliente")
         .select("id, nome, cpf, percentual_participacao")
         .eq("cliente_id", clientId)
@@ -572,7 +574,7 @@ export function FuelRecordsByAircraft({
       setClientPartners([]);
       return;
     }
-    const { data: clientData, error: clientError } = await supabase
+    const { data: clientData, error: clientError } = await (supabase as any)
       .from('clients')
       .select('*')
       .eq('id', currentClientId)
@@ -581,10 +583,10 @@ export function FuelRecordsByAircraft({
       console.error('Error loading client:', clientError);
       return;
     }
-    setDisplayClient(clientData);
+    setDisplayClient(clientData as any);
 
     // Get main client
-    const mainClient = getClientPartners(clientData.id, clientData.razao_social);
+    const mainClient = getClientPartners(clientData.id, (clientData as any).razao_social || clientData.company_name);
 
     // Get partners from client_partners table
     const dbPartners = await getClientPartnersFromDB(clientData.id);
@@ -593,10 +595,10 @@ export function FuelRecordsByAircraft({
     let allPartners = [...mainClient, ...dbPartners];
 
     // Load aircraft share percentages
-    const { data: aircraftData, error: aircraftError } = await supabase
+    const { data: aircraftData, error: aircraftError } = await (supabase as any)
       .from('cotistas_aeronave')
       .select('id_cliente, percentual_sociedade')
-      .eq('id_aeronave', aeronave.id);
+      .eq('id_aeronave', aircraft.id);
 
     if (aircraftError) {
       console.error('Error loading aircraft shares:', aircraftError);
@@ -615,7 +617,7 @@ export function FuelRecordsByAircraft({
     setClientPartners(allPartners);
   };
   const loadRecords = async () => {
-    let query = supabase.from("abastecimentos").select("*").eq("id_aeronave", aeronave.id);
+    let query = supabase.from("abastecimentos").select("*").eq("id_aeronave", aircraft.id);
     if (currentClientId !== "all") {
       query = query.eq("id_clientes", currentClientId);
     }
@@ -691,7 +693,7 @@ export function FuelRecordsByAircraft({
   const filteredTotalLitros = filteredRecords.reduce((sum, r) => sum + r.litros, 0);
   const filteredTotalValue = filteredRecords.reduce((sum, r) => sum + r.valor_total, 0);
   const getFileExtension = (file: File): string => {
-    const name = file.nome.toLowerCase();
+    const name = file.name.toLowerCase();
     const ext = name.split('.').pop() || '';
     return ext;
   };
@@ -701,10 +703,10 @@ export function FuelRecordsByAircraft({
     try {
       const timestamp = Date.now();
       const extension = getFileExtension(file);
-      const sanitizedFileName = file.nome
+      const sanitizedFileName = file.name
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
-      const fileName = `${client.id}/${aeronave.id}/${timestamp}-${fieldName}-${sanitizedFileName}`;
+      const fileName = `${client.id}/${aircraft.id}/${timestamp}-${fieldName}-${sanitizedFileName}`;
       const {
         error
       } = await supabase.storage.from("abastecimento").upload(fileName, file);
@@ -838,7 +840,7 @@ export function FuelRecordsByAircraft({
       const brazilDate = new Date(year, month - 1, day, 3, 0, 0, 0);
       const isoDateString = brazilDate.toISOString();
 
-      if (!formData.cliente_id.trim()) {
+      if (!formData.client_id.trim()) {
         toast.error("Selecione um cliente para o abastecimento");
         setIsUploading(false);
         return;
@@ -846,19 +848,19 @@ export function FuelRecordsByAircraft({
       const supplierName = formData.abastecedor_id ? suppliers.find(s => s.id === formData.abastecedor_id)?.nome_fornecedor || null : null;
 
       const observacaoFinal = formData.observacao || null;
-      const selectedPartner = clientPartners.find(p => p.id === formData.cliente_id);
+      const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
       const partnerNameValue = (selectedPartner && !selectedPartner.isMainClient) ? selectedPartner.nome : null;
 
       let partnerIndex: number | null = null;
       if (selectedPartner && !selectedPartner.isMainClient) {
-        if (formData.cliente_id.includes('-partner1')) partnerIndex = 1;
-        else if (formData.cliente_id.includes('-partner2')) partnerIndex = 2;
-        else if (formData.cliente_id.includes('-partner3')) partnerIndex = 3;
+        if (formData.client_id.includes('-partner1')) partnerIndex = 1;
+        else if (formData.client_id.includes('-partner2')) partnerIndex = 2;
+        else if (formData.client_id.includes('-partner3')) partnerIndex = 3;
       }
 
       const recordData: any = {
         client_id: client.id,
-        aeronave_id: aeronave.id,
+        aeronave_id: aircraft.id,
         data: isoDateString,
         trecho: formData.trecho || "",
         local: formData.local || null,
@@ -939,10 +941,10 @@ export function FuelRecordsByAircraft({
       let allPartners = [...mainClient, ...dbPartners];
 
       // Load aircraft share percentages
-      const { data: aircraftData, error: aircraftError } = await supabase
+      const { data: aircraftData, error: aircraftError } = await (supabase as any)
         .from('cotistas_aeronave')
         .select('id_cliente, percentual_sociedade')
-        .eq('id_aeronave', aeronave.id);
+        .eq('id_aeronave', aircraft.id);
 
       if (!aircraftError) {
         const percentageMap: { [key: string]: number } = {};
@@ -983,7 +985,7 @@ export function FuelRecordsByAircraft({
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       abastecedor_id: supplierRecord?.id || "",
       combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
-      client_id: record.cliente_id || client.id,
+      client_id: record.client_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
       status_pagamento: record.status_pagamento || "em aberto",
       tipo_faturamento: record.tipo_faturamento || "",
@@ -1117,11 +1119,11 @@ export function FuelRecordsByAircraft({
       </tr>
     `).join("");
 
-    printWindow.documento.write(`
+    printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Controle de Abastecimento - ${displayClient.razao_social} - ${aeronave.matricula} - ${periodLabel}</title>
+          <title>Controle de Abastecimento - ${displayClient.razao_social} - ${aircraft.matricula} - ${periodLabel}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
@@ -1147,7 +1149,7 @@ export function FuelRecordsByAircraft({
             <div class="title">
               <h1>CONTROLE DE COMBUSTÍVEL</h1>
               <p>${displayClient.razao_social}</p>
-              <p>${aeronave.matricula}</p>
+              <p>${aircraft.matricula}</p>
             </div>
             <div class="period">${periodLabel}</div>
           </div>
@@ -1181,7 +1183,7 @@ export function FuelRecordsByAircraft({
         </body>
       </html>
     `);
-    printWindow.documento.close();
+    printWindow.document.close();
     printWindow.focus();
     setTimeout(() => {
       printWindow.print();
@@ -1203,7 +1205,7 @@ export function FuelRecordsByAircraft({
           <Plane className="h-6 w-6 text-primary" />
           Registros de Abastecimento
         </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">{displayClient.razao_social} • {aeronave.matricula}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{displayClient.razao_social} • {aircraft.matricula}</p>
       </div>
     </div>
 
@@ -1506,7 +1508,7 @@ export function FuelRecordsByAircraft({
                   <Combobox options={allClients.filter(c => c.id !== client.id).map(c => ({
                     value: c.id,
                     label: c.razao_social
-                  }))} value={formData.cliente_id === client.id || clientPartners.some(p => p.id === formData.cliente_id) ? "" : formData.cliente_id} onValueChange={value => handleClientChange(value)} placeholder="Buscar outro cliente" searchPlaceholder="Buscar cliente..." emptyText="Nenhum outro cliente encontrado" className="mt-1 h-9 text-sm" />
+                  }))} value={formData.client_id === client.id || clientPartners.some(p => p.id === formData.client_id) ? "" : formData.client_id} onValueChange={value => handleClientChange(value)} placeholder="Buscar outro cliente" searchPlaceholder="Buscar cliente..." emptyText="Nenhum outro cliente encontrado" className="mt-1 h-9 text-sm" />
                 </div>}
               </div>
             </div>
@@ -1600,13 +1602,13 @@ export function FuelRecordsByAircraft({
                 <Label className="text-xs text-muted-foreground">Fornecedor <span className="text-red-500">*</span></Label>
                 <Combobox options={suppliers.map(s => ({
                   value: s.id,
-                  label: `${s.nome_fornecedor} (${s.cidade_name})`
+                  label: `${s.nome_fornecedor} (${s.nome_cidade})`
                 }))} value={formData.abastecedor_id} onValueChange={value => {
                   const selectedSupplier = suppliers.find(s => s.id === value);
                   setFormData({
                     ...formData,
                     abastecedor_id: value,
-                    local: selectedSupplier?.cidade_name || formData.local
+                    local: selectedSupplier?.nome_cidade || formData.local
                   });
                 }} placeholder="Selecione um fornecedor" searchPlaceholder="Buscar fornecedor..." emptyText="Nenhum fornecedor encontrado" className="mt-1 h-9 text-sm" />
               </div>
@@ -1721,7 +1723,7 @@ export function FuelRecordsByAircraft({
                     </SelectTrigger>
                     <SelectContent>
                       {bankInstitutions.map(bank => (
-                        <SelectItem key={bank.id} value={bank.label}>{bank.label}</SelectItem>
+                        <SelectItem key={bank.id} value={bank.nome}>{bank.nome}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -1959,7 +1961,7 @@ export function FuelRecordsByAircraft({
 
             {/* Partner (Sócio) */}
             {(() => {
-              const selectedPartner = clientPartners.find(p => p.id === formData.cliente_id);
+              const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
               const partnerNameValue = (selectedPartner && !selectedPartner.isMainClient) ? selectedPartner.nome : null;
               if (partnerNameValue) {
                 return (
@@ -2092,7 +2094,7 @@ export function FuelRecordsByAircraft({
         onOpenChange={setIsExportModalOpen}
         records={records}
         clientName={displayClient.razao_social}
-        aircraftRegistration={aeronave.matricula}
+        aircraftRegistration={aircraft.matricula}
         onExportPDF={handleExportPDF}
       />
 
@@ -2292,21 +2294,21 @@ export function FuelRecordsByAircraft({
       <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col" style={{zIndex: 1001}}>
         <DialogHeader className="border-b pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            {viewingAttachment.nome === 'Comanda' && <FileText className="h-5 w-5 text-blue-600" />}
-            {viewingAttachment.nome === 'Nota Fiscal' && <FileCheck className="h-5 w-5 text-green-600" />}
-            {viewingAttachment.nome === 'Boleto' && <DollarSign className="h-5 w-5 text-orange-600" />}
-            Visualizando: {viewingAttachment.nome}
+            {viewingAttachment.name === 'Comanda' && <FileText className="h-5 w-5 text-blue-600" />}
+            {viewingAttachment.name === 'Nota Fiscal' && <FileCheck className="h-5 w-5 text-green-600" />}
+            {viewingAttachment.name === 'Boleto' && <DollarSign className="h-5 w-5 text-orange-600" />}
+            Visualizando: {viewingAttachment.name}
           </DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-auto flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg p-6">
-          {viewingAttachment.tipo === 'pdf' ? <div className="w-full h-full flex flex-col gap-3">
+          {viewingAttachment.type === 'pdf' ? <div className="w-full h-full flex flex-col gap-3">
             <embed src={viewingAttachment.url + '#toolbar=1'} type="application/pdf" className="w-full flex-1 rounded-lg" style={{ minHeight: '600px' }} />
             <Button onClick={() => window.open(viewingAttachment.url, '_blank')} variant="outline" className="gap-2 self-center">
               <Download className="h-4 w-4" />
               Abrir em Nova Aba
             </Button>
           </div> : <div className="w-full flex flex-col items-center gap-4">
-            <img src={viewingAttachment.url} alt={viewingAttachment.nome} className="max-w-full max-h-[600px] object-contain rounded-lg shadow-lg" />
+            <img src={viewingAttachment.url} alt={viewingAttachment.name} className="max-w-full max-h-[600px] object-contain rounded-lg shadow-lg" />
             <p className="text-xs text-muted-foreground">Clique para fechar</p>
           </div>}
         </div>

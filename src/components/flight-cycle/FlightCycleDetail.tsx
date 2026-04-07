@@ -24,8 +24,8 @@ interface Client {
 
 interface Aircraft {
   id: string;
-  registration: string;
-  model: string;
+  matricula: string;
+  modelo: string;
 }
 
 interface ClientPartner {
@@ -62,7 +62,7 @@ export function FlightCycleDetail({
   const [partners, setPartners] = useState<ClientPartner[]>([]);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
   const [editData, setEditData] = useState({
-    client_id: cycle.cliente_id || '',
+    client_id: cycle.client_id || '',
     partner_id: cycle.partner_id || '',
     origin_icao: cycle.origin_icao,
     destination_icao: cycle.destination_icao,
@@ -116,8 +116,8 @@ export function FlightCycleDetail({
       supabase.from('aeronave').select('id, matricula, modelo').order("matricula"),
     ]);
 
-    if (clientsRes.data) setClients(clientsRes.data);
-    if (aircraftRes.data) setAircraft(aircraftRes.data);
+    if (clientsRes.data) setClients(clientsRes.data as Client[]);
+    if (aircraftRes.data) setAircraft(aircraftRes.data as Aircraft[]);
 
     // Fetch crew members
     await fetchCrewMembers();
@@ -136,7 +136,7 @@ export function FlightCycleDetail({
       }
 
       await onUpdateCycle(cycle.id, {
-        client_id: editData.cliente_id || null,
+        client_id: editData.client_id || null,
         partner_id: editData.partner_id || null,
         partner_name: partnerName,
         origin_icao: editData.origin_icao,
@@ -153,7 +153,7 @@ export function FlightCycleDetail({
 
   const handleCancelEdit = () => {
     setEditData({
-      client_id: cycle.cliente_id || '',
+      client_id: cycle.client_id || '',
       partner_id: cycle.partner_id || '',
       origin_icao: cycle.origin_icao,
       destination_icao: cycle.destination_icao,
@@ -225,7 +225,7 @@ export function FlightCycleDetail({
                 <div>
                   <div className="flex items-center gap-3">
                     <h2 className="text-2xl font-bold text-foreground">
-                      {cycle.aeronave?.matricula || 'N/A'}
+                      {cycle.aircraft?.matricula || 'N/A'}
                     </h2>
                     <Badge
                       variant="outline"
@@ -235,7 +235,7 @@ export function FlightCycleDetail({
                     </Badge>
                   </div>
                   <p className="text-muted-foreground">
-                    {cycle.nome_socio || cycle.client?.razao_social || cycle.client?.proprietario || 'Cliente não definido'}
+                    {cycle.partner_name || cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
                   </p>
                 </div>
               </div>
@@ -294,7 +294,7 @@ export function FlightCycleDetail({
               <div className="space-y-2">
                 <Label>Cliente</Label>
                 <Select
-                  value={editData.cliente_id}
+                  value={editData.client_id}
                   onValueChange={(v) => setEditData(prev => ({ ...prev, client_id: v }))}
                 >
                   <SelectTrigger>
@@ -568,7 +568,7 @@ export function FlightCycleDetail({
                                     value={expenseEdits[expense.id]?.status || expense.status}
                                     onValueChange={(value) => setExpenseEdits(prev => ({
                                       ...prev,
-                                      [expense.id]: { ...prev[expense.id], amount: prev[expense.id]?.valor ?? expense.valor, status: value as ExpenseStatus }
+                                      [expense.id]: { ...prev[expense.id], amount: prev[expense.id]?.amount ?? expense.amount, status: value as ExpenseStatus }
                                     }))}
                                   >
                                     <SelectTrigger>
@@ -589,7 +589,7 @@ export function FlightCycleDetail({
                                   <Input
                                     type="number"
                                     placeholder="0,00"
-                                    value={expenseEdits[expense.id]?.valor ?? expense.valor ?? ''}
+                                    value={expenseEdits[expense.id]?.amount ?? expense.amount ?? ''}
                                     onChange={(e) => setExpenseEdits(prev => ({
                                       ...prev,
                                       [expense.id]: { 
@@ -605,7 +605,7 @@ export function FlightCycleDetail({
                                   size="sm"
                                   onClick={() => {
                                     const newStatus = expenseEdits[expense.id]?.status || expense.status;
-                                    const newAmount = expenseEdits[expense.id]?.valor ?? expense.valor;
+                                    const newAmount = expenseEdits[expense.id]?.amount ?? expense.amount;
                                     onUpdateExpenseStatus(expense.id, newStatus, { amount: newAmount });
                                     setExpenseEdits(prev => {
                                       const updated = { ...prev };

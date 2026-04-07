@@ -32,7 +32,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.nome
+      const sanitizedFileName = file.name
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();

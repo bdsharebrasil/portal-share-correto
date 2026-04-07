@@ -18,19 +18,19 @@ interface FlightPlanDialogProps {
 
 interface Aircraft {
   id: string;
-  registration: string;
-  model: string;
+  matricula: string;
+  modelo: string;
 }
 
 interface CrewMember {
   id: string;
-  full_name: string;
+  nome_completo: string;
   canac: string;
 }
 
 interface Client {
   id: string;
-  company_name: string;
+  razao_social: string;
   cnpj: string;
 }
 
@@ -255,14 +255,14 @@ Visibilidade: ${data.visibility / 1000} km
   };
 
   const handleSubmit = async () => {
-    if (!formData.cliente_id || !formData.departure_airport || !formData.arrival_airport || 
+    if (!formData.client_id || !formData.departure_airport || !formData.arrival_airport || 
         !formData.flight_date || !formData.aeronave_id) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
     try {
-      const { error } = await supabase.from("flight_plans").insert({
+      const { error } = await (supabase as any).from("flight_plans").insert({
         aeronave_id: formData.aeronave_id,
         departure_airport: formData.departure_airport,
         arrival_airport: formData.arrival_airport,
@@ -342,7 +342,7 @@ Visibilidade: ${data.visibility / 1000} km
             </div>
             <div>
               <Label>Cliente *</Label>
-              <Select value={formData.cliente_id} onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}>
+              <Select value={formData.client_id} onValueChange={(value) => setFormData(prev => ({ ...prev, client_id: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o cliente" />
                 </SelectTrigger>
@@ -401,7 +401,7 @@ Visibilidade: ${data.visibility / 1000} km
               <SelectContent>
                 {aircraft.map((ac) => (
                   <SelectItem key={ac.id} value={ac.id}>
-                    {ac.registration} - {ac.model}
+                    {ac.matricula} - {ac.modelo}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -614,7 +614,7 @@ Visibilidade: ${data.visibility / 1000} km
                         id={`aircraft-${item.id}`}
                         checked={item.checked}
                         onCheckedChange={(checked) => {
-                          const newList = [...aeronaveChecklist];
+                          const newList = [...aircraftChecklist];
                           newList[index].checked = checked as boolean;
                           setAircraftChecklist(newList);
                         }}
@@ -622,7 +622,7 @@ Visibilidade: ${data.visibility / 1000} km
                       <Input
                         value={item.item}
                         onChange={(e) => {
-                          const newList = [...aeronaveChecklist];
+                          const newList = [...aircraftChecklist];
                           newList[index].item = e.target.value;
                           setAircraftChecklist(newList);
                         }}
@@ -644,7 +644,7 @@ Visibilidade: ${data.visibility / 1000} km
                     size="sm"
                     onClick={() => {
                       setAircraftChecklist([
-                        ...aeronaveChecklist,
+                        ...aircraftChecklist,
                         { id: Date.now().toString(), item: "Novo item", checked: false }
                       ]);
                     }}
@@ -734,7 +734,7 @@ Visibilidade: ${data.visibility / 1000} km
                         className="rounded"
                       />
                       <label htmlFor={crew.id} className="flex-1 cursor-pointer">
-                        <div className="font-medium">{crew.full_name}</div>
+                        <div className="font-medium">{crew.nome_completo}</div>
                         <div className="text-xs text-muted-foreground">CANAC: {crew.canac}</div>
                       </label>
                     </div>

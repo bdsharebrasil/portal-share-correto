@@ -330,6 +330,7 @@ export type Database = {
       }
       aerodromes: {
         Row: {
+          nome: string
           coordenadas: string | null
           created_at: string | null
           designativo: string
@@ -2869,7 +2870,7 @@ export type Database = {
           atualizado_por: string | null
           boleto_url: string | null
           categoria_id: string
-          clientes_id: string | null
+          cliente_id: string | null
           clientes_nome: string | null
           colaborador_id: string | null
           comprovante_url: string | null
@@ -2914,7 +2915,7 @@ export type Database = {
           atualizado_por?: string | null
           boleto_url?: string | null
           categoria_id: string
-          clientes_id?: string | null
+          cliente_id?: string | null
           clientes_nome?: string | null
           colaborador_id?: string | null
           comprovante_url?: string | null
@@ -2959,7 +2960,7 @@ export type Database = {
           atualizado_por?: string | null
           boleto_url?: string | null
           categoria_id?: string
-          clientes_id?: string | null
+          cliente_id?: string | null
           clientes_nome?: string | null
           colaborador_id?: string | null
           comprovante_url?: string | null
@@ -3056,50 +3057,50 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "controle_bancario_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "controle_bancario_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "controle_bancario_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "controle_bancario_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "controle_bancario_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "controle_bancario_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "controle_bancario_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "controle_bancario_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "controle_bancario_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "controle_bancario_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "controle_bancario_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "controle_bancario_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "controle_bancario_clientes_id_fkey"
-            columns: ["clientes_id"]
+            foreignKeyName: "controle_bancario_cliente_id_fkey"
+            columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
@@ -7333,12 +7334,12 @@ export type Database = {
       logbook_entries: {
         Row: {
           ac_time: string | null
-          aircraft_id: string
+          aeronave_id: string
           airframe_hours_next_maintenance: number | null
           arrival_aerodrome: string
           cargo_kg: string | null
           celula: number | null
-          client_id: string | null
+          clientes_id: string | null
           closed_at: string | null
           closed_by: string | null
           confirmed: boolean | null
@@ -7396,12 +7397,12 @@ export type Database = {
         }
         Insert: {
           ac_time?: string | null
-          aircraft_id: string
+          aeronave_id: string
           airframe_hours_next_maintenance?: number | null
           arrival_aerodrome: string
           cargo_kg?: string | null
           celula?: number | null
-          client_id?: string | null
+          clientes_id?: string | null
           closed_at?: string | null
           closed_by?: string | null
           confirmed?: boolean | null
@@ -7459,12 +7460,12 @@ export type Database = {
         }
         Update: {
           ac_time?: string | null
-          aircraft_id?: string
+          aeronave_id?: string
           airframe_hours_next_maintenance?: number | null
           arrival_aerodrome?: string
           cargo_kg?: string | null
           celula?: number | null
-          client_id?: string | null
+          clientes_id?: string | null
           closed_at?: string | null
           closed_by?: string | null
           confirmed?: boolean | null
@@ -7522,99 +7523,99 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "logbook_entries_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "logbook_entries_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "logbook_entries_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "logbook_entries_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "logbook_entries_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "logbook_entries_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "logbook_entries_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "logbook_entries_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "logbook_entries_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "logbook_entries_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave_simples"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "logbook_entries_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "logbook_entries_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_despesas_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "logbook_entries_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "logbook_entries_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_cliente"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
@@ -11411,8 +11412,8 @@ export type Database = {
       }
       senhas: {
         Row: {
-          created_at: string | null
           created_by: string | null
+          criado_em: string | null
           id: string
           login: string
           observacoes: string | null
@@ -11422,8 +11423,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          created_at?: string | null
           created_by?: string | null
+          criado_em?: string | null
           id?: string
           login: string
           observacoes?: string | null
@@ -11433,8 +11434,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          created_at?: string | null
           created_by?: string | null
+          criado_em?: string | null
           id?: string
           login?: string
           observacoes?: string | null
@@ -14311,7 +14312,7 @@ export type Database = {
           id: string | null
           nf_url: string | null
           requer_acao: boolean | null
-          status_visual: string | null
+          situacao_visual: string | null
           status: string | null
           updated_at: string | null
         }

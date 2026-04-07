@@ -15,7 +15,7 @@ interface FuelSupplier {
   codigo_icao: string;
   nome_fornecedor: string;
   pessoa_contato: string | null;
-  phone: string | null;
+  telefone: string | null;
   preco_avgas: number | null;
   preco_jet: number | null;
 }
@@ -30,7 +30,7 @@ export function SupplierDirectory() {
     codigo_icao: "",
     nome_fornecedor: "",
     pessoa_contato: "",
-    phone: "",
+    telefone: "",
     avgas_price: "",
     jet_price: "",
   });
@@ -50,18 +50,18 @@ export function SupplierDirectory() {
       return;
     }
 
-    setSuppliers(data || []);
+    setSuppliers((data || []) as FuelSupplier[]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const supplierData = {
-      nome_cidade: formData.cidade_name,
+      nome_cidade: formData.nome_cidade,
       codigo_icao: formData.codigo_icao.toUpperCase(),
       nome_fornecedor: formData.nome_fornecedor,
       pessoa_contato: formData.pessoa_contato || null,
-      phone: formData.telefone || null,
+      telefone: formData.telefone || null,
       preco_avgas: parseFloat(formData.avgas_price) || 0,
       preco_jet: parseFloat(formData.jet_price) || 0,
     } as const;
@@ -95,11 +95,11 @@ export function SupplierDirectory() {
   const handleEdit = (supplier: FuelSupplier) => {
     setEditingSupplier(supplier);
     setFormData({
-      nome_cidade: supplier.cidade_name,
+      nome_cidade: supplier.nome_cidade,
       codigo_icao: supplier.codigo_icao,
       nome_fornecedor: supplier.nome_fornecedor,
       pessoa_contato: supplier.pessoa_contato || "",
-      phone: supplier.telefone || "",
+      telefone: supplier.telefone || "",
       avgas_price: supplier.preco_avgas ? supplier.preco_avgas.toString() : "",
       jet_price: supplier.preco_jet ? supplier.preco_jet.toString() : "",
     });
@@ -126,7 +126,7 @@ export function SupplierDirectory() {
       codigo_icao: "",
       nome_fornecedor: "",
       pessoa_contato: "",
-      phone: "",
+      telefone: "",
       avgas_price: "",
       jet_price: "",
     });
@@ -135,7 +135,7 @@ export function SupplierDirectory() {
 
   const filteredSuppliers = suppliers.filter(supplier =>
     supplier.nome_fornecedor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    supplier.cidade_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    supplier.nome_cidade.toLowerCase().includes(searchQuery.toLowerCase()) ||
     supplier.codigo_icao.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -175,7 +175,7 @@ export function SupplierDirectory() {
                   <div>
                     <Label className="text-sm">Cidade</Label>
                     <Input
-                      value={formData.cidade_name}
+                      value={formData.nome_cidade}
                       onChange={(e) => setFormData({ ...formData, nome_cidade: e.target.value })}
                       placeholder="Ex: São Paulo"
                       required
@@ -223,7 +223,7 @@ export function SupplierDirectory() {
                     <Label className="text-sm">Telefone</Label>
                     <Input
                       value={formData.telefone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                       placeholder="(11) 99999-9999"
                       className="mt-1.5"
                     />
@@ -312,7 +312,7 @@ export function SupplierDirectory() {
                     key={supplier.id}
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
-                    <TableCell className="font-medium text-foreground">{supplier.cidade_name}</TableCell>
+                    <TableCell className="font-medium text-foreground">{supplier.nome_cidade}</TableCell>
                     <TableCell className="font-mono text-primary font-semibold">{supplier.codigo_icao}</TableCell>
                     <TableCell className="text-foreground">{supplier.nome_fornecedor}</TableCell>
                     <TableCell className="text-muted-foreground">{supplier.pessoa_contato || "-"}</TableCell>

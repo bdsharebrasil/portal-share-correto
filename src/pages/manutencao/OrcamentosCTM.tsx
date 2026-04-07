@@ -42,7 +42,7 @@ export default function OrcamentosCTM() {
       setLoading(true);
       setPdfLoading(true);
       const { data: budgetData, error } = await (supabase as any)
-        .from("ctm_budgets")
+        .from("ctm_orcamentos")
         .select('*, aircraft:aeronave(matricula)')
         .eq("id", budgetId)
         .single();

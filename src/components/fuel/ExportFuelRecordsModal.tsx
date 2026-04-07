@@ -157,7 +157,7 @@ export function ExportFuelRecordsModal({
                           <TableCell className="whitespace-nowrap text-xs">{record.trecho || "-"}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs">{record.local || "-"}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs">{record.comanda || "-"}</TableCell>
-                          <TableCell className="whitespace-nowrap text-xs">{record.nome_socio || "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">{record.partner_name || record.partner_name || "-"}</TableCell>
                           <TableCell className="text-right whitespace-nowrap text-xs">{record.litros.toFixed(2)}</TableCell>
                           <TableCell className="text-right whitespace-nowrap text-xs">R$ {record.valor_unitario.toFixed(2)}</TableCell>
                           <TableCell className="text-right whitespace-nowrap text-xs font-semibold text-primary">

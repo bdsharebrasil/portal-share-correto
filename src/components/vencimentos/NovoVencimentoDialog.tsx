@@ -162,7 +162,7 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
           };
 
           const { error: ctmError } = await supabase
-            .from("service_orders")
+            .from("ctm_ordens_servico")
             .insert([serviceOrderData]);
 
           if (ctmError) {

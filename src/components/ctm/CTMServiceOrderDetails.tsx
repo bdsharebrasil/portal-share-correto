@@ -41,7 +41,6 @@ interface ServiceOrder {
   numero: string;
   tipo_manutencao: string;
   status?: string;
-  status?: string;
   oficina_nome?: string;
   oficina_contato?: string;
   horas_celula?: number;

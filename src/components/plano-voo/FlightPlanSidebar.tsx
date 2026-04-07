@@ -20,6 +20,7 @@ interface LegCalc {
 
 export interface FlightPlanFormData {
   aircraftId: string;
+  aeronaveId: string;
   registration: string;
   origin: string;
   destination: string;
@@ -80,12 +81,13 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
 }) => {
   // Auto-fill speed when aircraft changes
   const handleAircraftChange = useCallback((aircraftId: string) => {
-    const aircraft = aeronaves.find(a => a.id === aircraftId);
-    if (aircraft) {
-      const speed = getAircraftSpeed(aeronave.modelo);
+    const ac = aeronaves.find(a => a.id === aircraftId);
+    if (ac) {
+      const speed = getAircraftSpeed(ac.modelo);
       onFormChange({
         aircraftId,
-        registration: aeronave.matricula,
+        aeronaveId: aircraftId,
+        registration: ac.matricula,
         cruiseSpeed: speed,
         fuelOnBoard: 0,
       });
@@ -130,8 +132,8 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
             <SelectContent>
               {aeronaves.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
-                  <span className="font-mono font-bold">{a.registration}</span>
-                  <span className="text-muted-foreground ml-2">{a.model}</span>
+                  <span className="font-mono font-bold">{a.matricula}</span>
+                  <span className="text-muted-foreground ml-2">{a.modelo}</span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -275,7 +277,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
                   <div className="truncate">{r.route}</div>
                   <div className="flex gap-2 mt-1">
                     {r.level && <Badge variant="outline" className="text-[9px] h-4">{r.level}</Badge>}
-                    {r.tipo && <Badge variant="outline" className="text-[9px] h-4">{r.tipo}</Badge>}
+                    {r.type && <Badge variant="outline" className="text-[9px] h-4">{r.type}</Badge>}
                   </div>
                 </button>
               ))}

@@ -277,20 +277,20 @@ export function QuadroMensalTab() {
         advancedFilters.status === "all" || t.status === advancedFilters.status;
 
       const matchesValue =
-        Number(t.valor) >= advancedFilters.valorRange[0] &&
-        Number(t.valor) <= advancedFilters.valorRange[1];
+        Number(t.valor) >= advancedFilters.amountRange[0] &&
+        Number(t.valor) <= advancedFilters.amountRange[1];
 
       const matchesTipo =
         filterTipo === "todas" || t.tipo_movimento === filterTipo;
 
       let matchesDateRange = true;
-      if (advancedFilters.dataRange?.from) {
+      if (advancedFilters.dateRange?.from) {
         const transacaoDate = new Date(t.data);
-        const rangeStart = new Date(advancedFilters.dataRange.from);
+        const rangeStart = new Date(advancedFilters.dateRange.from);
         rangeStart.setHours(0, 0, 0, 0);
         matchesDateRange = transacaoDate >= rangeStart;
-        if (advancedFilters.dataRange.to) {
-          const rangeEnd = new Date(advancedFilters.dataRange.to);
+        if (advancedFilters.dateRange.to) {
+          const rangeEnd = new Date(advancedFilters.dateRange.to);
           rangeEnd.setHours(23, 59, 59, 999);
           matchesDateRange = matchesDateRange && transacaoDate <= rangeEnd;
         }

@@ -87,13 +87,13 @@ export const FlightRouteMap: React.FC<FlightRouteMapProps> = ({ points, classNam
 
   const routeCoordinates = useMemo((): LatLngExpression[] => {
     return points
-      .filter(p => p.tipo !== 'alternate')
+      .filter(p => p.type !== 'alternate')
       .map(p => [p.lat, p.lng] as LatLngExpression);
   }, [points]);
 
   const alternateRoute = useMemo((): LatLngExpression[] => {
-    const arrival = points.find(p => p.tipo === 'arrival');
-    const alternate = points.find(p => p.tipo === 'alternate');
+    const arrival = points.find(p => p.type === 'arrival');
+    const alternate = points.find(p => p.type === 'alternate');
     if (arrival && alternate) {
       return [[arrival.lat, arrival.lng], [alternate.lat, alternate.lng]] as LatLngExpression[];
     }
@@ -144,13 +144,13 @@ export const FlightRouteMap: React.FC<FlightRouteMapProps> = ({ points, classNam
           <MarkerAny
             key={`${point.icao}-${index}`}
             position={[point.lat, point.lng] as LatLngExpression}
-            icon={getMarkerIcon(point.tipo)}
+            icon={getMarkerIcon(point.type)}
           >
             <Popup>
               <div className="text-slate-900">
                 <strong className="text-lg">{point.icao}</strong>
-                <p className="text-sm">{point.nome}</p>
-                <p className="text-xs text-slate-600 capitalize">{point.tipo}</p>
+                <p className="text-sm">{point.name}</p>
+                <p className="text-xs text-slate-600 capitalize">{point.type}</p>
               </div>
             </Popup>
           </MarkerAny>

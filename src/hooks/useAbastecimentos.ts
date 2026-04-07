@@ -90,7 +90,7 @@ export function useLinkAbastecimentoDespesa() {
       const { error: linkError } = await supabase
         .from("partner_expenses")
         .update({
-          notes: `Vinculado ao abastecimento: ${data.abastecimentoId}`,
+          observacoes: `Vinculado ao abastecimento: ${data.abastecimentoId}`,
         })
         .eq("id", data.expenseId);
 

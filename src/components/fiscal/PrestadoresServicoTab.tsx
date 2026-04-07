@@ -293,7 +293,7 @@ export function PrestadoresServicoTab() {
 
   const handleUploadFile = async (file: File, type: "nota" | "comprovante", notaId: string) => {
     try {
-      const fileExt = file.nome.split('.').pop();
+      const fileExt = file.name.split('.').pop();
       const fileName = `${notaId}_${type}_${Date.now()}.${fileExt}`;
       const filePath = `prestadores/${fileName}`;
 
@@ -1094,7 +1094,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
     
     setIsUploading(true);
     try {
-      const fileExt = notaFile.nome.split('.').pop();
+      const fileExt = notaFile.name.split('.').pop();
       const fileName = `${notaId}_nf_${Date.now()}.${fileExt}`;
       const filePath = `prestadores/${fileName}`;
 
@@ -1285,7 +1285,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
               {notaFile && (
                 <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <FileText className="h-4 w-4" />
-                  <span className="truncate">{notaFile.nome}</span>
+                  <span className="truncate">{notaFile.name}</span>
                   <Button
                     type="button"
                     variant="ghost"

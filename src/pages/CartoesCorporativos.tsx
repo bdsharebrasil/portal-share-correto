@@ -428,13 +428,13 @@ export default function CartoesCorporativos() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {cardBalances.map((card) => (
             <div
-              key={card.tipo}
+              key={card.type}
               className={`relative h-40 rounded-2xl bg-gradient-to-br ${card.color} p-6 text-white shadow-lg overflow-hidden group transition-transform hover:scale-105`}
             >
               {/* Background pattern */}
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute top-4 right-4">
-                  {card.tipo === "combustivel" ? (
+                  {card.type === "combustivel" ? (
                     <Fuel className="h-16 w-16 text-white/20" />
                   ) : (
                     <UtensilsCrossed className="h-16 w-16 text-white/20" />
@@ -447,7 +447,7 @@ export default function CartoesCorporativos() {
                 {/* Top */}
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-wider opacity-80">
-                    {card.tipo === "combustivel" ? "Combustível" : "Alimentação"}
+                    {card.type === "combustivel" ? "Combustível" : "Alimentação"}
                   </p>
                   <h2 className="text-3xl font-bold mt-3">
                     R$ {card.balance.toFixed(2)}
@@ -461,7 +461,7 @@ export default function CartoesCorporativos() {
                   </div>
                   {canEditSettings && (
                     <button
-                      onClick={() => openEditBalanceDialog(card.tipo)}
+                      onClick={() => openEditBalanceDialog(card.type)}
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-white/20 rounded-lg"
                       title="Editar saldo"
                     >

@@ -555,7 +555,7 @@ export function CTMServiceItemsForm({
 
       // Get additional service order data
       const { data: orderData } = await (supabase as any)
-        .from("service_orders")
+        .from("ctm_ordens_servico")
         .select("aeronave_id, client_id, client_partner_id")
         .eq("id", orderId)
         .single();
@@ -567,7 +567,7 @@ export function CTMServiceItemsForm({
       }
 
       const { error: budgetError } = await (supabase as any)
-        .from("ctm_budgets")
+        .from("ctm_orcamentos")
         .insert([budgetPayload]);
 
       if (budgetError) {

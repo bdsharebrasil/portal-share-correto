@@ -169,7 +169,7 @@ export function useCTMBudgetTracking() {
       const { data, error } = await fromUntyped('ctm_service_order_budgets')
         .select(`
           *,
-          service_order:service_orders(*)
+          service_order:ctm_ordens_servico(*)
         `)
         .eq('budget_id', budgetId);
 

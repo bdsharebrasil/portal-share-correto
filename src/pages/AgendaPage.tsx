@@ -40,14 +40,14 @@ type SupabaseHotelRow = {
 type SupabaseClientRow = {
   id: string;
   cnpj: string | null;
-  observations: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  company_name: string | null;
-  address: string | null;
-  phone: string | null;
+  observacoes: string | null;
+  criado_em: string | null;
+  atualizado_em: string | null;
+  razao_social: string | null;
+  endereco: string | null;
+  telefone: string | null;
   email: string | null;
-  city: string | null;
+  cidade: string | null;
   uf: string | null;
   status: string | null;
   aeronave_id: string | null;
@@ -224,11 +224,11 @@ export default function AgendaPage() {
       if (likePattern) {
         hotelsQuery.or(`nome.ilike.${likePattern},cidade.ilike.${likePattern},telefone.ilike.${likePattern}`);
       }
-      const clientsQuery = supabase.from("clientes").select("id,cnpj,observations,created_at,updated_at,razao_social,address,phone,email,city,uf,status,financial_contact").eq("status", "ativo").order("razao_social", {
+      const clientsQuery = supabase.from("clientes").select("id,cnpj,observacoes,criado_em,atualizado_em,razao_social,endereco,telefone,email,cidade,uf,status,contato_financeiro").eq("status", "ativo").order("razao_social", {
         ascending: true
       });
       if (likePattern) {
-        clientsQuery.or(`razao_social.ilike.${likePattern},phone.ilike.${likePattern},email.ilike.${likePattern},city.ilike.${likePattern}`);
+        clientsQuery.or(`razao_social.ilike.${likePattern},telefone.ilike.${likePattern},email.ilike.${likePattern},cidade.ilike.${likePattern}`);
       }
       const [contactsResult, hotelsResult, clientsResult] = await Promise.all([contactsQuery, hotelsQuery, clientsQuery]);
       if (contactsResult.error) throw contactsResult.error;

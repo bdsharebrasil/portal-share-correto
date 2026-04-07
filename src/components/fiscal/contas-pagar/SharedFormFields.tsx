@@ -16,7 +16,7 @@ export function BoletoSection({ form, setForm }: { form: any; setForm: (f: any) 
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.nome
+      const sanitizedFileName = file.name
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();
@@ -88,7 +88,7 @@ export function NFSection({ form, setForm }: { form: any; setForm: (f: any) => v
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.nome
+      const sanitizedFileName = file.name
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
       const fileExt = sanitizedFileName.split('.').pop();

@@ -59,7 +59,7 @@ export function AerodromeCombobox({
             <span className="flex items-center gap-2 truncate">
               <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="font-mono font-semibold">{selectedAerodrome.designativo}</span>
-              <span className="text-muted-foreground truncate">- {selectedAerodrome.nome}</span>
+              <span className="text-muted-foreground truncate">- {selectedAerodrome.name}</span>
             </span>
           ) : (
             <span>{placeholder}</span>
@@ -76,7 +76,7 @@ export function AerodromeCombobox({
               {aerodromes.map((ad) => (
                 <CommandItem
                   key={ad.id}
-                  value={`${ad.designativo} ${ad.nome}`}
+                  value={`${ad.designativo} ${ad.name}`}
                   onSelect={() => {
                     onChange(ad.designativo === value ? '' : ad.designativo);
                     setOpen(false);
@@ -89,7 +89,7 @@ export function AerodromeCombobox({
                     )}
                   />
                   <span className="font-mono font-semibold mr-2">{ad.designativo}</span>
-                  <span className="text-muted-foreground truncate">{ad.nome}</span>
+                  <span className="text-muted-foreground truncate">{ad.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

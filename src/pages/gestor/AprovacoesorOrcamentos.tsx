@@ -40,7 +40,7 @@ export default function AprovacoesorOrcamentos() {
 
       // Buscar orçamentos CTM pendentes
       const { data: ctmBudgets } = await (supabase as any)
-        .from("ctm_budgets")
+        .from("ctm_orcamentos")
         .select('*, aircraft:aeronave(matricula)')
         .in("status", ["submitted"])
         .order("submitted_at", { ascending: false });
@@ -64,7 +64,7 @@ export default function AprovacoesorOrcamentos() {
       // Buscar orçamentos OAS pendentes
       const { data: oasBudgets } = await (supabase as any)
         .from("oas_orcamentos")
-        .select('*, service_order:service_orders(numero, aeronave:aeronave(matricula))')
+        .select('*, service_order:ctm_ordens_servico(numero, aeronave:aeronave(matricula))')
         .eq("status", "pendente_aprovacao")
         .order("submitted_at", { ascending: false });
 
@@ -85,7 +85,7 @@ export default function AprovacoesorOrcamentos() {
 
       // Buscar ordens de serviço CTM pendentes
       const { data: ctmOrders } = await supabase
-        .from("service_orders")
+        .from("ctm_ordens_servico")
         .select('*, aeronave(matricula)')
         .eq("approval_status", "pending_approval")
         .order("submitted_for_approval_at", { ascending: false });
@@ -127,7 +127,7 @@ export default function AprovacoesorOrcamentos() {
         setPdfLoading(true);
         setSelectedApprovalForPdf(approval);
         const { data: budgetData } = await (supabase as any)
-          .from("ctm_budgets")
+          .from("ctm_orcamentos")
           .select("budget_details")
           .eq("id", approval.id)
           .single();

@@ -68,7 +68,7 @@ export function AeronaveDocumentosViewer({
 
       // Load documents filtered by aircraft
       const { data: docsData, error: docsError } = await supabase
-        .from("flight_documents")
+        .from("flight_documents" as any)
         .select("*")
         .eq("id_aeronave", aircraftId)
         .order("criado_em", { ascending: false });
@@ -133,7 +133,7 @@ export function AeronaveDocumentosViewer({
       await supabase.storage.from("flight-documents").remove([filePath]);
 
       // Delete from database
-      await supabase.from("flight_documents").delete().eq("id", docId);
+      await supabase.from("flight_documents" as any).delete().eq("id", docId);
 
       toast.success("Documento removido com sucesso");
       await loadData();

@@ -121,7 +121,7 @@ const EditEmployeeFormComponent = memo(({
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_phone" className="text-muted-foreground font-medium">Telefone</Label>
-            <Input id="edit_phone" value={editEmployeeForm.telefone || ""} onChange={e => onFieldChange("telefone", e.target.value)} placeholder="(XX) XXXX-XXXX" className="h-11 rounded-xl w-full" />
+            <Input id="edit_phone" value={editEmployeeForm.phone || ""} onChange={e => onFieldChange("phone", e.target.value)} placeholder="(XX) XXXX-XXXX" className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_admission_date" className="text-muted-foreground font-medium">Data de Admissão</Label>

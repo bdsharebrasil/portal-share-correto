@@ -13,8 +13,8 @@ interface Aircraft {
 
 interface AeronaveResumo {
   id: string;
-  registration: string;
-  model: string;
+  matricula: string;
+  modelo: string;
   health_score: number;
   tsn_hours: number;
   tbo_limit: number;
@@ -38,7 +38,7 @@ const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
 
   const loadAircrafts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('aeronave')
         .select('id, matricula, modelo, status')
         .eq('status', 'ativa')
@@ -51,7 +51,7 @@ const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
 
       for (const ac of data || []) {
         // Somar total_time de todos os logbook_entries da aeronave
-        const { data: logbookEntries, error: logbookError } = await supabase
+        const { data: logbookEntries, error: logbookError } = await (supabase as any)
           .from('logbook_entries')
           .select('total_time')
           .eq('aircraft_id', ac.id);
@@ -62,8 +62,8 @@ const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
 
         transformedData.push({
           id: ac.id,
-          registration: ac.registration,
-          model: ac.model,
+          matricula: ac.matricula,
+          modelo: ac.modelo,
           health_score: 85 + Math.floor(Math.random() * 15),
           tsn_hours: totalHours,
           tbo_limit: 3000 + Math.floor(Math.random() * 3000),
@@ -85,7 +85,7 @@ const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
     if (onSelect) {
       onSelect(aircraft);
     } else {
-      navigate(`/manutencao/ctm-detail?aircraftId=${aeronave.id}&registration=${aeronave.matricula}`);
+      navigate(`/manutencao/ctm-detail?aircraftId=${aircraft.id}&registration=${aircraft.matricula}`);
     }
   };
 
@@ -116,7 +116,7 @@ const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {aircrafts.map((ac) => (
             <button
-              key={ac.registration}
+              key={ac.matricula}
               onClick={() => handleSelect(ac)}
               className="group relative bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 text-left transition-all hover:border-blue-500/50 hover:shadow-[0_0_50px_-12px_rgba(59,130,246,0.3)] hover:-translate-y-2 overflow-hidden"
             >
@@ -124,8 +124,8 @@ const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
               
               <div className="flex justify-between items-start mb-6">
                 <div className="space-y-1">
-                  <h2 className="text-3xl font-black text-white group-hover:text-blue-400 transition-colors">{ac.registration}</h2>
-                  <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{ac.model}</p>
+                  <h2 className="text-3xl font-black text-white group-hover:text-blue-400 transition-colors">{ac.matricula}</h2>
+                  <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{ac.modelo}</p>
                 </div>
                 <div className={`p-2 rounded-xl border ${ac.health_score > 90 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
                   <Activity className="w-5 h-5" />

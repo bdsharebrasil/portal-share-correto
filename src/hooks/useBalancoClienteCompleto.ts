@@ -35,7 +35,7 @@ export function useBalancoClienteCompleto(
           .from("logbook_entries")
           .select("total_time")
           .eq("client_id", clienteId)
-          .eq("client_partner_id", socioId)
+          .eq("socios_cliente_id", socioId)
           .gte("entry_date", periodo.inicio)
           .lte("entry_date", periodo.fim);
 

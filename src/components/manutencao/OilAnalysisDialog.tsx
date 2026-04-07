@@ -38,8 +38,8 @@ const OilAnalysisDialog: React.FC<Props> = ({ aircraftId, onClose, onSave }) => 
       const { error } = await supabase
         .from('oil_analysis')
         .insert([{
-          aeronave_id: aircraftId,
-          date: formData.data,
+          aircraft_id: aircraftId,
+          date: formData.date,
           fe: formData.fe,
           cu: formData.cu,
           al: formData.al,
@@ -86,7 +86,7 @@ const OilAnalysisDialog: React.FC<Props> = ({ aircraftId, onClose, onSave }) => 
                 type="data" 
                 required
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-slate-100"
-                value={formData.data}
+                value={formData.date}
                 onChange={e => setFormData({...formData, date: e.target.value})}
               />
             </div>

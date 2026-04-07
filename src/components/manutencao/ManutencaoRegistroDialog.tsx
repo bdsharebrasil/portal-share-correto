@@ -94,9 +94,9 @@ export function ManutencaoRegistroDialog({
         mechanic_name: formData.mechanicName || undefined,
         maintenance_center: formData.maintenanceCenter || undefined,
         service_order_number: formData.serviceOrderNumber || undefined,
-        description: formData.descricao || undefined,
+        description: formData.description || undefined,
         cost: formData.cost ? parseFloat(formData.cost) : undefined,
-        observations: formData.observacoes || undefined,
+        observations: formData.observations || undefined,
         created_by: userData.user?.id,
       });
 
@@ -117,8 +117,8 @@ export function ManutencaoRegistroDialog({
         horas_celula: performedHours,
         data_entrada: formData.performedDate,
         status: 'concluída',
-        observacoes: formData.observacoes || null,
-        description: formData.descricao || `Manutenção preventiva de ${formData.maintenanceType} realizada`,
+        observacoes: formData.observations || null,
+        description: formData.description || `Manutenção preventiva de ${formData.maintenanceType} realizada`,
         periodo: formData.maintenanceType,
         total_geral: formData.cost ? parseFloat(formData.cost) : null,
       } as any);
@@ -292,7 +292,7 @@ export function ManutencaoRegistroDialog({
           <div className="space-y-2">
             <Label className="text-gray-300">Descrição dos Serviços</Label>
             <Textarea
-              value={formData.descricao}
+              value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Descreva os serviços realizados..."
               className="bg-slate-800 border-white/10 min-h-[80px]"
@@ -302,7 +302,7 @@ export function ManutencaoRegistroDialog({
           <div className="space-y-2">
             <Label className="text-gray-300">Observações</Label>
             <Textarea
-              value={formData.observacoes}
+              value={formData.observations}
               onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
               placeholder="Observações adicionais..."
               className="bg-slate-800 border-white/10 min-h-[60px]"

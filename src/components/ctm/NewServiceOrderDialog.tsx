@@ -291,7 +291,7 @@ export function NewServiceOrderPage({
       if (editingOrder) {
         // Modo edição - UPDATE
         const { data: updated, error: err } = await supabase
-          .from("service_orders")
+          .from("ctm_ordens_servico")
           .update(payload)
           .eq("id", editingOrder.id)
           .select()
@@ -301,7 +301,7 @@ export function NewServiceOrderPage({
       } else {
         // Modo novo - INSERT
         const { data: inserted, error: err } = await supabase
-          .from("service_orders")
+          .from("ctm_ordens_servico")
           .insert([payload])
           .select()
           .single();

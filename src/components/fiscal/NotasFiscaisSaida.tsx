@@ -96,7 +96,7 @@ const ReciboDocument = ({ data }: { data: any }) => (
       </View>
       <View>
         <Text style={styles.sectionHeader}>DESCRIÇÃO DO SERVIÇO</Text>
-        <Text style={styles.descricao}>
+        <Text style={{ fontSize: 10, lineHeight: 1.5 }}>
           {data.descricao}
           {data.aeronave_registro ? `\nReferente à aeronave: ${data.aeronave_registro}` : ''}
         </Text>
@@ -1408,7 +1408,7 @@ export function NotasFiscaisSaida() {
                       <SearchableCombobox
                         items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({ 
                           id: a.id, 
-                          label: a.registration 
+                          label: a.matricula 
                         }))}
                         value={formData.aeronave_id}
                         onChange={(id, label) => {
@@ -1663,8 +1663,8 @@ export function NotasFiscaisSaida() {
                       <Label className="text-foreground font-medium mb-2 block">Aeronave * (Obrigatório)</Label>
                       <SearchableCombobox
                         items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({ 
-                          id: a.registration, 
-                          label: a.registration 
+                          id: a.matricula, 
+                          label: a.matricula 
                         }))}
                         value={reciboData.aeronave_registro}
                         onChange={(val, label) => {
@@ -2096,7 +2096,7 @@ export function NotasFiscaisSaida() {
                   <Input
                     type="number"
                     step="0.01"
-                    value={reciboEditData.valor}
+                    value={reciboEditData.amount}
                     onChange={(e) => setReciboEditData({ ...reciboEditData, amount: e.target.value })}
                     className="bg-background border-border"
                   />
@@ -2123,7 +2123,7 @@ export function NotasFiscaisSaida() {
               <div>
                 <Label className="text-foreground mb-2 block">Categoria</Label>
                 <Input
-                  value={reciboEditData.categoria_name}
+                  value={reciboEditData.category_name}
                   onChange={(e) => setReciboEditData({ ...reciboEditData, category_name: e.target.value })}
                   placeholder="Categoria"
                   className="bg-background border-border"

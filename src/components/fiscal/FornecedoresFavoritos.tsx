@@ -250,7 +250,7 @@ export function FornecedoresFavoritos() {
     return (
       f.nome_completo.toLowerCase().includes(searchLower) ||
       (f.apelido && f.apelido.toLowerCase().includes(searchLower)) ||
-      (f.documentoumento && f.documentoumento.includes(searchTerm)) ||
+      (f.documento && f.documento.includes(searchTerm)) ||
       (f.cidade && f.cidade.toLowerCase().includes(searchLower))
     );
   });

@@ -346,7 +346,7 @@ export function PagamentoSalarioTab() {
   const handleFileUpload = async (index: number, file: File, type: "holerite" | "comprovante") => {
     const row = paymentRows[index];
     const bucket = type === "holerite" ? "holerites" : "comprovantes";
-    const filePath = `${row.user_profile}/${selectedYear}/${selectedMonth}_${Date.now()}_${file.nome}`;
+    const filePath = `${row.user_profile}/${selectedYear}/${selectedMonth}_${Date.now()}_${file.name}`;
     setPaymentRows(prev => {
       const updated = [...prev];
       updated[index] = {

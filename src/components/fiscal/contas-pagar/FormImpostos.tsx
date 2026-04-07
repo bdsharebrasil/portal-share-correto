@@ -54,7 +54,7 @@ export function FormImpostos({ form, setForm }: Props) {
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const fileExt = file.nome.split('.').pop();
+      const fileExt = file.name.split('.').pop();
       const fileName = `imposto_${form.categoria || 'geral'}_${timestamp}.${fileExt}`;
 
       const { error } = await supabase.storage

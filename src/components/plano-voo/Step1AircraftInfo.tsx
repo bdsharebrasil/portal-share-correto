@@ -35,9 +35,9 @@ interface Step1Props {
 
 interface Aircraft {
   id: string;
-  registration: string;
-  model: string;
-  manufacturer: string;
+  matricula: string;
+  modelo: string;
+  fabricante: string;
 }
 
 interface Aerodrome {
@@ -88,7 +88,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
         setAerodromes(aerodromesRes.data);
         const options: AutocompleteOption[] = aerodromesRes.data.map((a) => ({
           id: a.designativo,
-          label: `${a.designativo} - ${a.nome}`,
+          label: `${a.designativo} - ${a.name}`,
         }));
         setAerodromesOptions(options);
       }
@@ -239,11 +239,11 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
   const handleAircraftChange = (aircraftId: string) => {
     const selected = aircraft.find((a) => a.id === aircraftId);
     if (selected) {
-      const speedCode = getSuggestedSpeedCode(selected.registration);
+      const speedCode = getSuggestedSpeedCode(selected.matricula);
       updateFormData({
         aircraftId: selected.id,
-        aircraftRegistration: selected.registration,
-        aircraftType: selected.model,
+        aircraftRegistration: selected.matricula,
+        aircraftType: selected.modelo,
         cruiseSpeed: speedCode,
       });
     }
@@ -281,7 +281,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
                 <SelectContent className="bg-card border-border">
                   {aircraft.map((a) => (
                     <SelectItem key={a.id} value={a.id} className="text-foreground">
-                      {a.registration} - {a.model}
+                      {a.matricula} - {a.modelo}
                     </SelectItem>
                   ))}
                 </SelectContent>
