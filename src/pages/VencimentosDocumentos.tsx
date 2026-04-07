@@ -66,8 +66,8 @@ export default function VencimentosDocumentos() {
       const { data: docs, error: docsError } = await supabase
         .from('flight_documents')
         .select('*')
-        .not('expiry_date', 'is', null)
-        .order('expiry_date', { ascending: true });
+        .not('data_validade', 'is', null)
+        .order('data_validade', { ascending: true });
 
       if (docsError) throw docsError;
 
@@ -85,7 +85,7 @@ export default function VencimentosDocumentos() {
       today.setHours(0, 0, 0, 0);
 
       for (const doc of docs || []) {
-        const expiryDate = new Date(doc.expiry_date);
+        const expiryDate = new Date(doc.data_validade);
         expiryDate.setHours(0, 0, 0, 0);
         const diasRestantes = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -103,7 +103,7 @@ export default function VencimentosDocumentos() {
           aeronaveModelo: aeroInfo?.model || '-',
           aeronaveImagem: aeroInfo?.image_url,
           nomeDocumento: doc.nome,
-          dataVencimento: doc.expiry_date,
+          dataVencimento: doc.data_validade,
           diasRestantes,
           status,
           fileType: doc.tipo_arquivo,
@@ -130,7 +130,7 @@ export default function VencimentosDocumentos() {
     try {
       const { error } = await supabase
         .from('flight_documents')
-        .update({ expiry_date: newDate })
+        .update({ data_validade: newDate })
         .eq('id', editingDocumento.id);
 
       if (error) throw error;
