@@ -283,11 +283,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       try {
         const { data: reconData, error } = await supabase
           .from('conciliacoes_bancarias')
-          .select('id, description, amount, status, date, prazo_pagamento, reference_id, doc, partner_name')
-          .eq('cliente_id', forClientId)
-          .eq('aircraft_id', aircraftId)
-          .eq('category', 'RELATORIO DE DESPESA DE VIAGENS')
-          .order('date', { ascending: false })
+          .select('id, descricao, valor, status, data, prazo_pagamento, referencia_id, documento, nome_socio')
+          .eq('clientes_id', forClientId)
+          .eq('aeronave_id', aircraftId)
+          .eq('categoria', 'RELATORIO DE DESPESA DE VIAGENS')
+          .order('data', { ascending: false })
           .limit(20);
 
         if (error) console.warn('Erro ao carregar relatórios de viagem:', error);
