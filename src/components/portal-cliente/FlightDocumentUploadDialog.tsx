@@ -39,7 +39,7 @@ export function FlightDocumentUploadDialog({
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
 
-      if (!ALLOWED_TYPES.includes(selectedFile.tipo)) {
+      if (!ALLOWED_TYPES.includes(selectedFile.type)) {
         toast.error("Apenas arquivos PDF e imagens (JPG, PNG) são permitidos");
         return;
       }
