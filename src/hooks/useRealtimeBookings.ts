@@ -102,7 +102,7 @@ export function useRealtimeBookings() {
       )
       .subscribe();
 
-    // Canal para logbook_entries
+    // Canal para lancamentos_diario_bordo
     const logbookChannel = supabase
       .channel('realtime-logbook')
       .on(
@@ -110,7 +110,7 @@ export function useRealtimeBookings() {
         {
           event: '*',
           schema: 'public',
-          table: 'logbook_entries',
+          table: 'lancamentos_diario_bordo',
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['logbook-entries'] });

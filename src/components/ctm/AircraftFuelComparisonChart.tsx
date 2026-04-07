@@ -32,8 +32,8 @@ export function AircraftFuelComparisonChart() {
 
       for (const ac of aircraftList) {
         const { data, error } = await supabase
-          .from("logbook_entries")
-          .select("fuel_added, flight_time_hours, flight_time_minutes")
+          .from("lancamentos_diario_bordo")
+          .select("combustivel_adicionado, tempo_total")
           .eq("aeronave_id", ac.id);
 
         if (error) {
@@ -61,14 +61,13 @@ export function AircraftFuelComparisonChart() {
 
         // Calcula totais
         const totalFuelAdded = entries.reduce(
-          (sum: number, e: any) => sum + (Number(e.fuel_added) || 0),
+          (sum: number, e: any) => sum + (Number(e.combustivel_adicionado) || 0),
           0
         );
 
         const totalFlightHours = entries.reduce((sum: number, e: any) => {
-          const h = Number(e.flight_time_hours) || 0;
-          const m = Number(e.flight_time_minutes) || 0;
-          return sum + h + m / 60;
+          const h = Number(e.tempo_total) || 0;
+          return sum + h;
         }, 0);
 
         // Consumo médio em L/h

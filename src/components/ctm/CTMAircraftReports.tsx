@@ -39,7 +39,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
   const [year] = useState(currentYear);
 
   // ── Estado para selecionar qual campo de tempo usar ──────────────────────
-  const [timeField, setTimeField] = useState<"time" | "total_time">("total_time");
+  const [timeField, setTimeField] = useState<"tempo_voo" | "tempo_total">("tempo_total");
 
   // ── 1. Busca o cliente (owner) vinculado à aeronave ──────────────────────
   const { data: clientData } = useQuery({
@@ -77,11 +77,11 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
     queryKey: ["ctm-logbook", aircraftId, year],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("logbook_entries")
-        .select("entry_date, pousos, time, total_time, fuel_added, socios_cliente_id")
+        .from("lancamentos_diario_bordo")
+        .select("data_registro, pousos_total, tempo_total, combustivel_adicionado, socios_cliente_id")
         .eq("aeronave_id", aircraftId)
-        .gte("entry_date", `${year}-01-01`)
-        .lte("entry_date", `${year}-12-31`);
+        .gte("data_registro", `${year}-01-01`)
+        .lte("data_registro", `${year}-12-31`);
       if (error) throw error;
       return data || [];
     },
@@ -111,8 +111,8 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
 
       for (const ac of allAircraftList) {
         const { data, error } = await supabase
-          .from("logbook_entries")
-          .select("fuel_added, time, total_time")
+          .from("lancamentos_diario_bordo")
+          .select("combustivel_adicionado, tempo_voo, tempo_total")
           .eq("aeronave_id", ac.id);
 
         if (error) {
@@ -154,15 +154,15 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
   // ── 7. Agregação de Dados por Mês e Participante ─────────────────────────
   const monthlyStats = Array.from({ length: 12 }, (_, monthIdx) => {
     const monthEntries = logbookEntries.filter((e: any) => {
-      const d = new Date(e.entry_date + "T00:00:00");
+      const d = new Date(e.data_registro + "T00:00:00");
       return d.getMonth() === monthIdx;
     });
 
-    const totalPousos = monthEntries.reduce((s, e) => s + (Number(e.pousos) || 0), 0);
-    const totalFuel = monthEntries.reduce((s, e) => s + (Number(e.fuel_added) || 0), 0);
+    const totalPousos = monthEntries.reduce((s, e) => s + (Number(e.pousos_total) || 0), 0);
+    const totalFuel = monthEntries.reduce((s, e) => s + (Number(e.combustivel_adicionado) || 0), 0);
 
     const totalHours = monthEntries.reduce((s, e) => {
-      const hours = timeField === "time" ? Number(e.time) || 0 : Number(e.total_time) || 0;
+      const hours = timeField === "tempo_voo" ? Number(e.tempo_voo) || 0 : Number(e.tempo_total) || 0;
       return s + hours;
     }, 0);
 
@@ -174,16 +174,16 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
         return e.socios_cliente_id === p.id;
       });
 
-      const pPousos = pEntries.reduce((s, e) => s + (Number(e.pousos) || 0), 0);
-      const pFuel = pEntries.reduce((s, e) => s + (Number(e.fuel_added) || 0), 0);
+      const pPousos = pEntries.reduce((s, e) => s + (Number(e.pousos_total) || 0), 0);
+      const pFuel = pEntries.reduce((s, e) => s + (Number(e.combustivel_adicionado) || 0), 0);
 
       const pHours = pEntries.reduce((s, e) => {
-        const hours = timeField === "time" ? Number(e.time) || 0 : Number(e.total_time) || 0;
+        const hours = timeField === "tempo_voo" ? Number(e.tempo_voo) || 0 : Number(e.tempo_total) || 0;
         return s + hours;
       }, 0);
 
-      const pTime = pEntries.reduce((s, e) => s + (Number(e.time) || 0), 0);
-      const pTotalTime = pEntries.reduce((s, e) => s + (Number(e.total_time) || 0), 0);
+      const pTime = pEntries.reduce((s, e) => s + (Number(e.tempo_voo) || 0), 0);
+      const pTotalTime = pEntries.reduce((s, e) => s + (Number(e.tempo_total) || 0), 0);
 
       return {
         id: p.id,
@@ -195,8 +195,8 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
       };
     });
 
-    const totalTime = monthEntries.reduce((s, e) => s + (Number(e.time) || 0), 0);
-    const totalTotalTime = monthEntries.reduce((s, e) => s + (Number(e.total_time) || 0), 0);
+    const totalTime = monthEntries.reduce((s, e) => s + (Number(e.tempo_voo) || 0), 0);
+    const totalTotalTime = monthEntries.reduce((s, e) => s + (Number(e.tempo_total) || 0), 0);
 
     return {
       totalPousos,
@@ -243,12 +243,12 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
         }
 
         const totalFuelAdded = entries.reduce(
-          (sum: number, e: any) => sum + (Number(e.fuel_added) || 0),
+          (sum: number, e: any) => sum + (Number(e.combustivel_adicionado) || 0),
           0
         );
 
         const totalFlightHours = entries.reduce((sum: number, e: any) => {
-          const h = Number(e.time) || 0;
+          const h = Number(e.tempo_voo) || 0;
           return sum + h;
         }, 0);
 
@@ -273,7 +273,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
   if (isLoading) return <div className="p-8 text-center">Carregando dados...</div>;
   if (error) return <div className="p-8 text-center text-red-500">Erro ao carregar dados.</div>;
 
-  const timeFieldLabel = timeField === "time" ? "Tempo de Voo " : "Tempo Total ";
+  const timeFieldLabel = timeField === "tempo_voo" ? "Tempo de Voo " : "Tempo Total ";
 
   return (
     <div className="space-y-6">
@@ -293,11 +293,11 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
                   <SelectValue placeholder="Selecione o campo de tempo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="time">
-                    Tempo de Voo 
+                  <SelectItem value="tempo_voo">
+                    Tempo de Voo
                   </SelectItem>
-                  <SelectItem value="total_time">
-                    Tempo Total 
+                  <SelectItem value="tempo_total">
+                    Tempo Total
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -401,7 +401,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
                   <thead>
                     <tr className="bg-muted/40 text-xs uppercase">
                       <th className="px-3 py-2 text-left border border-border">Mês</th>
-                      <th className="px-3 py-2 text-right border border-border">{timeField === "time" ? "H Voo" : "H Total"}</th>
+                      <th className="px-3 py-2 text-right border border-border">{timeField === "tempo_voo" ? "H Voo" : "H Total"}</th>
                       <th className="px-3 py-2 text-right border border-border">Total (L)</th>
                       <th className="px-3 py-2 text-right border border-border">Cons. Méd (L/h)</th>
                       {allParticipants.map(p => (

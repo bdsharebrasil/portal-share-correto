@@ -54,16 +54,16 @@ export function HorasMensaisConsolidadas({
       const startDate = `${ano}-${String(mes).padStart(2, '0')}-01`;
       const endDate = `${ano}-${String(mes).padStart(2, '0')}-31`;
 
-      // Buscar entradas de logbook para a aeronave no período
+      // Buscar entradas de diário de bordo para a aeronave no período
       const { data: entries, error: entriesError } = await supabase
-        .from('logbook_entries')
+        .from('lancamentos_diario_bordo')
         .select(`
           *,
           client:clientes_id (id, company_name, proprietario)
         `)
         .eq('aeronave_id', aeronaveId)
-        .gte('entry_date', startDate)
-        .lte('entry_date', endDate);
+        .gte('data_registro', startDate)
+        .lte('data_registro', endDate);
 
       if (entriesError) throw entriesError;
 
@@ -78,9 +78,9 @@ export function HorasMensaisConsolidadas({
       let horasTotais = 0;
 
       (entries || []).forEach((entry: any) => {
-        const clienteId = entry.cliente_id || 'sem-cliente';
+        const clienteId = entry.clientes_id || 'sem-cliente';
         const clienteNome = entry.client?.razao_social || entry.client?.proprietario || 'Sem Cliente';
-        const horas = entry.total_time || 0;
+        const horas = entry.tempo_total || 0;
         horasTotais += horas;
 
         if (clienteMap.has(clienteId)) {

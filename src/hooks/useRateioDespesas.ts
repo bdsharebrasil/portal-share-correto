@@ -52,7 +52,7 @@ async function calculatePercentualVoo(
 ): Promise<Map<string, PercentualVooData>> {
   try {
     const { data, error } = await supabase
-      .from("logbook_entries")
+      .from("lancamentos_diario_bordo")
       .select("client_id, total_time, is_loan, loan_recipient_client_id")
       .eq("id_aeronave", aeronaveId)
       .gte("entry_date", inicio)

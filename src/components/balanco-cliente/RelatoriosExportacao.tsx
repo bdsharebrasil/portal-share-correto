@@ -102,16 +102,16 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
   const { data: horasConsolidadas = [] } = useQuery({
     queryKey: ['horas-relatorio', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
-      // Se há sócio específico, buscar do logbook_entries
+      // Se há sócio específico, buscar do lancamentos_diario_bordo
       if (socioId) {
         // Voos do sócio
         let qOwned = supabase
-          .from('logbook_entries')
-          .select('entry_date, total_time, aircraft_id')
+          .from('lancamentos_diario_bordo')
+          .select('data_registro, tempo_total, aeronave_id')
           .eq('clientes_id', clienteId)
           .eq('socios_cliente_id', socioId)
-          .gte('entry_date', periodo.inicio)
-          .lte('entry_date', periodo.fim);
+          .gte('data_registro', periodo.inicio)
+          .lte('data_registro', periodo.fim);
 
         if (aeronaveId) {
           qOwned = qOwned.eq('aeronave_id', aeronaveId);
@@ -119,20 +119,20 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
 
         // Voos compartilhados
         let qShared = supabase
-          .from('logbook_entries')
-          .select('entry_date, total_time, aircraft_id')
+          .from('lancamentos_diario_bordo')
+          .select('data_registro, tempo_total, aeronave_id')
           .eq('clientes_id', clienteId)
           .is('socios_cliente_id', null)
-          .gte('entry_date', periodo.inicio)
-          .lte('entry_date', periodo.fim);
+          .gte('data_registro', periodo.inicio)
+          .lte('data_registro', periodo.fim);
 
         if (aeronaveId) {
           qShared = qShared.eq('aeronave_id', aeronaveId);
         }
 
         const [ownedRes, sharedRes] = await Promise.all([qOwned, qShared]);
-        const ownedHoras = (ownedRes.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
-        const sharedHoras = (sharedRes.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
+        const ownedHoras = (ownedRes.data || []).reduce((s: number, e: any) => s + (e.tempo_total || 0), 0);
+        const sharedHoras = (sharedRes.data || []).reduce((s: number, e: any) => s + (e.tempo_total || 0), 0);
 
         // Calcular mês a mês
         const result = [];
@@ -177,10 +177,10 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
       let query = (supabase as any)
         .from('abastecimentos')
         .select('data, litros, valor_total')
-        .eq('id_clientes', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim);
-      if (aeronaveId) query = query.eq('aircraft_id', aeronaveId);
+      if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
 

@@ -127,10 +127,10 @@ export function ClientFullReportModal({
 
       // Load logbook entries
       const { data: logbookData } = await supabase
-        .from('logbook_entries')
+        .from('lancamentos_diario_bordo')
         .select('*')
         .eq('aeronave_id', aircraftId)
-        .order('entry_date', { ascending: false });
+        .order('data_registro', { ascending: false });
 
       // Load fuel records
       const { data: fuelData } = await supabase
@@ -172,8 +172,8 @@ export function ClientFullReportModal({
         .reduce((sum, f) => sum + (f.valor || 0), 0);
 
       // Calculate flight activity
-      const totalHours = (logbookData || []).reduce((sum, e) => sum + (e.total_time || 0), 0);
-      const totalLandings = (logbookData || []).reduce((sum, e) => sum + (e.pousos || 0), 0);
+      const totalHours = (logbookData || []).reduce((sum, e) => sum + (e.tempo_total || 0), 0);
+      const totalLandings = (logbookData || []).reduce((sum, e) => sum + (e.pousos_total || 0), 0);
       const destinations = [...new Set((logbookData || []).map(e => e.arrival_aerodrome).filter(Boolean))].slice(0, 10);
 
       // Calculate fuel totals

@@ -79,24 +79,24 @@ export function RateioDialog({
           horas_voadas: 0,
         }));
 
-        // Se tipoRateio === 'uso', buscar horas_voadas do logbook
+        // Se tipoRateio === 'uso', buscar horas_voadas do lancamentos_diario_bordo
         if (tipoRateio === "uso" && aeronaveId && periodo) {
           sociosIniciais = await Promise.all(
             sociosIniciais.map(async (socio) => {
               try {
                 const { data: logbookData, error: logErr } = await (supabase as any)
-                  .from("logbook_entries")
-                  .select("total_time, is_loan, loan_recipient_client_id")
-                  .eq("id_aeronave", aeronaveId)
-                  .eq("cliente_id", socio.cliente_id)
-                  .gte("entry_date", periodo.inicio)
-                  .lte("entry_date", periodo.fim);
+                  .from("lancamentos_diario_bordo")
+                  .select("tempo_total, is_loan, loan_recipient_client_id")
+                  .eq("aeronave_id", aeronaveId)
+                  .eq("clientes_id", socio.cliente_id)
+                  .gte("data_registro", periodo.inicio)
+                  .lte("data_registro", periodo.fim);
 
                 if (logErr) throw logErr;
 
                 const totalHoras = logbookData?.reduce((sum: number, entry: any) => {
                   // Se is_loan=true, este voo não conta para este cliente
-                  return entry.is_loan ? sum : sum + (entry.total_time || 0);
+                  return entry.is_loan ? sum : sum + (entry.tempo_total || 0);
                 }, 0) || 0;
 
                 return { ...socio, horas_voadas: Math.round(totalHoras * 100) / 100 };

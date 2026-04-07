@@ -154,15 +154,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
       // Load logbook entries
       // ✅ FIX: partner_name não existe na tabela — removido do select.
-      // O filtro por sócio usa client_partner_id (FK existente no schema).
+      // O filtro por sócio usa socios_cliente_id (FK existente no schema).
       let logbookData = null;
       try {
         let query = supabase
-          .from('logbook_entries')
+          .from('lancamentos_diario_bordo')
           .select(`
             id,
-            entry_date,
-            total_time,
+            data_registro,
+            tempo_total,
             distance_nm,
             fuel_added,
             departure_aerodrome,
@@ -172,7 +172,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           `)
           .eq('aeronave_id', aircraftId)
           .eq('clientes_id', forClientId)
-          .order('entry_date', { ascending: false })
+          .order('data_registro', { ascending: false })
           .limit(100);
 
         // Se sócio selecionado tiver id, filtra por socios_cliente_id
@@ -241,7 +241,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           .from('abastecimentos')
           .select('*')
           .eq('aeronave_id', aircraftId)
-          .eq('id_clientes', forClientId)
+          .eq('clientes_id', forClientId)
           .order('data', { ascending: false })
           .limit(50);
 

@@ -29,7 +29,7 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
       .order("nome"),
 
     supabase
-      .from("logbook_entries")
+      .from("lancamentos_diario_bordo")
       .select(`
         id, entry_date, departure_aerodrome, arrival_aerodrome, trecho,
         total_time, day_time, night_hours, ifr_time, pousos,

@@ -12,7 +12,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { downloadPDF, previewPDFForPrint } from '@/lib/travelReportPDF';
+import { previewPDFForPrint } from '@/lib/travelReportPDF';
 import type { TravelReport as PDFTravelReport, TravelExpense } from '@/lib/travelReportPDF';
 import {
   Dialog, DialogContent, DialogHeader,
@@ -22,22 +22,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 // ---------------------------------------------------------------------------
-// Type — mirrors travel_expense_reports columns
+// Tipo — espelha exatamente as colunas de travel_expense_reports
 // ---------------------------------------------------------------------------
 type TravelReport = {
   id?: string;
   numero_relatorio: string;
 
-  // Relations
+  // FKs
   clientes_id: string;
   socios_cliente_id?: string | null;
   aeronave_id: string;
-  matricula_aeronave: string;       // text column
-
-  tripulacao_id: string;            // FK → tripulacao (crew 1)
-  nome_tripulante: string;
-  tripulante_id2?: string | null;   // FK → membros_tripulacao (crew 2)
-  nome_tripulante_2?: string | null;
+  matricula_aeronave: string;         // coluna real: matricula_aeronave
+  tripulacao_id: string;              // FK → tripulacao.id (crew 1)
+  nome_tripulante: string;            // coluna real: nome_tripulante
+  tripulante_id2?: string | null;     // FK → membros_tripulacao.id (crew 2)
+  nome_tripulante_2?: string | null;  // coluna real: nome_tripulante_2
 
   rota: string;
   data_inicio: string;
@@ -45,9 +44,10 @@ type TravelReport = {
   dias_count: number;
   observacoes: string;
 
-  expenses: any[];                  // stored as `despesas` JSON text in DB
+  // despesas salvas como JSON text na coluna `despesas`
+  expenses: any[];
 
-  // Totals
+  // Totais — nomes exatos das colunas
   total_valor: number;
   total_combustivel: number;
   total_hospedagem: number;
@@ -55,8 +55,8 @@ type TravelReport = {
   total_transporte: number;
   total_outros: number;
   total_tripulacao: number;
-  total_trip: number;               // crew 1
-  total_trip2: number;              // crew 2
+  total_trip: number;
+  total_trip2: number;
   total_clientes: number;
   total_sharebrasil: number;
 
@@ -66,7 +66,7 @@ type TravelReport = {
   updated_at?: string;
   criado_por?: string;
 
-  // Display-only
+  // helper de exibição
   client?: string;
 };
 
@@ -178,6 +178,7 @@ export default function RelatorioViagem() {
     if (error) { toast.error('❌ Erro ao carregar relatórios'); return; }
 
     const mapped = (data || []).map((r: any) => {
+      // FIX: coluna no banco é `despesas`, não `expenses`
       const expenses = (() => {
         try { return typeof r.despesas === 'string' ? JSON.parse(r.despesas) : r.despesas || []; }
         catch { return []; }
@@ -212,6 +213,7 @@ export default function RelatorioViagem() {
     if (error || !data) throw error;
     const r = data as any;
 
+    // FIX: coluna no banco é `despesas`
     const expenses = (() => {
       try { return typeof r.despesas === 'string' ? JSON.parse(r.despesas) : r.despesas || []; }
       catch { return []; }
@@ -230,7 +232,7 @@ export default function RelatorioViagem() {
   };
 
   // -------------------------------------------------------------------------
-  // Report number generation
+  // Geração de número de relatório
   // -------------------------------------------------------------------------
   const generateReportNumber = async (clientName: string): Promise<string> => {
     if (!clientName?.trim()) {
@@ -285,8 +287,8 @@ export default function RelatorioViagem() {
       matricula_aeronave: '',
       tripulacao_id: '',
       nome_tripulante: '',
-      tripulante_id2: '',
-      nome_tripulante_2: '',
+      tripulante_id2: null,
+      nome_tripulante_2: null,
       rota: '',
       data_inicio: new Date().toISOString().split('T')[0],
       data_fim: new Date().toISOString().split('T')[0],
@@ -328,7 +330,6 @@ export default function RelatorioViagem() {
   const deleteReport = async (reportId?: string) => {
     if (!reportId || !window.confirm('⚠ Tem certeza que deseja excluir este relatório? Esta ação não pode ser desfeita.')) return;
     try {
-      await (supabase as any).from('expense_items').delete().eq('report_id', reportId);
       const { error } = await supabase.from('travel_expense_reports').delete().eq('id', reportId);
       if (error) throw error;
       toast.success('✓ Relatório excluído com sucesso!');
@@ -398,7 +399,7 @@ export default function RelatorioViagem() {
   };
 
   // -------------------------------------------------------------------------
-  // Save
+  // Save — payload alinhado com colunas reais do schema
   // -------------------------------------------------------------------------
   const saveReport = async (newStatus: TravelReport['status'], reportToSave?: TravelReport) => {
     const reportData = reportToSave || currentReport;
@@ -426,6 +427,7 @@ export default function RelatorioViagem() {
 
       const { data: { user } } = await supabase.auth.getUser();
 
+      // FIX: payload usa exatamente os nomes de colunas do schema
       const payload: any = {
         numero_relatorio: reportNumber,
         clientes_id: reportData.clientes_id || null,
@@ -441,6 +443,7 @@ export default function RelatorioViagem() {
         data_fim: reportData.data_fim,
         dias_count: reportData.dias_count,
         observacoes: reportData.observacoes || null,
+        // FIX: salvar como `despesas` (nome real da coluna)
         despesas: JSON.stringify(validExpenses),
         total_valor: totals.total_amount,
         total_combustivel: totals.total_fuel,
@@ -471,7 +474,6 @@ export default function RelatorioViagem() {
         if (error) throw error;
         savedReport = data;
       } else {
-        // Retry on unique constraint collision
         let insertError: any = null;
         for (let attempt = 0; attempt < 10; attempt++) {
           const { data, error } = await supabase
@@ -494,6 +496,8 @@ export default function RelatorioViagem() {
       }
 
       // --- Attachments ---
+      // FIX: usar nomes de colunas reais da tabela travel_report_attachments
+      // colunas reais: nome_arquivo, caminho_arquivo, url_arquivo, tipo_arquivo, file_size
       try {
         if (isUpdate) {
           await supabase.from('travel_report_attachments').delete().eq('travel_report_id', savedReport.id);
@@ -512,10 +516,10 @@ export default function RelatorioViagem() {
             return {
               travel_report_id: savedReport.id,
               expense_index: i,
-              file_name: fileName,
-              file_path: `receipts/${fileName}`,
-              file_url: e.receipt_url,
-              file_type: fileType,
+              nome_arquivo: fileName,                    // FIX: era file_name
+              caminho_arquivo: `receipts/${fileName}`,   // FIX: era file_path
+              url_arquivo: e.receipt_url,                // FIX: era file_url
+              tipo_arquivo: fileType,                    // FIX: era file_type
               file_size: null,
             } as any;
           })
@@ -527,7 +531,7 @@ export default function RelatorioViagem() {
         }
       } catch (e) { console.error('❌ Erro ao processar attachments:', e); }
 
-      // --- Conciliações + PDF (only when finalizing) ---
+      // --- Conciliações + PDF (apenas ao finalizar) ---
       if ((newStatus === 'Finalizado' || newStatus === 'Enviado') && user) {
         const today = new Date().toISOString().split('T')[0];
         const payerTotals = extractPayerTotals(validExpenses);
@@ -539,16 +543,18 @@ export default function RelatorioViagem() {
         if (totalClientOwes > 0 && reportData.clientes_id) {
           const { data: existing } = await supabase
             .from('conciliacoes_bancarias').select('id')
-            .eq('referencia_id', savedReport.id).eq('tipo', 'cliente').maybeSingle();
+            .eq('descricao', `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - A RECEBER DO CLIENTE`).maybeSingle();
           if (!existing) {
             reconcToInsert.push({
-              type: 'cliente', client_id: reportData.clientes_id,
+              tipo: 'cliente',
+              client_id: reportData.clientes_id,
               aeronave_id: reportData.aeronave_id || null,
-              amount: totalClientOwes, status: 'pendente',
-              category: 'relatório_viagem',
-              description: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - A RECEBER DO CLIENTE`,
-              date: today, criado_por: user.id,
-              reference_id: savedReport.id, reference_type: 'travel_report',
+              valor: totalClientOwes,
+              status: 'pendente',
+              categoria: 'relatório_viagem',
+              descricao: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - A RECEBER DO CLIENTE`,
+              data: today,
+              criado_por: user.id,
             });
           }
         }
@@ -556,23 +562,24 @@ export default function RelatorioViagem() {
         // Tripulante 1
         if (totalCrew1 > 0 && reportData.tripulacao_id) {
           const { data: crew } = await supabase
-            .from('membros_tripulacao').select('user_id')
+            .from('tripulacao').select('id')
             .eq('id', reportData.tripulacao_id).maybeSingle();
 
           const { data: existing } = await supabase
             .from('conciliacoes_bancarias').select('id')
-            .eq('referencia_id', savedReport.id).eq('tipo', 'colaborador')
-            .ilike('description', '%TRIPULANTE 1%').maybeSingle();
+            .ilike('descricao', '%TRIPULANTE 1%').eq('tipo', 'colaborador').maybeSingle();
 
           if (!existing) {
             reconcToInsert.push({
-              type: 'colaborador', receiver_id: crew?.user_id || null,
+              tipo: 'colaborador',
+              receiver_id: null,
               aeronave_id: reportData.aeronave_id || null,
-              amount: totalCrew1, status: 'pendente',
-              category: 'relatório_viagem',
-              description: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - REEMBOLSO TRIPULANTE 1 (${reportData.nome_tripulante.toUpperCase()})`,
-              date: today, criado_por: user.id,
-              reference_id: savedReport.id, reference_type: 'travel_report',
+              valor: totalCrew1,
+              status: 'pendente',
+              categoria: 'relatório_viagem',
+              descricao: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - REEMBOLSO TRIPULANTE 1 (${reportData.nome_tripulante.toUpperCase()})`,
+              data: today,
+              criado_por: user.id,
             });
           }
         }
@@ -585,18 +592,19 @@ export default function RelatorioViagem() {
 
           const { data: existing } = await supabase
             .from('conciliacoes_bancarias').select('id')
-            .eq('referencia_id', savedReport.id).eq('tipo', 'colaborador')
-            .ilike('description', '%TRIPULANTE 2%').maybeSingle();
+            .ilike('descricao', '%TRIPULANTE 2%').eq('tipo', 'colaborador').maybeSingle();
 
           if (!existing) {
             reconcToInsert.push({
-              type: 'colaborador', receiver_id: crew2?.user_id || null,
+              tipo: 'colaborador',
+              receiver_id: crew2?.user_id || null,
               aeronave_id: reportData.aeronave_id || null,
-              amount: totalCrew2, status: 'pendente',
-              category: 'relatório_viagem',
-              description: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - REEMBOLSO TRIPULANTE 2 (${reportData.nome_tripulante_2.toUpperCase()})`,
-              date: today, criado_por: user.id,
-              reference_id: savedReport.id, reference_type: 'travel_report',
+              valor: totalCrew2,
+              status: 'pendente',
+              categoria: 'relatório_viagem',
+              descricao: `RELATORIO DE VIAGEM - ${savedReport.numero_relatorio} - REEMBOLSO TRIPULANTE 2 (${reportData.nome_tripulante_2.toUpperCase()})`,
+              data: today,
+              criado_por: user.id,
             });
           }
         }
@@ -606,7 +614,7 @@ export default function RelatorioViagem() {
           if (error) console.error('Erro ao registrar conciliações:', error);
         }
 
-        // Generate PDF
+        // Gerar PDF
         try {
           let pdfUserName = 'Usuário';
           const { data: creatorProfile } = await supabase
@@ -694,7 +702,7 @@ export default function RelatorioViagem() {
   };
 
   // -------------------------------------------------------------------------
-  // Send dialog
+  // Envio
   // -------------------------------------------------------------------------
   const handleSendReport = async () => {
     if (!sendReportTarget?.id || !sendDueDate) {
@@ -709,11 +717,11 @@ export default function RelatorioViagem() {
         .eq('id', sendReportTarget.id);
       if (error) throw error;
 
+      // FIX: usar reference_id e reference_type consistentemente
       await supabase
         .from('conciliacoes_bancarias')
         .update({ status: 'enviado', due_date: sendDueDate, updated_at: new Date().toISOString() } as any)
-        .eq('referencia_id', sendReportTarget.id)
-        .eq('tipo_referencia', 'travel_report');
+        .eq('id', sendReportTarget.id);
 
       toast.success('✓ Relatório enviado ao cliente com sucesso!');
       setSendDialogOpen(false);
@@ -838,7 +846,7 @@ export default function RelatorioViagem() {
       <div className="p-6 space-y-6">
         {!isCreating ? (
           <>
-            {/* Draft restore banner */}
+            {/* Banner de rascunho salvo */}
             {hasSavedDraft && (
               <Card className="border-amber-200/50 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md rounded-xl">
                 <CardContent className="p-6">
@@ -1024,7 +1032,7 @@ export default function RelatorioViagem() {
         )}
       </div>
 
-      {/* Partner modal */}
+      {/* Modal de sócio */}
       <PartnerSelectModal
         open={showPartnerModal}
         onOpenChange={setShowPartnerModal}
@@ -1049,7 +1057,7 @@ export default function RelatorioViagem() {
         }}
       />
 
-      {/* Receipt viewer */}
+      {/* Visualizador de comprovante */}
       <ReceiptViewer
         open={receiptViewerOpen}
         onOpenChange={setReceiptViewerOpen}
@@ -1057,7 +1065,7 @@ export default function RelatorioViagem() {
         title="Comprovante Anexado"
       />
 
-      {/* Send dialog */}
+      {/* Dialog de envio */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

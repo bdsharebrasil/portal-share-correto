@@ -42,7 +42,7 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
           model: aircraftData.modelo,
           manufacturer: aircraftData.fabricante,
           serialNumber: aircraftData.numero_serie,
-          totalHours: 0, // Será carregado do logbook_months
+          totalHours: 0, // Será carregado do diario_mes
           totalCycles: 0,
           lastRevisionDate: undefined,
           nextRevisionHours: undefined,

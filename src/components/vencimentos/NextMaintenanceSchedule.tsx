@@ -51,17 +51,17 @@ export function NextMaintenanceSchedule({
       .subscribe();
 
     const subscription2 = supabase
-      .channel(`logbook_months:${aircraftId}`)
+      .channel(`diario_mes:${aircraftId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'logbook_months',
+          table: 'diario_mes',
           filter: `aeronave_id=eq.${aircraftId}`,
         },
         () => {
-          console.log('NextMaintenanceSchedule: Real-time update detected (logbook_months)');
+          console.log('NextMaintenanceSchedule: Real-time update detected (diario_mes)');
           loadAllData();
           onDataChange?.();
         }
@@ -103,21 +103,21 @@ export function NextMaintenanceSchedule({
         }
       }
 
-      // Fallback to logbook_months
-      console.log('NextMaintenanceSchedule: Fetching from logbook_months');
+      // Fallback to diario_mes
+      console.log('NextMaintenanceSchedule: Fetching from diario_mes');
       const { data: logbookMonths, error: logError } = await supabase
-        .from('logbook_months')
+        .from('diario_mes')
         .select('celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel')
-        .eq('aircraft_id', aircraftId)
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
+        .eq('aeronave_id', aircraftId)
+        .order('ano', { ascending: false })
+        .order('mes', { ascending: false })
         .limit(1);
 
       if (!logError && logbookMonths && logbookMonths.length > 0) {
         const monthData = logbookMonths[0] as LogbookMonthData;
         setLogbookData(monthData);
         setNextMaintenance(null);
-        console.log('NextMaintenanceSchedule: Loaded from logbook_months:', {
+        console.log('NextMaintenanceSchedule: Loaded from diario_mes:', {
           celula_prox_revisao: monthData.celula_prox_revisao,
           celula_atual: monthData.celula_atual,
         });

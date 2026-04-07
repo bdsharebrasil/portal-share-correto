@@ -34,14 +34,14 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
   const [dateTo, setDateTo] = useState<string>("");
   const [selectedAeronave, setSelectedAircraft] = useState<string>("all");
 
-  // Busca horas diretamente do logbook_entries (fonte primária)
+  // Busca horas diretamente do lancamentos_diario_bordo (fonte primária)
   const { data: flightHours = [], isLoading, refetch } = useQuery({
     queryKey: ["crew_flight_hours_from_logbook", crewMemberId],
     enabled: !!crewMemberId,
     queryFn: async () => {
       // Buscar todas as entradas onde o tripulante é PIC ou SIC
       const { data: entries, error } = await supabase
-        .from("logbook_entries")
+        .from("lancamentos_diario_bordo")
         .select(`
           id,
           entry_date,

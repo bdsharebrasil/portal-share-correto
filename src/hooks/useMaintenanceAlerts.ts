@@ -127,14 +127,14 @@ export function useAircraftCurrentHours(aircraftId: string) {
   return useQuery({
     queryKey: ['aircraft-current-hours', aircraftId],
     queryFn: async () => {
-      // Get the most recent logbook_months entry with valid data
+      // Get the most recent diario_mes entry with valid data
       const { data, error } = await supabase
-        .from('logbook_months')
-        .select('celula_atual, celula_prox_revisao, year, month')
-        .eq('aircraft_id', aircraftId)
+        .from('diario_mes')
+        .select('celula_atual, celula_prox_revisao, ano, mes')
+        .eq('aeronave_id', aircraftId)
         .gt('celula_atual', 0)
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
+        .order('ano', { ascending: false })
+        .order('mes', { ascending: false })
         .limit(1);
 
       if (error) throw error;
@@ -143,8 +143,8 @@ export function useAircraftCurrentHours(aircraftId: string) {
         return {
           currentHours: Number(data[0].celula_atual) || 0,
           nextRevisionHours: Number(data[0].celula_prox_revisao) || 0,
-          year: data[0].year,
-          month: data[0].month,
+          year: data[0].ano,
+          month: data[0].mes,
         };
       }
       

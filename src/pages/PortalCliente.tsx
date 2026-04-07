@@ -125,14 +125,14 @@ export default function PortalCliente() {
     if (!selectedAeronave?.id_aeronave) return;
 
     const subscription = supabase
-      .channel(`logbook_months_${selectedAeronave.aeronave_id}`)
+      .channel(`diario_mes_${selectedAeronave.aeronave_id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'logbook_months',
-          filter: `aircraft_id=eq.${selectedAeronave.aeronave_id}`
+          table: 'diario_mes',
+          filter: `aeronave_id=eq.${selectedAeronave.aeronave_id}`
         },
         () => {
           loadClientData();
@@ -231,11 +231,11 @@ export default function PortalCliente() {
 
       // ✅ FIX: .maybeSingle() em vez de .single() — não lança erro se o mês não existir ainda
       const { data: currentMonthData } = await supabase
-        .from('logbook_months')
-        .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
-        .eq('aircraft_id', selectedAeronave.aeronave_id)
-        .eq('month', currentMonth)
-        .eq('year', currentYear)
+        .from('diario_mes')
+        .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, mes, ano')
+        .eq('aeronave_id', selectedAeronave.aeronave_id)
+        .eq('mes', currentMonth)
+        .eq('ano', currentYear)
         .maybeSingle();
 
       let monthData: any = currentMonthData;
@@ -244,11 +244,11 @@ export default function PortalCliente() {
       if (!monthData) {
         console.log('Mês atual não encontrado, buscando último mês disponível...');
         const { data: latestMonths } = await supabase
-          .from('logbook_months')
-          .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
-          .eq('aircraft_id', selectedAeronave.aeronave_id)
-          .order('year', { ascending: false })
-          .order('month', { ascending: false })
+          .from('diario_mes')
+          .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, mes, ano')
+          .eq('aeronave_id', selectedAeronave.aeronave_id)
+          .order('ano', { ascending: false })
+          .order('mes', { ascending: false })
           .limit(1);
 
         monthData = latestMonths && latestMonths.length > 0 ? latestMonths[0] : null;
@@ -266,17 +266,17 @@ export default function PortalCliente() {
       }
 
       const { data: logbookData } = await supabase
-        .from('logbook_entries')
-        .select('total_time, pousos, arrival_aerodrome')
-        .eq('aircraft_id', selectedAeronave.aeronave_id)
-        .order('entry_date', { ascending: false })
+        .from('lancamentos_diario_bordo')
+        .select('tempo_total, pousos_total, arrival_aerodrome')
+        .eq('aeronave_id', selectedAeronave.aeronave_id)
+        .order('data_registro', { ascending: false })
         .limit(10);
 
       if (logbookData) {
         const totalHours = logbookData.reduce((sum: number, entry: any) =>
-          sum + Number(entry.total_time || 0), 0);
+          sum + Number(entry.tempo_total || 0), 0);
         const totalLandings = logbookData.reduce((sum: number, entry: any) =>
-          sum + Number(entry.pousos || 0), 0);
+          sum + Number(entry.pousos_total || 0), 0);
         const destinations = [...new Set(logbookData.map(e => e.arrival_aerodrome).filter(Boolean))].slice(0, 5);
 
         setFlightActivity({

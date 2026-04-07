@@ -122,7 +122,7 @@ export class FlightService {
       total_time: blockTime,
       time: flightTime,
       // day_time e night_time já foram calculados no frontend com cálculo solar correto
-      aeronave_id: config.aeronaveId,
+      aeronave_id: config.aircraftId,
     } as any;
   }
 
@@ -134,7 +134,7 @@ export class FlightService {
     config: FlightServiceConfig
   ): Promise<FlightEntry> {
     const { data, error } = await supabase
-      .from('logbook_entries')
+      .from('lancamentos_diario_bordo')
       .insert([entry as any])
       .select()
       .single();
@@ -155,7 +155,7 @@ export class FlightService {
     entry: FlightEntry
   ): Promise<FlightEntry> {
     const { data, error } = await supabase
-      .from('logbook_entries')
+      .from('lancamentos_diario_bordo')
       .update(entry)
       .eq('id', entryId)
       .select()
@@ -175,7 +175,7 @@ export class FlightService {
   static async deleteFlightEntry(entryId: string): Promise<void> {
     try {
       const { error } = await supabase
-        .from('logbook_entries')
+        .from('lancamentos_diario_bordo')
         .delete()
         .eq('id', entryId);
 
@@ -278,10 +278,10 @@ export class FlightService {
   ): Promise<FlightEntry[]> {
     try {
       const { data, error } = await supabase
-        .from('logbook_entries')
+        .from('lancamentos_diario_bordo')
         .select('*')
-        .eq('logbook_month_id', logbookMonthId)
-        .order('entry_date', { ascending: true });
+        .eq('diario_mes', logbookMonthId)
+        .order('data_registro', { ascending: true });
 
       if (error) throw error;
 
@@ -302,8 +302,8 @@ export class FlightService {
   ): Promise<void> {
     try {
       const { error } = await supabase
-        .from('logbook_entries')
-        .update({ confirmed })
+        .from('lancamentos_diario_bordo')
+        .update({ confirmado: confirmed })
         .eq('id', entryId);
 
       if (error) throw error;

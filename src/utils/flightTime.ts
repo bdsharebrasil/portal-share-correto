@@ -90,7 +90,7 @@ export function validateTimes(totalTime: number, flightTime: number): boolean {
  * exibido na tabela do diário.
  *
  * @param entries - Entradas ordenadas por sequential_number
- * @param celulaAnterior - Célula anterior do mês (do logbook_months)
+ * @param celulaAnterior - Célula anterior do mês (do diario_mes)
  * @returns Map de entry.id → célula acumulada
  */
 export function calculateRunningCelula(

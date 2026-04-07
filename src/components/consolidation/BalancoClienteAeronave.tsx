@@ -140,7 +140,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
     queryKey: ['horas-cliente-aeronave', clienteId, aeronaveId, ano, mes],
     queryFn: async () => {
       let query = supabase
-        .from('logbook_entries')
+        .from('lancamentos_diario_bordo')
         .select('*')
         .eq('clientes_id', clienteId);
 
@@ -154,9 +154,9 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
         ? `${ano}-${String(mes).padStart(2, '0')}-31`
         : `${ano}-12-31`;
 
-      query = query.gte('entry_date', startDate).lte('entry_date', endDate);
+      query = query.gte('data_registro', startDate).lte('data_registro', endDate);
 
-      const { data, error } = await query.order('entry_date', { ascending: false });
+      const { data, error } = await query.order('data_registro', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -185,7 +185,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
         ? `${ano}-${String(mes).padStart(2, '0')}-31`
         : `${ano}-12-31`;
 
-      query = query.gte('date', startDate).lte('date', endDate);
+      query = query.gte('data', startDate).lte('data', endDate);
 
       const { data, error } = await query.order('date', { ascending: false });
       if (error) throw error;
@@ -195,9 +195,9 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
   });
 
   // Cálculos do balanço
-  const totalHoras = horasVoadas.reduce((acc, entry) => acc + (entry.total_time || 0), 0);
+  const totalHoras = horasVoadas.reduce((acc, entry) => acc + (entry.tempo_total || 0), 0);
   const totalVoos = horasVoadas.length;
-  const totalPousos = horasVoadas.reduce((acc, entry) => acc + (entry.pousos || 0), 0);
+  const totalPousos = horasVoadas.reduce((acc, entry) => acc + (entry.pousos_total || 0), 0);
   const totalCombustivel = horasVoadas.reduce((acc, entry) => acc + (entry.fuel_liters || 0), 0);
 
   // Tipos que representam despesas (saídas de caixa ou reembolsos a receber)
@@ -230,7 +230,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
   const dadosMensais = Array.from({ length: 12 }, (_, i) => {
     const mesNum = i + 1;
     const horasMes = horasVoadas.filter((h) => {
-      const entryMonth = new Date(h.entry_date).getMonth() + 1;
+      const entryMonth = new Date(h.data_registro).getMonth() + 1;
       return entryMonth === mesNum;
     });
     const despesasMes = despesas.filter((d) => {
@@ -240,7 +240,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
 
     return {
       mes: MESES[i].label.substring(0, 3),
-      horas: horasMes.reduce((acc, h) => acc + (h.total_time || 0), 0),
+      horas: horasMes.reduce((acc, h) => acc + (h.tempo_total || 0), 0),
       despesas: despesasMes.reduce((acc, d) => acc + (d.valor || 0), 0),
     };
   }).filter((d) => mes === null || MESES.findIndex((m) => m.label.startsWith(d.mes)) + 1 === mes);
@@ -686,13 +686,13 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
                       {horasVoadas.slice(0, 10).map((voo) => (
                         <TableRow key={voo.id} className="border-slate-700 hover:bg-slate-700/30">
                           <TableCell className="font-medium">
-                            {format(new Date(voo.entry_date), 'dd/MM/yyyy')}
+                            {format(new Date(voo.data_registro), 'dd/MM/yyyy')}
                           </TableCell>
                           <TableCell>
-                            {voo.departure_aerodrome} → {voo.arrival_aerodrome}
+                            {voo.aerodromo_partida} → {voo.aerodromo_chegada}
                           </TableCell>
-                          <TableCell className="text-right">{(voo.total_time || 0).toFixed(2)}h</TableCell>
-                          <TableCell className="text-right">{voo.pousos || 0}</TableCell>
+                          <TableCell className="text-right">{(voo.tempo_total || 0).toFixed(2)}h</TableCell>
+                          <TableCell className="text-right">{voo.pousos_total || 0}</TableCell>
                           <TableCell className="text-right">{(voo.fuel_liters || 0).toFixed(1)} L</TableCell>
                         </TableRow>
                       ))}

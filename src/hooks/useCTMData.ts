@@ -169,7 +169,7 @@ export function useCTMData(aircraftId: string) {
     queryKey: ["ctm-last-flight", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("logbook_entries")
+        .from("lancamentos_diario_bordo")
         .select("entry_date, departure_aerodrome, arrival_aerodrome, total_time, celula")
         .eq("id_aeronave", aircraftId)
         .order("entry_date", { ascending: false })
@@ -322,7 +322,7 @@ export function useClientFlightHours(aircraftId: string, startDate?: string, end
 
       // Then get flight hours from logbook for each client
       let query = supabase
-        .from("logbook_entries")
+        .from("lancamentos_diario_bordo")
         .select("client_id, total_time")
         .eq("id_aeronave", aircraftId)
         .not("cliente_id", "is", null);
@@ -430,7 +430,7 @@ export function usePartnerFlightHours(aircraftId: string) {
 
       // Get flight hours
       const { data: flights, error: flightsError } = await supabase
-        .from("logbook_entries")
+        .from("lancamentos_diario_bordo")
         .select("client_id, total_time")
         .eq("id_aeronave", aircraftId)
         .not("cliente_id", "is", null);

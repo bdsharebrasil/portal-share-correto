@@ -166,14 +166,14 @@ export async function recalculateCrewFlightHoursForMonth(
   const endDate = new Date(ano, mes, 0).toISOString().split('T')[0];
 
   const { data: entries, error } = await supabase
-    .from('logbook_entries')
-    .select('pic_canac, sic_canac, total_time, ifr_time, night_hours, entry_date')
-    .eq('aircraft_id', aircraftId)
-    .gte('entry_date', startDate)
-    .lte('entry_date', endDate);
+    .from('lancamentos_diario_bordo')
+    .select('pic_canac, sic_canac, tempo_total, tempo_ifr, horas_noturnas, data_registro')
+    .eq('aeronave_id', aircraftId)
+    .gte('data_registro', startDate)
+    .lte('data_registro', endDate);
 
   if (error) {
-    console.error('Error fetching logbook entries:', error);
+    console.error('Error fetching lancamentos_diario_bordo for recalculation:', error);
     return;
   }
 
@@ -181,13 +181,13 @@ export async function recalculateCrewFlightHoursForMonth(
   const hoursByCrewMember: Record<string, { total: number; ifr: number; night: number; flightDay: string }> = {};
 
   for (const entry of entries || []) {
-    const totalTime = Number(entry.total_time) || 0;
-    const ifrTime = Number(entry.ifr_time) || 0;
-    const nightTime = Number(entry.night_hours) || 0;
+    const totalTime = Number(entry.tempo_total) || 0;
+    const ifrTime = Number(entry.tempo_ifr) || 0;
+    const nightTime = Number(entry.horas_noturnas) || 0;
 
     if (entry.pic_canac) {
       if (!hoursByCrewMember[entry.pic_canac]) {
-        hoursByCrewMember[entry.pic_canac] = { total: 0, ifr: 0, night: 0, flightDay: entry.entry_date };
+        hoursByCrewMember[entry.pic_canac] = { total: 0, ifr: 0, night: 0, flightDay: entry.data_registro };
       }
       hoursByCrewMember[entry.pic_canac].total += totalTime;
       hoursByCrewMember[entry.pic_canac].ifr += ifrTime;
@@ -195,7 +195,7 @@ export async function recalculateCrewFlightHoursForMonth(
     }
     if (entry.sic_canac) {
       if (!hoursByCrewMember[entry.sic_canac]) {
-        hoursByCrewMember[entry.sic_canac] = { total: 0, ifr: 0, night: 0, flightDay: entry.entry_date };
+        hoursByCrewMember[entry.sic_canac] = { total: 0, ifr: 0, night: 0, flightDay: entry.data_registro };
       }
       hoursByCrewMember[entry.sic_canac].total += totalTime;
       hoursByCrewMember[entry.sic_canac].ifr += ifrTime;
@@ -209,7 +209,7 @@ export async function recalculateCrewFlightHoursForMonth(
       .from('horas_voo_tripulante')
       .select('id')
       .eq('membro_tripulacao_id', crewMemberId)
-      .eq('aircraft_id', aircraftId)
+      .eq('aeronave_id', aircraftId)
       .eq('mes', mes)
       .eq('ano', ano)
       .maybeSingle();

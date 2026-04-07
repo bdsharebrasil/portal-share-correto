@@ -27,7 +27,7 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
     enabled: !!crewMemberId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("logbook_entries")
+        .from("lancamentos_diario_bordo")
         .select("id, total_time, pousos, pic_canac, sic_canac, entry_date, ifr_time, night_hours")
         .or(`pic_canac.eq.${crewMemberId},sic_canac.eq.${crewMemberId}`)
         .gte("entry_date", start)

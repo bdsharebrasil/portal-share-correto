@@ -45,63 +45,58 @@ const EXPENSE_CATEGORIES = [
 ];
 
 // ---------------------------------------------------------------------------
-// Types – fields match the travel_expense_reports table columns
+// Types — campos alinhados com colunas reais da tabela travel_expense_reports
 // ---------------------------------------------------------------------------
 export interface Expense {
   id?: string;
-  category: string;       // mapped to category inside despesas JSON
+  category: string;
   description: string;
   amount: number;
   paid_by: string;
   receipt_url?: string;
   expense_date?: string;
-  
 }
 
 export interface TravelReport {
-  // PK / identifiers
+  // PK
   id?: string;
   numero_relatorio: string;
 
-  // Relations
-  clientes_id: string;          // FK → clientes.id
-  socios_cliente_id?: string | null; // FK → socios_cliente.id
-
-  aeronave_id: string;          // FK → aeronave.id
-  matricula_aeronave: string;   // text column
-
-  tripulacao_id: string;        // FK → tripulacao.id  (crew 1)
-  nome_tripulante: string;      // text column
-
-  tripulante_id2?: string;      // FK → membros_tripulacao.id  (crew 2)
-  nome_tripulante_2?: string;   // text column
+  // FKs
+  clientes_id: string;
+  socios_cliente_id?: string | null;
+  aeronave_id: string;
+  matricula_aeronave: string;       // coluna: matricula_aeronave
+  tripulacao_id: string;            // FK → tripulacao.id (crew 1)
+  nome_tripulante: string;          // coluna: nome_tripulante
+  tripulante_id2?: string | null;   // FK → membros_tripulacao.id (crew 2)
+  nome_tripulante_2?: string | null; // coluna: nome_tripulante_2
 
   rota: string;
-  data_inicio: string;          // date  yyyy-MM-dd
-  data_fim: string;             // date  yyyy-MM-dd
+  data_inicio: string;              // yyyy-MM-dd
+  data_fim: string;                 // yyyy-MM-dd
   dias_count: number;
-
   observacoes: string;
 
-  // Expenses stored as JSON text in `despesas` column
+  // Despesas — salvas como JSON text na coluna `despesas`
   expenses: Expense[];
 
-  // Totals
-  total_valor: number;          // total_valor
+  // Totais — colunas reais da tabela
+  total_valor: number;
   total_combustivel: number;
   total_hospedagem: number;
   total_alimentacao: number;
   total_transporte: number;
   total_outros: number;
-  total_tripulacao: number;     // crew combined
-  total_trip: number;           // crew 1
-  total_trip2: number;          // crew 2
+  total_tripulacao: number;
+  total_trip: number;       // crew 1
+  total_trip2: number;      // crew 2
   total_clientes: number;
   total_sharebrasil: number;
 
   status: "Rascunho" | "Finalizado" | "Enviado";
 
-  // Display-only helpers (not persisted directly)
+  // Helpers de exibição (não persistidos diretamente)
   client?: string;
 }
 
@@ -128,8 +123,8 @@ const emptyReport = (): TravelReport => ({
   matricula_aeronave: "",
   tripulacao_id: "",
   nome_tripulante: "",
-  tripulante_id2: "",
-  nome_tripulante_2: "",
+  tripulante_id2: null,
+  nome_tripulante_2: null,
   rota: "",
   data_inicio: format(new Date(), "yyyy-MM-dd"),
   data_fim: format(new Date(), "yyyy-MM-dd"),
@@ -188,12 +183,10 @@ export function TravelReportForm({
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
-  // Calendar open states
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [expenseDateOpenIndex, setExpenseDateOpenIndex] = useState<number | null>(null);
 
-  // Receipt preview
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ index: number; file: File } | null>(null);
   const [previewImage, setPreviewImage] = useState<string | undefined>();
@@ -203,13 +196,10 @@ export function TravelReportForm({
   // -------------------------------------------------------------------------
   // Side-effects
   // -------------------------------------------------------------------------
-
-  // Load partners when client changes
   useEffect(() => {
     if (current.clientes_id) fetchPartnersForClient(current.clientes_id);
   }, [current.clientes_id]);
 
-  // Auto-save (new reports only)
   useEffect(() => {
     if (!onAutoSave || current.id) return;
     onAutoSave(current as unknown as TravelReportDraft);
@@ -220,7 +210,6 @@ export function TravelReportForm({
     return () => clearInterval(interval);
   }, [current, onAutoSave]);
 
-  // Save on page unload
   useEffect(() => {
     if (!onAutoSave || current.id) return;
     const handler = () => onAutoSave(current as unknown as TravelReportDraft);
@@ -228,7 +217,7 @@ export function TravelReportForm({
     return () => window.removeEventListener("beforeunload", handler);
   }, [current, onAutoSave]);
 
-  // Recalculate totals whenever expenses change
+  // Recalcular totais sempre que expenses mudar
   useEffect(() => {
     const valid = getValidExpenses(current.expenses);
     const t = calculateReportTotals(valid);
@@ -251,7 +240,6 @@ export function TravelReportForm({
   // -------------------------------------------------------------------------
   // Handlers
   // -------------------------------------------------------------------------
-
   const set = <K extends keyof TravelReport>(field: K, value: TravelReport[K]) =>
     setCurrent((prev) => ({ ...prev, [field]: value }));
 
@@ -280,7 +268,7 @@ export function TravelReportForm({
     setCurrent((prev) => ({
       ...prev,
       expenses: [
-        { category: "", descricao: "", description: "", amount: 0, paid_by: "", expense_date: today },
+        { category: "", description: "", amount: 0, paid_by: "", expense_date: today },
         ...prev.expenses,
       ],
     }));
@@ -292,7 +280,7 @@ export function TravelReportForm({
       expenses: prev.expenses.filter((_, i) => i !== index),
     }));
 
-  // --- File upload with preview ---
+  // --- Upload com preview ---
   const handleFileUpload = (index: number, file: File | undefined) => {
     if (!file) return;
     const errors = validateReceiptFile(file, 10);
@@ -416,7 +404,7 @@ export function TravelReportForm({
   // -------------------------------------------------------------------------
   return (
     <div className="space-y-6">
-      {/* Rules alert */}
+      {/* Regras */}
       <Alert className="border-amber-200/50 bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm rounded-xl">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-amber-100/50 flex-shrink-0">
@@ -437,7 +425,7 @@ export function TravelReportForm({
         </div>
       </Alert>
 
-      {/* Trip info */}
+      {/* Informações da Viagem */}
       <Card className="shadow-md rounded-xl border-border/50">
         <CardHeader className="p-6 border-b border-border/30">
           <CardTitle className="text-xl font-bold">Informações da Viagem</CardTitle>
@@ -561,7 +549,7 @@ export function TravelReportForm({
               )}
             </div>
 
-            {/* Second crew toggle */}
+            {/* Toggle segundo tripulante */}
             <div className="space-y-2 flex items-end">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -572,8 +560,8 @@ export function TravelReportForm({
                     if (!checked) {
                       setCurrent((prev) => ({
                         ...prev,
-                        tripulante_id2: "",
-                        nome_tripulante_2: "",
+                        tripulante_id2: null,
+                        nome_tripulante_2: null,
                       }));
                     }
                   }}
@@ -584,7 +572,7 @@ export function TravelReportForm({
               </div>
             </div>
 
-            {/* Co-pilot */}
+            {/* Co-piloto */}
             {(showSecondCrew || current.nome_tripulante_2) && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">Co-piloto</Label>
@@ -699,7 +687,7 @@ export function TravelReportForm({
               </Popover>
             </div>
 
-            {/* Duration badge */}
+            {/* Badge de duração */}
             {current.data_inicio && current.data_fim && (
               <div className="md:col-span-2">
                 <div className="text-sm font-semibold p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 rounded-lg">
@@ -717,7 +705,7 @@ export function TravelReportForm({
         </CardContent>
       </Card>
 
-      {/* Observations */}
+      {/* Observações */}
       <Card className="shadow-md rounded-xl border-border/50">
         <CardHeader className="p-6 border-b border-border/30">
           <CardTitle className="text-xl font-bold">Observações</CardTitle>
@@ -732,7 +720,7 @@ export function TravelReportForm({
         </CardContent>
       </Card>
 
-      {/* Expenses */}
+      {/* Despesas */}
       <Card className="shadow-md rounded-xl border-border/50">
         <CardHeader className="flex flex-row items-center justify-between p-6 border-b border-border/30">
           <CardTitle className="text-xl font-bold">Despesas da Viagem</CardTitle>
@@ -908,7 +896,7 @@ export function TravelReportForm({
                 </div>
               </div>
 
-              {/* Remove expense */}
+              {/* Remover despesa */}
               <button
                 onClick={() => removeExpense(index)}
                 className="absolute top-4 right-4 text-destructive/60 hover:text-destructive hover:bg-destructive/10 p-2 rounded-lg transition-all duration-200"
@@ -921,7 +909,7 @@ export function TravelReportForm({
         </CardContent>
       </Card>
 
-      {/* Action buttons */}
+      {/* Botões de ação */}
       <div className="flex gap-4 flex-wrap">
         <Button
           onClick={() => handleSave("Rascunho")}
@@ -951,7 +939,7 @@ export function TravelReportForm({
         </Button>
       </div>
 
-      {/* Totals summary */}
+      {/* Resumo de totais */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Por pagador */}
         <Card className="shadow-md rounded-xl border-border/50">
@@ -1032,7 +1020,7 @@ export function TravelReportForm({
         )}
       </div>
 
-      {/* Receipt preview modal */}
+      {/* Modal de preview do comprovante */}
       <ReceiptPreviewModal
         open={previewOpen}
         onClose={() => {

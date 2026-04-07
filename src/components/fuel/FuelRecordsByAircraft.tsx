@@ -283,17 +283,17 @@ export function FuelRecordsByAircraft({
 
       // Get flights with fuel_added > 0 for this aircraft
       let query = (supabase as any)
-        .from('logbook_entries')
-        .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho, fuel_added, fuel_liters, client_id, total_time')
-        .eq('id_aeronave', aircraft.id)
+        .from('lancamentos_diario_bordo')
+        .select('id, data_registro, departure_aerodrome, arrival_aerodrome, trecho, fuel_added, fuel_liters, clientes_id, tempo_total')
+        .eq('aeronave_id', aircraft.id)
         .gt('fuel_added', 0)
-        .order('entry_date', { ascending: false })
+        .order('data_registro', { ascending: false })
         .limit(50);
 
       // Filter by client if selected
       const effectiveClientId = formData.client_id || client.id;
       if (effectiveClientId) {
-        query = query.eq('cliente_id', effectiveClientId);
+        query = query.eq('clientes_id', effectiveClientId);
       }
 
       const { data: flights, error } = await query;
@@ -326,7 +326,7 @@ export function FuelRecordsByAircraft({
       setFormData(prev => ({
         ...prev,
         trecho,
-        data: flight.entry_date,
+        data: flight.data_registro,
         litros: flight.fuel_added?.toString() || prev.litros,
         origem_aerodromo: flight.departure_aerodrome || "",
         destino_aerodromo: flight.arrival_aerodrome || "",
@@ -335,11 +335,11 @@ export function FuelRecordsByAircraft({
       // Busca o lançamento anterior do logbook (não apenas o dia anterior)
       try {
         const { data: previousFlights, error } = await (supabase as any)
-          .from('logbook_entries')
-          .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
-          .eq('id_aeronave', aircraft.id)
-          .lt('entry_date', flight.entry_date)
-          .order('entry_date', { ascending: false })
+          .from('lancamentos_diario_bordo')
+          .select('id, data_registro, departure_aerodrome, arrival_aerodrome, trecho')
+          .eq('aeronave_id', aircraft.id)
+          .lt('data_registro', flight.data_registro)
+          .order('data_registro', { ascending: false })
           .limit(1);
 
         if (!error && previousFlights && previousFlights.length > 0) {
@@ -402,11 +402,11 @@ export function FuelRecordsByAircraft({
     const loadPreviousFlight = async () => {
       try {
         const { data: previousFlights, error } = await (supabase as any)
-          .from('logbook_entries')
-          .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
-          .eq('id_aeronave', aircraft.id)
-          .lt('entry_date', formData.data)
-          .order('entry_date', { ascending: false })
+          .from('lancamentos_diario_bordo')
+          .select('id, data_registro, departure_aerodrome, arrival_aerodrome, trecho')
+          .eq('aeronave_id', aircraft.id)
+          .lt('data_registro', formData.data)
+          .order('data_registro', { ascending: false })
           .limit(1);
 
         if (!error && previousFlights && previousFlights.length > 0) {
@@ -1391,7 +1391,7 @@ export function FuelRecordsByAircraft({
                           {logbookFlights.map((flight) => (
                             <SelectItem key={flight.id} value={flight.id} className="py-2">
                               <div className="text-sm">
-                                <span className="font-medium">{formatDateBrazil(flight.entry_date, "dd/MM/yy")}</span>
+                                <span className="font-medium">{formatDateBrazil(flight.data_registro, "dd/MM/yy")}</span>
                                 {' · '}
                                 <span>{`${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
                                 {flight.fuel_added && (
@@ -1408,7 +1408,7 @@ export function FuelRecordsByAircraft({
                       <div className="mt-3 p-3 rounded-lg space-y-2" style={{backgroundColor: 'rgba(16, 33, 56, 1)', borderColor: 'rgba(33, 87, 156, 1)', borderWidth: '1px'}}>
                         <div>
                           <p className="text-xs font-semibold mb-1" style={{color: 'rgba(155, 182, 239, 1)'}}>📅 Data Selecionada</p>
-                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.entry_date, "dd/MM/yy")}</p>
+                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.data_registro, "dd/MM/yy")}</p>
                         </div>
                         <div>
                           <p className="text-xs font-semibold mb-1" style={{color: 'rgba(162, 188, 244, 1)'}}>✈️ Trecho Selecionado</p>

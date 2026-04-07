@@ -28,11 +28,11 @@ export function useBalancoClienteCompleto(
       const anoFim = new Date(periodo.fim).getFullYear();
       const mesFim = new Date(periodo.fim).getMonth() + 1;
 
-      // Se sócio específico: buscar diretamente do logbook_entries
+      // Se sócio específico: buscar diretamente do lancamentos_diario_bordo
       if (socioId) {
         // Voos do sócio
         let qOwned = supabase
-          .from("logbook_entries")
+          .from("lancamentos_diario_bordo")
           .select("total_time")
           .eq("client_id", clienteId)
           .eq("socios_cliente_id", socioId)
@@ -45,7 +45,7 @@ export function useBalancoClienteCompleto(
 
         // Voos compartilhados (client_partner_id = NULL)
         let qShared = supabase
-          .from("logbook_entries")
+          .from("lancamentos_diario_bordo")
           .select("total_time")
           .eq("client_id", clienteId)
           .is("client_partner_id", null)
@@ -148,7 +148,7 @@ export function useBalancoClienteCompleto(
 
       if (horasVoadas === 0) {
         let logbookQuery = supabase
-          .from("logbook_entries")
+          .from("lancamentos_diario_bordo")
           .select("total_time")
           .eq("client_id", clienteId)
           .gte("entry_date", periodo.inicio)

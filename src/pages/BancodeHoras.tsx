@@ -81,11 +81,11 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
       if (acRes.data) setAircraft(acRes.data);
 
-      // Query logbook entries for this aircraft
+      // Query lancamentos_diario_bordo for this aircraft
       const logbookRes = await supabase
-        .from('logbook_entries')
+        .from('lancamentos_diario_bordo')
         .select('id')
-        .eq('aircraft_id', aircraftId);
+        .eq('aeronave_id', aircraftId);
 
       if (!logbookRes.data || logbookRes.data.length === 0) {
         setLoans([]);
@@ -95,7 +95,7 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
       const logbookIds = logbookRes.data.map((e: any) => e.id);
 
-      // PASSO 2: Buscar apenas os aircraft_loans vinculados a esses logbook_entries
+      // PASSO 2: Buscar apenas os aircraft_loans vinculados a esses lancamentos_diario_bordo
       const loansRes = await supabase
         .from('emprestimos_aeronave')
         .select(`
@@ -116,19 +116,19 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
         .order('data_lancamento', { ascending: false });
 
       if (loansRes.data && loansRes.data.length > 0) {
-        // PASSO 3: Buscar os detalhes dos logbook_entries para enriquecer os dados
+        // PASSO 3: Buscar os detalhes dos lancamentos_diario_bordo para enriquecer os dados
         const fullLogbookRes = await supabase
-          .from('logbook_entries')
+          .from('lancamentos_diario_bordo')
           .select(`
             id,
             aeronave_id,
-            client_id,
-            loan_recipient_client_id,
-            loan_recipient_partner_id,
-            entry_date,
-            departure_aerodrome,
-            arrival_aerodrome,
-            total_time
+            clientes_id,
+            cliente_tomador_emprestimo_id,
+            parceiro_tomador_emprestimo_id,
+            data_registro,
+            aerodromo_partida,
+            aerodromo_chegada,
+            tempo_total
           `)
           .in('id', logbookIds);
 
@@ -143,8 +143,8 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
         // Buscar nomes dos clientes (lenders e borrowers)
         const allClientIds = new Set<string>();
         Object.values(logbookMap).forEach((entry: any) => {
-          if (entry.cliente_id) allClientIds.add(entry.cliente_id);
-          if (entry.loan_recipient_client_id) allClientIds.add(entry.loan_recipient_client_id);
+          if (entry.clientes_id) allClientIds.add(entry.clientes_id);
+          if (entry.cliente_tomador_emprestimo_id) allClientIds.add(entry.cliente_tomador_emprestimo_id);
         });
 
         const clientsList = Array.from(allClientIds);
@@ -172,10 +172,10 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
             lancamento_diario_id: logbookEntry?.id,
             lancamento_devolucao_id: loan.lancamento_devolucao_id,
             status: loan.status,
-            cliente_emprestador_id: logbookEntry?.cliente_id,
-            cliente_emprestador_nome: clientsMap[logbookEntry?.cliente_id]?.razao_social || 'Cliente desconhecido',
-            cliente_tomador_id: logbookEntry?.loan_recipient_client_id,
-            cliente_tomador_nome: clientsMap[logbookEntry?.loan_recipient_client_id]?.razao_social || 'Cliente desconhecido'
+            cliente_emprestador_id: logbookEntry?.clientes_id,
+            cliente_emprestador_nome: clientsMap[logbookEntry?.clientes_id]?.razao_social || 'Cliente desconhecido',
+            cliente_tomador_id: logbookEntry?.cliente_tomador_emprestimo_id,
+            cliente_tomador_nome: clientsMap[logbookEntry?.cliente_tomador_emprestimo_id]?.razao_social || 'Cliente desconhecido'
           };
         });
 

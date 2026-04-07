@@ -277,18 +277,18 @@ export function DynamicLogbookForm({
     enabled: !!selectedBorrowerClient && flightCategory === 'emprestimo',
   });
 
-  // Buscar dados do logbook_month
+  // Buscar dados do diario_mes
   const { data: logbookMonth } = useQuery({
     queryKey: ['logbook-month', logbookMonthId],
     queryFn: async () => {
       if (!logbookMonthId) return null;
       const { data, error } = await supabase
-        .from('logbook_months')
-        .select('base_aerodrome, daily_rate, has_daily_rate')
+        .from('diario_mes')
+        .select('aerodromo_base, tarifa_diaria, tem_tarifa_diaria')
         .eq('id', logbookMonthId)
         .single();
       if (error) {
-        console.error('Erro ao buscar logbook month:', error);
+        console.error('Erro ao buscar diario_mes:', error);
         return null;
       }
       return data;
@@ -296,12 +296,12 @@ export function DynamicLogbookForm({
     enabled: !!logbookMonthId,
   });
 
-  const hasDailyRate = logbookMonth?.has_daily_rate ?? true;
+  const hasDailyRate = logbookMonth?.tem_tarifa_diaria ?? true;
 
   useEffect(() => {
     if (logbookMonth) {
-      setBaseAerodrome(logbookMonth.base_aerodrome);
-      setAircraftDailyRate(logbookMonth.daily_rate);
+      setBaseAerodrome(logbookMonth.aerodromo_base);
+      setAircraftDailyRate(logbookMonth.tarifa_diaria);
     }
   }, [logbookMonth]);
 
@@ -327,13 +327,13 @@ export function DynamicLogbookForm({
     if (prefilledDate) {
       setDate(prefilledDate);
       setDateText(format(prefilledDate, 'dd/MM/yyyy'));
-      updateField('entry_date', format(prefilledDate, 'yyyy-MM-dd'));
+      updateField('data_registro', format(prefilledDate, 'yyyy-MM-dd'));
     }
   }, [prefilledDate, updateField]);
 
   useEffect(() => {
     if (date) {
-      updateField('entry_date', format(date, 'yyyy-MM-dd'));
+      updateField('data_registro', format(date, 'yyyy-MM-dd'));
       setDateText(format(date, 'dd/MM/yyyy'));
     } else {
       setDateText('');
@@ -533,7 +533,7 @@ export function DynamicLogbookForm({
       let celulaAnterior = 0;
       if (logbookMonthId) {
         const { data: monthData } = await supabase
-          .from('logbook_months')
+          .from('diario_mes')
           .select('celula_anterior')
           .eq('id', logbookMonthId)
           .single();
@@ -551,21 +551,20 @@ export function DynamicLogbookForm({
         }
       }
 
-      const { data: insertedEntry, error } = await (supabase as any).from('logbook_entries').insert([
+      const { data: insertedEntry, error } = await (supabase as any).from('lancamentos_diario_bordo').insert([
         {
-          aircraft_id: aircraftId,
-          logbook_month_id: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
           aeronave_id: aircraftId,
-          entry_date: format(date!, 'yyyy-MM-dd'),
-          departure_aerodrome: formData.departure_airport,
-          arrival_aerodrome: formData.arrival_airport,
-          flight_nature: flightNature,
-          client_id: entryClientId || null,
+          diario_mes: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
+          data_registro: format(date!, 'yyyy-MM-dd'),
+          aerodromo_partida: formData.departure_airport,
+          aerodromo_chegada: formData.arrival_airport,
+          natureza_voo: flightNature,
+          clientes_id: entryClientId || null,
           partner_name: flightCategory === 'emprestimo' ? borrowerPartnerName : null,
-          is_equal_split: flightCategory === 'rateio',
-          is_loan: flightCategory === 'emprestimo',
+          divisao_igual: flightCategory === 'rateio',
+          empreendimento: flightCategory === 'emprestimo',
           pic_canac: selectedPic || null,
-          pic_source: picSource,
+          origem_pic: picSource,
           sic_canac: selectedSic || null,
           sic_source: sicSource,
           sic_name: sicName || null,
@@ -577,16 +576,16 @@ export function DynamicLogbookForm({
           cor_time: formData.cor_time || null,
           crew_checkin_time: formData.crew_checkin_time || null,
           time: flightTime,
-          total_time: totalBlockTime,
+          tempo_total: totalBlockTime,
           day_time: totalDay,
-          night_hours: totalNight,
+          horas_noturnas: totalNight,
           // ── Campos numéricos: nunca enviar string vazia ──────────────────
           ifr_time: toNumericOrNull(formData.ifr_count) ?? 0,
           pousos: toIntOrNull(formData.landings) ?? 1,
           fuel_added: toNumericOrNull(formData.fuel_added) ?? 0,
           celula: parseFloat(entrycelula.toFixed(2)),
-          // Schema: daily_rate é TEXT NULL, NÃO number
-          daily_rate: finalDailyRate !== null ? String(finalDailyRate) : null,
+          // Schema: tarifa_diaria é TEXT NULL, NÃO number
+          tarifa_diaria: finalDailyRate !== null ? String(finalDailyRate) : null,
           distance_nm: toNumericOrNull(formData.distance_nm) ?? 0,
           passengers: toIntOrNull(passengers) ?? 0,
           // Schema: cargo_kg é TEXT NULL, NÃO number
@@ -654,7 +653,6 @@ export function DynamicLogbookForm({
 
         const { error: transactionError } = await (supabase as any).from('hour_transactions').insert([
           {
-            aircraft_id: aircraftId,
             aeronave_id: aircraftId,
             from_partner_id: selectedBorrowerClient,
             to_partner_id: selectedClient,

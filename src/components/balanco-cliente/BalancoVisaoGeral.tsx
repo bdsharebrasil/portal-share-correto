@@ -39,28 +39,28 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       if (!socioId || !clienteId) return { horasOwned: 0, horasShared: 0 };
 
       const qOwned = supabase
-        .from('logbook_entries')
-        .select('total_time')
+        .from('lancamentos_diario_bordo')
+        .select('tempo_total')
         .eq('clientes_id', clienteId)
         .eq('socios_cliente_id', socioId)
-        .gte('entry_date', periodo.inicio)
-        .lte('entry_date', periodo.fim);
+        .gte('data_registro', periodo.inicio)
+        .lte('data_registro', periodo.fim);
 
       const qShared = supabase
-        .from('logbook_entries')
-        .select('total_time')
+        .from('lancamentos_diario_bordo')
+        .select('tempo_total')
         .eq('clientes_id', clienteId)
         .is('socios_cliente_id', null)
-        .gte('entry_date', periodo.inicio)
-        .lte('entry_date', periodo.fim);
+        .gte('data_registro', periodo.inicio)
+        .lte('data_registro', periodo.fim);
 
       const [ownedResult, sharedResult] = await Promise.all([
         qOwned,
         qShared
       ]);
 
-      const horasOwned = (ownedResult.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
-      const horasShared = (sharedResult.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
+      const horasOwned = (ownedResult.data || []).reduce((s: number, e: any) => s + (e.tempo_total || 0), 0);
+      const horasShared = (sharedResult.data || []).reduce((s: number, e: any) => s + (e.tempo_total || 0), 0);
 
       return { horasOwned, horasShared };
     },
@@ -86,12 +86,12 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       // Se há sócio selecionado, buscar voos do sócio E voos compartilhados
       if (socioId) {
         let qLog = supabase
-          .from('logbook_entries')
-          .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, socios_nome, aircraft_id, socios_cliente_id, is_equal_split')
+          .from('lancamentos_diario_bordo')
+          .select('id, data_registro, tempo_total, aerodromo_partida, aerodromo_chegada, trecho, socios_nome, aeronave_id, socios_cliente_id, divisao_igual')
           .eq('clientes_id', clienteId)
-          .gte('entry_date', periodo.inicio)
-          .lte('entry_date', periodo.fim)
-          .order('entry_date', { ascending: false });
+          .gte('data_registro', periodo.inicio)
+          .lte('data_registro', periodo.fim)
+          .order('data_registro', { ascending: false });
 
         if (aeronaveId) {
           qLog = qLog.eq('aeronave_id', aeronaveId);
@@ -139,23 +139,23 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       if (horasFiltradas.length > 0) {
         return horasFiltradas.map((h: any) => ({
           id: `${h.id}-${h.ano}-${h.mes}`,
-          entry_date: `${h.ano}-${String(h.mes).padStart(2, '0')}-01`,
-          total_time: h.horas_voadas || 0,
-          departure_aerodrome: '-',
-          arrival_aerodrome: '-',
+          data_registro: `${h.ano}-${String(h.mes).padStart(2, '0')}-01`,
+          tempo_total: h.horas_voadas || 0,
+          aerodromo_partida: '-',
+          aerodromo_chegada: '-',
           trecho: `${h.ano}-${String(h.mes).padStart(2, '0')}`,
           partner_name: h.aeronave_registro
         }));
       }
 
-      // Fallback para logbook_entries se não houver dados consolidados
+      // Fallback para lancamentos_diario_bordo se não houver dados consolidados
       let qLog = supabase
-        .from('logbook_entries')
-        .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, socios_nome, aircraft_id')
+        .from('lancamentos_diario_bordo')
+        .select('id, data_registro, tempo_total, aerodromo_partida, aerodromo_chegada, trecho, socios_nome, aeronave_id')
         .eq('clientes_id', clienteId)
-        .gte('entry_date', periodo.inicio)
-        .lte('entry_date', periodo.fim)
-        .order('entry_date', { ascending: false });
+        .gte('data_registro', periodo.inicio)
+        .lte('data_registro', periodo.fim)
+        .order('data_registro', { ascending: false });
 
       if (aeronaveId) {
         qLog = qLog.eq('aeronave_id', aeronaveId);
@@ -636,8 +636,8 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
                       <TableRow key={h.id} className={h._isShared ? 'opacity-75' : ''}>
                         <TableCell>{format(new Date(h.entry_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                         <TableCell>{h.trecho || '-'}</TableCell>
-                        <TableCell>{h.departure_aerodrome || '-'}</TableCell>
-                        <TableCell>{h.arrival_aerodrome || '-'}</TableCell>
+                        <TableCell>{h.aerodromo_partida || '-'}</TableCell>
+                        <TableCell>{h.aerodromo_chegada || '-'}</TableCell>
                         <TableCell className="text-right font-medium">{formatarHoras(h.total_time || 0)}</TableCell>
                         {socioSelecionado && (
                           <TableCell>

@@ -93,14 +93,14 @@ export function OASFlightHoursRateio({
     queryKey: ["oas-flight-hours-v2", aircraftId, periodoInicio, periodoFim],
     queryFn: async () => {
       let query = supabase
-        .from("logbook_entries")
-        .select("socios_cliente_id, entry_date, total_time")
+        .from("lancamentos_diario_bordo")
+        .select("socios_cliente_id, data_registro, tempo_total")
         .eq("aeronave_id", aircraftId);
 
-      if (periodoInicio) query = query.gte("entry_date", periodoInicio);
-      if (periodoFim) query = query.lte("entry_date", periodoFim);
+      if (periodoInicio) query = query.gte("data_registro", periodoInicio);
+      if (periodoFim) query = query.lte("data_registro", periodoFim);
 
-      const { data, error } = await query.order("entry_date");
+      const { data, error } = await query.order("data_registro");
       if (error) throw error;
       return data || [];
     },

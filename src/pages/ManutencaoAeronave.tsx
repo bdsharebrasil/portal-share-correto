@@ -122,10 +122,10 @@ export default function ManutencaoAeronave() {
 
       // Carregar horas atuais de cada aeronave
       const { data: logbookData } = await supabase
-        .from('logbook_months')
-        .select('aircraft_id, celula_atual');
+        .from('diario_mes')
+        .select('aeronave_id, celula_atual');
 
-      const hoursMap = new Map((logbookData || []).map(entry => [entry.aircraft_id, entry.celula_atual]));
+      const hoursMap = new Map((logbookData || []).map(entry => [entry.aeronave_id, entry.celula_atual]));
 
       // Carregar manutenções
       const { data: manutencaoData, error: manutencaoError } = await supabase

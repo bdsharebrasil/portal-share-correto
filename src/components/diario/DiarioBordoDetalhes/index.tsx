@@ -72,15 +72,15 @@ const getPartnersFromClient = (client: any, clientPartnersByClientId?: Record<st
 // Calcular tempos dia/noite
 const calculateTimes = (entry: any) => {
   const result = calculateDayNightTimes({
-    dep_time: entry.dep_time,
-    pou_time: entry.pou_time,
-    total_time: entry.total_time
+    tempo_dep: entry.tempo_dep,
+    tempo_pou: entry.tempo_pou,
+    tempo_total: entry.tempo_total
   });
 
   return {
     ...entry,
-    night_hours: result.night_time,
-    day_time: result.day_time
+    horas_noturnas: result.night_time,
+    horas_diurnas: result.day_time
   };
 };
 
@@ -327,15 +327,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         supabase.from('tripulacao').select('id, nome_completo, canac, status').eq('status', 'ativo').order('nome_completo', { ascending: true }),
         supabase.from('aerodromes').select('*').order('designativo'),
         supabase.from('clientes').select('id, razao_social, cnpj, cotistas_aeronave(id_aeronave, percentual_sociedade)').order('razao_social'),
-        supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
-        supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
+        supabase.from('lancamentos_diario_bordo').select('*').eq('aeronave_id', aircraftId).order('numero_sequencial', { ascending: true }),
+        supabase.from('diario_mes').select('mes, ano').eq('aeronave_id', aircraftId).eq('fechado', false).order('ano', { ascending: false }).order('mes', { ascending: false }),
         supabase.from('cotistas_aeronave').select('*, clientes(id, razao_social)').eq('id_aeronave', aircraftId),
         supabase.from('socios_cliente').select('id, nome, cpf, cliente_id').order('nome')]
         );
 
         if (acRes.data) {
           setAircraft(acRes.data);
-          // Será carregado do logbook_months
+          // Será carregado do diario_mes
           setLastCelula(0);
         }
         // Get crew members from crew table
@@ -394,11 +394,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         if (loansRes.data) setLoans(loansRes.data || []);
 
         let { data: monthData } = await supabase.
-        from('logbook_months').
+        from('diario_mes').
         select('*').
-        eq('aircraft_id', aircraftId).
-        eq('month', selectedMonth).
-        eq('year', selectedYear).
+        eq('aeronave_id', aircraftId).
+        eq('mes', selectedMonth).
+        eq('ano', selectedYear).
         maybeSingle();
 
         logInfo(`📋 Buscando diário: aircraft=${aircraftId}, month=${selectedMonth}, year=${selectedYear}, resultado=${monthData ? 'ENCONTRADO' : 'NÃO ENCONTRADO'}`);
@@ -408,11 +408,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           setLastCelula(monthData.celula_anterior || 0);
         } else {
           const { data: lastMonthData } = await supabase.
-          from('logbook_months').
+          from('diario_mes').
           select('*').
-          eq('aircraft_id', aircraftId).
-          order('year', { ascending: false }).
-          order('month', { ascending: false }).
+          eq('aeronave_id', aircraftId).
+          order('ano', { ascending: false }).
+          order('mes', { ascending: false }).
           limit(1).
           maybeSingle();
 
@@ -664,8 +664,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
     // Ordenar por sequential_number (ordem correta do diário)
     filtered.sort((a: any, b: any) => {
-      const seqA = a.sequential_number || 0;
-      const seqB = b.sequential_number || 0;
+      const seqA = a.numero_sequencial || 0;
+      const seqB = b.numero_sequencial || 0;
       return sortDirection === 'asc' ? seqA - seqB : seqB - seqA;
     });
 
@@ -690,14 +690,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       // Buscar TODOS os voos do mês para recalcular a célula corretamente
       // Célula é contada por ciclo (AC → Corte), não por tempo de voo
       const { data: monthEntries } = await (supabase as any).
-      from('logbook_entries').
-      select('id, celula, sequential_number').
+      from('lancamentos_diario_bordo').
+      select('id, celula, numero_sequencial').
       eq('aeronave_id', aircraftId).
-      gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
-      lt('entry_date', selectedMonth === 12 ?
+      gte('data_registro', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
+      lt('data_registro', selectedMonth === 12 ?
       `${selectedYear + 1}-01-01` :
       `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`).
-      order('sequential_number', { ascending: true });
+      order('numero_sequencial', { ascending: true });
 
       const celulaAnterior = logbookMonth.celula_anterior ?? 0;
 
@@ -721,7 +721,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const newCelulaDisponvelFormatted = parseFloat(newCelulaDisponivel.toFixed(2));
 
       const { error } = await supabase.
-      from('logbook_months').
+      from('diario_mes').
       update({
         celula_atual: newCelulaAtualFormatted,
         celula_disponivel: newCelulaDisponvelFormatted
@@ -773,14 +773,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     try {
       // Buscar todas as entradas do mês ordenadas por sequential_number
       const { data: monthEntries } = await (supabase as any).
-      from('logbook_entries').
-      select('id, time, sequential_number').
+      from('lancamentos_diario_bordo').
+      select('id, time, numero_sequencial').
       eq('aeronave_id', aircraftId).
-      gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
-      lt('entry_date', selectedMonth === 12 ?
+      gte('data_registro', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
+      lt('data_registro', selectedMonth === 12 ?
       `${selectedYear + 1}-01-01` :
       `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`).
-      order('sequential_number', { ascending: true });
+      order('numero_sequencial', { ascending: true });
 
       if (!monthEntries || monthEntries.length === 0) {
         logInfo('✅ Nenhuma entrada de voo para recalcular célula');
@@ -805,7 +805,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       // Como o Supabase não permite bulk upsert com valores diferentes por linha,
       // fazer updates individuais em paralelo
       const updatePromises = updates.map(({ id, celula }) =>
-        supabase.from('logbook_entries').update({ celula }).eq('id', id)
+        supabase.from('lancamentos_diario_bordo').update({ celula }).eq('id', id)
       );
 
       const results = await Promise.all(updatePromises);
@@ -817,14 +817,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         logSuccess(`✅ Células recalculadas com sucesso para ${updates.length} entradas`);
         // Recarregar as entradas para refletir as mudanças
         const { data: refreshedEntries } = await supabase.
-        from('logbook_entries').
+        from('lancamentos_diario_bordo').
         select('*').
-        eq('aircraft_id', aircraftId).
+        eq('aeronave_id', aircraftId).
         gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
         lt('entry_date', selectedMonth === 12 ?
         `${selectedYear + 1}-01-01` :
         `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`).
-        order('sequential_number', { ascending: true });
+        order('numero_sequencial', { ascending: true });
 
         if (refreshedEntries) {
           // Atualizar apenas as entradas do mês selecionado no estado
@@ -873,7 +873,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
     try {
       const { error } = await supabase.
-      from('logbook_months').
+      from('diario_mes').
       update({ [field]: value }).
       eq('id', logbookMonth.id);
 
@@ -927,11 +927,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
 
       const { data: existingMonth } = await (supabase as any).
-      from('logbook_months').
+      from('diario_mes').
       select('*').
       eq('aeronave_id', aircraftId).
-      eq('month', nextMonth).
-      eq('year', nextYear).
+      eq('mes', nextMonth).
+      eq('ano', nextYear).
       maybeSingle();
 
       if (existingMonth) {
@@ -973,11 +973,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const handleFormSuccess = async () => {
     const { data } = await (supabase as any).
-    from('logbook_entries').
+    from('lancamentos_diario_bordo').
     select('*').
     eq('aeronave_id', aircraftId).
-    order('logbook_month_id', { ascending: false }).
-    order('sequential_number', { ascending: true });
+    order('diario_mes_id', { ascending: false }).
+    order('numero_sequencial', { ascending: true });
     setEntries(data || []);
   };
 
@@ -1096,18 +1096,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       };
 
       const entryPayload = {
-        logbook_month_id: logbookMonth.id,
+        diario_mes_id: logbookMonth.id,
         aeronave_id: aircraftId,
-        entry_date: newEntry.entry_date,
+        data_registro: newEntry.data_registro,
         departure_aerodrome: newEntry.departure_aerodrome,
         arrival_aerodrome: newEntry.arrival_aerodrome,
-        // Schema: ac_time, dep_time, pou_time, cor_time, crew_checkin_time são TIME WITHOUT TIME ZONE
+        // Schema: tempo_ac, tempo_dep, tempo_pou, tempo_cor, crew_checkin_time são TIME WITHOUT TIME ZONE
         // Devem ser enviados como string HH:MM ou null, NÃO como número
         crew_checkin_time: newEntry.crew_checkin_time || null,
-        ac_time: newEntry.ac_time || null,
-        dep_time: newEntry.dep_time || null,
-        pou_time: newEntry.pou_time || null,
-        cor_time: newEntry.cor_time || null,
+        tempo_ac: newEntry.ac_time || null,
+        tempo_dep: newEntry.dep_time || null,
+        tempo_pou: newEntry.pou_time || null,
+        tempo_cor: newEntry.cor_time || null,
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
@@ -1117,12 +1117,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         newEntry.is_loan ? null : newEntry.client_partner_id || null,
         loan_recipient_client_id: newEntry.is_loan ? newEntry.loan_recipient_client_id || null : null,
         loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
-        is_equal_split: newEntry.is_equal_split,
-        is_loan: newEntry.is_loan || false,
-        total_time: toNum(newEntry.total_time),
+        divisao_igual: newEntry.is_equal_split,
+        empreendimento: newEntry.is_loan || false,
+        tempo_total: toNum(newEntry.total_time),
         time: toNum(newEntry.time),
-        day_time: toNum(newEntry.day_time),
-        night_hours: toNum(newEntry.night_hours),
+        horas_diurnas: toNum(newEntry.day_time),
+        horas_noturnas: toNum(newEntry.night_hours),
         ifr_time: toNum(newEntry.ifr_time),
         pousos: toNum(newEntry.pousos),
         fuel_added: toNum(newEntry.fuel_added),
@@ -1172,7 +1172,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       if (isEdit) {
         // UPDATE
         const { error } = await supabase.
-        from('logbook_entries').
+        from('lancamentos_diario_bordo').
         update(entryPayload).
         eq('id', editingEntryIdForm);
 
@@ -1183,15 +1183,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       } else {
         // INSERT
         const { error } = await supabase.
-        from('logbook_entries').
+        from('lancamentos_diario_bordo').
         insert([{ ...entryPayload, aircraft_id: aircraftId }]);
 
         if (error) throw error;
 
         const { data: insertedData } = await supabase.
-        from('logbook_entries').
+        from('lancamentos_diario_bordo').
         select('id').
-        eq('aircraft_id', aircraftId).
+        eq('aeronave_id', aircraftId).
         eq('entry_date', newEntry.entry_date).
         eq('departure_aerodrome', newEntry.departure_aerodrome).
         eq('arrival_aerodrome', newEntry.arrival_aerodrome).
@@ -1403,11 +1403,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       // Recarregar entradas
       const { data: updatedEntries } = await supabase.
-      from('logbook_entries').
+      from('lancamentos_diario_bordo').
       select('*').
       eq('aeronave_id', aircraftId).
-      order('logbook_month_id', { ascending: false }).
-      order('sequential_number', { ascending: true });
+      order('diario_mes_id', { ascending: false }).
+      order('numero_sequencial', { ascending: true });
 
       if (updatedEntries) {
         setEntries(updatedEntries);
@@ -1573,7 +1573,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
     try {
       const { data: entryToDelete } = await supabase.
-      from('logbook_entries').
+      from('lancamentos_diario_bordo').
       select('*').
       eq('id', id).
       single();
@@ -1602,7 +1602,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
       }
 
-      const { error } = await supabase.from('logbook_entries').delete().eq('id', id);
+      const { error } = await supabase.from('lancamentos_diario_bordo').delete().eq('id', id);
       if (error) throw error;
 
       const entryDate = new Date(entryToDelete.entry_date);
@@ -1622,11 +1622,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       toast.success("Lançamento deletado com sucesso!");
 
       const { data } = await supabase.
-      from('logbook_entries').
+      from('lancamentos_diario_bordo').
       select('*').
       eq('aeronave_id', aircraftId).
-      order('logbook_month_id', { ascending: false }).
-      order('sequential_number', { ascending: true });
+      order('diario_mes_id', { ascending: false }).
+      order('numero_sequencial', { ascending: true });
       if (data) {
         setEntries(data);
         // Subtrair o tempo do voo deletado
@@ -1678,11 +1678,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const handleOpenCreateMonthDialog = async () => {
     try {
       const { data: lastMonthData } = await (supabase as any).
-      from('logbook_months').
+      from('diario_mes').
       select('*').
       eq('aeronave_id', aircraftId).
-      order('year', { ascending: false }).
-      order('month', { ascending: false }).
+      order('ano', { ascending: false }).
+      order('mes', { ascending: false }).
       limit(1).
       single();
 
@@ -1719,11 +1719,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const targetYear = monthData.year || selectedYear;
 
       const { data: existingMonth, error: checkError } = await (supabase as any).
-      from('logbook_months').
+      from('diario_mes').
       select('id, month, year').
       eq('aeronave_id', aircraftId).
-      eq('month', targetMonth).
-      eq('year', targetYear).
+      eq('mes', targetMonth).
+      eq('ano', targetYear).
       maybeSingle();
 
       if (checkError) {
@@ -1737,7 +1737,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
 
       const { data: newMonth, error } = await supabase.
-      from('logbook_months').
+      from('diario_mes').
       insert([monthData]).
       select().
       single();
@@ -3234,10 +3234,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 parseFloat(technicalStatus.airframe_hours_next_maintenance) :
                 logbookMonth.celula_prox_revisao;
 
-                // Atualizar logbook_months com celula_prox_revisao e recalcular disponivel
+                // Atualizar diario_mes com celula_prox_revisao e recalcular disponivel
                 const celulaDisponivel = parseFloat(((celulaProxRevisao ?? 0) - (logbookMonth.celula_atual ?? 0)).toFixed(2));
                 const { error: monthError } = await supabase.
-                from('logbook_months').
+                from('diario_mes').
                 update({
                   celula_prox_revisao: celulaProxRevisao,
                   celula_disponivel: celulaDisponivel
@@ -3249,13 +3249,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 // Salvar os dados da situação técnica para cada entrada de log do mês atual
                 const {
                   error
-                } = await (supabase as any).from('logbook_entries').update({
+                } = await (supabase as any).from('lancamentos_diario_bordo').update({
                   last_maintenance_type: technicalStatus.last_maintenance_type || null,
                   airframe_hours_next_maintenance: technicalStatus.airframe_hours_next_maintenance ? parseFloat(technicalStatus.airframe_hours_next_maintenance) : null,
                   next_maintenance_type: technicalStatus.next_maintenance_type || null,
                   maintenance_approval_responsible: technicalStatus.maintenance_approval_responsible || null,
                   pilot_signature_date: new Date().toISOString()
-                }).eq('aircraft_id', aircraftId).eq('entry_month', selectedMonth).eq('entry_year', selectedYear);
+                }).eq('aeronave_id', aircraftId).eq('entry_month', selectedMonth).eq('entry_year', selectedYear);
                 if (error) throw error;
 
                 // Atualizar estado local
@@ -3271,7 +3271,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 // Recarregar entries
                 const {
                   data
-                } = await supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', {
+                } = await supabase.from('lancamentos_diario_bordo').select('*').eq('aeronave_id', aircraftId).order('sequential_number', {
                   ascending: true
                 });
                 setEntries(data || []);
@@ -3492,7 +3492,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.data}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
-                        <span className="text-slate-500 text-[10px]" title={`Sequência do mês: ${e.sequential_number}`}>#{e.sequential_number}</span>
+                        <span className="text-slate-500 text-[10px]" title={`Sequência do mês: ${e.numero_sequencial}`}>#{e.numero_sequencial}</span>
                         <span className="text-white font-bold">{formatDateFromISO(e.entry_date)}</span>
                       </div>
                     </td>

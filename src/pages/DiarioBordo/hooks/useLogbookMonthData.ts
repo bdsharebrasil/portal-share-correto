@@ -23,11 +23,11 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
         try {
           // Buscar o último mês com dados (mais recente)
           const { data: monthsData, error: monthError } = await supabase
-            .from('logbook_months')
-            .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, year, month')
-            .eq('aircraft_id', ac.id)
-            .order('year', { ascending: false })
-            .order('month', { ascending: false })
+            .from('diario_mes')
+            .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, ano, mes')
+            .eq('aeronave_id', ac.id)
+            .order('ano', { ascending: false })
+            .order('mes', { ascending: false })
             .limit(1);
 
           if (monthError || !monthsData || monthsData.length === 0) {
@@ -40,10 +40,10 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
           // Buscar TODOS os voos do mês para recalcular a célula corretamente
           // Célula é contada por ciclo (AC → Corte), não por tempo de voo
           const { data: monthEntries } = await supabase
-            .from('logbook_entries')
+            .from('lancamentos_diario_bordo')
             .select('id, celula')
-            .eq('logbook_month_id', monthData.id)
-            .order('sequential_number', { ascending: true });
+            .eq('diario_mes', monthData.id)
+            .order('numero_sequencial', { ascending: true });
 
           // Recalcular célula_atual baseado no último registro do mês
           // A célula final é o valor acumulado do último voo (cada voo soma 1 ciclo)
@@ -64,7 +64,7 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
           // Se houve diferença, atualizar no banco
           if (Math.abs((monthData.celula_atual ?? 0) - calculatedCelulaAtual) > 0.01) {
             await supabase
-              .from('logbook_months')
+              .from('diario_mes')
               .update({
                 celula_atual: calculatedCelulaAtual,
                 celula_disponivel: calculatedCelulaDisponivel
@@ -80,7 +80,7 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
             monthDataMap[ac.id] = monthData;
           }
         } catch (err) {
-          console.error(`Erro ao carregar logbook_months para ${ac.registration}:`, err);
+          console.error(`Erro ao carregar diario_mes para ${ac.registration}:`, err);
           monthDataMap[ac.id] = null;
         }
       }

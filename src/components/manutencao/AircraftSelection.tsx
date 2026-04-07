@@ -50,15 +50,15 @@ const AeronaveSelecao: React.FC<AeronaveSelecaoProps> = ({ onSelect }) => {
       const transformedData: AeronaveResumo[] = [];
 
       for (const ac of data || []) {
-        // Somar total_time de todos os logbook_entries da aeronave
+        // Somar tempo_total de todos os lancamentos_diario_bordo da aeronave
         const { data: logbookEntries, error: logbookError } = await (supabase as any)
-          .from('logbook_entries')
-          .select('total_time')
-          .eq('aircraft_id', ac.id);
+          .from('lancamentos_diario_bordo')
+          .select('tempo_total')
+          .eq('aeronave_id', ac.id);
 
         if (logbookError) console.error('Erro ao buscar horas:', logbookError);
 
-        const totalHours = (logbookEntries || []).reduce((sum, entry) => sum + (entry.total_time || 0), 0);
+        const totalHours = (logbookEntries || []).reduce((sum, entry) => sum + (entry.tempo_total || 0), 0);
 
         transformedData.push({
           id: ac.id,

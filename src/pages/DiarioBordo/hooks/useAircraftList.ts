@@ -62,15 +62,15 @@ export function useAircraftList() {
       }
     };
 
-    // Subscribe to realtime changes in logbook_months
+    // Subscribe to realtime changes in diario_mes
     const subscription = supabase
-      .channel('logbook-months-changes')
+      .channel('diario-mes-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'logbook_months'
+          table: 'diario_mes'
         },
         () => {
           fetchAircraft();

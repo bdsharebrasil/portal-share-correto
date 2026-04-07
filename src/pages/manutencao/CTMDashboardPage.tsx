@@ -43,11 +43,11 @@ export default function CTMDashboardPage() {
         (aircraftData || []).map(async (ac) => {
           try {
             const { data: logbookData } = await supabase
-              .from('logbook_months')
+              .from('diario_mes')
               .select('celula_atual, celula_prox_revisao')
-              .eq('aircraft_id', ac.id)
-              .order('year', { ascending: false })
-              .order('month', { ascending: false })
+              .eq('aeronave_id', ac.id)
+              .order('ano', { ascending: false })
+              .order('mes', { ascending: false })
               .limit(1)
               .maybeSingle();
 

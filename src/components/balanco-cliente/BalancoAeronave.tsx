@@ -34,6 +34,8 @@ interface HorasDataItem {
 }
 
 interface LogbookEntry {
+  tempo_total: number;
+  clientes_id: string;
   id: string;
   client_id: string;
   aeronave_id: string;
@@ -88,22 +90,22 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
 
       const { data, error } = await query;
 
-      // Se não houver dados consolidados, buscar de logbook_entries
+      // Se não houver dados consolidados, buscar de lancamentos_diario_bordo
       if (!error && (!data || data.length === 0)) {
         let fallbackQuery = supabase
-          .from('logbook_entries')
+          .from('lancamentos_diario_bordo')
           .select(`
             id,
-            client_id,
+            clientes_id,
             aeronave_id,
-            entry_date,
-            total_time,
-            aircraft:aeronave_id(registration)
+            data_registro,
+            tempo_total,
+            aircraft:aeronave_id(matricula)
           `)
           .eq('clientes_id', clienteId)
-          .gte('entry_date', periodo.inicio)
-          .lte('entry_date', periodo.fim)
-          .order('entry_date', { ascending: false });
+          .gte('data_registro', periodo.inicio)
+          .lte('data_registro', periodo.fim)
+          .order('data_registro', { ascending: false });
 
         if (aeronaveId) {
           fallbackQuery = fallbackQuery.eq('aeronave_id', aeronaveId);
@@ -112,13 +114,13 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
         const { data: fallbackData, error: fallbackError } = await fallbackQuery;
 
         if (fallbackError) {
-          console.error('Erro ao buscar logbook_entries:', fallbackError);
+          console.error('Erro ao buscar lancamentos_diario_bordo:', fallbackError);
           return [];
         }
 
         const fallbackEntries = fallbackData as unknown as LogbookEntry[] | null;
 
-        // Transformar dados de logbook_entries para formato compatível
+        // Transformar dados de lancamentos_diario_bordo para formato compatível
         if (fallbackEntries && fallbackEntries.length > 0) {
           const horasAgrupadas: Record<string, HorasDataItem> = {};
 
@@ -131,9 +133,9 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
             if (!horasAgrupadas[key]) {
               horasAgrupadas[key] = {
                 id: `${entry.aeronave_id}-${ano}-${mes}`,
-                cliente_id: entry.client_id,
+                clientes_id: entry.clientes_id,
                 aeronave_id: entry.aeronave_id,
-                aeronave_registro: entry.aircraft?.matricula || entry.aircraft?.registration || 'N/A',
+                aeronave_registro: entry.aircraft?.matricula || 'N/A',
                 ano,
                 mes,
                 data_referencia: new Date(ano, mes - 1, 1).toISOString().split('T')[0],
@@ -148,7 +150,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
               };
             }
 
-            horasAgrupadas[key].horas_voadas = (horasAgrupadas[key].horas_voadas || 0) + (entry.total_time || 0);
+            horasAgrupadas[key].horas_voadas = (horasAgrupadas[key].horas_voadas || 0) + (entry.tempo_total || 0);
           });
 
           // Calcular totais de aeronave por mês
@@ -160,7 +162,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
                        (d.getMonth() + 1) === hora.mes &&
                        e.aeronave_id === hora.aeronave_id;
               })
-              .reduce((sum, e) => sum + (e.total_time || 0), 0);
+              .reduce((sum, e) => sum + (e.tempo_total || 0), 0);
 
             hora.horas_totais_aeronave = totalAeronave;
             hora.percentual_uso = totalAeronave > 0 ? ((hora.horas_voadas || 0) / totalAeronave) * 100 : 0;
