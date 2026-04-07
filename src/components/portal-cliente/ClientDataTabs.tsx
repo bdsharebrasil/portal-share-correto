@@ -239,9 +239,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       try {
         const { data: allFuelData, error } = await supabase
           .from('abastecimentos')
-          .select('*, aeronave:aeronave_id(matricula), client:client_id(razao_social)')
-          .eq('aircraft_id', aircraftId)
-          .eq('cliente_id', forClientId)
+          .select('*')
+          .eq('aeronave_id', aircraftId)
+          .eq('id_clientes', forClientId)
           .order('data', { ascending: false })
           .limit(50);
 
