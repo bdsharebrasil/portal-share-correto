@@ -220,7 +220,7 @@ export default function VencimentosTripulacao() {
     return vencimentos.filter(tripulante => {
       // Filtrar por nome
       const matchSearch = tripulante.tripulanteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tripulante.habilitacoes.some(h => h.habilitacao.toLowerCase().includes(searchTerm.toLowerCase()));
+                         tripulante.habilitacoes.some(h => h.habilitacao && h.habilitacao.toLowerCase().includes(searchTerm.toLowerCase()));
 
       // Filtrar por status: verifica se tripulante tem habilitações do status selecionado
       let matchStatus = true;
