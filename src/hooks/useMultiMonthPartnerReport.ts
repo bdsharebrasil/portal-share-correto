@@ -45,27 +45,27 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
 
     supabase
       .from("abastecimentos")
-      .select("id, data, data_pagamento, trecho, local, litros, valor_unitario, valor_total, partner_name, partner_index, tipo_faturamento, status_pagamento, observacao, comanda, nf, comanda_url, nota_url, boleto_url, comprovante_pagamento, abastecedor, abastecimento_galoes")
+      .select("id, data, data_pagamento, trecho, local, litros, valor_unitario, valor_total, socio_nome, partner_index, tipo_faturamento, status_pagamento, observacao, comanda, nf, comanda_url, nota_url, boleto_url, comprovante_pagamento, abastecedor, abastecimento_galoes")
       .eq("id_clientes", clientId)
       .order("data"),
 
     supabase
       .from("partner_expenses")
-      .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
+      .select("id, tipo_despesa, descricao, valor_total, nome_socio, cpf_socio, status, data_vencimento, data_pagamento, categoria, metodo_pagamento, prazo, numero_fatura, nome_banco, id_referencia, tipo_referencia")
       .eq("clientes_id", clientId)
       .gte("data_vencimento", startDate)
       .lte("data_vencimento", endDate)
-      .not("assigned_partner_name", "is", null)
+      .not("nome_socio", "is", null)
       .order("data_vencimento"),
 
     supabase
       .from("partner_expenses")
-      .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
+      .select("id, tipo_despesa, descricao, valor_total, nome_socio, cpf_socio, status, data_vencimento, data_pagamento, categoria, metodo_pagamento, prazo, numero_fatura, nome_banco, id_referencia, tipo_referencia")
       .eq("clientes_id", clientId)
       .gte("data_vencimento", startDate)
       .lte("data_vencimento", endDate)
-      .is("assigned_partner_name", null)
-      .neq("expense_type", "DESPESAS DE VIAGEM")
+      .is("nome_socio", null)
+      .neq("tipo_despesa", "DESPESAS DE VIAGEM")
       .order("data_vencimento"),
 
     supabase
@@ -76,7 +76,7 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
 
     supabase
       .from("travel_expense_reports")
-      .select('id, numero_relatorio, data_inicio, data_fim, rota, dias_count, status, total_amount, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, client_partner, crew_member_name, crew_member_name_2, crew_member_id, crew_member_id2, aircraft_matricula, observations, url_pdf')
+      .select('id, numero_relatorio, data_inicio, data_fim, rota, dias_count, status, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, socios_cliente_id, nome_tripulante, nome_tripulante_2, crew_member_id, crew_member_id2, aeronave_matricula, observacoes, url_pdf')
       .eq("clientes_id", clientId)
       .gte("data_inicio", startDate)
       .lte("data_inicio", endDate)

@@ -3,17 +3,32 @@ import App from './App.tsx'
 import './index.css'
 import './lib/fetch-retry' // Initialize fetch retry interceptor
 
-// Remove Service Workers corrompidos (sw.js não existe neste projeto)
+// Register service worker for PWA (offline support)
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(r => {
-      r.unregister();
-      console.log('[SW] Removido:', r.scope);
+  // Only register in production or after build
+  if (!import.meta.env.DEV) {
+    navigator.serviceWorker.register(new URL('./registerSW.js', import.meta.url), {
+      scope: '/',
+    }).then(reg => {
+      console.log('[PWA] Service Worker registered successfully');
+
+      // Listen for updates
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              console.log('[PWA] New version available, please reload');
+              // Optional: Show update notification
+              window.dispatchEvent(new Event('pwa-update'));
+            }
+          });
+        }
+      });
+    }).catch(err => {
+      console.error('[PWA] Service Worker registration failed:', err);
     });
-  });
-  caches.keys().then(keys =>
-    keys.forEach(k => caches.delete(k))
-  );
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

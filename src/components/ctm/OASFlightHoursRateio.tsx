@@ -88,13 +88,13 @@ export function OASFlightHoursRateio({
     enabled: !!aircraftId,
   });
 
-  // Fetch logbook data grouped by client_partner_id
+  // Fetch logbook data grouped by socios_cliente_id
   const { data: flightData, isLoading } = useQuery({
     queryKey: ["oas-flight-hours-v2", aircraftId, periodoInicio, periodoFim],
     queryFn: async () => {
       let query = supabase
         .from("logbook_entries")
-        .select("client_partner_id, entry_date, total_time")
+        .select("socios_cliente_id, entry_date, total_time")
         .eq("aircraft_id", aircraftId);
 
       if (periodoInicio) query = query.gte("entry_date", periodoInicio);
@@ -116,12 +116,12 @@ export function OASFlightHoursRateio({
     const partners = aircraftData?.partners || [];
     const partnerMap = new Map(partners.map((p: any) => [p.id, p.nome]));
 
-    // Group by client_partner_id
+    // Group by socios_cliente_id
     const byPartner: Record<string, { name: string; minutes: number; isNonPartner: boolean }> = {};
     let total = 0;
 
     flightData.forEach((entry: any) => {
-      const partnerId = entry.socio_cliente_id_id || "__shared__";
+      const partnerId = entry.socios_cliente_id || "__shared__";
       const minutes = decimalToMinutes(entry.total_time || 0);
 
       if (!byPartner[partnerId]) {

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Plane, Clock, Wrench, Fuel, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, AreaChart, Area } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface BalancoAeronaveProps {
@@ -14,12 +14,68 @@ interface BalancoAeronaveProps {
   periodo: { inicio: string; fim: string };
 }
 
+interface HorasDataItem {
+  id?: string;
+  cliente_id?: string;
+  clientes_id?: string;
+  aeronave_id?: string;
+  aeronave_registro?: string;
+  ano: number;
+  mes: number;
+  data_referencia?: string;
+  horas_voadas?: number;
+  horas_totais_aeronave?: number;
+  percentual_uso?: number;
+  fonte_diario_bordo?: boolean;
+  fonte_portal_cliente?: boolean;
+  validado?: boolean;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
+interface LogbookEntry {
+  id: string;
+  client_id: string;
+  aeronave_id: string;
+  entry_date: string;
+  total_time: number | null;
+  aircraft?: {
+    registration?: string;
+    matricula?: string;
+  };
+}
+
+interface CustoItem {
+  data: string;
+  valor?: number | null;
+  valor_total?: number | null;
+  categoria?: string | null;
+  status?: string | null;
+  aeronave_registro?: string | null;
+}
+
+interface HorasPorMesItem {
+  mes: string;
+  label: string;
+  horas: number;
+}
+
+interface CustosCategoriaData {
+  name: string;
+  value: number;
+}
+
+interface CustosMensaisItem {
+  mes: string;
+  valor: number;
+}
+
 export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeronaveProps) {
   // Buscar horas voadas consolidadas
-  const { data: horasData = [], isLoading: loadingHoras } = useQuery({
+  const { data: horasData = [], isLoading: loadingHoras } = useQuery<HorasDataItem[], Error>({
     queryKey: ['horas-aeronave', clienteId, aeronaveId, periodo],
     queryFn: async () => {
-      let query = (supabase as any)
+      let query = supabase
         .from('horas_mensais_consolidadas')
         .select('*')
         .eq('clientes_id', clienteId)
@@ -30,11 +86,11 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
         query = query.eq('aeronave_id', aeronaveId);
       }
 
-      let { data, error } = await query;
+      const { data, error } = await query;
 
       // Se não houver dados consolidados, buscar de logbook_entries
       if (!error && (!data || data.length === 0)) {
-        let fallbackQuery = (supabase as any)
+        let fallbackQuery = supabase
           .from('logbook_entries')
           .select(`
             id,
@@ -60,22 +116,24 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
           return [];
         }
 
-        // Transformar dados de logbook_entries para formato compatível
-        if (fallbackData && fallbackData.length > 0) {
-          const horasAgrupadas: Record<string, any> = {};
+        const fallbackEntries = fallbackData as unknown as LogbookEntry[] | null;
 
-          fallbackData.forEach((entry: any) => {
+        // Transformar dados de logbook_entries para formato compatível
+        if (fallbackEntries && fallbackEntries.length > 0) {
+          const horasAgrupadas: Record<string, HorasDataItem> = {};
+
+          fallbackEntries.forEach((entry) => {
             const data = new Date(entry.entry_date);
             const ano = data.getFullYear();
             const mes = data.getMonth() + 1;
-            const key = `${entry.aircraft_id}-${ano}-${mes}`;
+            const key = `${entry.aeronave_id}-${ano}-${mes}`;
 
             if (!horasAgrupadas[key]) {
               horasAgrupadas[key] = {
-                id: `${entry.aircraft_id}-${ano}-${mes}`,
+                id: `${entry.aeronave_id}-${ano}-${mes}`,
                 cliente_id: entry.client_id,
-                aeronave_id: entry.aircraft_id,
-                aeronave_registro: entry.aircraft?.matricula || 'N/A',
+                aeronave_id: entry.aeronave_id,
+                aeronave_registro: entry.aircraft?.matricula || entry.aircraft?.registration || 'N/A',
                 ano,
                 mes,
                 data_referencia: new Date(ano, mes - 1, 1).toISOString().split('T')[0],
@@ -90,22 +148,22 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
               };
             }
 
-            horasAgrupadas[key].horas_voadas += entry.total_time || 0;
+            horasAgrupadas[key].horas_voadas = (horasAgrupadas[key].horas_voadas || 0) + (entry.total_time || 0);
           });
 
           // Calcular totais de aeronave por mês
-          Object.values(horasAgrupadas).forEach((hora: any) => {
-            const totalAeronave = fallbackData
-              .filter((e: any) => {
+          Object.values(horasAgrupadas).forEach((hora) => {
+            const totalAeronave = fallbackEntries
+              .filter((e) => {
                 const d = new Date(e.entry_date);
                 return d.getFullYear() === hora.ano &&
-                  (d.getMonth() + 1) === hora.mes &&
-                  e.aircraft_id === hora.aeronave_id;
+                       (d.getMonth() + 1) === hora.mes &&
+                       e.aeronave_id === hora.aeronave_id;
               })
-              .reduce((sum: number, e: any) => sum + (e.total_time || 0), 0);
+              .reduce((sum, e) => sum + (e.total_time || 0), 0);
 
             hora.horas_totais_aeronave = totalAeronave;
-            hora.percentual_uso = totalAeronave > 0 ? (hora.horas_voadas / totalAeronave) * 100 : 0;
+            hora.percentual_uso = totalAeronave > 0 ? ((hora.horas_voadas || 0) / totalAeronave) * 100 : 0;
           });
 
           return Object.values(horasAgrupadas);
@@ -119,7 +177,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
   });
 
   // Buscar custos reais do extrato do cliente (fallback robusto quando histórico consolidado está vazio)
-  const { data: custosData = [], isLoading: loadingCustos } = useQuery({
+  const { data: custosData = [], isLoading: loadingCustos } = useQuery<CustoItem[], Error>({
     queryKey: ['custos-aeronave', clienteId, aeronaveId, periodo],
     queryFn: async () => {
       let aeronaveRegistro: string | null = null;
@@ -153,17 +211,17 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
   });
 
   // Calcular totais
-  const totalHoras = horasData.reduce((sum: number, h: any) => sum + (h.horas_voadas || 0), 0);
+  const totalHoras = horasData.reduce((sum, h) => sum + (h.horas_voadas || 0), 0);
   const totalCustos = custosData.reduce(
-    (sum: number, c: any) => sum + Number(c.valor_total ?? c.valor ?? 0),
+    (sum, c) => sum + Number(c.valor_total ?? c.valor ?? 0),
     0
   );
   const percentualMedio = horasData.length > 0
-    ? horasData.reduce((sum: number, h: any) => sum + (h.percentual_uso || 0), 0) / horasData.length
+    ? horasData.reduce((sum, h) => sum + (h.percentual_uso || 0), 0) / horasData.length
     : 0;
 
   // Preparar dados para gráfico de horas por mês
-  const horasPorMes = horasData.reduce((acc: any[], item: any) => {
+  const horasPorMes = horasData.reduce<HorasPorMesItem[]>((acc, item) => {
     const key = `${item.ano}-${String(item.mes).padStart(2, '0')}`;
     const existing = acc.find(a => a.mes === key);
     if (existing) {
@@ -179,7 +237,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
   }, []).sort((a, b) => a.mes.localeCompare(b.mes)).slice(-12);
 
   // Preparar dados para gráfico de custos por categoria
-  const custosPorCategoria = custosData.reduce((acc: Record<string, number>, item: any) => {
+  const custosPorCategoria = custosData.reduce<Record<string, number>>((acc, item) => {
     const categoria = item.categoria || 'Sem categoria';
     const valor = Number(item.valor_total ?? item.valor ?? 0);
     acc[categoria] = (acc[categoria] || 0) + valor;
@@ -192,7 +250,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
   })).sort((a, b) => b.value - a.value);
 
   // Custos mensais
-  const custosMensais = custosData.reduce((acc: any[], item: any) => {
+  const custosMensais = custosData.reduce<CustosMensaisItem[]>((acc, item) => {
     const mes = format(new Date(item.data), 'MMM/yy', { locale: ptBR });
     const existing = acc.find(a => a.mes === mes);
     const valor = Number(item.valor_total ?? item.valor ?? 0);
@@ -374,18 +432,18 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
                   formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Valor']}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="valor"
-                  stroke="hsl(var(--primary))"
+                <Line 
+                  type="monotone" 
+                  dataKey="valor" 
+                  stroke="hsl(var(--primary))" 
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--primary))' }}
                 />

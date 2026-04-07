@@ -278,27 +278,27 @@ export const FinanceiroFilters = ({
               </Badge>
             </motion.div>
           )}
-          {filters.dataRange?.from && (
+          {filters.dateRange?.from && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
                 className="gap-1 cursor-pointer hover:bg-destructive/20"
                 onClick={() => removeFilter('dateRange')}
               >
-                Período: {format(filters.dataRange.from, 'dd/MM', { locale: ptBR })} —{' '}
-                {filters.dataRange.to ? format(filters.dataRange.to, 'dd/MM', { locale: ptBR }) : '...'}
+                Período: {format(filters.dateRange.from, 'dd/MM', { locale: ptBR })} —{' '}
+                {filters.dateRange.to ? format(filters.dateRange.to, 'dd/MM', { locale: ptBR }) : '...'}
                 <X className="h-3 w-3" />
               </Badge>
             </motion.div>
           )}
-          {(filters.valorRange[0] > 0 || filters.valorRange[1] < maxAmount) && (
+          {(filters.amountRange[0] > 0 || filters.amountRange[1] < maxAmount) && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
                 className="gap-1 cursor-pointer hover:bg-destructive/20"
                 onClick={() => removeFilter('amountRange')}
               >
-                Valor: {formatCurrency(filters.valorRange[0])} — {formatCurrency(filters.valorRange[1])}
+                Valor: {formatCurrency(filters.amountRange[0])} — {formatCurrency(filters.amountRange[1])}
                 <X className="h-3 w-3" />
               </Badge>
             </motion.div>

@@ -50,7 +50,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
         .from('logbook_entries')
         .select('total_time')
         .eq('client_id', clienteId)
-        .is('client_partner_id', null)
+        .is('socios_cliente_id', null)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim);
 
@@ -87,7 +87,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       if (socioId) {
         let qLog = supabase
           .from('logbook_entries')
-          .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, partner_name, aircraft_id, client_partner_id, is_equal_split')
+          .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, socios_nome, aircraft_id, socios_cliente_id, is_equal_split')
           .eq('client_id', clienteId)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim)
@@ -99,16 +99,16 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
 
         const { data: allEntries } = await qLog;
 
-        // Filtrar: voos do sócio (client_partner_id = socioId) OU voos compartilhados (client_partner_id = NULL)
+        // Filtrar: voos do sócio (socios_cliente_id = socioId) OU voos compartilhados (socios_cliente_id = NULL)
         const filtered = (allEntries || []).filter((e: any) =>
-          e.client_partner_id === socioId || e.client_partner_id === null
+          e.socios_cliente_id === socioId || e.socios_cliente_id === null
         );
 
         // Adicionar informação de tipo (próprio vs compartilhado)
         return filtered.map((e: any) => ({
           ...e,
-          _isSocioOwned: e.client_partner_id === socioId,
-          _isShared: e.client_partner_id === null
+          _isSocioOwned: e.socios_cliente_id === socioId,
+          _isShared: e.socios_cliente_id === null
         }));
       }
 
@@ -151,7 +151,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       // Fallback para logbook_entries se não houver dados consolidados
       let qLog = supabase
         .from('logbook_entries')
-        .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, partner_name, aircraft_id')
+        .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, socios_nome, aircraft_id')
         .eq('client_id', clienteId)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim)

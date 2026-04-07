@@ -556,7 +556,7 @@ export function CTMServiceItemsForm({
       // Get additional service order data
       const { data: orderData } = await (supabase as any)
         .from("ctm_ordens_servico")
-        .select("aeronave_id, client_id, client_partner_id")
+        .select("aeronave_id, cliente_id, socio_cliente_id_id")
         .eq("id", orderId)
         .single();
 

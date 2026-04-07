@@ -147,7 +147,7 @@ export function TransactionEditModal({
         const fuelId = transaction.referencia_id || transaction.id
         const { data: fuel } = await supabase
           .from("abastecimentos")
-          .select("id, data, data_pagamento, data_vencimento_boleto, descricao, local, observacao, abastecedor, status_pagamento, partner_name, nf, nota_url, banco")
+          .select("id, data, data_pagamento, data_vencimento_boleto, descricao, local, observacao, abastecedor, status_pagamento, socio_nome, nf, nota_url, banco")
           .eq("id", fuelId)
           .maybeSingle()
 
