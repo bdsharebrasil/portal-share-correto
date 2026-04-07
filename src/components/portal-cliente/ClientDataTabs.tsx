@@ -168,16 +168,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             departure_aerodrome,
             arrival_aerodrome,
             trecho,
-            client_partner_id
+            socios_cliente_id
           `)
-          .eq('aircraft_id', aircraftId)
-          .eq('cliente_id', forClientId)
+          .eq('aeronave_id', aircraftId)
+          .eq('clientes_id', forClientId)
           .order('entry_date', { ascending: false })
           .limit(100);
 
-        // Se sócio selecionado tiver id, filtra por client_partner_id
+        // Se sócio selecionado tiver id, filtra por socios_cliente_id
         if (selectedPartner?.id) {
-          query = query.eq('client_partner_id', selectedPartner.id);
+          query = query.eq('socios_cliente_id', selectedPartner.id);
         }
 
         const { data: allLogbookData, error } = await query;
