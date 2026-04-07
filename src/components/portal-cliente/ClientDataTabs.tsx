@@ -394,8 +394,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
       if (storageError) throw storageError;
 
-      const { error: dbError } = await supabase
-        .from('client_contracts')
+      const { error: dbError } = await (supabase as any)
+        .from('contratos_cliente')
         .delete()
         .eq('id', contractId);
 
