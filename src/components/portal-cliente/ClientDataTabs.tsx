@@ -141,7 +141,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load contracts
       let contractsData = null;
       try {
-        const result = await supabase
+        const result = await (supabase as any)
           .from('contratos_cliente')
           .select('*')
           .eq('cliente_id', forClientId)
