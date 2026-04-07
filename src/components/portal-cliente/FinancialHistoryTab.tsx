@@ -10,10 +10,10 @@ import { toast } from "sonner";
 
 interface ReembolsoRecord {
   id: string;
-  date: string;
-  amount: number;
+  data: string;
+  valor: number;
   status: string;
-  category?: string;
+  categoria?: string;
   grupo_categoria?: string;
   percentual?: number;
   boleto_url?: string;
