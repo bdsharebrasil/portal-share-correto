@@ -108,7 +108,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
         let qOwned = supabase
           .from('logbook_entries')
           .select('entry_date, total_time, aircraft_id')
-          .eq('client_id', clienteId)
+          .eq('clientes_id', clienteId)
           .eq('socios_cliente_id', socioId)
           .gte('entry_date', periodo.inicio)
           .lte('entry_date', periodo.fim);
