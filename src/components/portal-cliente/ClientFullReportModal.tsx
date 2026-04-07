@@ -235,10 +235,10 @@ export function ClientFullReportModal({
             valor: f.valor_total || 0
           }))
         },
-        ctmItems: (ctmData || []).map(c => ({
-          item: c.item_name,
-          horasRestantes: c.remaining_hours || 0,
-          ultimaTroca: c.last_change_date || ''
+        ctmItems: (ctmData || []).map((c: any) => ({
+          item: c.item_name || c.nome_item || '',
+          horasRestantes: c.remaining_hours || c.horas_restantes || 0,
+          ultimaTroca: c.last_change_date || c.data_ultima_troca || ''
         })),
         rateioData: (rateioData || []).slice(0, 10).map((r: any) => ({
           data: r.data_lancamento,
