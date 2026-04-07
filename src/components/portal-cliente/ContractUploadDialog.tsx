@@ -64,7 +64,7 @@ export function ContractUploadDialog({ open, onOpenChange, clientId, onSuccess }
         .from('contratos_cliente')
         .insert({
           cliente_id: clientId,
-          nome_arquivo: file.nome,
+          nome_arquivo: file.name,
           caminho_arquivo: fileName,
           tamanho_arquivo: file.size,
           descricao: description.trim(),
