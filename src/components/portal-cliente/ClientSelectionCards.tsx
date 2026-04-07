@@ -6,12 +6,12 @@ import { Plane } from "lucide-react";
 interface ClientAircraft {
   id_aeronave: string;
   percentual_sociedade: number;
-  aircraft: {
+  aeronave: {
     id: string;
-    registration: string;
-    manufacturer: string;
-    model: string;
-    year: string;
+    matricula: string;
+    fabricante: string;
+    modelo: string;
+    ano: string;
   };
 }
 

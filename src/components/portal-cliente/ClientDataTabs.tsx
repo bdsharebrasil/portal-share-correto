@@ -23,14 +23,14 @@ export interface ClientDataTabsProps {
 
 interface TravelReportReconciliation {
   id: string;
-  description: string;
-  amount: string | number;
+  descricao: string;
+  valor: string | number;
   status: string;
-  date: string;
+  data: string;
   prazo_pagamento?: string;
-  reference_id?: string;
-  doc?: string;
-  partner_name?: string;
+  referencia_id?: string;
+  documento?: string;
+  nome_socio?: string;
   pdf_url?: string | null;
 }
 

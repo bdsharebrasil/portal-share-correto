@@ -7,22 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface BankReconciliation {
   id: string;
-  date: string;
-  description: string;
-  amount: number;
+  data: string;
+  descricao: string;
+  valor: number;
   status: string;
-  category: string | null;
-  client_id: string | null;
+  categoria: string | null;
+  clientes_id: string | null;
   aeronave_id: string | null;
   prazo_pagamento: string | null;
   boleto_url?: string;
   nf_url?: string;
   pdf_url?: string;
-  type: string;
+  tipo: string;
   percentual?: string;
   tipo_documento?: string;
   reference_type?: string;
-  reference_id?: string;
+  referencia_id?: string;
   categorias_movimentacao?: {
     id: string;
     nome: string;
