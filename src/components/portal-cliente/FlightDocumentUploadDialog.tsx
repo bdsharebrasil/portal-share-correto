@@ -51,7 +51,7 @@ export function FlightDocumentUploadDialog({
 
       setFile(selectedFile);
       if (!documentName) {
-        setDocumentName(selectedFile.nome.replace(/\.[^/.]+$/, ""));
+        setDocumentName(selectedFile.name.replace(/\.[^/.]+$/, ""));
       }
     }
   };
