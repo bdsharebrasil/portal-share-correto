@@ -78,7 +78,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
       let query = supabase
         .from('horas_mensais_consolidadas')
         .select('*')
-        .eq('clientes_id', clienteId)
+        .eq('cliente_id', clienteId)
         .order('ano', { ascending: false })
         .order('mes', { ascending: false });
 
