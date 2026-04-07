@@ -142,7 +142,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
       let query = supabase
         .from('logbook_entries')
         .select('*')
-        .eq('client_id', clienteId);
+        .eq('clientes_id', clienteId);
 
       if (aeronaveId) {
         query = query.eq('aircraft_id', aeronaveId);

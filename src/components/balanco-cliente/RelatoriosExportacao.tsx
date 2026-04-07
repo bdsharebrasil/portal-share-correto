@@ -114,7 +114,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           .lte('entry_date', periodo.fim);
 
         if (aeronaveId) {
-          qOwned = qOwned.eq('aircraft_id', aeronaveId);
+          qOwned = qOwned.eq('aeronave_id', aeronaveId);
         }
 
         // Voos compartilhados
