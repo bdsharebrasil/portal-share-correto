@@ -361,7 +361,7 @@ export function ClientFullReportModal({
                     <span className="text-emerald-500">●</span> Dados do Cliente
                   </h2>
                   <div className="space-y-2 text-sm">
-                    <p><strong>Nome:</strong> {reportData.client.nome}</p>
+                    <p><strong>Nome:</strong> {reportData.client.nome || reportData.client.name}</p>
                     {reportData.client.cnpj && <p><strong>CNPJ:</strong> {reportData.client.cnpj}</p>}
                     {reportData.client.email && <p><strong>Email:</strong> {reportData.client.email}</p>}
                     {reportData.client.telefone && <p><strong>Telefone:</strong> {reportData.client.telefone}</p>}
