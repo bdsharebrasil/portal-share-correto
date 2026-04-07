@@ -152,7 +152,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       let qLog = supabase
         .from('logbook_entries')
         .select('id, entry_date, total_time, departure_aerodrome, arrival_aerodrome, trecho, socios_nome, aircraft_id')
-        .eq('client_id', clienteId)
+        .eq('clientes_id', clienteId)
         .gte('entry_date', periodo.inicio)
         .lte('entry_date', periodo.fim)
         .order('entry_date', { ascending: false });
