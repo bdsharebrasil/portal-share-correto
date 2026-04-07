@@ -88,7 +88,7 @@ export default function ControleVencimentos() {
 
       // Carregar estatísticas de documentos
       const { data: documents } = await supabase
-        .from('flight_documents')
+        .from('documentos_voo')
         .select('*')
         .not('data_validade', 'is', null);
 

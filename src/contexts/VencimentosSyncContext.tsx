@@ -67,7 +67,7 @@ export function VencimentosSyncProvider({ children }: { children: React.ReactNod
       .channel('flight_document_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'flight_documents' },
+        { event: '*', schema: 'public', table: 'documentos_voo' },
         (payload: any) => {
           triggerUpdate({
             type: payload.eventType === 'INSERT' ? 'create' : payload.eventType === 'UPDATE' ? 'update' : 'delete',

@@ -64,7 +64,7 @@ export default function VencimentosDocumentos() {
     try {
       // Carregar documentos com data de vencimento
       const { data: docs, error: docsError } = await supabase
-        .from('flight_documents')
+        .from('documentos_voo')
         .select('*')
         .not('data_validade', 'is', null)
         .order('data_validade', { ascending: true });
@@ -129,7 +129,7 @@ export default function VencimentosDocumentos() {
 
     try {
       const { error } = await supabase
-        .from('flight_documents')
+        .from('documentos_voo')
         .update({ data_validade: newDate })
         .eq('id', editingDocumento.id);
 
