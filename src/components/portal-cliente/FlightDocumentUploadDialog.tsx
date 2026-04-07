@@ -70,7 +70,7 @@ export function FlightDocumentUploadDialog({
     try {
       setUploading(true);
 
-      const fileExt = file.nome.split(".").pop();
+      const fileExt = file.name.split(".").pop();
       const timestamp = Date.now();
       const fileName = `${aircraftId}/${timestamp}.${fileExt}`;
 
