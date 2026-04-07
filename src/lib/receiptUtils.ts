@@ -418,10 +418,10 @@ export function validateReceiptFile(file: File | undefined, maxSizeMB: number = 
   const validMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
 
   // Validar MIME type
-  if (!validMimeTypes.includes(file.tipo)) {
+  if (!validMimeTypes.includes(file.type)) {
     errors.push({
       type: 'mimeType',
-      message: `Tipo de arquivo não suportado. Aceitos: PNG, JPG, GIF, WebP, PDF (recebido: ${file.tipo || 'desconhecido'})`
+      message: `Tipo de arquivo não suportado. Aceitos: PNG, JPG, GIF, WebP, PDF (recebido: ${file.type || 'desconhecido'})`
     });
   }
 

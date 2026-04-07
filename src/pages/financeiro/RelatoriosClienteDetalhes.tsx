@@ -112,10 +112,10 @@ export default function RelatoriosClienteDetalhes() {
       const reportsWithDefaults = (data || []).map((r: any) => {
         const expenses = (() => {
           try {
-            if (typeof r.expenses === 'string') {
-              return JSON.parse(r.expenses);
+            if (typeof r.despesas === 'string') {
+              return JSON.parse(r.despesas);
             }
-            return r.expenses || [];
+            return r.despesas || [];
           } catch {
             return [];
           }
@@ -129,7 +129,24 @@ export default function RelatoriosClienteDetalhes() {
           ...r,
           client: clientName,
           expenses: expenses,
-          status: r.status
+          status: r.status,
+          total_amount: r.total_valor ?? 0,
+          total_fuel: r.total_combustivel ?? 0,
+          total_lodging: r.total_hospedagem ?? 0,
+          total_food: r.total_alimentacao ?? 0,
+          total_transport: r.total_transporte ?? 0,
+          total_other: r.total_outros ?? 0,
+          total_crew: r.total_tripulacao ?? 0,
+          total_crew1: r.total_trip ?? 0,
+          total_crew2: r.total_trip2 ?? 0,
+          total_client: r.total_clientes ?? 0,
+          total_sharebrasil: r.total_sharebrasil ?? 0,
+          crew_member_name: r.nome_tripulante || '',
+          crew_member_name2: r.nome_tripulante_2 || '',
+          crew_member_id: r.tripulacao_id || '',
+          crew_member_id2: r.tripulante_id2 || '',
+          aircraft_registration: r.matricula_aeronave || '',
+          observations: r.observacoes || '',
         };
       });
 
@@ -210,44 +227,52 @@ export default function RelatoriosClienteDetalhes() {
       const pdfReport: PDFTravelReport = {
         numero: report.numero_relatorio,
         cliente_nome: report.client,
-        aeronave: report.matricula_aeronave,
+        aeronave: report.aircraft_registration || report.matricula_aeronave || '',
         tripulante: report.crew_member_name,
         tripulante2: report.crew_member_name2,
         trecho: report.rota,
         destino: report.rota,
         data_inicio: report.data_inicio,
         data_fim: report.data_fim,
-        observacoes: report.observacoes,
+        observacoes: report.observacoes || report.observations || '',
         despesas: (report.expenses || []).map(e => ({
-          categoria: e.categoria,
-          descricao: e.descricao,
-          valor: e.valor,
-          pago_por: e.paid_by,
-          data: (e as any).expense_date || '',
-          comprovante_url: e.receipt_url
+          categoria: e.category || e.categoria || 'Outros',
+          descricao: e.description || e.descricao || 'N/A',
+          valor: parseFloat(String(e.amount || e.valor || 0)),
+          pago_por: e.paid_by || e.pago_por || 'N/A',
+          data: (e.expense_date || e.data || '') as string,
+          comprovante_url: e.receipt_url || e.comprovante_url || ''
         })) as TravelExpense[],
-        total_combustivel: correctedTotals.total_fuel,
-        total_hospedagem: correctedTotals.total_lodging,
-        total_alimentacao: correctedTotals.total_food,
-        total_transporte: correctedTotals.total_transport,
-        total_outros: correctedTotals.total_other,
-        total_tripulante: correctedTotals.total_crew,
-        total_tripulante1: correctedTotals.total_crew1,
-        total_tripulante2: correctedTotals.total_crew2,
-        total_cliente: correctedTotals.total_client,
-        total_sharebrasil: correctedTotals.total_sharebrasil,
-        valor_total: correctedTotals.total_amount
+        total_combustivel: report.total_fuel || correctedTotals.total_fuel,
+        total_hospedagem: report.total_lodging || correctedTotals.total_lodging,
+        total_alimentacao: report.total_food || correctedTotals.total_food,
+        total_transporte: report.total_transport || correctedTotals.total_transport,
+        total_outros: report.total_other || correctedTotals.total_other,
+        total_tripulante: report.total_crew || correctedTotals.total_crew,
+        total_tripulante1: report.total_crew1 || correctedTotals.total_crew1,
+        total_tripulante2: report.total_crew2 || correctedTotals.total_crew2,
+        total_cliente: report.total_client || correctedTotals.total_client,
+        total_sharebrasil: report.total_sharebrasil || correctedTotals.total_sharebrasil,
+        valor_total: report.total_amount || correctedTotals.total_amount
       };
 
       let userName = 'Usuário';
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('full_name')
-          .eq('id', user.id)
-          .single();
-        if (profile?.full_name) userName = profile.full_name;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.user_metadata?.full_name) {
+          userName = user.user_metadata.full_name;
+        } else if (user?.email) {
+          userName = user.email.split('@')[0];
+        } else if (user?.id) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          if (profile?.full_name) userName = profile.full_name;
+        }
+      } catch (error) {
+        console.warn('Erro ao buscar nome do usuário:', error);
       }
 
       await previewPDFForPrint(pdfReport, userName);

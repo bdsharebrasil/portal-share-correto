@@ -1024,8 +1024,8 @@ export const viewHTMLPreview = async (report: TravelReport, currentFullName?: st
   await Promise.all(imagePromises);
 
   const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
-  newWindow.documento.write(htmlContent);
-  newWindow.documento.close();
+  newWindow.document.write(htmlContent);
+  newWindow.document.close();
 };
 
 export const previewPDFForPrint = async (report: TravelReport, currentFullName?: string) => {
@@ -1111,8 +1111,8 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
       </html>
     `;
 
-    newWindow.documento.write(htmlDoc);
-    newWindow.documento.close();
+    newWindow.document.write(htmlDoc);
+    newWindow.document.close();
   } catch (error) {
     console.error('Erro ao visualizar prévia:', error);
     newWindow.close();

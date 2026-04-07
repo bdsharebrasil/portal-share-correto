@@ -405,6 +405,20 @@ export default function RelatorioViagem() {
     const reportData = reportToSave || currentReport;
     if (!reportData) return;
 
+    // Validação de campos obrigatórios
+    if (!reportData.clientes_id?.trim()) {
+      toast.error('⚠️ Selecione um cliente');
+      return;
+    }
+    if (!reportData.aeronave_id?.trim()) {
+      toast.error('⚠️ Selecione uma aeronave');
+      return;
+    }
+    if (!reportData.tripulacao_id?.trim()) {
+      toast.error('⚠️ Selecione um tripulante');
+      return;
+    }
+
     if (isEditing && reportData.id) {
       const original = reports.find(r => r.id === reportData.id);
       if (original?.status !== 'Rascunho' && newStatus === 'Finalizado') {
@@ -430,11 +444,11 @@ export default function RelatorioViagem() {
       // FIX: payload usa exatamente os nomes de colunas do schema
       const payload: any = {
         numero_relatorio: reportNumber,
-        clientes_id: reportData.clientes_id || null,
+        clientes_id: reportData.clientes_id,
         socios_cliente_id: reportData.socios_cliente_id || null,
-        aeronave_id: reportData.aeronave_id || null,
+        aeronave_id: reportData.aeronave_id,
         matricula_aeronave: reportData.matricula_aeronave || null,
-        tripulacao_id: reportData.tripulacao_id || null,
+        tripulacao_id: reportData.tripulacao_id,
         nome_tripulante: reportData.nome_tripulante,
         tripulante_id2: reportData.tripulante_id2 || null,
         nome_tripulante_2: reportData.nome_tripulante_2 || null,
@@ -547,7 +561,8 @@ export default function RelatorioViagem() {
           if (!existing) {
             reconcToInsert.push({
               tipo: 'cliente',
-              client_id: reportData.clientes_id,
+              clientes_id: reportData.clientes_id,
+              socio_cliente_id: reportData.socios_cliente_id || null,
               aeronave_id: reportData.aeronave_id || null,
               valor: totalClientOwes,
               status: 'pendente',
@@ -561,10 +576,6 @@ export default function RelatorioViagem() {
 
         // Tripulante 1
         if (totalCrew1 > 0 && reportData.tripulacao_id) {
-          const { data: crew } = await supabase
-            .from('tripulacao').select('id')
-            .eq('id', reportData.tripulacao_id).maybeSingle();
-
           const { data: existing } = await supabase
             .from('conciliacoes_bancarias').select('id')
             .ilike('descricao', '%TRIPULANTE 1%').eq('tipo', 'colaborador').maybeSingle();
@@ -572,7 +583,6 @@ export default function RelatorioViagem() {
           if (!existing) {
             reconcToInsert.push({
               tipo: 'colaborador',
-              receiver_id: null,
               aeronave_id: reportData.aeronave_id || null,
               valor: totalCrew1,
               status: 'pendente',
@@ -586,10 +596,6 @@ export default function RelatorioViagem() {
 
         // Tripulante 2
         if (totalCrew2 > 0 && reportData.nome_tripulante_2) {
-          const { data: crew2 } = await supabase
-            .from('membros_tripulacao').select('id, user_id')
-            .eq('nome_completo', reportData.nome_tripulante_2).maybeSingle();
-
           const { data: existing } = await supabase
             .from('conciliacoes_bancarias').select('id')
             .ilike('descricao', '%TRIPULANTE 2%').eq('tipo', 'colaborador').maybeSingle();
@@ -597,7 +603,6 @@ export default function RelatorioViagem() {
           if (!existing) {
             reconcToInsert.push({
               tipo: 'colaborador',
-              receiver_id: crew2?.user_id || null,
               aeronave_id: reportData.aeronave_id || null,
               valor: totalCrew2,
               status: 'pendente',
@@ -720,7 +725,7 @@ export default function RelatorioViagem() {
       // FIX: usar reference_id e reference_type consistentemente
       await supabase
         .from('conciliacoes_bancarias')
-        .update({ status: 'enviado', due_date: sendDueDate, updated_at: new Date().toISOString() } as any)
+        .update({ status: 'enviado', prazo_pagamento: sendDueDate } as any)
         .eq('id', sendReportTarget.id);
 
       toast.success('✓ Relatório enviado ao cliente com sucesso!');
