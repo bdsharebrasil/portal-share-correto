@@ -76,10 +76,10 @@ export function AeronaveDocumentosViewer({
 
       // Load documents filtered by aircraft
       const { data: docsData, error: docsError } = await (supabase as any)
-        .from("flight_documents")
+        .from("documentos_voo")
         .select("*")
         .eq("aeronave_id", aircraftId)
-        .order("created_at", { ascending: false });
+        .order("criado_em", { ascending: false });
 
       if (docsError) throw docsError;
 

@@ -64,10 +64,10 @@ export default function VencimentosDocumentos() {
     try {
       // Carregar documentos com data de vencimento
       const { data: docs, error: docsError } = await supabase
-        .from('flight_documents')
+        .from('documentos_voo')
         .select('*')
-        .not('expiry_date', 'is', null)
-        .order('expiry_date', { ascending: true });
+        .not('data_validade', 'is', null)
+        .order('data_validade', { ascending: true });
 
       if (docsError) throw docsError;
 
@@ -85,7 +85,7 @@ export default function VencimentosDocumentos() {
       today.setHours(0, 0, 0, 0);
 
       for (const doc of docs || []) {
-        const expiryDate = new Date(doc.expiry_date);
+        const expiryDate = new Date(doc.data_validade);
         expiryDate.setHours(0, 0, 0, 0);
         const diasRestantes = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -103,7 +103,7 @@ export default function VencimentosDocumentos() {
           aeronaveModelo: aeroInfo?.model || '-',
           aeronaveImagem: aeroInfo?.image_url,
           nomeDocumento: doc.nome,
-          dataVencimento: doc.expiry_date,
+          dataVencimento: doc.data_validade,
           diasRestantes,
           status,
           fileType: doc.tipo_arquivo,
@@ -129,8 +129,8 @@ export default function VencimentosDocumentos() {
 
     try {
       const { error } = await supabase
-        .from('flight_documents')
-        .update({ expiry_date: newDate })
+        .from('documentos_voo')
+        .update({ data_validade: newDate })
         .eq('id', editingDocumento.id);
 
       if (error) throw error;
@@ -268,9 +268,9 @@ export default function VencimentosDocumentos() {
             {notification && (
               <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
                 <ModernNotification
-                  type={notification.tipo}
+                  type={notification.type}
                   title={notification.title}
-                  description={notification.descricao}
+                  description={notification.description}
                   duration={4000}
                   onClose={() => setNotification(null)}
                 />
@@ -453,22 +453,22 @@ export default function VencimentosDocumentos() {
 
                           {/* Status Badges */}
                           <div className="flex flex-wrap gap-1.5 pt-3">
-                            {grupo.documentoumentos.filter(d => d.status === 'vencido').length > 0 && (
+                            {grupo.documentos.filter(d => d.status === 'vencido').length > 0 && (
                               <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] px-2 py-0.5">
                                 <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.status === 'vencido').length}
+                                {grupo.documentos.filter(d => d.status === 'vencido').length}
                               </Badge>
                             )}
-                            {grupo.documentoumentos.filter(d => d.status === 'proximo').length > 0 && (
+                            {grupo.documentos.filter(d => d.status === 'proximo').length > 0 && (
                               <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px] px-2 py-0.5">
                                 <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.status === 'proximo').length}
+                                {grupo.documentos.filter(d => d.status === 'proximo').length}
                               </Badge>
                             )}
-                            {grupo.documentoumentos.filter(d => d.status === 'ok').length > 0 && (
+                            {grupo.documentos.filter(d => d.status === 'ok').length > 0 && (
                               <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-2 py-0.5">
                                 <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
-                                {grupo.documentoumentos.filter(d => d.status === 'ok').length}
+                                {grupo.documentos.filter(d => d.status === 'ok').length}
                               </Badge>
                             )}
                           </div>

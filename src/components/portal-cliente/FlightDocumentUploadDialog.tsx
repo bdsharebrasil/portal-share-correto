@@ -86,19 +86,19 @@ export function FlightDocumentUploadDialog({
         data: { user }
       } = await supabase.auth.getUser();
 
-      // Insert into flight_documents table
+      // Insert into documentos_voo table
       const { error: dbError } = await (supabase as any)
-        .from("flight_documents")
+        .from("documentos_voo")
         .insert({
-          name: documentName.trim(),
-          description: documentDescription.trim() || null,
-          file_path: fileName,
-          file_type: file.type,
-          file_size: file.size,
-          uploaded_by: user?.id,
+          nome: documentName.trim(),
+          descricao: documentDescription.trim() || null,
+          caminho_arquivo: fileName,
+          tipo_arquivo: file.type,
+          tamanho_arquivo: file.size,
+          enviado_por: user?.id,
           aeronave_id: aircraftId,
-          document_type: documentType.trim() || null,
-          expiry_date: expiryDate || null
+          tipo_documento: documentType.trim() || null,
+          data_validade: expiryDate || null
         });
 
       if (dbError) throw dbError;

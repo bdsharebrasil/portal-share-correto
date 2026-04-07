@@ -88,16 +88,16 @@ export default function ControleVencimentos() {
 
       // Carregar estatísticas de documentos
       const { data: documents } = await supabase
-        .from('flight_documents')
+        .from('documentos_voo')
         .select('*')
-        .not('expiry_date', 'is', null);
+        .not('data_validade', 'is', null);
 
       let documentosVencidos = 0;
       let documentosProximos = 0;
 
       if (documents) {
         documents.forEach(doc => {
-          const expiryDate = new Date(doc.expiry_date);
+          const expiryDate = new Date(doc.data_validade);
           expiryDate.setHours(0, 0, 0, 0);
           const diasRestantes = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           if (diasRestantes < 0) documentosVencidos++;

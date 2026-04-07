@@ -219,8 +219,8 @@ export default function VencimentosTripulacao() {
   const filteredVencimentos = useMemo(() => {
     return vencimentos.filter(tripulante => {
       // Filtrar por nome
-      const matchSearch = tripulante.tripulanteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tripulante.habilitacoes.some(h => h.habilitacao.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchSearch = (tripulante.tripulanteName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         tripulante.habilitacoes.some(h => (h.habilitacao || '').toLowerCase().includes(searchTerm.toLowerCase()));
 
       // Filtrar por status: verifica se tripulante tem habilitações do status selecionado
       let matchStatus = true;
@@ -331,9 +331,9 @@ export default function VencimentosTripulacao() {
             {notification && (
               <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50">
                 <ModernNotification
-                  type={notification.tipo}
+                  type={notification.type}
                   title={notification.title}
-                  description={notification.descricao}
+                  description={notification.description}
                   duration={4000}
                   onClose={() => setNotification(null)}
                 />
