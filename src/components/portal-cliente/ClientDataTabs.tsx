@@ -127,11 +127,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load files
       let filesData = null;
       try {
-        const result = await supabase
-          .from('client_portal_files')
+        const result = await (supabase as any)
+          .from('arquivos_portal_cliente')
           .select('*')
           .eq('cliente_id', forClientId)
-          .order('created_at', { ascending: false });
+          .order('criado_em', { ascending: false });
         filesData = result.data;
         if (result.error) console.warn('Erro ao carregar arquivos:', result.error);
       } catch (err) {
