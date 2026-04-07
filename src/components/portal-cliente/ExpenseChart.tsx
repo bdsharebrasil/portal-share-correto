@@ -12,7 +12,7 @@ const expenseData = [
 
 export function ExpenseChart() {
   const [type, setType] = useState<"bar" | "pie">("pie")
-  const total = expenseData.reduce((sum, item) => sum + item.valor, 0)
+  const total = expenseData.reduce((sum, item) => sum + item.amount, 0)
 
   return (
     <Card className="bg-gradient-to-br from-slate-800/60 to-slate-800/40 shadow-lg border-slate-700/50 backdrop-blur-sm">

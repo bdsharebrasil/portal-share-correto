@@ -22,10 +22,13 @@ interface ClientFullReportModalProps {
 interface ReportData {
   client: {
     name: string;
+    nome?: string;
     cnpj?: string;
     email?: string;
     phone?: string;
+    telefone?: string;
   };
+  aeronave?: any;
   aircraft: {
     registration: string;
     manufacturer: string;
