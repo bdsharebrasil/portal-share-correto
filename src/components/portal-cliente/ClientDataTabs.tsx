@@ -266,10 +266,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load CTM tracking
       let ctmData = null;
       try {
-        const result = await supabase
+        const result = await (supabase as any)
           .from('ctm_tracking')
-          .select('*, aircraft:aeronave(matricula)')
-          .eq('aircraft_id', aircraftId)
+          .select('*')
+          .eq('aeronave_id', aircraftId)
           .eq('cliente_id', forClientId)
           .order('created_at', { ascending: false });
         ctmData = result.data;
