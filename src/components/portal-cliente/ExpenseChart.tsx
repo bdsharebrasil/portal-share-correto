@@ -50,8 +50,8 @@ export function ExpenseChart() {
             {expenseData.map((item, index) => (
               <div key={index} className="space-y-3">
                 <div className="flex justify-between text-base">
-                  <span className="font-medium text-white">{item.categoria}</span>
-                  <span className="text-white">R$ {item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  <span className="font-medium text-white">{item.category}</span>
+                  <span className="text-white">R$ {item.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-4">
                   <div className={`h-4 rounded-full ${item.color}`} style={{ width: `${item.percentage}%` }}></div>

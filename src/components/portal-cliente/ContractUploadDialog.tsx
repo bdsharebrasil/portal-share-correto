@@ -23,7 +23,7 @@ export function ContractUploadDialog({ open, onOpenChange, clientId, onSuccess }
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.tipo !== "application/pdf") {
+      if (selectedFile.type !== "application/pdf") {
         toast.error("Por favor, envie apenas arquivos PDF");
         return;
       }
