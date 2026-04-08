@@ -12224,7 +12224,6 @@ export type Database = {
           dias_count: number
           id: string
           matricula_aeronave: string | null
-          membros_tripulacao_id: string | null
           nome_tripulante: string | null
           nome_tripulante_2: string | null
           numero_relatorio: string
@@ -12259,7 +12258,6 @@ export type Database = {
           dias_count: number
           id?: string
           matricula_aeronave?: string | null
-          membros_tripulacao_id?: string | null
           nome_tripulante?: string | null
           nome_tripulante_2?: string | null
           numero_relatorio: string
@@ -12294,7 +12292,6 @@ export type Database = {
           dias_count?: number
           id?: string
           matricula_aeronave?: string | null
-          membros_tripulacao_id?: string | null
           nome_tripulante?: string | null
           nome_tripulante_2?: string | null
           numero_relatorio?: string
@@ -12418,20 +12415,6 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "travel_expense_reports_crew_member_id2_fkey"
-            columns: ["tripulante_id2"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "travel_expense_reports_crew_member_id2_fkey"
-            columns: ["tripulante_id2"]
-            isOneToOne: false
-            referencedRelation: "membros_tripulacao"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "travel_expense_reports_socios_cliente_id_fkey"
             columns: ["socios_cliente_id"]
             isOneToOne: false
@@ -12443,13 +12426,6 @@ export type Database = {
             columns: ["socios_cliente_id"]
             isOneToOne: false
             referencedRelation: "socios_cliente"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "travel_expense_reports_tripulacao_id_fkey"
-            columns: ["tripulacao_id"]
-            isOneToOne: false
-            referencedRelation: "tripulacao"
             referencedColumns: ["id"]
           },
         ]
