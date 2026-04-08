@@ -373,7 +373,7 @@ export function AddBankReconciliationDialog({
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
           const clienteNome = (clientData as any)?.razao_social || "Cliente";
 
-          await supabase.from("contas_areceber").insert({
+          await (supabase.from("contas_areceber") as any).insert({
             numero: numeroDocumento,
             referencia: clienteNome,
             cliente_nome: clienteNome,

@@ -198,7 +198,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
   const totalHoras = horasVoadas.reduce((acc, entry) => acc + (entry.tempo_total || 0), 0);
   const totalVoos = horasVoadas.length;
   const totalPousos = horasVoadas.reduce((acc, entry) => acc + (entry.pousos_total || 0), 0);
-  const totalCombustivel = horasVoadas.reduce((acc, entry) => acc + (entry.fuel_liters || 0), 0);
+  const totalCombustivel = horasVoadas.reduce((acc, entry) => acc + (entry.litros_combustivel || 0), 0);
 
   // Tipos que representam despesas (saídas de caixa ou reembolsos a receber)
   const tiposDespesa = ['saida', 'despesa', 'cliente', 'reembolso'];
@@ -693,7 +693,7 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
                           </TableCell>
                           <TableCell className="text-right">{(voo.tempo_total || 0).toFixed(2)}h</TableCell>
                           <TableCell className="text-right">{voo.pousos_total || 0}</TableCell>
-                          <TableCell className="text-right">{(voo.fuel_liters || 0).toFixed(1)} L</TableCell>
+                          <TableCell className="text-right">{(voo.litros_combustivel || 0).toFixed(1)} L</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -720,7 +720,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
 
-          await supabase.from("contas_areceber").insert({
+          await (supabase.from("contas_areceber") as any).insert({
             numero: numeroDocumento,
             referencia: clienteNome,
             cliente_nome: clienteNome,

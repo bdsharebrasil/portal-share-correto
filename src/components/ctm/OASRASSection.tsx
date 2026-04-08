@@ -36,7 +36,7 @@ export function OASRASSection({ orderId, aircraftId, aircraftRegistration, repor
     if (!form.number) return toast.error("Número do RAS é obrigatório");
     setSaving(true);
     try {
-      const { error } = await supabase.from("ras").insert([{
+      const { error } = await (supabase.from("ras") as any).insert([{
         aircraft_id: aircraftId,
         service_order_id: orderId,
         number: form.number,

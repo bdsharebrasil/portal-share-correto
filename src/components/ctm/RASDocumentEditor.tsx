@@ -147,7 +147,7 @@ export function RASDocumentEditor({
         photos: uploadedPhotos,
       };
 
-      const { error } = await supabase.from("ras").insert([rasData]);
+      const { error } = await (supabase.from("ras") as any).insert([rasData]);
 
       if (error) throw error;
 
