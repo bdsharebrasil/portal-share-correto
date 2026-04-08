@@ -375,7 +375,6 @@ export function AddBankReconciliationDialog({
 
           await (supabase.from("contas_areceber") as any).insert({
             numero: numeroDocumento,
-            referencia: clienteNome,
             cliente_nome: clienteNome,
             cliente_cnpj: (clientData as any)?.cnpj || "",
             data_criacao: data.date,

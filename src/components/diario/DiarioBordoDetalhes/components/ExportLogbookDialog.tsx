@@ -156,8 +156,8 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
 
       await downloadLogbookPDF({
         months: sortedMonths,
-        aircraftRegistration,
-        aircraftModel,
+        aeronaveRegistration: aircraftRegistration,
+        aeronaveModel: aircraftModel,
         clientName: clientName || 'Não especificado',
         entries: enrichedEntries,
         logoUrl: '/logo.share.png'
@@ -201,17 +201,17 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="p-3 bg-slate-100 rounded-lg">
-            <p className="text-sm font-semibold text-slate-900">{aircraftRegistration}</p>
+          <div className="p-3 bg-slate-90 rounded-lg">
+            <p className="text-sm font-semibold text-slate-150">{aircraftRegistration}</p>
             {aircraftModel && (
-              <p className="text-xs text-slate-600">{aircraftModel}</p>
+              <p className="text-xs text-slate-300">{aircraftModel}</p>
             )}
           </div>
 
           <div className="border rounded-lg p-3 max-h-[300px] overflow-y-auto">
             {yearsInOrder.map(year => (
               <div key={year} className="mb-4">
-                <h4 className="font-semibold text-sm text-slate-700 mb-2">{year}</h4>
+                <h4 className="font-semibold text-sm text-slate-400 mb-2">{year}</h4>
                 <div className="space-y-2 pl-2">
                   {(monthsByYear[year] || [])
                     .sort((a, b) => b - a)
@@ -262,7 +262,7 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
             </Button>
           </div>
 
-          <div className="p-2 bg-blue-50 rounded text-xs text-blue-900">
+          <div className="p-2 bg-blue-60 rounded text-xs text-blue-600">
             {selectedMonths.length === 0 ? (
               <p>Nenhum mês selecionado</p>
             ) : (

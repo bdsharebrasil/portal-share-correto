@@ -722,7 +722,6 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
 
           await (supabase.from("contas_areceber") as any).insert({
             numero: numeroDocumento,
-            referencia: clienteNome,
             cliente_nome: clienteNome,
             cliente_cnpj: clienteCnpj,
             data_criacao: data.date,

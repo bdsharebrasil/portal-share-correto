@@ -192,7 +192,7 @@ export function ContasReceber() {
     try {
       const { data: despesasReembolso, error: fluxoError } = await (supabase as any).from("controle_bancario").select(`
         id, data, data_vencimento, descricao, valor, status,
-        aeronave_registro, numero_documento, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url, client_name,
+        aeronave_registro, numero_documento, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url, clientes_nome,
         fornecedores_favoritos_id, colaborador_id
       `).eq("status", "aguardando_reembolso").not("data_vencimento", "is", null).order("data_vencimento");
 
@@ -235,14 +235,14 @@ export function ContasReceber() {
           referencia = fornecedoresMap[despesa.fornecedores_favoritos_id];
         } else if (despesa.colaborador_id && colaboradoresMap[despesa.colaborador_id]) {
           referencia = colaboradoresMap[despesa.colaborador_id];
-        } else if (despesa.client_name) {
-          referencia = despesa.client_name;
+        } else if (despesa.clientes_nome) {
+          referencia = despesa.clientes_nome;
         }
 
         return {
           id: despesa.id,
           numero: despesa.numero_documento || `FC-${despesa.id.slice(0, 8)}`,
-          cliente_nome: despesa.client_name || "Cliente não especificado",
+          cliente_nome: despesa.clientes_nome || "Cliente não especificado",
           cliente_cnpj: "",
           data_criacao: despesa.data,
           data_vencimento: despesa.data_vencimento,
@@ -434,11 +434,10 @@ export function ContasReceber() {
           valor: parseFloat(formData.valor),
           categoria: formData.categoria || "Serviços",
           descricao: formData.descricao || null,
-          status: (formData as any).status || formData.status,
+          status: editingConta ? ((formData as any).status || formData.status) : "pendente",
           arquivo_pdf_url: pdfUrl || null,
           criado_por: user?.id,
-          aeronave: formData.aeronave || null,
-          referencia: formData.referencia || null
+          aeronave: formData.aeronave || null
         }]);
 
         if (error) {

@@ -11,7 +11,7 @@ export function useControleBancario() {
           *,
           categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria),
           clientes:cliente_id(id, razao_social, proprietario),
-          client_partner:client_partner_id(id, name),
+          socios_cliente:socios_cliente_id(id, nome),
           fornecedores_favoritos:fornecedores_favoritos_id(id, nome_completo),
           user_profiles:colaborador_id(id, full_name, display_name)
         `)
@@ -32,9 +32,9 @@ export function useControleBancario() {
           item.user_profiles?.display_name ||
           '-',
         // Cliente: se houver partner use o nome do partner, senão empresa/proprietário
-        cliente_nome: item.socio_cliente_id?.nome ||
-          item.clients?.razao_social ||
-          item.clients?.proprietario ||
+        cliente_nome: item.socios_cliente?.nome ||
+          item.clientes?.razao_social ||
+          item.clientes?.proprietario ||
           item.client_name ||
           '-'
       }));

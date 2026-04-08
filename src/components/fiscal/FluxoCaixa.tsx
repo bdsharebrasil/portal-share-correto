@@ -335,10 +335,10 @@ export function FluxoCaixa() {
 
       const val = Number(t.valor);
       const matchesValue =
-        val >= advancedFilters.valorRange[0] && val <= advancedFilters.valorRange[1];
+        val >= advancedFilters.amountRange[0] && val <= advancedFilters.amountRange[1];
 
       let matchesDate = true;
-      if (advancedFilters.dataRange?.from) {
+      if (advancedFilters.dateRange?.from) {
         const dateStr = t.data;
         let txDate: Date;
         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -347,8 +347,8 @@ export function FluxoCaixa() {
         } else {
           txDate = new Date(t.data);
         }
-        const from = advancedFilters.dataRange.from;
-        const to = advancedFilters.dataRange.to ?? from;
+        const from = advancedFilters.dateRange.from;
+        const to = advancedFilters.dateRange.to ?? from;
         matchesDate = txDate >= from && txDate <= to;
       }
 
