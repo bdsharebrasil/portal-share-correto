@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface PartnerInfo {
   id: string;
-  name: string;
+  nome: string;
+  name?: string;
   cpf: string;
-  percentual_sociedade: number | null;
+  percentual_participacao: number | null;
+  percentual_sociedade?: number | null;
 }
 
 export interface FlightEntry {
@@ -258,7 +260,14 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         pic_name: f.socios_nome || null,
       }));
 
-      const partners = (partnersRes.data || []) as PartnerInfo[];
+      const partners = (partnersRes.data || []).map((p: any) => ({
+        id: p.id,
+        nome: p.nome,
+        name: p.nome,
+        cpf: p.cpf,
+        percentual_participacao: p.percentual_participacao,
+        percentual_sociedade: p.percentual_participacao,
+      })) as PartnerInfo[];
       const partnerNameMap = new Map(
         partners.map((partner) => [normalizePartnerName(partner.nome), partner.nome])
       );

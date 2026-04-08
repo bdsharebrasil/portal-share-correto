@@ -415,16 +415,16 @@ export default function RelatorioMensal() {
         }
         if (!travelReport && tx.tipo_referencia === "partner_expense") {
           const { data: expense, error: expError } = await supabase
-            .from("partner_expenses").select("id, reference_id, reference_type, description, notes").eq("id", tx.referencia_id).single()
+            .from("partner_expenses").select("id, id_referencia, tipo_referencia, descricao, observacoes").eq("id", tx.referencia_id).single()
           if (expError || !expense) { toast.error("Essa despesa não foi vinculada a um relatório de viagem"); return }
-          if (expense.referencia_id && (expense.tipo_referencia === "travel_expense_report" || expense.tipo_referencia === "travel_report" || expense.tipo_referencia === "viagem")) {
+          if (expense.id_referencia && (expense.tipo_referencia === "travel_expense_report" || expense.tipo_referencia === "travel_report" || expense.tipo_referencia === "viagem")) {
             const { data: report, error: reportError } = await supabase
-              .from("travel_expense_reports").select("id, numero_relatorio, data_inicio, client").eq("id", expense.referencia_id).single()
-            if (!reportError && report) { travelReportId = expense.referencia_id; travelReport = report }
+              .from("travel_expense_reports").select("id, numero_relatorio, data_inicio, client").eq("id", expense.id_referencia).single()
+            if (!reportError && report) { travelReportId = expense.id_referencia; travelReport = report }
           }
-          if (!travelReport && expense.notes) {
+          if (!travelReport && expense.observacoes) {
             const reportPattern = /REL-[A-Z]{3}-\d{3}\/\d{2}/g
-            const matches = expense.notes.match(reportPattern)
+            const matches = expense.observacoes.match(reportPattern)
             if (matches && matches.length > 0) {
               const reportNumber = matches[0]
               const { data: reportByNumber, error: searchError } = await supabase
@@ -432,7 +432,7 @@ export default function RelatorioMensal() {
               if (!searchError && reportByNumber) {
                 travelReportId = reportByNumber.id; travelReport = reportByNumber
                 try {
-                  await supabase.from("partner_expenses").update({ reference_id: travelReportId, reference_type: "travel_report" }).eq("id", expense.id)
+                  await supabase.from("partner_expenses").update({ id_referencia: travelReportId, tipo_referencia: "travel_report" }).eq("id", expense.id)
                 } catch (updateErr) { console.warn("Não foi possível atualizar despesa:", updateErr) }
               }
             }

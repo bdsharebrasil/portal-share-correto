@@ -7,11 +7,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Search, X, Check, Info, Edit } from "lucide-react";
 interface ClienteData {
   id: string;
-  company_name: string;
+  razao_social: string;
   cnpj?: string;
-  address?: string;
-  city?: string;
+  endereco?: string;
+  cidade?: string;
   uf?: string;
+  aeronave?: string;
+  atualizado_em?: string;
+  contato_financeiro?: string;
+  criado_em?: string;
+  documentos?: any;
+  email?: string;
+  inscricao_estadual?: string;
+  url_logo?: string;
+  [key: string]: any;
 }
 interface ClienteSearchInputProps {
   value: {
@@ -162,7 +171,7 @@ export function ClienteSearchInput({
 
             <div>
               <Label>CNPJ/CPF</Label>
-              <Input value={value.documentoumento} onChange={e => handleManualChange("documento", e.target.value)} placeholder="00.000.000/0000-00" disabled={disabled} />
+              <Input value={value.documento} onChange={e => handleManualChange("documento", e.target.value)} placeholder="00.000.000/0000-00" disabled={disabled} />
             </div>
           </div>
 

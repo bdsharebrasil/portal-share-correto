@@ -1,52 +1,105 @@
 import React from 'react';
 
-export interface LogbookEntryDraftData {
-  entry_date: string;
-  pic_canac: string;
-  sic_canac: string;
-  sic_name: string;
-  crew_checkin_time: string;
-  departure_aerodrome: string;
-  arrival_aerodrome: string;
-  client_id: string;
-  client_partner_id: string | null;
-  loan_recipient_client_id: string | null;
-  loan_recipient_partner_id: string | null;
-  is_equal_split: boolean;
-  is_loan: boolean;
-  ac_time: string;
-  dep_time: string;
-  pou_time: string;
-  cor_time: string;
-  total_time: number;
-  day_time: number;
-  night_hours: number;
-  time: number;
-  ifr_time: number;
-  pousos: number;
-  fuel_added: number;
-  fuel_consu: number;
-  fuel_liters: number;
-  fuel_type: string;
-  fuel_location: string;
-  fuel_price_per_liter: number;
-  refueled: boolean;
+/**
+ * Interface para rascunho de lançamento diário do bordo
+ * Alinhada com schema: lancamentos_diario_bordo
+ */
+export interface LancamentoDiarioBordoDraftData {
+  // Identificadores e referências
+  diario_mes: string;
+  aeronave_id: string;
+  clientes_id: string | null;
+  socios_cliente_id: string | null;
+  parceiro_tomador_emprestimo_id: string | null;
+  cliente_tomador_emprestimo_id: string | null;
+
+  // Datas e horários
+  data_registro: string;
+  tripulacao_checkin_hora: string | null;
+  data_assinatura_piloto: string | null;
+
+  // Aeródromos e trajeto
+  aerodromo_partida: string;
+  aerodromo_chegada: string;
+  trecho: string | null;
+
+  // Tempos de voo
+  tempo_ac: string | null;
+  tempo_dep: string | null;
+  tempo_pou: string | null;
+  tempo_cor: string | null;
+  tempo_total: number;
+  horas_diurnas: number;
+  horas_noturnas: number;
+  horas_totais: number;
+  tempo_ifr: number;
+
+  // Pousos
+  pousos_total: number;
+
+  // Combustível
+  consumo_combustivel: number;
+  litros_combustivel: number;
+  preco_combustivel_litro: number | null;
+  local_combustivel: string | null;
+  tipo_combustivel: string | null;
+  abastecido: boolean;
+  combustivel_adicionado: number | null;
+
+  // Célula e horas
   celula: number;
-  distance_nm: number;
-  passengers: number;
-  cargo_kg: number;
-  flight_nature: string;
-  occurrences: string;
-  discrepancies: string;
-  corrective_actions: string;
-  daily_quantity: number;
+
+  // Distância e carga
+  distancia_nm: number;
+  passageiros: number;
+  carga_kg: string | null;
+
+  // Natureza do voo
+  natureza_voo: string;
+
+  // Observações e registros
+  ocorrencias: string | null;
+  discrepancias: string | null;
+  acoes_corretivas: string | null;
+
+  // Tripulação
+  pic_canac: string;
+  sic_canac: string | null;
+  socios_nome: string | null;
+  origem_pic: string;
+  origem_sic: string | null;
+
+  // Divisão e empréstimo
+  divisao_igual: boolean;
+  empreendimento: boolean;
+
+  // Manutenção
+  tipo_manutencao_ultima: string | null;
+  tipo_manutencao_proxima: string | null;
+  horas_celula_proxima_manutencao: number | null;
+  responsavel_aprovacao_manutencao: string | null;
+
+  // Tarifa
+  tarifa_diaria: string | null;
+
+  // Status
+  numero_sequencial: number | null;
+  confirmado: boolean;
+  fechado: boolean;
 }
 
-export interface LogbookEntryDraft {
+/**
+ * Wrapper para rascunho com metadados
+ */
+export interface LancamentoDiarioBordoDraft {
   aircraftId: string;
-  entry: LogbookEntryDraftData;
+  entry: LancamentoDiarioBordoDraftData;
   savedAt?: string;
 }
+
+// Aliases para compatibilidade com código legado
+export type LogbookEntryDraftData = LancamentoDiarioBordoDraftData;
+export type LogbookEntryDraft = LancamentoDiarioBordoDraft;
 
 const DRAFT_AUTO_SAVE_INTERVAL = 30000; // 30 segundos
 

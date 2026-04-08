@@ -9102,46 +9102,46 @@ export type Database = {
       }
       partner_accounts: {
         Row: {
-          bank_name: string | null
+          nome_banco: string | null
           clientes_id: string
-          created_at: string | null
-          current_balance: number | null
+          criado_em: string | null
+          saldo_atual: number | null
           id: string
           socio_cpf: string
           socio_nome: string
           socios_cliente_id: string | null
-          total_deposited: number | null
-          total_interest_earned: number | null
-          total_spent: number | null
-          updated_at: string | null
+          total_depositado: number | null
+          juros_totais_ganhos: number | null
+          total_gasto: number | null
+          atualizado_em: string | null
         }
         Insert: {
-          bank_name?: string | null
+          nome_banco?: string | null
           clientes_id: string
-          created_at?: string | null
-          current_balance?: number | null
+          criado_em?: string | null
+          saldo_atual?: number | null
           id?: string
           socio_cpf: string
           socio_nome: string
           socios_cliente_id?: string | null
-          total_deposited?: number | null
-          total_interest_earned?: number | null
-          total_spent?: number | null
-          updated_at?: string | null
+          total_depositado?: number | null
+          juros_totais_ganhos?: number | null
+          total_gasto?: number | null
+          atualizado_em?: string | null
         }
         Update: {
-          bank_name?: string | null
+          nome_banco?: string | null
           clientes_id?: string
-          created_at?: string | null
-          current_balance?: number | null
+          criado_em?: string | null
+          saldo_atual?: number | null
           id?: string
           socio_cpf?: string
           socio_nome?: string
           socios_cliente_id?: string | null
-          total_deposited?: number | null
-          total_interest_earned?: number | null
-          total_spent?: number | null
-          updated_at?: string | null
+          total_depositado?: number | null
+          juros_totais_ganhos?: number | null
+          total_gasto?: number | null
+          atualizado_em?: string | null
         }
         Relationships: [
           {

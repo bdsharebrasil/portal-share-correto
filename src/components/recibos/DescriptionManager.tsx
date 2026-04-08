@@ -7,7 +7,8 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 interface Description {
   id: string;
-  description: string;
+  descricao: string;
+  description?: string;
 }
 export function DescriptionManager() {
   const [descriptions, setDescriptions] = useState<Description[]>([]);
@@ -140,11 +141,11 @@ export function DescriptionManager() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div> : <>
-                  <p className="text-foreground">{desc.descricao}</p>
+                  <p className="text-foreground">{desc.descricao || desc.description}</p>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => {
               setEditingId(desc.id);
-              setEditingText(desc.descricao);
+              setEditingText(desc.descricao || desc.description || "");
             }}>
                       <Edit2 className="h-4 w-4" />
                     </Button>

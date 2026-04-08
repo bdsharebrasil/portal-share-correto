@@ -24,47 +24,50 @@ const formatDateBR = (dateStr: string): string => {
   }
 };
 
-interface LogbookEntry {
+/**
+ * Interface para lançamento diário do bordo
+ * Alinhada com schema: lancamentos_diario_bordo
+ */
+interface LancamentoDiarioBordo {
   id: string;
-  entry_date: string;
-  departure_aerodrome: string;
-  arrival_aerodrome: string;
+  data_registro: string;
+  aerodromo_partida: string;
+  aerodromo_chegada: string;
   pic_canac: string;
-  pic_name?: string;
   sic_canac?: string;
   sic_name?: string;
-  total_time: number;
-  time?: number;
-  day_time?: number;
-  night_hours?: number;
-  ifr_time?: number;
-  pousos?: number;
-  fuel_added?: number;
-  fuel_liters?: number;
+  tempo_total: number;
+  horas_totais?: number;
+  horas_diurnas?: number;
+  horas_noturnas?: number;
+  tempo_ifr?: number;
+  pousos_total?: number;
+  combustivel_adicionado?: number;
+  litros_combustivel?: number;
   celula?: number;
-  distance_nm?: number;
-  passengers?: number;
-  cargo_kg?: number;
-  flight_nature?: string;
-  ac_time?: string;
-  dep_time?: string;
-  pou_time?: string;
-  cor_time?: string;
-  client_id?: string;
-  client_company_name?: string;
-  partner_name?: string;
-  client_partner_id?: string;
-  is_equal_split?: boolean;
-  is_loan?: boolean;
-  daily_rate?: number;
-  loan_recipient_client_id?: string;
-  loan_recipient_client_name?: string;
+  distancia_nm?: number;
+  passageiros?: number;
+  carga_kg?: string;
+  natureza_voo?: string;
+  tempo_ac?: string;
+  tempo_dep?: string;
+  tempo_pou?: string;
+  tempo_cor?: string;
+  clientes_id?: string;
+  cliente_empresa_nome?: string;
+  socios_nome?: string;
+  socios_cliente_id?: string;
+  divisao_igual?: boolean;
+  empreendimento?: boolean;
+  tarifa_diaria?: string;
+  cliente_tomador_emprestimo_id?: string;
+  cliente_tomador_emprestimo_nome?: string;
 }
 
-interface LogbookMonthData {
+interface DiarioBordoMesData {
   month: number;
   year: number;
-  entries: LogbookEntry[];
+  entries: LancamentoDiarioBordo[];
   aircraft: {
     registration: string;
     model?: string;
@@ -76,12 +79,16 @@ interface LogbookMonthData {
 
 interface ExportOptions {
   months: Array<{ month: number; year: number }>;
-  aircraftRegistration: string;
-  aircraftModel?: string;
+  aeronaveRegistration: string;
+  aeronaveModel?: string;
   clientName?: string;
-  entries: LogbookEntry[];
+  entries: LancamentoDiarioBordo[];
   logoUrl?: string;
 }
+
+// Aliases para compatibilidade com código legado
+type LogbookEntry = LancamentoDiarioBordo;
+type LogbookMonthData = DiarioBordoMesData;
 
 const generateCoverPage = (doc: jsPDF, options: ExportOptions, logoDataUrl?: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -106,15 +113,21 @@ const generateCoverPage = (doc: jsPDF, options: ExportOptions, logoDataUrl?: str
     doc.text(options.aeronaveModel, pageWidth / 2, 140, { align: 'center' });
   }
 
+  if (options.clientName) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Cliente: ${options.clientName}`, pageWidth / 2, 150, { align: 'center' });
+  }
+
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   const monthsText = options.months
     .map(m => `${MONTHS[m.month - 1]}/${m.year}`)
     .join(', ');
-  doc.text(`Período: ${monthsText}`, pageWidth / 2, 160, { align: 'center' });
+  doc.text(`Período: ${monthsText}`, pageWidth / 2, 165, { align: 'center' });
 };
 
-const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number, year: number): number => {
+const generateLogbookPage = (doc: jsPDF, entries: LancamentoDiarioBordo[], month: number, year: number): number => {
   const pageWidth = doc.internal.pageSize.getWidth();
   doc.addPage();
 
@@ -127,28 +140,28 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
 
   const filteredEntries = entries
     .filter(e => {
-      const date = new Date(e.entry_date);
+      const date = new Date(e.data_registro);
       return date.getUTCMonth() + 1 === month && date.getUTCFullYear() === year;
     })
-    .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
+    .sort((a, b) => new Date(a.data_registro).getTime() - new Date(b.data_registro).getTime());
 
   const tableData = filteredEntries.map(entry => [
-    formatDateBR(entry.entry_date),
-    entry.departure_aerodrome || '-',
-    entry.arrival_aerodrome || '-',
-    entry.ac_time ? entry.ac_time.substring(0, 5) : '-',
-    entry.dep_time ? entry.dep_time.substring(0, 5) : '-',
-    entry.pou_time ? entry.pou_time.substring(0, 5) : '-',
-    entry.cor_time ? entry.cor_time.substring(0, 5) : '-',
-    decimalToHHMM(entry.time || entry.total_time),
-    decimalToHHMM(entry.day_time),
-    decimalToHHMM(entry.night_hours),
-    decimalToHHMM(entry.ifr_time),
-    entry.pousos || '0',
-    entry.fuel_added ? `${entry.fuel_added}L` : '-',
+    formatDateBR(entry.data_registro),
+    entry.aerodromo_partida || '-',
+    entry.aerodromo_chegada || '-',
+    entry.tempo_ac ? entry.tempo_ac.substring(0, 5) : '-',
+    entry.tempo_dep ? entry.tempo_dep.substring(0, 5) : '-',
+    entry.tempo_pou ? entry.tempo_pou.substring(0, 5) : '-',
+    entry.tempo_cor ? entry.tempo_cor.substring(0, 5) : '-',
+    decimalToHHMM(entry.horas_totais || entry.tempo_total),
+    decimalToHHMM(entry.horas_diurnas),
+    decimalToHHMM(entry.horas_noturnas),
+    decimalToHHMM(entry.tempo_ifr),
+    entry.pousos_total || '0',
+    entry.combustivel_adicionado ? `${entry.combustivel_adicionado}L` : '-',
     entry.celula ? entry.celula.toFixed(1) : '-',
-    entry.pic_name || '-',
-    entry.client_company_name || entry.nome_socio || '-',
+    entry.pic_canac || '-',
+    entry.cliente_empresa_nome || entry.socios_nome || '-',
   ]);
 
   let finalY = 25;
@@ -223,26 +236,26 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
   let hasPartners = false;
 
   filteredEntries.forEach(entry => {
-    const partnerName = entry.nome_socio;
+    const partnerName = entry.socios_nome;
     if (partnerName) {
       hasPartners = true;
       const key = partnerName;
       if (!partnerTotals[key]) {
         partnerTotals[key] = { name: partnerName, hours: 0, voos: 0 };
       }
-      partnerTotals[key].hours += entry.total_time || 0;
+      partnerTotals[key].hours += entry.tempo_total || 0;
       partnerTotals[key].voos += 1;
     } else {
       // For loans, use the recipient client; otherwise the owner client
-      const clientId = entry.is_loan ? entry.loan_recipient_client_id : entry.cliente_id;
-      const clientName = entry.is_loan
-        ? (entry.loan_recipient_client_name || entry.client_company_name || 'Sem Cliente')
-        : (entry.client_company_name || 'Sem Cliente');
+      const clientId = entry.empreendimento ? entry.cliente_tomador_emprestimo_id : entry.clientes_id;
+      const clientName = entry.empreendimento
+        ? (entry.cliente_tomador_emprestimo_nome || entry.cliente_empresa_nome || 'Sem Cliente')
+        : (entry.cliente_empresa_nome || 'Sem Cliente');
 
       if (!clientTotals[clientId]) {
         clientTotals[clientId] = { name: clientName, hours: 0, voos: 0 };
       }
-      clientTotals[clientId].hours += entry.total_time || 0;
+      clientTotals[clientId].hours += entry.tempo_total || 0;
       clientTotals[clientId].voos += 1;
     }
   });
@@ -265,7 +278,7 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
 
     // Draw summary as small table
     const summaryTableData = summaryEntries.map(s => [
-      s.nome,
+      s.name,
       s.voos.toString(),
       decimalToHHMM(s.hours)
     ]);

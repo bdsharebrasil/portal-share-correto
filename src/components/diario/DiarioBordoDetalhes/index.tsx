@@ -84,6 +84,163 @@ const calculateTimes = (entry: any) => {
   };
 };
 
+const toNumberOrDefault = (value: any, defaultValue = 0) => {
+  if (value === null || value === undefined || value === '') return defaultValue;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : defaultValue;
+};
+
+const normalizeCrewMember = (member: any) => ({
+  ...member,
+  full_name: member.full_name ?? member.nome_completo ?? '',
+  nome_completo: member.nome_completo ?? member.full_name ?? ''
+});
+
+/**
+ * Normaliza entradas do lançamento diário do bordo
+ * Mapeia nomes em inglês para o schema correto em português (lancamentos_diario_bordo)
+ * Mantém compatibilidade com código legado usando aliases
+ */
+const normalizeLogbookEntry = (entry: any) => {
+  const clientId = entry.client_id ?? entry.cliente_id ?? entry.clientes_id ?? null;
+  const clientPartnerId = entry.client_partner_id ?? entry.socio_cliente_id_id ?? entry.socios_cliente_id ?? null;
+  const dailyRateValue = entry.daily_rate ?? entry.tarifa_diaria;
+  // Garantir que temos uma data válida em ambos os campos
+  const dateValue = entry.data_registro ?? entry.entry_date ?? null;
+
+  return {
+    // ===== MANTÉM TODOS OS CAMPOS ORIGINAIS COMO FALLBACK =====
+    ...entry,
+
+    // ===== MAPEAMENTO DE IDENTIFICADORES =====
+    diario_mes_id: entry.diario_mes_id ?? entry.diario_mes ?? null,
+    clientes_id: clientId,
+    socios_cliente_id: clientPartnerId,
+    parceiro_tomador_emprestimo_id: entry.loan_recipient_partner_id ?? entry.parceiro_tomador_emprestimo_id ?? null,
+    cliente_tomador_emprestimo_id: entry.loan_recipient_client_id ?? entry.cliente_tomador_emprestimo_id ?? null,
+
+    // ===== MAPEAMENTO DE DATAS E HORÁRIOS =====
+    data_registro: dateValue,
+    entry_date: dateValue,
+    tripulacao_checkin_hora: entry.tripulacao_checkin_hora ?? entry.crew_checkin_time ?? '',
+    data_assinatura_piloto: entry.data_assinatura_piloto ?? entry.signed_at ?? null,
+
+    // ===== MAPEAMENTO DE AERÓDROMOS E TRAJETO =====
+    aerodromo_partida: entry.aerodromo_partida ?? entry.departure_aerodrome ?? '',
+    aerodromo_chegada: entry.aerodromo_chegada ?? entry.arrival_aerodrome ?? '',
+    trecho: entry.trecho ?? null,
+
+    // ===== MAPEAMENTO DE TEMPOS DE VOO =====
+    tempo_ac: entry.tempo_ac ?? entry.ac_time ?? '',
+    tempo_dep: entry.tempo_dep ?? entry.dep_time ?? '',
+    tempo_pou: entry.tempo_pou ?? entry.pou_time ?? '',
+    tempo_cor: entry.tempo_cor ?? entry.cor_time ?? '',
+    tempo_total: toNumberOrDefault(entry.tempo_total ?? entry.total_time ?? entry.time),
+    horas_totais: toNumberOrDefault(entry.horas_totais ?? entry.total_time ?? entry.time),
+    horas_diurnas: toNumberOrDefault(entry.horas_diurnas ?? entry.day_time),
+    horas_noturnas: toNumberOrDefault(entry.horas_noturnas ?? entry.night_hours),
+    tempo_ifr: toNumberOrDefault(entry.tempo_ifr ?? entry.ifr_time),
+
+    // ===== MAPEAMENTO DE POUSOS =====
+    pousos_total: toNumberOrDefault(entry.pousos_total ?? entry.pousos, 1),
+
+    // ===== MAPEAMENTO DE COMBUSTÍVEL =====
+    consumo_combustivel: toNumberOrDefault(entry.consumo_combustivel ?? entry.fuel_consu),
+    litros_combustivel: toNumberOrDefault(entry.litros_combustivel ?? entry.fuel_liters),
+    preco_combustivel_litro: toNumberOrDefault(entry.preco_combustivel_litro ?? entry.fuel_price_per_liter),
+    local_combustivel: entry.local_combustivel ?? entry.fuel_location ?? '',
+    tipo_combustivel: entry.tipo_combustivel ?? entry.fuel_type ?? '',
+    abastecido: entry.abastecido ?? entry.refueled ?? false,
+    combustivel_adicionado: toNumberOrDefault(entry.combustivel_adicionado ?? entry.fuel_added),
+
+    // ===== MAPEAMENTO DE CÉLULA E DISTÂNCIA =====
+    celula: toNumberOrDefault(entry.celula),
+    distancia_nm: toNumberOrDefault(entry.distancia_nm ?? entry.distance_nm),
+
+    // ===== MAPEAMENTO DE CARGA E PASSAGEIROS =====
+    passageiros: toNumberOrDefault(entry.passageiros ?? entry.passengers),
+    carga_kg: entry.carga_kg ?? entry.cargo_kg ?? null,
+
+    // ===== MAPEAMENTO DE NATUREZA DO VOO =====
+    natureza_voo: entry.natureza_voo ?? entry.flight_nature ?? '',
+
+    // ===== MAPEAMENTO DE OBSERVAÇÕES =====
+    ocorrencias: entry.ocorrencias ?? entry.occurrences ?? '',
+    discrepancias: entry.discrepancias ?? entry.discrepancies ?? '',
+    acoes_corretivas: entry.acoes_corretivas ?? entry.corrective_actions ?? '',
+
+    // ===== MAPEAMENTO DE TRIPULAÇÃO =====
+    pic_canac: entry.pic_canac ?? null,
+    sic_canac: entry.sic_canac ?? null,
+    sic_name: entry.sic_name ?? null,
+    socios_nome: entry.socios_nome ?? entry.nome_socio ?? null,
+    origem_pic: entry.origem_pic ?? entry.pic_source ?? 'crew_members',
+    origem_sic: entry.origem_sic ?? entry.sic_source ?? 'crew_members',
+
+    // ===== MAPEAMENTO DE DIVISÃO E EMPRÉSTIMO =====
+    divisao_igual: entry.divisao_igual ?? entry.is_equal_split ?? false,
+    empreendimento: entry.empreendimento ?? entry.is_loan ?? false,
+
+    // ===== MAPEAMENTO DE MANUTENÇÃO =====
+    tipo_manutencao_ultima: entry.tipo_manutencao_ultima ?? null,
+    tipo_manutencao_proxima: entry.tipo_manutencao_proxima ?? null,
+    horas_celula_proxima_manutencao: toNumberOrDefault(entry.horas_celula_proxima_manutencao),
+    responsavel_aprovacao_manutencao: entry.responsavel_aprovacao_manutencao ?? null,
+
+    // ===== MAPEAMENTO DE STATUS =====
+    confirmado: entry.confirmado ?? entry.confirmed ?? false,
+    fechado: entry.fechado ?? entry.closed ?? false,
+    tarifa_diaria: entry.tarifa_diaria ?? entry.daily_rate ?? null,
+    numero_sequencial: entry.numero_sequencial ?? null,
+
+    // ===== ALIASES PARA COMPATIBILIDADE COM CÓDIGO LEGADO (EN) =====
+    client_id: clientId,
+    cliente_id: clientId,
+    client_partner_id: clientPartnerId,
+    socio_cliente_id_id: clientPartnerId,
+    loan_recipient_client_id: entry.loan_recipient_client_id ?? entry.cliente_tomador_emprestimo_id ?? null,
+    loan_recipient_partner_id: entry.loan_recipient_partner_id ?? entry.parceiro_tomador_emprestimo_id ?? null,
+    is_equal_split: entry.is_equal_split ?? entry.divisao_igual ?? false,
+    is_loan: entry.is_loan ?? entry.empreendimento ?? false,
+    time: toNumberOrDefault(entry.time ?? entry.tempo_total),
+    total_time: toNumberOrDefault(entry.total_time ?? entry.horas_totais ?? entry.tempo_total),
+    day_time: toNumberOrDefault(entry.day_time ?? entry.horas_diurnas),
+    night_hours: toNumberOrDefault(entry.night_hours ?? entry.horas_noturnas),
+    ifr_time: toNumberOrDefault(entry.ifr_time ?? entry.tempo_ifr),
+    pousos: toNumberOrDefault(entry.pousos ?? entry.pousos_total, 1),
+    fuel_added: toNumberOrDefault(entry.fuel_added ?? entry.combustivel_adicionado),
+    fuel_consu: toNumberOrDefault(entry.fuel_consu ?? entry.consumo_combustivel),
+    fuel_liters: toNumberOrDefault(entry.fuel_liters ?? entry.litros_combustivel),
+    fuel_type: entry.fuel_type ?? entry.tipo_combustivel ?? '',
+    fuel_location: entry.fuel_location ?? entry.local_combustivel ?? '',
+    fuel_price_per_liter: toNumberOrDefault(entry.fuel_price_per_liter ?? entry.preco_combustivel_litro),
+    refueled: entry.refueled ?? entry.abastecido ?? false,
+    distance_nm: toNumberOrDefault(entry.distance_nm ?? entry.distancia_nm),
+    passengers: toNumberOrDefault(entry.passengers ?? entry.passageiros),
+    flight_nature: entry.flight_nature ?? entry.natureza_voo ?? '',
+    occurrences: entry.occurrences ?? entry.ocorrencias ?? '',
+    discrepancies: entry.discrepancies ?? entry.discrepancias ?? '',
+    corrective_actions: entry.corrective_actions ?? entry.acoes_corretivas ?? '',
+    daily_rate: toNumberOrDefault(dailyRateValue),
+    nome_socio: entry.nome_socio ?? entry.socios_nome ?? null,
+    confirmed: entry.confirmed ?? entry.confirmado ?? false,
+    created_at: entry.created_at ?? entry.criado_em ?? null,
+    pic_source: entry.pic_source ?? entry.origem_pic ?? null,
+    sic_source: entry.sic_source ?? entry.origem_sic ?? null,
+
+    // ===== ALIASES PARA COMPATIBILIDADE (OLD NAMES) =====
+    departure_aerodrome: entry.departure_aerodrome ?? entry.aerodromo_partida ?? '',
+    arrival_aerodrome: entry.arrival_aerodrome ?? entry.aerodromo_chegada ?? '',
+    crew_checkin_time: entry.crew_checkin_time ?? entry.tripulacao_checkin_hora ?? '',
+    ac_time: entry.ac_time ?? entry.tempo_ac ?? '',
+    dep_time: entry.dep_time ?? entry.tempo_dep ?? '',
+    pou_time: entry.pou_time ?? entry.tempo_pou ?? '',
+    cor_time: entry.cor_time ?? entry.tempo_cor ?? ''
+  };
+};
+
+const normalizeLogbookEntries = (entries: any[] = []) => entries.map(normalizeLogbookEntry);
+
 // ===================== COMPONENTE PRINCIPAL =====================
 const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const { isAdmin, isGestorMaster, isPilotoChefe, isCoordenadorVoo, isTripulante } = useUserRole();
@@ -320,6 +477,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   useEffect(() => {
     const loadData = async () => {
+      // Proteção: garantir que temos valores válidos de mês/ano
+      if (!Number.isInteger(selectedMonth) || !Number.isInteger(selectedYear)) {
+        logInfo(`⚠️ Aguardando sincronização de mês/ano: month=${selectedMonth}, year=${selectedYear}`);
+        return;
+      }
+
       setLoading(true);
       try {
         const [acRes, crewMembersRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
@@ -328,7 +491,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         supabase.from('aerodromes').select('*').order('designativo'),
         supabase.from('clientes').select('id, razao_social, cnpj, cotistas_aeronave(id_aeronave, percentual_sociedade)').order('razao_social'),
         supabase.from('lancamentos_diario_bordo').select('*').eq('aeronave_id', aircraftId).order('numero_sequencial', { ascending: true }),
-        supabase.from('diario_mes').select('mes, ano').eq('aeronave_id', aircraftId).eq('fechado', false).order('ano', { ascending: false }).order('mes', { ascending: false }),
+        supabase.from('diario_mes').select('mes, ano').eq('aeronave_id', aircraftId).order('ano', { ascending: false }).order('mes', { ascending: false }),
         supabase.from('cotistas_aeronave').select('*, clientes(id, razao_social)').eq('id_aeronave', aircraftId),
         supabase.from('socios_cliente').select('id, nome, cpf, cliente_id').order('nome')]
         );
@@ -340,18 +503,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
         // Get crew members from crew table
         const crewMembersData = crewMembersRes.data || [];
-        const crewTableData = (crewMembersData).map((p: any) => ({
-          id: p.id,
-          nome_completo: p.nome_completo,
-          canac: p.canac,
-          status: p.status
-        }));
-        const existingIds = new Set(crewMembersData.map((c: any) => c.id));
-        const mergedCrew = [
-        ...crewMembersData,
-        ...crewTableData.filter((c: any) => !existingIds.has(c.id))];
-
-        setCrew(mergedCrew);
+        setCrew(crewMembersData.map(normalizeCrewMember));
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
         if (clientRes.data) {
           logSuccess('Clientes carregados', { count: clientRes.data.length });
@@ -359,7 +511,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
         if (entriesRes.data) {
           logSuccess('Entradas carregadas', { count: entriesRes.data.length });
-          setEntries(entriesRes.data || []);
+          setEntries(normalizeLogbookEntries(entriesRes.data || []));
         }
         if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
         if (partnersRes.data) setPartners(partnersRes.data || []);
@@ -392,6 +544,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         order('data_lancamento', { ascending: false });
 
         if (loansRes.data) setLoans(loansRes.data || []);
+
+        // Validar que selectedMonth e selectedYear são números válidos antes de fazer a query
+        if (!Number.isInteger(selectedMonth) || !Number.isInteger(selectedYear) || selectedMonth < 1 || selectedMonth > 12 || selectedYear < 1900) {
+          logInfo(`⚠️ Valores inválidos de mês/ano: month=${selectedMonth}, year=${selectedYear}`);
+          setLogbookMonth(null);
+          setLoading(false);
+          // Se os valores são inválidos, não fazer nada - o estado será sincronizado pela próxima renderização
+          return;
+        }
 
         let { data: monthData } = await supabase.
         from('diario_mes').
@@ -466,9 +627,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       );
       if (!currentMonthAvailable) {
         const firstAvailable = availableMonths[0];
+        logInfo(`📅 Sincronizando mês: ${selectedMonth}/${selectedYear} não está disponível, usando ${firstAvailable.month}/${firstAvailable.year}`);
         setSelectedMonth(firstAvailable.month);
         setSelectedYear(firstAvailable.year);
       }
+    } else {
+      // Sem meses disponíveis - manter os valores atuais
+      logInfo(`📅 Nenhum mês disponível no banco de dados - mantendo mês/ano atual: ${selectedMonth}/${selectedYear}`);
     }
   }, [availableMonths, selectedMonth, selectedYear]);
 
@@ -543,9 +708,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   }, [showAddForm, entries, newEntry.departure_aerodrome]);
 
   useEffect(() => {
-    const firstDayOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
-    const isoDate = format(firstDayOfMonth, 'yyyy-MM-dd');
-    setNewEntry((prev) => ({ ...prev, entry_date: isoDate }));
+    // Validação para evitar "Invalid time value" quando selectedYear ou selectedMonth são inválidos
+    const year = selectedYear ?? new Date().getFullYear();
+    const month = selectedMonth ?? new Date().getMonth() + 1;
+
+    // Verifica se o year e month são números válidos
+    if (Number.isInteger(year) && Number.isInteger(month) && month > 0 && month <= 12) {
+      const firstDayOfMonth = new Date(year, month - 1, 1);
+      if (!isNaN(firstDayOfMonth.getTime())) {
+        const isoDate = format(firstDayOfMonth, 'yyyy-MM-dd');
+        setNewEntry((prev) => ({ ...prev, entry_date: isoDate }));
+      }
+    }
   }, [selectedMonth, selectedYear]);
 
   // Removido: updateCelulaAtual não deve ser chamado aqui, apenas quando um voo é adicionado/editado/deletado
@@ -655,10 +829,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const date = new Date(e.entry_date);
       const matchesPeriod = date.getUTCMonth() + 1 === selectedMonth && date.getUTCFullYear() === selectedYear;
       const searchLower = searchTerm.toLowerCase();
+      const picName = (crew.find((c: any) => c.id === e.pic_canac)?.full_name || '').toLowerCase();
       const matchesSearch =
       e.departure_aerodrome?.toLowerCase().includes(searchLower) ||
       e.arrival_aerodrome?.toLowerCase().includes(searchLower) ||
-      crew.find((c: any) => c.id === e.pic_canac)?.full_name.toLowerCase().includes(searchLower);
+      picName.includes(searchLower);
       return matchesPeriod && matchesSearch;
     });
 
@@ -833,7 +1008,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               const eDate = new Date(e.entry_date);
               return eDate.getMonth() + 1 !== selectedMonth || eDate.getFullYear() !== selectedYear;
             });
-            return [...allOtherMonth, ...refreshedEntries];
+            return [...allOtherMonth, ...normalizeLogbookEntries(refreshedEntries)];
           });
         }
       }
@@ -978,7 +1153,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     eq('aeronave_id', aircraftId).
     order('diario_mes_id', { ascending: false }).
     order('numero_sequencial', { ascending: true });
-    setEntries(data || []);
+    setEntries(normalizeLogbookEntries(data || []));
   };
 
   /**
@@ -1410,7 +1585,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       order('numero_sequencial', { ascending: true });
 
       if (updatedEntries) {
-        setEntries(updatedEntries);
+        setEntries(normalizeLogbookEntries(updatedEntries));
 
         // Calcular incremento apenas do voo adicionado/editado (não de todos do mês)
         let flightTimeIncrement = newEntry.total_time || 0;
@@ -1628,7 +1803,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       order('diario_mes_id', { ascending: false }).
       order('numero_sequencial', { ascending: true });
       if (data) {
-        setEntries(data);
+        setEntries(normalizeLogbookEntries(data));
         // Subtrair o tempo do voo deletado
         const deletedFlightTime = -(entryToDelete.total_time || 0);
         await updateCelulaAtual(deletedFlightTime);
@@ -2159,14 +2334,28 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     
                     <Calendar className="mr-2 h-4 w-4 text-sky-400" />
                     {newEntry.entry_date ?
-                    format(parse(newEntry.entry_date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') :
+                    (() => {
+                      try {
+                        const parsedDate = parse(newEntry.entry_date, 'yyyy-MM-dd', new Date());
+                        return !isNaN(parsedDate.getTime()) ? format(parsedDate, 'dd/MM/yyyy') : "Data inválida";
+                      } catch {
+                        return "Data inválida";
+                      }
+                    })() :
                     "Selecione a data"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-700" align="start">
                   <CalendarComponent
                     mode="single"
-                    selected={newEntry.entry_date ? parse(newEntry.entry_date, 'yyyy-MM-dd', new Date()) : undefined}
+                    selected={newEntry.entry_date ? (() => {
+                      try {
+                        const parsedDate = parse(newEntry.entry_date, 'yyyy-MM-dd', new Date());
+                        return !isNaN(parsedDate.getTime()) ? parsedDate : undefined;
+                      } catch {
+                        return undefined;
+                      }
+                    })() : undefined}
                     onSelect={(date) => {
                       if (!date) return;
                       const dateMonth = date.getMonth() + 1;
@@ -2177,7 +2366,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       }
                       setNewEntry({ ...newEntry, entry_date: format(date, 'yyyy-MM-dd') });
                     }}
-                    defaultMonth={new Date(selectedYear, selectedMonth - 1)}
+                    defaultMonth={new Date(selectedYear ?? new Date().getFullYear(), (selectedMonth ?? new Date().getMonth() + 1) - 1)}
                     locale={ptBR}
                     className="rounded-md"
                     classNames={{
@@ -3562,7 +3751,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </span>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span className="text-white text-xs">{picCrew?.full_name.split(' ')[0] || '-'}</span>
+                      <span className="text-white text-xs">{picCrew?.full_name?.split(' ')[0] || '-'}</span>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_pic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-slate-400 text-xs font-bold">{picCrew?.canac || '-'}</span>
@@ -3571,7 +3760,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       {e.sic_name ?
                       <span className="text-amber-300 text-xs font-semibold" title={e.sic_name}>{e.sic_name}</span> :
 
-                      <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
+                      <span className="text-white text-xs">{sicCrew?.full_name?.split(' ')[0] || '-'}</span>
                       }
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -4270,11 +4459,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-800 pt-6 px-4">
-              <button onClick={() => setSelectedYear((y) => y - 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+              <button onClick={() => setSelectedYear((y) => y ? y - 1 : new Date().getFullYear())} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
                 <ChevronLeft />
               </button>
               <span className="text-2xl font-black">{selectedYear}</span>
-              <button onClick={() => setSelectedYear((y) => y + 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+              <button onClick={() => setSelectedYear((y) => y ? y + 1 : new Date().getFullYear())} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
                 <ChevronRight />
               </button>
             </div>

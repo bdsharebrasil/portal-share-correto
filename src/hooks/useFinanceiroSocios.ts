@@ -4,22 +4,22 @@ import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
 // --- TIPOS ---
-// partner_accounts schema: id, clientes_id, socio_cpf, socio_nome, current_balance,
-//   total_deposited, total_spent, created_at, updated_at, bank_name,
-//   total_interest_earned, socios_cliente_id
+// partner_accounts schema: id, clientes_id, socio_cpf, socio_nome, saldo_atual,
+//   total_depositado, total_gasto, criado_em, atualizado_em, nome_banco,
+//   juros_totais_ganhos, socios_cliente_id
 
 type PartnerAccountRow = {
   id: string;
   clientes_id: string;
   socio_cpf: string;
   socio_nome: string;
-  current_balance: number | null;
-  total_deposited: number | null;
-  total_spent: number | null;
-  created_at: string | null;
-  updated_at: string | null;
-  bank_name: string | null;
-  total_interest_earned: number | null;
+  saldo_atual: number | null;
+  total_depositado: number | null;
+  total_gasto: number | null;
+  criado_em: string | null;
+  atualizado_em: string | null;
+  nome_banco: string | null;
+  juros_totais_ganhos: number | null;
   socios_cliente_id: string | null;
 };
 
@@ -228,7 +228,7 @@ export function useSocioAccounts(clientId: string | null) {
         .from("partner_accounts")
         .select("*")
         .eq("clientes_id", clientId)
-        .order("socio_nome");
+        .order("socio_nome", { ascending: true });
 
       if (error) throw error;
 
@@ -622,8 +622,12 @@ export function useAddDeposit(showToast = true) {
       transactionSubtype?: string;
       prazo?: string;
       referenceId?: string;
+      referenceType?: string;
       paymentMethod?: string | null;
       clientPartnerId?: string | null;
+      documento?: string | null;
+      notes?: string | null;
+      createdBy?: string | null;
     }) => {
       let balanceBefore = 0;
       let balanceAfter = 0;
@@ -644,45 +648,45 @@ export function useAddDeposit(showToast = true) {
         // partner_accounts usa clientes_id (não cliente_id)
         const { data: account, error: accErr } = await supabase
           .from("partner_accounts")
-          .select("id, current_balance, total_deposited, socios_cliente_id")
+          .select("id, saldo_atual, total_depositado, socios_cliente_id")
           .eq("clientes_id", data.clientId)
           .eq("socios_cliente_id", clientPartnerId)
           .maybeSingle();
         if (accErr) throw accErr;
 
         if (account) {
-          balanceBefore = Number(account.current_balance);
-          balanceAfter = balanceBefore + data.amount; // corrigido: data.valor → data.amount
+          balanceBefore = Number(account.saldo_atual);
+          balanceAfter = balanceBefore + data.amount;
 
           const { error: updErr } = await supabase
             .from("partner_accounts")
             .update({
-              current_balance: balanceAfter,
-              total_deposited: Number(account.total_deposited) + data.amount, // corrigido
+              saldo_atual: balanceAfter,
+              total_depositado: Number(account.total_depositado) + data.amount,
             })
             .eq("id", account.id);
           if (updErr) throw updErr;
         } else {
           balanceBefore = 0;
-          balanceAfter = data.amount; // corrigido
+          balanceAfter = data.amount;
 
           const { error: insErr } = await supabase
             .from("partner_accounts")
             .insert({
-              clientes_id: data.clientId,       // corrigido: cliente_id → clientes_id
+              clientes_id: data.clientId,
               socios_cliente_id: clientPartnerId,
               socio_cpf: data.partnerCpf,
               socio_nome: data.partnerName,
-              current_balance: balanceAfter,
-              total_deposited: data.amount,      // corrigido
-              total_spent: 0,
+              saldo_atual: balanceAfter,
+              total_depositado: data.amount,
+              total_gasto: 0,
             })
             .select("id")
             .single();
           if (insErr) throw insErr;
         }
       } else {
-        balanceAfter = data.amount; // corrigido
+        balanceAfter = data.amount;
       }
 
       const { error: txErr } = await supabase
@@ -692,18 +696,22 @@ export function useAddDeposit(showToast = true) {
           socio_cpf: data.partnerCpf || "00000000000",
           socio_nome: data.partnerName,
           tipo: "deposit",
-          valor: data.amount,                        // corrigido
-          saldo_antes: balanceBefore,
-          saldo_depois: balanceAfter,
+          valor: parseFloat(data.amount.toFixed(2)),
+          saldo_antes: parseFloat(balanceBefore.toFixed(2)),
+          saldo_depois: parseFloat(balanceAfter.toFixed(2)),
           descricao: data.description,
           url_comprovante: data.receiptUrl || null,
           data_pagamento: data.paymentDate,
           banco_nome: data.bankName?.toUpperCase() || null,
-          subtipo: data.transactionSubtype?.toUpperCase() || "DEPOSIT",
-          tipo_referencia: data.referenceId ? "partner_expense" : null,
+          subtipo: data.transactionSubtype?.toUpperCase() || "deposit",
+          tipo_referencia: data.referenceType || null,
           referencia_id: data.referenceId || null,
-          status: "RECEBIDO",
+          status: "recebido",
           metodo_pagamento: data.paymentMethod?.toUpperCase() || null,
+          documento: data.documento || null,
+          observacoes: data.notes || null,
+          criado_por: data.createdBy || null,
+          prazo: (data.prazo || "extra").toLowerCase() as "mensal" | "extra",
         });
       if (txErr) throw txErr;
 
@@ -745,18 +753,18 @@ export function usePayExpense() {
       // partner_accounts usa clientes_id (não cliente_id)
       const { data: account, error: accErr } = await supabase
         .from("partner_accounts")
-        .select("id, current_balance, total_spent")
-        .eq("clientes_id", data.clientId)  // corrigido: cliente_id → clientes_id
+        .select("id, saldo_atual, total_gasto")
+        .eq("clientes_id", data.clientId)
         .eq("socio_cpf", data.partnerCpf)
         .single();
       if (accErr) throw accErr;
 
-      const balanceBefore = Number(account.current_balance);
-      if (balanceBefore < data.amount) { // corrigido: data.valor → data.amount
+      const balanceBefore = Number(account.saldo_atual);
+      if (balanceBefore < data.amount) {
         throw new Error(`Saldo insuficiente. Disponível: R$ ${balanceBefore.toFixed(2)}`);
       }
 
-      const balanceAfter = balanceBefore - data.amount; // corrigido
+      const balanceAfter = balanceBefore - data.amount;
 
       const { error: txErr } = await supabase
         .from("partner_transactions")
@@ -765,22 +773,24 @@ export function usePayExpense() {
           socio_cpf: data.partnerCpf,
           socio_nome: data.partnerName,
           tipo: "payment",
-          valor: data.amount,              // corrigido
-          saldo_antes: balanceBefore,
-          saldo_depois: balanceAfter,
-          descricao: `Pagamento de despesa`,
+          valor: parseFloat(data.amount.toFixed(2)),
+          saldo_antes: parseFloat(balanceBefore.toFixed(2)),
+          saldo_depois: parseFloat(balanceAfter.toFixed(2)),
+          descricao: "Pagamento de despesa",
           tipo_referencia: "expense",
           referencia_id: data.expenseId,
           data_pagamento: data.paymentDate,
           status: "pago",
+          subtipo: "payment",
+          prazo: "extra",
         });
       if (txErr) throw txErr;
 
       const { error: updErr } = await supabase
         .from("partner_accounts")
         .update({
-          current_balance: balanceAfter,
-          total_spent: Number(account.total_spent) + data.amount, // corrigido
+          saldo_atual: balanceAfter,
+          total_gasto: Number(account.total_gasto) + data.amount,
         })
         .eq("id", account.id);
       if (updErr) throw updErr;
@@ -1018,14 +1028,16 @@ export function useAddBankInterest() {
         socio_cpf: "00000000000",
         socio_nome: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
         tipo: "deposit",
-        valor: data.amount,
+        valor: parseFloat(data.amount.toFixed(2)),
         saldo_antes: 0,
         saldo_depois: 0,
         descricao: data.description,
         data_pagamento: data.paymentDate,
         banco_nome: data.bankName?.toUpperCase() || null,
-        subtipo: "INTEREST",
-        metodo_pagamento: "OUTROS",
+        subtipo: "interest",
+        metodo_pagamento: "outros",
+        status: "recebido",
+        prazo: "extra",
       });
       if (error) throw error;
       return data.clientId;
@@ -1088,19 +1100,19 @@ export function useDeleteTransaction() {
           // partner_accounts usa clientes_id (não cliente_id)
           const { data: account, error: accErr } = await supabase
             .from("partner_accounts")
-            .select("id, current_balance, total_deposited, total_spent")
-            .eq("clientes_id", data.clientId)  // corrigido: cliente_id → clientes_id
+            .select("id, saldo_atual, total_depositado, total_gasto")
+            .eq("clientes_id", data.clientId)
             .eq("socio_cpf", data.partnerCpf)
             .single();
           if (accErr) throw accErr;
 
           const updates: any = {};
           if (data.transactionType === "deposit") {
-            updates.current_balance = Number(account.current_balance) - data.amount;  // corrigido
-            updates.total_deposited = Number(account.total_deposited) - data.amount;  // corrigido
+            updates.saldo_atual = Number(account.saldo_atual) - data.amount;
+            updates.total_depositado = Number(account.total_depositado) - data.amount;
           } else if (data.transactionType === "payment") {
-            updates.current_balance = Number(account.current_balance) + data.amount;  // corrigido
-            updates.total_spent = Number(account.total_spent) - data.amount;           // corrigido
+            updates.saldo_atual = Number(account.saldo_atual) + data.amount;
+            updates.total_gasto = Number(account.total_gasto) - data.amount;
           }
 
           const { error: updErr } = await supabase
@@ -1264,12 +1276,14 @@ export function useUpdateTransaction() {
         const { error } = await supabase
           .from("partner_transactions")
           .update({
-            descricao: data.description,       // corrigido: description → descricao
-            valor: data.amount,                // corrigido: amount → valor
+            descricao: data.description,
+            valor: parseFloat(data.amount.toFixed(2)),
             data_pagamento: data.paymentDate,
-            observacoes: data.notes || null,   // corrigido: notes → observacoes
+            observacoes: data.notes || null,
             banco_nome: data.bankName || null,
-            prazo: data.prazo || null,
+            prazo: data.prazo ? (data.prazo.toLowerCase() as "mensal" | "extra") : "extra",
+            metodo_pagamento: data.paymentMethod?.toUpperCase() || null,
+            status: data.status?.toLowerCase() || null,
           })
           .eq("id", data.id);
         if (error) throw error;

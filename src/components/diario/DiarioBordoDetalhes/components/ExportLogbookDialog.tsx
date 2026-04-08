@@ -35,10 +35,10 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
   aircraftRegistration,
   aircraftModel,
   clientName,
-  availableMonths,
-  entries,
-  currentMonth,
-  currentYear,
+  availableMonths = [],
+  entries = [],
+  currentMonth = new Date().getMonth() + 1,
+  currentYear = new Date().getFullYear(),
   crewMembers = [],
   clients = [],
   clientPartners = {}
@@ -48,13 +48,16 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
 
   useEffect(() => {
     if (open) {
-      const currentMonthData = availableMonths.find(
+      const safeAvailableMonths = Array.isArray(availableMonths) ? availableMonths : [];
+      const currentMonthData = safeAvailableMonths.find(
         m => m.month === currentMonth && m.year === currentYear
       );
       if (currentMonthData) {
         setSelectedMonths([currentMonthData]);
-      } else if (availableMonths.length > 0) {
-        setSelectedMonths([availableMonths[0]]);
+      } else if (safeAvailableMonths.length > 0) {
+        setSelectedMonths([safeAvailableMonths[0]]);
+      } else {
+        setSelectedMonths([]);
       }
     }
   }, [open, currentMonth, currentYear, availableMonths]);
@@ -71,7 +74,8 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
   };
 
   const selectAllMonths = () => {
-    setSelectedMonths([...availableMonths]);
+    const safeAvailableMonths = Array.isArray(availableMonths) ? availableMonths : [];
+    setSelectedMonths([...safeAvailableMonths]);
   };
 
   const clearSelection = () => {
@@ -169,12 +173,16 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
     }
   };
 
-  // Agrupar meses por ano
-  const monthsByYear = availableMonths.reduce((acc, m) => {
+  // Agrupar meses por ano - garantir que availableMonths é um array válido
+  const safeAvailableMonths = Array.isArray(availableMonths) ? availableMonths : [];
+
+  const monthsByYear = safeAvailableMonths.reduce((acc, m) => {
     if (!acc[m.year]) {
       acc[m.year] = [];
     }
-    acc[m.year].push(m.month);
+    if (m.month) {
+      acc[m.year].push(m.month);
+    }
     return acc;
   }, {} as Record<number, number[]>);
 
@@ -205,7 +213,7 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
               <div key={year} className="mb-4">
                 <h4 className="font-semibold text-sm text-slate-700 mb-2">{year}</h4>
                 <div className="space-y-2 pl-2">
-                  {monthsByYear[year]
+                  {(monthsByYear[year] || [])
                     .sort((a, b) => b - a)
                     .map(month => {
                       const isSelected = selectedMonths.some(

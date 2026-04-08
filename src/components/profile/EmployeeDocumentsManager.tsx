@@ -7,20 +7,19 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, Download, Trash2, FileText, Loader2, User, Folder, Heart, Award, File, Eye } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface EmployeeDocument {
   id: string;
   user_id: string;
-  file_name: string;
-  file_path: string;
-  file_size: number;
-  file_type: string;
-  created_at: string;
+  nome_arquivo: string;
+  caminho_arquivo: string;
+  tipo_arquivo: string;
+  tamanho_arquivo: number;
+  criado_em: string;
   uploaded_by: string;
   uploaded_by_name?: string;
-  category: string;
+  categoria: string;
 }
 
 type DocumentCategory = "Documentos Pessoais" | "Atestados Médicos" | "Documentos Financeiros" | "Académicos/Certificados" | "Outros";
@@ -42,7 +41,14 @@ interface EmployeeDocumentsManagerProps {
   currentUserId?: string;
 }
 
-const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.documentoument"];
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export function EmployeeDocumentsManager({
@@ -51,7 +57,7 @@ export function EmployeeDocumentsManager({
   isAdmin = false,
   isFinanceiroMaster = false,
   isGestorMaster = false,
-  currentUserId
+  currentUserId,
 }: EmployeeDocumentsManagerProps) {
   const [documents, setDocuments] = useState<EmployeeDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,32 +79,34 @@ export function EmployeeDocumentsManager({
   const loadDocuments = async () => {
     try {
       setLoading(true);
+
+      // Campos em português conforme o schema do banco
       const { data, error } = await supabase
         .from("user_documents")
-        .select("*")
+        .select("id, user_id, nome_arquivo, caminho_arquivo, tipo_arquivo, tamanho_arquivo, criado_em, uploaded_by, categoria")
         .eq("user_id", userId)
         .order("criado_em", { ascending: false });
 
       if (error) throw error;
 
-      // Enrich with uploader names if needed
+      // Enriquecer com nome de quem enviou, se disponível
       const enrichedData = await Promise.all(
-        (data || []).map(async (doc: any) => {
-          if (doc.enviado_por && !doc.enviado_por_name) {
+        (data || []).map(async (doc: EmployeeDocument) => {
+          if (doc.uploaded_by) {
             const { data: profile } = await supabase
               .from("user_profiles")
               .select("full_name")
-              .eq("id", doc.enviado_por)
+              .eq("id", doc.uploaded_by)
               .single();
-            return { ...documento, uploaded_by_name: profile?.full_name || "Desconhecido" };
+            return { ...doc, uploaded_by_name: profile?.full_name || "Desconhecido" };
           }
-          return { ...documento, uploaded_by_name: doc.enviado_por_name || null };
+          return { ...doc, uploaded_by_name: undefined };
         })
       );
 
-      setDocuments(enrichedData || []);
+      setDocuments(enrichedData);
     } catch (error) {
-      console.error("Error loading documents:", error);
+      console.error("Erro ao carregar documentos:", error);
       toast.error("Erro ao carregar documentos");
     } finally {
       setLoading(false);
@@ -109,7 +117,7 @@ export function EmployeeDocumentsManager({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
 
-      if (!ALLOWED_TYPES.includes(file.tipo)) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
         toast.error("Formato não permitido. Use: PDF, Imagem, Word");
         return;
       }
@@ -132,47 +140,44 @@ export function EmployeeDocumentsManager({
     try {
       setUploading(true);
 
-      const fileExt = selectedFile.nome.split(".").pop() || '';
+      const fileExt = selectedFile.name.split(".").pop() || "";
       const timestamp = Date.now();
-      // Sanitizar categoria: remover acentos e espaços
-      const sanitizedCategory = selectedCategory
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9._-]/g, '_')
-        .replace(/_+/g, '_');
-      const fileName = `${userId}/${sanitizedCategory}/${timestamp}.${fileExt}`;
 
-      // Upload to storage
+      // Sanitizar categoria: remover acentos e caracteres especiais
+      const sanitizedCategory = selectedCategory
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_")
+        .replace(/_+/g, "_");
+
+      const filePath = `${userId}/${sanitizedCategory}/${timestamp}.${fileExt}`;
+
+      // Upload para o storage
       const { error: uploadError } = await supabase.storage
         .from("documents_colaborador")
-        .upload(fileName, selectedFile);
+        .upload(filePath, selectedFile);
 
       if (uploadError) throw uploadError;
 
-      // Get current user
+      // Obter usuário atual
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Insert into database
+      // Inserir metadados com os campos em português do banco
       const { error: dbError } = await supabase
         .from("user_documents")
         .insert({
           user_id: userId,
-          file_name: selectedFile.nome,
-          file_path: fileName,
-          file_size: selectedFile.size,
-          file_type: selectedFile.tipo,
+          nome_arquivo: selectedFile.name,
+          caminho_arquivo: filePath,
+          tamanho_arquivo: selectedFile.size,
+          tipo_arquivo: selectedFile.type,
           uploaded_by: user?.id,
-          category: selectedCategory,
-          created_at: new Date().toISOString()
+          categoria: selectedCategory,
+          // criado_em tem default now() no banco, não precisa enviar
         });
 
       if (dbError) {
-        console.error("Erro ao salvar metadados:", {
-          error: dbError,
-          code: dbError.code,
-          message: dbError.message,
-          details: dbError.details,
-        });
+        console.error("Erro ao salvar metadados:", dbError);
         throw dbError;
       }
 
@@ -180,15 +185,9 @@ export function EmployeeDocumentsManager({
       setSelectedFile(null);
       setUploadDialogOpen(false);
       setSelectedCategory("Outros");
-      console.log("Documento salvo com sucesso. Recarregando documentos...");
       await loadDocuments();
     } catch (error: any) {
-      console.error("Error uploading document:", {
-        error: error,
-        message: error.message,
-        code: error.code,
-        details: error.details,
-      });
+      console.error("Erro ao enviar documento:", error);
 
       let errorMessage = "Erro ao enviar documento";
       if (error.code === "PGRST116") {
@@ -203,24 +202,24 @@ export function EmployeeDocumentsManager({
     }
   };
 
-  const handleDownload = async (filePath: string, fileName: string) => {
+  const handleDownload = async (caminhoArquivo: string, nomeArquivo: string) => {
     try {
       const { data, error } = await supabase.storage
         .from("documents_colaborador")
-        .download(filePath);
+        .download(caminhoArquivo);
 
       if (error) throw error;
 
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = fileName;
+      a.download = nomeArquivo;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Error downloading document:", error);
+      console.error("Erro ao baixar documento:", error);
       toast.error("Erro ao baixar documento");
     }
   };
@@ -229,34 +228,32 @@ export function EmployeeDocumentsManager({
     try {
       const { data, error } = await supabase.storage
         .from("documents_colaborador")
-        .createSignedUrl(doc.caminho_arquivo, 60 * 60); // 1 hour expiry
+        .createSignedUrl(doc.caminho_arquivo, 60 * 60); // expira em 1 hora
 
       if (error) throw error;
 
       setViewingDocument(doc);
       setDocumentUrl(data.signedUrl);
     } catch (error) {
-      console.error("Error viewing document:", error);
+      console.error("Erro ao visualizar documento:", error);
       toast.error("Erro ao visualizar documento");
     }
   };
 
-  const handleDelete = async (docId: string, filePath: string) => {
-    if (!window.confirm("Deseja remover este documento?")) {
-      return;
-    }
+  const handleDelete = async (docId: string, caminhoArquivo: string) => {
+    if (!window.confirm("Deseja remover este documento?")) return;
 
     try {
       setDeleting(docId);
 
-      // Delete from storage
+      // Remover do storage
       const { error: storageError } = await supabase.storage
         .from("documents_colaborador")
-        .remove([filePath]);
+        .remove([caminhoArquivo]);
 
       if (storageError) throw storageError;
 
-      // Delete from database
+      // Remover do banco
       const { error: dbError } = await supabase
         .from("user_documents")
         .delete()
@@ -264,10 +261,10 @@ export function EmployeeDocumentsManager({
 
       if (dbError) throw dbError;
 
-      setDocuments(documents.filter(d => d.id !== docId));
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
       toast.success("Documento removido com sucesso!");
     } catch (error) {
-      console.error("Error deleting document:", error);
+      console.error("Erro ao remover documento:", error);
       toast.error("Erro ao remover documento");
     } finally {
       setDeleting(null);
@@ -275,11 +272,11 @@ export function EmployeeDocumentsManager({
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 B";
+    if (!bytes || bytes === 0) return "0 B";
     const k = 1024;
     const sizes = ["B", "KB", "MB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + " " + sizes[i];
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   return (
@@ -299,10 +296,7 @@ export function EmployeeDocumentsManager({
             <CardDescription>Documentos pessoais e profissionais</CardDescription>
           </div>
           {canEdit && (
-            <Button
-              onClick={() => setUploadDialogOpen(true)}
-              className="gap-2"
-            >
+            <Button onClick={() => setUploadDialogOpen(true)} className="gap-2">
               <Upload className="h-4 w-4" />
               Enviar Documento
             </Button>
@@ -316,7 +310,7 @@ export function EmployeeDocumentsManager({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Pastas de Documentos - SEMPRE VISÍVEL */}
+              {/* Pastas de Documentos */}
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Folder className="h-4 w-4" />
@@ -324,7 +318,7 @@ export function EmployeeDocumentsManager({
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {DOCUMENT_CATEGORIES.map((cat) => {
-                    const count = documents.filter(d => d.categoria === cat.value).length;
+                    const count = documents.filter((d) => d.categoria === cat.value).length;
                     const isSelected = expandedCategory === cat.value;
                     return (
                       <Button
@@ -334,16 +328,22 @@ export function EmployeeDocumentsManager({
                             ? "bg-primary/20 border-primary border-2 hover:border-primary"
                             : "hover:border-primary"
                           }`}
-                        onClick={() => setExpandedCategory(expandedCategory === cat.value ? null : cat.value)}
+                        onClick={() =>
+                          setExpandedCategory(expandedCategory === cat.value ? null : cat.value)
+                        }
                       >
                         <div className="flex items-center gap-3 w-full min-w-0">
-                          <div className={`p-2 rounded flex-shrink-0 ${isSelected ? "bg-primary text-primary-foreground" : "bg-primary/10"
-                            }`}>
+                          <div
+                            className={`p-2 rounded flex-shrink-0 ${isSelected ? "bg-primary text-primary-foreground" : "bg-primary/10"
+                              }`}
+                          >
                             {cat.icon}
                           </div>
                           <div className="text-left flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{cat.label}</p>
-                            <p className="text-xs text-muted-foreground">{count} documento{count !== 1 ? 's' : ''}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {count} documento{count !== 1 ? "s" : ""}
+                            </p>
                           </div>
                         </div>
                       </Button>
@@ -358,7 +358,7 @@ export function EmployeeDocumentsManager({
                   <h3 className="text-sm font-semibold text-foreground">{expandedCategory}</h3>
                   <div className="space-y-2">
                     {documents
-                      .filter(d => d.categoria === expandedCategory)
+                      .filter((d) => d.categoria === expandedCategory)
                       .map((doc) => (
                         <div
                           key={doc.id}
@@ -369,7 +369,9 @@ export function EmployeeDocumentsManager({
                               <FileText className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm text-foreground truncate">{doc.nome_arquivo}</p>
+                              <p className="font-medium text-sm text-foreground truncate">
+                                {doc.nome_arquivo}
+                              </p>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <p className="text-xs text-muted-foreground">
                                   {formatFileSize(doc.tamanho_arquivo)}
@@ -420,14 +422,16 @@ export function EmployeeDocumentsManager({
                           </div>
                         </div>
                       ))}
-                    {documents.filter(d => d.categoria === expandedCategory).length === 0 && (
-                      <p className="text-sm text-muted-foreground py-4 text-center">Nenhum documento nesta pasta</p>
+                    {documents.filter((d) => d.categoria === expandedCategory).length === 0 && (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        Nenhum documento nesta pasta
+                      </p>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Mensagem quando não há nenhum documento */}
+              {/* Mensagem quando não há documentos */}
               {documents.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>Nenhum documento enviado ainda</p>
@@ -448,6 +452,7 @@ export function EmployeeDocumentsManager({
         </CardContent>
       </Card>
 
+      {/* Dialog — Upload */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -462,7 +467,11 @@ export function EmployeeDocumentsManager({
               <Label htmlFor="categoria" className="text-sm font-medium">
                 Categoria *
               </Label>
-              <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as DocumentCategory)} disabled={uploading}>
+              <Select
+                value={selectedCategory}
+                onValueChange={(value) => setSelectedCategory(value as DocumentCategory)}
+                disabled={uploading}
+              >
                 <SelectTrigger id="categoria" className="mt-2">
                   <SelectValue placeholder="Selecione uma categoria" />
                 </SelectTrigger>
@@ -485,12 +494,12 @@ export function EmployeeDocumentsManager({
                 type="file"
                 onChange={handleFileSelect}
                 disabled={uploading}
-                accept=".pdf,.jpg,.jpeg,.png,.documento,.documentox"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                 className="mt-2"
               />
               {selectedFile && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Arquivo: {selectedFile.nome} ({formatFileSize(selectedFile.size)})
+                  Arquivo: {selectedFile.name} ({formatFileSize(selectedFile.size)})
                 </p>
               )}
               <p className="text-xs text-muted-foreground mt-1">
@@ -510,11 +519,7 @@ export function EmployeeDocumentsManager({
             >
               Cancelar
             </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={uploading || !selectedFile}
-              className="gap-2"
-            >
+            <Button onClick={handleUpload} disabled={uploading || !selectedFile} className="gap-2">
               {uploading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -531,38 +536,44 @@ export function EmployeeDocumentsManager({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!viewingDocument} onOpenChange={(open) => !open && setViewingDocument(null)}>
+      {/* Dialog — Visualizar */}
+      <Dialog
+        open={!!viewingDocument}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewingDocument(null);
+            setDocumentUrl(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{viewingDocument?.nome_arquivo}</DialogTitle>
             <DialogDescription>
               {viewingDocument && (
-                <>
-                  <p className="text-xs mt-2">
-                    Tamanho: {formatFileSize(viewingDocument.tamanho_arquivo)} • Data: {new Date(viewingDocument.criado_em).toLocaleDateString("pt-BR")}
-                  </p>
-                </>
+                <p className="text-xs mt-2">
+                  Tamanho: {formatFileSize(viewingDocument.tamanho_arquivo)} • Data:{" "}
+                  {new Date(viewingDocument.criado_em).toLocaleDateString("pt-BR")}
+                </p>
               )}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-auto bg-muted/50 rounded-lg min-h-[500px] flex items-center justify-center">
             {documentUrl && viewingDocument ? (
-              <>
-                {viewingDocument.tipo_arquivo === "application/pdf" ? (
-                  <iframe
-                    src={documentUrl}
-                    className="w-full h-full rounded"
-                    title={viewingDocument.nome_arquivo}
-                  />
-                ) : (
-                  <img
-                    src={documentUrl}
-                    alt={viewingDocument.nome_arquivo}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                )}
-              </>
+              viewingDocument.tipo_arquivo === "application/pdf" ? (
+                <iframe
+                  src={documentUrl}
+                  className="w-full h-full rounded"
+                  title={viewingDocument.nome_arquivo}
+                />
+              ) : (
+                <img
+                  src={documentUrl}
+                  alt={viewingDocument.nome_arquivo}
+                  className="max-h-full max-w-full object-contain"
+                />
+              )
             ) : (
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             )}
@@ -581,10 +592,7 @@ export function EmployeeDocumentsManager({
               <Download className="h-4 w-4" />
               Baixar
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setViewingDocument(null)}
-            >
+            <Button variant="outline" onClick={() => setViewingDocument(null)}>
               Fechar
             </Button>
           </DialogFooter>

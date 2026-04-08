@@ -45,9 +45,9 @@ export function CreateMonthDialog({
   const [loading, setLoading] = useState(false);
   const [aerodromes, setAerodromes] = useState<{ id: string; designativo: string; name: string }[]>([]);
   
-  // Seleção de mês/ano
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
-  const [selectedYear, setSelectedYear] = useState(initialYear);
+  // Seleção de mês/ano - garantir valores válidos
+  const [selectedMonth, setSelectedMonth] = useState<number>(initialMonth ?? new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(initialYear ?? new Date().getFullYear());
 
   // Form state - inicializa vazio para permitir entrada manual
   const [formData, setFormData] = useState({
@@ -67,9 +67,13 @@ export function CreateMonthDialog({
   useEffect(() => {
     if (open) {
       fetchAerodromes();
-      setSelectedMonth(initialMonth);
-      setSelectedYear(initialYear);
-      
+      // Validar e garantir que os valores são válidos
+      const validMonth = initialMonth ?? new Date().getMonth() + 1;
+      const validYear = initialYear ?? new Date().getFullYear();
+
+      setSelectedMonth(validMonth);
+      setSelectedYear(validYear);
+
       // Se há dados anteriores, usa como sugestão inicial
       if (previousMonthData?.celula_atual) {
         setFormData({

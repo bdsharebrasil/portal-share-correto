@@ -34,14 +34,14 @@ interface Props {
 function assignFlightsToPartner(flights: FlightEntry[], partnerId: string, allPartners: PartnerInfo[]): FlightEntry[] {
   return flights.filter((f) => {
     if (f.is_equal_split) return true;
-    if (f.socio_cliente_id_id === partnerId) return true;
+    if (f.client_partner_id === partnerId) return true;
     if (f.is_loan && f.loan_recipient_partner_id === partnerId) return true;
     return false;
   });
 }
 
 function assignFuelsToPartner(fuels: FuelEntry[], partnerName: string): FuelEntry[] {
-  return fuels.filter((f) => f.nome_socio === partnerName);
+  return fuels.filter((f) => f.partner_name === partnerName);
 }
 
 function assignExpensesToPartner(expenses: ExpenseEntry[], partnerName: string, partnerCpf: string): ExpenseEntry[] {
@@ -53,7 +53,7 @@ function assignTravelReportsToPartner(travelReports: TravelReportEntry[], partne
 }
 
 function assignBankControlExpensesToPartner(expenses: BankControlEntry[], partnerId: string): BankControlEntry[] {
-  return expenses.filter((e) => e.socio_cliente_id_id === partnerId);
+  return expenses.filter((e) => e.socios_cliente_id === partnerId);
 }
 
 export function MonthlyPartnerReportPDF({ 
@@ -76,8 +76,8 @@ export function MonthlyPartnerReportPDF({
 
   // Date range from actual data
   const dateRangeLabel = useMemo(() => {
-    const first = data.dataRange?.firstEntryDate;
-    const last = data.dataRange?.lastEntryDate;
+    const first = data.dateRange?.firstEntryDate;
+    const last = data.dateRange?.lastEntryDate;
     if (first && last) {
       const d1 = new Date(first + "T12:00:00").getDate();
       const d2 = new Date(last + "T12:00:00").getDate();

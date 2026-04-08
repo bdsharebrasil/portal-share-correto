@@ -33,14 +33,12 @@ interface HorasDataItem {
   atualizado_em?: string;
 }
 
-interface LogbookEntry {
+interface LancamentoDiarioBordo {
   tempo_total: number;
   clientes_id: string;
   id: string;
-  client_id: string;
   aeronave_id: string;
-  entry_date: string;
-  total_time: number | null;
+  data_registro: string;
   aircraft?: {
     registration?: string;
     matricula?: string;
@@ -118,14 +116,14 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
           return [];
         }
 
-        const fallbackEntries = fallbackData as unknown as LogbookEntry[] | null;
+        const fallbackEntries = fallbackData as unknown as LancamentoDiarioBordo[] | null;
 
         // Transformar dados de lancamentos_diario_bordo para formato compatível
         if (fallbackEntries && fallbackEntries.length > 0) {
           const horasAgrupadas: Record<string, HorasDataItem> = {};
 
           fallbackEntries.forEach((entry) => {
-            const data = new Date(entry.entry_date);
+            const data = new Date(entry.data_registro);
             const ano = data.getFullYear();
             const mes = data.getMonth() + 1;
             const key = `${entry.aeronave_id}-${ano}-${mes}`;
@@ -157,7 +155,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
           Object.values(horasAgrupadas).forEach((hora) => {
             const totalAeronave = fallbackEntries
               .filter((e) => {
-                const d = new Date(e.entry_date);
+                const d = new Date(e.data_registro);
                 return d.getFullYear() === hora.ano &&
                        (d.getMonth() + 1) === hora.mes &&
                        e.aeronave_id === hora.aeronave_id;

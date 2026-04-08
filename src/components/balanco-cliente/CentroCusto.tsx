@@ -121,7 +121,7 @@ export function CentroCusto({ clienteId, aeronaveId, periodo, socioId }: CentroC
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('partner_accounts')
-        .select('id, socio_nome, current_balance, socios_cliente_id')
+        .select('id, socio_nome, saldo_atual, socios_cliente_id')
         .eq('clientes_id', clienteId);
       if (error) throw error;
       return data || [];

@@ -36,14 +36,17 @@ interface Categoria {
 
 interface FavoriteDescription {
   id: string;
-  description: string;
+  description?: string;
+  descricao?: string;
 }
 
 interface ClientPartner {
   id: string;
-  name: string;
+  name?: string;
+  nome?: string;
   cpf: string;
-  percentual_sociedade: number;
+  percentual_sociedade?: number;
+  percentual_participacao?: number;
 }
 
 export function ReceiptForm({
@@ -231,10 +234,10 @@ export function ReceiptForm({
     if (client) {
       setFormData((prev) => ({
         ...prev,
-        pagadorNome: client.razao_social || "",
+        pagadorNome: client.razao_social || client.nome || "",
         pagadorDocumento: client.cnpj || "",
-        pagadorEndereco: client.endereco || "",
-        pagadorCidade: client.cidade || "",
+        pagadorEndereco: client.endereco || client.address || "",
+        pagadorCidade: client.cidade || client.city || "",
         pagadorUF: client.uf || "",
       }));
     }
@@ -248,10 +251,10 @@ export function ReceiptForm({
       if (client && formData.clienteId) {
         setFormData((prev) => ({
           ...prev,
-          pagadorNome: client.razao_social || "",
+          pagadorNome: client.razao_social || client.nome || "",
           pagadorDocumento: client.cnpj || "",
-          pagadorEndereco: client.endereco || "",
-          pagadorCidade: client.cidade || "",
+          pagadorEndereco: client.endereco || client.address || "",
+          pagadorCidade: client.cidade || client.city || "",
           pagadorUF: client.uf || "",
         }));
       }
@@ -261,7 +264,7 @@ export function ReceiptForm({
     if (partner) {
       setFormData((prev) => ({
         ...prev,
-        pagadorNome: partner.nome || "",
+        pagadorNome: partner.nome || partner.name || "",
         pagadorDocumento: partner.cpf || "",
       }));
     }
@@ -274,7 +277,7 @@ export function ReceiptForm({
       .eq("id_clientes", clientId);
 
     if (data) {
-      setAircrafts(data.map((c) => c.aeronave).filter(Boolean));
+      setAircrafts(data.map((c) => c.aircraft || c.aeronave).filter(Boolean));
     }
   };
 
@@ -284,7 +287,14 @@ export function ReceiptForm({
       .select("id, nome, cpf, percentual_participacao")
       .eq("cliente_id", clientId)
       .order("nome");
-    setClientPartners(data || []);
+    setClientPartners((data || []).map(d => ({
+      id: d.id,
+      name: d.nome,
+      nome: d.nome,
+      cpf: d.cpf,
+      percentual_sociedade: d.percentual_participacao,
+      percentual_participacao: d.percentual_participacao,
+    })));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -394,7 +404,7 @@ export function ReceiptForm({
               <Label>Aeronave</Label>
               <SearchableCombobox
                 items={aeronaveItems}
-                value={formData.aeronaveId}
+                value={formData.aircraftId}
                 onChange={(id) =>
                   setFormData((p) => ({ ...p, aircraftId: id }))
                 }
@@ -426,7 +436,7 @@ export function ReceiptForm({
                   </SelectItem>
                   {clientPartners.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.nome} {p.cpf ? `(${p.cpf})` : ""} — {p.percentual_participacao}%
+                      {p.nome || p.name} {p.cpf ? `(${p.cpf})` : ""} — {p.percentual_participacao || p.percentual_sociedade}%
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -833,16 +843,19 @@ export function ReceiptForm({
 
             {showFavorites && favoriteDescriptions.length > 0 && (
               <div className="border border-border rounded-lg p-2 space-y-1 bg-muted/30 max-h-40 overflow-y-auto">
-                {favoriteDescriptions.map((desc) => (
-                  <button
-                    key={desc.id}
-                    type="button"
-                    onClick={() => selectFavoriteDescription(desc.descricao)}
-                    className="w-full text-left p-2 text-sm hover:bg-accent rounded transition-colors"
-                  >
-                    {desc.descricao}
-                  </button>
-                ))}
+                {favoriteDescriptions.map((desc) => {
+                  const text = desc.descricao || desc.description || "";
+                  return (
+                    <button
+                      key={desc.id}
+                      type="button"
+                      onClick={() => selectFavoriteDescription(text)}
+                      className="w-full text-left p-2 text-sm hover:bg-accent rounded transition-colors"
+                    >
+                      {text}
+                    </button>
+                  );
+                })}
               </div>
             )}
 

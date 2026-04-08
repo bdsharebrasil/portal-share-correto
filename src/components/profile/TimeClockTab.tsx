@@ -144,7 +144,7 @@ export function TimeClockTab() {
       
       if (documentFile) {
         setUploading(true);
-        const fileName = `${userId}/${format(selectedDate, "yyyy-MM-dd")}-${Date.now()}.${documentFile.nome.split(".").pop()}`;
+        const fileName = `${userId}/${format(selectedDate, "yyyy-MM-dd")}-${Date.now()}.${documentFile.name.split(".").pop()}`;
         const { error: uploadError } = await supabase.storage
           .from("documents_colaborador")
           .upload(fileName, documentFile);
@@ -478,9 +478,9 @@ export function TimeClockTab() {
                           {getStatusBadge(item.status)}
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">{item.justification}</p>
-                        {item.documento && (
+                        {item.document_url && (
                           <a
-                            href={item.documento}
+                            href={item.document_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline mt-1 inline-block"
@@ -516,7 +516,7 @@ export function TimeClockTab() {
                         <div className="text-sm space-y-1">
                           <p><span className="text-muted-foreground">Tipo:</span> {getCorrectionTypeLabel(item.correction_type)}</p>
                           <p><span className="text-muted-foreground">Horário correto:</span> {item.corrected_time}</p>
-                          <p className="text-muted-foreground line-clamp-1">{item.motivo}</p>
+                          <p className="text-muted-foreground line-clamp-1">{item.reason}</p>
                         </div>
                       </div>
                     ))}
