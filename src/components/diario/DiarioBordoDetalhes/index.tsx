@@ -513,7 +513,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Entradas carregadas', { count: entriesRes.data.length });
           setEntries(normalizeLogbookEntries(entriesRes.data || []));
         }
-        if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
+        // Mapear mes/ano para month/year para compatibilidade com state
+        if (monthsRes.data) {
+          const normalizedMonths = monthsRes.data.map((m: any) => ({
+            month: m.month ?? m.mes,
+            year: m.year ?? m.ano
+          }));
+          logSuccess('Meses disponíveis carregados', { count: normalizedMonths.length, months: normalizedMonths });
+          setAvailableMonths(normalizedMonths);
+        }
         if (partnersRes.data) setPartners(partnersRes.data || []);
 
         // Criar mapa de client_partners para busca rápida por ID
