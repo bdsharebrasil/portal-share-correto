@@ -199,7 +199,7 @@ export function ContasRecorrentesTab() {
         }
 
         // Criar conta a pagar
-        const { error } = await supabase.from("contas_apagar").insert({
+        const { error } = await (supabase.from("contas_apagar") as any).insert({
           numero: `REC-${conta.id.slice(0, 6)}-${generateMonth}/${generateYear}`,
           fornecedor_nome: conta.fornecedor,
           fornecedor_cnpj: "",

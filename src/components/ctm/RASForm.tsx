@@ -142,14 +142,14 @@ export function RASForm({ aircraftId, onSuccess, onCancel, existingRAS }: RASFor
       if (existingRAS) {
         const { error } = await supabase
           .from('ras')
-          .update(rasData)
+          .update(rasData as any)
           .eq('id', rasId);
 
         if (error) throw error;
       } else {
         const { data: newRAS, error } = await (supabase as any)
           .from('ras')
-          .insert([rasData])
+          .insert([rasData as any])
           .select()
           .single();
 

@@ -83,8 +83,8 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
           .eq('id', itemId);
         if (error) throw error;
       } else if (tipo === 'reembolso') {
-        const { error } = await supabase
-          .from('conciliacoes_bancarias')
+        const { error } = await (supabase
+          .from('conciliacoes_bancarias') as any)
           .update({
             status: 'reembolsado',
             data_reembolso: dataPagamento,

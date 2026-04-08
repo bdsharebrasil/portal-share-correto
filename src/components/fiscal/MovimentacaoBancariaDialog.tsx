@@ -82,8 +82,8 @@ export function MovimentacaoBancariaDialog({
       };
 
       if (movimentacao?.id) {
-        const { error } = await supabase
-          .from("controle_bancario")
+        const { error } = await (supabase
+          .from("controle_bancario") as any)
           .update(payload)
           .eq("id", movimentacao.id);
         if (error) throw error;

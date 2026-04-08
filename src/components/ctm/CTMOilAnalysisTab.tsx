@@ -15,10 +15,10 @@ export function CTMOilAnalysisTab({ aircraftId }: Props) {
     queryKey: ["oil-analysis", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("oil_analysis")
+        .from("analise_oleo")
         .select("*")
-        .eq("aircraft_id", aircraftId)
-        .order("date", { ascending: false });
+        .eq("aeronave_id", aircraftId)
+        .order("data_analise", { ascending: false });
       if (error) throw error;
       return data || [];
     },

@@ -297,7 +297,7 @@ export default function GestaoDeTripulacao() {
       });
     }
   };
-  const filteredCrewMembers = crewMembers.filter(crew => crew.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || crew.canac.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredCrewMembers = crewMembers.filter(crew => (crew.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (crew.canac || '').toLowerCase().includes(searchTerm.toLowerCase()));
   const formatDate = formatDateToBR;
   return <Layout>
     <div className="p-4 md:p-6 space-y-6 bg-background min-h-screen">

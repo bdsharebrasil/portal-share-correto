@@ -162,7 +162,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
     const totalFuel = monthEntries.reduce((s, e) => s + (Number(e.combustivel_adicionado) || 0), 0);
 
     const totalHours = monthEntries.reduce((s, e) => {
-      const hours = timeField === "tempo_voo" ? Number(e.tempo_voo) || 0 : Number(e.tempo_total) || 0;
+      const hours = timeField === "tempo_voo" ? Number((e as any).tempo_voo) || 0 : Number(e.tempo_total) || 0;
       return s + hours;
     }, 0);
 
@@ -178,11 +178,11 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
       const pFuel = pEntries.reduce((s, e) => s + (Number(e.combustivel_adicionado) || 0), 0);
 
       const pHours = pEntries.reduce((s, e) => {
-        const hours = timeField === "tempo_voo" ? Number(e.tempo_voo) || 0 : Number(e.tempo_total) || 0;
+        const hours = timeField === "tempo_voo" ? Number((e as any).tempo_voo) || 0 : Number(e.tempo_total) || 0;
         return s + hours;
       }, 0);
 
-      const pTime = pEntries.reduce((s, e) => s + (Number(e.tempo_voo) || 0), 0);
+      const pTime = pEntries.reduce((s, e) => s + (Number((e as any).tempo_voo) || 0), 0);
       const pTotalTime = pEntries.reduce((s, e) => s + (Number(e.tempo_total) || 0), 0);
 
       return {
@@ -195,7 +195,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
       };
     });
 
-    const totalTime = monthEntries.reduce((s, e) => s + (Number(e.tempo_voo) || 0), 0);
+    const totalTime = monthEntries.reduce((s, e) => s + (Number((e as any).tempo_voo) || 0), 0);
     const totalTotalTime = monthEntries.reduce((s, e) => s + (Number(e.tempo_total) || 0), 0);
 
     return {
@@ -248,7 +248,7 @@ export function CTMAircraftReports({ aircraftId, aircraftRegistration }: Props) 
         );
 
         const totalFlightHours = entries.reduce((sum: number, e: any) => {
-          const h = Number(e.tempo_voo) || 0;
+          const h = Number((e as any).tempo_voo) || 0;
           return sum + h;
         }, 0);
 
