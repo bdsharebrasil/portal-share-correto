@@ -21,12 +21,11 @@ interface CrewLicense {
 
 interface CrewMember {
   id: string;
-  nome_completo: string;
+  nome_completo?: string;
   canac: string;
   email?: string;
   telefone?: string;
   url_avatar?: string;
-  status: string;
   // Backward compatibility
   full_name?: string;
   phone?: string;
@@ -47,13 +46,15 @@ const formatPhone = (phone: string | undefined) => {
   return phone;
 };
 
-const getInitials = (name: string) =>
-  name
+const getInitials = (name: string | undefined): string => {
+  if (!name) return "?";
+  return name
     .split(" ")
     .filter(Boolean)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("")
     .slice(0, 2);
+};
 
 type LicenseStatus = "active" | "expiring" | "expired";
 
@@ -78,7 +79,12 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
   const navigate = useNavigate();
   const [licenses, setLicenses] = useState<CrewLicense[]>([]);
   const [loading, setLoading] = useState(true);
-  const formattedPhone = formatPhone(member.telefone);
+
+  // Resolve campos com fallback para compatibilidade retroativa
+  const displayName = member.nome_completo ?? member.full_name ?? "";
+  const displayAvatar = member.url_avatar ?? member.avatar_url;
+  const displayPhone = member.telefone ?? member.phone;
+  const formattedPhone = formatPhone(displayPhone);
 
   useEffect(() => {
     const fetchLicenses = async () => {
@@ -114,15 +120,15 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
       <div className="p-4 pb-3 border-b border-slate-800/50">
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 ring-2 ring-cyan-500/30 group-hover:ring-cyan-500/50 transition-all flex-shrink-0">
-            <AvatarImage src={member.avatar_url} alt={member.full_name} className="object-cover" />
+            <AvatarImage src={displayAvatar} alt={displayName} className="object-cover" />
             <AvatarFallback className="bg-slate-800 text-slate-300 font-semibold text-lg">
-              {getInitials(member.full_name)}
+              {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-foreground text-base leading-tight line-clamp-1 group-hover:text-cyan-400 transition-colors">
-              {member.full_name}
+              {displayName}
             </h3>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">

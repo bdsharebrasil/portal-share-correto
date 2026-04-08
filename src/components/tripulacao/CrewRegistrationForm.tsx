@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,26 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { Edit2, Trash2, Plus } from "lucide-react";
 
-interface CrewPerson {
+interface FreelanceCrew {
   id: string;
   canac: string;
   nome_completo: string;
   data_nascimento?: string;
   telefone?: string;
   url_avatar?: string;
-  status: string;
   rg?: string;
   cpf?: string;
   endereco?: string;
+  status: string;
   criado_em: string;
-  // Backward compatibility
-  full_name?: string;
-  birth_date?: string;
-  phone?: string;
-  avatar_url?: string;
-  status?: string;
-  address?: string;
-  created_at?: string;
 }
 
 interface FormData {
@@ -42,12 +34,6 @@ interface FormData {
   cpf: string;
   endereco: string;
   status: string;
-  // Backward compatibility
-  full_name?: string;
-  birth_date?: string;
-  phone?: string;
-  address?: string;
-  status?: string;
 }
 
 const INITIAL_FORM_STATE: FormData = {
@@ -62,7 +48,7 @@ const INITIAL_FORM_STATE: FormData = {
 };
 
 export function CrewRegistrationForm() {
-  const [crewList, setCrewList] = useState<CrewPerson[]>([]);
+  const [crewList, setCrewList] = useState<FreelanceCrew[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -103,10 +89,7 @@ export function CrewRegistrationForm() {
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const resetForm = () => {
@@ -129,31 +112,34 @@ export function CrewRegistrationForm() {
     try {
       setIsLoading(true);
 
+      const payload = {
+        canac: formData.canac,
+        nome_completo: formData.nome_completo,
+        data_nascimento: formData.data_nascimento || null,
+        telefone: formData.telefone || null,
+        rg: formData.rg || null,
+        cpf: formData.cpf || null,
+        endereco: formData.endereco || null,
+        status: formData.status,
+      };
+
       if (editingId) {
-        // Update existing crew
         const { error } = await supabase
           .from("tripulacao")
-          .update(formData)
+          .update(payload)
           .eq("id", editingId);
 
         if (error) throw error;
 
-        toast({
-          title: "Sucesso",
-          description: "Tripulante atualizado com sucesso",
-        });
+        toast({ title: "Sucesso", description: "Tripulante atualizado com sucesso" });
       } else {
-        // Insert new crew
         const { error } = await supabase
           .from("tripulacao")
-          .insert([formData]);
+          .insert([payload]);
 
         if (error) throw error;
 
-        toast({
-          title: "Sucesso",
-          description: "Tripulante cadastrado com sucesso",
-        });
+        toast({ title: "Sucesso", description: "Tripulante cadastrado com sucesso" });
       }
 
       setIsDialogOpen(false);
@@ -170,7 +156,7 @@ export function CrewRegistrationForm() {
     }
   };
 
-  const handleEdit = (crew: CrewPerson) => {
+  const handleEdit = (crew: FreelanceCrew) => {
     setFormData({
       canac: crew.canac,
       nome_completo: crew.nome_completo,
@@ -186,24 +172,14 @@ export function CrewRegistrationForm() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Tem certeza que deseja deletar este tripulante?")) {
-      return;
-    }
+    if (!window.confirm("Tem certeza que deseja deletar este tripulante?")) return;
 
     try {
       setIsLoading(true);
-      const { error } = await supabase
-        .from("tripulacao")
-        .delete()
-        .eq("id", id);
-
+      const { error } = await supabase.from("tripulacao").delete().eq("id", id);
       if (error) throw error;
 
-      toast({
-        title: "Sucesso",
-        description: "Tripulante removido com sucesso",
-      });
-
+      toast({ title: "Sucesso", description: "Tripulante removido com sucesso" });
       await loadCrew();
     } catch (error: any) {
       toast({
@@ -218,18 +194,18 @@ export function CrewRegistrationForm() {
 
   const filteredCrew = crewList.filter(
     (crew) =>
-      crew.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      crew.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       crew.canac.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Cadastro de Tripulantes</h2>
+          <h2 className="text-2xl font-bold">Tripulantes</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Cadastre tripulantes que não são membros da Share Brasil
+            Tripulantes externos sem vínculo com a Share Brasil
           </p>
         </div>
         <Button
@@ -240,11 +216,11 @@ export function CrewRegistrationForm() {
           className="gap-2"
         >
           <Plus className="h-4 w-4" />
-          Novo Tripulante
+          Novo tripulante
         </Button>
       </div>
 
-      {/* Search Section */}
+      {/* Search */}
       <div>
         <Input
           placeholder="Buscar por nome ou CANAC..."
@@ -254,7 +230,12 @@ export function CrewRegistrationForm() {
         />
       </div>
 
-      {/* Table Section */}
+      {/* Aviso informativo */}
+      <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-400">
+        ℹ️ Esta lista contém apenas tripulantes <strong>sem vínculo empregatício</strong>.
+      </div>
+
+      {/* Tabela */}
       <Card>
         <CardContent className="p-0">
           {filteredCrew.length === 0 ? (
@@ -264,7 +245,7 @@ export function CrewRegistrationForm() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50">
+                <TableRow className="bg-slate-55">
                   <TableHead>Nome</TableHead>
                   <TableHead>CANAC</TableHead>
                   <TableHead>CPF</TableHead>
@@ -276,14 +257,12 @@ export function CrewRegistrationForm() {
               <TableBody>
                 {filteredCrew.map((crew) => (
                   <TableRow key={crew.id}>
-                    <TableCell className="font-medium">{crew.full_name}</TableCell>
+                    <TableCell className="font-medium">{crew.nome_completo}</TableCell>
                     <TableCell>{crew.canac}</TableCell>
                     <TableCell>{crew.cpf || "-"}</TableCell>
                     <TableCell>{crew.telefone || "-"}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={crew.status === "ativo" ? "default" : "secondary"}
-                      >
+                      <Badge variant={crew.status === "ativo" ? "default" : "secondary"}>
                         {crew.status === "ativo" ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
@@ -319,7 +298,7 @@ export function CrewRegistrationForm() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? "Editar Tripulante" : "Novo Tripulante"}
+              {editingId ? "Editar" : "Novo Tripulante"}
             </DialogTitle>
           </DialogHeader>
 
@@ -327,11 +306,11 @@ export function CrewRegistrationForm() {
             {/* Row 1 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name">Nome Completo *</Label>
+                <Label htmlFor="nome_completo">Nome Completo *</Label>
                 <Input
-                  id="full_name"
-                  value={formData.full_name}
-                  onChange={(e) => handleInputChange("full_name", e.target.value)}
+                  id="nome_completo"
+                  value={formData.nome_completo}
+                  onChange={(e) => handleInputChange("nome_completo", e.target.value)}
                   placeholder="João Silva"
                 />
               </div>
@@ -371,12 +350,12 @@ export function CrewRegistrationForm() {
             {/* Row 3 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="birth_date">Data de Nascimento</Label>
+                <Label htmlFor="data_nascimento">Data de Nascimento</Label>
                 <Input
-                  id="birth_date"
-                  type="data"
-                  value={formData.birth_date}
-                  onChange={(e) => handleInputChange("birth_date", e.target.value)}
+                  id="data_nascimento"
+                  type="date"
+                  value={formData.data_nascimento}
+                  onChange={(e) => handleInputChange("data_nascimento", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -418,7 +397,7 @@ export function CrewRegistrationForm() {
               </Select>
             </div>
 
-            {/* Submit Buttons */}
+            {/* Buttons */}
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 type="button"
