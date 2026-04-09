@@ -208,15 +208,41 @@ export function ReceiptForm({
     }));
   }, [formData.reembolsoCategoriaId]);
 
-  // Auto-fill description based on category
+  // Auto-fill description based on category (and INFRAERO/DECEA specific fields)
   useEffect(() => {
-    if (isReembolso && selectedCategoria) {
+    if (!isReembolso || !selectedCategoria) return;
+
+    if (isInfraero) {
+      const comp = formData.competenciaInfraero ? ` COMPETÊNCIA ${formData.competenciaInfraero.toUpperCase()}` : "";
+      const doc = formData.numeroDocumentoInfraero ? ` DEMONSTRATIVO ${formData.numeroDocumentoInfraero.toUpperCase()}` : "";
+      setFormData(prev => ({
+        ...prev,
+        servicoDescricao: `REFERENTE A INFRAERO${comp}${doc}`.trim(),
+      }));
+    } else if (isDecea) {
+      const comp = formData.competenciaDecea ? ` COMPETÊNCIA ${formData.competenciaDecea.toUpperCase()}` : "";
+      const doc = formData.numeroDocumentoDecea ? ` DEMONSTRATIVO ${formData.numeroDocumentoDecea.toUpperCase()}` : "";
+      setFormData(prev => ({
+        ...prev,
+        servicoDescricao: `REFERENTE A DECEA${comp}${doc}`.trim(),
+      }));
+    } else {
       setFormData(prev => ({
         ...prev,
         servicoDescricao: `Referente a ${selectedCategoria.nome}`,
       }));
     }
-  }, [formData.reembolsoCategoriaId]);
+  }, [formData.reembolsoCategoriaId, formData.competenciaInfraero, formData.numeroDocumentoInfraero, formData.competenciaDecea, formData.numeroDocumentoDecea]);
+
+  // For INFRAERO/DECEA: auto-sync boleto value as total expense value
+  useEffect(() => {
+    if (!isDECEAorINFRAERO || !formData.valorTotalBoleto) return;
+    setFormData(prev => ({
+      ...prev,
+      reembolsoValorTotal: prev.valorTotalBoleto,
+      reembolsoRateado: true,
+    }));
+  }, [formData.valorTotalBoleto, isDECEAorINFRAERO]);
 
   // Cliente / Aeronave - preenche dados do pagador
   useEffect(() => {
