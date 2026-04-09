@@ -297,18 +297,32 @@ export function ReceiptForm({
   }, [selectedPartnerId]);
 
   const loadAircrafts = async (clientId: string) => {
-    const { data } = await supabase
+    // Load client's aircraft
+    const { data: clientData } = await supabase
       .from("cotistas_aeronave")
       .select(`id_aeronave, aeronave:id_aeronave ( id, matricula, modelo )`)
       .eq("id_clientes", clientId);
 
-    if (data) {
-      setAircrafts(data.map((c: any) => {
-        const a = c.aeronave;
-        if (!a) return null;
-        return { id: a.id, registration: a.matricula, model: a.modelo, matricula: a.matricula, modelo: a.modelo };
-      }).filter(Boolean));
-    }
+    const clientAircraftIds = new Set<string>();
+    const clientAircrafts = (clientData || []).map((c: any) => {
+      const a = c.aeronave;
+      if (!a) return null;
+      clientAircraftIds.add(a.id);
+      return { id: a.id, matricula: a.matricula, modelo: a.modelo, isClient: true };
+    }).filter(Boolean);
+
+    // Load all other aircraft
+    const { data: allData } = await supabase
+      .from("aeronave")
+      .select("id, matricula, modelo")
+      .eq("status", "ativo")
+      .order("matricula");
+
+    const otherAircrafts = (allData || [])
+      .filter((a: any) => !clientAircraftIds.has(a.id))
+      .map((a: any) => ({ id: a.id, matricula: a.matricula, modelo: a.modelo, isClient: false }));
+
+    setAircrafts([...clientAircrafts, ...otherAircrafts]);
   };
 
   const loadClientPartners = async (clientId: string) => {
