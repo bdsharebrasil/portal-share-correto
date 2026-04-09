@@ -380,7 +380,7 @@ export function ReceiptForm({
 
   const aeronaveItems = aircrafts.map((a: any) => ({
     id: a.id,
-    label: `${a.registration} – ${a.model}`,
+    label: `${a.matricula} – ${a.modelo}${a.isClient ? ' ★' : ''}`,
   }));
 
   const categoriaItems = categoriasReembolsaveis.map(c => ({
