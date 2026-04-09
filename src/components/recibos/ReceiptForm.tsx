@@ -273,11 +273,15 @@ export function ReceiptForm({
   const loadAircrafts = async (clientId: string) => {
     const { data } = await supabase
       .from("cotistas_aeronave")
-      .select(`aircraft:aeronave_id ( id, registration, model )`)
+      .select(`id_aeronave, aeronave:id_aeronave ( id, matricula, modelo )`)
       .eq("id_clientes", clientId);
 
     if (data) {
-      setAircrafts(data.map((c) => c.aircraft || c.aeronave).filter(Boolean));
+      setAircrafts(data.map((c: any) => {
+        const a = c.aeronave;
+        if (!a) return null;
+        return { id: a.id, registration: a.matricula, model: a.modelo, matricula: a.matricula, modelo: a.modelo };
+      }).filter(Boolean));
     }
   };
 
