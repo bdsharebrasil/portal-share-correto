@@ -297,18 +297,32 @@ export function ReceiptForm({
   }, [selectedPartnerId]);
 
   const loadAircrafts = async (clientId: string) => {
-    const { data } = await supabase
+    // Load client's aircraft
+    const { data: clientData } = await supabase
       .from("cotistas_aeronave")
       .select(`id_aeronave, aeronave:id_aeronave ( id, matricula, modelo )`)
       .eq("id_clientes", clientId);
 
-    if (data) {
-      setAircrafts(data.map((c: any) => {
-        const a = c.aeronave;
-        if (!a) return null;
-        return { id: a.id, registration: a.matricula, model: a.modelo, matricula: a.matricula, modelo: a.modelo };
-      }).filter(Boolean));
-    }
+    const clientAircraftIds = new Set<string>();
+    const clientAircrafts = (clientData || []).map((c: any) => {
+      const a = c.aeronave;
+      if (!a) return null;
+      clientAircraftIds.add(a.id);
+      return { id: a.id, matricula: a.matricula, modelo: a.modelo, isClient: true };
+    }).filter(Boolean);
+
+    // Load all other aircraft
+    const { data: allData } = await supabase
+      .from("aeronave")
+      .select("id, matricula, modelo")
+      .eq("status", "ativo")
+      .order("matricula");
+
+    const otherAircrafts = (allData || [])
+      .filter((a: any) => !clientAircraftIds.has(a.id))
+      .map((a: any) => ({ id: a.id, matricula: a.matricula, modelo: a.modelo, isClient: false }));
+
+    setAircrafts([...clientAircrafts, ...otherAircrafts]);
   };
 
   const loadClientPartners = async (clientId: string) => {
@@ -366,7 +380,7 @@ export function ReceiptForm({
 
   const aeronaveItems = aircrafts.map((a: any) => ({
     id: a.id,
-    label: `${a.registration} – ${a.model}`,
+    label: `${a.matricula} – ${a.modelo}${a.isClient ? ' ★' : ''}`,
   }));
 
   const categoriaItems = categoriasReembolsaveis.map(c => ({
@@ -580,46 +594,39 @@ export function ReceiptForm({
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Data de Vencimento do Boleto *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between text-left font-normal rounded-xl border-border/60 bg-background shadow-sm hover:bg-accent/5"
-                      >
-                        {formData.dataVencimentoBoleto ? (
-                          format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy", { locale: ptBR })
-                        ) : (
-                          <span className="text-muted-foreground">DD/MM/AAAA</span>
-                        )}
-                        <Calendar className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999]">
-                      <DatePickerCalendar
-                        value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
-                        onChange={(date) => {
-                          const dateString = date ? format(date, "yyyy-MM-dd") : "";
-                          setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <Input
-                    className="mt-1"
-                    value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, "");
-                      let formatted = v;
-                      if (v.length >= 2) formatted = v.slice(0, 2) + "/" + v.slice(2);
-                      if (v.length >= 4) formatted = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4, 8);
-                      if (v.length === 8) {
-                        const [dd, mm, yyyy] = [v.slice(0, 2), v.slice(2, 4), v.slice(4, 8)];
-                        setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
-                      }
-                    }}
-                    placeholder="DD/MM/AAAA"
-                    maxLength={10}
-                  />
+                  <div className="relative">
+                    <Input
+                      value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        if (raw.length === 8) {
+                          const [dd, mm, yyyy] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
+                          setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
+                        } else if (raw.length === 0) {
+                          setFormData(p => ({ ...p, dataVencimentoBoleto: "" }));
+                        }
+                      }}
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
+                      className="pr-10 rounded-xl border-border/60"
+                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          <Calendar className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-auto p-0 border-0 z-[9999]">
+                        <DatePickerCalendar
+                          value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
+                          onChange={(date) => {
+                            const dateString = date ? format(date, "yyyy-MM-dd") : "";
+                            setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <div>
                   <Label>Valor Total do Boleto *</Label>
@@ -669,46 +676,39 @@ export function ReceiptForm({
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Data de Vencimento do Boleto *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between text-left font-normal rounded-xl border-border/60 bg-background shadow-sm hover:bg-accent/5"
-                      >
-                        {formData.dataVencimentoBoleto ? (
-                          format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy", { locale: ptBR })
-                        ) : (
-                          <span className="text-muted-foreground">DD/MM/AAAA</span>
-                        )}
-                        <Calendar className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999]">
-                      <DatePickerCalendar
-                        value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
-                        onChange={(date) => {
-                          const dateString = date ? format(date, "yyyy-MM-dd") : "";
-                          setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <Input
-                    className="mt-1"
-                    value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, "");
-                      let formatted = v;
-                      if (v.length >= 2) formatted = v.slice(0, 2) + "/" + v.slice(2);
-                      if (v.length >= 4) formatted = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4, 8);
-                      if (v.length === 8) {
-                        const [dd, mm, yyyy] = [v.slice(0, 2), v.slice(2, 4), v.slice(4, 8)];
-                        setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
-                      }
-                    }}
-                    placeholder="DD/MM/AAAA"
-                    maxLength={10}
-                  />
+                  <div className="relative">
+                    <Input
+                      value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        if (raw.length === 8) {
+                          const [dd, mm, yyyy] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
+                          setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
+                        } else if (raw.length === 0) {
+                          setFormData(p => ({ ...p, dataVencimentoBoleto: "" }));
+                        }
+                      }}
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
+                      className="pr-10 rounded-xl border-border/60"
+                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          <Calendar className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-auto p-0 border-0 z-[9999]">
+                        <DatePickerCalendar
+                          value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
+                          onChange={(date) => {
+                            const dateString = date ? format(date, "yyyy-MM-dd") : "";
+                            setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <div>
                   <Label>Valor Total do Boleto *</Label>
@@ -882,44 +882,63 @@ export function ReceiptForm({
 
           {/* PRAZO DE QUITAÇÃO - apenas para reembolso (auto-fill from DECEA/INFRAERO vencimento) */}
           {isReembolso && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Label>Prazo Máximo de Quitação</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between text-left font-normal rounded-xl border-border/60 bg-background shadow-sm hover:bg-accent/5"
-                  >
-                    {isDECEAorINFRAERO ? formData.dataVencimentoBoleto : formData.prazoMaximoQuitacao ? (
-                      format(parseLocalDate(isDECEAorINFRAERO ? formData.dataVencimentoBoleto : formData.prazoMaximoQuitacao), "dd/MM/yyyy", { locale: ptBR })
-                    ) : (
-                      <span className="text-muted-foreground">Selecione a data</span>
-                    )}
-                    <Calendar className="w-4 h-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-auto p-0 border-0">
-                  <DatePickerCalendar
-                    value={
-                      isDECEAorINFRAERO
-                        ? (formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined)
-                        : (formData.prazoMaximoQuitacao ? new Date(formData.prazoMaximoQuitacao + "T00:00:00") : undefined)
-                    }
-                    onChange={(date) => {
-                      const dateString = date ? format(date, "yyyy-MM-dd") : "";
+              <div className="relative">
+                <Input
+                  value={(() => {
+                    const dateStr = isDECEAorINFRAERO ? formData.dataVencimentoBoleto : formData.prazoMaximoQuitacao;
+                    if (!dateStr) return "";
+                    try { return format(parseLocalDate(dateStr), "dd/MM/yyyy"); } catch { return ""; }
+                  })()}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                    if (raw.length === 8) {
+                      const [dd, mm, yyyy] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
+                      const dateString = `${yyyy}-${mm}-${dd}`;
                       if (isDECEAorINFRAERO) {
                         setFormData(p => ({ ...p, dataVencimentoBoleto: dateString, prazoMaximoQuitacao: dateString }));
                       } else {
-                        setFormData((p) => ({ ...p, prazoMaximoQuitacao: dateString }));
+                        setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
                       }
-                    }}
-                    disabled={(date) => {
-                      const minDate = new Date(formData.dataEmissao + "T00:00:00");
-                      return date < minDate;
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+                    } else if (raw.length === 0) {
+                      setFormData(p => ({ ...p, prazoMaximoQuitacao: "" }));
+                    }
+                  }}
+                  placeholder="DD/MM/AAAA"
+                  maxLength={10}
+                  className="pr-10 rounded-xl border-border/60"
+                  readOnly={isDECEAorINFRAERO}
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <Calendar className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-auto p-0 border-0 z-[9999]">
+                    <DatePickerCalendar
+                      value={
+                        isDECEAorINFRAERO
+                          ? (formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined)
+                          : (formData.prazoMaximoQuitacao ? new Date(formData.prazoMaximoQuitacao + "T00:00:00") : undefined)
+                      }
+                      onChange={(date) => {
+                        const dateString = date ? format(date, "yyyy-MM-dd") : "";
+                        if (isDECEAorINFRAERO) {
+                          setFormData(p => ({ ...p, dataVencimentoBoleto: dateString, prazoMaximoQuitacao: dateString }));
+                        } else {
+                          setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
+                        }
+                      }}
+                      disabled={(date) => {
+                        const minDate = new Date(formData.dataEmissao + "T00:00:00");
+                        return date < minDate;
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           )}
 
