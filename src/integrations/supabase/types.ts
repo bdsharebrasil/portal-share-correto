@@ -9102,46 +9102,46 @@ export type Database = {
       }
       partner_accounts: {
         Row: {
-          nome_banco: string | null
+          atualizado_em: string | null
           clientes_id: string
           criado_em: string | null
-          saldo_atual: number | null
           id: string
+          juros_totais_ganhos: number | null
+          nome_banco: string | null
+          saldo_atual: number | null
           socio_cpf: string
           socio_nome: string
           socios_cliente_id: string | null
           total_depositado: number | null
-          juros_totais_ganhos: number | null
           total_gasto: number | null
-          atualizado_em: string | null
         }
         Insert: {
-          nome_banco?: string | null
+          atualizado_em?: string | null
           clientes_id: string
           criado_em?: string | null
-          saldo_atual?: number | null
           id?: string
+          juros_totais_ganhos?: number | null
+          nome_banco?: string | null
+          saldo_atual?: number | null
           socio_cpf: string
           socio_nome: string
           socios_cliente_id?: string | null
           total_depositado?: number | null
-          juros_totais_ganhos?: number | null
           total_gasto?: number | null
-          atualizado_em?: string | null
         }
         Update: {
-          nome_banco?: string | null
+          atualizado_em?: string | null
           clientes_id?: string
           criado_em?: string | null
-          saldo_atual?: number | null
           id?: string
+          juros_totais_ganhos?: number | null
+          nome_banco?: string | null
+          saldo_atual?: number | null
           socio_cpf?: string
           socio_nome?: string
           socios_cliente_id?: string | null
           total_depositado?: number | null
-          juros_totais_ganhos?: number | null
           total_gasto?: number | null
-          atualizado_em?: string | null
         }
         Relationships: [
           {
@@ -12594,35 +12594,35 @@ export type Database = {
       }
       user_documents: {
         Row: {
-          category: string | null
-          created_at: string | null
-          file_name: string
-          file_path: string
-          file_size: number | null
-          file_type: string
+          caminho_arquivo: string
+          categoria: string | null
+          criado_em: string | null
           id: string
+          nome_arquivo: string
+          tamanho_arquivo: number | null
+          tipo_arquivo: string
           uploaded_by: string | null
           user_id: string
         }
         Insert: {
-          category?: string | null
-          created_at?: string | null
-          file_name: string
-          file_path: string
-          file_size?: number | null
-          file_type: string
+          caminho_arquivo: string
+          categoria?: string | null
+          criado_em?: string | null
           id?: string
+          nome_arquivo: string
+          tamanho_arquivo?: number | null
+          tipo_arquivo: string
           uploaded_by?: string | null
           user_id: string
         }
         Update: {
-          category?: string | null
-          created_at?: string | null
-          file_name?: string
-          file_path?: string
-          file_size?: number | null
-          file_type?: string
+          caminho_arquivo?: string
+          categoria?: string | null
+          criado_em?: string | null
           id?: string
+          nome_arquivo?: string
+          tamanho_arquivo?: number | null
+          tipo_arquivo?: string
           uploaded_by?: string | null
           user_id?: string
         }
