@@ -580,11 +580,45 @@ export function ReceiptForm({
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Data de Vencimento do Boleto *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between text-left font-normal rounded-xl border-border/60 bg-background shadow-sm hover:bg-accent/5"
+                      >
+                        {formData.dataVencimentoBoleto ? (
+                          format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy", { locale: ptBR })
+                        ) : (
+                          <span className="text-muted-foreground">DD/MM/AAAA</span>
+                        )}
+                        <Calendar className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999]">
+                      <DatePickerCalendar
+                        value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
+                        onChange={(date) => {
+                          const dateString = date ? format(date, "yyyy-MM-dd") : "";
+                          setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <Input
-                    type="data"
-                    value={formData.dataVencimentoBoleto}
-                    onChange={(e) => setFormData(p => ({ ...p, dataVencimentoBoleto: e.target.value }))}
-                    required
+                    className="mt-1"
+                    value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "");
+                      let formatted = v;
+                      if (v.length >= 2) formatted = v.slice(0, 2) + "/" + v.slice(2);
+                      if (v.length >= 4) formatted = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4, 8);
+                      if (v.length === 8) {
+                        const [dd, mm, yyyy] = [v.slice(0, 2), v.slice(2, 4), v.slice(4, 8)];
+                        setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
+                      }
+                    }}
+                    placeholder="DD/MM/AAAA"
+                    maxLength={10}
                   />
                 </div>
                 <div>
@@ -635,11 +669,45 @@ export function ReceiptForm({
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Data de Vencimento do Boleto *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between text-left font-normal rounded-xl border-border/60 bg-background shadow-sm hover:bg-accent/5"
+                      >
+                        {formData.dataVencimentoBoleto ? (
+                          format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy", { locale: ptBR })
+                        ) : (
+                          <span className="text-muted-foreground">DD/MM/AAAA</span>
+                        )}
+                        <Calendar className="h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999]">
+                      <DatePickerCalendar
+                        value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
+                        onChange={(date) => {
+                          const dateString = date ? format(date, "yyyy-MM-dd") : "";
+                          setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <Input
-                    type="data"
-                    value={formData.dataVencimentoBoleto}
-                    onChange={(e) => setFormData(p => ({ ...p, dataVencimentoBoleto: e.target.value }))}
-                    required
+                    className="mt-1"
+                    value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "");
+                      let formatted = v;
+                      if (v.length >= 2) formatted = v.slice(0, 2) + "/" + v.slice(2);
+                      if (v.length >= 4) formatted = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4, 8);
+                      if (v.length === 8) {
+                        const [dd, mm, yyyy] = [v.slice(0, 2), v.slice(2, 4), v.slice(4, 8)];
+                        setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
+                      }
+                    }}
+                    placeholder="DD/MM/AAAA"
+                    maxLength={10}
                   />
                 </div>
                 <div>
