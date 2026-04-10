@@ -266,6 +266,11 @@ export function ReceiptForm({
     loadAllAircrafts();
   }, []);
 
+  // Debug: log aircrafts when they change
+  useEffect(() => {
+    console.log("Aircrafts loaded:", aircrafts);
+  }, [aircrafts]);
+
   // ─── When client changes: load all aircrafts ───────────────────────────────
   useEffect(() => {
     if (!formData.clienteId) {
@@ -318,11 +323,18 @@ export function ReceiptForm({
 
   // ─── Load ALL aircrafts (no client filter) ────────────────────────────────
   const loadAllAircrafts = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("aeronave")
-      .select("id, matricula, modelo")
-      .eq("status", "ativo")
+      .select("id, matricula, modelo, status")
       .order("matricula");
+
+    if (error) {
+      console.error("Error loading aircrafts:", error);
+      return;
+    }
+
+    console.log("All aircrafts from DB:", data);
+
     setAircrafts(
       (data || []).map((a: any) => ({
         id: a.id,
