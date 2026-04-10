@@ -250,6 +250,7 @@ export function ReceiptForm({
       setAircrafts([]);
       setClientPartners([]);
       setSelectedPartnerId("");
+      setFormData((prev) => ({ ...prev, aircraftId: "" }));
       return;
     }
 
@@ -322,7 +323,23 @@ export function ReceiptForm({
       .filter((a: any) => !clientAircraftIds.has(a.id))
       .map((a: any) => ({ id: a.id, matricula: a.matricula, modelo: a.modelo, isClient: false }));
 
-    setAircrafts([...clientAircrafts, ...otherAircrafts]);
+    const orderedAircrafts = [...clientAircrafts, ...otherAircrafts];
+
+    setAircrafts(orderedAircrafts);
+    setFormData((prev) => {
+      const currentAircraftStillExists = orderedAircrafts.some((aircraft) => aircraft?.id === prev.aircraftId);
+
+      if (currentAircraftStillExists) {
+        return prev;
+      }
+
+      const preferredAircraft = orderedAircrafts.find((aircraft) => aircraft?.isClient) || orderedAircrafts[0];
+
+      return {
+        ...prev,
+        aircraftId: preferredAircraft?.id || "",
+      };
+    });
   };
 
   const loadClientPartners = async (clientId: string) => {
@@ -887,7 +904,7 @@ export function ReceiptForm({
               <div className="relative">
                 <Input
                   value={(() => {
-                    const dateStr = isDECEAorINFRAERO ? formData.dataVencimentoBoleto : formData.prazoMaximoQuitacao;
+                    const dateStr = formData.prazoMaximoQuitacao;
                     if (!dateStr) return "";
                     try { return format(parseLocalDate(dateStr), "dd/MM/yyyy"); } catch { return ""; }
                   })()}
@@ -896,11 +913,7 @@ export function ReceiptForm({
                     if (raw.length === 8) {
                       const [dd, mm, yyyy] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
                       const dateString = `${yyyy}-${mm}-${dd}`;
-                      if (isDECEAorINFRAERO) {
-                        setFormData(p => ({ ...p, dataVencimentoBoleto: dateString, prazoMaximoQuitacao: dateString }));
-                      } else {
-                        setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
-                      }
+                      setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
                     } else if (raw.length === 0) {
                       setFormData(p => ({ ...p, prazoMaximoQuitacao: "" }));
                     }
@@ -908,7 +921,6 @@ export function ReceiptForm({
                   placeholder="DD/MM/AAAA"
                   maxLength={10}
                   className="pr-10 rounded-xl border-border/60"
-                  readOnly={isDECEAorINFRAERO}
                 />
                 <Popover>
                   <PopoverTrigger asChild>
@@ -918,18 +930,10 @@ export function ReceiptForm({
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-auto p-0 border-0 z-[9999]">
                     <DatePickerCalendar
-                      value={
-                        isDECEAorINFRAERO
-                          ? (formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined)
-                          : (formData.prazoMaximoQuitacao ? new Date(formData.prazoMaximoQuitacao + "T00:00:00") : undefined)
-                      }
+                      value={formData.prazoMaximoQuitacao ? new Date(formData.prazoMaximoQuitacao + "T00:00:00") : undefined}
                       onChange={(date) => {
                         const dateString = date ? format(date, "yyyy-MM-dd") : "";
-                        if (isDECEAorINFRAERO) {
-                          setFormData(p => ({ ...p, dataVencimentoBoleto: dateString, prazoMaximoQuitacao: dateString }));
-                        } else {
-                          setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
-                        }
+                        setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
                       }}
                       disabled={(date) => {
                         const minDate = new Date(formData.dataEmissao + "T00:00:00");

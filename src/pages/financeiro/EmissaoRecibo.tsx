@@ -32,6 +32,75 @@ interface FavoritePayer {
   uf?: string;
 }
 
+const getSelectedAircraftId = (form: any): string => {
+  return form?.aeronaveId || form?.aircraftId || "";
+};
+
+const parseCurrencyInput = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const normalized = String(value)
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(/,/g, ".");
+
+  const parsed = parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const buildReceiptPdfData = ({
+  receiptData,
+  receiptType,
+  boletoUrl,
+  notaFiscalUrl,
+  originalForm,
+  companySettings,
+}: {
+  receiptData: any;
+  receiptType: ReceiptType;
+  boletoUrl: string | null;
+  notaFiscalUrl: string | null;
+  originalForm: any;
+  companySettings: any;
+}) => ({
+  ...receiptData,
+  receipt_number: receiptData.numero_recibo,
+  payer_name: receiptData.nome_pagador,
+  payer_document: receiptData.documento_pagador,
+  payer_address: receiptData.endereco_pagador,
+  payer_city: receiptData.cidade_pagador,
+  payer_uf: receiptData.uf_pagador,
+  service_description: receiptData.descricao_servico,
+  receipt_type: receiptType,
+  issue_date: receiptData.data_emissao,
+  max_payment_date: receiptData.data_max_pagamento,
+  payment_method: receiptData.forma_pagamento,
+  boleto_url: boletoUrl,
+  url_boleto: boletoUrl,
+  nf_url: notaFiscalUrl,
+  url_nf: notaFiscalUrl,
+  data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
+  numero_documento_decea: originalForm.numeroDocumentoDecea || null,
+  competencia_decea: originalForm.competenciaDecea || null,
+  numero_documento_infraero: originalForm.numeroDocumentoInfraero || null,
+  competencia_infraero: originalForm.competenciaInfraero || null,
+  emissor: companySettings
+    ? {
+        razao_social: companySettings.razao_social,
+        cnpj: companySettings.cnpj,
+        telefone: companySettings.telefone,
+        endereco: companySettings.endereco,
+        cidade: companySettings.cidade,
+        cep: companySettings.cep,
+      }
+    : null,
+});
+
 export default function EmissaoRecibo() {
   const [userId, setUserId] = useState<string>("");
   const [clientesAtivos, setClientesAtivos] = useState<Cliente[]>([]);
@@ -113,11 +182,19 @@ export default function EmissaoRecibo() {
 
   const loadRecentReceipts = async (_uid?: string) => {
     try {
-      const { data, error } = await supabase
+      const currentUid = _uid || userId;
+      let query = supabase
         .from("recibos")
         .select("*")
         .order("criado_em", { ascending: false })
         .limit(100);
+
+      if (currentUid) {
+        query = query.eq("usuario_id", currentUid);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       setRecentReceipts(
         (data || []).map((d: any) => ({ ...d, receipt_type: d.tipo_recibo as ReceiptType }))
@@ -145,6 +222,8 @@ export default function EmissaoRecibo() {
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
       const isRateado = originalForm.isRateado === true;
+      const selectedAircraftId = getSelectedAircraftId(originalForm);
+      const expectedReceiptType: ReceiptType = isReembolso ? "reembolso" : "pagamento";
       const nomePagador = originalForm.pagadorNome?.trim();
 
       if (!nomePagador) throw new Error("Nome do pagador não foi preenchido corretamente.");
@@ -199,10 +278,10 @@ export default function EmissaoRecibo() {
         uf_pagador: originalForm.pagadorUF?.trim() || null,                                // payer_uf
         valor: valorNumerico,                                                               // amount
         descricao_servico: (formData.servicoDescricao || "").trim(),                       // service_description
-        tipo_recibo: originalForm.receiptType || "pagamento",                              // receipt_type
+        tipo_recibo: expectedReceiptType,                                                   // receipt_type
         data_emissao: originalForm.dataEmissao || new Date().toISOString().split("T")[0], // issue_date
         numero_recibo: receiptNumber,                                                       // receipt_number
-        data_max_pagamento: originalForm.prazoMaximoQuitacao || originalForm.dataVencimentoBoleto || null, // max_payment_date
+        data_max_pagamento: originalForm.prazoMaximoQuitacao || null,                       // max_payment_date
         forma_pagamento: originalForm.formaPagamento?.trim() || null,                      // payment_method
         cliente_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,       // client_id
         url_boleto: boletoUrl,                                                              // boleto_url
@@ -211,15 +290,13 @@ export default function EmissaoRecibo() {
           || originalForm.numeroDocumentoDecea
           || originalForm.numeroDocumentoInfraero
           || null,
-        aeronave_id: originalForm.aeronaveId || null,
+        aeronave_id: selectedAircraftId || null,
         nome_categoria: formData.categoriaNome || null,                                    // category_name
         compartilhado: originalForm.reembolsoRateado || false,                             // is_shared
         percentual: originalForm.reembolsoPorcentagem                                      // percentage
           ? parseFloat(originalForm.reembolsoPorcentagem)
           : null,
-        valor_total: originalForm.reembolsoValorTotal                                      // total_amount
-          ? parseFloat(originalForm.reembolsoValorTotal)
-          : null,
+        valor_total: parseCurrencyInput(originalForm.reembolsoValorTotal),                  // total_amount
       };
 
       // Verificar duplicata pelo numero_recibo + usuario_id
@@ -231,27 +308,52 @@ export default function EmissaoRecibo() {
         .single();
       if (existing) throw new Error("Recibo já gerado anteriormente.");
 
-      // Insert receipt
-      // Workaround: o trigger handle_reembolso_receipt tem bug de tipo em banco_conciliacao_id
-      // Inserimos como 'pagamento' e depois atualizamos para 'reembolso' (evita o AFTER INSERT trigger)
-      const needsTriggerWorkaround = isReembolso;
-      const insertPayload = needsTriggerWorkaround
-        ? { ...receiptPayload, tipo_recibo: "pagamento" }
-        : receiptPayload;
-
-      const { data: receiptData, error: dbError } = await supabase
+      const { data: insertedReceipt, error: dbError } = await supabase
         .from("recibos")
-        .insert(insertPayload)
+        .insert(receiptPayload)
         .select("*")
         .single();
       if (dbError) throw dbError;
 
-      if (needsTriggerWorkaround) {
-        await supabase
+      let receiptData = insertedReceipt;
+
+      if (
+        receiptData.tipo_recibo !== expectedReceiptType ||
+        (selectedAircraftId && receiptData.aeronave_id !== selectedAircraftId)
+      ) {
+        const { data: correctedReceipt, error: correctionError } = await supabase
           .from("recibos")
-          .update({ tipo_recibo: "reembolso" })
+          .update({
+            tipo_recibo: expectedReceiptType,
+            aeronave_id: selectedAircraftId || null,
+          })
           .eq("id", receiptData.id);
-        receiptData.tipo_recibo = "reembolso";
+
+        if (correctionError) {
+          await supabase.from("recibos").delete().eq("id", receiptData.id).eq("usuario_id", currentUserId);
+          throw new Error("Não foi possível salvar o tipo do recibo e a aeronave selecionada.");
+        }
+
+        const { data: reloadedReceipt, error: reloadError } = await supabase
+          .from("recibos")
+          .select("*")
+          .eq("id", receiptData.id)
+          .single();
+
+        if (reloadError || !reloadedReceipt) {
+          await supabase.from("recibos").delete().eq("id", receiptData.id).eq("usuario_id", currentUserId);
+          throw new Error("O recibo foi criado, mas não foi possível validar os dados salvos.");
+        }
+
+        receiptData = reloadedReceipt;
+      }
+
+      if (
+        receiptData.tipo_recibo !== expectedReceiptType ||
+        (selectedAircraftId && receiptData.aeronave_id !== selectedAircraftId)
+      ) {
+        await supabase.from("recibos").delete().eq("id", receiptData.id).eq("usuario_id", currentUserId);
+        throw new Error("O recibo não foi salvo corretamente como reembolso ou com a aeronave selecionada.");
       }
 
       console.log("Recibo inserido:", receiptData);
@@ -272,11 +374,11 @@ export default function EmissaoRecibo() {
 
           // Buscar matrícula da aeronave
           let aeronaveRegistro = "";
-          if (originalForm.aeronaveId) {
+          if (selectedAircraftId) {
             const { data: acData } = await supabase
               .from("aeronave")
               .select("matricula") // corrigido: era "registration"
-              .eq("id", originalForm.aeronaveId)
+              .eq("id", selectedAircraftId)
               .single();
             if (acData) aeronaveRegistro = acData.matricula;
           }
@@ -335,7 +437,7 @@ export default function EmissaoRecibo() {
               amount: valorRecibo,
               status: "pendente",
               client_id: originalForm.clienteId,
-              aeronave_id: originalForm.aeronaveId || null,
+              aeronave_id: selectedAircraftId || null,
               categoria_movimentacao_id: originalForm.reembolsoCategoriaId || null,
               category: formData.categoriaNome || "Clientes - Despesas Reembolsáveis",
               tipo_documento: isRateado ? "rateio" : "recibo",
@@ -395,11 +497,11 @@ export default function EmissaoRecibo() {
           }
 
           // ===== 4. Rateio se aplicável =====
-          if (isRateado && originalForm.aeronaveId) {
+          if (isRateado && selectedAircraftId) {
             const { data: aircraftClients, error: acError } = await supabase
               .from("cotistas_aeronave")
               .select("id_clientes, percentual_sociedade, clientes:id_clientes(id, razao_social)") // corrigido: id_cliente → id_clientes
-              .eq("id_aeronave", originalForm.aeronaveId);
+              .eq("id_aeronave", selectedAircraftId);
 
             if (acError) {
               console.error("❌ Erro ao buscar cotistas da aeronave:", acError);
@@ -415,7 +517,7 @@ export default function EmissaoRecibo() {
                   despesa_id: contaData?.id || receiptData.id,
                   client_id: ac.id_clientes,          // corrigido: era ac.cliente_id
                   client_name: clientData?.razao_social || "Desconhecido",
-                  aeronave_id: originalForm.aeronaveId || null,
+                  aeronave_id: selectedAircraftId || null,
                   aeronave_registro: aeronaveRegistro,
                   percentual: sharePercentage,
                   percentual_voo: parseFloat(percentual),
@@ -457,26 +559,14 @@ export default function EmissaoRecibo() {
       // ===================== GERAR PDF =====================
       try {
         setIsGeneratingPdf(true);
-        const pdfData = {
-          ...receiptData,
-          url_boleto: boletoUrl,
-          url_nf: notaFiscalUrl,
-          numero_documento_decea: originalForm.numeroDocumentoDecea || null,
-          competencia_decea: originalForm.competenciaDecea || null,
-          numero_documento_infraero: originalForm.numeroDocumentoInfraero || null,
-          competencia_infraero: originalForm.competenciaInfraero || null,
-          data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
-          emissor: companySettings
-            ? {
-                razao_social: companySettings.razao_social,
-                cnpj: companySettings.cnpj,
-                telefone: companySettings.telefone,
-                endereco: companySettings.endereco,
-                cidade: companySettings.cidade,
-                cep: companySettings.cep,
-              }
-            : null,
-        };
+        const pdfData = buildReceiptPdfData({
+          receiptData,
+          receiptType: expectedReceiptType,
+          boletoUrl,
+          notaFiscalUrl,
+          originalForm,
+          companySettings,
+        });
 
         const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
         const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
@@ -488,11 +578,17 @@ export default function EmissaoRecibo() {
         const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
         if (!urlData?.publicUrl) throw new Error("Falha ao obter URL pública do PDF");
 
-        // Atualiza url_pdf no recibo
-        await supabase
+        const { data: updatedReceipt, error: updatePdfError } = await supabase
           .from("recibos")
           .update({ url_pdf: urlData.publicUrl })
-          .eq("id", receiptData.id);
+          .eq("id", receiptData.id)
+          .eq("usuario_id", currentUserId)
+          .select("id, url_pdf")
+          .single();
+
+        if (updatePdfError || !updatedReceipt?.url_pdf) {
+          throw new Error("Falha ao salvar a URL do PDF no recibo");
+        }
 
         await loadRecentReceipts(currentUserId);
         toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso!` });
@@ -533,12 +629,31 @@ export default function EmissaoRecibo() {
   // ===================== EXCLUIR RECIBO =====================
   const handleDeleteReceipt = async (receiptId: string) => {
     try {
-      const { error } = await supabase.from("recibos").delete().eq("id", receiptId); // corrigido: era "receipts"
+      let currentUserId = userId;
+      if (!currentUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) throw new Error("Usuário não autenticado.");
+        currentUserId = user.id;
+        setUserId(currentUserId);
+      }
+
+      const { data: deletedRows, error } = await supabase
+        .from("recibos")
+        .delete()
+        .eq("id", receiptId)
+        .eq("usuario_id", currentUserId)
+        .select("id");
+
       if (error) throw error;
-      await loadRecentReceipts(userId);
+      if (!deletedRows?.length) {
+        throw new Error("Você só pode excluir recibos criados por você.");
+      }
+
+      await loadRecentReceipts(currentUserId);
       toast({ title: "Sucesso!", description: "Recibo excluído" });
-    } catch {
-      toast({ title: "Erro ao excluir", description: "Não foi possível excluir o recibo", variant: "destructive" });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Não foi possível excluir o recibo";
+      toast({ title: "Erro ao excluir", description: errorMsg, variant: "destructive" });
     }
   };
 

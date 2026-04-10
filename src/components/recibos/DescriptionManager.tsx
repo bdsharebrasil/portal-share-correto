@@ -25,7 +25,10 @@ export function DescriptionManager() {
     } = await supabase.from("receipt_descriptions").select("*").order("criado_em", {
       ascending: false
     });
-    setDescriptions(data || []);
+    setDescriptions((data || []).map((item: any) => ({
+      ...item,
+      descricao: item.descricao || item.description || ""
+    })));
   }
   async function addDescription() {
     if (!newDescription.trim()) {

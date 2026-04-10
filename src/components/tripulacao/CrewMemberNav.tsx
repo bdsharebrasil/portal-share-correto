@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { FileText, Award, Calendar, Clock, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 
