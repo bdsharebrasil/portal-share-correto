@@ -266,7 +266,7 @@ export function ReceiptForm({
     loadAllAircrafts();
   }, []);
 
-  // ─── When client changes: load client's aircrafts + all others ───────────
+  // ─── When client changes: load all aircrafts ───────────────────────────────
   useEffect(() => {
     if (!formData.clienteId) {
       loadAllAircrafts();
@@ -274,7 +274,7 @@ export function ReceiptForm({
       setSelectedPartnerId("");
       return;
     }
-    loadAircrafts(formData.clienteId);
+    loadAllAircrafts();
     loadClientPartners(formData.clienteId);
 
     const client = clientesAtivos.find((c) => c.id === formData.clienteId);
@@ -648,12 +648,7 @@ export function ReceiptForm({
               />
             </div>
             <div>
-              <Label>
-                Aeronave{" "}
-                <span className="text-xs text-muted-foreground font-normal">
-                  (★ vinculada ao cliente)
-                </span>
-              </Label>
+              <Label>Aeronave</Label>
               <SearchableCombobox
                 items={aeronaveItems}
                 value={formData.aircraftId}
