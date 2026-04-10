@@ -81,7 +81,7 @@ async function uploadFile(
 ): Promise<string | null> {
   try {
     const timestamp = Date.now();
-    const sanitizedFileName = file.nome
+    const sanitizedFileName = file.name
       .replace(/[^a-zA-Z0-9.\-_]/g, "_")
       .substring(0, 100);
     const randomSuffix = Math.random().toString(36).substring(2, 8);

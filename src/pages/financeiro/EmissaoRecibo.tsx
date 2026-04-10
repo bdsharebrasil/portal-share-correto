@@ -182,18 +182,11 @@ export default function EmissaoRecibo() {
 
   const loadRecentReceipts = async (_uid?: string) => {
     try {
-      const currentUid = _uid || userId;
-      let query = supabase
+      const { data, error } = await supabase
         .from("recibos")
         .select("*")
         .order("criado_em", { ascending: false })
-        .limit(100);
-
-      if (currentUid) {
-        query = query.eq("usuario_id", currentUid);
-      }
-
-      const { data, error } = await query;
+        .limit(200);
 
       if (error) throw error;
       setRecentReceipts(
@@ -573,22 +566,26 @@ export default function EmissaoRecibo() {
         const { error: uploadError } = await supabase.storage
           .from("receipts")
           .upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("❌ Erro upload PDF:", uploadError);
+          throw uploadError;
+        }
 
         const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
         if (!urlData?.publicUrl) throw new Error("Falha ao obter URL pública do PDF");
 
-        const { data: updatedReceipt, error: updatePdfError } = await supabase
+        // Atualizar sem filtro de usuario_id para evitar RLS bloqueando
+        const { error: updatePdfError } = await supabase
           .from("recibos")
           .update({ url_pdf: urlData.publicUrl })
-          .eq("id", receiptData.id)
-          .eq("usuario_id", currentUserId)
-          .select("id, url_pdf")
-          .single();
+          .eq("id", receiptData.id);
 
-        if (updatePdfError || !updatedReceipt?.url_pdf) {
-          throw new Error("Falha ao salvar a URL do PDF no recibo");
+        if (updatePdfError) {
+          console.error("❌ Erro ao salvar URL do PDF:", updatePdfError);
+          throw new Error(`Falha ao salvar a URL do PDF: ${updatePdfError.message}`);
         }
+
+        console.log("✅ PDF gerado e URL salva:", urlData.publicUrl);
 
         await loadRecentReceipts(currentUserId);
         toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso!` });

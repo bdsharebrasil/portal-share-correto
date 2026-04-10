@@ -15,11 +15,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
-import { FileText, Star, Upload, Calendar } from "lucide-react";
+import { FileText, Star, Calendar } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { toast } from "@/components/ui/use-toast";
 
 interface ReceiptFormProps {
   clientesAtivos: any[];
@@ -102,72 +102,69 @@ export function ReceiptForm({
   const [favoriteDescriptions, setFavoriteDescriptions] = useState<FavoriteDescription[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [valorEditadoManualmente, setValorEditadoManualmente] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const isReembolso = formData.receiptType === "reembolso";
 
-  // Detect DECEA or INFRAERO category
-  const selectedCategoria = categoriasReembolsaveis.find(c => c.id === formData.reembolsoCategoriaId);
-  const categoriaNome = selectedCategoria?.nome || formData.reembolsoCategoriaNome || "";
+  const selectedCategoria = categoriasReembolsaveis.find(
+    (c) => c.id === formData.reembolsoCategoriaId
+  );
+  const categoriaNome =
+    selectedCategoria?.nome || formData.reembolsoCategoriaNome || "";
   const isDecea = categoriaNome.toUpperCase().includes("DECEA");
   const isInfraero = categoriaNome.toUpperCase().includes("INFRAERO");
   const isDECEAorINFRAERO = isDecea || isInfraero;
 
-  // Cálculo automático do valor quando rateado - SEMPRE atualiza se não foi editado manualmente
+  // ─── Auto-calc valor when rateado ────────────────────────────────────────
   useEffect(() => {
-    if (formData.reembolsoRateado && formData.reembolsoValorTotal && formData.reembolsoPorcentagem) {
-      // Normalizar valor total: remover ponto (separador de milhares) e substituir vírgula por ponto
-      const valorTotalStr = String(formData.reembolsoValorTotal)
-        .replace(/\./g, "")
-        .replace(/,/g, ".");
-      const valorTotal = parseFloat(valorTotalStr) || 0;
+    if (
+      formData.reembolsoRateado &&
+      formData.reembolsoValorTotal &&
+      formData.reembolsoPorcentagem
+    ) {
+      const valorTotal =
+        parseFloat(String(formData.reembolsoValorTotal).replace(",", ".")) || 0;
       const porcentagem = parseFloat(formData.reembolsoPorcentagem) || 0;
-      const valorCalculado = (valorTotal * porcentagem / 100).toFixed(2);
-
-      // Só atualiza se o usuário não editou manualmente
+      const valorCalculado = ((valorTotal * porcentagem) / 100).toFixed(2);
       if (!valorEditadoManualmente) {
-        setFormData(prev => ({ ...prev, valor: valorCalculado }));
+        setFormData((prev) => ({ ...prev, valor: valorCalculado }));
       }
     }
-  }, [formData.reembolsoValorTotal, formData.reembolsoPorcentagem, formData.reembolsoRateado, valorEditadoManualmente]);
+  }, [
+    formData.reembolsoValorTotal,
+    formData.reembolsoPorcentagem,
+    formData.reembolsoRateado,
+    valorEditadoManualmente,
+  ]);
 
   const parseLocalDate = (dateString: string): Date => {
     const [y, m, d] = dateString.split("-").map(Number);
     return new Date(y, m - 1, d);
   };
 
-  // Load categorias reembolsáveis
+  // ─── Load categorias reembolsáveis ───────────────────────────────────────
   useEffect(() => {
-    const loadCategorias = async () => {
-      const { data } = await supabase
-        .from("categorias_movimentacao")
-        .select("id, nome, grupo_categoria")
-        .eq("grupo_categoria", "DESPESAS REEMBOLSÁVEIS")
-        .eq("ativo", true)
-        .order("nome");
-
-      if (data) {
-        setCategoriasReembolsaveis(data);
-      }
-    };
-
-    loadCategorias();
+    supabase
+      .from("categorias_movimentacao")
+      .select("id, nome, grupo_categoria")
+      .eq("grupo_categoria", "DESPESAS REEMBOLSÁVEIS")
+      .eq("ativo", true)
+      .order("nome")
+      .then(({ data }) => {
+        if (data) setCategoriasReembolsaveis(data);
+      });
   }, []);
 
-  // Load favorite descriptions
+  // ─── Load favorite descriptions ──────────────────────────────────────────
   useEffect(() => {
-    const loadFavoriteDescriptions = async () => {
-      const { data } = await supabase
-        .from("receipt_descriptions")
-        .select("*")
-        .order("criado_em", { ascending: false });
-
-      setFavoriteDescriptions(data || []);
-    };
-
-    loadFavoriteDescriptions();
+    supabase
+      .from("receipt_descriptions")
+      .select("*")
+      .order("criado_em", { ascending: false })
+      .then(({ data }) => setFavoriteDescriptions(data || []));
   }, []);
 
-  // Reset campos de reembolso ao mudar tipo
+  // ─── Reset reembolso fields when type changes ─────────────────────────────
   useEffect(() => {
     if (formData.receiptType === "pagamento") {
       setFormData((prev) => ({
@@ -193,9 +190,9 @@ export function ReceiptForm({
     }
   }, [formData.receiptType]);
 
-  // Reset DECEA/INFRAERO fields when category changes
+  // ─── Reset DECEA/INFRAERO fields when category changes ───────────────────
   useEffect(() => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       numeroDocumentoDecea: "",
       competenciaDecea: "",
@@ -208,52 +205,75 @@ export function ReceiptForm({
     }));
   }, [formData.reembolsoCategoriaId]);
 
-  // Auto-fill description based on category (and INFRAERO/DECEA specific fields)
+  // ─── Auto-fill description based on category + aeronave ──────────────────
   useEffect(() => {
     if (!isReembolso || !selectedCategoria) return;
 
+    const selectedAircraft = aircrafts.find((a) => a.id === formData.aircraftId);
+    const aeronaveStr = selectedAircraft?.matricula
+      ? ` AERONAVE ${selectedAircraft.matricula}`
+      : "";
+
     if (isInfraero) {
-      const comp = formData.competenciaInfraero ? ` COMPETÊNCIA ${formData.competenciaInfraero.toUpperCase()}` : "";
-      const doc = formData.numeroDocumentoInfraero ? ` DEMONSTRATIVO ${formData.numeroDocumentoInfraero.toUpperCase()}` : "";
-      setFormData(prev => ({
+      const comp = formData.competenciaInfraero
+        ? ` COMPETÊNCIA ${formData.competenciaInfraero.toUpperCase()}`
+        : "";
+      const doc = formData.numeroDocumentoInfraero
+        ? ` DEMONSTRATIVO ${formData.numeroDocumentoInfraero.toUpperCase()}`
+        : "";
+      setFormData((prev) => ({
         ...prev,
-        servicoDescricao: `REFERENTE A INFRAERO${comp}${doc}`.trim(),
+        servicoDescricao: `REFERENTE A INFRAERO${aeronaveStr}${comp}${doc}`.trim(),
       }));
     } else if (isDecea) {
-      const comp = formData.competenciaDecea ? ` COMPETÊNCIA ${formData.competenciaDecea.toUpperCase()}` : "";
-      const doc = formData.numeroDocumentoDecea ? ` DEMONSTRATIVO ${formData.numeroDocumentoDecea.toUpperCase()}` : "";
-      setFormData(prev => ({
+      const comp = formData.competenciaDecea
+        ? ` COMPETÊNCIA ${formData.competenciaDecea.toUpperCase()}`
+        : "";
+      const doc = formData.numeroDocumentoDecea
+        ? ` DEMONSTRATIVO ${formData.numeroDocumentoDecea.toUpperCase()}`
+        : "";
+      setFormData((prev) => ({
         ...prev,
-        servicoDescricao: `REFERENTE A DECEA${comp}${doc}`.trim(),
+        servicoDescricao: `REFERENTE A DECEA${aeronaveStr}${comp}${doc}`.trim(),
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         servicoDescricao: `Referente a ${selectedCategoria.nome}`,
       }));
     }
-  }, [formData.reembolsoCategoriaId, formData.competenciaInfraero, formData.numeroDocumentoInfraero, formData.competenciaDecea, formData.numeroDocumentoDecea]);
+  }, [
+    formData.reembolsoCategoriaId,
+    formData.aircraftId,
+    formData.competenciaInfraero,
+    formData.numeroDocumentoInfraero,
+    formData.competenciaDecea,
+    formData.numeroDocumentoDecea,
+  ]);
 
-  // For INFRAERO/DECEA: auto-sync boleto value as total expense value
+  // ─── INFRAERO/DECEA: sync boleto value → reembolsoValorTotal ─────────────
   useEffect(() => {
     if (!isDECEAorINFRAERO || !formData.valorTotalBoleto) return;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       reembolsoValorTotal: prev.valorTotalBoleto,
       reembolsoRateado: true,
     }));
   }, [formData.valorTotalBoleto, isDECEAorINFRAERO]);
 
-  // Cliente / Aeronave - preenche dados do pagador
+  // ─── Load ALL aircrafts on mount ──────────────────────────────────────────
+  useEffect(() => {
+    loadAllAircrafts();
+  }, []);
+
+  // ─── When client changes: load client's aircrafts + all others ───────────
   useEffect(() => {
     if (!formData.clienteId) {
-      setAircrafts([]);
+      loadAllAircrafts();
       setClientPartners([]);
       setSelectedPartnerId("");
-      setFormData((prev) => ({ ...prev, aircraftId: "" }));
       return;
     }
-
     loadAircrafts(formData.clienteId);
     loadClientPartners(formData.clienteId);
 
@@ -271,7 +291,6 @@ export function ReceiptForm({
     setSelectedPartnerId("");
   }, [formData.clienteId]);
 
-  // Quando seleciona um sócio, atualiza dados do pagador
   useEffect(() => {
     if (!selectedPartnerId || selectedPartnerId === "__client__") {
       const client = clientesAtivos.find((c) => c.id === formData.clienteId);
@@ -297,48 +316,74 @@ export function ReceiptForm({
     }
   }, [selectedPartnerId]);
 
+  // ─── Load ALL aircrafts (no client filter) ────────────────────────────────
+  const loadAllAircrafts = async () => {
+    const { data } = await supabase
+      .from("aeronave")
+      .select("id, matricula, modelo")
+      .eq("status", "ativo")
+      .order("matricula");
+    setAircrafts(
+      (data || []).map((a: any) => ({
+        id: a.id,
+        matricula: a.matricula,
+        modelo: a.modelo,
+        isClient: false,
+      }))
+    );
+  };
+
+  // ─── Load aircrafts: client's first (★), then all others ─────────────────
   const loadAircrafts = async (clientId: string) => {
-    // Load client's aircraft
+    // 1. Fetch aircraft linked to this client
     const { data: clientData } = await supabase
       .from("cotistas_aeronave")
       .select(`id_aeronave, aeronave:id_aeronave ( id, matricula, modelo )`)
       .eq("id_clientes", clientId);
 
     const clientAircraftIds = new Set<string>();
-    const clientAircrafts = (clientData || []).map((c: any) => {
-      const a = c.aeronave;
-      if (!a) return null;
-      clientAircraftIds.add(a.id);
-      return { id: a.id, matricula: a.matricula, modelo: a.modelo, isClient: true };
-    }).filter(Boolean);
+    const clientAircrafts = (clientData || [])
+      .map((c: any) => {
+        const a = c.aeronave;
+        if (!a) return null;
+        clientAircraftIds.add(a.id);
+        return {
+          id: a.id,
+          matricula: a.matricula,
+          modelo: a.modelo,
+          isClient: true,
+        };
+      })
+      .filter(Boolean);
 
-    // Load all other aircraft
+    // 2. Fetch ALL active aircraft
     const { data: allData } = await supabase
       .from("aeronave")
       .select("id, matricula, modelo")
       .eq("status", "ativo")
       .order("matricula");
 
+    // 3. Other aircraft (not linked to this client)
     const otherAircrafts = (allData || [])
       .filter((a: any) => !clientAircraftIds.has(a.id))
-      .map((a: any) => ({ id: a.id, matricula: a.matricula, modelo: a.modelo, isClient: false }));
+      .map((a: any) => ({
+        id: a.id,
+        matricula: a.matricula,
+        modelo: a.modelo,
+        isClient: false,
+      }));
 
+    // 4. Client's aircraft first, then the rest
     const orderedAircrafts = [...clientAircrafts, ...otherAircrafts];
-
     setAircrafts(orderedAircrafts);
+
+    // Auto-select client's first aircraft if current selection isn't in list
     setFormData((prev) => {
-      const currentAircraftStillExists = orderedAircrafts.some((aircraft) => aircraft?.id === prev.aircraftId);
-
-      if (currentAircraftStillExists) {
-        return prev;
-      }
-
-      const preferredAircraft = orderedAircrafts.find((aircraft) => aircraft?.isClient) || orderedAircrafts[0];
-
-      return {
-        ...prev,
-        aircraftId: preferredAircraft?.id || "",
-      };
+      const exists = orderedAircrafts.some((a) => a?.id === prev.aircraftId);
+      if (exists) return prev;
+      const preferred =
+        orderedAircrafts.find((a) => a?.isClient) || orderedAircrafts[0];
+      return { ...prev, aircraftId: preferred?.id || "" };
     });
   };
 
@@ -348,36 +393,176 @@ export function ReceiptForm({
       .select("id, nome, cpf, percentual_participacao")
       .eq("cliente_id", clientId)
       .order("nome");
-    setClientPartners((data || []).map(d => ({
-      id: d.id,
-      name: d.nome,
-      nome: d.nome,
-      cpf: d.cpf,
-      percentual_sociedade: d.percentual_participacao,
-      percentual_participacao: d.percentual_participacao,
-    })));
+    setClientPartners(
+      (data || []).map((d) => ({
+        id: d.id,
+        name: d.nome,
+        nome: d.nome,
+        cpf: d.cpf,
+        percentual_sociedade: d.percentual_participacao,
+        percentual_participacao: d.percentual_participacao,
+      }))
+    );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ─── Upload helper ────────────────────────────────────────────────────────
+  const uploadFile = async (
+    file: File,
+    path: string
+  ): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from("recibos-anexos")
+      .upload(path, file, { upsert: true });
+    if (error) {
+      console.error("Upload error:", error.message);
+      return null;
+    }
+    const { data: publicData } = supabase.storage
+      .from("recibos-anexos")
+      .getPublicUrl(data.path);
+    return publicData.publicUrl;
+  };
+
+  // ─── Submit ───────────────────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
 
-    const submissionData = {
-      ...formData,
-      pagadorNome: formData.pagadorNome,
-      pagadorDocumento: formData.pagadorDocumento,
-      pagadorEndereco: formData.pagadorEndereco,
-      pagadorCidade: formData.pagadorCidade,
-      pagadorUF: formData.pagadorUF,
-      valor: formData.valor,
-      servicoDescricao: formData.servicoDescricao,
-      selectedPartnerId,
-      categoriaNome,
-      isDecea,
-      isInfraero,
-      originalFormData: formData,
-    };
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    onSubmit(submissionData);
+      if (!user) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const hoje = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const numeroRecibo = `REC-${hoje}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      let urlBoleto: string | null = null;
+      let urlNf: string | null = null;
+
+      if (isReembolso) {
+        if (isDECEAorINFRAERO) {
+          const file = isDecea ? formData.decealFile : formData.infraeroFile;
+          if (file) {
+            urlNf = await uploadFile(
+              file,
+              `${user.id}/${numeroRecibo}-demonstrativo`
+            );
+          }
+        } else {
+          if (formData.reembolsoBoletoFile) {
+            urlBoleto = await uploadFile(
+              formData.reembolsoBoletoFile,
+              `${user.id}/${numeroRecibo}-boleto`
+            );
+          }
+          if (formData.reembolsoNotaFiscalFile) {
+            urlNf = await uploadFile(
+              formData.reembolsoNotaFiscalFile,
+              `${user.id}/${numeroRecibo}-nf`
+            );
+          }
+        }
+      }
+
+      let socioNome: string | null = null;
+      if (selectedPartnerId && selectedPartnerId !== "__client__") {
+        const partner = clientPartners.find((p) => p.id === selectedPartnerId);
+        if (partner) socioNome = partner.nome || partner.name || null;
+      }
+
+      let numeroDocumento: string | null = null;
+      if (isReembolso) {
+        if (isDecea) {
+          numeroDocumento = formData.numeroDocumentoDecea || null;
+        } else if (isInfraero) {
+          numeroDocumento = formData.numeroDocumentoInfraero || null;
+        } else {
+          numeroDocumento = formData.reembolsoNumeroDocumento || null;
+        }
+      }
+
+      const dataMaxPagamento =
+        formData.prazoMaximoQuitacao ||
+        (isDECEAorINFRAERO && formData.dataVencimentoBoleto
+          ? formData.dataVencimentoBoleto
+          : null);
+
+      const payload = {
+        numero_recibo: numeroRecibo,
+        usuario_id: user.id,
+
+        nome_pagador: formData.pagadorNome,
+        documento_pagador: formData.pagadorDocumento || null,
+        endereco_pagador: formData.pagadorEndereco || null,
+        cidade_pagador: formData.pagadorCidade || null,
+        uf_pagador: formData.pagadorUF || null,
+
+        valor: parseFloat(String(formData.valor).replace(",", ".")) || 0,
+        valor_total: formData.reembolsoRateado
+          ? parseFloat(String(formData.reembolsoValorTotal).replace(",", ".")) || null
+          : null,
+        percentual: formData.reembolsoRateado
+          ? parseFloat(formData.reembolsoPorcentagem) || null
+          : null,
+        compartilhado: formData.reembolsoRateado,
+
+        descricao_servico: formData.servicoDescricao,
+        tipo_recibo: formData.receiptType,
+        forma_pagamento: formData.formaPagamento || null,
+
+        nome_categoria: isReembolso ? (categoriaNome || null) : null,
+        numero_documento: numeroDocumento,
+
+        data_emissao: formData.dataEmissao,
+        data_max_pagamento: dataMaxPagamento || null,
+
+        cliente_id: formData.clienteId || null,
+        aeronave_id: formData.aircraftId || null,
+        socios_cliente: socioNome,
+
+        url_boleto: urlBoleto,
+        url_nf: urlNf,
+        url_pdf: null,
+
+        status: "pendente",
+      };
+
+      const { data: inserted, error } = await supabase
+        .from("recibos")
+        .insert([payload])
+        .select()
+        .single();
+
+      if (error) {
+        toast({
+          title: "Erro ao salvar recibo",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      onSubmit({
+        ...formData,
+        insertedRecibo: inserted,
+        selectedPartnerId,
+        categoriaNome,
+        isDecea,
+        isInfraero,
+        originalFormData: formData,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleFileChange = (field: string, file: File | null) => {
@@ -385,42 +570,42 @@ export function ReceiptForm({
   };
 
   const selectFavoriteDescription = (description: string) => {
-    setFormData(prev => ({ ...prev, servicoDescricao: description }));
+    setFormData((prev) => ({ ...prev, servicoDescricao: description }));
     setShowFavorites(false);
   };
 
-  // Prepare items for SearchableCombobox
-  const clienteItems = clientesAtivos.map(c => ({
+  // ─── SearchableCombobox items ─────────────────────────────────────────────
+  const clienteItems = clientesAtivos.map((c) => ({
     id: c.id,
     label: c.razao_social || "Sem nome",
   }));
 
   const aeronaveItems = aircrafts.map((a: any) => ({
     id: a.id,
-    label: `${a.matricula} – ${a.modelo}${a.isClient ? ' ★' : ''}`,
+    label: `${a.matricula} – ${a.modelo}${a.isClient ? " ★" : ""}`,
   }));
 
-  const categoriaItems = categoriasReembolsaveis.map(c => ({
+  const categoriaItems = categoriasReembolsaveis.map((c) => ({
     id: c.id,
     label: c.nome,
   }));
 
+  const submitting = isGenerating || isSaving;
+
+  // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit}>
       <Card>
         <CardContent className="p-6 space-y-6">
+
           {/* TIPO */}
           <div>
             <Label>Tipo de Recibo</Label>
             <Select
               value={formData.receiptType}
-              onValueChange={(v) =>
-                setFormData((p) => ({ ...p, receiptType: v }))
-              }
+              onValueChange={(v) => setFormData((p) => ({ ...p, receiptType: v }))}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pagamento">Pagamento</SelectItem>
                 <SelectItem value="reembolso">Reembolso</SelectItem>
@@ -428,7 +613,7 @@ export function ReceiptForm({
             </Select>
           </div>
 
-          {/* CATEGORIA - SearchableCombobox for reembolso */}
+          {/* CATEGORIA */}
           {isReembolso && (
             <div>
               <Label>Categoria (Despesas Reembolsáveis) *</Label>
@@ -436,7 +621,11 @@ export function ReceiptForm({
                 items={categoriaItems}
                 value={formData.reembolsoCategoriaId}
                 onChange={(id, label) =>
-                  setFormData((p) => ({ ...p, reembolsoCategoriaId: id, reembolsoCategoriaNome: label }))
+                  setFormData((p) => ({
+                    ...p,
+                    reembolsoCategoriaId: id,
+                    reembolsoCategoriaNome: label,
+                  }))
                 }
                 placeholder="Selecione a categoria"
                 searchPlaceholder="Buscar categoria..."
@@ -445,59 +634,58 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* CLIENTE / AERONAVE - SearchableCombobox */}
+          {/* CLIENTE / AERONAVE */}
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <Label>Cliente</Label>
               <SearchableCombobox
                 items={clienteItems}
                 value={formData.clienteId}
-                onChange={(id) =>
-                  setFormData((p) => ({ ...p, clienteId: id }))
-                }
+                onChange={(id) => setFormData((p) => ({ ...p, clienteId: id }))}
                 placeholder="Selecione o cliente"
                 searchPlaceholder="Buscar cliente..."
                 emptyMessage="Nenhum cliente encontrado"
               />
             </div>
-
             <div>
-              <Label>Aeronave</Label>
+              <Label>
+                Aeronave{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  (★ vinculada ao cliente)
+                </span>
+              </Label>
               <SearchableCombobox
                 items={aeronaveItems}
                 value={formData.aircraftId}
-                onChange={(id) =>
-                  setFormData((p) => ({ ...p, aircraftId: id }))
-                }
+                onChange={(id) => setFormData((p) => ({ ...p, aircraftId: id }))}
                 placeholder="Selecione a aeronave"
                 searchPlaceholder="Buscar aeronave..."
                 emptyMessage="Nenhuma aeronave encontrada"
-                disabled={!formData.clienteId}
               />
             </div>
           </div>
 
-          {/* SÓCIO (PARTNER) */}
+          {/* SÓCIO */}
           {clientPartners.length > 0 && formData.clienteId && (
             <div className="p-4 border border-border rounded-lg bg-muted/20 space-y-2">
               <Label className="text-sm font-semibold">Sócio / Pagador</Label>
               <p className="text-xs text-muted-foreground">
-                Este cliente possui sócios vinculados. Selecione o sócio que será o pagador do recibo.
+                Este cliente possui sócios vinculados. Selecione o sócio que
+                será o pagador do recibo.
               </p>
-              <Select
-                value={selectedPartnerId}
-                onValueChange={setSelectedPartnerId}
-              >
+              <Select value={selectedPartnerId} onValueChange={setSelectedPartnerId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o sócio (pagador)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__client__">
-                    {clientesAtivos.find(c => c.id === formData.clienteId)?.razao_social || "Cliente Principal"}
+                    {clientesAtivos.find((c) => c.id === formData.clienteId)
+                      ?.razao_social || "Cliente Principal"}
                   </SelectItem>
                   {clientPartners.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.nome || p.name} {p.cpf ? `(${p.cpf})` : ""} — {p.percentual_participacao || p.percentual_sociedade}%
+                      {p.nome || p.name} {p.cpf ? `(${p.cpf})` : ""} —{" "}
+                      {p.percentual_participacao || p.percentual_sociedade}%
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -509,14 +697,20 @@ export function ReceiptForm({
           <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/20">
             <Label className="text-sm font-semibold">Dados do Pagador</Label>
             <p className="text-xs text-muted-foreground -mt-2">
-              {selectedPartnerId ? "Preenchido pelo sócio selecionado" : formData.clienteId ? "Preenchido automaticamente pelo cliente selecionado" : "Preencha manualmente os dados do pagador"}
+              {selectedPartnerId
+                ? "Preenchido pelo sócio selecionado"
+                : formData.clienteId
+                ? "Preenchido automaticamente pelo cliente selecionado"
+                : "Preencha manualmente os dados do pagador"}
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>Nome / Razão Social *</Label>
                 <Input
                   value={formData.pagadorNome}
-                  onChange={(e) => setFormData((p) => ({ ...p, pagadorNome: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, pagadorNome: e.target.value }))
+                  }
                   placeholder="Nome do pagador"
                   required
                 />
@@ -525,7 +719,12 @@ export function ReceiptForm({
                 <Label>CPF / CNPJ *</Label>
                 <Input
                   value={formData.pagadorDocumento}
-                  onChange={(e) => setFormData((p) => ({ ...p, pagadorDocumento: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      pagadorDocumento: e.target.value,
+                    }))
+                  }
                   placeholder="Documento do pagador"
                   required
                 />
@@ -535,7 +734,12 @@ export function ReceiptForm({
               <Label>Endereço</Label>
               <Input
                 value={formData.pagadorEndereco}
-                onChange={(e) => setFormData((p) => ({ ...p, pagadorEndereco: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    pagadorEndereco: e.target.value,
+                  }))
+                }
                 placeholder="Endereço"
               />
             </div>
@@ -544,7 +748,12 @@ export function ReceiptForm({
                 <Label>Cidade</Label>
                 <Input
                   value={formData.pagadorCidade}
-                  onChange={(e) => setFormData((p) => ({ ...p, pagadorCidade: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      pagadorCidade: e.target.value,
+                    }))
+                  }
                   placeholder="Cidade"
                 />
               </div>
@@ -552,7 +761,9 @@ export function ReceiptForm({
                 <Label>UF</Label>
                 <Input
                   value={formData.pagadorUF}
-                  onChange={(e) => setFormData((p) => ({ ...p, pagadorUF: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, pagadorUF: e.target.value }))
+                  }
                   placeholder="UF"
                   maxLength={2}
                 />
@@ -560,13 +771,15 @@ export function ReceiptForm({
             </div>
           </div>
 
-          {/* FORMA DE PAGAMENTO - apenas para pagamento */}
+          {/* FORMA DE PAGAMENTO */}
           {!isReembolso && (
             <div>
               <Label>Forma de Pagamento</Label>
               <Select
                 value={formData.formaPagamento}
-                onValueChange={(v) => setFormData((p) => ({ ...p, formaPagamento: v }))}
+                onValueChange={(v) =>
+                  setFormData((p) => ({ ...p, formaPagamento: v }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a forma de pagamento" />
@@ -574,8 +787,12 @@ export function ReceiptForm({
                 <SelectContent>
                   <SelectItem value="pix">PIX</SelectItem>
                   <SelectItem value="boleto">Boleto</SelectItem>
-                  <SelectItem value="transferencia">Transferência Bancária</SelectItem>
-                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="transferencia">
+                    Transferência Bancária
+                  </SelectItem>
+                  <SelectItem value="cartao_credito">
+                    Cartão de Crédito
+                  </SelectItem>
                   <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
                   <SelectItem value="dinheiro">Dinheiro</SelectItem>
                   <SelectItem value="cheque">Cheque</SelectItem>
@@ -584,16 +801,23 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* =================== DECEA SPECIFIC FIELDS =================== */}
+          {/* DECEA */}
           {isReembolso && isDecea && (
             <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/5 space-y-4">
-              <Label className="text-sm font-semibold text-amber-700">📋 Campos DECEA</Label>
+              <Label className="text-sm font-semibold text-amber-700">
+                📋 Campos DECEA
+              </Label>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Número do Documento *</Label>
                   <Input
                     value={formData.numeroDocumentoDecea}
-                    onChange={(e) => setFormData(p => ({ ...p, numeroDocumentoDecea: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        numeroDocumentoDecea: e.target.value,
+                      }))
+                    }
                     placeholder="Nº do documento DECEA"
                     required
                   />
@@ -602,7 +826,12 @@ export function ReceiptForm({
                   <Label>Competência *</Label>
                   <Input
                     value={formData.competenciaDecea}
-                    onChange={(e) => setFormData(p => ({ ...p, competenciaDecea: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        competenciaDecea: e.target.value,
+                      }))
+                    }
                     placeholder="Ex: 02/2026"
                     required
                   />
@@ -613,14 +842,33 @@ export function ReceiptForm({
                   <Label>Data de Vencimento do Boleto *</Label>
                   <div className="relative">
                     <Input
-                      value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
+                      value={
+                        formData.dataVencimentoBoleto
+                          ? format(
+                              parseLocalDate(formData.dataVencimentoBoleto),
+                              "dd/MM/yyyy"
+                            )
+                          : ""
+                      }
                       onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        const raw = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 8);
                         if (raw.length === 8) {
-                          const [dd, mm, yyyy] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
-                          setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
+                          const [dd, mm, yyyy] = [
+                            raw.slice(0, 2),
+                            raw.slice(2, 4),
+                            raw.slice(4, 8),
+                          ];
+                          setFormData((p) => ({
+                            ...p,
+                            dataVencimentoBoleto: `${yyyy}-${mm}-${dd}`,
+                          }));
                         } else if (raw.length === 0) {
-                          setFormData(p => ({ ...p, dataVencimentoBoleto: "" }));
+                          setFormData((p) => ({
+                            ...p,
+                            dataVencimentoBoleto: "",
+                          }));
                         }
                       }}
                       placeholder="DD/MM/AAAA"
@@ -629,16 +877,33 @@ export function ReceiptForm({
                     />
                     <Popover>
                       <PopoverTrigger asChild>
-                        <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
                           <Calendar className="h-4 w-4" />
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent align="end" className="w-auto p-0 border-0 z-[9999]">
+                      <PopoverContent
+                        align="end"
+                        className="w-auto p-0 border-0 z-[9999]"
+                      >
                         <DatePickerCalendar
-                          value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
+                          value={
+                            formData.dataVencimentoBoleto
+                              ? new Date(
+                                  formData.dataVencimentoBoleto + "T00:00:00"
+                                )
+                              : undefined
+                          }
                           onChange={(date) => {
-                            const dateString = date ? format(date, "yyyy-MM-dd") : "";
-                            setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
+                            const dateString = date
+                              ? format(date, "yyyy-MM-dd")
+                              : "";
+                            setFormData((p) => ({
+                              ...p,
+                              dataVencimentoBoleto: dateString,
+                            }));
                           }}
                         />
                       </PopoverContent>
@@ -649,7 +914,12 @@ export function ReceiptForm({
                   <Label>Valor Total do Boleto *</Label>
                   <MoneyInput
                     value={formData.valorTotalBoleto}
-                    onChange={(e) => setFormData(p => ({ ...p, valorTotalBoleto: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        valorTotalBoleto: e.target.value,
+                      }))
+                    }
                     required
                   />
                 </div>
@@ -659,23 +929,34 @@ export function ReceiptForm({
                 <Input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff"
-                  onChange={(e) => handleFileChange("decealFile", e.target.files?.[0] || null)}
+                  onChange={(e) =>
+                    handleFileChange("decealFile", e.target.files?.[0] || null)
+                  }
                 />
-                <p className="text-xs text-muted-foreground mt-1">Aceita PDF e imagens</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Aceita PDF e imagens
+                </p>
               </div>
             </div>
           )}
 
-          {/* =================== INFRAERO SPECIFIC FIELDS =================== */}
+          {/* INFRAERO */}
           {isReembolso && isInfraero && (
             <div className="p-4 border border-blue-500/30 rounded-lg bg-blue-500/5 space-y-4">
-              <Label className="text-sm font-semibold text-blue-700">📋 Campos INFRAERO</Label>
+              <Label className="text-sm font-semibold text-blue-700">
+                📋 Campos INFRAERO
+              </Label>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label>Documento INFRAERO *</Label>
                   <Input
                     value={formData.numeroDocumentoInfraero}
-                    onChange={(e) => setFormData(p => ({ ...p, numeroDocumentoInfraero: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        numeroDocumentoInfraero: e.target.value,
+                      }))
+                    }
                     placeholder="Nº do documento INFRAERO"
                     required
                   />
@@ -684,7 +965,12 @@ export function ReceiptForm({
                   <Label>Competência *</Label>
                   <Input
                     value={formData.competenciaInfraero}
-                    onChange={(e) => setFormData(p => ({ ...p, competenciaInfraero: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        competenciaInfraero: e.target.value,
+                      }))
+                    }
                     placeholder="Ex: 02/2026"
                     required
                   />
@@ -695,14 +981,33 @@ export function ReceiptForm({
                   <Label>Data de Vencimento do Boleto *</Label>
                   <div className="relative">
                     <Input
-                      value={formData.dataVencimentoBoleto ? format(parseLocalDate(formData.dataVencimentoBoleto), "dd/MM/yyyy") : ""}
+                      value={
+                        formData.dataVencimentoBoleto
+                          ? format(
+                              parseLocalDate(formData.dataVencimentoBoleto),
+                              "dd/MM/yyyy"
+                            )
+                          : ""
+                      }
                       onChange={(e) => {
-                        const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        const raw = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 8);
                         if (raw.length === 8) {
-                          const [dd, mm, yyyy] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
-                          setFormData(p => ({ ...p, dataVencimentoBoleto: `${yyyy}-${mm}-${dd}` }));
+                          const [dd, mm, yyyy] = [
+                            raw.slice(0, 2),
+                            raw.slice(2, 4),
+                            raw.slice(4, 8),
+                          ];
+                          setFormData((p) => ({
+                            ...p,
+                            dataVencimentoBoleto: `${yyyy}-${mm}-${dd}`,
+                          }));
                         } else if (raw.length === 0) {
-                          setFormData(p => ({ ...p, dataVencimentoBoleto: "" }));
+                          setFormData((p) => ({
+                            ...p,
+                            dataVencimentoBoleto: "",
+                          }));
                         }
                       }}
                       placeholder="DD/MM/AAAA"
@@ -711,16 +1016,33 @@ export function ReceiptForm({
                     />
                     <Popover>
                       <PopoverTrigger asChild>
-                        <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
                           <Calendar className="h-4 w-4" />
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent align="end" className="w-auto p-0 border-0 z-[9999]">
+                      <PopoverContent
+                        align="end"
+                        className="w-auto p-0 border-0 z-[9999]"
+                      >
                         <DatePickerCalendar
-                          value={formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined}
+                          value={
+                            formData.dataVencimentoBoleto
+                              ? new Date(
+                                  formData.dataVencimentoBoleto + "T00:00:00"
+                                )
+                              : undefined
+                          }
                           onChange={(date) => {
-                            const dateString = date ? format(date, "yyyy-MM-dd") : "";
-                            setFormData(p => ({ ...p, dataVencimentoBoleto: dateString }));
+                            const dateString = date
+                              ? format(date, "yyyy-MM-dd")
+                              : "";
+                            setFormData((p) => ({
+                              ...p,
+                              dataVencimentoBoleto: dateString,
+                            }));
                           }}
                         />
                       </PopoverContent>
@@ -731,7 +1053,12 @@ export function ReceiptForm({
                   <Label>Valor Total do Boleto *</Label>
                   <MoneyInput
                     value={formData.valorTotalBoleto}
-                    onChange={(e) => setFormData(p => ({ ...p, valorTotalBoleto: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        valorTotalBoleto: e.target.value,
+                      }))
+                    }
                     required
                   />
                 </div>
@@ -741,28 +1068,38 @@ export function ReceiptForm({
                 <Input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff"
-                  onChange={(e) => handleFileChange("infraeroFile", e.target.files?.[0] || null)}
+                  onChange={(e) =>
+                    handleFileChange(
+                      "infraeroFile",
+                      e.target.files?.[0] || null
+                    )
+                  }
                 />
-                <p className="text-xs text-muted-foreground mt-1">Aceita PDF e imagens</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Aceita PDF e imagens
+                </p>
               </div>
             </div>
           )}
 
-          {/* Nº DOCUMENTO (for non-DECEA/INFRAERO reembolso) */}
+          {/* Nº DOCUMENTO (non-DECEA/INFRAERO reembolso) */}
           {isReembolso && !isDECEAorINFRAERO && (
             <div>
               <Label>Número do Documento</Label>
               <Input
                 value={formData.reembolsoNumeroDocumento}
                 onChange={(e) =>
-                  setFormData((p) => ({ ...p, reembolsoNumeroDocumento: e.target.value }))
+                  setFormData((p) => ({
+                    ...p,
+                    reembolsoNumeroDocumento: e.target.value,
+                  }))
                 }
                 placeholder="Ex: NF 12345"
               />
             </div>
           )}
 
-          {/* CHECKBOX RATEIO */}
+          {/* RATEIO CHECKBOX */}
           {isReembolso && (
             <div className="flex items-center space-x-2 p-4 border border-border rounded-lg bg-muted/30">
               <Checkbox
@@ -777,7 +1114,6 @@ export function ReceiptForm({
                       reembolsoPorcentagem: "",
                     }),
                   }));
-                  // Reset estado de edição manual
                   setValorEditadoManualmente(false);
                 }}
               />
@@ -816,7 +1152,6 @@ export function ReceiptForm({
                       ...prev,
                       reembolsoPorcentagem: e.target.value,
                     }));
-                    // Resetar edição manual quando mudar a porcentagem
                     setValorEditadoManualmente(false);
                   }}
                   placeholder="Ex: 40.625"
@@ -833,14 +1168,19 @@ export function ReceiptForm({
                     <button
                       type="button"
                       onClick={() => {
-                        // Recalcular o valor
-                        const valorTotalStr = String(formData.reembolsoValorTotal)
-                          .replace(/\./g, "")
-                          .replace(/,/g, ".");
-                        const valorTotal = parseFloat(valorTotalStr) || 0;
-                        const porcentagem = parseFloat(formData.reembolsoPorcentagem) || 0;
-                        const valorCalculado = (valorTotal * porcentagem / 100).toFixed(2);
-                        setFormData(prev => ({ ...prev, valor: valorCalculado }));
+                        const valorTotal =
+                          parseFloat(
+                            String(formData.reembolsoValorTotal).replace(",", ".")
+                          ) || 0;
+                        const porcentagem =
+                          parseFloat(formData.reembolsoPorcentagem) || 0;
+                        const valorCalculado = (
+                          (valorTotal * porcentagem) / 100
+                        ).toFixed(2);
+                        setFormData((prev) => ({
+                          ...prev,
+                          valor: valorCalculado,
+                        }));
                         setValorEditadoManualmente(false);
                       }}
                       className="text-xs text-cyan-400 hover:text-cyan-300 underline"
@@ -852,10 +1192,7 @@ export function ReceiptForm({
                 <MoneyInput
                   value={formData.valor}
                   onChange={(e) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      valor: e.target.value,
-                    }));
+                    setFormData((prev) => ({ ...prev, valor: e.target.value }));
                     setValorEditadoManualmente(true);
                   }}
                   className="font-semibold"
@@ -869,7 +1206,7 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* VALOR DO RECIBO - só aparece se NÃO rateado */}
+          {/* VALOR - não rateado */}
           {isReembolso && !formData.reembolsoRateado && (
             <div>
               <Label>Valor do Recibo (100% para este cliente) *</Label>
@@ -883,7 +1220,7 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* VALOR DO RECIBO - para pagamento normal */}
+          {/* VALOR - pagamento */}
           {!isReembolso && (
             <div>
               <Label>Valor do Recibo *</Label>
@@ -897,7 +1234,7 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* PRAZO DE QUITAÇÃO - apenas para reembolso (auto-fill from DECEA/INFRAERO vencimento) */}
+          {/* PRAZO DE QUITAÇÃO */}
           {isReembolso && (
             <div className="space-y-2">
               <Label>Prazo Máximo de Quitação</Label>
@@ -906,16 +1243,26 @@ export function ReceiptForm({
                   value={(() => {
                     const dateStr = formData.prazoMaximoQuitacao;
                     if (!dateStr) return "";
-                    try { return format(parseLocalDate(dateStr), "dd/MM/yyyy"); } catch { return ""; }
+                    try {
+                      return format(parseLocalDate(dateStr), "dd/MM/yyyy");
+                    } catch {
+                      return "";
+                    }
                   })()}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
                     if (raw.length === 8) {
-                      const [dd, mm, yyyy] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 8)];
-                      const dateString = `${yyyy}-${mm}-${dd}`;
-                      setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
+                      const [dd, mm, yyyy] = [
+                        raw.slice(0, 2),
+                        raw.slice(2, 4),
+                        raw.slice(4, 8),
+                      ];
+                      setFormData((p) => ({
+                        ...p,
+                        prazoMaximoQuitacao: `${yyyy}-${mm}-${dd}`,
+                      }));
                     } else if (raw.length === 0) {
-                      setFormData(p => ({ ...p, prazoMaximoQuitacao: "" }));
+                      setFormData((p) => ({ ...p, prazoMaximoQuitacao: "" }));
                     }
                   }}
                   placeholder="DD/MM/AAAA"
@@ -924,19 +1271,36 @@ export function ReceiptForm({
                 />
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
                       <Calendar className="h-4 w-4" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-auto p-0 border-0 z-[9999]">
+                  <PopoverContent
+                    align="end"
+                    className="w-auto p-0 border-0 z-[9999]"
+                  >
                     <DatePickerCalendar
-                      value={formData.prazoMaximoQuitacao ? new Date(formData.prazoMaximoQuitacao + "T00:00:00") : undefined}
+                      value={
+                        formData.prazoMaximoQuitacao
+                          ? new Date(formData.prazoMaximoQuitacao + "T00:00:00")
+                          : undefined
+                      }
                       onChange={(date) => {
-                        const dateString = date ? format(date, "yyyy-MM-dd") : "";
-                        setFormData(p => ({ ...p, prazoMaximoQuitacao: dateString }));
+                        const dateString = date
+                          ? format(date, "yyyy-MM-dd")
+                          : "";
+                        setFormData((p) => ({
+                          ...p,
+                          prazoMaximoQuitacao: dateString,
+                        }));
                       }}
                       disabled={(date) => {
-                        const minDate = new Date(formData.dataEmissao + "T00:00:00");
+                        const minDate = new Date(
+                          formData.dataEmissao + "T00:00:00"
+                        );
                         return date < minDate;
                       }}
                     />
@@ -946,10 +1310,10 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* DESCRIÇÃO DO SERVIÇO / RECIBO */}
+          {/* DESCRIÇÃO */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <Label>Descrição do Serviço*</Label>
+              <Label>Descrição do Serviço *</Label>
               <Button
                 type="button"
                 variant="ghost"
@@ -961,7 +1325,6 @@ export function ReceiptForm({
                 Favoritas
               </Button>
             </div>
-
             {showFavorites && favoriteDescriptions.length > 0 && (
               <div className="border border-border rounded-lg p-2 space-y-1 bg-muted/30 max-h-40 overflow-y-auto">
                 {favoriteDescriptions.map((desc) => {
@@ -979,7 +1342,6 @@ export function ReceiptForm({
                 })}
               </div>
             )}
-
             <Textarea
               value={formData.servicoDescricao}
               onChange={(e) =>
@@ -994,7 +1356,7 @@ export function ReceiptForm({
             />
           </div>
 
-          {/* UPLOADS - for non DECEA/INFRAERO reembolso */}
+          {/* UPLOADS */}
           {isReembolso && !isDECEAorINFRAERO && (
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -1010,7 +1372,6 @@ export function ReceiptForm({
                   }
                 />
               </div>
-
               <div>
                 <Label>N.F / DEMONSTRATIVO</Label>
                 <Input
@@ -1029,9 +1390,9 @@ export function ReceiptForm({
 
           {/* SUBMIT */}
           <div className="flex justify-end">
-            <Button type="submit" disabled={isGenerating}>
+            <Button type="submit" disabled={submitting}>
               <FileText className="mr-2 h-4 w-4" />
-              {isGenerating ? "Gerando..." : "Gerar Recibo"}
+              {submitting ? "Salvando..." : "Gerar Recibo"}
             </Button>
           </div>
         </CardContent>

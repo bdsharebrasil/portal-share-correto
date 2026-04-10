@@ -10952,22 +10952,22 @@ export type Database = {
       }
       receipt_descriptions: {
         Row: {
-          created_at: string | null
-          description: string
+          criado_em: string | null
+          descricao: string
           id: string
-          updated_at: string | null
+          atualizado_em: string | null
         }
         Insert: {
-          created_at?: string | null
-          description: string
+          criado_em?: string | null
+          descricao: string
           id?: string
-          updated_at?: string | null
+          atualizado_em?: string | null
         }
         Update: {
-          created_at?: string | null
-          description?: string
+          criado_em?: string | null
+          descricao?: string
           id?: string
-          updated_at?: string | null
+          atualizado_em?: string | null
         }
         Relationships: []
       }
