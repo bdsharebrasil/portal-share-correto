@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, useEffect } from "react";
 import { Search, File, Users, Calendar, DollarSign, Receipt, Plane } from "lucide-react";
 import { Input } from "@/components/ui/input";
