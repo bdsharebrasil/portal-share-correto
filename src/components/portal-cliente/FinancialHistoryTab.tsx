@@ -30,11 +30,9 @@ interface FinancialHistoryTabProps {
   aircraftId: string;
 }
 
-// Função corrigida para converter data sem problemas de timezone
 const formatDateCorrectly = (dateString: string): string => {
   if (!dateString) return "";
   try {
-    // Parse apenas a data sem adicionar horário
     const [year, month, day] = dateString.split('T')[0].split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     return date.toLocaleDateString("pt-BR");
@@ -61,15 +59,13 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
 
       const reembolsoRecords: ReembolsoRecord[] = [];
 
-      // 1. Carregar despesas lançadas ao cliente de bank_reconciliations
-      // Filtra por client_id E aeronave_id quando disponível
+      // 1. Carregar despesas lançadas ao cliente de conciliacoes_bancarias
       let bankQuery = supabase
         .from("conciliacoes_bancarias")
         .select("*")
         .eq("clientes_id", clientId)
         .eq("tipo", "cliente");
       
-      // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
         bankQuery = bankQuery.eq("aeronave_id", aircraftId);
       }
@@ -80,10 +76,10 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
         bankData.forEach((record: any) => {
           reembolsoRecords.push({
             id: record.id,
-            date: record.data,
-            amount: Math.abs(record.saldo_pendente ?? record.valor ?? 0),
+            data: record.data,
+            valor: Math.abs(record.saldo_pendente ?? record.valor ?? 0),
             status: record.status || "pendente",
-            category: record.categoria || record.descricao || "Despesa",
+            categoria: record.categoria || record.descricao || "Despesa",
             grupo_categoria: "DESPESAS",
             boleto_url: record.boleto_url,
             nf_url: record.nf_url,
@@ -96,21 +92,19 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
         });
       }
 
-      // Coletar IDs de reference_id que já vieram de bank_reconciliations (para evitar duplicatas)
       const bankReferenceIds = new Set(
         (bankData || [])
           .filter((r: any) => r.referencia_id)
           .map((r: any) => r.referencia_id)
       );
 
-      // 2. Carregar recibos de reembolso da tabela recibos (exceto os que já estão em bank_reconciliations)
+      // 2. Carregar recibos de reembolso da tabela recibos
       let receiptsQuery = supabase
         .from("recibos")
         .select("*")
         .eq("cliente_id", clientId)
         .eq("tipo_recibo", "reembolso");
 
-      // Só adiciona filtro de aeronave_id se foi passado
       if (aircraftId) {
         receiptsQuery = receiptsQuery.eq("aeronave_id", aircraftId);
       }
@@ -119,15 +113,14 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
 
       if (receiptsData) {
         receiptsData.forEach((record: any) => {
-          // Pular se já existe em bank_reconciliations via reference_id
           if (bankReferenceIds.has(record.id)) return;
 
           reembolsoRecords.push({
             id: record.id,
-            date: record.data_emissao,
-            amount: Math.abs(record.valor || 0),
+            data: record.data_emissao,
+            valor: Math.abs(record.valor || 0),
             status: record.status || "pendente",
-            category: record.nome_categoria || record.numero_documento || "REEMBOLSO",
+            categoria: record.nome_categoria || record.numero_documento || "REEMBOLSO",
             grupo_categoria: "DESPESAS REEMBOLSÁVEIS",
             boleto_url: record.url_boleto,
             nf_url: record.url_nf,
@@ -241,7 +234,6 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                 className="p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
               >
                 <div className="space-y-3">
-                  {/* Cabeçalho com valor e número do recibo */}
                   <div className="flex justify-between items-start gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -270,7 +262,6 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                     </div>
                   </div>
 
-                  {/* Detalhes */}
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3 border-t border-border">
                     <div className="bg-background/50 p-3 rounded">
                       <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS</p>
@@ -298,7 +289,6 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                       </div>
                     )}
 
-                    {/* Anexos */}
                     {(record.boleto_url || record.nf_url || record.pdf_url) && (
                       <div className="bg-background/50 p-3 rounded">
                         <p className="text-xs text-muted-foreground font-semibold mb-2">ANEXOS</p>
