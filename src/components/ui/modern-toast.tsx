@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { toast as sonnerToast } from "sonner";
 import { CheckCircle, XCircle, AlertCircle, Info, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";

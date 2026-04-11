@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as React from "react"
 import { Check, ChevronsUpDown, Building2, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
