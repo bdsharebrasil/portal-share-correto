@@ -8,8 +8,10 @@ import { User, Users, Percent, ChevronRight, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export interface PartnerInfo {
+  id?: string;
   index: number;
-  name: string;
+  nome: string;
+  name?: string;
   cpf?: string;
   percentage: number;
 }
@@ -39,7 +41,7 @@ export function PartnerSelector({
       setLoading(true);
       const { data, error } = await supabase
         .from('socios_cliente')
-        .select('nome, cpf, percentual_participacao')
+        .select('id, nome, cpf, percentual_participacao')
         .eq('cliente_id', clientId)
         .order('criado_em');
 
@@ -50,7 +52,9 @@ export function PartnerSelector({
       }
 
       const partnersList: PartnerInfo[] = (data || []).map((partner, index) => ({
+        id: partner.id,
         index: index + 1,
+        nome: partner.nome,
         name: partner.nome,
         cpf: partner.cpf || undefined,
         percentage: partner.percentual_participacao || 33.33
@@ -58,7 +62,6 @@ export function PartnerSelector({
 
       setPartners(partnersList);
 
-      // Se não há parceiros, seleciona null automaticamente
       if (partnersList.length === 0) {
         onSelectPartner(null);
       }
@@ -73,24 +76,14 @@ export function PartnerSelector({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onBack}
-            className="h-10 w-10"
-          >
+          <Button variant="outline" size="icon" onClick={onBack} className="h-10 w-10">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-              Selecione seu Perfil
-            </h1>
-            <p className="text-muted-foreground text-base mt-2">
-              Escolha o sócio para acessar os dados e despesas específicas
-            </p>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">Selecione seu Perfil</h1>
+            <p className="text-muted-foreground text-base mt-2">Escolha o sócio para acessar os dados</p>
           </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
             <Skeleton key={i} className="h-64 rounded-xl" />
@@ -107,18 +100,11 @@ export function PartnerSelector({
   return (
     <div className="space-y-6 mb-8">
       <div className="flex items-center gap-4 mb-8">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onBack}
-          className="h-10 w-10"
-        >
+        <Button variant="outline" size="icon" onClick={onBack} className="h-10 w-10">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">
-            Selecione seu Perfil
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground">Selecione seu Perfil</h1>
           <p className="text-muted-foreground text-base mt-2">
             Escolha o sócio para acessar os dados e despesas específicas em <span className="font-semibold text-foreground">{clientName}</span>
           </p>
@@ -126,12 +112,7 @@ export function PartnerSelector({
       </div>
 
       <div className="flex justify-center mb-8">
-        <Button
-          onClick={() => onSelectPartner(null)}
-          variant="secondary"
-          size="lg"
-          className="gap-2"
-        >
+        <Button onClick={() => onSelectPartner(null)} variant="secondary" size="lg" className="gap-2">
           Ver Dados Consolidados (Todos os Sócios)
         </Button>
       </div>
@@ -153,9 +134,7 @@ export function PartnerSelector({
                     {partner.nome}
                   </p>
                   {partner.cpf && (
-                    <p className="text-xs text-muted-foreground">
-                      CPF: {partner.cpf}
-                    </p>
+                    <p className="text-xs text-muted-foreground">CPF: {partner.cpf}</p>
                   )}
                 </div>
               </CardTitle>
@@ -190,7 +169,6 @@ export function PartnerSelector({
           </Card>
         ))}
 
-        {/* Opção para ver dados consolidados */}
         <Card
           className="border border-white/10 bg-slate-800/30 backdrop-blur-sm cursor-pointer hover:bg-slate-800/50 transition-all hover:border-blue-500/50"
           onClick={() => onSelectPartner(null)}
@@ -201,12 +179,8 @@ export function PartnerSelector({
                 <Users className="h-5 w-5 text-blue-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-lg font-semibold text-foreground">
-                  Consolidado
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Ver dados de todos os sócios
-                </p>
+                <p className="text-lg font-semibold text-foreground">Consolidado</p>
+                <p className="text-xs text-muted-foreground">Ver dados de todos os sócios</p>
               </div>
             </CardTitle>
           </CardHeader>
@@ -217,10 +191,7 @@ export function PartnerSelector({
                 <Percent className="h-4 w-4" />
                 Visão
               </div>
-
-              <Badge variant="secondary">
-                100%
-              </Badge>
+              <Badge variant="secondary">100%</Badge>
             </div>
 
             <div className="pt-2 border-t border-white/10">

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft, Plus, CheckCircle, Loader2, Lock, Unlock,

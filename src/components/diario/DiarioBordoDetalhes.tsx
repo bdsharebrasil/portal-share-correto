@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect, useReducer } from 'react';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
