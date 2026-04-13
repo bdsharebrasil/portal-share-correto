@@ -1010,10 +1010,32 @@ export const viewHTMLPreview = async (report: TravelReport, currentFullName?: st
         const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf') || base64.startsWith('data:application/octet-stream');
         if (isPDF && !base64.startsWith('data:image/')) {
           console.log('🔄 PDF detectado na prévia, convertendo para imagem...');
-          base64 = await convertPdfBase64ToImageBase64(base64);
-        }
 
-        reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+          // Tentar obter todas as páginas (multi-página)
+          let pages: string[] = [];
+          try {
+            pages = await convertPdfBase64ToMultipleImages(base64);
+            if (pages.length > 1) {
+              base64 = pages[0];
+              reportWithBase64.despesas[i] = {
+                ...d,
+                comprovante_url: base64,
+                comprovante_pages: pages.slice(1),
+                _conversionPages: pages.length
+              };
+              console.log(`✅ PDF com ${pages.length} páginas convertido com sucesso`);
+            } else {
+              base64 = pages[0] || base64;
+              reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+            }
+          } catch (_multiPageError) {
+            // Se multi-página falhar, tentar single-page
+            base64 = await convertPdfBase64ToImageBase64(base64);
+            reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+          }
+        } else {
+          reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+        }
       } catch (error) {
         console.warn('Erro ao converter para prévia HTML:', error);
         // Mantém URL original
@@ -1048,10 +1070,32 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
           const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf') || base64.startsWith('data:application/octet-stream');
           if (isPDF && !base64.startsWith('data:image/')) {
             console.log('🔄 PDF detectado na prévia de impressão, convertendo para imagem...');
-            base64 = await convertPdfBase64ToImageBase64(base64);
-          }
 
-          reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+            // Tentar obter todas as páginas (multi-página)
+            let pages: string[] = [];
+            try {
+              pages = await convertPdfBase64ToMultipleImages(base64);
+              if (pages.length > 1) {
+                base64 = pages[0];
+                reportWithBase64.despesas[i] = {
+                  ...d,
+                  comprovante_url: base64,
+                  comprovante_pages: pages.slice(1),
+                  _conversionPages: pages.length
+                };
+                console.log(`✅ PDF com ${pages.length} páginas convertido com sucesso`);
+              } else {
+                base64 = pages[0] || base64;
+                reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+              }
+            } catch (_multiPageError) {
+              // Se multi-página falhar, tentar single-page
+              base64 = await convertPdfBase64ToImageBase64(base64);
+              reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+            }
+          } else {
+            reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+          }
         } catch (error) {
           console.warn('Erro ao converter para prévia de impressão:', error);
         }
