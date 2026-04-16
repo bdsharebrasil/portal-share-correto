@@ -321,7 +321,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           supabase.from('aerodromes').select('*').order('designativo'),
           supabase.from('clientes').select('id, razao_social, cnpj, client_aircraft(aircraft_id, share_percentage)').order('razao_social'),
           supabase.from('logbook_entries').select('*').eq('aeronave_id', aircraftId).order('sequential_number', { ascending: true }),
-          supabase.from('logbook_months').select('month, year').eq('aeronave_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
+          supabase.from('diario_mes').select('mes, ano').eq('aeronave_id', aircraftId).eq('fechado', false).order('ano', { ascending: false }).order('mes', { ascending: false }),
           supabase.from('aircraft_partners').select('*, clients(id, razao_social)').eq('aeronave_id', aircraftId),
           supabase.from('socios_cliente').select('id, name, cpf, client_id').order('name')
         ]);
@@ -386,11 +386,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         if (loansRes.data) setLoans(loansRes.data || []);
 
         let { data: monthData } = await supabase
-          .from('logbook_months')
+          .from('diario_mes')
           .select('*')
           .eq('aeronave_id', aircraftId)
-          .eq('month', selectedMonth)
-          .eq('year', selectedYear)
+          .eq('mes', selectedMonth)
+          .eq('ano', selectedYear)
           .maybeSingle();
 
         if (monthData) {
@@ -398,11 +398,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           setLastCelula(monthData.celula_anterior || 0);
         } else {
           const { data: lastMonthData } = await supabase
-            .from('logbook_months')
+            .from('diario_mes')
             .select('*')
             .eq('aeronave_id', aircraftId)
-            .order('year', { ascending: false })
-            .order('month', { ascending: false })
+            .order('ano', { ascending: false })
+            .order('mes', { ascending: false })
             .limit(1)
             .maybeSingle();
 
@@ -596,7 +596,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const newCelulaDisponvelFormatted = parseFloat(newCelulaDisponivel.toFixed(2));
 
       const { error } = await supabase
-        .from('logbook_months')
+        .from('diario_mes')
         .update({
           celula_atual: newCelulaAtualFormatted,
           celula_disponivel: newCelulaDisponvelFormatted
@@ -673,7 +673,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
     try {
       const { error } = await supabase
-        .from('logbook_months')
+        .from('diario_mes')
         .update({ [field]: value })
         .eq('id', logbookMonth.id);
 
@@ -727,11 +727,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
 
       const { data: existingMonth } = await supabase
-        .from('logbook_months')
+        .from('diario_mes')
         .select('*')
         .eq('aeronave_id', aircraftId)
-        .eq('month', nextMonth)
-        .eq('year', nextYear)
+        .eq('mes', nextMonth)
+        .eq('ano', nextYear)
         .maybeSingle();
 
       if (existingMonth) {
@@ -1442,11 +1442,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const handleOpenCreateMonthDialog = async () => {
     try {
       const { data: lastMonthData } = await supabase
-        .from('logbook_months')
+        .from('diario_mes')
         .select('*')
         .eq('aeronave_id', aircraftId)
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
+        .order('ano', { ascending: false })
+        .order('mes', { ascending: false })
         .limit(1)
         .single();
 
@@ -1479,15 +1479,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     try {
       setCreatingMonth(true);
 
-      const targetMonth = monthData.month || selectedMonth;
-      const targetYear = monthData.year || selectedYear;
+      const targetMonth = monthData.mes || selectedMonth;
+      const targetYear = monthData.ano || selectedYear;
 
       const { data: existingMonth, error: checkError } = await supabase
-        .from('logbook_months')
-        .select('id, month, year')
+        .from('diario_mes')
+        .select('id, mes, ano')
         .eq('aeronave_id', aircraftId)
-        .eq('month', targetMonth)
-        .eq('year', targetYear)
+        .eq('mes', targetMonth)
+        .eq('ano', targetYear)
         .maybeSingle();
 
       if (checkError) {
@@ -1501,7 +1501,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
 
       const { data: newMonth, error } = await supabase
-        .from('logbook_months')
+        .from('diario_mes')
         .insert([monthData])
         .select()
         .single();
@@ -2994,10 +2994,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   ? parseFloat(technicalStatus.airframe_hours_next_maintenance)
                   : logbookMonth.celula_prox_revisao;
 
-                // Atualizar logbook_months com celula_prox_revisao e recalcular disponivel
+                // Atualizar diario_mes com celula_prox_revisao e recalcular disponivel
                 const celulaDisponivel = parseFloat(((celulaProxRevisao ?? 0) - (logbookMonth.celula_atual ?? 0)).toFixed(2));
                 const { error: monthError } = await supabase
-                  .from('logbook_months')
+                  .from('diario_mes')
                   .update({
                     celula_prox_revisao: celulaProxRevisao,
                     celula_disponivel: celulaDisponivel

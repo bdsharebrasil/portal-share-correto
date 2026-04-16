@@ -363,7 +363,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             .from("travel_expense_reports")
             .select("id, numero_relatorio, status")
             .eq("clientes_id", clienteId)
-            .is("socio_cliente_id", null)
+            .is("socios_cliente_id", null)
             .in("status", ["Finalizado", "Rascunho", "Enviado"])
             .order("created_at", { ascending: false });
           if (error) { setExistingReports([]); } else { setExistingReports(data || []); }
@@ -581,7 +581,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 totalAmount: amount,
                 assignedPartnerCpf: partner.cpf,
                 assignedPartnerName: partner.nome,
-                referenceType: "travel_expense_report",
+                referenceType: "travel_report",
                 referenceId: referenceId,
               }
             : {

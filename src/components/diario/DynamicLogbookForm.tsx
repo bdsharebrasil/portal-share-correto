@@ -270,18 +270,18 @@ export function DynamicLogbookForm({
     enabled: !!selectedBorrowerClient && flightCategory === 'emprestimo',
   });
 
-  // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
+  // Buscar dados do diario_mes para obter aerodromo_base, tarifa_diaria e tem_tarifa_diaria
   const { data: logbookMonth } = useQuery({
     queryKey: ['logbook-month', logbookMonthId],
     queryFn: async () => {
       if (!logbookMonthId) return null;
       const { data, error } = await supabase
-        .from('logbook_months')
-        .select('base_aerodrome, daily_rate, has_daily_rate')
+        .from('diario_mes')
+        .select('aerodromo_base, tarifa_diaria, tem_tarifa_diaria')
         .eq('id', logbookMonthId)
         .single();
       if (error) {
-        console.error('Erro ao buscar logbook month:', error);
+        console.error('Erro ao buscar diario_mes:', error);
         return null;
       }
       return data;
@@ -290,13 +290,13 @@ export function DynamicLogbookForm({
   });
 
   // Verificar se a aeronave possui diária configurada
-  const hasDailyRate = logbookMonth?.has_daily_rate ?? true;
+  const hasDailyRate = logbookMonth?.tem_tarifa_diaria ?? true;
 
-  // Atualizar base_aerodrome e daily_rate quando logbookMonth muda
+  // Atualizar aerodromo_base e tarifa_diaria quando logbookMonth muda
   useEffect(() => {
     if (logbookMonth) {
-      setBaseAerodrome(logbookMonth.base_aerodrome);
-      setAircraftDailyRate(logbookMonth.daily_rate);
+      setBaseAerodrome(logbookMonth.aerodromo_base);
+      setAircraftDailyRate(logbookMonth.tarifa_diaria);
     }
   }, [logbookMonth]);
 
@@ -590,7 +590,7 @@ export function DynamicLogbookForm({
       // Se há um logbook_month_id, buscar a célula_anterior desse mês
       if (logbookMonthId) {
         const { data: monthData } = await supabase
-          .from('logbook_months')
+          .from('diario_mes')
           .select('celula_anterior')
           .eq('id', logbookMonthId)
           .single();

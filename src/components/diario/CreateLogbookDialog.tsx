@@ -76,22 +76,22 @@ export function CreateLogbookDialog({
     try {
       const celulaValue = parseFloat(cellularHours) || 0;
       const monthData = {
-        aircraft_id: selectedAircraft,
-        year: parseInt(selectedYear),
-        month: parseInt(selectedMonth),
-        is_closed: false,
+        aeronave_id: selectedAircraft,
+        ano: parseInt(selectedYear),
+        mes: parseInt(selectedMonth),
+        fechado: false,
         celula_anterior: celulaValue,
         celula_atual: celulaValue,  // Será atualizada dinamicamente conforme voos são adicionados
-        fuel_consumption: fuelConsumption,
-        daily_rate: hasDailyRate && dailyRate ? parseFloat(dailyRate) : 0,
-        has_daily_rate: hasDailyRate,
-        base_aerodrome: baseAerodrome || null,
+        consumo_combustivel: fuelConsumption,
+        tarifa_diaria: hasDailyRate && dailyRate ? parseFloat(dailyRate) : 0,
+        tem_tarifa_diaria: hasDailyRate,
+        aerodromo_base: baseAerodrome || null,
         horimetro_inicio: horimetroInicio ? parseFloat(horimetroInicio) : null,
         celula_prox_revisao: celulaProxRevisao ? parseFloat(celulaProxRevisao) : null,
       };
 
       const { error, data } = await supabase
-        .from('logbook_months')
+        .from('diario_mes')
         .insert([monthData])
         .select();
 
