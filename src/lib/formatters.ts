@@ -52,3 +52,16 @@ export function formatPercentage(value: number | string): string {
   if (isNaN(num)) return "0%";
   return `${num.toFixed(2)}%`;
 }
+
+/**
+ * Formata número com casas decimais opcionais
+ */
+export function num(value: number | string | null | undefined, decimals: number = 2): string {
+  if (value === null || value === undefined) return "0";
+  const number = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(number)) return "0";
+  return number.toLocaleString("pt-BR", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
