@@ -20,9 +20,10 @@ export default function AprovarRelatorioViagem() {
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<'crew' | 'client' | null>(null);
-  const [clientEmail, setClientEmail] = useState('');
+  const [clientLogin, setClientLogin] = useState('');
   const [clientPassword, setClientPassword] = useState('');
   const [showClientLogin, setShowClientLogin] = useState(false);
+  const [clientAuthenticating, setClientAuthenticating] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -45,48 +46,57 @@ export default function AprovarRelatorioViagem() {
         setReport(data);
 
         // Detectar papel: tripulante (auth.users) ou cliente (portal)
-        if (authUser?.id) {
-          if (authUser.id === data.tripulacao_id || authUser.id === data.tripulante_id2) {
-            setRole('crew');
-          }
-        }
+        const isCrew = authUser?.id === data.tripulacao_id || authUser?.id === data.tripulante_id2;
 
-        // Se cliente precisa de aprovação e não está logado, mostrar formulário de login
-        if (data.requires_client_approval && !authUser) {
+        if (isCrew) {
+          setRole('crew');
+        } else if (data.requires_client_approval && !authUser) {
+          // Se cliente precisa de aprovação e não há usuário autenticado, mostrar formulário de login
           setShowClientLogin(true);
         }
 
-        if (data.pdf_path) {
-          const { data: signed } = await supabase.storage
-            .from('travel-reports')
-            .createSignedUrl(data.pdf_path, 60 * 60);
-          if (signed?.signedUrl) setPdfUrl(signed.signedUrl);
-        } else if (data.url_pdf) {
-          setPdfUrl(data.url_pdf);
-        }
       } finally {
         setLoading(false);
       }
     })();
   }, [token]);
 
-  const handleClientLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clientEmail || !clientPassword || !report) {
-      toast.error('Informe email e senha');
+  // Carrega o PDF apenas quando o usuário está autenticado
+  useEffect(() => {
+    if (!report || (!user && role !== 'client')) {
       return;
     }
 
+    (async () => {
+      if (report.pdf_path) {
+        const { data: signed } = await supabase.storage
+          .from('travel-reports')
+          .createSignedUrl(report.pdf_path, 60 * 60);
+        if (signed?.signedUrl) setPdfUrl(signed.signedUrl);
+      } else if (report.url_pdf) {
+        setPdfUrl(report.url_pdf);
+      }
+    })();
+  }, [report, user, role]);
+
+  const handleClientLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientLogin || !clientPassword || !report) {
+      toast.error('Informe login e senha');
+      return;
+    }
+
+    setClientAuthenticating(true);
     try {
       // Verificar credenciais do cliente no portal
       const { data: clientAuth, error } = await supabase
         .from('autenticacao_portal_cliente')
-        .select('id, clientes_id, email, ativo')
-        .eq('email', clientEmail)
+        .select('id, clientes_id, login, ativo, hash_senha')
+        .eq('login', clientLogin)
         .maybeSingle();
 
       if (error || !clientAuth) {
-        toast.error('Email não encontrado');
+        toast.error('Login não encontrado');
         return;
       }
 
@@ -101,14 +111,24 @@ export default function AprovarRelatorioViagem() {
         return;
       }
 
-      // Aqui você validaria a senha (em produção, usaria verificação hash)
-      // Por segurança, isso deve ser feito via API backend
+      // Validar senha - comparação direta (as senhas são armazenadas em texto na BD)
+      if (clientAuth.hash_senha !== clientPassword) {
+        toast.error('Senha incorreta');
+        return;
+      }
+
+      // Autenticação bem-sucedida
       setRole('client');
-      setUser({ id: clientAuth.id, email: clientAuth.email });
+      setUser({ id: clientAuth.id, login: clientAuth.login });
       setShowClientLogin(false);
+      setClientLogin('');
+      setClientPassword('');
+      toast.success('Autenticação bem-sucedida!');
     } catch (err: any) {
       toast.error('Erro ao autenticar');
       console.error(err);
+    } finally {
+      setClientAuthenticating(false);
     }
   };
 
@@ -143,7 +163,7 @@ export default function AprovarRelatorioViagem() {
         travel_report_id: report.id,
         actor_type: isCrew ? 'crew' : 'client',
         actor_id: user?.id || null,
-        actor_name: user?.email || 'cliente',
+        actor_name: user?.email || user?.login || 'cliente',
         decision,
         notes: notes || null,
       });
@@ -308,13 +328,13 @@ export default function AprovarRelatorioViagem() {
                   <h3 className="font-semibold mb-4 text-blue-900">Login do Cliente</h3>
                   <form onSubmit={handleClientLogin} className="space-y-4">
                     <div>
-                      <Label htmlFor="client-email" className="text-blue-900">Email</Label>
+                      <Label htmlFor="client-login" className="text-blue-900">Login</Label>
                       <Input
-                        id="client-email"
-                        type="email"
-                        value={clientEmail}
-                        onChange={(e) => setClientEmail(e.target.value)}
-                        placeholder="seu@email.com"
+                        id="client-login"
+                        type="text"
+                        value={clientLogin}
+                        onChange={(e) => setClientLogin(e.target.value)}
+                        placeholder="Seu login"
                         className="mt-1"
                       />
                     </div>
@@ -329,21 +349,22 @@ export default function AprovarRelatorioViagem() {
                         className="mt-1"
                       />
                     </div>
-                    <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                      Entrar
+                    <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={clientAuthenticating}>
+                      {clientAuthenticating ? 'Autenticando...' : 'Entrar'}
                     </Button>
                   </form>
                 </CardContent>
               </Card>
             )}
 
-            {!user && role !== 'client' && (
+            {!user && role !== 'client' && !showClientLogin && (
               <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
                 Você precisa estar autenticado para aprovar. <a className="underline font-semibold" href={`/#/login?redirect=/aprovar-relatorio/${token}`}>Fazer login</a>
               </div>
             )}
 
-            {pdfUrl ? (
+            {/* Mostrar PDF apenas se usuário está autenticado (crew ou cliente) */}
+            {(user || role === 'client') && pdfUrl ? (
               <div className="space-y-2">
                 <iframe
                   src={pdfUrl}
@@ -387,7 +408,7 @@ export default function AprovarRelatorioViagem() {
               <div><strong>Total:</strong><br />R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</div>
             </div>
 
-            {!alreadyDecided && user && role && (
+            {!alreadyDecided && (user || role === 'client') && role && (
               <div className="space-y-2 pt-4 border-t">
                 <Label htmlFor="notes">Observações (opcional — obrigatório se discordar)</Label>
                 <Textarea
