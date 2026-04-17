@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
 
 export default function AprovarRelatorioViagem() {
   const { token } = useParams();
@@ -323,9 +323,40 @@ export default function AprovarRelatorioViagem() {
             )}
 
             {pdfUrl ? (
-              <iframe src={pdfUrl} className="w-full h-[60vh] rounded-lg border" title="Relatório PDF" />
+              <div className="space-y-2">
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-[60vh] rounded-lg border"
+                  title="Relatório PDF"
+                  onError={() => {
+                    toast.error('❌ Erro ao carregar o PDF');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se o PDF não aparecer, <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">clique aqui para abrir em nova aba</a>
+                </p>
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground">PDF do relatório não disponível.</p>
+              <Card className="border-amber-200 bg-amber-50 p-6">
+                <div className="flex gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-amber-900">PDF não disponível</h3>
+                    <p className="text-sm text-amber-800 mt-1">
+                      O PDF do relatório ainda não foi gerado. Por favor, aguarde alguns momentos e recarregue a página.
+                    </p>
+                    <p className="text-xs text-amber-700 mt-2">
+                      Se o problema persistir, entre em contato com o gerenciador do sistema.
+                    </p>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="mt-3 text-amber-700 font-semibold hover:underline"
+                    >
+                      ↻ Recarregar página
+                    </button>
+                  </div>
+                </div>
+              </Card>
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">

@@ -646,26 +646,47 @@ export default function RelatorioViagem() {
 
           const { generatePDF } = await import('@/lib/travelReportPDF');
           const pdfBlob = await generatePDF(pdfData, pdfUserName);
+
           // Estrutura: {cliente_id}/{matricula}/{numero}.pdf
           const matriculaSafe = (reportData.matricula_aeronave || 'SEM-MATRICULA').replace(/[^A-Z0-9-]/gi, '');
           const numeroSafe = savedReport.numero_relatorio.replace(/[\/\s]/g, '-');
+          const clientFolderPath = `${reportData.clientes_id}/.keep`;
           const pdfPath = `${reportData.clientes_id}/${matriculaSafe}/${numeroSafe}-${Date.now()}.pdf`;
 
+          // IMPORTANTE: Criar a pasta do cliente primeiro (se não existir)
+          // Isso garante que a estrutura de diretórios existe para subpastas por aeronave
+          try {
+            const emptyBlob = new Blob([''], { type: 'text/plain' });
+            await supabase.storage
+              .from('travel-reports')
+              .upload(clientFolderPath, emptyBlob, { upsert: true });
+            console.log('✓ Pasta do cliente garantida');
+          } catch (folderErr) {
+            console.warn('⚠️ Aviso ao criar pasta do cliente:', folderErr);
+            // Não falha o processo - continua mesmo se falhar a criação
+          }
+
+          // Agora fazer upload do PDF
           const { error: uploadErr } = await supabase.storage
             .from('travel-reports')
             .upload(pdfPath, pdfBlob, { contentType: 'application/pdf', upsert: true });
 
-          if (!uploadErr) {
-            const { data: { publicUrl } } = supabase.storage.from('travel-reports').getPublicUrl(pdfPath);
-            await supabase.from('travel_expense_reports').update({
-              url_pdf: publicUrl,
-              pdf_path: pdfPath,
-            } as any).eq('id', savedReport.id);
-            savedReport.pdf_path = pdfPath;
+          if (uploadErr) {
+            throw new Error(`Erro ao salvar PDF no storage: ${uploadErr.message}`);
           }
+
+          const { data: { publicUrl } } = supabase.storage.from('travel-reports').getPublicUrl(pdfPath);
+          await supabase.from('travel_expense_reports').update({
+            url_pdf: publicUrl,
+            pdf_path: pdfPath,
+          } as any).eq('id', savedReport.id);
+          savedReport.pdf_path = pdfPath;
+
+          toast.success('✓ PDF gerado e salvo com sucesso');
         } catch (pdfErr: any) {
-          console.error('Erro ao gerar PDF:', pdfErr);
-          toast.warning(`⚠️ Erro ao gerar PDF: ${pdfErr?.message || 'Tente novamente'}`);
+          console.error('❌ Erro ao gerar/salvar PDF:', pdfErr);
+          toast.error(`❌ Erro ao gerar PDF: ${pdfErr?.message || 'Tente novamente'}`);
+          // Não retornar - deixar o relatório ser criado mesmo sem PDF
         }
 
         // Mostrar dialog com link de aprovação (token gerado pelo banco)
