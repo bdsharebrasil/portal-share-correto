@@ -113,6 +113,7 @@ export interface TravelReport {
 
 export interface TravelReportSignatures {
   generatedBy?: string;
+  generatedAt?: string;      // ISO - data de geração do relatório
   crewSigner?: string;       // tripulante que conferiu (preenche após aprovação)
   crewSignedAt?: string;     // ISO
   clientSigner?: string;     // cliente que conferiu (opcional)
@@ -518,8 +519,52 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', 
                         </div>
                     `;
         }).join('')}
+
+                <hr style="margin-top: 40px; margin-bottom: 30px;" />
+
+                <div style="margin-top: 30px; page-break-inside: avoid;">
+                    <h3 style="color: #1e3a8a; font-size: 13px; font-weight: bold; margin-bottom: 20px;">Assinaturas</h3>
+
+                    <div style="display: flex; justify-content: space-between; margin-top: 40px; gap: 40px;">
+                        <div style="flex: 1; text-align: center;">
+                            <div style="border-top: 1px solid #333; padding-top: 8px; min-height: 60px;"></div>
+                            <p style="font-size: 11px; font-weight: bold; margin: 8px 0 0 0;">Conferido por</p>
+                            ${signatures?.crewSigner ? `<p style="font-size: 10px; color: #666; margin: 4px 0;">${signatures.crewSigner}</p>` : '<p style="font-size: 10px; color: #999; margin: 4px 0;">_________________</p>'}
+                            ${signatures?.crewSignedAt ? `<p style="font-size: 9px; color: #999; margin: 4px 0;">${formatDateBR(signatures.crewSignedAt)}</p>` : ''}
+                        </div>
+
+                        <div style="flex: 1; text-align: center;">
+                            <div style="border-top: 1px solid #333; padding-top: 8px; min-height: 60px;"></div>
+                            <p style="font-size: 11px; font-weight: bold; margin: 8px 0 0 0;">Gerado por</p>
+                            <p style="font-size: 10px; color: #666; margin: 4px 0;">${currentFullName || 'Usuário'}</p>
+                            <p style="font-size: 9px; color: #999; margin: 4px 0;">${signatures?.generatedAt ? formatDateBR(signatures.generatedAt) : new Date().toLocaleDateString('pt-BR')}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-        ` : ''}
+        ` : `
+            <div class="report-container receipts-section">
+                <h2>Assinaturas</h2>
+
+                <div style="margin-top: 30px; page-break-inside: avoid;">
+                    <div style="display: flex; justify-content: space-between; margin-top: 40px; gap: 40px;">
+                        <div style="flex: 1; text-align: center;">
+                            <div style="border-top: 1px solid #333; padding-top: 8px; min-height: 60px;"></div>
+                            <p style="font-size: 11px; font-weight: bold; margin: 8px 0 0 0;">Conferido por</p>
+                            ${signatures?.crewSigner ? `<p style="font-size: 10px; color: #666; margin: 4px 0;">${signatures.crewSigner}</p>` : '<p style="font-size: 10px; color: #999; margin: 4px 0;">_________________</p>'}
+                            ${signatures?.crewSignedAt ? `<p style="font-size: 9px; color: #999; margin: 4px 0;">${formatDateBR(signatures.crewSignedAt)}</p>` : ''}
+                        </div>
+
+                        <div style="flex: 1; text-align: center;">
+                            <div style="border-top: 1px solid #333; padding-top: 8px; min-height: 60px;"></div>
+                            <p style="font-size: 11px; font-weight: bold; margin: 8px 0 0 0;">Gerado por</p>
+                            <p style="font-size: 10px; color: #666; margin: 4px 0;">${currentFullName || 'Usuário'}</p>
+                            <p style="font-size: 9px; color: #999; margin: 4px 0;">${signatures?.generatedAt ? formatDateBR(signatures.generatedAt) : new Date().toLocaleDateString('pt-BR')}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `}
 
     </body>
     </html>

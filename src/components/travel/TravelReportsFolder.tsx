@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 interface Client {
   id: string;
-  company_name: string;
+  razao_social: string;
   status?: string | null;
 }
 
@@ -17,25 +17,33 @@ interface TravelReport {
   id: string;
   numero_relatorio: string;
   clientes_id: string;
-  client: string;
-  aircraft_registration: string;
-  crew_member_name: string;
-  crew_member_name_2?: string;
+  matricula_aeronave: string;
+  nome_tripulante: string;
+  nome_tripulante_2?: string;
   rota: string;
   data_inicio: string;
   data_fim: string;
-  total_amount: number;
+  total_valor: number;
   created_at: string;
+  aeronave_id: string;
 }
 
 interface TravelReportsFolderProps {
   searchTerm?: string;
 }
 
+interface AircraftFolder {
+  registration: string;
+  matricula: string;
+  count: number;
+}
+
 export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedAircraft, setSelectedAircraft] = useState<string | null>(null);
   const [reports, setReports] = useState<TravelReport[]>([]);
+  const [aircrafts, setAircrafts] = useState<AircraftFolder[]>([]);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -106,32 +114,87 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
     }
   };
 
-  const loadReportsByClient = async (clientId: string) => {
+  const loadAircraftsByClient = async (clientId: string) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('travel_expense_reports')
-      .select('*')
-      .eq('clientes_id', clientId)
-      .eq('status', 'finalizado')
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('travel_expense_reports')
+        .select('matricula_aeronave, aeronave_id')
+        .eq('clientes_id', clientId)
+        .eq('status', 'finalizado')
+        .not('matricula_aeronave', 'is', null);
 
-    if (error) {
-      toast.error("Erro ao carregar relatórios");
-      console.error(error);
-    } else {
-      setReports(data as any || []);
+      if (error) {
+        toast.error("Erro ao carregar aeronaves");
+        console.error(error);
+      } else {
+        // Agrupar por aeronave e contar relatórios
+        const aircraftMap = new Map<string, { registration: string; matricula: string; count: number }>();
+
+        data?.forEach((report) => {
+          const key = report.matricula_aeronave || 'Sem Aeronave';
+          if (aircraftMap.has(key)) {
+            const existing = aircraftMap.get(key)!;
+            existing.count += 1;
+          } else {
+            aircraftMap.set(key, {
+              registration: report.aeronave_id || '',
+              matricula: key,
+              count: 1,
+            });
+          }
+        });
+
+        setAircrafts(Array.from(aircraftMap.values()).sort((a, b) => a.matricula.localeCompare(b.matricula)));
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const loadReportsByClientAndAircraft = async (clientId: string, aircraftMatricula: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('travel_expense_reports')
+        .select('*')
+        .eq('clientes_id', clientId)
+        .eq('matricula_aeronave', aircraftMatricula)
+        .eq('status', 'finalizado')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        toast.error("Erro ao carregar relatórios");
+        console.error(error);
+      } else {
+        setReports(data as any || []);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClientClick = (client: Client) => {
     setSelectedClient(client);
-    loadReportsByClient(client.id);
+    setSelectedAircraft(null);
+    loadAircraftsByClient(client.id);
+  };
+
+  const handleAircraftClick = (aircraft: AircraftFolder) => {
+    if (!selectedClient) return;
+    setSelectedAircraft(aircraft.matricula);
+    loadReportsByClientAndAircraft(selectedClient.id, aircraft.matricula);
   };
 
   const handleBack = () => {
-    setSelectedClient(null);
-    setReports([]);
+    if (selectedAircraft) {
+      setSelectedAircraft(null);
+      setReports([]);
+    } else {
+      setSelectedClient(null);
+      setAircrafts([]);
+      setReports([]);
+    }
   };
 
   const handleViewPDF = async (reportId: string) => {
@@ -195,7 +258,8 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
-  if (selectedClient) {
+  // Visualização de Relatórios (Cliente > Aeronave > Relatórios)
+  if (selectedClient && selectedAircraft) {
     return (
       <Card className="bg-gradient-card border-border shadow-card">
         <CardHeader>
@@ -204,10 +268,13 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
               <Button variant="ghost" size="sm" onClick={handleBack}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <CardTitle className="flex items-center gap-2">
-                <FolderOpen className="h-5 w-5 text-primary" />
-                {selectedClient.razao_social}
-              </CardTitle>
+              <div>
+                <div className="text-xs text-muted-foreground">{selectedClient.razao_social}</div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  {selectedAircraft}
+                </CardTitle>
+              </div>
             </div>
             <Badge variant="outline">
               {reports.length} {reports.length === 1 ? 'relatório' : 'relatórios'}
@@ -219,7 +286,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
             <p className="text-center py-8 text-muted-foreground">Carregando...</p>
           ) : reports.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">
-              Nenhum relatório encontrado para este cliente
+              Nenhum relatório encontrado para esta aeronave
             </p>
           ) : (
             <div className="space-y-3">
@@ -234,16 +301,13 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-foreground">{report.client}</h4>
-                        <Badge variant="outline" className="text-xs">
-                          {report.aeronave_registration}
-                        </Badge>
+                        <h4 className="font-semibold text-foreground">{report.numero_relatorio}</h4>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {report.crew_member_name} • {report.rota}
+                        {report.nome_tripulante} {report.nome_tripulante_2 ? `/ ${report.nome_tripulante_2}` : ''} • {report.rota}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {formatDate(report.data_inicio)} - {formatDate(report.data_fim)} • {formatCurrency(report.total_amount || 0)}
+                        {formatDate(report.data_inicio)} - {formatDate(report.data_fim)} • {formatCurrency(report.total_valor || 0)}
                       </p>
                     </div>
                   </div>
@@ -266,6 +330,61 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
                     </Button>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Visualização de Aeronaves (Cliente > Aeronaves)
+  if (selectedClient && !selectedAircraft) {
+    return (
+      <Card className="bg-gradient-card border-border shadow-card">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <CardTitle className="flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-primary" />
+                {selectedClient.razao_social}
+              </CardTitle>
+            </div>
+            <Badge variant="outline">
+              {aircrafts.length} {aircrafts.length === 1 ? 'aeronave' : 'aeronaves'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+          ) : aircrafts.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">
+              Nenhuma aeronave encontrada para este cliente
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {aircrafts.map((aircraft) => (
+                <button
+                  key={aircraft.matricula}
+                  onClick={() => handleAircraftClick(aircraft)}
+                  className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-accent hover:border-primary transition-smooth text-left group"
+                >
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-smooth">
+                    <FolderOpen className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-foreground group-hover:text-primary transition-smooth">
+                      {aircraft.matricula}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {aircraft.count} {aircraft.count === 1 ? 'relatório' : 'relatórios'}
+                    </p>
+                  </div>
+                </button>
               ))}
             </div>
           )}
