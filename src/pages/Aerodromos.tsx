@@ -126,7 +126,7 @@ export default function Aerodromos() {
           </div>
         )}
 
-        <AddAerodromeDialog open={dialogOpen} onOpenChange={setDialogOpen} aerodrome={editing} />
+        <AddAerodromeDialog open={dialogOpen} onOpenChange={setDialogOpen} aerodrome={editing} onSuccess={refetch} />
       </div>
     </Layout>
   );
