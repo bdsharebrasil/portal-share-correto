@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
 
 export default function AprovarRelatorioViagem() {
   const { token } = useParams();
@@ -263,6 +263,27 @@ export default function AprovarRelatorioViagem() {
   return (
     <div className="min-h-screen bg-muted/30 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-4">
+        {/* Mensagem de boas-vindas */}
+        <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 flex items-start pt-1">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-blue-900 mb-2">
+                  Olá Tripulante! 👋
+                </h2>
+                <p className="text-blue-800 leading-relaxed">
+                  Por gentileza, verifique seu relatório e nos confirme se está em conformidade. Caso identifique alguma divergência, é só marcar o que precisa ser ajustado. Estamos aqui para ajudar!
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
@@ -323,9 +344,40 @@ export default function AprovarRelatorioViagem() {
             )}
 
             {pdfUrl ? (
-              <iframe src={pdfUrl} className="w-full h-[60vh] rounded-lg border" title="Relatório PDF" />
+              <div className="space-y-2">
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-[60vh] rounded-lg border"
+                  title="Relatório PDF"
+                  onError={() => {
+                    toast.error('❌ Erro ao carregar o PDF');
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se o PDF não aparecer, <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">clique aqui para abrir em nova aba</a>
+                </p>
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground">PDF do relatório não disponível.</p>
+              <Card className="border-amber-200 bg-amber-50 p-6">
+                <div className="flex gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-amber-900">PDF não disponível</h3>
+                    <p className="text-sm text-amber-800 mt-1">
+                      O PDF do relatório ainda não foi gerado. Por favor, aguarde alguns momentos e recarregue a página.
+                    </p>
+                    <p className="text-xs text-amber-700 mt-2">
+                      Se o problema persistir, entre em contato com o gerenciador do sistema.
+                    </p>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="mt-3 text-amber-700 font-semibold hover:underline"
+                    >
+                      ↻ Recarregar página
+                    </button>
+                  </div>
+                </div>
+              </Card>
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
