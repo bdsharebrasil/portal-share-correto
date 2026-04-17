@@ -148,6 +148,84 @@ export default function AprovarRelatorioViagem() {
         notes: notes || null,
       });
 
+      // Se discordância (rejected), enviar notificações
+      if (decision === 'rejected') {
+        try {
+          const notificationsToCreate = [];
+
+          if (isCrew) {
+            // Tripulante discordou - notificar gerente/admin que criou o relatório
+            if (report.generated_by_user_id) {
+              notificationsToCreate.push({
+                user_id: report.generated_by_user_id,
+                title: '⚠️ Tripulante Discordou de Relatório',
+                message: `${report.nome_tripulante} discordou do relatório nº ${report.numero_relatorio}. Motivo: ${notes || 'Não informado'}`,
+                type: 'warning',
+                read: false,
+              });
+            }
+
+            // Também notificar cliente se ele precisa aprovar (via portal)
+            if (report.requires_client_approval && report.clientes_id) {
+              try {
+                const { data: clientAuth } = await supabase
+                  .from('autenticacao_portal_cliente')
+                  .select('id')
+                  .eq('clientes_id', report.clientes_id)
+                  .eq('ativo', true)
+                  .maybeSingle();
+
+                if (clientAuth?.id) {
+                  notificationsToCreate.push({
+                    user_id: clientAuth.id,
+                    title: '⚠️ Relatório Aguardando Revisão',
+                    message: `O tripulante identificou divergências no relatório nº ${report.numero_relatorio}. O documento será revisado.`,
+                    type: 'warning',
+                    read: false,
+                  });
+                }
+              } catch (err) {
+                console.warn('Erro ao buscar cliente para notificação:', err);
+              }
+            }
+          } else {
+            // Cliente discordou - notificar gerente/admin que criou o relatório
+            if (report.generated_by_user_id) {
+              notificationsToCreate.push({
+                user_id: report.generated_by_user_id,
+                title: '⚠️ Cliente Discordou de Relatório',
+                message: `${report.clientes_id_rel?.razao_social} discordou do relatório nº ${report.numero_relatorio}. Motivo: ${notes || 'Não informado'}`,
+                type: 'warning',
+                read: false,
+              });
+            }
+
+            // Também notificar tripulante
+            if (report.tripulacao_id) {
+              notificationsToCreate.push({
+                user_id: report.tripulacao_id,
+                title: '⚠️ Relatório Aguardando Revisão',
+                message: `O cliente identificou divergências no relatório nº ${report.numero_relatorio}. O documento será revisado.`,
+                type: 'warning',
+                read: false,
+              });
+            }
+          }
+
+          // Inserir todas as notificações
+          if (notificationsToCreate.length > 0) {
+            const { error: notifError } = await supabase
+              .from('notifications')
+              .insert(notificationsToCreate);
+            if (notifError) {
+              console.error('Erro ao enviar notificações de discordância:', notifError);
+            }
+          }
+        } catch (notifErr) {
+          console.error('Erro ao criar notificações de discordância:', notifErr);
+        }
+      }
+
       toast.success(decision === 'approved' ? '✓ Relatório aprovado!' : 'Relatório devolvido para revisão');
       setReport({ ...report, ...updates });
     } catch (e: any) {
