@@ -234,45 +234,11 @@ export default function RelatorioViagem() {
   // -------------------------------------------------------------------------
   // Geração de número de relatório
   // -------------------------------------------------------------------------
-  const generateReportNumber = async (clientName: string): Promise<string> => {
-    if (!clientName?.trim()) {
-      return `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`;
-    }
-
-    const yearShort = new Date().getFullYear().toString().slice(-2);
-    const initials = clientName
-      .trim()
-      .replace(/\s+/g, '')
-      .toUpperCase()
-      .replace(/[^A-Z]/g, '')
-      .substring(0, 3)
-      .padEnd(3, 'X');
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const { data: existing } = await supabase
-        .from('travel_expense_reports')
-        .select('numero_relatorio')
-        .ilike('numero_relatorio', `REL-${initials}%`)
-        .order('numero_relatorio', { ascending: false });
-
-      let maxNum = 0;
-      for (const rep of existing || []) {
-        const m = rep.numero_relatorio.match(/REL-[A-Z]{3}-(\d+)\/\d{2}/);
-        if (m) maxNum = Math.max(maxNum, parseInt(m[1]));
-      }
-
-      const candidate = `REL-${initials}-${String(maxNum + 1).padStart(3, '0')}/${yearShort}`;
-      const { data: exists } = await supabase
-        .from('travel_expense_reports')
-        .select('id')
-        .eq('numero_relatorio', candidate)
-        .maybeSingle();
-
-      if (!exists) return candidate;
-      await new Promise(r => setTimeout(r, 50));
-    }
-
-    return `REL-${initials}-${Date.now().toString().slice(-3)}/${yearShort}`;
+  // Delegado ao utilitário (travelReportUtils) que agora considera a aeronave
+  // Mantido este wrapper para compatibilidade com a página
+  const generateReportNumber = async (clientName: string, aeronaveId?: string): Promise<string> => {
+    const { generateReportNumber: generateNumber } = await import('@/lib/travelReportUtils');
+    return generateNumber(clientName, aeronaveId);
   };
 
   // -------------------------------------------------------------------------
@@ -436,7 +402,7 @@ export default function RelatorioViagem() {
 
       let reportNumber = reportData.numero_relatorio;
       if (!isUpdate) {
-        reportNumber = await generateReportNumber(reportData.client || '');
+        reportNumber = await generateReportNumber(reportData.client || '', reportData.aeronave_id);
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -499,7 +465,7 @@ export default function RelatorioViagem() {
           if (!error) { savedReport = data; insertError = null; break; }
 
           if (error.code === '23505' && error.message?.includes('numero_relatorio')) {
-            payload.numero_relatorio = await generateReportNumber(reportData.client || '');
+            payload.numero_relatorio = await generateReportNumber(reportData.client || '', reportData.aeronave_id);
             await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
             insertError = error;
           } else {
