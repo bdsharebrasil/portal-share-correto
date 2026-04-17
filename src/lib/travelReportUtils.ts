@@ -81,21 +81,21 @@ export function calculateReportTotals(expenses: Expense[]): TravelTotals {
 
     // By category
     switch (expense.category) {
-      case 'Combustível':  totals.total_fuel      += amount; break;
-      case 'Hospedagem':   totals.total_lodging   += amount; break;
-      case 'Alimentação':  totals.total_food      += amount; break;
-      case 'Transporte':   totals.total_transport += amount; break;
-      default:             totals.total_other     += amount;
+      case 'Combustível': totals.total_fuel += amount; break;
+      case 'Hospedagem': totals.total_lodging += amount; break;
+      case 'Alimentação': totals.total_food += amount; break;
+      case 'Transporte': totals.total_transport += amount; break;
+      default: totals.total_other += amount;
     }
 
     // By payer — keep backward-compat with old "Tripulante" value
     const paidBy = expense.paid_by || '';
     if (paidBy === 'Tripulante 1' || paidBy === 'Tripulante') {
       totals.total_crew1 += amount;
-      totals.total_crew  += amount;
+      totals.total_crew += amount;
     } else if (paidBy === 'Tripulante 2') {
       totals.total_crew2 += amount;
-      totals.total_crew  += amount;
+      totals.total_crew += amount;
     } else if (paidBy === 'Cliente') {
       totals.total_client += amount;
     } else if (paidBy === 'ShareBrasil') {
@@ -136,10 +136,10 @@ export function enrichReportWithCorrectTotals<T extends TravelReportWithTotals>(
 export function extractPayerTotals(expenses: Expense[]) {
   const t = calculateReportTotals(expenses);
   return {
-    totalCrew:        t.total_crew,
-    totalCrew1:       t.total_crew1,
-    totalCrew2:       t.total_crew2,
-    totalClient:      t.total_client,
+    totalCrew: t.total_crew,
+    totalCrew1: t.total_crew1,
+    totalCrew2: t.total_crew2,
+    totalClient: t.total_client,
     totalSharebrasil: t.total_sharebrasil,
   };
 }
@@ -171,11 +171,11 @@ export function getCrewTotalsWithNames(
   const totals = calculateReportTotals(expenses);
   return {
     tripulante1: {
-      name:  report.nome_tripulante || 'Tripulante 1',
+      name: report.nome_tripulante || 'Tripulante 1',
       total: totals.total_crew1,
     },
     tripulante2: {
-      name:  report.nome_tripulante_2 || null,
+      name: report.nome_tripulante_2 || null,
       total: totals.total_crew2,
     },
     hasSecondCrew:
@@ -194,41 +194,52 @@ export function getCrewTotalsWithNames(
  * @param clientName - Nome do cliente (para extrair iniciais)
  * @param aeronaveId - ID da aeronave (para filtrar sequência específica)
  */
-export async function generateReportNumber(clientName: string, aeronaveId?: string): Promise<string> {
-  if (!clientName?.trim()) {
-    return `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`;
-  }
-
+export async function generateReportNumber(
+  clientName: string,
+  aeronaveId?: string,
+  matricula?: string,
+): Promise<string> {
   const yearShort = new Date().getFullYear().toString().slice(-2);
+  const matriculaUpper = (matricula || '').toUpperCase().trim();
+  const matriculaSuffix = matriculaUpper ? ` ${matriculaUpper}` : '';
+
+  if (!clientName?.trim()) {
+    return `REL-XXX-001/${yearShort}${matriculaSuffix}`;
+  }
 
   const initials = clientName
     .trim()
     .split(/\s+/)
     .map(w => w.charAt(0).toUpperCase())
     .join('')
-    .replace(/[^A-Z]/g, '') // Remove caracteres não-alfabéticos
+    .replace(/[^A-Z]/g, '')
     .substring(0, 3)
     .padEnd(3, 'X');
 
-  let query = supabase
+  // Sequência separada por cliente + aeronave (matrícula)
+  let query = (supabase as any)
     .from('travel_expense_reports')
     .select('numero_relatorio')
     .ilike('numero_relatorio', `REL-${initials}-%`);
 
-  // Se aeronaveId foi fornecido, filtrar por essa aeronave específica
   if (aeronaveId?.trim()) {
     query = query.eq('aeronave_id', aeronaveId);
+  } else if (matriculaUpper) {
+    query = query.eq('matricula_aeronave', matriculaUpper);
   }
 
-  const { data: existing } = await query
-    .order('created_at', { ascending: false })
-    .limit(1);
+  const { data: existing } = await query;
 
   let nextNumber = 1;
   if (existing && existing.length > 0) {
-    const match = existing[0].numero_relatorio.match(/REL-[A-Z]{3}-(\d+)/);
-    if (match?.[1]) nextNumber = parseInt(match[1]) + 1;
+    const nums = (existing as any[])
+      .map((r: any) => {
+        const m = String(r.numero_relatorio || '').match(/REL-[A-Z]{3}-(\d+)/);
+        return m?.[1] ? parseInt(m[1]) : 0;
+      })
+      .filter(n => n > 0);
+    if (nums.length > 0) nextNumber = Math.max(...nums) + 1;
   }
 
-  return `REL-${initials}-${String(nextNumber).padStart(3, '0')}/${yearShort}`;
+  return `REL-${initials}-${String(nextNumber).padStart(3, '0')}/${yearShort}${matriculaSuffix}`;
 }

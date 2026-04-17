@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,9 +28,10 @@ export default function TripulanteDetalhes() {
     searchParams.get("tab") === "horas-voo" ? "horas-voo" :
     searchParams.get("tab") === "escala" ? "escala" :
     searchParams.get("tab") === "habilitacoes" ? "habilitacoes" :
+    searchParams.get("tab") === "aprovacoes-pendentes" ? "aprovacoes-pendentes" :
     "dados"
-  ) as "dados" | "anexos" | "horas-voo" | "escala" | "habilitacoes";
-  const [activeTab, setActiveTab] = useState<"dados" | "anexos" | "horas-voo" | "escala" | "habilitacoes">(initialTab);
+  ) as "dados" | "anexos" | "horas-voo" | "escala" | "habilitacoes" | "aprovacoes-pendentes";
+  const [activeTab, setActiveTab] = useState<"dados" | "anexos" | "horas-voo" | "escala" | "habilitacoes" | "aprovacoes-pendentes">(initialTab);
 
   // State for license edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -85,6 +87,21 @@ export default function TripulanteDetalhes() {
         .gte("flight_date", today)
         .order("flight_date", { ascending: true })
         .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: pendingApprovals = [], isLoading: isApprovalsLoading } = useQuery({
+    queryKey: ["pending_approvals", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("travel_expense_reports")
+        .select("id, numero_relatorio, clientes_id, cliente:clientes_id(razao_social), data_inicio, data_fim, total_valor, crew_approval_status, crew_approved_at, crew_approval_notes, approval_token")
+        .eq("tripulacao_id", id)
+        .in("crew_approval_status", ["pending", "rejected"])
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -568,6 +585,69 @@ export default function TripulanteDetalhes() {
 
               <TabsContent value="horas-voo" className="mt-6 space-y-6">
                 <CrewFlightHoursTable crewMemberId={member.id} />
+              </TabsContent>
+
+              <TabsContent value="aprovacoes-pendentes" className="mt-6 space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Relatórios para Aprovação</h3>
+                  {isApprovalsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="text-sm text-muted-foreground">Carregando relatórios pendentes...</div>
+                    </div>
+                  ) : pendingApprovals.length === 0 ? (
+                    <div className="text-center py-8">
+                      <div className="text-sm text-muted-foreground">Nenhum relatório pendente de aprovação</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingApprovals.map((report: any) => (
+                        <Card key={report.id} className="border-l-4 border-l-blue-500">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg mb-1">{report.numero_relatorio}</h4>
+                                <p className="text-sm text-muted-foreground">{report.cliente?.razao_social}</p>
+                                <div className="flex gap-4 mt-3 text-sm">
+                                  <span className="text-muted-foreground">
+                                    📅 {formatDateToBR(report.data_inicio)} até {formatDateToBR(report.data_fim)}
+                                  </span>
+                                  <span className="font-semibold text-green-600">R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</span>
+                                </div>
+                              </div>
+                              <Badge variant={report.crew_approval_status === 'pending' ? 'secondary' : 'destructive'}>
+                                {report.crew_approval_status === 'pending' ? 'Pendente' : 'Rejeitado'}
+                              </Badge>
+                            </div>
+
+                            {report.crew_approval_notes && (
+                              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-900">
+                                <strong>Motivo da devolução:</strong> {report.crew_approval_notes}
+                              </div>
+                            )}
+
+                            {report.crew_approved_at && (
+                              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-900">
+                                ✓ Aprovado em {formatDateToBR(report.crew_approved_at)}
+                              </div>
+                            )}
+
+                            {report.crew_approval_status === 'pending' && (
+                              <Button
+                                onClick={() => {
+                                  const url = `${window.location.origin}/#/aprovar-relatorio/${report.approval_token}`;
+                                  window.open(url, '_blank');
+                                }}
+                                className="w-full bg-blue-600 hover:bg-blue-700"
+                              >
+                                Revisar e Aprovar
+                              </Button>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="anexos" className="mt-6 space-y-6">
