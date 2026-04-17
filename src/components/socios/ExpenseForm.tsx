@@ -435,7 +435,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             .eq("id", clienteId)
             .single();
           const clientName = clientData?.razao_social || "";
-          const reportNumber = await generateReportNumber(clientName);
+          const reportNumber = await generateReportNumber(clientName, aircraftId);
           const today = format(new Date(), "yyyy-MM-dd");
           const expenseItem = {
             category: selectedCategory?.label || "Desconhecido",

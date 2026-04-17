@@ -187,10 +187,14 @@ export function getCrewTotalsWithNames(
 // generateReportNumber
 // ---------------------------------------------------------------------------
 /**
- * Gera o próximo número de relatório para um determinado cliente.
+ * Gera o próximo número de relatório para um determinado cliente E aeronave.
+ * Cada cliente+aeronave tem sua própria sequência numerada.
  * Padrão: REL-XXX-001/YY
+ *
+ * @param clientName - Nome do cliente (para extrair iniciais)
+ * @param aeronaveId - ID da aeronave (para filtrar sequência específica)
  */
-export async function generateReportNumber(clientName: string): Promise<string> {
+export async function generateReportNumber(clientName: string, aeronaveId?: string): Promise<string> {
   if (!clientName?.trim()) {
     return `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`;
   }
@@ -202,13 +206,21 @@ export async function generateReportNumber(clientName: string): Promise<string> 
     .split(/\s+/)
     .map(w => w.charAt(0).toUpperCase())
     .join('')
+    .replace(/[^A-Z]/g, '') // Remove caracteres não-alfabéticos
     .substring(0, 3)
     .padEnd(3, 'X');
 
-  const { data: existing } = await supabase
+  let query = supabase
     .from('travel_expense_reports')
     .select('numero_relatorio')
-    .ilike('numero_relatorio', `REL-${initials}-%`)
+    .ilike('numero_relatorio', `REL-${initials}-%`);
+
+  // Se aeronaveId foi fornecido, filtrar por essa aeronave específica
+  if (aeronaveId?.trim()) {
+    query = query.eq('aeronave_id', aeronaveId);
+  }
+
+  const { data: existing } = await query
     .order('created_at', { ascending: false })
     .limit(1);
 
