@@ -1640,140 +1640,6 @@ export type Database = {
         }
         Relationships: []
       }
-      components: {
-        Row: {
-          aircraft_id: string
-          category: string | null
-          created_at: string | null
-          csn: number | null
-          cso: number | null
-          current_life_cycles: number | null
-          current_life_hours: number | null
-          due_date: string | null
-          id: string
-          installed_cycles: number | null
-          installed_date: string
-          installed_hours: number | null
-          location: string | null
-          manufacturer: string | null
-          name: string
-          observations: string | null
-          part_number: string
-          remaining_hours: number | null
-          remaining_percentage: number | null
-          serial_number: string
-          status: string | null
-          total_life_cycles: number | null
-          total_life_hours: number | null
-          tso: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          aircraft_id: string
-          category?: string | null
-          created_at?: string | null
-          csn?: number | null
-          cso?: number | null
-          current_life_cycles?: number | null
-          current_life_hours?: number | null
-          due_date?: string | null
-          id?: string
-          installed_cycles?: number | null
-          installed_date: string
-          installed_hours?: number | null
-          location?: string | null
-          manufacturer?: string | null
-          name: string
-          observations?: string | null
-          part_number: string
-          remaining_hours?: number | null
-          remaining_percentage?: number | null
-          serial_number: string
-          status?: string | null
-          total_life_cycles?: number | null
-          total_life_hours?: number | null
-          tso?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          aircraft_id?: string
-          category?: string | null
-          created_at?: string | null
-          csn?: number | null
-          cso?: number | null
-          current_life_cycles?: number | null
-          current_life_hours?: number | null
-          due_date?: string | null
-          id?: string
-          installed_cycles?: number | null
-          installed_date?: string
-          installed_hours?: number | null
-          location?: string | null
-          manufacturer?: string | null
-          name?: string
-          observations?: string | null
-          part_number?: string
-          remaining_hours?: number | null
-          remaining_percentage?: number | null
-          serial_number?: string
-          status?: string | null
-          total_life_cycles?: number | null
-          total_life_hours?: number | null
-          tso?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-        ]
-      }
       conciliacoes_bancarias: {
         Row: {
           aeronave_id: string | null
@@ -4036,8 +3902,6 @@ export type Database = {
       ctm_ordem_acompanhamento_servico: {
         Row: {
           aeronave_id: string
-          aprovado_em: string | null
-          aprovado_por: string | null
           atualizado_em: string | null
           criado_em: string | null
           criado_por: string | null
@@ -4048,29 +3912,22 @@ export type Database = {
           horas_celula: number | null
           id: string
           mecanico_responsavel: string | null
-          motivo_rejeicao: string | null
           numero: string
           objetivo: string | null
           observacoes: string | null
-          oficina_nome: string | null
-          os_mao_de_obra_oficina: string | null
+          oficina: string | null
           periodo: string | null
-          periodo_fim: string | null
-          periodo_inicio: string | null
+          porcentagem_rateio: string | null
           status: string | null
-          status_aprovacao: string | null
-          submetido_aprovacao_em: string | null
-          tipo_manutencao: string
           tipo_rateio: string | null
-          total_geral: number | null
-          total_mao_obra: number | null
-          total_pecas: number | null
-          vencimento: string | null
+          total_individual_cotista: string | null
+          total_valor_os: number | null
+          total_valor_os_mo: number | null
+          total_valor_os_pecas: number | null
+          total_voado_porcentagem: string | null
         }
         Insert: {
           aeronave_id: string
-          aprovado_em?: string | null
-          aprovado_por?: string | null
           atualizado_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
@@ -4081,29 +3938,22 @@ export type Database = {
           horas_celula?: number | null
           id?: string
           mecanico_responsavel?: string | null
-          motivo_rejeicao?: string | null
           numero: string
           objetivo?: string | null
           observacoes?: string | null
-          oficina_nome?: string | null
-          os_mao_de_obra_oficina?: string | null
+          oficina?: string | null
           periodo?: string | null
-          periodo_fim?: string | null
-          periodo_inicio?: string | null
+          porcentagem_rateio?: string | null
           status?: string | null
-          status_aprovacao?: string | null
-          submetido_aprovacao_em?: string | null
-          tipo_manutencao?: string
           tipo_rateio?: string | null
-          total_geral?: number | null
-          total_mao_obra?: number | null
-          total_pecas?: number | null
-          vencimento?: string | null
+          total_individual_cotista?: string | null
+          total_valor_os?: number | null
+          total_valor_os_mo?: number | null
+          total_valor_os_pecas?: number | null
+          total_voado_porcentagem?: string | null
         }
         Update: {
           aeronave_id?: string
-          aprovado_em?: string | null
-          aprovado_por?: string | null
           atualizado_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
@@ -4114,26 +3964,28 @@ export type Database = {
           horas_celula?: number | null
           id?: string
           mecanico_responsavel?: string | null
-          motivo_rejeicao?: string | null
           numero?: string
           objetivo?: string | null
           observacoes?: string | null
-          oficina_nome?: string | null
-          os_mao_de_obra_oficina?: string | null
+          oficina?: string | null
           periodo?: string | null
-          periodo_fim?: string | null
-          periodo_inicio?: string | null
+          porcentagem_rateio?: string | null
           status?: string | null
-          status_aprovacao?: string | null
-          submetido_aprovacao_em?: string | null
-          tipo_manutencao?: string
           tipo_rateio?: string | null
-          total_geral?: number | null
-          total_mao_obra?: number | null
-          total_pecas?: number | null
-          vencimento?: string | null
+          total_individual_cotista?: string | null
+          total_valor_os?: number | null
+          total_valor_os_mo?: number | null
+          total_valor_os_pecas?: number | null
+          total_voado_porcentagem?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_oficina_fkey"
+            columns: ["oficina"]
+            isOneToOne: false
+            referencedRelation: "oficinas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
             columns: ["aeronave_id"]
@@ -5435,10 +5287,14 @@ export type Database = {
           aerodromo_base: string | null
           aeronave_id: string
           ano: number
-          celula_anterior: number | null
-          celula_atual: number | null
-          celula_disponivel: number | null
-          celula_prox_revisao: number | null
+          celula_anterior_ttotal: number | null
+          celula_anterior_tvoo: number | null
+          celula_atual_ttotal: number | null
+          celula_atual_tvoo: number | null
+          celula_disponivel_ttotal: number | null
+          celula_disponivel_tvoo: number | null
+          celula_prox_revisao_ttotal: number | null
+          celula_prox_revisao_tvoo: number | null
           confirmado: boolean | null
           confirmado_em: string | null
           confirmado_por: string | null
@@ -5457,10 +5313,14 @@ export type Database = {
           aerodromo_base?: string | null
           aeronave_id: string
           ano: number
-          celula_anterior?: number | null
-          celula_atual?: number | null
-          celula_disponivel?: number | null
-          celula_prox_revisao?: number | null
+          celula_anterior_ttotal?: number | null
+          celula_anterior_tvoo?: number | null
+          celula_atual_ttotal?: number | null
+          celula_atual_tvoo?: number | null
+          celula_disponivel_ttotal?: number | null
+          celula_disponivel_tvoo?: number | null
+          celula_prox_revisao_ttotal?: number | null
+          celula_prox_revisao_tvoo?: number | null
           confirmado?: boolean | null
           confirmado_em?: string | null
           confirmado_por?: string | null
@@ -5479,10 +5339,14 @@ export type Database = {
           aerodromo_base?: string | null
           aeronave_id?: string
           ano?: number
-          celula_anterior?: number | null
-          celula_atual?: number | null
-          celula_disponivel?: number | null
-          celula_prox_revisao?: number | null
+          celula_anterior_ttotal?: number | null
+          celula_anterior_tvoo?: number | null
+          celula_atual_ttotal?: number | null
+          celula_atual_tvoo?: number | null
+          celula_disponivel_ttotal?: number | null
+          celula_disponivel_tvoo?: number | null
+          celula_prox_revisao_ttotal?: number | null
+          celula_prox_revisao_tvoo?: number | null
           confirmado?: boolean | null
           confirmado_em?: string | null
           confirmado_por?: string | null
@@ -7481,7 +7345,6 @@ export type Database = {
           horas_celula_proxima_manutencao: number | null
           horas_diurnas: number | null
           horas_noturnas: number | null
-          horas_totais: number | null
           id: string
           litros_combustivel: number | null
           local_combustivel: string | null
@@ -7507,6 +7370,7 @@ export type Database = {
           tempo_ifr: number | null
           tempo_pou: string | null
           tempo_total: number | null
+          tempo_voo: number | null
           tipo_combustivel: string | null
           tipo_manutencao_proxima: string | null
           tipo_manutencao_ultima: string | null
@@ -7544,7 +7408,6 @@ export type Database = {
           horas_celula_proxima_manutencao?: number | null
           horas_diurnas?: number | null
           horas_noturnas?: number | null
-          horas_totais?: number | null
           id?: string
           litros_combustivel?: number | null
           local_combustivel?: string | null
@@ -7570,6 +7433,7 @@ export type Database = {
           tempo_ifr?: number | null
           tempo_pou?: string | null
           tempo_total?: number | null
+          tempo_voo?: number | null
           tipo_combustivel?: string | null
           tipo_manutencao_proxima?: string | null
           tipo_manutencao_ultima?: string | null
@@ -7607,7 +7471,6 @@ export type Database = {
           horas_celula_proxima_manutencao?: number | null
           horas_diurnas?: number | null
           horas_noturnas?: number | null
-          horas_totais?: number | null
           id?: string
           litros_combustivel?: number | null
           local_combustivel?: string | null
@@ -7633,6 +7496,7 @@ export type Database = {
           tempo_ifr?: number | null
           tempo_pou?: string | null
           tempo_total?: number | null
+          tempo_voo?: number | null
           tipo_combustivel?: string | null
           tipo_manutencao_proxima?: string | null
           tipo_manutencao_ultima?: string | null
@@ -8295,6 +8159,140 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "oficinas"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      mapa_componente: {
+        Row: {
+          aeronave_id: string
+          atualizado_em: string | null
+          categoria: string | null
+          ciclos_de_vida_atuais: number | null
+          ciclos_de_vida_totais: number | null
+          ciclos_instalados: number | null
+          criado_em: string | null
+          csn: number | null
+          cso: number | null
+          data_de_vencimento: string | null
+          data_instalada: string
+          fabricante: string | null
+          horas_de_vida_atuais: number | null
+          horas_instaladas: number | null
+          id: string
+          localizacao: string | null
+          nome: string
+          numero_da_peça: string
+          numero_de_serie: string
+          observacoes: string | null
+          porcentagem_restante: number | null
+          remaining_hours: number | null
+          status: string | null
+          total_horas_de_vida: number | null
+          tso: number | null
+        }
+        Insert: {
+          aeronave_id: string
+          atualizado_em?: string | null
+          categoria?: string | null
+          ciclos_de_vida_atuais?: number | null
+          ciclos_de_vida_totais?: number | null
+          ciclos_instalados?: number | null
+          criado_em?: string | null
+          csn?: number | null
+          cso?: number | null
+          data_de_vencimento?: string | null
+          data_instalada: string
+          fabricante?: string | null
+          horas_de_vida_atuais?: number | null
+          horas_instaladas?: number | null
+          id?: string
+          localizacao?: string | null
+          nome: string
+          numero_da_peça: string
+          numero_de_serie: string
+          observacoes?: string | null
+          porcentagem_restante?: number | null
+          remaining_hours?: number | null
+          status?: string | null
+          total_horas_de_vida?: number | null
+          tso?: number | null
+        }
+        Update: {
+          aeronave_id?: string
+          atualizado_em?: string | null
+          categoria?: string | null
+          ciclos_de_vida_atuais?: number | null
+          ciclos_de_vida_totais?: number | null
+          ciclos_instalados?: number | null
+          criado_em?: string | null
+          csn?: number | null
+          cso?: number | null
+          data_de_vencimento?: string | null
+          data_instalada?: string
+          fabricante?: string | null
+          horas_de_vida_atuais?: number | null
+          horas_instaladas?: number | null
+          id?: string
+          localizacao?: string | null
+          nome?: string
+          numero_da_peça?: string
+          numero_de_serie?: string
+          observacoes?: string | null
+          porcentagem_restante?: number | null
+          remaining_hours?: number | null
+          status?: string | null
+          total_horas_de_vida?: number | null
+          tso?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
           },
         ]
       }

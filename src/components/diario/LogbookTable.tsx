@@ -15,29 +15,28 @@ import { formatDecimalHoursToHHMM } from "@/lib/utils";
 
 interface LogbookEntry {
   id: string;
-  entry_date: string;
-  departure_airport: string;
-  arrival_airport: string;
-  departure_time: string;
-  arrival_time: string;
-  flight_time_hours: number;
-  flight_time_minutes: number;
-  night_time_hours: number;
-  night_time_minutes: number;
-  total_time: number;
-  ifr_count: number;
-  landings: number;
-  fuel_added: number;
-  fuel_liters: number | null;
-  fuel_cell: number | null;
-  pc: number | null;
-  isc: string | null;
-  daily_rate: number | null;
-  extras: string | null;
-  flight_type: string | null;
-  remarks: string | null;
-  verified_by: string | null;
-  verified_at: string | null;
+  data_registro: string;
+  aerodromo_partida: string;
+  aerodromo_chegada: string;
+  tempo_dep: string | null;
+  tempo_pou: string | null;
+  tempo_voo: number;
+  horas_diurnas: number;
+  horas_noturnas: number;
+  tempo_total: number;
+  tempo_ifr: number;
+  pousos_total: number;
+  combustivel_adicionado: number | null;
+  litros_combustivel: number | null;
+  celula: number | null;
+  preco_combustivel_litro: number | null;
+  sic_name: string | null;
+  tarifa_diaria: string | null;
+  ocorrencias: string | null;
+  natureza_voo: string;
+  confirmado: boolean | null;
+  confirmado_por: string | null;
+  confirmado_em: string | null;
 }
 
 interface Aircraft {
@@ -54,7 +53,14 @@ interface LogbookTableProps {
   onAddEntry?: (prefilledDate?: Date) => void;
 }
 
-export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false, hasDailyRate = true, onAddEntry }: LogbookTableProps) {
+export function LogbookTable({
+  entries,
+  isLoading,
+  aircraft,
+  isReadOnly = false,
+  hasDailyRate = true,
+  onAddEntry,
+}: LogbookTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user, roles } = useAuth();
@@ -67,17 +73,15 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
   const canVerify = roles.includes("admin") || roles.includes("piloto_chefe");
 
   const handleVerifyToggle = async (entryId: string, currentlyVerified: boolean) => {
-    if (!canVerify || isReadOnly || !currentUserId) {
-      return;
-    }
+    if (!canVerify || isReadOnly || !currentUserId) return;
 
     try {
       const { error } = await supabase
-        .from("logbook_entries")
+        .from("lancamentos_diario_bordo")
         .update({
-          confirmed_by: currentlyVerified ? null : currentUserId,
-          confirmed_at: currentlyVerified ? null : new Date().toISOString(),
-          confirmed: !currentlyVerified,
+          confirmado_por: currentlyVerified ? null : currentUserId,
+          confirmado_em: currentlyVerified ? null : new Date().toISOString(),
+          confirmado: !currentlyVerified,
         })
         .eq("id", entryId);
 
@@ -85,41 +89,37 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
 
       toast({
         title: currentlyVerified ? "Verificação removida" : "Registro verificado",
-        description: currentlyVerified ? "A verificação foi removida." : "Registro marcado como conferido.",
+        description: currentlyVerified
+          ? "A verificação foi removida."
+          : "Registro marcado como conferido.",
       });
 
       queryClient.invalidateQueries({ queryKey: ["logbook-entries"] });
     } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
     }
   };
 
   const handleStartEdit = (entry: LogbookEntry) => {
     setEditingId(entry.id);
     setEditData({
-      entry_date: entry.entry_date,
-      departure_airport: entry.departure_airport,
-      arrival_airport: entry.arrival_airport,
-      departure_time: entry.departure_time,
-      arrival_time: entry.arrival_time,
-      flight_time_hours: entry.flight_time_hours,
-      flight_time_minutes: entry.flight_time_minutes,
-      night_time_hours: entry.night_time_hours,
-      night_time_minutes: entry.night_time_minutes,
-      ifr_count: entry.ifr_count,
-      landings: entry.landings,
-      fuel_added: entry.fuel_added,
-      fuel_liters: entry.fuel_liters,
-      fuel_cell: entry.fuel_cell,
-      pc: entry.pc,
-      isc: entry.isc,
-      daily_rate: entry.daily_rate,
-      extras: entry.extras,
-      flight_type: entry.flight_type,
+      data_registro: entry.data_registro,
+      aerodromo_partida: entry.aerodromo_partida,
+      aerodromo_chegada: entry.aerodromo_chegada,
+      tempo_dep: entry.tempo_dep,
+      tempo_pou: entry.tempo_pou,
+      tempo_voo: entry.tempo_voo,
+      horas_noturnas: entry.horas_noturnas,
+      tempo_ifr: entry.tempo_ifr,
+      pousos_total: entry.pousos_total,
+      combustivel_adicionado: entry.combustivel_adicionado,
+      litros_combustivel: entry.litros_combustivel,
+      celula: entry.celula,
+      preco_combustivel_litro: entry.preco_combustivel_litro,
+      sic_name: entry.sic_name,
+      tarifa_diaria: entry.tarifa_diaria,
+      ocorrencias: entry.ocorrencias,
+      natureza_voo: entry.natureza_voo,
     });
   };
 
@@ -133,32 +133,32 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
 
     setIsSaving(true);
     try {
-      // Calculate total_time from flight hours/minutes
-      const totalTime = (editData.flight_time_hours || 0) + (editData.flight_time_minutes || 0) / 60;
+      const tempoVoo = editData.tempo_voo ?? 0;
+      const horasNoturnas = editData.horas_noturnas ?? 0;
+      const horasDiurnas = Math.max(0, tempoVoo - horasNoturnas);
 
       const { error } = await supabase
-        .from("logbook_entries")
+        .from("lancamentos_diario_bordo")
         .update({
-          entry_date: editData.entry_date,
-          departure_airport: editData.departure_airport?.toUpperCase(),
-          arrival_airport: editData.arrival_airport?.toUpperCase(),
-          departure_time: editData.departure_time,
-          arrival_time: editData.arrival_time,
-          flight_time_hours: editData.flight_time_hours,
-          flight_time_minutes: editData.flight_time_minutes,
-          night_time_hours: editData.night_time_hours,
-          night_time_minutes: editData.night_time_minutes,
-          total_time: totalTime,
-          ifr_count: editData.ifr_count,
-          landings: editData.landings,
-          fuel_added: editData.fuel_added,
-          fuel_liters: editData.fuel_liters,
-          fuel_cell: editData.fuel_cell,
-          pc: editData.pc,
-          isc: editData.isc,
-          daily_rate: editData.daily_rate,
-          extras: editData.extras,
-          flight_type: editData.flight_type,
+          data_registro: editData.data_registro,
+          aerodromo_partida: editData.aerodromo_partida?.toUpperCase(),
+          aerodromo_chegada: editData.aerodromo_chegada?.toUpperCase(),
+          tempo_dep: editData.tempo_dep,
+          tempo_pou: editData.tempo_pou,
+          tempo_voo: tempoVoo,
+          horas_noturnas: horasNoturnas,
+          horas_diurnas: horasDiurnas,
+          tempo_total: tempoVoo,
+          tempo_ifr: editData.tempo_ifr,
+          pousos_total: editData.pousos_total,
+          combustivel_adicionado: editData.combustivel_adicionado,
+          litros_combustivel: editData.litros_combustivel,
+          celula: editData.celula,
+          preco_combustivel_litro: editData.preco_combustivel_litro,
+          sic_name: editData.sic_name,
+          tarifa_diaria: editData.tarifa_diaria,
+          ocorrencias: editData.ocorrencias,
+          natureza_voo: editData.natureza_voo,
         })
         .eq("id", editingId);
 
@@ -173,29 +173,23 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
       setEditingId(null);
       setEditData({});
     } catch (error: any) {
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
 
   const updateEditField = (field: keyof LogbookEntry, value: any) => {
-    setEditData(prev => ({ ...prev, [field]: value }));
+    setEditData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const totalHours = entries.reduce((sum, entry) => sum + entry.total_time, 0);
-  const totalLandings = entries.reduce((sum, entry) => sum + entry.landings, 0);
-  const totalFuelAdded = entries.reduce((sum, entry) => sum + entry.fuel_added, 0);
+  const totalHours = entries.reduce((sum, e) => sum + (e.tempo_total ?? 0), 0);
+  const totalLandings = entries.reduce((sum, e) => sum + (e.pousos_total ?? 0), 0);
+  const totalFuelAdded = entries.reduce((sum, e) => sum + (e.combustivel_adicionado ?? 0), 0);
 
   if (isLoading) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        Carregando registros...
-      </div>
+      <div className="text-center py-8 text-muted-foreground">Carregando registros...</div>
     );
   }
 
@@ -227,13 +221,13 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
               <TableHead className="font-bold">IFR</TableHead>
               <TableHead className="font-bold">POUSO</TableHead>
               <TableHead className="font-bold">ABAST</TableHead>
-              <TableHead className="font-bold">FUEL</TableHead>
+              <TableHead className="font-bold">FUEL (L)</TableHead>
               <TableHead className="font-bold">CÉLULA</TableHead>
-              <TableHead className="font-bold">PC</TableHead>
-              <TableHead className="font-bold">ISC</TableHead>
+              <TableHead className="font-bold">R$/L</TableHead>
+              <TableHead className="font-bold">SIC</TableHead>
               {hasDailyRate && <TableHead className="font-bold">DIÁRIAS</TableHead>}
-              <TableHead className="font-bold">EXTRAS</TableHead>
-              <TableHead className="font-bold">VOO PARA</TableHead>
+              <TableHead className="font-bold">OCORRÊNCIAS</TableHead>
+              <TableHead className="font-bold">NATUREZA</TableHead>
               <TableHead className="font-bold">CONFERE</TableHead>
               {!isReadOnly && <TableHead className="font-bold w-[80px]">AÇÕES</TableHead>}
             </TableRow>
@@ -241,256 +235,324 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
           <TableBody>
             {entries.map((entry) => (
               <Fragment key={entry.id}>
-                <TableRow className={`hover:bg-muted/30 ${isEditing(entry.id) ? "bg-primary/10" : ""}`}>
+                <TableRow
+                  className={`hover:bg-muted/30 ${isEditing(entry.id) ? "bg-primary/10" : ""}`}
+                >
+                  {/* DATA */}
                   <TableCell className="font-medium">
                     {isEditing(entry.id) ? (
                       <Input
                         type="date"
-                        value={editData.entry_date || ""}
-                        onChange={(e) => updateEditField("entry_date", e.target.value)}
+                        value={editData.data_registro || ""}
+                        onChange={(e) => updateEditField("data_registro", e.target.value)}
                         className="h-7 w-24 text-xs"
                       />
                     ) : (
-                      <span>{format(new Date(entry.entry_date), "d/M", { locale: pt })}</span>
+                      <span>{format(new Date(entry.data_registro), "d/M", { locale: pt })}</span>
                     )}
                   </TableCell>
+
+                  {/* DE */}
                   <TableCell className="uppercase">
                     {isEditing(entry.id) ? (
                       <Input
-                        value={editData.departure_airport || ""}
-                        onChange={(e) => updateEditField("departure_airport", e.target.value.toUpperCase())}
+                        value={editData.aerodromo_partida || ""}
+                        onChange={(e) =>
+                          updateEditField("aerodromo_partida", e.target.value.toUpperCase())
+                        }
                         className="h-7 w-16 text-xs uppercase"
                       />
                     ) : (
-                      entry.departure_airport
+                      entry.aerodromo_partida
                     )}
                   </TableCell>
+
+                  {/* PARA */}
                   <TableCell className="uppercase">
                     {isEditing(entry.id) ? (
                       <Input
-                        value={editData.arrival_airport || ""}
-                        onChange={(e) => updateEditField("arrival_airport", e.target.value.toUpperCase())}
+                        value={editData.aerodromo_chegada || ""}
+                        onChange={(e) =>
+                          updateEditField("aerodromo_chegada", e.target.value.toUpperCase())
+                        }
                         className="h-7 w-16 text-xs uppercase"
                       />
                     ) : (
-                      entry.arrival_airport
+                      entry.aerodromo_chegada
                     )}
                   </TableCell>
+
+                  {/* AC (matrícula - read only) */}
                   <TableCell className="uppercase">{aircraft?.matricula || "-"}</TableCell>
+
+                  {/* DEP */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
                         type="time"
-                        value={editData.departure_time || ""}
-                        onChange={(e) => updateEditField("departure_time", e.target.value)}
+                        value={editData.tempo_dep || ""}
+                        onChange={(e) => updateEditField("tempo_dep", e.target.value)}
                         className="h-7 w-20 text-xs"
                       />
                     ) : (
-                      entry.departure_time
+                      entry.tempo_dep || "-"
                     )}
                   </TableCell>
+
+                  {/* POU */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
                         type="time"
-                        value={editData.arrival_time || ""}
-                        onChange={(e) => updateEditField("arrival_time", e.target.value)}
+                        value={editData.tempo_pou || ""}
+                        onChange={(e) => updateEditField("tempo_pou", e.target.value)}
                         className="h-7 w-20 text-xs"
                       />
                     ) : (
-                      entry.arrival_time
+                      entry.tempo_pou || "-"
                     )}
                   </TableCell>
+
+                  {/* VOO (tempo_voo decimal) */}
                   <TableCell>
                     {isEditing(entry.id) ? (
-                      <div className="flex gap-1 items-center">
-                        <Input
-                          type="number"
-                          value={editData.flight_time_hours ?? 0}
-                          onChange={(e) => updateEditField("flight_time_hours", parseInt(e.target.value) || 0)}
-                          className="h-7 w-10 text-xs"
-                          min={0}
-                        />
-                        <span>:</span>
-                        <Input
-                          type="number"
-                          value={editData.flight_time_minutes ?? 0}
-                          onChange={(e) => updateEditField("flight_time_minutes", parseInt(e.target.value) || 0)}
-                          className="h-7 w-10 text-xs"
-                          min={0}
-                          max={59}
-                        />
-                      </div>
+                      <Input
+                        type="number"
+                        value={editData.tempo_voo ?? 0}
+                        onChange={(e) =>
+                          updateEditField("tempo_voo", parseFloat(e.target.value) || 0)
+                        }
+                        className="h-7 w-16 text-xs"
+                        min={0}
+                        step="0.01"
+                      />
                     ) : (
-                      `${entry.flight_time_hours}:${entry.flight_time_minutes.toString().padStart(2, "0")}`
+                      formatDecimalHoursToHHMM(entry.tempo_voo)
                     )}
                   </TableCell>
+
+                  {/* NOIT (horas_noturnas decimal) */}
                   <TableCell>
                     {isEditing(entry.id) ? (
-                      <div className="flex gap-1 items-center">
-                        <Input
-                          type="number"
-                          value={editData.night_time_hours ?? 0}
-                          onChange={(e) => updateEditField("night_time_hours", parseInt(e.target.value) || 0)}
-                          className="h-7 w-10 text-xs"
-                          min={0}
-                        />
-                        <span>:</span>
-                        <Input
-                          type="number"
-                          value={editData.night_time_minutes ?? 0}
-                          onChange={(e) => updateEditField("night_time_minutes", parseInt(e.target.value) || 0)}
-                          className="h-7 w-10 text-xs"
-                          min={0}
-                          max={59}
-                        />
-                      </div>
+                      <Input
+                        type="number"
+                        value={editData.horas_noturnas ?? 0}
+                        onChange={(e) =>
+                          updateEditField("horas_noturnas", parseFloat(e.target.value) || 0)
+                        }
+                        className="h-7 w-16 text-xs"
+                        min={0}
+                        step="0.01"
+                      />
                     ) : (
-                      `${entry.night_time_hours}:${entry.night_time_minutes.toString().padStart(2, "0")}`
+                      formatDecimalHoursToHHMM(entry.horas_noturnas)
                     )}
                   </TableCell>
+
+                  {/* TOTAL */}
                   <TableCell className="font-medium">
-                    {formatDecimalHoursToHHMM(isEditing(entry.id) 
-                      ? (editData.flight_time_hours || 0) + (editData.flight_time_minutes || 0) / 60 
-                      : entry.total_time)}
+                    {formatDecimalHoursToHHMM(
+                      isEditing(entry.id) ? editData.tempo_voo ?? 0 : entry.tempo_total
+                    )}
                   </TableCell>
+
+                  {/* IFR */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
                         type="number"
-                        value={editData.ifr_count ?? 0}
-                        onChange={(e) => updateEditField("ifr_count", parseInt(e.target.value) || 0)}
+                        value={editData.tempo_ifr ?? 0}
+                        onChange={(e) =>
+                          updateEditField("tempo_ifr", parseFloat(e.target.value) || 0)
+                        }
+                        className="h-7 w-14 text-xs"
+                        min={0}
+                        step="0.01"
+                      />
+                    ) : (
+                      entry.tempo_ifr > 0 ? formatDecimalHoursToHHMM(entry.tempo_ifr) : "-"
+                    )}
+                  </TableCell>
+
+                  {/* POUSO */}
+                  <TableCell>
+                    {isEditing(entry.id) ? (
+                      <Input
+                        type="number"
+                        value={editData.pousos_total ?? 0}
+                        onChange={(e) =>
+                          updateEditField("pousos_total", parseInt(e.target.value) || 0)
+                        }
                         className="h-7 w-12 text-xs"
                         min={0}
                       />
                     ) : (
-                      entry.ifr_count || 0
+                      entry.pousos_total
                     )}
                   </TableCell>
+
+                  {/* ABAST (combustivel_adicionado) */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
                         type="number"
-                        value={editData.landings ?? 0}
-                        onChange={(e) => updateEditField("landings", parseInt(e.target.value) || 0)}
-                        className="h-7 w-12 text-xs"
-                        min={0}
-                      />
-                    ) : (
-                      entry.landings
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {isEditing(entry.id) ? (
-                      <Input
-                        type="number"
-                        value={editData.fuel_added ?? 0}
-                        onChange={(e) => updateEditField("fuel_added", parseFloat(e.target.value) || 0)}
+                        value={editData.combustivel_adicionado ?? ""}
+                        onChange={(e) =>
+                          updateEditField(
+                            "combustivel_adicionado",
+                            e.target.value ? parseFloat(e.target.value) : null
+                          )
+                        }
                         className="h-7 w-14 text-xs"
                         min={0}
                         step="0.1"
                       />
                     ) : (
-                      entry.fuel_added > 0 ? entry.fuel_added : "-"
+                      entry.combustivel_adicionado != null && entry.combustivel_adicionado > 0
+                        ? entry.combustivel_adicionado
+                        : "-"
                     )}
                   </TableCell>
+
+                  {/* FUEL L (litros_combustivel) */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
                         type="number"
-                        value={editData.fuel_liters ?? ""}
-                        onChange={(e) => updateEditField("fuel_liters", e.target.value ? parseFloat(e.target.value) : null)}
+                        value={editData.litros_combustivel ?? ""}
+                        onChange={(e) =>
+                          updateEditField(
+                            "litros_combustivel",
+                            e.target.value ? parseFloat(e.target.value) : null
+                          )
+                        }
                         className="h-7 w-14 text-xs"
                         min={0}
                         step="0.1"
                       />
                     ) : (
-                      entry.fuel_liters || "-"
+                      entry.litros_combustivel || "-"
                     )}
                   </TableCell>
+
+                  {/* CÉLULA */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
                         type="number"
-                        value={editData.fuel_cell ?? ""}
-                        onChange={(e) => updateEditField("fuel_cell", e.target.value ? parseFloat(e.target.value) : null)}
+                        value={editData.celula ?? ""}
+                        onChange={(e) =>
+                          updateEditField(
+                            "celula",
+                            e.target.value ? parseFloat(e.target.value) : null
+                          )
+                        }
                         className="h-7 w-14 text-xs"
                         min={0}
                         step="0.1"
                       />
                     ) : (
-                      entry.fuel_cell || "-"
+                      entry.celula || "-"
                     )}
                   </TableCell>
+
+                  {/* R$/L (preco_combustivel_litro) */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
                         type="number"
-                        value={editData.pc ?? ""}
-                        onChange={(e) => updateEditField("pc", e.target.value ? parseFloat(e.target.value) : null)}
-                        className="h-7 w-12 text-xs"
+                        value={editData.preco_combustivel_litro ?? ""}
+                        onChange={(e) =>
+                          updateEditField(
+                            "preco_combustivel_litro",
+                            e.target.value ? parseFloat(e.target.value) : null
+                          )
+                        }
+                        className="h-7 w-16 text-xs"
                         min={0}
+                        step="0.01"
                       />
                     ) : (
-                      entry.pc || "-"
+                      entry.preco_combustivel_litro
+                        ? `R$ ${entry.preco_combustivel_litro.toFixed(2).replace(".", ",")}`
+                        : "-"
                     )}
                   </TableCell>
+
+                  {/* SIC (sic_name) */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
-                        value={editData.isc ?? ""}
-                        onChange={(e) => updateEditField("isc", e.target.value || null)}
-                        className="h-7 w-14 text-xs"
+                        value={editData.sic_name ?? ""}
+                        onChange={(e) =>
+                          updateEditField("sic_name", e.target.value || null)
+                        }
+                        className="h-7 w-20 text-xs"
                       />
                     ) : (
-                      entry.isc || "-"
+                      entry.sic_name || "-"
                     )}
                   </TableCell>
+
+                  {/* DIÁRIAS (tarifa_diaria) */}
                   {hasDailyRate && (
                     <TableCell>
                       {isEditing(entry.id) ? (
                         <Input
-                          type="number"
-                          value={editData.daily_rate ?? ""}
-                          onChange={(e) => updateEditField("daily_rate", e.target.value ? parseFloat(e.target.value) : null)}
-                          className="h-7 w-16 text-xs"
-                          min={0}
-                          step="0.01"
+                          value={editData.tarifa_diaria ?? ""}
+                          onChange={(e) =>
+                            updateEditField("tarifa_diaria", e.target.value || null)
+                          }
+                          className="h-7 w-20 text-xs"
                         />
                       ) : (
-                        entry.daily_rate ? `R$ ${entry.daily_rate.toFixed(2).replace('.', ',')}` : "-"
+                        entry.tarifa_diaria || "-"
                       )}
                     </TableCell>
                   )}
+
+                  {/* OCORRÊNCIAS */}
                   <TableCell>
                     {isEditing(entry.id) ? (
                       <Input
-                        value={editData.extras ?? ""}
-                        onChange={(e) => updateEditField("extras", e.target.value || null)}
-                        className="h-7 w-20 text-xs"
+                        value={editData.ocorrencias ?? ""}
+                        onChange={(e) =>
+                          updateEditField("ocorrencias", e.target.value || null)
+                        }
+                        className="h-7 w-24 text-xs"
                       />
                     ) : (
-                      entry.extras || "-"
+                      entry.ocorrencias || "-"
                     )}
                   </TableCell>
+
+                  {/* NATUREZA (natureza_voo) */}
                   <TableCell className="uppercase">
                     {isEditing(entry.id) ? (
                       <Input
-                        value={editData.flight_type ?? ""}
-                        onChange={(e) => updateEditField("flight_type", e.target.value || null)}
-                        className="h-7 w-20 text-xs uppercase"
+                        value={editData.natureza_voo ?? ""}
+                        onChange={(e) =>
+                          updateEditField("natureza_voo", e.target.value || null)
+                        }
+                        className="h-7 w-24 text-xs uppercase"
                       />
                     ) : (
-                      entry.flight_type || "-"
+                      entry.natureza_voo || "-"
                     )}
                   </TableCell>
+
+                  {/* CONFERE */}
                   <TableCell>
                     <Checkbox
-                      checked={!!entry.verified_by}
-                      onCheckedChange={() => handleVerifyToggle(entry.id, !!entry.verified_by)}
+                      checked={!!entry.confirmado}
+                      onCheckedChange={() =>
+                        handleVerifyToggle(entry.id, !!entry.confirmado)
+                      }
                       disabled={!canVerify || isReadOnly || isEditing(entry.id)}
                     />
                   </TableCell>
+
+                  {/* AÇÕES */}
                   {!isReadOnly && (
                     <TableCell>
                       {isEditing(entry.id) ? (
@@ -527,6 +589,8 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
                     </TableCell>
                   )}
                 </TableRow>
+
+                {/* Botão adicionar após linha */}
                 {!isReadOnly && !isEditing(entry.id) && (
                   <TableRow className="bg-muted/20 hover:bg-muted/40">
                     <TableCell colSpan={22} className="py-2">
@@ -535,26 +599,29 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
                         size="sm"
                         className="w-full h-8 gap-2 text-muted-foreground hover:text-foreground"
                         onClick={() => {
-                          const d = new Date(entry.entry_date);
+                          const d = new Date(entry.data_registro);
                           d.setMinutes(d.getMinutes() + 1);
                           onAddEntry?.(d);
                         }}
                       >
                         <Plus className="h-4 w-4" />
-                        Adicionar registro após {format(new Date(entry.entry_date), "d/M", { locale: pt })}
+                        Adicionar registro após{" "}
+                        {format(new Date(entry.data_registro), "d/M", { locale: pt })}
                       </Button>
                     </TableCell>
                   </TableRow>
                 )}
               </Fragment>
             ))}
+
+            {/* Totais */}
             <TableRow className="bg-primary/5 font-bold">
               <TableCell colSpan={8}>TOTAL DO MÊS</TableCell>
               <TableCell>{formatDecimalHoursToHHMM(totalHours)}H</TableCell>
-              <TableCell colSpan={1}></TableCell>
+              <TableCell />
               <TableCell>{totalLandings}</TableCell>
               <TableCell>{totalFuelAdded.toFixed(1)}L</TableCell>
-              <TableCell colSpan={isReadOnly ? 8 : 9}></TableCell>
+              <TableCell colSpan={isReadOnly ? 8 : 9} />
             </TableRow>
           </TableBody>
         </Table>

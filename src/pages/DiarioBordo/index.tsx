@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ViewType } from "./types";
 import { useAircraftList } from "./hooks/useAircraftList";
 import { useLogbookMonthData } from "./hooks/useLogbookMonthData";
 import DiarioBordoDetalhes from "@/components/diario/DiarioBordoDetalhes";
@@ -12,6 +11,8 @@ import { EmptyState } from "./components/EmptyState";
 import { AeronaveCard } from "./components/AircraftCard";
 
 // pages/DiarioBordo/index.tsx - FINAL
+type ViewType = 'list' | 'diario';
+
 interface DiarioBordoProps {
   onBack: () => void;
 }
@@ -94,15 +95,18 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
           <EmptyState />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {aircraft.map(ac => (
-              <AeronaveCard
-                key={ac.id}
-                aircraft={ac}
-                logbookData={logbookMonthData[ac.id] || null}
-                onViewDiario={() => handleViewDiario(ac.id)}
-                onViewBanco={() => handleViewBanco(ac.id)}
-              />
-            ))}
+            {aircraft.map(ac => {
+              const logbookData = logbookMonthData[ac.id] || { celula_atual: '', celula_prox_revisao: '', celula_disponivel: '' };
+              return (
+                <AeronaveCard
+                  key={ac.id}
+                  aircraft={ac}
+                  logbookData={logbookData as { celula_atual: string; celula_prox_revisao: string; celula_disponivel: string }}
+                  onViewDiario={() => handleViewDiario(ac.id)}
+                  onViewBanco={() => handleViewBanco(ac.id)}
+                />
+              );
+            })}
           </div>
         )}
       </div>

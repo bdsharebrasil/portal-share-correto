@@ -1,9 +1,19 @@
 // hooks/useLogbookMonthData.ts
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateCelulaDisponivel } from '@/utils/flightTime';
-import type { Aircraft } from '@/types';
-import type { LogbookMonthData } from '../types';
+import { Aircraft } from '@/types';
+
+interface LogbookMonthData {
+  id: string;
+  celula_anterior_ttotal: number | null;
+  celula_atual_ttotal: number | null;
+  celula_prox_revisao_ttotal: number | null;
+  celula_disponivel_ttotal: number | null;
+  ano: number;
+  mes: number;
+}
 
 export function useLogbookMonthData(aircraft: Aircraft[]) {
   const [logbookMonthData, setLogbookMonthData] = useState<Record<string, LogbookMonthData | null>>({});
@@ -16,15 +26,24 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
     }
 
     setLoading(true);
+
     try {
       const monthDataMap: Record<string, LogbookMonthData | null> = {};
 
       for (const ac of aircraft) {
         try {
-          // Buscar o último mês com dados (mais recente)
+          // Último mês
           const { data: monthsData, error: monthError } = await supabase
             .from('diario_mes')
-            .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, ano, mes')
+            .select(`
+              id,
+              celula_anterior_ttotal,
+              celula_atual_ttotal,
+              celula_prox_revisao_ttotal,
+              celula_disponivel_ttotal,
+              ano,
+              mes
+            `)
             .eq('aeronave_id', ac.id)
             .order('ano', { ascending: false })
             .order('mes', { ascending: false })
@@ -35,46 +54,44 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
             continue;
           }
 
-          const monthData = monthsData[0];
+          const monthData = monthsData[0] as LogbookMonthData;
 
-          // Buscar TODOS os voos do mês para recalcular a célula corretamente
-          // Célula é contada por ciclo (AC → Corte), não por tempo de voo
+          // Buscar lançamentos do mês
           const { data: monthEntries } = await supabase
             .from('lancamentos_diario_bordo')
             .select('id, celula')
             .eq('diario_mes', monthData.id)
             .order('numero_sequencial', { ascending: true });
 
-          // Recalcular célula_atual baseado no último registro do mês
-          // A célula final é o valor acumulado do último voo (cada voo soma 1 ciclo)
-          const celulaAnterior = monthData.celula_anterior ?? 0;
+          const celulaAnterior = monthData.celula_anterior_ttotal ?? 0;
           let calculatedCelulaAtual = celulaAnterior;
 
           if (monthEntries && monthEntries.length > 0) {
-            // Pegar o último valor de célula (que é o acumulado)
             const lastEntry = monthEntries[monthEntries.length - 1];
-            calculatedCelulaAtual = lastEntry.celula || celulaAnterior;
+            calculatedCelulaAtual = lastEntry.celula ?? celulaAnterior;
           }
 
           const calculatedCelulaDisponivel = calculateCelulaDisponivel(
-            monthData.celula_prox_revisao ?? 0,
+            monthData.celula_prox_revisao_ttotal ?? 0,
             calculatedCelulaAtual
           );
 
-          // Se houve diferença, atualizar no banco
-          if (Math.abs((monthData.celula_atual ?? 0) - calculatedCelulaAtual) > 0.01) {
+          // Atualiza se divergente
+          if (
+            Math.abs((monthData.celula_atual_ttotal ?? 0) - calculatedCelulaAtual) > 0.01
+          ) {
             await supabase
               .from('diario_mes')
               .update({
-                celula_atual: calculatedCelulaAtual,
-                celula_disponivel: calculatedCelulaDisponivel
+                celula_atual_ttotal: calculatedCelulaAtual,
+                celula_disponivel_ttotal: calculatedCelulaDisponivel
               })
               .eq('id', monthData.id);
 
             monthDataMap[ac.id] = {
               ...monthData,
-              celula_atual: calculatedCelulaAtual,
-              celula_disponivel: calculatedCelulaDisponivel
+              celula_atual_ttotal: calculatedCelulaAtual,
+              celula_disponivel_ttotal: calculatedCelulaDisponivel
             };
           } else {
             monthDataMap[ac.id] = monthData;

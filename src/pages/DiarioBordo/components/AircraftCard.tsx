@@ -1,13 +1,12 @@
 // components/AeronaveCard.tsx
 import { BookOpen, Banknote } from 'lucide-react';
 import type { Aircraft } from '@/types';
-import type { LogbookMonthData } from '../types';
 import { CellStatusBadge } from './CellStatusBadge';
 import { decimalToHM } from '../utils/timeFormatting';
 
 interface AeronaveCardProps {
   aircraft: Aircraft;
-  logbookData: LogbookMonthData | null;
+  logbookData: { celula_atual: string; celula_prox_revisao: string; celula_disponivel: string } | null;
   onViewDiario: () => void;
   onViewBanco: () => void;
 }
@@ -44,9 +43,9 @@ export function AeronaveCard({
       <div className="space-y-2 mb-4">
         {logbookData ? (
           <>
-            <CellStatusBadge type="atual" value={logbookData.celula_atual} />
-            <CellStatusBadge type="revisao" value={logbookData.celula_prox_revisao} />
-            <CellStatusBadge type="disponivel" value={logbookData.celula_disponivel} />
+            <CellStatusBadge type="atual" value={Number(logbookData.celula_atual)} />
+            <CellStatusBadge type="revisao" value={Number(logbookData.celula_prox_revisao)} />
+            <CellStatusBadge type="disponivel" value={Number(logbookData.celula_disponivel)} />
           </>
         ) : (
           <div className="flex items-center gap-2 p-2 bg-slate-800/50 rounded">

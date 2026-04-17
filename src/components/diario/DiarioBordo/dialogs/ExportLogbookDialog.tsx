@@ -84,20 +84,36 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
 
   // Enrich entries with crew member names, client names, and partner names
   const enrichEntries = (rawEntries: any[]) => {
+    if (!Array.isArray(rawEntries)) {
+      return [];
+    }
+
     const crewMap = new Map<string, string>();
-    crewMembers.forEach((c: any) => {
-      crewMap.set(c.id, c.full_name || c.nome || '');
-    });
+    if (Array.isArray(crewMembers)) {
+      crewMembers.forEach((c: any) => {
+        if (c && c.id) {
+          crewMap.set(c.id, c.full_name || c.nome || '');
+        }
+      });
+    }
 
     const clientMap = new Map<string, string>();
-    clients.forEach((c: any) => {
-      clientMap.set(c.id, c.razao_social || c.nome || '');
-    });
+    if (Array.isArray(clients)) {
+      clients.forEach((c: any) => {
+        if (c && c.id) {
+          clientMap.set(c.id, c.razao_social || c.nome || '');
+        }
+      });
+    }
 
     return rawEntries.map(entry => {
+      if (!entry) {
+        return {};
+      }
+
       // Resolve partner name from client_partner_id
       let resolvedPartnerName = entry.nome_socio || '';
-      if (entry.socio_cliente_id_id && clientPartners[entry.socio_cliente_id_id]) {
+      if (entry.socio_cliente_id_id && clientPartners && clientPartners[entry.socio_cliente_id_id]) {
         resolvedPartnerName = clientPartners[entry.socio_cliente_id_id].nome_socio || resolvedPartnerName;
       }
 
@@ -147,12 +163,13 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
 
     setIsLoading(true);
     try {
-      const sortedMonths = [...selectedMonths].sort((a, b) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return a.month - b.month;
+      const sortedMonths = [...(Array.isArray(selectedMonths) ? selectedMonths : [])].sort((a, b) => {
+        if (a?.year !== b?.year) return (a?.year || 0) - (b?.year || 0);
+        return (a?.month || 0) - (b?.month || 0);
       });
 
-      const enrichedEntries = enrichEntries(entries);
+      const safeEntries = Array.isArray(entries) ? entries : [];
+      const enrichedEntries = enrichEntries(safeEntries);
 
       await downloadLogbookPDF({
         months: sortedMonths,
@@ -174,13 +191,15 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
   };
 
   // Agrupar meses por ano - garantir que availableMonths é um array válido
-  const safeAvailableMonths = Array.isArray(availableMonths) ? availableMonths : [];
+  const safeAvailableMonths = Array.isArray(availableMonths) 
+    ? availableMonths.filter(m => m && typeof m.month === 'number' && typeof m.year === 'number')
+    : [];
 
   const monthsByYear = safeAvailableMonths.reduce((acc, m) => {
     if (!acc[m.year]) {
       acc[m.year] = [];
     }
-    if (m.month) {
+    if (m.month && m.month > 0 && m.month <= 12) {
       acc[m.year].push(m.month);
     }
     return acc;
@@ -188,6 +207,7 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
 
   const yearsInOrder = Object.keys(monthsByYear)
     .map(Number)
+    .filter(year => !isNaN(year) && monthsByYear[year] && monthsByYear[year].length > 0)
     .sort((a, b) => b - a);
 
   return (
@@ -213,7 +233,7 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
               <div key={year} className="mb-4">
                 <h4 className="font-semibold text-sm text-slate-400 mb-2">{year}</h4>
                 <div className="space-y-2 pl-2">
-                  {(monthsByYear[year] || [])
+                  {(Array.isArray(monthsByYear[year]) ? monthsByYear[year] : [])
                     .sort((a, b) => b - a)
                     .map(month => {
                       const isSelected = selectedMonths.some(
@@ -269,12 +289,13 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
               <p>
                 {selectedMonths.length} mês(es) selecionado(s):
                 {' '}
-                {selectedMonths
+                {Array.isArray(selectedMonths) && selectedMonths
                   .sort((a, b) => {
                     if (a.year !== b.year) return a.year - b.year;
                     return a.month - b.month;
                   })
-                  .map(m => `${MONTHS[m.month - 1]}/${m.year}`)
+                  .map(m => m && m.month && m.year ? `${MONTHS[m.month - 1]}/${m.year}` : '')
+                  .filter(Boolean)
                   .join(', ')}
               </p>
             )}

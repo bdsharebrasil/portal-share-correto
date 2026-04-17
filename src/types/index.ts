@@ -1,6 +1,8 @@
 // Common types used across the application
 
 export interface Aeronave {
+  modelo: ReactNode;
+  matricula: ReactNode;
   id: string;
   registration: string;
   model: string;

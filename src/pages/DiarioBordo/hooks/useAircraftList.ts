@@ -23,7 +23,7 @@ export function useAircraftList() {
 
       if (data) {
         console.log('Aeronaves carregadas com sucesso:', data.length);
-        setAircraft(data);
+        setAircraft((data as unknown as Aircraft[]) || []);
       } else {
         console.warn('Nenhuma aeronave retornada da query');
         setAircraft([]);
@@ -41,7 +41,7 @@ export function useAircraftList() {
           console.error('Erro no fallback:', fallbackError);
         } else {
           console.log('Aeronaves carregadas (sem filtro):', allData?.length || 0);
-          setAircraft(allData || []);
+          setAircraft((allData as unknown as Aircraft[]) || []);
         }
       } catch (fallbackErr) {
         console.error('Erro fatal ao carregar aeronaves:', fallbackErr);
