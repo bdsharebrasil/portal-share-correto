@@ -34,6 +34,7 @@ import Invoices from "./pages/financeiro/Invoices";
 import ConciliacaoBancaria from "./pages/ConciliacaoBancaria";
 import ControleVencimentos from "./pages/ControleVencimentos";
 import DiarioBordo from "./pages/DiarioBordo";
+import DiarioBordoDetalhes from "./components/diario/DiarioBordoDetalhes";
 import BancodeHoras from './pages/BancodeHoras';
 import GestaoTripulacao from "./pages/GestaoTripulacao";
 import Index from "./pages/Index";
@@ -116,8 +117,7 @@ const HomeRedirect = () => {
 };
 
 const DiarioBordoWrapper = () => {
-  const navigate = useNavigate();
-  return <DiarioBordo onBack={() => navigate('/')} />;
+  return <DiarioBordo />;
 };
 
 const BancoHorasWrapper = () => {
@@ -325,6 +325,10 @@ const App = () => {
                           <Route
                             path="/diario-bordo"
                             element={renderProtected(<DiarioBordoWrapper />)}
+                          />
+                          <Route
+                            path="/diario-bordo/:aircraftId"
+                            element={renderProtected(<DiarioBordoDetalhes />)}
                           />
                           <Route path="/hora-banco/:aircraftId" element={renderProtected(<BancoHorasWrapper />)} />
 

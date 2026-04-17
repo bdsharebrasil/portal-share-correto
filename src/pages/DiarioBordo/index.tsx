@@ -1,117 +1,234 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAircraftList } from "./hooks/useAircraftList";
-import { useLogbookMonthData } from "./hooks/useLogbookMonthData";
-import DiarioBordoDetalhes from "@/components/diario/DiarioBordoDetalhes";
-import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
-import { ArrowLeft, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import { Plane, Calendar, Gauge, Activity, ChevronRight } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
-import { EmptyState } from "./components/EmptyState";
-import { AeronaveCard } from "./components/AircraftCard";
+import { supabase } from "@/integrations/supabase/client";
+import { num } from "@/lib/formatters";
 
-// pages/DiarioBordo/index.tsx - FINAL
-type ViewType = 'list' | 'diario';
+type Aeronave = {
+  id: string;
+  matricula: string;
+  modelo: string;
+  status: string;
+  consumo_combustivel: number | null;
+};
 
-interface DiarioBordoProps {
-  onBack: () => void;
-}
+type Resumo = {
+  aeronave_id: string;
+  ano: number;
+  horas_total: number;
+  prox_revisao: number | null;
+};
 
-const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
+function DiarioBordo() {
   const navigate = useNavigate();
-  const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<ViewType>('list');
+  const [aeronaves, setAeronaves] = useState<Aeronave[]>([]);
+  const [resumos, setResumos] = useState<Record<string, Resumo>>({});
+  const [loading, setLoading] = useState(true);
+  const ano = new Date().getFullYear();
 
-  // Custom hooks
-  const { aircraft, loading: loadingAircraft, refetch: refetchAircraft } = useAircraftList();
-  const { logbookMonthData, loading: loadingLogbook } = useLogbookMonthData(aircraft);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: aData } = await supabase
+          .from("aeronave")
+          .select("id,matricula,modelo,status,consumo_combustivel")
+          .ilike("status", "ativ%")
+          .order("matricula");
+        const aeronaves = (aData ?? []) as Aeronave[];
+        setAeronaves(aeronaves);
 
-  const loading = loadingAircraft || loadingLogbook;
+        // Total ano: soma tempo_total + próxima revisão (último diario_mes do ano)
+        const [{ data: lan }, { data: dms }] = await Promise.all([
+          supabase
+            .from("lancamentos_diario_bordo")
+            .select("aeronave_id,tempo_total,data_registro")
+            .gte("data_registro", `${ano}-01-01`)
+            .lte("data_registro", `${ano}-12-31`),
+          supabase
+            .from("diario_mes")
+            .select("aeronave_id,ano,mes,celula_atual_ttotal,celula_prox_revisao_ttotal")
+            .eq("ano", ano)
+            .order("mes", { ascending: false }),
+        ]);
 
-  // Handlers
-  const handleBackToList = () => {
-    setCurrentView('list');
-    refetchAircraft();
-  };
+        const map: Record<string, Resumo> = {};
+        for (const a of aeronaves) {
+          map[a.id] = { aeronave_id: a.id, ano, horas_total: 0, prox_revisao: null };
+        }
+        for (const r of (lan ?? []) as Array<{ aeronave_id: string; tempo_total: number | string | null }>) {
+          if (map[r.aeronave_id]) map[r.aeronave_id].horas_total += Number(r.tempo_total ?? 0);
+        }
+        const seenProx = new Set<string>();
+        for (const r of (dms ?? []) as Array<{ aeronave_id: string; celula_atual_ttotal: number | null; celula_prox_revisao_ttotal: number | null }>) {
+          if (!seenProx.has(r.aeronave_id) && map[r.aeronave_id]) {
+            map[r.aeronave_id].prox_revisao = Number(r.celula_prox_revisao_ttotal ?? 0) || null;
+            const cur = Number(r.celula_atual_ttotal ?? 0);
+            if (cur > map[r.aeronave_id].horas_total) map[r.aeronave_id].horas_total = cur;
+            seenProx.add(r.aeronave_id);
+          }
+        }
+        setResumos(map);
+        setLoading(false);
+      } catch (error) {
+        console.error("Erro ao carregar diário de bordo:", error);
+        setLoading(false);
+      }
+    })();
+  }, [ano]);
 
-  const handleViewDiario = (id: string) => {
-    setSelectedAircraftId(id);
-    setCurrentView('diario');
-  };
-
-  const handleViewBanco = (id: string) => {
-    navigate(`/hora-banco/${id}`);
-  };
-
-  const handleNavigateAerodromes = () => {
-    navigate(`/aerodromos`);
-  };
-
-  // Views condicionais
-  if (selectedAircraftId && currentView === 'diario') {
-    return (
-      <DiarioBordoDetalhes
-        aircraftId={selectedAircraftId}
-        onBack={handleBackToList}
-      />
-    );
-  }
-
-  // Loading
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-950">
-        <LottieAirplaneSpinner size="md" text="Carregando diário de bordo..." />
-      </div>
-    );
-  }
-
-  // Lista de aeronaves
   return (
     <Layout>
-      <div className="space-y-6">
-        <header className="mb-4">
-          <div className="flex items-center justify-between mb-3 gap-3">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors duration-200"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar ao Dashboard
-            </button>
-            <Button
-              onClick={handleNavigateAerodromes}
-              className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white"
-            >
-              <MapPin className="w-4 h-4" />
-              Aeródromos
-            </Button>
+      <div className="space-y-8">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 bg-cyan-500/20 border border-cyan-500/30 rounded-2xl">
+              <Plane className="w-7 h-7 text-cyan-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white tracking-wide">
+                Diários de Bordo
+              </h1>
+              <p className="text-slate-400 mt-0.5">
+                Gerencie os diários de bordo digitais das aeronaves
+              </p>
+            </div>
           </div>
-          <h1 className="text-3xl font-black text-white mb-1">Diário de Bordo</h1>
-          <p className="text-slate-500 text-sm">Selecione uma aeronave para visualizar o histórico de voos</p>
-        </header>
+        </motion.div>
 
-        {aircraft.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {aircraft.map(ac => {
-              const logbookData = logbookMonthData[ac.id] || { celula_atual: '', celula_prox_revisao: '', celula_disponivel: '' };
-              return (
-                <AeronaveCard
-                  key={ac.id}
-                  aircraft={ac}
-                  logbookData={logbookData as { celula_atual: string; celula_prox_revisao: string; celula_disponivel: string }}
-                  onViewDiario={() => handleViewDiario(ac.id)}
-                  onViewBanco={() => handleViewBanco(ac.id)}
-                />
-              );
-            })}
+        {/* Content */}
+        {loading ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-48 animate-pulse rounded-2xl border border-slate-600/50 bg-slate-700/50" />
+            ))}
           </div>
+        ) : (
+          <>
+            {aeronaves.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="mb-4 rounded-3xl border border-slate-600/50 bg-slate-700/50 p-5">
+                  <Plane className="h-12 w-12 text-slate-500" />
+                </div>
+                <p className="mb-1 text-lg font-semibold text-white">
+                  Nenhuma aeronave cadastrada
+                </p>
+                <p className="text-sm text-slate-400">
+                  Suas aeronaves ativas aparecerão aqui
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {aeronaves.map((a, i) => {
+                  const r = resumos[a.id];
+                  const horas = r?.horas_total ?? 0;
+                  const prox = r?.prox_revisao ?? 0;
+                  const pct = prox > 0 ? Math.min(100, (horas / prox) * 100) : 0;
+                  const ativa = (a.status ?? "").toLowerCase().startsWith("ativ");
+
+                  return (
+                    <motion.div
+                      key={a.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                    >
+                      <button
+                        onClick={() => navigate(`/diario-bordo/${a.id}`)}
+                        className="group relative block w-full overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 text-left"
+                      >
+                        {/* Glow bg */}
+                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+                        <div className="relative">
+                          {/* Top row */}
+                          <div className="mb-4 flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2.5 rounded-xl border border-cyan-500/25 bg-cyan-500/15 transition-colors group-hover:bg-cyan-500/25">
+                                <Plane className="h-5 w-5 text-cyan-400" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold tracking-wide text-white">
+                                  {a.matricula}
+                                </h3>
+                                <p className="text-sm text-slate-400">
+                                  {a.modelo || "Sem modelo"}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                              ativa
+                                ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
+                                : "border-slate-600 bg-slate-800 text-slate-400"
+                            }`}>
+                              {ativa ? "Ativa" : (a.status ?? "Inativa")}
+                            </span>
+                          </div>
+
+                          {/* Stats */}
+                          <div className="mb-4 grid grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-slate-700/50 bg-slate-800/80 p-3">
+                              <div className="mb-1 flex items-center gap-2">
+                                <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                <span className="text-xs text-slate-400">Diário</span>
+                              </div>
+                              <p className="font-bold text-white">{ano}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-700/50 bg-slate-800/80 p-3">
+                              <div className="mb-1 flex items-center gap-2">
+                                <Gauge className="h-3.5 w-3.5 text-slate-400" />
+                                <span className="text-xs text-slate-400">
+                                  Horas totais
+                                </span>
+                              </div>
+                              <p className="font-bold text-white">{num(horas, 1)}h</p>
+                            </div>
+                          </div>
+
+                          {/* Progress bar próxima revisão */}
+                          {prox > 0 && (
+                            <div className="mb-4">
+                              <div className="mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                                  <Activity className="h-3 w-3" /> Próxima revisão
+                                </span>
+                                <span className="text-xs font-medium text-slate-300">
+                                  {num(prox, 0)}h
+                                </span>
+                              </div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between border-t border-slate-700/50 pt-3 text-xs text-slate-500">
+                            <span>
+                              Consumo médio: {a.consumo_combustivel ? num(a.consumo_combustivel, 1) : "—"} L/H
+                            </span>
+                            <ChevronRight className="h-4 w-4 text-slate-500 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400" />
+                          </div>
+                        </div>
+                      </button>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>
   );
-};
+}
 
 export default DiarioBordo;
