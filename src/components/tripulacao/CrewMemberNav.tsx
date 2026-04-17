@@ -1,8 +1,8 @@
 // @ts-nocheck
-import { FileText, Award, Calendar, Clock, Paperclip } from "lucide-react";
+import { FileText, Award, Calendar, Clock, Paperclip, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type TabValue = "dados" | "habilitacoes" | "escala" | "horas-voo" | "anexos";
+type TabValue = "dados" | "habilitacoes" | "escala" | "horas-voo" | "anexos" | "aprovacoes-pendentes";
 
 interface CrewMemberNavProps {
   activeTab: TabValue;
@@ -33,6 +33,12 @@ const tabs = [
     label: "Horas de Voo",
     icon: Clock,
     description: "Registro de voos"
+  },
+  {
+    id: "aprovacoes-pendentes" as const,
+    label: "Aprovações",
+    icon: CheckCircle2,
+    description: "Relatórios para aprovação"
   },
   {
     id: "anexos" as const,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Receipt, MapPin, DollarSign, Play, Coffee, LogOut, Pause, ArrowUpRight, CalendarDays, FileText, CheckCircle2, Timer, Plane, BookOpen, MessageSquare, Plus, Badge as BadgeIcon } from "lucide-react";
+import { Receipt, MapPin, DollarSign, Play, Coffee, LogOut, Pause, ArrowUpRight, CalendarDays, FileText, CheckCircle2, Timer, Plane, BookOpen, MessageSquare, Plus, Badge as BadgeIcon, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
@@ -43,10 +43,13 @@ export function FinanceiroDashboard() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [notesLoading, setNotesLoading] = useState(true);
+  const [reportDiscordances, setReportDiscordances] = useState<any[]>([]);
+  const [discordancesLoading, setDiscordancesLoading] = useState(true);
   useEffect(() => {
     loadTodayEntry();
     loadTasks();
     loadNotes();
+    loadReportDiscordances();
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
@@ -119,6 +122,23 @@ export function FinanceiroDashboard() {
       console.error('Erro ao carregar notas:', error);
     } finally {
       setNotesLoading(false);
+    }
+  };
+  const loadReportDiscordances = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("travel_expense_reports")
+        .select("id, numero_relatorio, clientes_id, cliente:clientes_id(razao_social), crew_approval_status, crew_approval_notes, client_approval_status, client_approval_notes, updated_at")
+        .in("crew_approval_status", ["rejected"])
+        .order("updated_at", { ascending: false })
+        .limit(5);
+      if (!error && data) {
+        setReportDiscordances(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar discordâncias:', error);
+    } finally {
+      setDiscordancesLoading(false);
     }
   };
   const handleClockAction = async (action: 'clock_in' | 'lunch_start' | 'lunch_end' | 'clock_out') => {
@@ -282,6 +302,44 @@ export function FinanceiroDashboard() {
         </div>
       </div>
     </div>
+
+    {/* Discordâncias Alert */}
+    {!discordancesLoading && reportDiscordances.length > 0 && (
+      <div className="rounded-2xl bg-red-500/10 border border-red-500/30 p-5 backdrop-blur-sm">
+        <div className="flex items-start gap-4">
+          <div className="p-2 rounded-xl bg-red-500/20 mt-1">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-red-600 mb-2">Relatórios com Discordâncias</h3>
+            <p className="text-sm text-red-500/80 mb-3">Existem {reportDiscordances.length} relatório(s) de viagem que precisam de ajuste:</p>
+            <div className="space-y-2">
+              {reportDiscordances.map(report => (
+                <div key={report.id} className="p-3 bg-background/50 border border-red-500/20 rounded-lg hover:bg-red-50/20 transition-all cursor-pointer" onClick={() => navigate('/financeiro/relatorio-viagem')}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground text-sm">{report.numero_relatorio}</p>
+                      <p className="text-xs text-muted-foreground">{report.cliente?.razao_social}</p>
+                    </div>
+                    <Badge variant="destructive" className="text-xs">Devolvido</Badge>
+                  </div>
+                  {report.crew_approval_notes && (
+                    <p className="text-xs text-red-600 mt-2">📝 {report.crew_approval_notes}</p>
+                  )}
+                  {report.client_approval_notes && (
+                    <p className="text-xs text-red-600 mt-1">📝 Cliente: {report.client_approval_notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" className="mt-4 text-red-600 border-red-500/30 hover:bg-red-500/10" onClick={() => navigate('/financeiro/relatorio-viagem')}>
+              Ver todos os relatórios
+              <ArrowUpRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* Bento Grid Layout */}
     <div className="grid grid-cols-12 gap-4 auto-rows-min">

@@ -672,7 +672,7 @@ export default function RelatorioViagem() {
         try {
           const { data: refreshed } = await supabase
             .from('travel_expense_reports')
-            .select('approval_token, numero_relatorio, nome_tripulante')
+            .select('approval_token, numero_relatorio, nome_tripulante, tripulacao_id')
             .eq('id', savedReport.id)
             .single();
           if (refreshed?.approval_token) {
@@ -684,6 +684,22 @@ export default function RelatorioViagem() {
               cliente: requireClientApproval ? reportData.client : undefined,
             });
             setApprovalLinkOpen(true);
+
+            // Enviar notificação para o tripulante
+            if (refreshed.tripulacao_id) {
+              try {
+                const { error: notifError } = await supabase.from('notifications').insert({
+                  user_id: refreshed.tripulacao_id,
+                  title: 'Novo Relatório de Viagem para Aprovação',
+                  message: `O relatório nº ${refreshed.numero_relatorio} foi gerado e aguarda sua aprovação. Clique para revisar.`,
+                  type: 'info',
+                  read: false,
+                });
+                if (notifError) console.error('Erro ao enviar notificação:', notifError);
+              } catch (notifErr) {
+                console.error('Erro ao enviar notificação:', notifErr);
+              }
+            }
           }
         } catch (e) {
           console.warn('Não foi possível obter token de aprovação', e);

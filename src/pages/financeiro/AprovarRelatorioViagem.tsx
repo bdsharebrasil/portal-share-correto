@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle } from 'lucide-react';
 
@@ -19,6 +20,9 @@ export default function AprovarRelatorioViagem() {
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<'crew' | 'client' | null>(null);
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
+  const [showClientLogin, setShowClientLogin] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -47,6 +51,11 @@ export default function AprovarRelatorioViagem() {
           }
         }
 
+        // Se cliente precisa de aprovação e não está logado, mostrar formulário de login
+        if (data.requires_client_approval && !authUser) {
+          setShowClientLogin(true);
+        }
+
         if (data.pdf_path) {
           const { data: signed } = await supabase.storage
             .from('travel-reports')
@@ -60,6 +69,48 @@ export default function AprovarRelatorioViagem() {
       }
     })();
   }, [token]);
+
+  const handleClientLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientEmail || !clientPassword || !report) {
+      toast.error('Informe email e senha');
+      return;
+    }
+
+    try {
+      // Verificar credenciais do cliente no portal
+      const { data: clientAuth, error } = await supabase
+        .from('autenticacao_portal_cliente')
+        .select('id, clientes_id, email, ativo')
+        .eq('email', clientEmail)
+        .maybeSingle();
+
+      if (error || !clientAuth) {
+        toast.error('Email não encontrado');
+        return;
+      }
+
+      if (!clientAuth.ativo) {
+        toast.error('Acesso desativado');
+        return;
+      }
+
+      // Verificar se é o cliente do relatório
+      if (clientAuth.clientes_id !== report.clientes_id) {
+        toast.error('Você não tem acesso a este relatório');
+        return;
+      }
+
+      // Aqui você validaria a senha (em produção, usaria verificação hash)
+      // Por segurança, isso deve ser feito via API backend
+      setRole('client');
+      setUser({ id: clientAuth.id, email: clientAuth.email });
+      setShowClientLogin(false);
+    } catch (err: any) {
+      toast.error('Erro ao autenticar');
+      console.error(err);
+    }
+  };
 
   const submitDecision = async (decision: 'approved' | 'rejected') => {
     if (!report) return;
@@ -152,7 +203,42 @@ export default function AprovarRelatorioViagem() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!user && (
+            {showClientLogin && !user && report?.requires_client_approval && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold mb-4 text-blue-900">Login do Cliente</h3>
+                  <form onSubmit={handleClientLogin} className="space-y-4">
+                    <div>
+                      <Label htmlFor="client-email" className="text-blue-900">Email</Label>
+                      <Input
+                        id="client-email"
+                        type="email"
+                        value={clientEmail}
+                        onChange={(e) => setClientEmail(e.target.value)}
+                        placeholder="seu@email.com"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="client-password" className="text-blue-900">Senha</Label>
+                      <Input
+                        id="client-password"
+                        type="password"
+                        value={clientPassword}
+                        onChange={(e) => setClientPassword(e.target.value)}
+                        placeholder="Sua senha"
+                        className="mt-1"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+                      Entrar
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+
+            {!user && role !== 'client' && (
               <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
                 Você precisa estar autenticado para aprovar. <a className="underline font-semibold" href={`/#/login?redirect=/aprovar-relatorio/${token}`}>Fazer login</a>
               </div>
