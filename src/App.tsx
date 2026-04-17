@@ -26,6 +26,7 @@ import Contatos from "./pages/agenda/Contatos";
 import ConfigEmpresa from "./pages/financeiro/ConfigEmpresa";
 import EmissaoRecibo from "./pages/financeiro/EmissaoRecibo";
 import RelatorioViagem from "./pages/financeiro/RelatorioViagem";
+import AprovarRelatorioViagem from "./pages/financeiro/AprovarRelatorioViagem";
 import RelatoriosClienteDetalhes from "./pages/financeiro/RelatoriosClienteDetalhes";
 import SolicitacaoCompras from "./pages/financeiro/SolicitacaoCompras";
 import ControlFinanceiro from "./pages/financeiro/ControlFinanceiro";
@@ -201,6 +202,7 @@ const App = () => {
                           <Route path="/financeiro/recibo" element={renderProtected(<EmissaoRecibo />)} />
                           <Route path="/financeiro/viagem" element={renderProtected(<RelatorioViagem />)} />
                           <Route path="/financeiro/relatorio-viagem" element={renderProtected(<RelatorioViagem />)} />
+                          <Route path="/aprovar-relatorio/:token" element={<AprovarRelatorioViagem />} />
                           <Route path="/financeiro/relatorios-cliente/:clientId" element={renderProtected(<RelatoriosClienteDetalhes />)} />
                           <Route path="/financeiro/compras" element={renderProtected(<SolicitacaoCompras />)} />
                           <Route path="/financeiro/controle-financeiro" element={
