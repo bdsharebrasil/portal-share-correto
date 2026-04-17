@@ -111,7 +111,15 @@ export interface TravelReport {
   valor_total: number;
 }
 
-const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', logoBase64?: string) => {
+export interface TravelReportSignatures {
+  generatedBy?: string;
+  crewSigner?: string;       // tripulante que conferiu (preenche após aprovação)
+  crewSignedAt?: string;     // ISO
+  clientSigner?: string;     // cliente que conferiu (opcional)
+  clientSignedAt?: string;
+}
+
+const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', logoBase64?: string, signatures?: TravelReportSignatures) => {
   const calcDays = () => {
     if (report?.data_inicio && report?.data_fim) {
       const inicio = parseLocalDate(report.data_inicio);
@@ -458,9 +466,6 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', 
             </div>
             ` : ''}
 
-            <div class="footer">
-                Gerado por: ${currentFullName || 'Usuário'}
-            </div>
         </div>
 
         ${report.despesas.some(d => d.comprovante_url) ? `
