@@ -263,6 +263,27 @@ export default function AprovarRelatorioViagem() {
   return (
     <div className="min-h-screen bg-muted/30 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-4">
+        {/* Mensagem de boas-vindas */}
+        <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 flex items-start pt-1">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-blue-900 mb-2">
+                  Olá Tripulante! 👋
+                </h2>
+                <p className="text-blue-800 leading-relaxed">
+                  Por gentileza, verifique seu relatório e nos confirme se está em conformidade. Caso identifique alguma divergência, é só marcar o que precisa ser ajustado. Estamos aqui para ajudar!
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-3">
