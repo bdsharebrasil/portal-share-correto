@@ -14,9 +14,14 @@ import {
   decimalToHHMM, diffDecimalHours, hhmmToMinutes, minutesToHHMM,
   pgTimeToHHMM, subtractMinutesHHMM, sumDecimal,
 } from "@/lib/time";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Aeronave = {
   id: string; matricula: string; modelo: string;
+  ano?: string | null;
+  base?: string | null;
   consumo_combustivel: number | null;
 };
 type Lanc = {
@@ -77,6 +82,7 @@ type DiarioMesRow = {
 };
 type Cliente = { id: string; razao_social: string | null; proprietario: string | null };
 type Socio = { id: string; nome: string; cliente_id: string };
+type Abastecimento = { id: string; data: string; local: string | null; litros: number | null; valor_total: number | null; tipo_combustivel: string | null; logbook_entry_id: string };
 
 const NATUREZAS = ["Privado", "Teste", "Translado", "Cheque"];
 const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -84,6 +90,8 @@ const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", 
 function DiarioBordoDetalhes() {
   const { aircraftId } = useParams<{ aircraftId?: string }>();
   const navigate = useNavigate();
+  const { roles } = useAuth();
+  const canEditConfirmed = roles.includes("admin") || roles.includes("gestor_master");
 
   const today = new Date();
   const [mes, setMes] = useState<number>(today.getMonth() + 1);
@@ -96,10 +104,21 @@ function DiarioBordoDetalhes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [tripulantes, setTripulantes] = useState<Tripulante[]>([]);
+  const [abastecimentos, setAbastecimentos] = useState<Abastecimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showConsumo, setShowConsumo] = useState(false);
   const [editingLanc, setEditingLanc] = useState<Lanc | null>(null);
+
+  // Filtro cotista
+  const [cotistaFiltro, setCotistaFiltro] = useState<string | null>(null);
+
+  // Inline edit do diario_mes
+  const [editCelulaAnt, setEditCelulaAnt] = useState(false);
+  const [editProxRev, setEditProxRev] = useState(false);
+  const [editHorIni, setEditHorIni] = useState(false);
+  const [editHorFim, setEditHorFim] = useState(false);
+  const [editHorAtv, setEditHorAtv] = useState(false);
 
   // Table controls
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -118,22 +137,27 @@ function DiarioBordoDetalhes() {
     const fimDate = new Date(ano, mes, 0);
     const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
 
-    const [aRes, dmRes, lRes, cRes, sRes, tRes] = await Promise.all([
-      supabase.from("aeronave").select("id,matricula,modelo,consumo_combustivel").eq("id", aircraftId).maybeSingle(),
+    const [aRes, dmRes, lRes, cRes, sRes, tRes, abRes] = await Promise.all([
+      supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
         .gte("data_registro", ini).lte("data_registro", fim)
         .order("data_registro", { ascending: true }),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
-      supabase.from("socios_cliente").select("id,nome,cliente_id").order("nome"),
+      (supabase as any).from("socios_cliente").select("id,nome,id_clientes").order("nome"),
       supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
+      supabase.from("abastecimentos").select("id,data,local,litros,valor_total,tipo_combustivel,logbook_entry_id")
+        .eq("aeronave_id", aircraftId)
+        .gte("data", ini).lte("data", fim)
+        .not("logbook_entry_id", "is", null),
     ]);
     setAeronave(aRes.data as Aeronave | null);
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
     setClientes((cRes.data ?? []) as Cliente[]);
-    setSocios((sRes.data ?? []) as Socio[]);
+    setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.id_clientes })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
+    setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
     setLoading(false);
   };
 
@@ -188,9 +212,22 @@ function DiarioBordoDetalhes() {
     return Array.from(map.values()).sort((a, b) => b.horas - a.horas);
   }, [lancamentos, modoCelula, labelVooPara]);
 
-  // Filtered + sorted lancamentos
+  // Mapa de abastecimentos por logbook_entry_id
+  const abastByLanc = useMemo(() => {
+    const m = new Map<string, Abastecimento[]>();
+    for (const a of abastecimentos) {
+      if (!a.logbook_entry_id) continue;
+      const arr = m.get(a.logbook_entry_id) ?? [];
+      arr.push(a);
+      m.set(a.logbook_entry_id, arr);
+    }
+    return m;
+  }, [abastecimentos]);
+
+  // Filtered + sorted lancamentos (com filtro de cotista)
   const displayLancamentos = useMemo(() => {
     let list = [...lancamentos];
+    if (cotistaFiltro) list = list.filter((l) => labelVooPara(l) === cotistaFiltro);
     if (sortDir === "desc") list = list.reverse();
     if (!searchQuery.trim()) return list.map(l => ({ l, match: false }));
     const q = searchQuery.toLowerCase();
@@ -203,7 +240,7 @@ function DiarioBordoDetalhes() {
       ].filter(Boolean).join(" ").toLowerCase();
       return { l, match: blob.includes(q) };
     });
-  }, [lancamentos, sortDir, searchQuery, tripById, labelVooPara]);
+  }, [lancamentos, sortDir, searchQuery, tripById, labelVooPara, cotistaFiltro]);
 
   // Column resize handlers
   const startResize = (col: string, e: React.MouseEvent) => {
@@ -271,7 +308,7 @@ function DiarioBordoDetalhes() {
 
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center gap-4">
-            <button 
+            <button
               onClick={() => navigate('/diario-bordo')}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
               <ArrowLeft className="w-4 h-4" /> Voltar
@@ -466,10 +503,10 @@ function DiarioBordoDetalhes() {
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_dep)}</Td>
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_pou)}</Td>
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_cor)}</Td>
-                          <Td className="font-mono font-semibold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(l.tempo_voo)}</Td>
-                          <Td className="font-mono" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(l.horas_diurnas)}</Td>
-                          <Td className="font-mono" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(l.horas_noturnas)}</Td>
-                          <Td className="font-mono text-amber-400">{decimalToHHMM(l.tempo_ifr)}</Td>
+                          <Td className="font-mono font-semibold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(Number(l.tempo_voo ?? 0))}</Td>
+                          <Td className="font-mono" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(Number(l.horas_diurnas ?? 0))}</Td>
+                          <Td className="font-mono" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(Number(l.horas_noturnas ?? 0))}</Td>
+                          <Td className="font-mono text-amber-400">{decimalToHHMM(Number(l.tempo_ifr ?? 0))}</Td>
                           <Td className="text-center text-emerald-400">{l.pousos_total ?? 0}</Td>
                           <Td className="text-amber-400">{num(l.combustivel_adicionado, 0)}</Td>
                           <Td className="text-amber-400">{num(l.litros_combustivel_inicio_voo, 0)}</Td>
@@ -572,7 +609,7 @@ function DiarioBordoDetalhes() {
                           <Td className="font-mono font-medium text-white">{trecho}</Td>
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_dep)}</Td>
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_pou)}</Td>
-                          <Td className="font-mono font-bold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(l.tempo_voo)}</Td>
+                          <Td className="font-mono font-bold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(Number(l.tempo_voo ?? 0))}</Td>
                           <Td className="font-medium text-white">{labelVooPara(l)}</Td>
                           {temDiaria && (
                             <Td className="text-center text-violet-400 font-semibold">
@@ -713,11 +750,11 @@ function DiarioBordoDetalhes() {
 
 /* ---------- Componentes Auxiliares ---------- */
 
-function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 text-left font-semibold align-middle whitespace-nowrap ${className}`}>{children}</th>;
+function Th({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  return <th style={style} className={`px-3 py-2 text-left font-semibold align-middle whitespace-nowrap ${className}`}>{children}</th>;
 }
-function Td({ children, className = "", colSpan }: { children: React.ReactNode; className?: string; colSpan?: number }) {
-  return <td colSpan={colSpan} className={`px-3 py-2 align-middle ${className}`}>{children}</td>;
+function Td({ children, className = "", colSpan, style }: { children: React.ReactNode; className?: string; colSpan?: number; style?: React.CSSProperties }) {
+  return <td colSpan={colSpan} style={style} className={`px-3 py-2 align-middle ${className}`}>{children}</td>;
 }
 function Stat({ icon, label, value, accent }: { icon?: React.ReactNode; label: string; value: string; accent?: "primary" | "success" | "warning" }) {
   const color = accent === "primary" ? "text-cyan-400" : accent === "success" ? "text-emerald-400" : accent === "warning" ? "text-amber-400" : "text-white";
@@ -979,8 +1016,8 @@ function EditarVooDialog({
   const [decolagem, setDecolagem] = useState(fmtTime(lanc.tempo_dep));
   const [pouso, setPouso] = useState(fmtTime(lanc.tempo_pou));
   const [corte, setCorte] = useState(fmtTime(lanc.tempo_cor));
-  const [noturno, setNoturno] = useState(decimalToHHMM(lanc.horas_noturnas));
-  const [ifr, setIfr] = useState(decimalToHHMM(lanc.tempo_ifr));
+  const [noturno, setNoturno] = useState(decimalToHHMM(Number(lanc.horas_noturnas ?? 0)));
+  const [ifr, setIfr] = useState(decimalToHHMM(Number(lanc.tempo_ifr ?? 0)));
   const [pousos, setPousos] = useState(lanc.pousos_total ?? 1);
   const [fuelInicio, setFuelInicio] = useState(Number(lanc.litros_combustivel_inicio_voo ?? 0));
   const [abast, setAbast] = useState(Number(lanc.combustivel_adicionado ?? 0));
