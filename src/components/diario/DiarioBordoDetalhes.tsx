@@ -29,6 +29,7 @@ type Aeronave = {
   ano?: string | null;
   base?: string | null;
   consumo_combustivel: number | null;
+  modo_celula?: "tvoo" | "tempo_total" | null;
 };
 type Lanc = {
   id: string;
@@ -151,7 +152,7 @@ function DiarioBordoDetalhes() {
     const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
 
     const [aRes, dmRes, lRes, cRes, sRes, tRes, abRes] = await Promise.all([
-      supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel").eq("id", aircraftId).maybeSingle(),
+      supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
         .gte("data_registro", ini).lte("data_registro", fim)
@@ -165,6 +166,9 @@ function DiarioBordoDetalhes() {
         .not("logbook_entry_id", "is", null),
     ]);
     setAeronave(aRes.data as Aeronave | null);
+    if (aRes.data?.modo_celula) {
+      setModoCelula(aRes.data.modo_celula as "tvoo" | "tempo_total");
+    }
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
     setClientes((cRes.data ?? []) as Cliente[]);
@@ -361,17 +365,27 @@ function DiarioBordoDetalhes() {
         });
       }
 
-      // Criar novo mês
+      // Atualizar modo de cálculo na aeronave
+      await supabase.from("aeronave")
+        .update({ modo_celula: data.modo_celula })
+        .eq("id", aircraftId);
+
+      // Criar novo mês com ambos os conjuntos de colunas preenchidos
       const { error } = await supabase
         .from("diario_mes")
         .insert({
           aeronave_id: aircraftId,
           ano: data.year,
           mes: data.month,
+          // Preencher ambos os conjuntos com os mesmos valores iniciais
           celula_anterior_ttotal: data.celula_anterior,
           celula_atual_ttotal: data.celula_atual,
           celula_prox_revisao_ttotal: data.celula_prox_revisao,
           celula_disponivel_ttotal: data.celula_disponivel,
+          celula_anterior_tvoo: data.celula_anterior,
+          celula_atual_tvoo: data.celula_atual,
+          celula_prox_revisao_tvoo: data.celula_prox_revisao,
+          celula_disponivel_tvoo: data.celula_disponivel,
           horimetro_inicio: data.horimetro_inicio,
           horimetro_final: data.horimetro_final,
           aerodromo_base: data.base_aerodrome,
@@ -383,6 +397,8 @@ function DiarioBordoDetalhes() {
       if (error) {
         toast.error("Erro ao criar novo mês: " + error.message);
       } else {
+        // Atualizar estado local
+        setModoCelula(data.modo_celula);
         toast.success("Novo mês criado com sucesso!");
         setMes(data.month);
         setAno(data.year);
@@ -1215,6 +1231,7 @@ function DiarioBordoDetalhes() {
           <NovoVooDialog
             aeronave={aeronave}
             mes={mes} ano={ano}
+            modoCelula={modoCelula}
             clientes={clientes} socios={socios} tripulantes={tripulantes}
             ultimaCelula={diarioMes?.celula_atual_ttotal ?? 0}
             ultimaCelulaTvoo={diarioMes?.celula_atual_tvoo ?? 0}
@@ -1261,6 +1278,7 @@ function DiarioBordoDetalhes() {
         aircraftRegistration={aeronave?.matricula ?? ""}
         month={mes ?? new Date().getMonth() + 1}
         year={ano ?? new Date().getFullYear()}
+        currentModoCelula={aeronave?.modo_celula}
         previousMonthData={previousMonthForCreation}
         onCreate={handleCreateMonth}
       />
@@ -1311,9 +1329,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function NovoVooDialog({
-  aeronave, mes, ano, clientes, socios, tripulantes, ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
+  aeronave, mes, ano, modoCelula, clientes, socios, tripulantes, ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
 }: {
   aeronave: Aeronave; mes: number; ano: number;
+  modoCelula: "tvoo" | "tempo_total";
   clientes: Cliente[]; socios: Socio[]; tripulantes: Tripulante[];
   ultimaCelula: number; ultimaCelulaTvoo: number;
   temDiaria: boolean;
@@ -1446,7 +1465,13 @@ function NovoVooDialog({
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
       if (ins.error) throw ins.error;
-      await supabase.from("diario_mes").update({ celula_atual_ttotal: celula, celula_atual_tvoo: celulaTvoo }).eq("id", dmId);
+
+      // Atualizar apenas a coluna relevante baseado em modoCelula
+      const updatePayload = modoCelula === "tvoo"
+        ? { celula_atual_tvoo: celulaTvoo }
+        : { celula_atual_ttotal: celula };
+
+      await supabase.from("diario_mes").update(updatePayload).eq("id", dmId);
       onSaved();
     } catch (e: unknown) {
       console.error(e);

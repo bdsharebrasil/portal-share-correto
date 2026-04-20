@@ -16,6 +16,7 @@ interface CreateMonthDialogProps {
   aircraftRegistration: string;
   month: number;
   year: number;
+  currentModoCelula?: "tvoo" | "tempo_total" | null;
   previousMonthData: {
     celula_atual_ttotal?: number | null;
     celula_prox_revisao_ttotal?: number | null;
@@ -40,12 +41,17 @@ export function CreateMonthDialog({
   aircraftRegistration,
   month: initialMonth,
   year: initialYear,
+  currentModoCelula,
   previousMonthData,
   onCreate
 }: CreateMonthDialogProps) {
   const [loading, setLoading] = useState(false);
   const [aerodromes, setAerodromes] = useState<{ id: string; designativo: string; name: string }[]>([]);
-  
+
+  // Modo de cálculo de célula
+  const [modoCelula, setModoCelula] = useState<"tvoo" | "tempo_total">("tempo_total");
+  const [modoConfirmed, setModoConfirmed] = useState(false);
+
   // Seleção de mês/ano
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
@@ -71,6 +77,15 @@ export function CreateMonthDialog({
       setSelectedMonth(initialMonth);
       setSelectedYear(initialYear);
 
+      // Inicializar modoCelula
+      if (currentModoCelula) {
+        setModoCelula(currentModoCelula);
+        setModoConfirmed(false); // Pedir confirmação se já existe modo
+      } else {
+        setModoCelula("tempo_total");
+        setModoConfirmed(false); // Pedir confirmação mesmo na primeira vez
+      }
+
       // Se há dados anteriores, usa como sugestão inicial
       if (previousMonthData?.celula_atual_ttotal) {
         setFormData({
@@ -95,7 +110,7 @@ export function CreateMonthDialog({
         });
       }
     }
-  }, [open, previousMonthData, initialMonth, initialYear]);
+  }, [open, previousMonthData, initialMonth, initialYear, currentModoCelula]);
 
   const fetchAerodromes = async () => {
     const { data } = await supabase
@@ -110,18 +125,19 @@ export function CreateMonthDialog({
     if (formData.celula_anterior <= 0) {
       return;
     }
-    
+
     setLoading(true);
     try {
       await onCreate({
         aircraft_id: aircraftId,
         month: selectedMonth,
         year: selectedYear,
+        modo_celula: modoCelula,
         celula_anterior: formData.celula_anterior,
         celula_atual: formData.celula_anterior, // Começa igual à anterior
         celula_prox_revisao: formData.celula_prox_revisao || null,
-        celula_disponivel: formData.celula_prox_revisao 
-          ? formData.celula_prox_revisao - formData.celula_anterior 
+        celula_disponivel: formData.celula_prox_revisao
+          ? formData.celula_prox_revisao - formData.celula_anterior
           : null,
         horimetro_inicio: formData.horimetro_inicio || null,
         horimetro_final: formData.horimetro_inicio || null, // Começa igual ao início
@@ -150,6 +166,99 @@ export function CreateMonthDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* SELEÇÃO DO MODO DE CÁLCULO DE CÉLULA */}
+          {!modoConfirmed && (
+            <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="text-2xl">⚙️</div>
+                <div>
+                  <p className="font-bold text-white mb-1">Como esta aeronave calcula as horas de CÉLULA?</p>
+                  <p className="text-xs text-slate-400">
+                    Esta configuração será salva para a aeronave e usada em todos os meses seguintes.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                {currentModoCelula && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg mb-3">
+                    <p className="text-xs text-emerald-400 font-semibold">
+                      ⚡ Esta aeronave já está configurada como <span className="uppercase">{currentModoCelula === "tvoo" ? "TEMPO DE VOO" : "TEMPO TOTAL"}</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* Opção: Tempo Total */}
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                  style={{ borderColor: modoCelula === "tempo_total" ? "#06b6d4" : "inherit" }}
+                  style={modoCelula === "tempo_total" ? { backgroundColor: "rgb(8, 47, 73)" } : {}}>
+                  <div className="flex items-center mt-1">
+                    <input
+                      type="radio"
+                      name="modoCelula"
+                      value="tempo_total"
+                      checked={modoCelula === "tempo_total"}
+                      onChange={() => setModoCelula("tempo_total")}
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">TEMPO TOTAL</p>
+                    <p className="text-xs text-slate-400 mt-0.5">do acionamento ao corte (AC → COR)</p>
+                    <p className="text-xs text-slate-500 mt-1">Campo: <span className="font-mono">tempo_total</span> | Coluna: <span className="font-mono">celula</span></p>
+                  </div>
+                </label>
+
+                {/* Opção: Tempo de Voo */}
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                  style={{ borderColor: modoCelula === "tvoo" ? "#06b6d4" : "inherit" }}
+                  style={modoCelula === "tvoo" ? { backgroundColor: "rgb(8, 47, 73)" } : {}}>
+                  <div className="flex items-center mt-1">
+                    <input
+                      type="radio"
+                      name="modoCelula"
+                      value="tvoo"
+                      checked={modoCelula === "tvoo"}
+                      onChange={() => setModoCelula("tvoo")}
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-white">TEMPO DE VOO</p>
+                    <p className="text-xs text-slate-400 mt-0.5">da decolagem ao pouso (DEP → POU)</p>
+                    <p className="text-xs text-slate-500 mt-1">Campo: <span className="font-mono">tempo_voo</span> | Coluna: <span className="font-mono">celula_tvoo</span></p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                {currentModoCelula && (
+                  <button
+                    onClick={() => {
+                      setModoCelula(currentModoCelula);
+                      setModoConfirmed(true);
+                    }}
+                    className="flex-1 px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition-colors text-sm font-medium">
+                    Manter
+                  </button>
+                )}
+                <button
+                  onClick={() => setModoConfirmed(true)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-cyan-600 text-white hover:bg-cyan-700 transition-colors text-sm font-semibold">
+                  {currentModoCelula ? "Alterar" : "Confirmar"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {modoConfirmed && (
+            <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+              <p className="text-xs text-slate-400">
+                Modo de cálculo: <span className="text-cyan-400 font-semibold">{modoCelula === "tvoo" ? "TEMPO DE VOO (DEP→POU)" : "TEMPO TOTAL (AC→COR)"}</span>
+              </p>
+            </div>
+          )}
+
           {/* SELEÇÃO DE MÊS E ANO */}
           <div className="p-4 bg-sky-500/10 border border-sky-500/30 rounded-xl space-y-4">
             <Label className="text-sm font-bold text-sky-400 flex items-center gap-2">
