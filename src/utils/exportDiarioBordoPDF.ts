@@ -39,14 +39,19 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
   const pageHeight = pdf.internal.pageSize.getHeight();
   const pageWidth = pdf.internal.pageSize.getWidth();
 
-  // Carregar logo
+  // Carregar logo com tratamento robusto de erro
   let logoImg: string | undefined;
-  try {
-    const response = await fetch(logoUrl);
-    const blob = await response.blob();
-    logoImg = await blobToBase64(blob);
-  } catch (e) {
-    console.warn("Erro ao carregar logo:", e);
+  if (logoUrl) {
+    try {
+      const fullUrl = logoUrl.startsWith('http') ? logoUrl : `${window.location.origin}${logoUrl}`;
+      const response = await fetch(fullUrl, { mode: 'cors' });
+      if (!response.ok) throw new Error(`Status ${response.status}`);
+      const blob = await response.blob();
+      logoImg = await blobToBase64(blob);
+    } catch (e) {
+      console.warn("Erro ao carregar logo, continuando sem logo:", e);
+      // Continua sem logo se houver erro
+    }
   }
 
   // Para cada mês, criar páginas
