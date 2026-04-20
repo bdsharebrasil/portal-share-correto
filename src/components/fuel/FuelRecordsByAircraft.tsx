@@ -499,7 +499,7 @@ export function FuelRecordsByAircraft({
       const {
         data,
         error
-      } = await (supabase as any).from("cotistas_aeronave").select("cliente_id, percentual_participacao").eq("id_aeronave", aircraft.id);
+      } = await (supabase as any).from("cotistas_aeronave").select("id_clientes, percentual_sociedade").eq("id_aeronave", aircraft.id);
       if (error) {
         console.error("Error loading partner percentages:", error);
         return partnersData;
@@ -509,7 +509,7 @@ export function FuelRecordsByAircraft({
         [key: string]: number;
       } = {};
       (data || []).forEach(item => {
-        percentageMap[item.id_cliente] = item.percentual_sociedade;
+        percentageMap[item.id_clientes] = item.percentual_sociedade;
       });
 
       return partnersData.map(partner => ({
@@ -605,7 +605,7 @@ export function FuelRecordsByAircraft({
     } else {
       const percentageMap: { [key: string]: number } = {};
       (aircraftData || []).forEach(item => {
-        percentageMap[item.id_cliente] = item.percentual_sociedade;
+        percentageMap[item.id_clientes] = item.percentual_sociedade;
       });
 
       allPartners = allPartners.map(partner => ({
@@ -617,7 +617,7 @@ export function FuelRecordsByAircraft({
     setClientPartners(allPartners);
   };
   const loadRecords = async () => {
-    let query = supabase.from("abastecimentos").select("*").eq("aeronave_id", aircraft.id);
+    let query = supabase.from("abastecimentos").select("*").eq("id_aeronave", aircraft.id);
     if (currentClientId !== "all") {
       query = query.eq("id_clientes", currentClientId);
     }
@@ -1471,8 +1471,8 @@ export function FuelRecordsByAircraft({
                       <p className="text-sm font-medium text-foreground">
                         {partner.nome}
                       </p>
-                      {partner.percentual_participacao !== undefined && partner.percentual_participacao > 0 && <span className="text-xs font-semibold px-2 py-1 rounded bg-primary/20 text-primary">
-                        {partner.percentual_participacao}%
+                      {partner.percentual_sociedade !== undefined && partner.percentual_sociedade > 0 && <span className="text-xs font-semibold px-2 py-1 rounded bg-primary/20 text-primary">
+                        {partner.percentual_sociedade}%
                       </span>}
                     </div>
                   </div>)}
@@ -1494,8 +1494,8 @@ export function FuelRecordsByAircraft({
                             {partner.nome}
                           </p>
                         </div>
-                        {partner.percentual_participacao !== undefined && partner.percentual_participacao > 0 && <span className={`text-xs font-semibold px-2 py-1 rounded ${isSelected ? 'bg-emerald-500/30 text-emerald-700 dark:text-emerald-300' : 'bg-accent/20 text-accent'}`}>
-                          {partner.percentual_participacao}%
+                        {partner.percentual_sociedade !== undefined && partner.percentual_sociedade > 0 && <span className={`text-xs font-semibold px-2 py-1 rounded ${isSelected ? 'bg-emerald-500/30 text-emerald-700 dark:text-emerald-300' : 'bg-accent/20 text-accent'}`}>
+                          {partner.percentual_sociedade}%
                         </span>}
                       </div>
                       {partner.cpf && <p className="text-xs text-muted-foreground">CPF: {partner.cpf}</p>}

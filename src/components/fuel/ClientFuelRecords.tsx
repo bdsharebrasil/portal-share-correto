@@ -10,9 +10,9 @@ import { FuelRecordsByAircraft } from "./FuelRecordsByAircraft";
 interface Client {
   id: string;
   razao_social: string;
-  client_aircraft?: Array<{
-    aeronave_id: string;
-    percentual_participacao: number;
+  cotistas_aeronave?: Array<{
+    id_aeronave: string;
+    percentual_sociedade: number;
   }>;
 }
 
@@ -114,9 +114,9 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
       .select(`
         id,
         razao_social,
-        client_aircraft (
-          aeronave_id,
-          percentual_participacao
+        cotistas_aeronave (
+          id_aeronave,
+          percentual_sociedade
         )
       `)
       .order('razao_social', { ascending: true });
@@ -130,12 +130,12 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
   };
 
   const loadClientAircrafts = async () => {
-    if (!selectedClient?.client_aircraft || selectedClient.client_aircraft.length === 0) {
+    if (!selectedClient?.cotistas_aeronave || selectedClient.cotistas_aeronave.length === 0) {
       setAircrafts([]);
       return;
     }
 
-    const aircraftIds = selectedClient.client_aircraft.map(ca => ca.aeronave_id);
+    const aircraftIds = selectedClient.cotistas_aeronave.map(ca => ca.id_aeronave);
 
     const { data, error } = await supabase
       .from('aeronave')
@@ -233,10 +233,10 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
                             {client.razao_social}
                           </p>
                         </div>
-                        {client.client_aircraft && client.client_aircraft.length > 0 && (
+                        {client.cotistas_aeronave && client.cotistas_aeronave.length > 0 && (
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-2">
                             <Plane className="h-3.5 w-3.5" />
-                            {client.client_aircraft.length} aeronave{client.client_aircraft.length > 1 ? 's' : ''}
+                            {client.cotistas_aeronave.length} aeronave{client.cotistas_aeronave.length > 1 ? 's' : ''}
                           </div>
                         )}
                       </div>
