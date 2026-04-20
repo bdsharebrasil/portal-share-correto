@@ -749,8 +749,8 @@ function DiarioBordoDetalhes() {
 
           {/* Info row - Seção redesenhada */}
           <div className="space-y-5">
-            {/* Linha 1: Dados da Aeronave e Período */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {/* Linha 1: Dados da Aeronave - Full Width */}
+            <div className="grid grid-cols-1 gap-5">
               {/* Card Dados da Aeronave */}
               <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl p-6 hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
@@ -920,49 +920,10 @@ function DiarioBordoDetalhes() {
                   </div>
                 </div>
               </div>
-
-              {/* Card Período */}
-              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[62px] pb-[62px] pl-[17px] pr-[17px] mt-[38px] mb-[38px] ml-[-13px] mr-[-13px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                <div className="relative flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
-                      <Calendar className="w-4 h-4 text-cyan-400" />
-                    </div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Período</p>
-                  </div>
-                  <div className="flex gap-2 flex-col items-end">
-                    <div className="flex gap-2">
-                      <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
-                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
-                        {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
-                      </select>
-                      <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
-                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
-                        {Array.from({ length: 6 }).map((_, i) => {
-                          const y = today.getFullYear() - i;
-                          return <option key={y} value={y}>{y}</option>;
-                        })}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Clock className="w-4 h-4 text-cyan-400" />
-                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
-                    </div>
-                    <p className="text-cyan-300 font-bold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
-                  </div>
-                  <Stat icon={<PlaneLanding className="w-4 h-4" />} label="Pousos" value={String(totals.pousos)} accent="success" />
-                  <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
-                </div>
-              </div>
             </div>
 
-            {/* Linha 2: Horímetro e Consumo */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {/* Linha 2: Horímetro - Full Width */}
+            <div className="grid grid-cols-1 gap-5">
               {/* Card Horímetro */}
               <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-slate-400">Horímetro</p>
@@ -1072,6 +1033,48 @@ function DiarioBordoDetalhes() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Linha 3: Período e Consumo */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {/* Card Período */}
+              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[62px] pb-[62px] pl-[17px] pr-[17px] mt-[38px] mb-[38px] ml-[-13px] mr-[-13px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                <div className="relative flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
+                      <Calendar className="w-4 h-4 text-cyan-400" />
+                    </div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Período</p>
+                  </div>
+                  <div className="flex gap-2 flex-col items-end">
+                    <div className="flex gap-2">
+                      <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
+                        {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
+                      </select>
+                      <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
+                        {Array.from({ length: 6 }).map((_, i) => {
+                          const y = today.getFullYear() - i;
+                          return <option key={y} value={y}>{y}</option>;
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Clock className="w-4 h-4 text-cyan-400" />
+                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
+                    </div>
+                    <p className="text-cyan-300 font-bold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
+                  </div>
+                  <Stat icon={<PlaneLanding className="w-4 h-4" />} label="Pousos" value={String(totals.pousos)} accent="success" />
+                  <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
                 </div>
               </div>
 
