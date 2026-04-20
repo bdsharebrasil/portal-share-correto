@@ -597,7 +597,8 @@ function DiarioBordoDetalhes() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:border-slate-600 transition-all">
               <ArrowLeft className="w-3.5 h-3.5" /> Voltar
             </button>
-           
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              
               <div className="min-w-0">
                 <h1 className="text-base font-bold text-white tracking-wide truncate">
                   Diário {monthNames[(mes ?? 1) - 1]} {ano} — {aeronave.matricula}
