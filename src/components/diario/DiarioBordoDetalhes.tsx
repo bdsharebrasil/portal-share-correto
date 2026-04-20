@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { CreateMonthDialog } from "./CreateMonthDialog";
 
 type Aeronave = {
   id: string; matricula: string; modelo: string;
@@ -113,6 +114,7 @@ function DiarioBordoDetalhes() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showConsumo, setShowConsumo] = useState(false);
+  const [showCreateMonth, setShowCreateMonth] = useState(false);
   const [editingLanc, setEditingLanc] = useState<Lanc | null>(null);
 
   // Filtro cotista
