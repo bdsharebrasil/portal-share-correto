@@ -1553,8 +1553,8 @@ function NovoVooDialog({
         preco_combustivel_litro: precoCombustivel || null,
         local_combustivel: localCombustivel || null,
         tipo_combustivel: tipoCombustivel || null,
-        origem_pic: picId ? 'crew_members' : null,
-        origem_sic: sicId ? 'crew_members' : null,
+        origem_pic: picId ? 'membros_tripulacao' : null,
+        origem_sic: sicId ? 'membros_tripulacao' : null,
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
       if (ins.error) throw ins.error;
