@@ -24,6 +24,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { CreateMonthDialog } from "./CreateMonthDialog";
 
@@ -1266,11 +1274,24 @@ function DiarioBordoDetalhes() {
                           <Td className="text-center">
                             {!isConfirmado && (
                               <button
-                                onClick={() => setEditingLanc(l)}
-                                className="rounded-lg border border-slate-700 bg-slate-800 p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                                title="Editar lançamento">
-                                <Pencil className="w-3.5 h-3.5" />
+                                onClick={() => handleConfirmar(l)}
+                                className="rounded-lg border border-emerald-600/40 bg-emerald-900/20 p-1.5 text-emerald-400 hover:bg-emerald-800/40 hover:text-emerald-300 transition-colors"
+                                title="Confirmar lançamento">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
                               </button>
+                            )}
+                          </Td>
+                          <Td className="text-center">
+                            {l.pic_canac === tripulacaoUsuario?.canac && !l.assinado_por && (
+                              <button
+                                onClick={() => handleAssinarPic(l)}
+                                className="rounded-lg border border-blue-600/40 bg-blue-900/20 p-1.5 text-blue-400 hover:bg-blue-800/40 hover:text-blue-300 transition-colors"
+                                title="Assinar como PIC">
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {l.assinado_por && (
+                              <span className="text-xs text-blue-400 font-semibold">✓ Assinado</span>
                             )}
                           </Td>
                         </tr>
@@ -1395,6 +1416,27 @@ function DiarioBordoDetalhes() {
 
         </div>
       </div>
+
+      <AlertDialog open={editConfirmDialog.open} onOpenChange={(open) => {
+        if (!open) setEditConfirmDialog({ open: false, lanc: null });
+      }}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogTitle className="text-white">Editar Lançamento?</AlertDialogTitle>
+          <AlertDialogDescription className="text-slate-300">
+            Deseja editar esse lançamento? As alterações atualizarão os dados do registro.
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-3 mt-6">
+            <AlertDialogCancel className="bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-600">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmEdit}
+              className="bg-blue-600 text-white hover:bg-blue-700">
+              Sim, editar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AnimatePresence>
         {showForm && aeronave && (
