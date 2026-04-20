@@ -38,16 +38,18 @@ export interface LancamentoDiarioBordoDraftData {
   pousos_total: number;
 
   // Combustível
-  consumo_combustivel: number;
+  consumo_combustivel: number | string;
   litros_combustivel: number;
   preco_combustivel_litro: number | null;
   local_combustivel: string | null;
   tipo_combustivel: string | null;
   abastecido: boolean;
   combustivel_adicionado: number | null;
+  consumo_combustivel_total: number | null;
 
   // Célula e horas
   celula: number;
+  celula_tvoo: number | null;
 
   // Distância e carga
   distancia_nm: number;
@@ -71,7 +73,7 @@ export interface LancamentoDiarioBordoDraftData {
 
   // Divisão e empréstimo
   divisao_igual: boolean;
-  empreendimento: boolean;
+  emprestimo: boolean;
 
   // Manutenção
   tipo_manutencao_ultima: string | null;
@@ -80,12 +82,19 @@ export interface LancamentoDiarioBordoDraftData {
   responsavel_aprovacao_manutencao: string | null;
 
   // Tarifa
-  tarifa_diaria: string | null;
+  tarifa_diaria: number | null;
 
   // Status
   numero_sequencial: number | null;
   confirmado: boolean;
+  confirmado_em: string | null;
+  confirmado_por: string | null;
   fechado: boolean;
+  fechado_em: string | null;
+  fechado_por: string | null;
+  criado_em: string | null;
+  criado_por: string | null;
+  detectado_por: string | null;
 }
 
 /**

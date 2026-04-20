@@ -42,17 +42,16 @@ export function CloseMonthDialog({
       const { data: { user } } = await supabase.auth.getUser();
 
       const { error } = await supabase
-        .from('monthly_diary_closures')
-        .insert({
-          aircraft_id: aircraftId,
-          month: month + 1,
-          year,
-          total_hours: totalHours,
-          total_landings: totalLandings,
-          total_fuel_added: totalFuelAdded,
-          closing_observations: hasObservations === "yes" ? observations : null,
-          closed_by: user?.id,
-        });
+        .from('diario_mes')
+        .update({
+          fechado: true,
+          confirmado: true,
+          confirmado_em: new Date().toISOString(),
+          confirmado_por: user?.id,
+        })
+        .eq('aeronave_id', aircraftId)
+        .eq('mes', month)
+        .eq('ano', year);
 
       if (error) throw error;
 
