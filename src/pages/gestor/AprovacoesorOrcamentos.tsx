@@ -63,9 +63,9 @@ export default function AprovacoesorOrcamentos() {
 
       // Buscar orçamentos OAS pendentes
       const { data: oasBudgets } = await (supabase as any)
-        .from("oas_orcamentos")
-        .select('*, service_order:ctm_ordens_servico(numero, aeronave:aeronave(matricula))')
-        .eq("status", "pendente_aprovacao")
+        .from("ctm_orcamentos")
+        .select('*, service_order:ctm_ordem_acompanhamento_servico(numero, aeronave:aeronave(matricula))')
+        .eq("status", "submitted")
         .order("submitted_at", { ascending: false });
 
       if (oasBudgets) {
@@ -85,7 +85,7 @@ export default function AprovacoesorOrcamentos() {
 
       // Buscar ordens de serviço CTM pendentes
       const { data: ctmOrders } = await supabase
-        .from("ctm_ordens_servico")
+        .from("ctm_ordem_acompanhamento_servico")
         .select('*, aeronave(matricula)')
         .eq("approval_status", "pending_approval")
         .order("submitted_for_approval_at", { ascending: false });

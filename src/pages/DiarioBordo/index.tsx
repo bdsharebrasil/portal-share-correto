@@ -170,23 +170,26 @@ function DiarioBordo() {
                             </span>
                           </div>
 
-                          {/* Stats */}
-                          <div className="mb-4 grid grid-cols-2 gap-3">
-                            <div className="rounded-xl border border-slate-700/50 bg-slate-800/80 p-3">
-                              <div className="mb-1 flex items-center gap-2">
-                                <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                <span className="text-xs text-slate-400">Diário</span>
+                          {/* Dados da Aeronave */}
+                          <div className="mb-4 rounded-xl border border-slate-700/50 bg-slate-800/80 p-4">
+                            <h4 className="mb-3 text-xs font-semibold text-slate-400 uppercase tracking-wide">Dados da Aeronave</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <div className="mb-1 flex items-center gap-2">
+                                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                  <span className="text-xs text-slate-400">Diário</span>
+                                </div>
+                                <p className="font-bold text-white">{ano}</p>
                               </div>
-                              <p className="font-bold text-white">{ano}</p>
-                            </div>
-                            <div className="rounded-xl border border-slate-700/50 bg-slate-800/80 p-3">
-                              <div className="mb-1 flex items-center gap-2">
-                                <Gauge className="h-3.5 w-3.5 text-slate-400" />
-                                <span className="text-xs text-slate-400">
-                                  Horas totais
-                                </span>
+                              <div>
+                                <div className="mb-1 flex items-center gap-2">
+                                  <Gauge className="h-3.5 w-3.5 text-slate-400" />
+                                  <span className="text-xs text-slate-400">
+                                    Horímetro
+                                  </span>
+                                </div>
+                                <p className="font-bold text-white">{num(horas, 1)}h</p>
                               </div>
-                              <p className="font-bold text-white">{num(horas, 1)}h</p>
                             </div>
                           </div>
 
@@ -211,11 +214,11 @@ function DiarioBordo() {
                           )}
 
                           {/* Footer */}
-                          <div className="flex items-center justify-between border-t border-slate-700/50 pt-3 text-xs text-slate-500">
-                            <span>
-                              Consumo médio: {a.consumo_combustivel ? num(a.consumo_combustivel, 1) : "—"} L/H
+                          <div className="flex items-center justify-between border-t border-slate-700/50 pt-2.5 text-xs text-slate-500">
+                            <span className="text-xs truncate">
+                              Consumo: {a.consumo_combustivel ? num(a.consumo_combustivel, 1) : "—"} L/H
                             </span>
-                            <ChevronRight className="h-4 w-4 text-slate-500 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400" />
+                            <ChevronRight className="h-4 w-4 text-slate-500 transition-all group-hover:translate-x-0.5 group-hover:text-cyan-400 flex-shrink-0" />
                           </div>
                         </div>
                       </button>

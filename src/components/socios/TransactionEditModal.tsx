@@ -289,9 +289,9 @@ export function TransactionEditModal({
 
     setLoadingServiceOrders(true);
     supabase
-      .from("ctm_ordens_servico")
+      .from("ctm_ordem_acompanhamento_servico")
       .select("id, numero, status, tipo_manutencao, oficina_nome, data_entrada")
-      .eq("id_aeronave", aircraftId)
+      .eq("aeronave_id", aircraftId)
       .order("criado_em", { ascending: false })
       .then(({ data, error }) => {
         if (error) {

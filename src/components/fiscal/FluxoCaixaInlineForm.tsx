@@ -897,8 +897,8 @@ export function FluxoCaixaInlineForm({
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      {aeronaves?.map((aero) => (
-                        <SelectItem key={aero.id} value={aero.registration || ""}>
+                      {aeronaves?.filter((aero) => aero.registration).map((aero) => (
+                        <SelectItem key={aero.id} value={aero.registration}>
                           {aero.registration}
                         </SelectItem>
                       ))}
@@ -1310,8 +1310,8 @@ export function FluxoCaixaInlineForm({
               </SelectTrigger>
               <SelectContent align="start">
                 {Array.isArray(aeronaves) && aeronaves.length > 0 ? (
-                  aeronaves.map((aero) => (
-                    <SelectItem key={aero.id} value={aero.registration || ""}>
+                  aeronaves.filter((aero) => aero.registration).map((aero) => (
+                    <SelectItem key={aero.id} value={aero.registration}>
                       {aero.registration} - {aero.model || ""}
                     </SelectItem>
                   ))

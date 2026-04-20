@@ -413,8 +413,8 @@ export function BalancoClienteAeronave({ clienteId, aeronaveId }: BalancoCliente
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas as aeronaves</SelectItem>
-                  {clienteAeronaves.map((ca: any) => (
-                    <SelectItem key={ca.aeronave?.id} value={ca.aeronave?.id || ''}>
+                  {clienteAeronaves.filter((ca: any) => ca.aeronave?.id).map((ca: any) => (
+                    <SelectItem key={ca.aeronave?.id} value={ca.aeronave?.id}>
                       {ca.aeronave?.matricula} - {ca.aeronave?.modelo}
                     </SelectItem>
                   ))}

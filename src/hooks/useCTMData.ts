@@ -132,9 +132,9 @@ export function useCTMData(aircraftId: string) {
     queryKey: ["ctm-service-orders", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ctm_ordens_servico")
+        .from("ctm_ordem_acompanhamento_servico")
         .select("*")
-        .eq("id_aeronave", aircraftId)
+        .eq("aeronave_id", aircraftId)
         .order("criado_em", { ascending: false });
 
       if (error) throw error;
@@ -393,9 +393,9 @@ export function useCTMServiceOrders(aircraftId: string) {
     queryKey: ["ctm-service-orders", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ctm_ordens_servico")
+        .from("ctm_ordem_acompanhamento_servico")
         .select("*")
-        .eq("id_aeronave", aircraftId)
+        .eq("aeronave_id", aircraftId)
         .order("criado_em", { ascending: false });
 
       if (error) throw error;

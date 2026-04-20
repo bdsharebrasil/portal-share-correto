@@ -5,11 +5,12 @@ import {
   ArrowLeft, Plane, Plus, Calendar, Gauge, Clock, Moon, BookOpenCheck, Cloud,
   Fuel, Users, X, Save, Droplets, Wrench, CloudLightning, PlaneLanding,
   Pencil, Trash2, Activity, ArrowUpDown, ArrowUp, ArrowDown, Search, CheckCircle2,
-  Eye, EyeOff, ChevronRight, AlertTriangle, Lock, LayoutList, Map as MapIcon
+  Eye, EyeOff, ChevronRight, AlertTriangle, Lock, LayoutList, Map as MapIcon, CalendarIcon
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { num } from "@/lib/formatters";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import {
   decimalToHHMM, diffDecimalHours, hhmmToMinutes, minutesToHHMM,
   pgTimeToHHMM, subtractMinutesHHMM, sumDecimal,
@@ -17,6 +18,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 type Aeronave = {
   id: string; matricula: string; modelo: string;
@@ -94,8 +99,8 @@ function DiarioBordoDetalhes() {
   const canEditConfirmed = roles.includes("admin") || roles.includes("gestor_master");
 
   const today = new Date();
-  const [mes, setMes] = useState<number>(today.getMonth() + 1);
-  const [ano, setAno] = useState<number>(today.getFullYear());
+  const [mes, setMes] = useState<number | null>(null);
+  const [ano, setAno] = useState<number | null>(null);
   const [modoCelula, setModoCelula] = useState<"tvoo" | "tempo_total">("tempo_total");
 
   const [aeronave, setAeronave] = useState<Aeronave | null>(null);
@@ -131,7 +136,7 @@ function DiarioBordoDetalhes() {
   const resizingRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
 
   const reload = async () => {
-    if (!aircraftId) return;
+    if (!aircraftId || mes === null || ano === null) return;
     setLoading(true);
     const ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
     const fimDate = new Date(ano, mes, 0);
@@ -144,7 +149,7 @@ function DiarioBordoDetalhes() {
         .gte("data_registro", ini).lte("data_registro", fim)
         .order("data_registro", { ascending: true }),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
-      (supabase as any).from("socios_cliente").select("id,nome,id_clientes").order("nome"),
+      (supabase as any).from("socios_cliente").select("id,nome,cliente_id").order("nome"),
       supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
       supabase.from("abastecimentos").select("id,data,local,litros,valor_total,tipo_combustivel,logbook_entry_id")
         .eq("aeronave_id", aircraftId)
@@ -155,13 +160,42 @@ function DiarioBordoDetalhes() {
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
     setClientes((cRes.data ?? []) as Cliente[]);
-    setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.id_clientes })));
+    setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
     setLoading(false);
   };
 
   useEffect(() => { reload(); }, [aircraftId, mes, ano]);
+
+  // Carregar mês e ano do último lançamento ao abrir a página
+  useEffect(() => {
+    (async () => {
+      if (!aircraftId || mes || ano) return;
+      try {
+        const { data } = await supabase
+          .from("lancamentos_diario_bordo")
+          .select("data_registro")
+          .eq("aeronave_id", aircraftId)
+          .order("data_registro", { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          const dataParsed = new Date(data[0].data_registro + "T00:00");
+          setMes(dataParsed.getMonth() + 1);
+          setAno(dataParsed.getFullYear());
+        } else {
+          // Se não houver lançamentos, usa mês atual
+          setMes(today.getMonth() + 1);
+          setAno(today.getFullYear());
+        }
+      } catch (error) {
+        console.error("Erro ao carregar mês do último lançamento:", error);
+        setMes(today.getMonth() + 1);
+        setAno(today.getFullYear());
+      }
+    })();
+  }, [aircraftId]);
 
   const totals = useMemo(() => {
     const tVoo = sumDecimal(lancamentos.map((l) => l.tempo_voo));
@@ -190,7 +224,9 @@ function DiarioBordoDetalhes() {
     }
     if (l.socios_cliente_id) {
       const s = socios.find((x) => x.id === l.socios_cliente_id);
-      return s?.nome ?? l.socios_nome ?? "Sócio";
+      const nomeSocio = s?.nome ?? l.socios_nome;
+      if (nomeSocio) return nomeSocio;
+      return "Sócio";
     }
     if (l.clientes_id) {
       const c = clientes.find((x) => x.id === l.clientes_id);
@@ -379,13 +415,17 @@ function DiarioBordoDetalhes() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Stat icon={<Clock className="w-3 h-3" />}
-                    label={modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}
-                    value={decimalToHHMM(modoCelula === "tvoo" ? totals.tVoo : totals.tTotal)}
-                    accent="primary" />
+                  <button
+                    onClick={() => setModoCelula(modoCelula === "tvoo" ? "tempo_total" : "tvoo")}
+                    className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-cyan-500/50 hover:bg-slate-800 transition-all cursor-pointer text-left">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Clock className="w-3 h-3 text-cyan-400" />
+                      <span className="text-slate-500 text-xs">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
+                    </div>
+                    <p className="text-cyan-400 font-semibold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
+                  </button>
                   <Stat icon={<PlaneLanding className="w-3 h-3" />} label="Pousos" value={String(totals.pousos)} accent="success" />
                   <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
-                  <Stat icon={<Fuel className="w-3 h-3" />} label="Abast+" value={`${num(totals.abast, 0)}L`} accent="warning" />
                 </div>
               </div>
             </div>
@@ -446,21 +486,6 @@ function DiarioBordoDetalhes() {
             </div>
           </div>
 
-          {/* Toggle célula */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/50 bg-slate-900 p-4">
-            <p className="text-sm font-semibold text-white">Total de horas em célula</p>
-            <div className="flex rounded-xl border border-slate-700 bg-slate-800 p-1">
-              <button onClick={() => setModoCelula("tvoo")}
-                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${modoCelula === "tvoo" ? "bg-cyan-500 text-slate-900" : "text-slate-400 hover:text-white"}`}>
-                T. Voo · {decimalToHHMM(totals.tVoo)}
-              </button>
-              <button onClick={() => setModoCelula("tempo_total")}
-                className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${modoCelula === "tempo_total" ? "bg-cyan-500 text-slate-900" : "text-slate-400 hover:text-white"}`}>
-                Tempo Total · {decimalToHHMM(totals.tTotal)}
-              </button>
-            </div>
-          </div>
-
           {/* Tabela toolbar */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Search */}
@@ -509,7 +534,10 @@ function DiarioBordoDetalhes() {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Scroll horizontal no topo */}
+            <div className="border-b border-slate-700/50 bg-slate-800/20 overflow-x-auto h-2"></div>
+
+            <div className="overflow-auto max-h-96">
               {modoTabela === "completo" ? (
                 /* ===== MODO COMPLETO ===== */
                 <table className="w-full border-collapse text-sm [&_td]:border-r [&_td]:border-slate-700/50 [&_th]:border-r [&_th]:border-slate-700/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0" style={{ tableLayout: "fixed" }}>
@@ -873,8 +901,12 @@ function NovoVooDialog({
   const [sicNome, setSicNome] = useState("");
   const [clienteId, setClienteId] = useState<string>("");
   const [socioId, setSocioId] = useState<string>("");
+  const [clienteTomadorId, setClienteTomadorId] = useState<string>("");
+  const [socioTomadorId, setSocioTomadorId] = useState<string>("");
   const [obs, setObs] = useState("");
   const [emprestimo, setEmprestimo] = useState(false);
+  const [noturno, setNoturno] = useState("00:00");
+  const [ifr, setIfr] = useState("00:00");
   const [qtdDiarias, setQtdDiarias] = useState(0);
   const [saving, setSaving] = useState(false);
 
@@ -913,7 +945,7 @@ function NovoVooDialog({
         dmId = inserted.data.id as string;
       }
       const socio = socioId ? socios.find((s) => s.id === socioId) : null;
-      const sicTrip = sicId ? tripulantes.find((t) => t.id === sicId) : null;
+      const socioNome = socio?.nome || (socioId ? socioId : null);
       const payload = {
         diario_mes: dmId, aeronave_id: aeronave.id, data_registro: data,
         aerodromo_partida: origem.toUpperCase(), aerodromo_chegada: destino.toUpperCase(),
@@ -930,9 +962,9 @@ function NovoVooDialog({
         sic_name: sicNome || sicTrip?.nome_completo || null,
         natureza_voo: natureza, tarifa_diaria: temDiaria ? String(qtdDiarias) : null,
         clientes_id: clienteId || null, socios_cliente_id: socioId || null,
-        socios_nome: socio?.nome ?? null,
-        emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteId || null) : null,
-        socio_tomador_emprestimo_id: emprestimo ? (socioId || null) : null,
+        socios_nome: socioNome,
+        emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
+        socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
         ocorrencias: obs || null,
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
@@ -959,14 +991,185 @@ function NovoVooDialog({
         </div>
         <div className="space-y-6 p-5">
           <Section title="Identificação">
-            <Field label="Data"><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={inputCls} /></Field>
-            <Field label="Natureza do voo">
+            <Field label="Data">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={data}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(val) || val === '') {
+                      setData(val);
+                    }
+                  }}
+                  placeholder="YYYY-MM-DD"
+                  className={inputCls}
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="h-11 w-11">
+                      <CalendarIcon className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-slate-700 !rounded-lg" align="end">
+                    <div className="p-4 border-b border-slate-700 bg-[#1a2332]">
+                      <div className="flex items-center gap-2 text-slate-100">
+                        <CalendarIcon className="h-5 w-5 text-cyan-400" />
+                        <span className="text-lg font-semibold">
+                          {data ? format(new Date(data), 'dd/MM/yyyy') : 'Selecione uma data'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-6 bg-[#1a2332]">
+                      <CalendarComponent
+                        mode="single"
+                        selected={data ? new Date(data) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            setData(`${year}-${month}-${day}`);
+                          }
+                        }}
+                        defaultMonth={data ? new Date(data) : new Date()}
+                        initialFocus
+                        className="pointer-events-auto bg-[#1a2332]"
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </Field>
+          </Section>
+          <Section title="Cliente & Cotista">
+            <Field label="Cliente">
+              <SearchableCombobox
+                items={clientes.map((c) => ({
+                  id: c.id,
+                  label: c.razao_social ?? c.proprietario ?? c.id.slice(0, 6)
+                }))}
+                value={clienteId}
+                onChange={(value) => { setClienteId(value); setSocioId(""); }}
+                placeholder="Selecionar cliente..."
+                searchPlaceholder="Buscar cliente..."
+              />
+            </Field>
+            <Field label="Sócio-Cliente (opcional)">
+              <SearchableCombobox
+                items={sociosDoCliente.map((s) => ({
+                  id: s.id,
+                  label: s.nome
+                }))}
+                value={socioId}
+                onChange={(value) => setSocioId(value)}
+                placeholder="Selecionar sócio..."
+                searchPlaceholder="Buscar sócio..."
+                disabled={!clienteId || sociosDoCliente.length === 0}
+              />
+            </Field>
+            <Field label="Voo emprestado?">
+              <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/50" />
+                <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "SIM — marcará tomador" : "Não"}</span>
+              </label>
+            </Field>
+            {emprestimo && (
+              <>
+                <Field label="Cliente Tomador do Empréstimo">
+                  <SearchableCombobox
+                    items={clientes.map((c) => ({
+                      id: c.id,
+                      label: c.razao_social ?? c.proprietario ?? c.id.slice(0, 6)
+                    }))}
+                    value={clienteTomadorId}
+                    onChange={(value) => { setClienteTomadorId(value); setSocioTomadorId(""); }}
+                    placeholder="Selecionar cliente tomador..."
+                    searchPlaceholder="Buscar cliente..."
+                  />
+                </Field>
+                {clienteTomadorId && sociosDoCliente.length > 0 && (
+                  <Field label="Sócio Tomador do Empréstimo (opcional)">
+                    <SearchableCombobox
+                      items={socios.filter(s => s.cliente_id === clienteTomadorId).map((s) => ({
+                        id: s.id,
+                        label: s.nome
+                      }))}
+                      value={socioTomadorId}
+                      onChange={(value) => setSocioTomadorId(value)}
+                      placeholder="Selecionar sócio tomador..."
+                      searchPlaceholder="Buscar sócio..."
+                    />
+                  </Field>
+                )}
+              </>
+            )}
+          </Section>
+          <Section title="Natureza do voo">
+            <Field label="Natureza">
               <select value={natureza} onChange={(e) => setNatureza(e.target.value)} className={inputCls}>
                 {NATUREZAS.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </Field>
-            <Field label="Origem (ICAO)"><input value={origem} onChange={(e) => setOrigem(e.target.value.toUpperCase())} maxLength={4} className={`${inputCls} font-mono uppercase`} placeholder="SBSP" /></Field>
-            <Field label="Destino (ICAO)"><input value={destino} onChange={(e) => setDestino(e.target.value.toUpperCase())} maxLength={4} className={`${inputCls} font-mono uppercase`} placeholder="SBRJ" /></Field>
+          </Section>
+          <Section title="Tripulação">
+            <Field label="PIC (Tripulante)">
+              <SearchableCombobox
+                items={tripOptions.map((t) => ({
+                  id: t.id,
+                  label: `${t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}${t.canac ? ` (${t.canac})` : ""}`
+                }))}
+                value={picId}
+                onChange={(value) => setPicId(value)}
+                placeholder="Selecionar PIC..."
+                searchPlaceholder="Buscar tripulante..."
+              />
+            </Field>
+            <Field label="SIC (Tripulante)">
+              <SearchableCombobox
+                items={tripOptions.map((t) => ({
+                  id: t.id,
+                  label: `${t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}${t.canac ? ` (${t.canac})` : ""}`
+                }))}
+                value={sicId}
+                onChange={(value) => setSicId(value)}
+                placeholder="Selecionar SIC..."
+                searchPlaceholder="Buscar tripulante..."
+              />
+            </Field>
+          </Section>
+          <Section title="Aerodromo">
+            <Field label="Origem (ICAO)">
+              <SearchableCombobox
+                items={[
+                  { id: "SBSP", label: "SBSP - São Paulo (Congonhas)" },
+                  { id: "SBRJ", label: "SBRJ - Rio de Janeiro (Santos Dumont)" },
+                  { id: "SBKP", label: "SBKP - Campinas (Viracopos)" },
+                  { id: "SBGR", label: "SBGR - São Paulo (Guarulhos)" },
+                ]}
+                value={origem}
+                onChange={(value) => setOrigem(value)}
+                placeholder="Buscar aerodromo..."
+                searchPlaceholder="Digite o código ou nome..."
+                allowFreeText={true}
+              />
+            </Field>
+            <Field label="Destino (ICAO)">
+              <SearchableCombobox
+                items={[
+                  { id: "SBSP", label: "SBSP - São Paulo (Congonhas)" },
+                  { id: "SBRJ", label: "SBRJ - Rio de Janeiro (Santos Dumont)" },
+                  { id: "SBKP", label: "SBKP - Campinas (Viracopos)" },
+                  { id: "SBGR", label: "SBGR - São Paulo (Guarulhos)" },
+                ]}
+                value={destino}
+                onChange={(value) => setDestino(value)}
+                placeholder="Buscar aerodromo..."
+                searchPlaceholder="Digite o código ou nome..."
+                allowFreeText={true}
+              />
+            </Field>
           </Section>
           <Section title="Horários (Zulu) — apresentação auto 30min">
             <Field label="Apresentação (auto)"><input value={apresentacao || "--:--"} disabled className={`${inputCls} font-mono opacity-70 cursor-not-allowed`} /></Field>
@@ -989,40 +1192,6 @@ function NovoVooDialog({
             </Field>
             <Field label={`Célula T.Voo (sug. ${num(sugCelulaTvoo, 1)}h)`}>
               <input type="number" step="0.1" min={0} value={celulaTvoo} onChange={(e) => { setCelulaTvoo(Number(e.target.value)); setCelulaTvooTouched(true); }} className={`${inputCls} font-mono text-amber-400`} />
-            </Field>
-          </Section>
-          <Section title="Tripulação & Cotista">
-            <Field label="PIC (Tripulante)">
-              <select value={picId} onChange={(e) => setPicId(e.target.value)} className={inputCls}>
-                <option value="">— selecionar —</option>
-                {tripOptions.map((t) => <option key={t.id} value={t.id}>{t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}{t.canac ? ` (${t.canac})` : ""}</option>)}
-              </select>
-            </Field>
-            <Field label="SIC (Tripulante)">
-              <select value={sicId} onChange={(e) => { setSicId(e.target.value); setSicNome(""); }} className={inputCls}>
-                <option value="">— selecionar —</option>
-                {tripOptions.map((t) => <option key={t.id} value={t.id}>{t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}{t.canac ? ` (${t.canac})` : ""}</option>)}
-              </select>
-            </Field>
-            <Field label="SIC (nome livre)"><input value={sicNome} onChange={(e) => setSicNome(e.target.value)} disabled={!!sicId} className={inputCls} placeholder="Se não estiver na lista" /></Field>
-            <Field label="Cliente">
-              <select value={clienteId} onChange={(e) => { setClienteId(e.target.value); setSocioId(""); }} className={inputCls}>
-                <option value="">— sem cotista —</option>
-                {clientes.map((c) => <option key={c.id} value={c.id}>{c.razao_social ?? c.proprietario ?? c.id.slice(0, 6)}</option>)}
-              </select>
-            </Field>
-            <Field label="Sócio (opcional)">
-              <select value={socioId} onChange={(e) => setSocioId(e.target.value)} disabled={!clienteId || sociosDoCliente.length === 0} className={inputCls}>
-                <option value="">— nenhum —</option>
-                {sociosDoCliente.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-              </select>
-            </Field>
-            <Field label="Voo emprestado?">
-              <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500/50" />
-                <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "SIM — marcará tomador" : "Não"}</span>
-              </label>
             </Field>
           </Section>
           {temDiaria && (
@@ -1100,6 +1269,7 @@ function EditarVooDialog({
     setSaving(true);
     try {
       const socio = socioId ? socios.find((s) => s.id === socioId) : null;
+      const socioNome = socio?.nome || (socioId ? socioId : null);
       const { error } = await supabase.from("lancamentos_diario_bordo").update({
         data_registro: data,
         aerodromo_partida: origem.toUpperCase(), aerodromo_chegada: destino.toUpperCase(),
@@ -1114,7 +1284,7 @@ function EditarVooDialog({
         pic_canac: picId || null, sic_canac: sicId || null, sic_name: sicNome || null,
         natureza_voo: natureza, tarifa_diaria: temDiaria ? String(qtdDiarias) : null,
         clientes_id: clienteId || null, socios_cliente_id: socioId || null,
-        socios_nome: socio?.nome ?? null,
+        socios_nome: socioNome,
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioId || null) : null,
       } as never).eq("id", lanc.id);
@@ -1139,15 +1309,150 @@ function EditarVooDialog({
           <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-6 p-5">
+          <Section title="Tripulação & Cotista">
+            <Field label="PIC">
+              <SearchableCombobox
+                items={tripOptions.map((t) => ({
+                  id: t.id,
+                  label: `${t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}`
+                }))}
+                value={picId}
+                onChange={(value) => setPicId(value)}
+                placeholder="Selecionar PIC..."
+                searchPlaceholder="Buscar tripulante..."
+              />
+            </Field>
+            <Field label="SIC">
+              <SearchableCombobox
+                items={tripOptions.map((t) => ({
+                  id: t.id,
+                  label: `${t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}`
+                }))}
+                value={sicId}
+                onChange={(value) => setSicId(value)}
+                placeholder="Selecionar SIC..."
+                searchPlaceholder="Buscar tripulante..."
+              />
+            </Field>
+            <Field label="Cliente">
+              <SearchableCombobox
+                items={clientes.map((c) => ({
+                  id: c.id,
+                  label: c.razao_social ?? c.proprietario ?? c.id.slice(0, 6)
+                }))}
+                value={clienteId}
+                onChange={(value) => { setClienteId(value); setSocioId(""); }}
+                placeholder="Selecionar cliente..."
+                searchPlaceholder="Buscar cliente..."
+              />
+            </Field>
+            <Field label="Sócio">
+              <SearchableCombobox
+                items={sociosDoCliente.map((s) => ({
+                  id: s.id,
+                  label: s.nome
+                }))}
+                value={socioId}
+                onChange={(value) => setSocioId(value)}
+                placeholder="Selecionar sócio..."
+                searchPlaceholder="Buscar sócio..."
+                disabled={!clienteId || sociosDoCliente.length === 0}
+              />
+            </Field>
+            <Field label="Voo emprestado?">
+              <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500" />
+                <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "SIM" : "Não"}</span>
+              </label>
+            </Field>
+          </Section>
           <Section title="Identificação">
-            <Field label="Data"><input type="date" value={data} onChange={(e) => setData(e.target.value)} className={inputCls} /></Field>
+            <Field label="Data">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={data}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(val) || val === '') {
+                      setData(val);
+                    }
+                  }}
+                  placeholder="YYYY-MM-DD"
+                  className={inputCls}
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="icon" className="h-11 w-11">
+                      <CalendarIcon className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-slate-700 !rounded-lg" align="end">
+                    <div className="p-4 border-b border-slate-700 bg-[#1a2332]">
+                      <div className="flex items-center gap-2 text-slate-100">
+                        <CalendarIcon className="h-5 w-5 text-cyan-400" />
+                        <span className="text-lg font-semibold">
+                          {data ? format(new Date(data), 'dd/MM/yyyy') : 'Selecione uma data'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-6 bg-[#1a2332]">
+                      <CalendarComponent
+                        mode="single"
+                        selected={data ? new Date(data) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            setData(`${year}-${month}-${day}`);
+                          }
+                        }}
+                        defaultMonth={data ? new Date(data) : new Date()}
+                        initialFocus
+                        className="pointer-events-auto bg-[#1a2332]"
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </Field>
             <Field label="Natureza do voo">
               <select value={natureza} onChange={(e) => setNatureza(e.target.value)} className={inputCls}>
                 {NATUREZAS.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </Field>
-            <Field label="Origem (ICAO)"><input value={origem} onChange={(e) => setOrigem(e.target.value.toUpperCase())} maxLength={4} className={`${inputCls} font-mono uppercase`} /></Field>
-            <Field label="Destino (ICAO)"><input value={destino} onChange={(e) => setDestino(e.target.value.toUpperCase())} maxLength={4} className={`${inputCls} font-mono uppercase`} /></Field>
+            <Field label="Origem (ICAO)">
+              <SearchableCombobox
+                items={[
+                  { id: "SBSP", label: "SBSP - São Paulo (Congonhas)" },
+                  { id: "SBRJ", label: "SBRJ - Rio de Janeiro (Santos Dumont)" },
+                  { id: "SBKP", label: "SBKP - Campinas (Viracopos)" },
+                  { id: "SBGR", label: "SBGR - São Paulo (Guarulhos)" },
+                ]}
+                value={origem}
+                onChange={(value) => setOrigem(value)}
+                placeholder="Buscar aerodromo..."
+                searchPlaceholder="Digite o código ou nome..."
+                allowFreeText={true}
+              />
+            </Field>
+            <Field label="Destino (ICAO)">
+              <SearchableCombobox
+                items={[
+                  { id: "SBSP", label: "SBSP - São Paulo (Congonhas)" },
+                  { id: "SBRJ", label: "SBRJ - Rio de Janeiro (Santos Dumont)" },
+                  { id: "SBKP", label: "SBKP - Campinas (Viracopos)" },
+                  { id: "SBGR", label: "SBGR - São Paulo (Guarulhos)" },
+                ]}
+                value={destino}
+                onChange={(value) => setDestino(value)}
+                placeholder="Buscar aerodromo..."
+                searchPlaceholder="Digite o código ou nome..."
+                allowFreeText={true}
+              />
+            </Field>
           </Section>
           <Section title="Horários (Zulu)">
             <Field label="Acionamento (AC)"><input type="time" value={acionamento} onChange={(e) => setAcionamento(e.target.value)} className={`${inputCls} font-mono`} /></Field>
@@ -1169,40 +1474,6 @@ function EditarVooDialog({
             </Field>
             <Field label="Célula T.Voo">
               <input type="number" step="0.1" min={0} value={celulaTvoo} onChange={(e) => setCelulaTvoo(Number(e.target.value))} className={`${inputCls} font-mono text-amber-400`} />
-            </Field>
-          </Section>
-          <Section title="Tripulação & Cotista">
-            <Field label="PIC">
-              <select value={picId} onChange={(e) => setPicId(e.target.value)} className={inputCls}>
-                <option value="">— selecionar —</option>
-                {tripOptions.map((t) => <option key={t.id} value={t.id}>{t.nome_completo ?? t.canac}</option>)}
-              </select>
-            </Field>
-            <Field label="SIC">
-              <select value={sicId} onChange={(e) => { setSicId(e.target.value); setSicNome(""); }} className={inputCls}>
-                <option value="">— selecionar —</option>
-                {tripOptions.map((t) => <option key={t.id} value={t.id}>{t.nome_completo ?? t.canac}</option>)}
-              </select>
-            </Field>
-            <Field label="SIC (nome livre)"><input value={sicNome} onChange={(e) => setSicNome(e.target.value)} disabled={!!sicId} className={inputCls} /></Field>
-            <Field label="Cliente">
-              <select value={clienteId} onChange={(e) => { setClienteId(e.target.value); setSocioId(""); }} className={inputCls}>
-                <option value="">— sem cotista —</option>
-                {clientes.map((c) => <option key={c.id} value={c.id}>{c.razao_social ?? c.proprietario}</option>)}
-              </select>
-            </Field>
-            <Field label="Sócio">
-              <select value={socioId} onChange={(e) => setSocioId(e.target.value)} disabled={!clienteId || sociosDoCliente.length === 0} className={inputCls}>
-                <option value="">— nenhum —</option>
-                {sociosDoCliente.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-              </select>
-            </Field>
-            <Field label="Voo emprestado?">
-              <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500" />
-                <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "SIM" : "Não"}</span>
-              </label>
             </Field>
           </Section>
           {temDiaria && (
@@ -1258,9 +1529,9 @@ function ConsumoDialog({
   void clientes; void socios;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-2 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-amber-500/30 bg-slate-900 shadow-2xl shadow-amber-500/10">
+        className="max-h-[95vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-amber-500/30 bg-slate-900 shadow-2xl shadow-amber-500/10">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/50 bg-slate-900/95 p-5 backdrop-blur">
           <div>
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -1271,92 +1542,93 @@ function ConsumoDialog({
           <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="space-y-6 p-5">
-          {/* KPIs */}
-          <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-600/5 p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-4">Total da aeronave no mês</p>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <Stat label="Consumo médio (voo)" value={`${num(avgConsumoVoo, 1)} L/h`} accent="warning" />
-              <Stat label="Consumo médio (total)" value={`${num(avgConsumoTotal, 1)} L/h`} accent="warning" />
-              <Stat label="Voos no período" value={String(porVoo.length)} accent="primary" />
+        <div className="space-y-4 p-5">
+          {/* KPIs + Por cliente em grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* KPIs */}
+            <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-600/5 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-3">Total da aeronave no mês</p>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <Stat label="Consumo médio (voo)" value={`${num(avgConsumoVoo, 1)} L/h`} accent="warning" />
+                <Stat label="Consumo médio (total)" value={`${num(avgConsumoTotal, 1)} L/h`} accent="warning" />
+                <Stat label="Voos no período" value={String(porVoo.length)} accent="primary" />
+              </div>
+              {/* Comparativo histórico vs mês */}
+              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-3 flex items-center gap-2 text-sm">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-500 mb-1">Histórico cadastrado</p>
+                  <p className="text-base font-bold text-slate-300">{num(lhHistorico, 1)} L/h</p>
+                </div>
+                <div className="text-lg text-slate-600">→</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-500 mb-1">Este mês (consumo voo)</p>
+                  <p className="text-base font-bold text-white">{num(avgConsumoVoo, 1)} L/h</p>
+                </div>
+                <div className={`rounded-lg px-2 py-1 text-xs font-bold shrink-0 ${diffPct > 5 ? "bg-red-500/20 text-red-400" : diffPct < -5 ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700/50 text-slate-300"}`}>
+                  {diffPct > 0 ? "+" : ""}{diffPct.toFixed(1)}%
+                </div>
+              </div>
             </div>
-            {/* Comparativo histórico vs mês */}
-            <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-3 flex items-center gap-4">
-              <div className="flex-1">
-                <p className="text-xs text-slate-500 mb-1">Histórico cadastrado</p>
-                <p className="text-lg font-bold text-slate-300">{num(lhHistorico, 1)} L/h</p>
-              </div>
-              <div className="text-2xl text-slate-600">→</div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-500 mb-1">Este mês (consumo voo)</p>
-                <p className="text-lg font-bold text-white">{num(avgConsumoVoo, 1)} L/h</p>
-              </div>
-              <div className={`rounded-lg px-3 py-2 text-sm font-bold ${diffPct > 5 ? "bg-red-500/20 text-red-400" : diffPct < -5 ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700/50 text-slate-300"}`}>
-                {diffPct > 0 ? "+" : ""}{diffPct.toFixed(1)}%
-              </div>
-            </div>
-          </div>
 
-          {/* Por cliente com L/h e barra */}
-          <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Por cliente / cotista</p>
-            {porCliente.size === 0 ? (
-              <p className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4 text-center text-sm text-slate-500">Sem dados.</p>
-            ) : (
-              <div className="space-y-2">
-                {Array.from(porCliente.values()).sort((a, b) => b.consumoVoo - a.consumoVoo).map((r) => {
-                  const avgConsumoVooCliente = r.count > 0 ? r.consumoVoo / r.count : 0;
-                  const avgConsumoTotalCliente = r.count > 0 ? r.consumoTotal / r.count : 0;
-                  const pctVoo = avgConsumoVoo > 0 ? (avgConsumoVooCliente / avgConsumoVoo) * 100 : 0;
-                  return (
-                    <div key={r.label} className="rounded-xl border border-slate-700/40 bg-slate-800/40 p-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="font-semibold text-white text-sm truncate">{r.label}</span>
-                        <span className="font-mono text-xs text-slate-400">{r.count} voo{r.count !== 1 ? 's' : ''}</span>
+            {/* Por cliente com L/h e barra */}
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Por cliente / cotista</p>
+              {porCliente.size === 0 ? (
+                <p className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-500">Sem dados.</p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                  {Array.from(porCliente.values()).sort((a, b) => b.consumoVoo - a.consumoVoo).map((r) => {
+                    const avgConsumoVooCliente = r.count > 0 ? r.consumoVoo / r.count : 0;
+                    const avgConsumoTotalCliente = r.count > 0 ? r.consumoTotal / r.count : 0;
+                    const pctVoo = avgConsumoVoo > 0 ? (avgConsumoVooCliente / avgConsumoVoo) * 100 : 0;
+                    return (
+                      <div key={r.label} className="rounded-xl border border-slate-700/40 bg-slate-800/40 p-2">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-semibold text-white text-xs truncate">{r.label}</span>
+                          <span className="font-mono text-xs text-slate-400">{r.count}v</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                          <span>Voo: <span className={`font-bold font-mono ${avgConsumoVooCliente > lhHistorico * 1.1 ? "text-red-400" : avgConsumoVooCliente < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>{num(avgConsumoVooCliente, 1)}</span></span>
+                          <span>Total: <span className={`font-bold font-mono ${avgConsumoTotalCliente > lhHistorico * 1.1 ? "text-red-400" : avgConsumoTotalCliente < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>{num(avgConsumoTotalCliente, 1)}</span></span>
+                        </div>
+                        <div className="h-1 overflow-hidden rounded-full bg-slate-900">
+                          <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500" style={{ width: `${pctVoo}%` }} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-slate-400 mb-2">
-                        <span>Consumo voo: <span className={`font-bold font-mono ${avgConsumoVooCliente > lhHistorico * 1.1 ? "text-red-400" : avgConsumoVooCliente < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>{num(avgConsumoVooCliente, 1)} L/h</span></span>
-                        <span>Consumo total: <span className={`font-bold font-mono ${avgConsumoTotalCliente > lhHistorico * 1.1 ? "text-red-400" : avgConsumoTotalCliente < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>{num(avgConsumoTotalCliente, 1)} L/h</span></span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-slate-900">
-                        <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500" style={{ width: `${pctVoo}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Por voo */}
           <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Por voo</p>
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Por voo</p>
             {porVoo.length === 0 ? (
-              <p className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4 text-center text-sm text-slate-500">Sem voos no período.</p>
+              <p className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-500">Sem voos no período.</p>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-slate-700/50">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-800/80 text-xs uppercase text-slate-400">
+              <div className="overflow-hidden rounded-xl border border-slate-700/50 max-h-96 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0">
                     <tr>
-                      <th className="px-3 py-2 text-left">Data</th>
-                      <th className="px-3 py-2 text-left">Trecho</th>
-                      <th className="px-3 py-2 text-left">Para</th>
-                      <th className="px-3 py-2 text-right">T. Voo</th>
-                      <th className="px-3 py-2 text-right">L/h (voo)</th>
-                      <th className="px-3 py-2 text-right">L/h (total)</th>
+                      <th className="px-2 py-1.5 text-left">Data</th>
+                      <th className="px-2 py-1.5 text-left">Trecho</th>
+                      <th className="px-2 py-1.5 text-left">Para</th>
+                      <th className="px-2 py-1.5 text-right">L/h (tempo voo)</th>
+                      <th className="px-2 py-1.5 text-right">L/h (tempo total)</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-slate-900 text-slate-300">
+                  <tbody className="bg-slate-900 text-slate-300 text-xs">
                     {porVoo.map(({ l, tv, consumoVoo, consumoTotal }) => (
                       <tr key={l.id} className="border-t border-slate-700/50 hover:bg-slate-800/50">
-                        <td className="px-3 py-2">{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</td>
-                        <td className="px-3 py-2 font-mono text-xs">{l.aerodromo_partida ?? "—"} → {l.aerodromo_chegada ?? "—"}</td>
-                        <td className="px-3 py-2 text-xs text-slate-400">{labelVooPara(l)}</td>
-                        <td className="px-3 py-2 text-right font-mono">{decimalToHHMM(tv)}</td>
-                        <td className={`px-3 py-2 text-right font-mono font-bold ${consumoVoo > lhHistorico * 1.1 ? "text-red-400" : consumoVoo < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>
+                        <td className="px-2 py-1">{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</td>
+                        <td className="px-2 py-1 font-mono text-xs">{l.aerodromo_partida ?? "—"} → {l.aerodromo_chegada ?? "—"}</td>
+                        <td className="px-2 py-1 text-xs truncate">{labelVooPara(l)}</td>
+                        <td className={`px-2 py-1 text-right font-mono font-bold ${consumoVoo > lhHistorico * 1.1 ? "text-red-400" : consumoVoo < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>
                           {consumoVoo > 0 ? num(consumoVoo, 1) : "—"}
                         </td>
-                        <td className={`px-3 py-2 text-right font-mono font-bold ${consumoTotal > lhHistorico * 1.1 ? "text-red-400" : consumoTotal < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>
+                        <td className={`px-2 py-1 text-right font-mono font-bold ${consumoTotal > lhHistorico * 1.1 ? "text-red-400" : consumoTotal < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>
                           {consumoTotal > 0 ? num(consumoTotal, 1) : "—"}
                         </td>
                       </tr>

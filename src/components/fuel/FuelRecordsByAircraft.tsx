@@ -196,7 +196,7 @@ export function FuelRecordsByAircraft({
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
-  const [bankInstitutions, setBankInstitutions] = useState<{id:string;label:string;}[]>([]);
+  const [bankInstitutions, setBankInstitutions] = useState<{id:string;rotulo:string;}[]>([]);
 
   // State para rastrear informações do voo selecionado e do dia anterior
   const [selectedFlightInfo, setSelectedFlightInfo] = useState<any>(null);
@@ -430,14 +430,14 @@ export function FuelRecordsByAircraft({
     try {
       const { data, error } = await (supabase as any)
         .from("instituicoes_bancarias")
-        .select("id, label")
+        .select("id, rotulo")
         .order("ordem", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar instituições bancárias:", error);
         return;
       }
-      setBankInstitutions((data || []) as any as { id: string; label: string }[]);
+      setBankInstitutions((data || []) as any as { id: string; rotulo: string }[]);
     } catch (err) {
       console.error("Erro ao carregar instituições bancárias:", err);
     }
@@ -1723,7 +1723,7 @@ export function FuelRecordsByAircraft({
                     </SelectTrigger>
                     <SelectContent>
                       {bankInstitutions.map(bank => (
-                        <SelectItem key={bank.id} value={bank.label}>{bank.label}</SelectItem>
+                        <SelectItem key={bank.id} value={bank.rotulo}>{bank.rotulo}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

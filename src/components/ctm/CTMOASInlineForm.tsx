@@ -108,7 +108,7 @@ export function CTMOASInlineForm({
     setLoading(true);
     try {
       // 1. Create in service_orders
-      const { data: newOrder, error: orderError } = await (supabase as any).from("ctm_ordens_servico").insert([
+      const { data: newOrder, error: orderError } = await (supabase as any).from("ctm_ordem_acompanhamento_servico").insert([
         {
           aeronave_id: aircraftId,
           numero: formData.numero,

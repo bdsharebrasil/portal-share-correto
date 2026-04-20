@@ -47,9 +47,9 @@ export function GestorDashboard() {
 
       // Buscar orçamentos OAS aguardando aprovação
       const { data: budgetsData } = await (supabase as any)
-        .from("oas_orcamentos")
-        .select('*, service_order:ctm_ordens_servico(numero, aircraft:aeronave(matricula))')
-        .eq("status", "pendente_aprovacao")
+        .from("ctm_orcamentos")
+        .select('*, service_order:ctm_ordem_acompanhamento_servico(numero, aircraft:aeronave(matricula))')
+        .eq("status", "submitted")
         .order("submitted_at", { ascending: false });
 
       // Buscar orçamentos CTM (ctm_budgets) pendentes de aprovação
@@ -61,7 +61,7 @@ export function GestorDashboard() {
 
       // Buscar ordens de serviço CTM pendentes de aprovação
       const { data: ctmOrdersData } = await (supabase as any)
-        .from("ctm_ordens_servico")
+        .from("ctm_ordem_acompanhamento_servico")
         .select('*, aeronave(matricula)')
         .eq("approval_status", "pending_approval")
         .order("submitted_for_approval_at", { ascending: false });
