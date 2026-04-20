@@ -29,10 +29,10 @@ function DiarioBordo() {
   const [loading, setLoading] = useState(true);
   const ano = new Date().getFullYear();
 
-  // Determina a cor baseado em horas para próxima revisão
-  const getProxRevColor = (horas: number) => {
-    if (horas > 15) return { textClass: "text-cyan-400", barClass: "bg-gradient-to-r from-cyan-500 to-blue-500" };
-    if (horas >= 10) return { textClass: "text-amber-400", barClass: "bg-gradient-to-r from-amber-500 to-yellow-500" };
+  // Determina a cor baseado em horas RESTANTES para próxima revisão
+  const getProxRevColor = (horasRestantes: number) => {
+    if (horasRestantes > 15) return { textClass: "text-cyan-400", barClass: "bg-gradient-to-r from-cyan-500 to-blue-500" };
+    if (horasRestantes >= 10) return { textClass: "text-amber-400", barClass: "bg-gradient-to-r from-amber-500 to-yellow-500" };
     return { textClass: "text-red-400", barClass: "bg-gradient-to-r from-red-500 to-orange-500" };
   };
 
@@ -144,6 +144,7 @@ function DiarioBordo() {
                   const r = resumos[a.id];
                   const horas = r?.horas_total ?? 0;
                   const prox = r?.prox_revisao ?? 0;
+                  const horasRestantes = prox - horas;
                   const pct = prox > 0 ? Math.min(100, (horas / prox) * 100) : 0;
                   const ativa = (a.status ?? "").toLowerCase().startsWith("ativ");
 
@@ -177,11 +178,10 @@ function DiarioBordo() {
                                 </p>
                               </div>
                             </div>
-                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                              ativa
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ativa
                                 ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-400"
                                 : "border-slate-600 bg-slate-800 text-slate-400"
-                            }`}>
+                              }`}>
                               {ativa ? "Ativa" : (a.status ?? "Inativa")}
                             </span>
                           </div>
@@ -201,7 +201,7 @@ function DiarioBordo() {
                                 <div className="mb-1 flex items-center gap-2">
                                   <Gauge className="h-3.5 w-3.5 text-slate-400" />
                                   <span className="text-xs text-slate-400">
-                                    Horímetro
+                                    Célula Atual
                                   </span>
                                 </div>
                                 <p className="font-bold text-white">{num(horas, 1)}h</p>
@@ -211,7 +211,7 @@ function DiarioBordo() {
 
                           {/* Progress bar próxima revisão */}
                           {prox > 0 && (() => {
-                            const colors = getProxRevColor(prox);
+                            const colors = getProxRevColor(horasRestantes);
                             return (
                               <div className="mb-4">
                                 <div className="mb-1.5 flex items-center justify-between">
@@ -219,7 +219,7 @@ function DiarioBordo() {
                                     <Activity className={`h-3 w-3 ${colors.textClass}`} /> Próxima revisão
                                   </span>
                                   <span className={`text-xs font-medium ${colors.textClass}`}>
-                                    {num(prox, 0)}h
+                                    {num(horasRestantes, 0)}h restantes
                                   </span>
                                 </div>
                                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">

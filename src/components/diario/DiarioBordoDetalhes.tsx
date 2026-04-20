@@ -73,6 +73,8 @@ type Lanc = {
   confirmado: boolean | null;
   confirmado_por: string | null;
   confirmado_em: string | null;
+  assinado_por: string | null;
+  data_assinatura_piloto: string | null;
   trecho: string | null;
 };
 type Tripulante = { id: string; nome_completo: string | null; canac: string | null; status: string | null };
@@ -138,6 +140,13 @@ function DiarioBordoDetalhes() {
   const [editHorFim, setEditHorFim] = useState(false);
   const [editHorAtv, setEditHorAtv] = useState(false);
 
+  // Dialog de confirmação para editar lançamento
+  const [editConfirmDialog, setEditConfirmDialog] = useState<{ open: boolean; lanc: Lanc | null }>({ open: false, lanc: null });
+
+  // Usuário atual (para assinatura de PIC)
+  const [usuarioAtual, setUsuarioAtual] = useState<{ id: string; email: string; nome?: string } | null>(null);
+  const [tripulacaoUsuario, setTripulacaoUsuario] = useState<Tripulante | null>(null);
+
   // Table controls
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -179,6 +188,21 @@ function DiarioBordoDetalhes() {
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
+
+    // Carregar dados do usuário atual
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setUsuarioAtual({ id: user.id, email: user.email || "" });
+
+      // Buscar o tripulante associado ao usuário (usando email como match)
+      const tripulantes = (tRes.data ?? []) as Tripulante[];
+      const tripulacaoAtual = tripulantes.find(t =>
+        t.nome_completo?.toLowerCase().includes(user.email?.split("@")[0] || "") ||
+        t.canac === user.id?.slice(0, 8)
+      );
+      setTripulacaoUsuario(tripulacaoAtual || null);
+    }
+
     setLoading(false);
   };
 
@@ -350,7 +374,50 @@ function DiarioBordoDetalhes() {
     const { error } = await supabase.from("lancamentos_diario_bordo")
       .update({ confirmado: true, confirmado_por: usuarioNome, confirmado_em: new Date().toISOString() })
       .eq("id", l.id);
-    if (!error) await reload();
+    if (error) {
+      toast.error("Erro ao confirmar lançamento");
+    } else {
+      toast.success("Lançamento confirmado");
+      await reload();
+    }
+  };
+
+  const handleAssinarPic = async (l: Lanc) => {
+    // Verifica se o usuário é o PIC do lançamento
+    if (l.pic_canac !== tripulacaoUsuario?.canac) {
+      toast.error("Apenas o PIC deste lançamento pode assinar");
+      return;
+    }
+
+    const { error } = await supabase.from("lancamentos_diario_bordo")
+      .update({
+        assinado_por: usuarioAtual?.id,
+        data_assinatura_piloto: new Date().toISOString()
+      })
+      .eq("id", l.id);
+
+    if (error) {
+      toast.error("Erro ao assinar lançamento como PIC");
+    } else {
+      toast.success("Lançamento assinado como PIC");
+      await reload();
+    }
+  };
+
+  const handleClickEditNumber = (l: Lanc) => {
+    // Abre dialog de confirmação para editar
+    if (l.confirmado && !canEditConfirmed) {
+      toast.error("Este lançamento está confirmado e não pode ser editado");
+      return;
+    }
+    setEditConfirmDialog({ open: true, lanc: l });
+  };
+
+  const confirmEdit = () => {
+    if (editConfirmDialog.lanc) {
+      setEditingLanc(editConfirmDialog.lanc);
+    }
+    setEditConfirmDialog({ open: false, lanc: null });
   };
 
   const temDiaria = diarioMes?.tem_tarifa_diaria === true;
@@ -668,16 +735,23 @@ function DiarioBordoDetalhes() {
             {/* Linha 1: Dados da Aeronave e Período */}
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {/* Card Dados da Aeronave */}
-              <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
-                <p className="mb-4 text-xs font-medium uppercase tracking-wider text-slate-400">Dados da Aeronave</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <Stat icon={<Plane className="w-3 h-3" />} label="Matrícula" value={aeronave?.matricula ?? "—"} />
-                  <Stat icon={<Gauge className="w-3 h-3" />} label="Modelo" value={aeronave?.modelo ?? "—"} />
+              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl p-6 hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                <div className="relative flex items-center gap-2 mb-5">
+                  <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
+                    <Plane className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Dados da Aeronave</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                  <Stat icon={<Plane className="w-4 h-4" />} label="Matrícula" value={aeronave?.matricula ?? "—"} />
+                  <Stat icon={<Gauge className="w-4 h-4" />} label="Modelo" value={aeronave?.modelo ?? "—"} />
                   <Stat label="Ano" value={aeronave?.ano ?? "—"} />
                   <Stat label="Base" value={aeronave?.base ?? "—"} />
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                  <div className="hidden" />
+                  <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-slate-500 text-xs">Célula Anterior</span>
+                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Célula Anterior</span>
                       {editCelulaAnt && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
                     {editCelulaAnt ? (
@@ -714,10 +788,10 @@ function DiarioBordoDetalhes() {
                       </div>
                     )}
                   </div>
-                  <div className={`rounded-xl p-3 border transition-colors ${
+                  <div className={`rounded-lg p-3.5 border transition-all duration-200 group/cell backdrop-blur-sm ${
                     selectedLancId
-                      ? "bg-cyan-900/20 border-cyan-500/40 hover:border-cyan-500/60"
-                      : "bg-slate-800/80 border-slate-700/40 hover:border-slate-600"
+                      ? "bg-cyan-900/30 border-cyan-500/50 hover:border-cyan-500/70 hover:bg-cyan-900/40"
+                      : "bg-slate-800/40 border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50"
                   }`}>
                     <div className="flex items-center justify-between gap-1.5 mb-1">
                       <span className={`text-xs ${selectedLancId ? "text-cyan-400" : "text-slate-500"}`}>
@@ -776,9 +850,9 @@ function DiarioBordoDetalhes() {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                  <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-slate-500 text-xs">Próxima Revisão</span>
+                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Próxima Revisão</span>
                       {editProxRev && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
                     {editProxRev ? (
@@ -815,13 +889,13 @@ function DiarioBordoDetalhes() {
                       </div>
                     )}
                   </div>
-                  <div className="bg-slate-800/80 border border-emerald-700/40 hover:border-emerald-600 rounded-xl p-3 transition-colors">
+                  <div className="bg-emerald-900/20 backdrop-blur-sm border border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-900/30 rounded-lg p-3.5 transition-all duration-200 group/cell">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-xs text-emerald-500">
+                      <span className="text-xs font-medium text-emerald-400 group-hover/cell:text-emerald-300 transition-colors">
                         Disponível
                       </span>
                     </div>
-                    <p className="font-semibold text-sm text-emerald-400">
+                    <p className="font-bold text-sm text-emerald-300">
                       {num(modoCelula === "tvoo"
                         ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_tvoo ?? 0))
                         : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
@@ -831,35 +905,40 @@ function DiarioBordoDetalhes() {
               </div>
 
               {/* Card Período */}
-              <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Período</p>
+              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[62px] pb-[62px] pl-[17px] pr-[17px] mt-[38px] mb-[38px] ml-[-13px] mr-[-13px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                <div className="relative flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
+                      <Calendar className="w-4 h-4 text-cyan-400" />
+                    </div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Período</p>
+                  </div>
                   <div className="flex gap-2 flex-col items-end">
                     <div className="flex gap-2">
                       <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
                         {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
                       </select>
                       <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
-                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
                         {Array.from({ length: 6 }).map((_, i) => {
                           const y = today.getFullYear() - i;
                           return <option key={y} value={y}>{y}</option>;
                         })}
                       </select>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">clique para mudar</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 text-left">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Clock className="w-3 h-3 text-cyan-400" />
-                      <span className="text-slate-500 text-xs">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
+                      <Clock className="w-4 h-4 text-cyan-400" />
+                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
                     </div>
-                    <p className="text-cyan-400 font-semibold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
+                    <p className="text-cyan-300 font-bold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
                   </div>
-                  <Stat icon={<PlaneLanding className="w-3 h-3" />} label="Pousos" value={String(totals.pousos)} accent="success" />
+                  <Stat icon={<PlaneLanding className="w-4 h-4" />} label="Pousos" value={String(totals.pousos)} accent="success" />
                   <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
                 </div>
               </div>
@@ -982,7 +1061,7 @@ function DiarioBordoDetalhes() {
               {/* Card Consumo */}
               <button
                 onClick={() => setShowConsumo(true)}
-                className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-5 text-left transition-all hover:shadow-lg hover:shadow-amber-500/20">
+                className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl pt-[2px] pb-[2px] pl-[44px] pr-[44px] mt-[17px] mb-[17px] ml-[29px] mr-[29px] text-left transition-all hover:shadow-lg hover:shadow-amber-500/20">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-amber-400 group-hover:text-amber-300">Consumo · clique para detalhes</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1089,7 +1168,8 @@ function DiarioBordoDetalhes() {
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["voopara"] ?? 120 }}>VOO PARA<ResizeHandle col="voopara" /></th>
                       {temDiaria && <th className="px-3 py-2 text-left text-violet-400 relative" style={{ width: colWidths["diarias"] ?? 70 }}>DIÁRIAS<ResizeHandle col="diarias" /></th>}
                       <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confPor"] ?? 160 }}>CONFIRMADO POR<ResizeHandle col="confPor" /></th>
-                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["acao"] ?? 70 }}>AÇÕES<ResizeHandle col="acao" /></th>
+                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confirmar"] ?? 100 }}>CONFIRMAR<ResizeHandle col="confirmar" /></th>
+                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["assinar"] ?? 120 }}>ASSINATURA PIC<ResizeHandle col="assinar" /></th>
                     </tr>
                   </thead>
                   <tbody className="text-slate-300">
@@ -1109,7 +1189,14 @@ function DiarioBordoDetalhes() {
                             "hover:bg-slate-800/60",
                             isConfirmado ? "opacity-80" : "",
                           ].join(" ")}>
-                          <Td className="text-center font-mono text-xs text-slate-500">{idx + 1}</Td>
+                          <Td className="text-center">
+                            <button
+                              onClick={() => handleClickEditNumber(l)}
+                              className="text-xs font-mono text-cyan-400 hover:text-cyan-300 hover:font-semibold transition-colors underline"
+                              title="Clique para editar este lançamento">
+                              {idx + 1}
+                            </button>
+                          </Td>
                           <Td>{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</Td>
                           <Td className="font-mono">{l.aerodromo_partida ?? "—"}</Td>
                           <Td className="font-mono">{l.aerodromo_chegada ?? "—"}</Td>
