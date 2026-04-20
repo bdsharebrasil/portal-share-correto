@@ -121,6 +121,9 @@ function DiarioBordoDetalhes() {
   // Filtro cotista
   const [cotistaFiltro, setCotistaFiltro] = useState<string | null>(null);
 
+  // Célula selecionada de lançamento
+  const [selectedLancId, setSelectedLancId] = useState<string | null>(null);
+
   // Inline edit do diario_mes
   const [editCelulaAnt, setEditCelulaAnt] = useState(false);
   const [editCelulaAtual, setEditCelulaAtual] = useState(false);
@@ -525,12 +528,26 @@ function DiarioBordoDetalhes() {
                       </button>
                     )}
                   </div>
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                  <div className={`rounded-xl p-3 border transition-colors ${
+                    selectedLancId
+                      ? "bg-cyan-900/20 border-cyan-500/40 hover:border-cyan-500/60"
+                      : "bg-slate-800/80 border-slate-700/40 hover:border-slate-600"
+                  }`}>
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-slate-500 text-xs">Célula Atual</span>
+                      <span className={`text-xs ${selectedLancId ? "text-cyan-400" : "text-slate-500"}`}>
+                        Célula Atual {selectedLancId && "· Do Voo"}
+                      </span>
                       {editCelulaAtual && <span className="text-xs text-cyan-400">✎</span>}
+                      {selectedLancId && (
+                        <button
+                          onClick={() => setSelectedLancId(null)}
+                          className="text-xs text-cyan-400 hover:text-cyan-300 underline"
+                          title="Limpar seleção">
+                          Limpar
+                        </button>
+                      )}
                     </div>
-                    {editCelulaAtual ? (
+                    {editCelulaAtual && !selectedLancId ? (
                       <div className="flex gap-2 items-center">
                         <input
                           type="number"
@@ -558,15 +575,43 @@ function DiarioBordoDetalhes() {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              onClick={() => setEditCelulaAtual(true)}
-                              className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
-                              {num(modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0), 1)}h
+                              onClick={() => !selectedLancId && setEditCelulaAtual(true)}
+                              className={`font-semibold text-sm transition-colors text-left ${
+                                selectedLancId
+                                  ? "text-cyan-400 cursor-default"
+                                  : "text-white hover:text-cyan-400"
+                              }`}>
+                              {selectedLancId
+                                ? (() => {
+                                    const lancSel = lancamentos.find((x) => x.id === selectedLancId);
+                                    if (!lancSel) return "—";
+                                    const val =
+                                      modoCelula === "tvoo"
+                                        ? lancSel.celula_tvoo
+                                        : lancSel.celula;
+                                    return `${num(val ?? 0, 1)}h`;
+                                  })()
+                                : num(modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0), 1) + "h"}
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
                             <div className="space-y-1 text-xs">
-                              <p><span className="text-cyan-400">T. Voo:</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
-                              <p><span className="text-cyan-400">Tempo Total:</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
+                              {selectedLancId ? (
+                                (() => {
+                                  const lancSel = lancamentos.find((x) => x.id === selectedLancId);
+                                  return (
+                                    <>
+                                      <p><span className="text-cyan-400">Célula (T.Voo):</span> {num(lancSel?.celula_tvoo ?? 0, 1)}h</p>
+                                      <p><span className="text-cyan-400">Célula (Total):</span> {num(lancSel?.celula ?? 0, 1)}h</p>
+                                    </>
+                                  );
+                                })()
+                              ) : (
+                                <>
+                                  <p><span className="text-cyan-400">T. Voo:</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
+                                  <p><span className="text-cyan-400">Tempo Total:</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
+                                </>
+                              )}
                             </div>
                           </TooltipContent>
                         </Tooltip>
@@ -607,24 +652,61 @@ function DiarioBordoDetalhes() {
                       </button>
                     )}
                   </div>
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-emerald-700/40 hover:border-emerald-600 transition-colors">
+                  <div className={`rounded-xl p-3 border transition-colors ${
+                    selectedLancId
+                      ? "bg-emerald-900/20 border-emerald-500/40 hover:border-emerald-500/60"
+                      : "bg-slate-800/80 border-emerald-700/40 hover:border-emerald-600"
+                  }`}>
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-emerald-500 text-xs">Disponível</span>
+                      <span className={`text-xs ${selectedLancId ? "text-emerald-400" : "text-emerald-500"}`}>
+                        Disponível {selectedLancId && "· Baseado no Voo"}
+                      </span>
                     </div>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <p className="text-emerald-400 font-semibold text-sm cursor-help">
-                            {num(modoCelula === "tvoo"
-                              ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
-                              : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1)}h
+                          <p className={`font-semibold text-sm cursor-help ${selectedLancId ? "text-emerald-300" : "text-emerald-400"}`}>
+                            {selectedLancId
+                              ? (() => {
+                                  const lancSel = lancamentos.find((x) => x.id === selectedLancId);
+                                  if (!lancSel) return "—";
+                                  const celAtual =
+                                    modoCelula === "tvoo"
+                                      ? lancSel.celula_tvoo ?? 0
+                                      : lancSel.celula ?? 0;
+                                  const disponivel = celAtual - (diarioMes?.celula_prox_revisao_ttotal ?? 0);
+                                  return num(disponivel, 1) + "h";
+                                })()
+                              : num(modoCelula === "tvoo"
+                                  ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
+                                  : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
                           </p>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
                           <div className="space-y-1 text-xs">
-                            <p><span className="text-cyan-400">Célula Atual (T. Voo):</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
-                            <p><span className="text-cyan-400">Célula Atual (Total):</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
-                            <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
+                            {selectedLancId ? (
+                              (() => {
+                                const lancSel = lancamentos.find((x) => x.id === selectedLancId);
+                                const celAtual =
+                                  modoCelula === "tvoo"
+                                    ? lancSel?.celula_tvoo ?? 0
+                                    : lancSel?.celula ?? 0;
+                                const disponivel = celAtual - (diarioMes?.celula_prox_revisao_ttotal ?? 0);
+                                return (
+                                  <>
+                                    <p><span className="text-cyan-400">Célula do Voo:</span> {num(celAtual, 1)}h</p>
+                                    <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
+                                    <p className="text-emerald-400 border-t border-slate-600 pt-1 mt-1"><span>Disponível:</span> {num(disponivel, 1)}h</p>
+                                  </>
+                                );
+                              })()
+                            ) : (
+                              <>
+                                <p><span className="text-cyan-400">Célula Atual (T. Voo):</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
+                                <p><span className="text-cyan-400">Célula Atual (Total):</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
+                                <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
+                              </>
+                            )}
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -950,7 +1032,18 @@ function DiarioBordoDetalhes() {
                             })()}
                           </Td>
                           <Td className="text-amber-400">{num(l.litros_combustivel_inicio_voo, 0)}</Td>
-                          <Td className="font-mono">{num(l.celula, 1)}</Td>
+                          <Td>
+                            <button
+                              onClick={() => setSelectedLancId(selectedLancId === l.id ? null : l.id)}
+                              className={`font-mono font-semibold transition-colors px-2 py-1 rounded ${
+                                selectedLancId === l.id
+                                  ? "text-cyan-400 bg-cyan-500/15 border border-cyan-500/40"
+                                  : "text-white hover:text-cyan-400 hover:bg-cyan-500/10"
+                              }`}
+                              title="Clique para carregar os dados desta célula">
+                              {num(l.celula, 1)}h
+                            </button>
+                          </Td>
                           <Td className="text-xs truncate">{picT?.nome_completo ?? l.pic_canac ?? "—"}</Td>
                           <Td className="text-xs truncate">{sicT?.nome_completo ?? l.sic_name ?? l.sic_canac ?? "—"}</Td>
                           <Td className="text-xs font-medium text-white truncate">{labelVooPara(l)}</Td>
