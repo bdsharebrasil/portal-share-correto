@@ -752,6 +752,7 @@ function DiarioBordoDetalhes() {
                     fieldName={modoCelula === "tvoo" ? "celula_anterior_tvoo" : "celula_anterior_ttotal"}
                     onSave={saveDiarioMesField}
                     unit="h"
+                    hint="clique para editar"
                   />
                   {/* Célula Atual */}
                   <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
@@ -782,6 +783,7 @@ function DiarioBordoDetalhes() {
                     fieldName={modoCelula === "tvoo" ? "celula_prox_revisao_tvoo" : "celula_prox_revisao_ttotal"}
                     onSave={saveDiarioMesField}
                     unit="h"
+                    hint="clique para editar"
                   />
                   {/* Disponível – sempre mostra o valor calculado (pode ser negativo) */}
                   <div className={`rounded-lg p-2.5 border ${celulaDisponivel < 0 ? 'bg-red-900/20 border-red-500/20' : 'bg-emerald-900/20 border-emerald-500/20'}`}>
@@ -801,9 +803,9 @@ function DiarioBordoDetalhes() {
                   <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">Horímetro</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <EditableCell label="Inicial" value={diarioMes?.horimetro_inicio ?? 0} fieldName="horimetro_inicio" onSave={saveDiarioMesField} unit="h" accentColor="amber" />
-                  <EditableCell label="Final" value={diarioMes?.horimetro_final ?? 0} fieldName="horimetro_final" onSave={saveDiarioMesField} unit="h" accentColor="amber" />
-                  <EditableCell label="Ativo" value={diarioMes?.horimetro_ativo ?? 0} fieldName="horimetro_ativo" onSave={saveDiarioMesField} unit="h" accentColor="amber" />
+                  <EditableCell label="Inicial" value={diarioMes?.horimetro_inicio ?? 0} fieldName="horimetro_inicio" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" />
+                  <EditableCell label="Final" value={diarioMes?.horimetro_final ?? 0} fieldName="horimetro_final" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" />
+                  <EditableCell label="Ativo" value={diarioMes?.horimetro_ativo ?? 0} fieldName="horimetro_ativo" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" />
                 </div>
               </div>
 
@@ -1214,16 +1216,17 @@ function MiniStat({ label, value }: { label: string; value: any }) {
 }
 
 /* ─── EditableCell ──────────────────────────────────────────────────────────── */
-function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor = "cyan" }: {
+function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor = "cyan", hint }: {
   label: string; value: number; fieldName: string;
   onSave: (field: string, val: number) => void;
-  unit?: string; accentColor?: "cyan" | "amber";
+  unit?: string; accentColor?: "cyan" | "amber"; hint?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const accent = accentColor === "amber" ? "text-amber-400" : "text-cyan-400";
   return (
     <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
       <p className="text-[10px] text-slate-500 mb-1">{label}</p>
+      {hint && <p className="text-[9px] text-slate-600 mb-1.5">{hint}</p>}
       {editing ? (
         <input
           type="number" step="0.1" autoFocus
