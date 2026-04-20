@@ -905,8 +905,6 @@ function NovoVooDialog({
   const [socioTomadorId, setSocioTomadorId] = useState<string>("");
   const [obs, setObs] = useState("");
   const [emprestimo, setEmprestimo] = useState(false);
-  const [noturno, setNoturno] = useState("00:00");
-  const [ifr, setIfr] = useState("00:00");
   const [qtdDiarias, setQtdDiarias] = useState(0);
   const [saving, setSaving] = useState(false);
 
