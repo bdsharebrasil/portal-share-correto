@@ -138,7 +138,6 @@ function DiarioBordoDetalhes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [modoTabela, setModoTabela] = useState<"completo" | "resumo">("completo");
-  const [showCelulaTvoo, setShowCelulaTvoo] = useState<boolean>(false);
 
   // Column widths (resizable)
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
@@ -675,61 +674,26 @@ function DiarioBordoDetalhes() {
                       </div>
                     )}
                   </div>
-                  <div className={`rounded-xl p-3 border transition-colors ${
-                    selectedLancId
-                      ? "bg-emerald-900/20 border-emerald-500/40 hover:border-emerald-500/60"
-                      : "bg-slate-800/80 border-emerald-700/40 hover:border-emerald-600"
-                  }`}>
+                  <div className="bg-slate-800/80 border border-emerald-700/40 hover:border-emerald-600 rounded-xl p-3 transition-colors">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className={`text-xs ${selectedLancId ? "text-emerald-400" : "text-emerald-500"}`}>
-                        Disponível {selectedLancId && "· Baseado no Voo"}
+                      <span className="text-xs text-emerald-500">
+                        Disponível
                       </span>
                     </div>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <p className={`font-semibold text-sm cursor-help ${selectedLancId ? "text-emerald-300" : "text-emerald-400"}`}>
-                            {selectedLancId
-                              ? (() => {
-                                  const lancSel = lancamentos.find((x) => x.id === selectedLancId);
-                                  if (!lancSel) return "—";
-                                  const celAtual =
-                                    modoCelula === "tvoo"
-                                      ? lancSel.celula_tvoo ?? 0
-                                      : lancSel.celula ?? 0;
-                                  const disponivel = celAtual - (diarioMes?.celula_prox_revisao_ttotal ?? 0);
-                                  return num(disponivel, 1) + "h";
-                                })()
-                              : num(modoCelula === "tvoo"
-                                  ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
-                                  : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
+                          <p className="font-semibold text-sm cursor-help text-emerald-400">
+                            {num(modoCelula === "tvoo"
+                              ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
+                              : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
                           </p>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
                           <div className="space-y-1 text-xs">
-                            {selectedLancId ? (
-                              (() => {
-                                const lancSel = lancamentos.find((x) => x.id === selectedLancId);
-                                const celAtual =
-                                  modoCelula === "tvoo"
-                                    ? lancSel?.celula_tvoo ?? 0
-                                    : lancSel?.celula ?? 0;
-                                const disponivel = celAtual - (diarioMes?.celula_prox_revisao_ttotal ?? 0);
-                                return (
-                                  <>
-                                    <p><span className="text-cyan-400">Célula do Voo:</span> {num(celAtual, 1)}h</p>
-                                    <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
-                                    <p className="text-emerald-400 border-t border-slate-600 pt-1 mt-1"><span>Disponível:</span> {num(disponivel, 1)}h</p>
-                                  </>
-                                );
-                              })()
-                            ) : (
-                              <>
-                                <p><span className="text-cyan-400">Célula Atual (T. Voo):</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
-                                <p><span className="text-cyan-400">Célula Atual (Total):</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
-                                <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
-                              </>
-                            )}
+                            <p><span className="text-cyan-400">Célula Atual (T. Voo):</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
+                            <p><span className="text-cyan-400">Célula Atual (Total):</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
+                            <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -988,15 +952,8 @@ function DiarioBordoDetalhes() {
                       <th className="px-3 py-2 text-center text-emerald-400 relative" style={{ width: colWidths["pousos"] ?? 60 }}>POUSOS<ResizeHandle col="pousos" /></th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["abast"] ?? 65, color: "rgb(205, 132, 10)" }}>ABAST+<ResizeHandle col="abast" /></th>
                       <th className="px-3 py-2 text-left text-amber-400 relative" style={{ width: colWidths["fuel"] ?? 55 }}>FUEL<ResizeHandle col="fuel" /></th>
-                      <th className="px-3 py-2 text-left relative" style={{ width: colWidths["celula"] ?? 70 }}>
-                        <button
-                          onClick={() => setShowCelulaTvoo(!showCelulaTvoo)}
-                          className={`font-semibold transition-colors py-1 px-2 rounded hover:opacity-80 ${
-                            showCelulaTvoo ? "text-blue-400" : "text-slate-400"
-                          }`}
-                          title={`Clique para alternar entre Célula ${showCelulaTvoo ? "Total" : "T.Voo"}`}>
-                          CÉLULA {showCelulaTvoo && "(T.Voo)"}
-                        </button>
+                      <th className="px-3 py-2 text-left text-slate-400 font-semibold relative" style={{ width: colWidths["celula"] ?? 70 }}>
+                        CÉLULA
                         <ResizeHandle col="celula" />
                       </th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["pic"] ?? 110 }}>PIC<ResizeHandle col="pic" /></th>
@@ -1076,7 +1033,7 @@ function DiarioBordoDetalhes() {
                           </Td>
                           <Td className="text-amber-400">{num(l.litros_combustivel_inicio_voo, 0)}</Td>
                           <Td className="font-mono text-white">
-                            {showCelulaTvoo ? num(l.celula_tvoo ?? 0, 1) : num(l.celula ?? 0, 1)}h
+                            {modoCelula === "tvoo" ? num(l.celula_tvoo ?? 0, 1) : num(l.celula ?? 0, 1)}h
                           </Td>
                           <Td className="text-xs truncate">{picT?.nome_completo ?? l.pic_canac ?? "—"}</Td>
                           <Td className="text-xs truncate">{sicT?.nome_completo ?? l.sic_name ?? l.sic_canac ?? "—"}</Td>
