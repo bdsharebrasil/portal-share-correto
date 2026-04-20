@@ -81,6 +81,17 @@
     --folder-tab: 35 90% 55%;
     --folder-front: 25 85% 50%;
 
+      /* Maintenance Alert Colors - Diario de Bordo */
+        --alert-cyan: 192 70% 50%;
+        --alert-cyan-bg: 192 70% 50% / 0.15;
+        --alert-cyan-border: 192 70% 50% / 0.4;
+        --alert-yellow: 45 100% 55%;
+        --alert-yellow-bg: 45 100% 55% / 0.15;
+        --alert-yellow-border: 45 100% 55% / 0.4;
+        --alert-red: 0 75% 60%;
+        --alert-red-bg: 0 75% 60% / 0.15;
+        --alert-red-border: 0 75% 60% / 0.4;
+
     /* Aviation / Financeiro Theme Colors */
     --aviation-blue: 217 91% 42%;
     --aviation-blue-light: 217 91% 60%;

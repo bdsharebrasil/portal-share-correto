@@ -5,11 +5,14 @@ import {
   ArrowLeft, Plane, Plus, Calendar, Gauge, Clock, Moon, BookOpenCheck, Cloud,
   Fuel, Users, X, Save, Droplets, Wrench, CloudLightning, PlaneLanding,
   Pencil, Trash2, Activity, ArrowUpDown, ArrowUp, ArrowDown, Search, CheckCircle2,
-  Eye, EyeOff, ChevronRight, AlertTriangle, Lock, LayoutList, Map as MapIcon, CalendarIcon
+  Eye, EyeOff, ChevronRight, AlertTriangle, Lock, LayoutList, Map as MapIcon, CalendarIcon,
+  FileText
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { num } from "@/lib/formatters";
+import { ExportDiarioModal } from "./ExportDiarioModal";
+import { exportDiarioBordoPDF } from "@/utils/exportDiarioBordoPDF";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import {
   decimalToHHMM, diffDecimalHours, hhmmToMinutes, minutesToHHMM,
@@ -118,6 +121,9 @@ function DiarioBordoDetalhes() {
   const [showCreateMonth, setShowCreateMonth] = useState(false);
   const [previousMonthForCreation, setPreviousMonthForCreation] = useState<DiarioMesRow | null>(null);
   const [editingLanc, setEditingLanc] = useState<Lanc | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [availableMeses, setAvailableMeses] = useState<Array<{ mes: number; ano: number }>>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Filtro cotista
   const [cotistaFiltro, setCotistaFiltro] = useState<string | null>(null);
