@@ -1318,7 +1318,8 @@ function DiarioBordoDetalhes() {
                           TOTAIS DO PERÍODO
                         </td>
                         <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(totals.tVoo)}</td>
-                        <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(totals.tDia)}</td>
+                        <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(totals.tTotal)}</td>
+
                         <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(totals.tNoit)}</td>
                         <td className="px-3 py-3 font-mono font-bold text-amber-400 text-sm">{decimalToHHMM(totals.ifr)}</td>
                         <td className="px-3 py-3 text-center font-bold text-emerald-400 text-sm">{totals.pousos}</td>
