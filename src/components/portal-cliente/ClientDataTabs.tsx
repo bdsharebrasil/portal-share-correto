@@ -20,6 +20,7 @@ export interface ClientDataTabsProps {
   aircraftRegistration: string;
   isAdmin?: boolean;
   selectedPartner?: any;
+  selectedAbastecimentoId?: string;
 }
 
 interface TravelReportReconciliation {
@@ -35,7 +36,7 @@ interface TravelReportReconciliation {
   pdf_url?: string | null;
 }
 
-export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false, selectedPartner }: ClientDataTabsProps) {
+export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false, selectedPartner, selectedAbastecimentoId }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [fuelPaymentDialogOpen, setFuelPaymentDialogOpen] = useState(false);
@@ -51,10 +52,18 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
   const [partners, setPartners] = useState<any[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId);
   const [fornecedoresShare, setFornecedoresShare] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<string>(selectedAbastecimentoId ? 'fuel' : 'financeiro');
 
   useEffect(() => {
     setActiveClientId(clientId);
   }, [clientId]);
+
+  // Mudar para aba de abastecimentos se selectedAbastecimentoId for definido
+  useEffect(() => {
+    if (selectedAbastecimentoId) {
+      setActiveTab('fuel');
+    }
+  }, [selectedAbastecimentoId]);
 
   useEffect(() => {
     const loadPartners = async () => {
@@ -412,7 +421,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
   return (
     <>
-      <Tabs defaultValue="financeiro" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
@@ -739,7 +748,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                     ) : (
                       <div className="space-y-2">
                         {fuelRecords.map((record) => (
-                          <div key={record.id} className="p-4 bg-muted/50 rounded-lg border border-border">
+                          <div key={record.id} className={`p-4 rounded-lg border ${selectedAbastecimentoId === record.id ? 'bg-blue-500/20 border-blue-500 border-l-4 border-l-blue-500' : 'bg-muted/50 border-border'}`}>
                             <div className="flex justify-between items-start mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
