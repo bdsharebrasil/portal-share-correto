@@ -519,14 +519,16 @@ function DiarioBordoDetalhes() {
                         <input
                           type="number"
                           step="0.1"
-                          defaultValue={diarioMes?.celula_anterior_ttotal ?? 0}
+                          defaultValue={modoCelula === "tvoo" ? (diarioMes?.celula_anterior_tvoo ?? 0) : (diarioMes?.celula_anterior_ttotal ?? 0)}
                           onBlur={(e) => {
-                            saveDiarioMesField("celula_anterior_ttotal", parseFloat(e.target.value));
+                            const fieldName = modoCelula === "tvoo" ? "celula_anterior_tvoo" : "celula_anterior_ttotal";
+                            saveDiarioMesField(fieldName, parseFloat(e.target.value));
                             setEditCelulaAnt(false);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                              saveDiarioMesField("celula_anterior_ttotal", parseFloat(e.currentTarget.value));
+                              const fieldName = modoCelula === "tvoo" ? "celula_anterior_tvoo" : "celula_anterior_ttotal";
+                              saveDiarioMesField(fieldName, parseFloat(e.currentTarget.value));
                               setEditCelulaAnt(false);
                             }
                             if (e.key === "Escape") setEditCelulaAnt(false);
@@ -540,7 +542,7 @@ function DiarioBordoDetalhes() {
                         <button
                           onClick={() => setEditCelulaAnt(true)}
                           className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
-                          {num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h
+                          {num(modoCelula === "tvoo" ? (diarioMes?.celula_anterior_tvoo ?? 0) : (diarioMes?.celula_anterior_ttotal ?? 0), 1)}h
                         </button>
                         <p className="text-xs text-slate-500 mt-1">clique para editar</p>
                       </div>
@@ -618,14 +620,16 @@ function DiarioBordoDetalhes() {
                         <input
                           type="number"
                           step="0.1"
-                          defaultValue={diarioMes?.celula_prox_revisao_ttotal ?? 0}
+                          defaultValue={modoCelula === "tvoo" ? (diarioMes?.celula_prox_revisao_tvoo ?? 0) : (diarioMes?.celula_prox_revisao_ttotal ?? 0)}
                           onBlur={(e) => {
-                            saveDiarioMesField("celula_prox_revisao_ttotal", parseFloat(e.target.value));
+                            const fieldName = modoCelula === "tvoo" ? "celula_prox_revisao_tvoo" : "celula_prox_revisao_ttotal";
+                            saveDiarioMesField(fieldName, parseFloat(e.target.value));
                             setEditProxRev(false);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                              saveDiarioMesField("celula_prox_revisao_ttotal", parseFloat(e.currentTarget.value));
+                              const fieldName = modoCelula === "tvoo" ? "celula_prox_revisao_tvoo" : "celula_prox_revisao_ttotal";
+                              saveDiarioMesField(fieldName, parseFloat(e.currentTarget.value));
                               setEditProxRev(false);
                             }
                             if (e.key === "Escape") setEditProxRev(false);
@@ -639,7 +643,7 @@ function DiarioBordoDetalhes() {
                         <button
                           onClick={() => setEditProxRev(true)}
                           className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
-                          {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h
+                          {num(modoCelula === "tvoo" ? (diarioMes?.celula_prox_revisao_tvoo ?? 0) : (diarioMes?.celula_prox_revisao_ttotal ?? 0), 1)}h
                         </button>
                         <p className="text-xs text-slate-500 mt-1">clique para editar</p>
                       </div>
@@ -653,7 +657,7 @@ function DiarioBordoDetalhes() {
                     </div>
                     <p className="font-semibold text-sm text-emerald-400">
                       {num(modoCelula === "tvoo"
-                        ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
+                        ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_tvoo ?? 0))
                         : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
                     </p>
                   </div>
