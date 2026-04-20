@@ -55,7 +55,7 @@ export async function updateCrewFlightHours(params: {
         .from('horas_voo_tripulante')
         .select('id, horas_totais, horas_ifr, horas_noturnas')
         .eq('membro_tripulacao_id', crewMemberId)
-        .eq('aircraft_id', aircraftId)
+        .eq('aeronave_id', aircraftId)
         .eq('mes', mes)
         .eq('ano', ano)
         .maybeSingle();

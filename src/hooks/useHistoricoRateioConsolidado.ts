@@ -71,7 +71,7 @@ export function useHistoricoRateioConsolidado({
 
       // Filtrar por aeronave
       if (aeronaveId) {
-        query = query.eq('aircraft_id', aeronaveId);
+        query = query.eq('aeronave_id', aeronaveId);
       }
 
       // Filtrar por data

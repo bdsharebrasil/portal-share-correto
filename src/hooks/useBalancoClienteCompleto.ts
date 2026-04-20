@@ -40,7 +40,7 @@ export function useBalancoClienteCompleto(
           .lte("entry_date", periodo.fim);
 
         if (aeronaveId) {
-          qOwned = qOwned.eq("aircraft_id", aeronaveId);
+          qOwned = qOwned.eq("aeronave_id", aeronaveId);
         }
 
         // Voos compartilhados (client_partner_id = NULL)
@@ -53,7 +53,7 @@ export function useBalancoClienteCompleto(
           .lte("entry_date", periodo.fim);
 
         if (aeronaveId) {
-          qShared = qShared.eq("aircraft_id", aeronaveId);
+          qShared = qShared.eq("aeronave_id", aeronaveId);
         }
 
         const [{ data: ownedData }, { data: sharedData }] = await Promise.all([
@@ -155,7 +155,7 @@ export function useBalancoClienteCompleto(
           .lte("entry_date", periodo.fim);
 
         if (aeronaveId) {
-          logbookQuery = logbookQuery.eq("aircraft_id", aeronaveId);
+          logbookQuery = logbookQuery.eq("aeronave_id", aeronaveId);
         }
 
         const { data: logbookData } = await logbookQuery;
