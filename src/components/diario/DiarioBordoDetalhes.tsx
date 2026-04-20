@@ -122,6 +122,7 @@ function DiarioBordoDetalhes() {
   const [aeronave, setAeronave] = useState<Aeronave | null>(null);
   const [diarioMes, setDiarioMes] = useState<DiarioMesRow | null>(null);
   const [lancamentos, setLancamentos] = useState<Lanc[]>([]);
+  const [lancamentosAno, setLancamentosAno] = useState<Lanc[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [tripulantes, setTripulantes] = useState<Tripulante[]>([]);
@@ -173,11 +174,17 @@ function DiarioBordoDetalhes() {
     const fimDate = new Date(ano, mes, 0);
     const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
 
-    const [aRes, dmRes, lRes, cRes, sRes, tRes, abRes] = await Promise.all([
+    const anoIni = `${ano}-01-01`;
+    const anoFim = `${ano}-12-31`;
+
+    const [aRes, dmRes, lRes, lAnoRes, cRes, sRes, tRes, abRes] = await Promise.all([
       supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
         .gte("data_registro", ini).lte("data_registro", fim)
+        .order("data_registro", { ascending: true }),
+      supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
+        .gte("data_registro", anoIni).lte("data_registro", anoFim)
         .order("data_registro", { ascending: true }),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
       (supabase as any).from("socios_cliente").select("id,nome,cliente_id").order("nome"),
@@ -193,6 +200,7 @@ function DiarioBordoDetalhes() {
     }
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
+    setLancamentosAno((lAnoRes.data ?? []) as unknown as Lanc[]);
     setClientes((cRes.data ?? []) as Cliente[]);
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
@@ -1473,6 +1481,7 @@ function DiarioBordoDetalhes() {
           <ConsumoDialog
             aeronave={aeronave}
             lancamentos={lancamentos}
+            lancamentosAno={lancamentosAno}
             clientes={clientes} socios={socios}
             mes={mes} ano={ano}
             labelVooPara={labelVooPara}
