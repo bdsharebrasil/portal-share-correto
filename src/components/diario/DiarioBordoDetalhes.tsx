@@ -127,7 +127,6 @@ function DiarioBordoDetalhes() {
 
   // Inline edit do diario_mes
   const [editCelulaAnt, setEditCelulaAnt] = useState(false);
-  const [editCelulaAtual, setEditCelulaAtual] = useState(false);
   const [editProxRev, setEditProxRev] = useState(false);
   const [editHorIni, setEditHorIni] = useState(false);
   const [editHorFim, setEditHorFim] = useState(false);
@@ -556,7 +555,6 @@ function DiarioBordoDetalhes() {
                       <span className={`text-xs ${selectedLancId ? "text-cyan-400" : "text-slate-500"}`}>
                         Célula Atual {selectedLancId && "· Do Voo"}
                       </span>
-                      {editCelulaAtual && <span className="text-xs text-cyan-400">✎</span>}
                       {selectedLancId && (
                         <button
                           onClick={() => setSelectedLancId(null)}
@@ -566,76 +564,49 @@ function DiarioBordoDetalhes() {
                         </button>
                       )}
                     </div>
-                    {editCelulaAtual && !selectedLancId ? (
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="number"
-                          step="0.1"
-                          defaultValue={modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0)}
-                          onBlur={(e) => {
-                            const field = modoCelula === "tvoo" ? "celula_atual_tvoo" : "celula_atual_ttotal";
-                            saveDiarioMesField(field, parseFloat(e.target.value));
-                            setEditCelulaAtual(false);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              const field = modoCelula === "tvoo" ? "celula_atual_tvoo" : "celula_atual_ttotal";
-                              saveDiarioMesField(field, parseFloat(e.currentTarget.value));
-                              setEditCelulaAtual(false);
-                            }
-                            if (e.key === "Escape") setEditCelulaAtual(false);
-                          }}
-                          className="w-full bg-slate-900 border border-cyan-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                          autoFocus
-                        />
-                      </div>
-                    ) : (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => !selectedLancId && setEditCelulaAtual(true)}
-                              className={`font-semibold text-sm transition-colors text-left ${
-                                selectedLancId
-                                  ? "text-cyan-400 cursor-default"
-                                  : "text-white hover:text-cyan-400"
-                              }`}>
-                              {selectedLancId
-                                ? (() => {
-                                    const lancSel = lancamentos.find((x) => x.id === selectedLancId);
-                                    if (!lancSel) return "—";
-                                    const val =
-                                      modoCelula === "tvoo"
-                                        ? lancSel.celula_tvoo
-                                        : lancSel.celula;
-                                    return `${num(val ?? 0, 1)}h`;
-                                  })()
-                                : num(modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0), 1) + "h"}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
-                            <div className="space-y-1 text-xs">
-                              {selectedLancId ? (
-                                (() => {
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className={`font-semibold text-sm ${
+                            selectedLancId
+                              ? "text-cyan-400"
+                              : "text-white"
+                          }`}>
+                            {selectedLancId
+                              ? (() => {
                                   const lancSel = lancamentos.find((x) => x.id === selectedLancId);
-                                  return (
-                                    <>
-                                      <p><span className="text-cyan-400">Célula (T.Voo):</span> {num(lancSel?.celula_tvoo ?? 0, 1)}h</p>
-                                      <p><span className="text-cyan-400">Célula (Total):</span> {num(lancSel?.celula ?? 0, 1)}h</p>
-                                    </>
-                                  );
+                                  if (!lancSel) return "—";
+                                  const val =
+                                    modoCelula === "tvoo"
+                                      ? lancSel.celula_tvoo
+                                      : lancSel.celula;
+                                  return `${num(val ?? 0, 1)}h`;
                                 })()
-                              ) : (
-                                <>
-                                  <p><span className="text-cyan-400">T. Voo:</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
-                                  <p><span className="text-cyan-400">Tempo Total:</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
-                                </>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
+                              : num(modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0), 1) + "h"}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
+                          <div className="space-y-1 text-xs">
+                            {selectedLancId ? (
+                              (() => {
+                                const lancSel = lancamentos.find((x) => x.id === selectedLancId);
+                                return (
+                                  <>
+                                    <p><span className="text-cyan-400">Célula (T.Voo):</span> {num(lancSel?.celula_tvoo ?? 0, 1)}h</p>
+                                    <p><span className="text-cyan-400">Célula (Total):</span> {num(lancSel?.celula ?? 0, 1)}h</p>
+                                  </>
+                                );
+                              })()
+                            ) : (
+                              <>
+                                <p><span className="text-cyan-400">T. Voo:</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
+                                <p><span className="text-cyan-400">Tempo Total:</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
+                              </>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
