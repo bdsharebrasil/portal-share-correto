@@ -310,6 +310,82 @@ function DiarioBordoDetalhes() {
   const valorDiaria = Number(diarioMes?.tarifa_diaria ?? 0);
   const totalDiariaReais = totals.totalDiarias * valorDiaria;
 
+  // Função para criar novo mês
+  const handleCreateMonth = async (data: any) => {
+    try {
+      // Buscar mês anterior para verificar se está fechado
+      const mesAnterior = mes === 1 ? 12 : mes - 1;
+      const anoAnterior = mes === 1 ? ano - 1 : ano;
+
+      const { data: previousMonth } = await supabase
+        .from("diario_mes")
+        .select("id, fechado")
+        .eq("aeronave_id", aircraftId)
+        .eq("ano", anoAnterior)
+        .eq("mes", mesAnterior)
+        .maybeSingle();
+
+      // Se houver mês anterior e não estiver fechado, mostrar toast
+      if (previousMonth && !previousMonth.fechado) {
+        toast.warning("Aviso: O mês anterior ainda não foi fechado e precisa de atenção!", {
+          description: `${monthNames[mesAnterior - 1]}/${anoAnterior} - Feche o mês anterior antes de prosseguir`,
+        });
+      }
+
+      // Criar novo mês
+      const { error } = await supabase
+        .from("diario_mes")
+        .insert({
+          aeronave_id: aircraftId,
+          ano: data.year,
+          mes: data.month,
+          celula_anterior_ttotal: data.celula_anterior,
+          celula_atual_ttotal: data.celula_atual,
+          celula_prox_revisao_ttotal: data.celula_prox_revisao,
+          celula_disponivel_ttotal: data.celula_disponivel,
+          horimetro_inicio: data.horimetro_inicio,
+          horimetro_final: data.horimetro_final,
+          aerodromo_base: data.base_aerodrome,
+          consumo_combustivel: data.fuel_consumption,
+          tem_tarifa_diaria: data.has_daily_rate,
+          tarifa_diaria: data.daily_rate,
+        });
+
+      if (error) {
+        toast.error("Erro ao criar novo mês: " + error.message);
+      } else {
+        toast.success("Novo mês criado com sucesso!");
+        setMes(data.month);
+        setAno(data.year);
+      }
+    } catch (error) {
+      console.error("Erro ao criar novo mês:", error);
+      toast.error("Erro ao criar novo mês");
+    }
+  };
+
+  // Funções para salvar edições do diario_mes
+  const saveDiarioMesField = async (field: string, value: number | string) => {
+    try {
+      if (!diarioMes?.id) return;
+      const { error } = await supabase
+        .from("diario_mes")
+        .update({ [field]: value })
+        .eq("id", diarioMes.id);
+
+      if (error) {
+        toast.error("Erro ao salvar: " + error.message);
+      } else {
+        toast.success("Salvo com sucesso!");
+        // Recarregar dados
+        await reload();
+      }
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      toast.error("Erro ao salvar");
+    }
+  };
+
   if (loading || !aircraftId) {
     return (
       <Layout>
@@ -364,11 +440,18 @@ function DiarioBordoDetalhes() {
                 <p className="text-slate-400 text-sm">{aeronave.modelo}</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-cyan-500 hover:bg-cyan-600 text-slate-900 font-semibold gap-2 inline-flex items-center rounded-xl px-5 py-2.5 text-sm transition-transform hover:scale-105 shrink-0 shadow-lg shadow-cyan-500/10">
-              <Plus className="w-4 h-4" /> Novo Voo
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCreateMonth(true)}
+                className="bg-green-500 hover:bg-green-600 text-slate-900 font-semibold gap-2 inline-flex items-center rounded-xl px-5 py-2.5 text-sm transition-transform hover:scale-105 shrink-0 shadow-lg shadow-green-500/10">
+                <Calendar className="w-4 h-4" /> Novo Mês
+              </button>
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-cyan-500 hover:bg-cyan-600 text-slate-900 font-semibold gap-2 inline-flex items-center rounded-xl px-5 py-2.5 text-sm transition-transform hover:scale-105 shrink-0 shadow-lg shadow-cyan-500/10">
+                <Plus className="w-4 h-4" /> Novo Voo
+              </button>
+            </div>
           </div>
 
           {/* Info row - Seção redesenhada */}
@@ -383,17 +466,73 @@ function DiarioBordoDetalhes() {
                   <Stat icon={<Gauge className="w-3 h-3" />} label="Modelo" value={aeronave?.modelo ?? "—"} />
                   <Stat label="Ano" value={aeronave?.ano ?? "—"} />
                   <Stat label="Base" value={aeronave?.base ?? "—"} />
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
-                    <div className="flex items-center gap-1.5 mb-1">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
                       <span className="text-slate-500 text-xs">Célula Anterior</span>
+                      {editCelulaAnt && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
-                    <p className="text-white font-semibold text-sm">{num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h</p>
+                    {editCelulaAnt ? (
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          step="0.1"
+                          defaultValue={diarioMes?.celula_anterior_ttotal ?? 0}
+                          onBlur={(e) => {
+                            saveDiarioMesField("celula_anterior_ttotal", parseFloat(e.target.value));
+                            setEditCelulaAnt(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              saveDiarioMesField("celula_anterior_ttotal", parseFloat(e.currentTarget.value));
+                              setEditCelulaAnt(false);
+                            }
+                            if (e.key === "Escape") setEditCelulaAnt(false);
+                          }}
+                          className="w-full bg-slate-900 border border-cyan-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditCelulaAnt(true)}
+                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
+                        {num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h
+                      </button>
+                    )}
                   </div>
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
-                    <div className="flex items-center gap-1.5 mb-1">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
                       <span className="text-slate-500 text-xs">Próxima Revisão</span>
+                      {editProxRev && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
-                    <p className="text-white font-semibold text-sm">{num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
+                    {editProxRev ? (
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          step="0.1"
+                          defaultValue={diarioMes?.celula_prox_revisao_ttotal ?? 0}
+                          onBlur={(e) => {
+                            saveDiarioMesField("celula_prox_revisao_ttotal", parseFloat(e.target.value));
+                            setEditProxRev(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              saveDiarioMesField("celula_prox_revisao_ttotal", parseFloat(e.currentTarget.value));
+                              setEditProxRev(false);
+                            }
+                            if (e.key === "Escape") setEditProxRev(false);
+                          }}
+                          className="w-full bg-slate-900 border border-cyan-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditProxRev(true)}
+                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
+                        {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -438,23 +577,101 @@ function DiarioBordoDetalhes() {
               <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-slate-400">Horímetro</p>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
-                    <div className="flex items-center gap-1.5 mb-1">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
                       <span className="text-slate-500 text-xs">Inicial</span>
+                      {editHorIni && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
-                    <p className="text-white font-semibold text-sm">{num(diarioMes?.horimetro_inicio ?? 0, 1)}h</p>
+                    {editHorIni ? (
+                      <input
+                        type="number"
+                        step="0.1"
+                        defaultValue={diarioMes?.horimetro_inicio ?? 0}
+                        onBlur={(e) => {
+                          saveDiarioMesField("horimetro_inicio", parseFloat(e.target.value));
+                          setEditHorIni(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveDiarioMesField("horimetro_inicio", parseFloat(e.currentTarget.value));
+                            setEditHorIni(false);
+                          }
+                          if (e.key === "Escape") setEditHorIni(false);
+                        }}
+                        className="w-full bg-slate-900 border border-cyan-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditHorIni(true)}
+                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                        {num(diarioMes?.horimetro_inicio ?? 0, 1)}h
+                      </button>
+                    )}
                   </div>
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
-                    <div className="flex items-center gap-1.5 mb-1">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
                       <span className="text-slate-500 text-xs">Final</span>
+                      {editHorFim && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
-                    <p className="text-white font-semibold text-sm">{num(diarioMes?.horimetro_final ?? 0, 1)}h</p>
+                    {editHorFim ? (
+                      <input
+                        type="number"
+                        step="0.1"
+                        defaultValue={diarioMes?.horimetro_final ?? 0}
+                        onBlur={(e) => {
+                          saveDiarioMesField("horimetro_final", parseFloat(e.target.value));
+                          setEditHorFim(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveDiarioMesField("horimetro_final", parseFloat(e.currentTarget.value));
+                            setEditHorFim(false);
+                          }
+                          if (e.key === "Escape") setEditHorFim(false);
+                        }}
+                        className="w-full bg-slate-900 border border-cyan-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditHorFim(true)}
+                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                        {num(diarioMes?.horimetro_final ?? 0, 1)}h
+                      </button>
+                    )}
                   </div>
-                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
-                    <div className="flex items-center gap-1.5 mb-1">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
                       <span className="text-slate-500 text-xs">Ativo</span>
+                      {editHorAtv && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
-                    <p className="text-white font-semibold text-sm">{num(diarioMes?.horimetro_ativo ?? 0, 1)}h</p>
+                    {editHorAtv ? (
+                      <input
+                        type="number"
+                        step="0.1"
+                        defaultValue={diarioMes?.horimetro_ativo ?? 0}
+                        onBlur={(e) => {
+                          saveDiarioMesField("horimetro_ativo", parseFloat(e.target.value));
+                          setEditHorAtv(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveDiarioMesField("horimetro_ativo", parseFloat(e.currentTarget.value));
+                            setEditHorAtv(false);
+                          }
+                          if (e.key === "Escape") setEditHorAtv(false);
+                        }}
+                        className="w-full bg-slate-900 border border-cyan-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditHorAtv(true)}
+                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                        {num(diarioMes?.horimetro_ativo ?? 0, 1)}h
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -825,6 +1042,17 @@ function DiarioBordoDetalhes() {
           />
         )}
       </AnimatePresence>
+
+      <CreateMonthDialog
+        open={showCreateMonth}
+        onOpenChange={setShowCreateMonth}
+        aircraftId={aircraftId!}
+        aircraftRegistration={aeronave?.matricula ?? ""}
+        month={mes ?? new Date().getMonth() + 1}
+        year={ano ?? new Date().getFullYear()}
+        previousMonthData={diarioMes || null}
+        onCreate={handleCreateMonth}
+      />
     </Layout>
   );
 }
