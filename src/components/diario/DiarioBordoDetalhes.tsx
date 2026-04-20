@@ -431,10 +431,16 @@ function DiarioBordoDetalhes() {
   const valorDiaria = Number(diarioMes?.tarifa_diaria ?? 0);
   const totalDiariaReais = totals.totalDiarias * valorDiaria;
 
-  // ── CHANGE 2: Disponível usa celula_disponivel_* do banco ─────────────────
+  // ── CHANGE 2: Disponível é sempre derivado da fórmula (prox - atual) ─────────────────
   const celulaDisponivel = modoCelula === "tvoo"
-    ? (diarioMes?.celula_disponivel_tvoo ?? 0)
-    : (diarioMes?.celula_disponivel_ttotal ?? 0);
+    ? calculateCelulaDisponivel(
+        diarioMes?.celula_prox_revisao_tvoo ?? 0,
+        diarioMes?.celula_atual_tvoo ?? 0
+      )
+    : calculateCelulaDisponivel(
+        diarioMes?.celula_prox_revisao_ttotal ?? 0,
+        diarioMes?.celula_atual_ttotal ?? 0
+      );
 
   const handleOpenCreateMonth = async () => {
     try {
