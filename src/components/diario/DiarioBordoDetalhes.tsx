@@ -1225,7 +1225,8 @@ function DiarioBordoDetalhes() {
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_pou)}</Td>
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_cor)}</Td>
                           <Td className="font-mono font-semibold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(Number(l.tempo_voo ?? 0))}</Td>
-                          <Td className="font-mono" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(Number(l.horas_diurnas ?? 0))}</Td>
+                          <Td className="font-mono" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(Number(l.tempo_total ?? 0))}</Td>
+
                           <Td className="font-mono" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(Number(l.horas_noturnas ?? 0))}</Td>
                           <Td className="font-mono text-amber-400">{decimalToHHMM(Number(l.tempo_ifr ?? 0))}</Td>
                           <Td className="text-center text-emerald-400">{l.pousos_total ?? 0}</Td>
