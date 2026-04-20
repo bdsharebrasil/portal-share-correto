@@ -260,8 +260,10 @@ function DiarioBordoDetalhes() {
 
   const handleConfirmar = async (l: Lanc) => {
     if (l.confirmado) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const usuarioNome = user?.email || user?.id?.slice(0, 8) || "Sistema";
     const { error } = await supabase.from("lancamentos_diario_bordo")
-      .update({ confirmado: true, confirmado_em: new Date().toISOString() })
+      .update({ confirmado: true, confirmado_por: usuarioNome, confirmado_em: new Date().toISOString() })
       .eq("id", l.id);
     if (!error) await reload();
   };
@@ -331,57 +333,116 @@ function DiarioBordoDetalhes() {
             </button>
           </div>
 
-          {/* Info row */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            {/* Aeronave info */}
-            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4">
-              <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">Informações da Aeronave</p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat icon={<Plane className="w-3 h-3" />} label="Matrícula" value={aeronave?.matricula ?? "—"} />
-                <Stat icon={<Gauge className="w-3 h-3" />} label="Modelo" value={aeronave?.modelo ?? "—"} />
-                <button
-                  onClick={() => setShowConsumo(true)}
-                  className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-xl p-3 text-left transition-all hover:shadow-lg hover:shadow-amber-500/20 hover:scale-[1.02]"
-                  title="Clique para ver detalhamento completo de consumo">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Droplets className="w-3 h-3 text-amber-400 group-hover:text-amber-300" />
-                    <span className="text-amber-400/80 text-xs font-medium">Consumo · clique ↗</span>
+          {/* Info row - Seção redesenhada */}
+          <div className="space-y-5">
+            {/* Linha 1: Dados da Aeronave e Período */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {/* Card Dados da Aeronave */}
+              <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
+                <p className="mb-4 text-xs font-medium uppercase tracking-wider text-slate-400">Dados da Aeronave</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat icon={<Plane className="w-3 h-3" />} label="Matrícula" value={aeronave?.matricula ?? "—"} />
+                  <Stat icon={<Gauge className="w-3 h-3" />} label="Modelo" value={aeronave?.modelo ?? "—"} />
+                  <Stat label="Ano" value={aeronave?.ano ?? "—"} />
+                  <Stat label="Base" value={aeronave?.base ?? "—"} />
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-slate-500 text-xs">Célula Anterior</span>
+                    </div>
+                    <p className="text-white font-semibold text-sm">{num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h</p>
                   </div>
-                  <p className="text-white font-bold text-sm group-hover:text-amber-300 transition-colors">
-                    {num(aeronave?.consumo_combustivel ?? 0, 1)} L/H
-                  </p>
-                  <p className="text-amber-400/60 text-xs mt-0.5">histórico · ver mês →</p>
-                </button>
-                <Stat icon={<Clock className="w-3 h-3" />} label="Horas Atuais" value={`${num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h`} />
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-slate-500 text-xs">Próxima Revisão</span>
+                    </div>
+                    <p className="text-white font-semibold text-sm">{num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Período */}
+              <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Período</p>
+                  <div className="flex gap-2">
+                    <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                      {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
+                    </select>
+                    <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                      {Array.from({ length: 6 }).map((_, i) => {
+                        const y = today.getFullYear() - i;
+                        return <option key={y} value={y}>{y}</option>;
+                      })}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat icon={<Clock className="w-3 h-3" />}
+                    label={modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}
+                    value={decimalToHHMM(modoCelula === "tvoo" ? totals.tVoo : totals.tTotal)}
+                    accent="primary" />
+                  <Stat icon={<PlaneLanding className="w-3 h-3" />} label="Pousos" value={String(totals.pousos)} accent="success" />
+                  <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
+                  <Stat icon={<Fuel className="w-3 h-3" />} label="Abast+" value={`${num(totals.abast, 0)}L`} accent="warning" />
+                </div>
               </div>
             </div>
 
-            {/* Período */}
-            <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Período</p>
-                <div className="flex gap-2">
-                  <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                    {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
-                  </select>
-                  <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
-                    className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                    {Array.from({ length: 6 }).map((_, i) => {
-                      const y = today.getFullYear() - i;
-                      return <option key={y} value={y}>{y}</option>;
-                    })}
-                  </select>
+            {/* Linha 2: Horímetro e Consumo */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {/* Card Horímetro */}
+              <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
+                <p className="mb-4 text-xs font-medium uppercase tracking-wider text-slate-400">Horímetro</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-slate-500 text-xs">Inicial</span>
+                    </div>
+                    <p className="text-white font-semibold text-sm">{num(diarioMes?.horimetro_inicio ?? 0, 1)}h</p>
+                  </div>
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-slate-500 text-xs">Final</span>
+                    </div>
+                    <p className="text-white font-semibold text-sm">{num(diarioMes?.horimetro_final ?? 0, 1)}h</p>
+                  </div>
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-slate-500 text-xs">Ativo</span>
+                    </div>
+                    <p className="text-white font-semibold text-sm">{num(diarioMes?.horimetro_ativo ?? 0, 1)}h</p>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <Stat icon={<Clock className="w-3 h-3" />}
-                  label={modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}
-                  value={decimalToHHMM(modoCelula === "tvoo" ? totals.tVoo : totals.tTotal)}
-                  accent="primary" />
-                <Stat icon={<PlaneLanding className="w-3 h-3" />} label="Pousos" value={String(totals.pousos)} accent="success" />
-                <Stat icon={<Fuel className="w-3 h-3" />} label="Abast+" value={`${num(totals.abast, 0)}L`} accent="warning" />
-              </div>
+
+              {/* Card Consumo */}
+              <button
+                onClick={() => setShowConsumo(true)}
+                className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-5 text-left transition-all hover:shadow-lg hover:shadow-amber-500/20">
+                <p className="mb-4 text-xs font-medium uppercase tracking-wider text-amber-400 group-hover:text-amber-300">Consumo · clique para detalhes</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Droplets className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-300" />
+                      <span className="text-amber-400/80 text-xs font-medium">Histórico</span>
+                    </div>
+                    <p className="text-white font-bold text-lg group-hover:text-amber-300 transition-colors">
+                      {num(aeronave?.consumo_combustivel ?? 0, 1)} L/H
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-amber-400/80 text-xs font-medium">Consumo Mês</span>
+                    </div>
+                    <p className="text-white font-bold text-lg">
+                      {totals.fuel > 0 && totals.tVoo > 0 ? num(totals.fuel / totals.tVoo, 1) : "—"} L/H
+                    </p>
+                  </div>
+                </div>
+                <p className="text-amber-400/60 text-xs mt-3">↗ Clique para ver consumo por cliente</p>
+              </button>
             </div>
           </div>
 
@@ -474,13 +535,14 @@ function DiarioBordoDetalhes() {
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["sic"] ?? 110 }}>SIC<ResizeHandle col="sic" /></th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["voopara"] ?? 120 }}>VOO PARA<ResizeHandle col="voopara" /></th>
                       {temDiaria && <th className="px-3 py-2 text-left text-violet-400 relative" style={{ width: colWidths["diarias"] ?? 70 }}>DIÁRIAS<ResizeHandle col="diarias" /></th>}
-                      <th className="px-3 py-2 text-center text-emerald-400 relative" style={{ width: colWidths["conf"] ?? 90 }}>CONFIRM.<ResizeHandle col="conf" /></th>
+                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confPor"] ?? 110 }}>CONFIRMADO POR<ResizeHandle col="confPor" /></th>
+                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confEm"] ?? 95 }}>CONFIRMADO EM<ResizeHandle col="confEm" /></th>
                       <th className="px-3 py-2 text-center relative" style={{ width: colWidths["acao"] ?? 70 }}>AÇÕES<ResizeHandle col="acao" /></th>
                     </tr>
                   </thead>
                   <tbody className="text-slate-300">
                     {displayLancamentos.length === 0 ? (
-                      <tr><td colSpan={22} className="p-12 text-center text-slate-500">Nenhum voo registrado neste período.</td></tr>
+                      <tr><td colSpan={24} className="p-12 text-center text-slate-500">Nenhum voo registrado neste período.</td></tr>
                     ) : displayLancamentos.map(({ l, match }, idx) => {
                       const picT = l.pic_canac ? tripById.get(l.pic_canac) : null;
                       const sicT = l.sic_canac ? tripById.get(l.sic_canac) : null;
@@ -508,7 +570,43 @@ function DiarioBordoDetalhes() {
                           <Td className="font-mono" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(Number(l.horas_noturnas ?? 0))}</Td>
                           <Td className="font-mono text-amber-400">{decimalToHHMM(Number(l.tempo_ifr ?? 0))}</Td>
                           <Td className="text-center text-emerald-400">{l.pousos_total ?? 0}</Td>
-                          <Td className="text-amber-400">{num(l.combustivel_adicionado, 0)}</Td>
+                          <Td>
+                            {(() => {
+                              const abastVinculados = abastByLanc.get(l.id) ?? [];
+                              const comVinculo = abastVinculados.length > 0;
+                              const totalAbast = num(l.combustivel_adicionado, 0);
+                              const resumoAbast = abastVinculados.length > 0
+                                ? `${abastVinculados.length} abast. vinculado${abastVinculados.length > 1 ? 's' : ''}`
+                                : null;
+
+                              return comVinculo ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => navigate('/abastecimento')}
+                                        className="text-blue-400 font-semibold hover:text-blue-300 hover:underline transition-colors"
+                                        title={resumoAbast}>
+                                        {totalAbast}
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-blue-900/80 border-blue-500/50 text-blue-100">
+                                      <div className="space-y-1">
+                                        <p className="font-semibold">{resumoAbast}</p>
+                                        {abastVinculados.map((ab) => (
+                                          <div key={ab.id} className="text-xs">
+                                            {new Date(ab.data).toLocaleDateString('pt-BR')} - {num(ab.litros ?? 0, 1)}L {ab.tipo_combustivel && `(${ab.tipo_combustivel})`}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <span className="text-amber-400">{totalAbast}</span>
+                              );
+                            })()}
+                          </Td>
                           <Td className="text-amber-400">{num(l.litros_combustivel_inicio_voo, 0)}</Td>
                           <Td className="font-mono">{num(l.celula, 1)}</Td>
                           <Td className="text-xs truncate">{picT?.nome_completo ?? l.pic_canac ?? "—"}</Td>
@@ -519,20 +617,11 @@ function DiarioBordoDetalhes() {
                               {Number(l.tarifa_diaria ?? 0) > 0 ? Number(l.tarifa_diaria) : "—"}
                             </Td>
                           )}
-                          <Td className="text-center">
-                            {isConfirmado ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
-                                <Lock className="w-3 h-3" />
-                                <span className="hidden sm:inline">Conf.</span>
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => handleConfirmar(l)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-                                title="Marcar como confirmado (bloqueia edição)">
-                                <CheckCircle2 className="w-3 h-3" /> OK
-                              </button>
-                            )}
+                          <Td className={`text-center text-xs ${isConfirmado ? "text-emerald-400 font-semibold" : "text-slate-400"}`}>
+                            {l.confirmado_por ?? "—"}
+                          </Td>
+                          <Td className={`text-center text-xs ${isConfirmado ? "text-emerald-400 font-semibold" : "text-slate-400"}`}>
+                            {l.confirmado_em ? new Date(l.confirmado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
                           </Td>
                           <Td className="text-center">
                             {!isConfirmado && (
@@ -569,7 +658,7 @@ function DiarioBordoDetalhes() {
                             <span className="block text-xs text-violet-300/70">R${num(totalDiariaReais, 0)}</span>
                           </td>
                         )}
-                        <td colSpan={2} className="px-3 py-3 text-slate-500">—</td>
+                        <td colSpan={4} className="px-3 py-3 text-slate-500">—</td>
                       </tr>
                     </tfoot>
                   )}
@@ -587,12 +676,11 @@ function DiarioBordoDetalhes() {
                       <Th style={{ color: "rgb(43, 122, 216)" }}>T VOO</Th>
                       <Th>VOO PARA</Th>
                       {temDiaria && <Th className="text-violet-400">DIÁRIAS</Th>}
-                      <Th className="text-center">AÇÕES</Th>
                     </tr>
                   </thead>
                   <tbody className="text-slate-300">
                     {displayLancamentos.length === 0 ? (
-                      <tr><td colSpan={10} className="p-12 text-center text-slate-500">Nenhum voo registrado.</td></tr>
+                      <tr><td colSpan={9} className="p-12 text-center text-slate-500">Nenhum voo registrado.</td></tr>
                     ) : displayLancamentos.map(({ l, match }, idx) => {
                       const isHighlight = searchQuery && match;
                       const isConfirmado = l.confirmado === true;
@@ -616,14 +704,6 @@ function DiarioBordoDetalhes() {
                               {Number(l.tarifa_diaria ?? 0) > 0 ? Number(l.tarifa_diaria) : "—"}
                             </Td>
                           )}
-                          <Td className="text-center">
-                            {!isConfirmado && (
-                              <button onClick={() => setEditingLanc(l)}
-                                className="rounded-lg border border-slate-700 bg-slate-800 p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors">
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </Td>
                         </tr>
                       );
                     })}
@@ -633,73 +713,44 @@ function DiarioBordoDetalhes() {
             </div>
           </section>
 
-          {/* Resumo por cotista e Célula Row */}
-          <div className="grid md:grid-cols-2 gap-5">
-            {/* Horas por cotista */}
-            <section className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-lg font-semibold text-white">Horas por Cotista</h2>
-                <span className="ml-2 text-xs text-slate-500">
-                  ({modoCelula === "tvoo" ? "T. Voo" : "T. Total"})
-                </span>
-              </div>
-              {porCotista.length === 0 ? (
-                <p className="py-6 text-center text-slate-500">Sem registros.</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {porCotista.map((c, idx) => {
-                    const tot = porCotista.reduce((s, x) => s + x.horas, 0);
-                    const pct = tot > 0 ? (c.horas / tot) * 100 : 0;
-                    const colors = ["from-cyan-500 to-blue-500", "from-violet-500 to-purple-500", "from-emerald-500 to-teal-500", "from-amber-500 to-orange-500", "from-rose-500 to-pink-500"];
-                    const color = colors[idx % colors.length];
-                    return (
-                      <div key={`${c.label}-${idx}`} className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-3 flex flex-col gap-2">
-                        <span className="truncate text-xs font-medium text-slate-300 leading-tight" title={c.label}>{c.label}</span>
-                        <span className={`font-mono text-lg font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>
-                          {decimalToHHMM(c.horas)}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-slate-900">
-                            <div className={`h-full rounded-full bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-slate-500 text-xs shrink-0">{pct.toFixed(1)}%</span>
+          {/* Resumo por cotista */}
+          <section className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Users className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-lg font-semibold text-white">Horas por Cotista</h2>
+              <span className="ml-2 text-xs text-slate-500">
+                ({modoCelula === "tvoo" ? "T. Voo" : "T. Total"})
+              </span>
+            </div>
+            {porCotista.length === 0 ? (
+              <p className="py-6 text-center text-slate-500">Sem registros.</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {porCotista.map((c, idx) => {
+                  const tot = porCotista.reduce((s, x) => s + x.horas, 0);
+                  const pct = tot > 0 ? (c.horas / tot) * 100 : 0;
+                  const colors = ["from-cyan-500 to-blue-500", "from-violet-500 to-purple-500", "from-emerald-500 to-teal-500", "from-amber-500 to-orange-500", "from-rose-500 to-pink-500"];
+                  const color = colors[idx % colors.length];
+                  return (
+                    <button key={`${c.label}-${idx}`}
+                      onClick={() => setCotistaFiltro(cotistaFiltro === c.label ? null : c.label)}
+                      className={`rounded-xl border p-3 flex flex-col gap-2 transition-all cursor-pointer ${cotistaFiltro === c.label ? "border-cyan-400 bg-cyan-500/15" : "border-slate-700/40 bg-slate-800/50 hover:border-slate-600"}`}>
+                      <span className="truncate text-xs font-medium text-slate-300 leading-tight" title={c.label}>{c.label}</span>
+                      <span className={`font-mono text-lg font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>
+                        {decimalToHHMM(c.horas)}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-slate-900">
+                          <div className={`h-full rounded-full bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }} />
                         </div>
+                        <span className="text-slate-500 text-xs shrink-0">{pct.toFixed(1)}%</span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            {diarioMes && (
-              <section className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
-                <div className="mb-4 flex items-center gap-2">
-                  <Wrench className="w-5 h-5 text-cyan-400" />
-                  <h2 className="text-lg font-semibold text-white">Célula & Manutenção</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Stat label="Atual (T. Total)" value={`${num(diarioMes.celula_atual_ttotal, 1)}h`} accent="primary" />
-                  <Stat label="Atual (T. Voo)" value={`${num(diarioMes.celula_atual_tvoo, 1)}h`} accent="primary" />
-                </div>
-                {temDiaria && (
-                  <div className="mt-4 rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
-                    <p className="text-xs text-violet-400 font-semibold uppercase tracking-wider mb-2">Diárias do período</p>
-                    <div className="flex items-end gap-3">
-                      <div>
-                        <p className="text-2xl font-bold text-violet-400">{totals.totalDiarias}</p>
-                        <p className="text-xs text-slate-500">diárias</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-white">R$ {num(totalDiariaReais, 2)}</p>
-                        <p className="text-xs text-slate-500">@ R${num(valorDiaria, 2)}/diária</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </section>
+                    </button>
+                  );
+                })}
+              </div>
             )}
-          </div>
+          </section>
 
         </div>
       </div>
