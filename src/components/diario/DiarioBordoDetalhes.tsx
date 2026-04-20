@@ -73,6 +73,8 @@ type Lanc = {
   confirmado: boolean | null;
   confirmado_por: string | null;
   confirmado_em: string | null;
+  assinado_por: string | null;
+  data_assinatura_piloto: string | null;
   trecho: string | null;
 };
 type Tripulante = { id: string; nome_completo: string | null; canac: string | null; status: string | null };
@@ -186,6 +188,21 @@ function DiarioBordoDetalhes() {
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
+
+    // Carregar dados do usuário atual
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setUsuarioAtual({ id: user.id, email: user.email || "" });
+
+      // Buscar o tripulante associado ao usuário (usando email como match)
+      const tripulantes = (tRes.data ?? []) as Tripulante[];
+      const tripulacaoAtual = tripulantes.find(t =>
+        t.nome_completo?.toLowerCase().includes(user.email?.split("@")[0] || "") ||
+        t.canac === user.id?.slice(0, 8)
+      );
+      setTripulacaoUsuario(tripulacaoAtual || null);
+    }
+
     setLoading(false);
   };
 
@@ -1151,7 +1168,8 @@ function DiarioBordoDetalhes() {
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["voopara"] ?? 120 }}>VOO PARA<ResizeHandle col="voopara" /></th>
                       {temDiaria && <th className="px-3 py-2 text-left text-violet-400 relative" style={{ width: colWidths["diarias"] ?? 70 }}>DIÁRIAS<ResizeHandle col="diarias" /></th>}
                       <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confPor"] ?? 160 }}>CONFIRMADO POR<ResizeHandle col="confPor" /></th>
-                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["acao"] ?? 70 }}>AÇÕES<ResizeHandle col="acao" /></th>
+                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confirmar"] ?? 100 }}>CONFIRMAR<ResizeHandle col="confirmar" /></th>
+                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["assinar"] ?? 120 }}>ASSINATURA PIC<ResizeHandle col="assinar" /></th>
                     </tr>
                   </thead>
                   <tbody className="text-slate-300">
@@ -1171,7 +1189,14 @@ function DiarioBordoDetalhes() {
                             "hover:bg-slate-800/60",
                             isConfirmado ? "opacity-80" : "",
                           ].join(" ")}>
-                          <Td className="text-center font-mono text-xs text-slate-500">{idx + 1}</Td>
+                          <Td className="text-center">
+                            <button
+                              onClick={() => handleClickEditNumber(l)}
+                              className="text-xs font-mono text-cyan-400 hover:text-cyan-300 hover:font-semibold transition-colors underline"
+                              title="Clique para editar este lançamento">
+                              {idx + 1}
+                            </button>
+                          </Td>
                           <Td>{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</Td>
                           <Td className="font-mono">{l.aerodromo_partida ?? "—"}</Td>
                           <Td className="font-mono">{l.aerodromo_chegada ?? "—"}</Td>
