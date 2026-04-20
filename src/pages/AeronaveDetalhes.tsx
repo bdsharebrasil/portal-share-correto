@@ -117,14 +117,14 @@ export default function AeronaveDetalhes() {
         error: caError
       } = await supabase
         .from("cotistas_aeronave")
-        .select("id_cliente, percentual_sociedade")
+        .select("id_clientes, percentual_sociedade")
         .eq("id_aeronave", id);
 
       if (caError) throw caError;
       if (!clientAircraft || clientAircraft.length === 0) return [];
 
       // Depois buscar os dados dos clientes
-      const clientIds = clientAircraft.map((ca: any) => ca.cliente_id);
+      const clientIds = clientAircraft.map((ca: any) => ca.id_clientes);
       const { data: clientsData, error: clientsError } = await supabase
         .from("clientes")
         .select("id, razao_social")
@@ -139,13 +139,13 @@ export default function AeronaveDetalhes() {
       });
 
       return clientAircraft.map((ca: any) => ({
-        percentual_sociedade: ca.percentual_participacao,
-        clients: clientsMap[ca.cliente_id] || { id: ca.cliente_id, company_name: null }
+        percentual_sociedade: ca.percentual_sociedade,
+        clients: clientsMap[ca.id_clientes] || { id: ca.id_clientes, razao_social: null }
       })) as Array<{
         percentual_sociedade: number;
         clients: {
           id: string;
-          company_name: string | null;
+          razao_social: string | null;
         };
       }>;
     },

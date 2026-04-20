@@ -276,7 +276,7 @@ export function FuelRecordsByAircraft({
       const { data: linkedAbast } = await (supabase as any)
         .from('abastecimentos')
         .select('logbook_entry_id')
-        .eq('id_aeronave', aircraft.id)
+        .eq('aeronave_id', aircraft.id)
         .not('logbook_entry_id', 'is', null);
 
       const linkedIds = (linkedAbast || []).map(a => a.logbook_entry_id).filter(Boolean);
@@ -597,7 +597,7 @@ export function FuelRecordsByAircraft({
     // Load aircraft share percentages
     const { data: aircraftData, error: aircraftError } = await (supabase as any)
       .from('cotistas_aeronave')
-      .select('id_cliente, percentual_sociedade')
+      .select('id_clientes, percentual_sociedade')
       .eq('id_aeronave', aircraft.id);
 
     if (aircraftError) {
@@ -617,7 +617,7 @@ export function FuelRecordsByAircraft({
     setClientPartners(allPartners);
   };
   const loadRecords = async () => {
-    let query = supabase.from("abastecimentos").select("*").eq("id_aeronave", aircraft.id);
+    let query = supabase.from("abastecimentos").select("*").eq("aeronave_id", aircraft.id);
     if (currentClientId !== "all") {
       query = query.eq("id_clientes", currentClientId);
     }
@@ -943,13 +943,13 @@ export function FuelRecordsByAircraft({
       // Load aircraft share percentages
       const { data: aircraftData, error: aircraftError } = await (supabase as any)
         .from('cotistas_aeronave')
-        .select('id_cliente, percentual_sociedade')
+        .select('id_clientes, percentual_sociedade')
         .eq('id_aeronave', aircraft.id);
 
       if (!aircraftError) {
         const percentageMap: { [key: string]: number } = {};
         (aircraftData || []).forEach(item => {
-          percentageMap[item.id_cliente] = item.percentual_sociedade;
+          percentageMap[item.id_clientes] = item.percentual_sociedade;
         });
 
         allPartners = allPartners.map(partner => ({

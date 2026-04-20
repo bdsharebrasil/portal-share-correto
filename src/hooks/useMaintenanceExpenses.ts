@@ -299,15 +299,15 @@ export function useMaintenanceReport(manutencaoId: string | null) {
         // Find client through cotistas_aeronave
         const { data: ca } = await supabase
           .from("cotistas_aeronave")
-          .select("id_cliente")
+          .select("id_clientes")
           .eq("id_aeronave", manutencao.aeronave_id)
           .limit(1)
           .single();
-        if (ca?.id_cliente) {
+        if (ca?.id_clientes) {
           const { data: p } = await supabase
             .from("socios_cliente")
             .select("id, nome, cpf, percentual_participacao")
-            .eq("cliente_id", ca.cliente_id)
+            .eq("cliente_id", ca.id_clientes)
             .order("nome");
           partners = p || [];
         }

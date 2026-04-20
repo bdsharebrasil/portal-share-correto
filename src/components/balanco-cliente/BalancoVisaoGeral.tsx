@@ -174,7 +174,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       let q = (supabase as any)
         .from('abastecimentos')
         .select('id, data, litros, valor_total, valor_unitario, local, trecho')
-        .eq('clientes_id', clienteId)
+        .eq('id_clientes', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim)
         .order('data', { ascending: false });
@@ -239,7 +239,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       let abastecimentosQuery = (supabase as any)
         .from('abastecimentos')
         .select('id, litros, valor_total, status_pagamento')
-        .eq('clientes_id', clienteId)
+        .eq('id_clientes', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim);
       if (aeronaveId) abastecimentosQuery = abastecimentosQuery.eq('aeronave_id', aeronaveId);

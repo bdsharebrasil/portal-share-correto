@@ -79,7 +79,7 @@ export function useBalancoClienteCompleto(
         let abastQuery = supabase
           .from("abastecimentos")
           .select("litros, valor_total")
-          .eq("clientes_id", clienteId)
+          .eq("id_clientes", clienteId)
           .gte("data", periodo.inicio)
           .lte("data", periodo.fim);
 
@@ -130,7 +130,7 @@ export function useBalancoClienteCompleto(
       let abastQuery = supabase
         .from("abastecimentos")
         .select("litros, valor_total")
-        .eq("clientes_id", clienteId)
+        .eq("id_clientes", clienteId)
         .gte("data", periodo.inicio)
         .lte("data", periodo.fim);
 
