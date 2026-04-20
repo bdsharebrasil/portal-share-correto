@@ -272,7 +272,7 @@ export function CreateMonthDialog({
             />
             <p className="text-xs text-slate-400">
               {previousMonthData?.aerodromo_base
-                ? `Mantém o valor anterior: ${previousMonthData.aerodromo_base} - Editar se necessário`
+                ? ` ${previousMonthData.aerodromo_base} - Editar se necessário`
                 : 'Selecione o aeródromo base da aeronave'}
             </p>
           </div>
@@ -292,7 +292,7 @@ export function CreateMonthDialog({
             />
             <p className="text-xs text-slate-400">
               {previousMonthData?.consumo_combustivel
-                ? `Mantém o valor anterior: ${previousMonthData.consumo_combustivel} L/H - Editar se necessário`
+                ? ` ${previousMonthData.consumo_combustivel} L/H - Editar se necessário`
                 : 'Consumo de combustível médio da aeronave (litros por hora)'}
             </p>
           </div>
@@ -307,7 +307,7 @@ export function CreateMonthDialog({
                 </Label>
                 <p className="text-xs text-slate-400 mt-1">
                   {previousMonthData?.tem_tarifa_diaria !== undefined
-                    ? `Valor anterior: ${previousMonthData.tem_tarifa_diaria ? 'Ativado' : 'Desativado'} - Alterar se necessário`
+                    ? ` ${previousMonthData.tem_tarifa_diaria ? 'Ativado' : 'Desativado'} - Alterar se necessário`
                     : 'Ative se deseja calcular diárias para voos fora da base'}
                 </p>
               </div>
