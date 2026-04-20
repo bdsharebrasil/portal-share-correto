@@ -1154,11 +1154,43 @@ function NovoVooDialog({
   useEffect(() => { if (!celulaTouched) setCelula(sugCelula); }, [sugCelula, celulaTouched]);
   useEffect(() => { if (!celulaTvooTouched) setCelulaTvoo(sugCelulaTvoo); }, [sugCelulaTvoo, celulaTvooTouched]);
 
+  const [showAbastForm, setShowAbastForm] = useState(false);
+  const [abastecimentos, setAbastecimentos] = useState<any[]>([]);
+  const [localCombustivel, setLocalCombustivel] = useState("");
+  const [tipoCombustivel, setTipoCombustivel] = useState("");
+  const [precoCombustivel, setPrecoCombustivel] = useState(0);
+  const [consumoCombustivelVoo, setConsumoCombustivelVoo] = useState(0);
+  const [abastecimentoSelecionado, setAbastecimentoSelecionado] = useState<string | null>(null);
+
   const sociosDoCliente = useMemo(() => socios.filter((s) => s.cliente_id === clienteId), [socios, clienteId]);
   const tripOptions = useMemo(() =>
     tripulantes.filter((t) => (t.status ?? "").toLowerCase().startsWith("ativ"))
       .slice().sort((a, b) => (a.nome_completo ?? "").localeCompare(b.nome_completo ?? "")),
     [tripulantes]);
+
+  useEffect(() => {
+    const carregarAbastecimentos = async () => {
+      if (!clienteId) {
+        setAbastecimentos([]);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("abastecimentos")
+          .select("*")
+          .eq("id_clientes", clienteId)
+          .eq("aeronave_id", aeronave.id)
+          .order("data", { ascending: false });
+
+        if (!error && data) {
+          setAbastecimentos(data);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar abastecimentos:", e);
+      }
+    };
+    carregarAbastecimentos();
+  }, [clienteId, aeronave.id]);
 
   const submit = async () => {
     if (!origem || !destino || !decolagem || !pouso) { alert("Preencha origem, destino, decolagem e pouso."); return; }
@@ -1194,6 +1226,12 @@ function NovoVooDialog({
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
         ocorrencias: obs || null,
+        consumo_combustivel_voo: consumoCombustivelVoo || null,
+        preco_combustivel_litro: precoCombustivel || null,
+        local_combustivel: localCombustivel || null,
+        tipo_combustivel: tipoCombustivel || null,
+        origem_pic: picId ? 'crew_members' : null,
+        origem_sic: sicId ? 'crew_members' : null,
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
       if (ins.error) throw ins.error;
@@ -1205,6 +1243,29 @@ function NovoVooDialog({
       alert("Erro ao salvar: " + msg);
     } finally { setSaving(false); }
   };
+
+  if (showAbastForm && clienteId) {
+    return (
+      <AbastecimentoModal
+        clienteId={clienteId}
+        aeronaveId={aeronave.id}
+        abastecimentos={abastecimentos}
+        onSelectAbastecimento={(abast) => {
+          setAbast(Number(abast.litros) || 0);
+          setLocalCombustivel(abast.local || "");
+          setTipoCombustivel(abast.tipo_combustivel || "");
+          setPrecoCombustivel(Number(abast.valor_unitario) || 0);
+          setConsumoCombustivelVoo(Number(abast.litros) || 0);
+          setAbastecimentoSelecionado(abast.id);
+          setShowAbastForm(false);
+        }}
+        onCreateNew={() => {
+          setShowAbastForm(false);
+        }}
+        onClose={() => setShowAbastForm(false)}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
@@ -1413,7 +1474,18 @@ function NovoVooDialog({
             <Field label="Noturno"><input type="time" value={noturno} onChange={(e) => setNoturno(e.target.value)} className={`${inputCls} font-mono`} /></Field>
             <Field label="IFR"><input type="time" value={ifr} onChange={(e) => setIfr(e.target.value)} className={`${inputCls} font-mono`} /></Field>
             <Field label="Pousos"><input type="number" min={0} value={pousos} onChange={(e) => setPousos(Number(e.target.value))} className={inputCls} /></Field>
-            <Field label="ABAST+ (L)"><input type="number" min={0} value={abast} onChange={(e) => setAbast(Number(e.target.value))} className={inputCls} /></Field>
+            <Field label="ABAST+ (L)">
+              <div className="flex gap-2">
+                <input type="number" min={0} value={abast} onChange={(e) => setAbast(Number(e.target.value))} className={`${inputCls} flex-1`} />
+                <button
+                  type="button"
+                  onClick={() => setShowAbastForm(true)}
+                  className="rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+                >
+                  Buscar
+                </button>
+              </div>
+            </Field>
             <Field label="FUEL (L)"><input type="number" min={0} value={fuelInicio} onChange={(e) => setFuelInicio(Number(e.target.value))} className={inputCls} /></Field>
             <Field label={`Célula T.Total (sug. ${num(sugCelula, 1)}h)`}>
               <input type="number" step="0.1" min={0} value={celula} onChange={(e) => { setCelula(Number(e.target.value)); setCelulaTouched(true); }} className={`${inputCls} font-mono text-amber-400`} />
@@ -1515,6 +1587,12 @@ function EditarVooDialog({
         socios_nome: socioNome,
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioId || null) : null,
+        consumo_combustivel_voo: lanc.consumo_combustivel_voo || null,
+        preco_combustivel_litro: lanc.preco_combustivel_litro || null,
+        local_combustivel: lanc.local_combustivel || null,
+        tipo_combustivel: lanc.tipo_combustivel || null,
+        origem_pic: picId ? 'crew_members' : null,
+        origem_sic: sicId ? 'crew_members' : null,
       } as never).eq("id", lanc.id);
       if (error) throw error;
       onSaved();
@@ -1866,6 +1944,228 @@ function ConsumoDialog({
               </div>
             )}
           </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ---------- Abastecimento Modal ---------- */
+
+function AbastecimentoModal({
+  clienteId,
+  aeronaveId,
+  abastecimentos,
+  onSelectAbastecimento,
+  onCreateNew,
+  onClose,
+}: {
+  clienteId: string;
+  aeronaveId: string;
+  abastecimentos: any[];
+  onSelectAbastecimento: (abast: any) => void;
+  onCreateNew: () => void;
+  onClose: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    data: new Date().toISOString().slice(0, 10),
+    trecho: "",
+    local: "",
+    litros: 0,
+    valor_unitario: 0,
+    tipo_combustivel: "",
+    abastecedor: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveNew = async () => {
+    if (!formData.local || !formData.litros || formData.litros <= 0) {
+      alert("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data: newAbast, error } = await supabase
+        .from("abastecimentos")
+        .insert({
+          id_clientes: clienteId,
+          aeronave_id: aeronaveId,
+          data: formData.data,
+          trecho: formData.trecho,
+          local: formData.local,
+          litros: formData.litros,
+          valor_unitario: formData.valor_unitario,
+          tipo_combustivel: formData.tipo_combustivel,
+          abastecedor: formData.abastecedor,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      onSelectAbastecimento(newAbast);
+      setShowForm(false);
+    } catch (e: unknown) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      alert("Erro ao salvar abastecimento: " + msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (showForm) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+        <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl shadow-cyan-500/10">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/50 bg-slate-900/95 p-5 backdrop-blur">
+            <h3 className="text-xl font-bold text-white">Novo Abastecimento</h3>
+            <button onClick={() => setShowForm(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="space-y-4 p-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Data</label>
+              <input
+                type="date"
+                value={formData.data}
+                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Trecho</label>
+              <input
+                type="text"
+                value={formData.trecho}
+                onChange={(e) => setFormData({ ...formData, trecho: e.target.value })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Local *</label>
+              <input
+                type="text"
+                value={formData.local}
+                onChange={(e) => setFormData({ ...formData, local: e.target.value })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
+                placeholder="Ex: Jacarepaguá"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Litros *</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={formData.litros}
+                onChange={(e) => setFormData({ ...formData, litros: Number(e.target.value) })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Valor Unitário (R$/L)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={formData.valor_unitario}
+                onChange={(e) => setFormData({ ...formData, valor_unitario: Number(e.target.value) })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Tipo de Combustível</label>
+              <input
+                type="text"
+                value={formData.tipo_combustivel}
+                onChange={(e) => setFormData({ ...formData, tipo_combustivel: e.target.value })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
+                placeholder="Ex: Avgas 100LL"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Abastecedor</label>
+              <input
+                type="text"
+                value={formData.abastecedor}
+                onChange={(e) => setFormData({ ...formData, abastecedor: e.target.value })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
+              />
+            </div>
+          </div>
+          <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-slate-700/50 bg-slate-900/95 p-5 backdrop-blur">
+            <button onClick={() => setShowForm(false)} className="rounded-xl border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors">
+              Cancelar
+            </button>
+            <button
+              onClick={handleSaveNew}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-5 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-cyan-600 disabled:opacity-60"
+            >
+              <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl shadow-cyan-500/10">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/50 bg-slate-900/95 p-5 backdrop-blur">
+          <h3 className="text-xl font-bold text-white">Abastecimento já lançando</h3>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5">
+          {abastecimentos.length === 0 ? (
+            <p className="text-center text-slate-400 mb-4">Nenhum abastecimento encontrado para esta aeronave</p>
+          ) : (
+            <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+              {abastecimentos.map((abast) => (
+                <button
+                  key={abast.id}
+                  onClick={() => onSelectAbastecimento(abast)}
+                  className="w-full text-left rounded-lg border border-slate-700 bg-slate-800 p-3 hover:bg-slate-700 hover:border-cyan-500/50 transition-colors"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{abast.local} · {abast.litros}L</p>
+                      <p className="text-xs text-slate-400">{new Date(abast.data).toLocaleDateString("pt-BR")} · {abast.trecho || "—"}</p>
+                      {abast.tipo_combustivel && (
+                        <p className="text-xs text-slate-500">{abast.tipo_combustivel}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-mono text-cyan-400">{num(abast.litros, 2)}L</p>
+                      {abast.valor_unitario && (
+                        <p className="text-xs text-slate-400">R$ {num(abast.valor_unitario, 2)}/L</p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-slate-700/50 bg-slate-900/95 p-5 backdrop-blur">
+          <button onClick={onClose} className="rounded-xl border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors">
+            Cancelar
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-5 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-cyan-600"
+          >
+            <Plus className="w-4 h-4" /> Novo Abastecimento
+          </button>
         </div>
       </motion.div>
     </div>
