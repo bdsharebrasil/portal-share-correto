@@ -115,6 +115,7 @@ function DiarioBordoDetalhes() {
   const [showForm, setShowForm] = useState(false);
   const [showConsumo, setShowConsumo] = useState(false);
   const [showCreateMonth, setShowCreateMonth] = useState(false);
+  const [previousMonthForCreation, setPreviousMonthForCreation] = useState<DiarioMesRow | null>(null);
   const [editingLanc, setEditingLanc] = useState<Lanc | null>(null);
 
   // Filtro cotista
@@ -310,6 +311,29 @@ function DiarioBordoDetalhes() {
   const valorDiaria = Number(diarioMes?.tarifa_diaria ?? 0);
   const totalDiariaReais = totals.totalDiarias * valorDiaria;
 
+  // Função para carregar dados do mês anterior ao abrir dialog de criação
+  const handleOpenCreateMonth = async () => {
+    try {
+      const mesAnterior = mes === 1 ? 12 : mes - 1;
+      const anoAnterior = mes === 1 ? ano! - 1 : ano;
+
+      const { data: previousMonth } = await supabase
+        .from("diario_mes")
+        .select("*")
+        .eq("aeronave_id", aircraftId)
+        .eq("ano", anoAnterior)
+        .eq("mes", mesAnterior)
+        .maybeSingle();
+
+      setPreviousMonthForCreation(previousMonth);
+      setShowCreateMonth(true);
+    } catch (error) {
+      console.error("Erro ao carregar dados do mês anterior:", error);
+      toast.error("Erro ao carregar dados do mês anterior");
+      setShowCreateMonth(true); // Abre mesmo assim
+    }
+  };
+
   // Função para criar novo mês
   const handleCreateMonth = async (data: any) => {
     try {
@@ -442,7 +466,7 @@ function DiarioBordoDetalhes() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowCreateMonth(true)}
+                onClick={handleOpenCreateMonth}
                 className="bg-green-500 hover:bg-green-600 text-slate-900 font-semibold gap-2 inline-flex items-center rounded-xl px-5 py-2.5 text-sm transition-transform hover:scale-105 shrink-0 shadow-lg shadow-green-500/10">
                 <Calendar className="w-4 h-4" /> Novo Mês
               </button>
@@ -1045,12 +1069,15 @@ function DiarioBordoDetalhes() {
 
       <CreateMonthDialog
         open={showCreateMonth}
-        onOpenChange={setShowCreateMonth}
+        onOpenChange={(open) => {
+          setShowCreateMonth(open);
+          if (!open) setPreviousMonthForCreation(null);
+        }}
         aircraftId={aircraftId!}
         aircraftRegistration={aeronave?.matricula ?? ""}
         month={mes ?? new Date().getMonth() + 1}
         year={ano ?? new Date().getFullYear()}
-        previousMonthData={diarioMes || null}
+        previousMonthData={previousMonthForCreation}
         onCreate={handleCreateMonth}
       />
     </Layout>
