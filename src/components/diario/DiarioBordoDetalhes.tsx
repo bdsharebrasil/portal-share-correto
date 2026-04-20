@@ -123,6 +123,7 @@ function DiarioBordoDetalhes() {
 
   // Inline edit do diario_mes
   const [editCelulaAnt, setEditCelulaAnt] = useState(false);
+  const [editCelulaAtual, setEditCelulaAtual] = useState(false);
   const [editProxRev, setEditProxRev] = useState(false);
   const [editHorIni, setEditHorIni] = useState(false);
   const [editHorFim, setEditHorFim] = useState(false);
@@ -526,6 +527,54 @@ function DiarioBordoDetalhes() {
                   </div>
                   <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
+                      <span className="text-slate-500 text-xs">Célula Atual</span>
+                      {editCelulaAtual && <span className="text-xs text-cyan-400">✎</span>}
+                    </div>
+                    {editCelulaAtual ? (
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="number"
+                          step="0.1"
+                          defaultValue={modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0)}
+                          onBlur={(e) => {
+                            const field = modoCelula === "tvoo" ? "celula_atual_tvoo" : "celula_atual_ttotal";
+                            saveDiarioMesField(field, parseFloat(e.target.value));
+                            setEditCelulaAtual(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const field = modoCelula === "tvoo" ? "celula_atual_tvoo" : "celula_atual_ttotal";
+                              saveDiarioMesField(field, parseFloat(e.currentTarget.value));
+                              setEditCelulaAtual(false);
+                            }
+                            if (e.key === "Escape") setEditCelulaAtual(false);
+                          }}
+                          className="w-full bg-slate-900 border border-cyan-500/50 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setEditCelulaAtual(true)}
+                              className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
+                              {num(modoCelula === "tvoo" ? (diarioMes?.celula_atual_tvoo ?? 0) : (diarioMes?.celula_atual_ttotal ?? 0), 1)}h
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
+                            <div className="space-y-1 text-xs">
+                              <p><span className="text-cyan-400">T. Voo:</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
+                              <p><span className="text-cyan-400">Tempo Total:</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
                       <span className="text-slate-500 text-xs">Próxima Revisão</span>
                       {editProxRev && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
@@ -557,6 +606,29 @@ function DiarioBordoDetalhes() {
                         {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h
                       </button>
                     )}
+                  </div>
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-emerald-700/40 hover:border-emerald-600 transition-colors">
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
+                      <span className="text-emerald-500 text-xs">Disponível</span>
+                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-emerald-400 font-semibold text-sm cursor-help">
+                            {num(modoCelula === "tvoo"
+                              ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
+                              : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1)}h
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
+                          <div className="space-y-1 text-xs">
+                            <p><span className="text-cyan-400">Célula Atual (T. Voo):</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
+                            <p><span className="text-cyan-400">Célula Atual (Total):</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
+                            <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               </div>
