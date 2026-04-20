@@ -105,7 +105,7 @@ function DiarioBordo() {
               onClick={() => navigate("/aerodromos")}
               className="gap-2 whitespace-nowrap"
             >
-              <<PlaneTakeoff className="h-4 w-4" />  Aeródromos Cadastrados
+              <Plus className="h-4 w-4" /> Novo Aeródromo
             </Button>
           </div>
         </motion.div>
