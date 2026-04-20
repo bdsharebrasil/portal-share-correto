@@ -138,6 +138,13 @@ function DiarioBordoDetalhes() {
   const [editHorFim, setEditHorFim] = useState(false);
   const [editHorAtv, setEditHorAtv] = useState(false);
 
+  // Dialog de confirmação para editar lançamento
+  const [editConfirmDialog, setEditConfirmDialog] = useState<{ open: boolean; lanc: Lanc | null }>({ open: false, lanc: null });
+
+  // Usuário atual (para assinatura de PIC)
+  const [usuarioAtual, setUsuarioAtual] = useState<{ id: string; email: string; nome?: string } | null>(null);
+  const [tripulacaoUsuario, setTripulacaoUsuario] = useState<Tripulante | null>(null);
+
   // Table controls
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
@@ -350,7 +357,50 @@ function DiarioBordoDetalhes() {
     const { error } = await supabase.from("lancamentos_diario_bordo")
       .update({ confirmado: true, confirmado_por: usuarioNome, confirmado_em: new Date().toISOString() })
       .eq("id", l.id);
-    if (!error) await reload();
+    if (error) {
+      toast.error("Erro ao confirmar lançamento");
+    } else {
+      toast.success("Lançamento confirmado");
+      await reload();
+    }
+  };
+
+  const handleAssinarPic = async (l: Lanc) => {
+    // Verifica se o usuário é o PIC do lançamento
+    if (l.pic_canac !== tripulacaoUsuario?.canac) {
+      toast.error("Apenas o PIC deste lançamento pode assinar");
+      return;
+    }
+
+    const { error } = await supabase.from("lancamentos_diario_bordo")
+      .update({
+        assinado_por: usuarioAtual?.id,
+        data_assinatura_piloto: new Date().toISOString()
+      })
+      .eq("id", l.id);
+
+    if (error) {
+      toast.error("Erro ao assinar lançamento como PIC");
+    } else {
+      toast.success("Lançamento assinado como PIC");
+      await reload();
+    }
+  };
+
+  const handleClickEditNumber = (l: Lanc) => {
+    // Abre dialog de confirmação para editar
+    if (l.confirmado && !canEditConfirmed) {
+      toast.error("Este lançamento está confirmado e não pode ser editado");
+      return;
+    }
+    setEditConfirmDialog({ open: true, lanc: l });
+  };
+
+  const confirmEdit = () => {
+    if (editConfirmDialog.lanc) {
+      setEditingLanc(editConfirmDialog.lanc);
+    }
+    setEditConfirmDialog({ open: false, lanc: null });
   };
 
   const temDiaria = diarioMes?.tem_tarifa_diaria === true;
