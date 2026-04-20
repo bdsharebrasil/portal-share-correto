@@ -584,7 +584,7 @@ function DiarioBordoDetalhes() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        onClick={() => navigate('/registros-abastecimento')}
+                                        onClick={() => navigate('/abastecimento')}
                                         className="text-blue-400 font-semibold hover:text-blue-300 hover:underline transition-colors"
                                         title={resumoAbast}>
                                         {totalAbast}
