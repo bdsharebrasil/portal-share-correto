@@ -806,8 +806,7 @@ function DiarioBordoDetalhes() {
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["sic"] ?? 110 }}>SIC<ResizeHandle col="sic" /></th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["voopara"] ?? 120 }}>VOO PARA<ResizeHandle col="voopara" /></th>
                       {temDiaria && <th className="px-3 py-2 text-left text-violet-400 relative" style={{ width: colWidths["diarias"] ?? 70 }}>DIÁRIAS<ResizeHandle col="diarias" /></th>}
-                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confPor"] ?? 110 }}>CONFIRMADO POR<ResizeHandle col="confPor" /></th>
-                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confEm"] ?? 95 }}>CONFIRMADO EM<ResizeHandle col="confEm" /></th>
+                      <th className="px-3 py-2 text-center relative" style={{ width: colWidths["confPor"] ?? 160 }}>CONFIRMADO POR<ResizeHandle col="confPor" /></th>
                       <th className="px-3 py-2 text-center relative" style={{ width: colWidths["acao"] ?? 70 }}>AÇÕES<ResizeHandle col="acao" /></th>
                     </tr>
                   </thead>
@@ -889,10 +888,9 @@ function DiarioBordoDetalhes() {
                             </Td>
                           )}
                           <Td className={`text-center text-xs ${isConfirmado ? "text-emerald-400 font-semibold" : "text-slate-400"}`}>
-                            {l.confirmado_por ?? "—"}
-                          </Td>
-                          <Td className={`text-center text-xs ${isConfirmado ? "text-emerald-400 font-semibold" : "text-slate-400"}`}>
-                            {l.confirmado_em ? new Date(l.confirmado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                            {l.confirmado_por && l.confirmado_em
+                              ? `${l.confirmado_por} - ${new Date(l.confirmado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+                              : "—"}
                           </Td>
                           <Td className="text-center">
                             {!isConfirmado && (
