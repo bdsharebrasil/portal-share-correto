@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +79,6 @@ const decimalToHM = (decimal?: number | null): string => {
 
 export default function PortalCliente() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedPartner, setSelectedPartner] = useState<PartnerInfo | null | undefined>(undefined);
@@ -93,24 +92,10 @@ export default function PortalCliente() {
     recent_destinations: []
   });
   const [logbookMonthData, setLogbookMonthData] = useState<LogbookMonthData | null>(null);
-  const [selectedAbastecimentoId, setSelectedAbastecimentoId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     loadClients();
   }, []);
-
-  // Processar location.state para selecionar cliente e abastecimento
-  useEffect(() => {
-    if (location.state?.clientId && clients.length > 0) {
-      const client = clients.find(c => c.id === location.state.clientId);
-      if (client) {
-        setSelectedClient(client);
-        setSelectedAbastecimentoId(location.state.selectedAbastecimentoId);
-        // Limpar o state da URL para evitar seleção repetida
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    }
-  }, [location.state?.clientId, clients]);
 
   useEffect(() => {
     if (selectedClient && !selectedAeronave && selectedClient.cotistas_aeronave && selectedClient.cotistas_aeronave.length > 0) {
@@ -330,7 +315,6 @@ export default function PortalCliente() {
       recent_destinations: []
     });
     setLogbookMonthData(null);
-    setSelectedAbastecimentoId(undefined);
   };
 
   const handleBackFromPartnerSelection = () => {
@@ -583,7 +567,6 @@ export default function PortalCliente() {
                     aircraftRegistration={selectedAeronave?.aeronave?.matricula || ""}
                     isAdmin={false}
                     selectedPartner={selectedPartner}
-                    selectedAbastecimentoId={selectedAbastecimentoId}
                   />
                 </div>
               </AeronaveSelector>

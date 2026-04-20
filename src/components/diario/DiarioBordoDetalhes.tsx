@@ -1031,16 +1031,12 @@ function DiarioBordoDetalhes() {
                                     <TooltipTrigger asChild>
                                       <button
                                         onClick={() => {
-                                          if (!l.clientes_id) {
-                                            toast.error('Cliente não vinculado a este voo');
-                                            return;
-                                          }
-                                          // Navegar para o portal do cliente com o abastecimento destacado
+                                          // Se há apenas um abastecimento, navegar direto com o ID
                                           if (abastVinculados.length === 1) {
-                                            navigate('/portal-cliente', { state: { clientId: l.clientes_id, selectedAbastecimentoId: abastVinculados[0].id } });
+                                            navigate('/abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
                                           } else {
-                                            // Se há vários, navegar para a pasta do cliente (usuário vê todos os abastecimentos)
-                                            navigate('/portal-cliente', { state: { clientId: l.clientes_id } });
+                                            // Se há vários, navegar para a página de abastecimentos (deixar o usuário escolher)
+                                            navigate('/abastecimento');
                                           }
                                         }}
                                         className="text-blue-400 font-semibold hover:text-blue-300 hover:underline"
