@@ -51,13 +51,14 @@ export function CreateMonthDialog({
 
   // Form state - inicializa vazio para permitir entrada manual
   const [formData, setFormData] = useState({
-    celula_anterior: 0,
-    celula_prox_revisao: 0,
+    celula_anterior_ttotal: 0,
+    celula_prox_revisao_ttotal: 0,
     horimetro_inicio: 0,
-    base_aerodrome: "",
-    fuel_consumption: "",
-    has_daily_rate: false,
-    daily_rate: 0,
+    horimetro_final: 0,
+    aerodromo_base: "",
+    consumo_combustivel: "",
+    tem_tarifa_diaria: false,
+    tarifa_diaria: 0,
   });
 
   // Gerar anos (5 anos para trás e 2 para frente)
@@ -77,24 +78,26 @@ export function CreateMonthDialog({
       // Se há dados anteriores, usa como sugestão inicial
       if (previousMonthData?.celula_atual) {
         setFormData({
-          celula_anterior: previousMonthData.celula_atual || 0,
-          celula_prox_revisao: previousMonthData.celula_prox_revisao || 0,
+          celula_anterior_ttotal: previousMonthData.celula_atual || 0,
+          celula_prox_revisao_ttotal: previousMonthData.celula_prox_revisao || 0,
           horimetro_inicio: previousMonthData.horimetro_final || 0,
-          base_aerodrome: previousMonthData.base_aerodrome || "",
-          fuel_consumption: previousMonthData.fuel_consumption || "",
-          has_daily_rate: previousMonthData.has_daily_rate || false,
-          daily_rate: previousMonthData.daily_rate || 0,
+          horimetro_final: previousMonthData.horimetro_final || 0,
+          aerodromo_base: previousMonthData.base_aerodrome || "",
+          consumo_combustivel: previousMonthData.fuel_consumption || "",
+          tem_tarifa_diaria: previousMonthData.has_daily_rate || false,
+          tarifa_diaria: previousMonthData.daily_rate || 0,
         });
       } else {
         // Caso contrário, inicia vazio
         setFormData({
-          celula_anterior: 0,
-          celula_prox_revisao: 0,
+          celula_anterior_ttotal: 0,
+          celula_prox_revisao_ttotal: 0,
           horimetro_inicio: 0,
-          base_aerodrome: "",
-          fuel_consumption: "",
-          has_daily_rate: false,
-          daily_rate: 0,
+          horimetro_final: 0,
+          aerodromo_base: "",
+          consumo_combustivel: "",
+          tem_tarifa_diaria: false,
+          tarifa_diaria: 0,
         });
       }
     }
@@ -110,28 +113,28 @@ export function CreateMonthDialog({
 
   const handleSubmit = async () => {
     // Validações
-    if (formData.celula_anterior <= 0) {
+    if (formData.celula_anterior_ttotal <= 0) {
       return;
     }
-    
+
     setLoading(true);
     try {
       await onCreate({
         aeronave_id: aircraftId,
-        month: selectedMonth,
-        year: selectedYear,
-        celula_anterior: formData.celula_anterior,
-        celula_atual: formData.celula_anterior, // Começa igual à anterior
-        celula_prox_revisao: formData.celula_prox_revisao || null,
-        celula_disponivel: formData.celula_prox_revisao 
-          ? formData.celula_prox_revisao - formData.celula_anterior 
+        ano: selectedYear,
+        mes: selectedMonth,
+        celula_anterior_ttotal: formData.celula_anterior_ttotal,
+        celula_atual_ttotal: formData.celula_anterior_ttotal, // Começa igual à anterior
+        celula_prox_revisao_ttotal: formData.celula_prox_revisao_ttotal || null,
+        celula_disponivel_ttotal: formData.celula_prox_revisao_ttotal
+          ? formData.celula_prox_revisao_ttotal - formData.celula_anterior_ttotal
           : null,
         horimetro_inicio: formData.horimetro_inicio || null,
-        horimetro_final: formData.horimetro_inicio || null, // Começa igual ao início
-        base_aerodrome: formData.base_aerodrome || null,
-        fuel_consumption: formData.fuel_consumption || null,
-        has_daily_rate: formData.has_daily_rate,
-        daily_rate: formData.has_daily_rate ? formData.daily_rate : null,
+        horimetro_final: formData.horimetro_final || null,
+        aerodromo_base: formData.aerodromo_base || null,
+        consumo_combustivel: formData.consumo_combustivel || null,
+        tem_tarifa_diaria: formData.tem_tarifa_diaria,
+        tarifa_diaria: formData.tem_tarifa_diaria ? formData.tarifa_diaria : null,
       });
       onOpenChange(false);
     } finally {
@@ -211,8 +214,8 @@ export function CreateMonthDialog({
             <Input
               type="number"
               step="0.01"
-              value={formData.celula_anterior || ""}
-              onChange={(e) => setFormData({ ...formData, celula_anterior: parseFloat(e.target.value) || 0 })}
+              value={formData.celula_anterior_ttotal || ""}
+              onChange={(e) => setFormData({ ...formData, celula_anterior_ttotal: parseFloat(e.target.value) || 0 })}
               className="bg-slate-900 border-emerald-500/50 text-white text-lg font-semibold focus:ring-emerald-500"
               placeholder="Ex: 3250.50"
             />
@@ -232,8 +235,8 @@ export function CreateMonthDialog({
             <Input
               type="number"
               step="0.01"
-              value={formData.celula_prox_revisao || ""}
-              onChange={(e) => setFormData({ ...formData, celula_prox_revisao: parseFloat(e.target.value) || 0 })}
+              value={formData.celula_prox_revisao_ttotal || ""}
+              onChange={(e) => setFormData({ ...formData, celula_prox_revisao_ttotal: parseFloat(e.target.value) || 0 })}
               className="bg-slate-900 border-orange-500/50 text-white text-lg font-semibold focus:ring-orange-500"
               placeholder="Ex: 3500.00"
             />
@@ -267,8 +270,8 @@ export function CreateMonthDialog({
               Base Aeródromo
             </Label>
             <Select
-              value={formData.base_aerodrome}
-              onValueChange={(value) => setFormData({ ...formData, base_aerodrome: value })}
+              value={formData.aerodromo_base}
+              onValueChange={(value) => setFormData({ ...formData, aerodromo_base: value })}
             >
               <SelectTrigger className="bg-slate-900 border-violet-500/50 text-white focus:ring-violet-500">
                 <SelectValue placeholder="Selecione o aeródromo base" />
@@ -296,8 +299,8 @@ export function CreateMonthDialog({
             </Label>
             <Input
               type="text"
-              value={formData.fuel_consumption}
-              onChange={(e) => setFormData({ ...formData, fuel_consumption: e.target.value })}
+              value={formData.consumo_combustivel}
+              onChange={(e) => setFormData({ ...formData, consumo_combustivel: e.target.value })}
               className="bg-slate-900 border-amber-500/50 text-white focus:ring-amber-500"
               placeholder="Ex: 45"
             />
@@ -323,19 +326,19 @@ export function CreateMonthDialog({
                 </p>
               </div>
               <Switch
-                checked={formData.has_daily_rate}
-                onCheckedChange={(checked) => setFormData({ ...formData, has_daily_rate: checked })}
+                checked={formData.tem_tarifa_diaria}
+                onCheckedChange={(checked) => setFormData({ ...formData, tem_tarifa_diaria: checked })}
               />
             </div>
 
-            {formData.has_daily_rate && (
+            {formData.tem_tarifa_diaria && (
               <div className="space-y-2 pt-2 border-t border-green-500/30">
                 <Label className="text-xs text-slate-400">Valor da Diária (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
-                  value={formData.daily_rate || ""}
-                  onChange={(e) => setFormData({ ...formData, daily_rate: parseFloat(e.target.value) || 0 })}
+                  value={formData.tarifa_diaria || ""}
+                  onChange={(e) => setFormData({ ...formData, tarifa_diaria: parseFloat(e.target.value) || 0 })}
                   className="bg-slate-900 border-green-500/50 text-white focus:ring-green-500"
                   placeholder="0.00"
                 />
@@ -349,20 +352,20 @@ export function CreateMonthDialog({
           </div>
 
           {/* Preview das Horas Disponíveis */}
-          {formData.celula_anterior > 0 && formData.celula_prox_revisao > 0 && (
+          {formData.celula_anterior_ttotal > 0 && formData.celula_prox_revisao_ttotal > 0 && (
             <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
               <p className="text-xs text-slate-500 uppercase font-bold mb-2">Horas Disponíveis para Voo</p>
               <p className={`text-3xl font-black ${
-                (formData.celula_prox_revisao - formData.celula_anterior) < 0 
-                  ? 'text-red-400' 
-                  : (formData.celula_prox_revisao - formData.celula_anterior) < 50
+                (formData.celula_prox_revisao_ttotal - formData.celula_anterior_ttotal) < 0
+                  ? 'text-red-400'
+                  : (formData.celula_prox_revisao_ttotal - formData.celula_anterior_ttotal) < 50
                     ? 'text-orange-400'
                     : 'text-emerald-400'
               }`}>
-                {(formData.celula_prox_revisao - formData.celula_anterior).toFixed(2)}h
+                {(formData.celula_prox_revisao_ttotal - formData.celula_anterior_ttotal).toFixed(2)}h
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                = Próxima Revisão ({formData.celula_prox_revisao.toFixed(2)}) - Célula Anterior ({formData.celula_anterior.toFixed(2)})
+                = Próxima Revisão ({formData.celula_prox_revisao_ttotal.toFixed(2)}) - Célula Anterior ({formData.celula_anterior_ttotal.toFixed(2)})
               </p>
             </div>
           )}

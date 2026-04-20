@@ -49,25 +49,42 @@ export interface AppState {
 export interface FlightEntry {
   id?: string;
   logbook_month_id?: string | null;
+  diario_mes?: string | null;
   aeronave_id?: string;
   entry_date: string;
+  data_registro?: string;
   departure_aerodrome: string;
+  aerodromo_partida?: string;
   arrival_aerodrome: string;
+  aerodromo_chegada?: string;
   crew_checkin_time?: string;
+  tripulacao_checkin_hora?: string;
   ac_time: string;
+  tempo_ac?: string;
   dep_time: string;
+  tempo_dep?: string;
   pou_time: string;
+  tempo_pou?: string;
   cor_time: string;
+  tempo_cor?: string;
   time?: number;
+  tempo_total?: number;
   day_time?: number;
+  horas_diurnas?: number;
   night_time?: number;
   night_hours?: number;      // alias usado internamente
+  horas_noturnas?: number;
   total_time?: number;
   ifr_time?: number;
+  tempo_ifr?: number;
   distance_nm?: number;
+  distancia_nm?: number;
   pousos?: number;
+  pousos_total?: number;
   fuel_added?: number;
+  combustivel_adicionado?: number;
   fuel_liters?: number;
+  litros_combustivel?: number;
   celula?: number;
   pic_canac: string;
   sic_canac?: string;
@@ -77,21 +94,51 @@ export interface FlightEntry {
   voo_para?: string;
   trecho?: string;
   confirmed?: boolean;
+  confirmado?: boolean;
+  confirmado_em?: string;
+  confirmado_por?: string;
   remarks?: string;
+  ocorrencias?: string;
   occurrences?: string;
   discrepancies?: string;
+  discrepancias?: string;
+  acoes_corretivas?: string;
   // Campos de cliente/empréstimo
   client_id?: string;
+  clientes_id?: string;
   client_company_name?: string;
   is_equal_split?: boolean;
+  divisao_igual?: boolean;
   is_loan?: boolean;
+  emprestimo?: boolean;
   loan_recipient_client_id?: string;
+  cliente_tomador_emprestimo_id?: string;
   partner_name?: string;
+  socios_nome?: string;
   // Campos extras usados no form
   passengers?: number;
-  cargo_kg?: number;
+  passageiros?: number;
+  cargo_kg?: string | number;
   daily_rate?: number;
+  tarifa_diaria?: number | string;
   flight_nature?: string;
+  natureza_voo?: string;
+  // Campos de auditoria
+  criado_em?: string;
+  criado_por?: string;
+  fechado?: boolean;
+  fechado_em?: string;
+  fechado_por?: string;
+  detectado_por?: string;
+  // Campos de tripulação
+  origem_pic?: string;
+  origem_sic?: string;
+  socios_cliente_id?: string;
+  // Campos adicionais
+  celula_tvoo?: number | null;
+  consumo_combustivel_voo?: number;
+  consumo_combustivel_total?: number;
+  numero_sequencial?: number;
 }
 
 /**

@@ -80,6 +80,9 @@ export interface LogbookMonth {
   mes: number;
   ano: number;
   fechado: boolean;
+  confirmado?: boolean;
+  confirmado_em?: string;
+  confirmado_por?: string;
   aerodromo_base: string;
   tem_tarifa_diaria: boolean;
   tarifa_diaria: number;
@@ -87,6 +90,15 @@ export interface LogbookMonth {
   celula_atual_ttotal: number;
   celula_prox_revisao_ttotal: number;
   celula_disponivel_ttotal: number;
+  horimetro_inicio: number;
+  horimetro_final: number;
+  horimetro_ativo?: number;
+  celula_atual_tvoo?: number;
+  celula_disponivel_tvoo?: number;
+  celula_anterior_tvoo?: number;
+  celula_prox_revisao_tvoo?: number;
+  consumo_combustivel?: string;
+  criado_em?: string;
 }
 
 export interface Partner {
