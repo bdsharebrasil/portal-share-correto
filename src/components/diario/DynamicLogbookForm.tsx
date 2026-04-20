@@ -268,6 +268,27 @@ export function DynamicLogbookForm({
     enabled: !!logbookMonthId,
   });
 
+  // Buscar o último lançamento registrado da aeronave (para pré-preencher origem)
+  const { data: lastEntry } = useQuery({
+    queryKey: ['last-logbook-entry', aircraftId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('logbook_entries')
+        .select('arrival_aerodrome')
+        .eq('aircraft_id', aircraftId)
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao buscar último lançamento:', error);
+      }
+      return data || null;
+    },
+    enabled: !!aircraftId,
+  });
+
   // Verificar se a aeronave possui diária configurada
   const hasDailyRate = logbookMonth?.has_daily_rate ?? true;
 
@@ -318,6 +339,13 @@ export function DynamicLogbookForm({
       setDateText('');
     }
   }, [date, updateField]);
+
+  // Pré-preencher origem com aerodromo de chegada do último lançamento (ao abrir o formulário)
+  useEffect(() => {
+    if (open && lastEntry?.arrival_aerodrome && !formData.departure_airport) {
+      updateField('departure_airport', lastEntry.arrival_aerodrome);
+    }
+  }, [open, lastEntry, formData.departure_airport, updateField]);
 
   // Detectar automaticamente se é voo fora da base e auto-preencher diárias (apenas se aeronave tem diária)
   useEffect(() => {
