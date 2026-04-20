@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import AutoTable from "jspdf-autotable";
+import "jspdf-autotable";
 import { num } from "@/lib/formatters";
 
 const monthNames = [
@@ -201,7 +201,7 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
     tableData.push(totalRow);
 
     // Usar AutoTable para criar a tabela
-    AutoTable(pdf, {
+    (pdf as any).autoTable({
       columns: tableColumns.map((c) => ({ header: c, key: c.toLowerCase() })),
       body: tableData,
       startY: yPos,
@@ -245,7 +245,7 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       num(c.horas, 2),
     ]);
 
-    AutoTable(pdf, {
+    (pdf as any).autoTable({
       columns: resumoColumns.map((c) => ({ header: c, key: c.toLowerCase() })),
       body: resumoData,
       startY: yPos,
@@ -330,7 +330,7 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       .sort((a, b) => b.horas - a.horas)
       .map((c) => [c.label, num(c.horas, 2)]);
 
-    AutoTable(pdf, {
+    (pdf as any).autoTable({
       columns: resumoColumns.map((c) => ({ header: c, key: c.toLowerCase() })),
       body: resumoData,
       startY: yPos,

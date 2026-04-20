@@ -213,6 +213,39 @@ function DiarioBordoDetalhes() {
     })();
   }, [aircraftId]);
 
+  // Carregar meses disponíveis para exportação
+  useEffect(() => {
+    (async () => {
+      if (!aircraftId) return;
+      try {
+        const { data } = await supabase
+          .from("lancamentos_diario_bordo")
+          .select("data_registro")
+          .eq("aeronave_id", aircraftId)
+          .order("data_registro", { ascending: false });
+
+        const meses = new Map<string, { mes: number; ano: number }>();
+        if (data) {
+          for (const row of data) {
+            const date = new Date(row.data_registro + "T00:00");
+            const mes = date.getMonth() + 1;
+            const ano = date.getFullYear();
+            const key = `${ano}-${mes}`;
+            if (!meses.has(key)) {
+              meses.set(key, { mes, ano });
+            }
+          }
+        }
+        setAvailableMeses(Array.from(meses.values()).sort((a, b) => {
+          if (a.ano !== b.ano) return b.ano - a.ano;
+          return b.mes - a.mes;
+        }));
+      } catch (error) {
+        console.error("Erro ao carregar meses disponíveis:", error);
+      }
+    })();
+  }, [aircraftId]);
+
   const totals = useMemo(() => {
     const tVoo = sumDecimal(lancamentos.map((l) => l.tempo_voo));
     const tTotal = sumDecimal(lancamentos.map((l) => l.tempo_total));
@@ -435,6 +468,129 @@ function DiarioBordoDetalhes() {
     }
   };
 
+  // Função para exportar PDF com meses selecionados
+  const handleExportarPDF = async (mesesSelecionados: Array<{ mes: number; ano: number }>) => {
+    setIsExporting(true);
+    try {
+      const mesesdados = [];
+
+      // Carregar dados para cada mês selecionado
+      for (const { mes: mês, ano: year } of mesesSelecionados) {
+        const ini = `${year}-${String(mês).padStart(2, "0")}-01`;
+        const fimDate = new Date(year, mês, 0);
+        const fim = `${year}-${String(mês).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
+
+        const [lRes, cRes, sRes, tRes] = await Promise.all([
+          supabase
+            .from("lancamentos_diario_bordo")
+            .select("*")
+            .eq("aeronave_id", aircraftId)
+            .gte("data_registro", ini)
+            .lte("data_registro", fim)
+            .order("data_registro", { ascending: true }),
+          supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
+          (supabase as any).from("socios_cliente").select("id,nome,cliente_id").order("nome"),
+          supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
+        ]);
+
+        const lancamentosData = (lRes.data ?? []) as unknown as Lanc[];
+        const clientesData = (cRes.data ?? []) as Cliente[];
+        const sociosData = (((sRes.data ?? []) as any[]).map((s) => ({
+          id: s.id,
+          nome: s.nome,
+          cliente_id: s.cliente_id,
+        }))) as Socio[];
+        const tripulantesData = (tRes.data ?? []) as Tripulante[];
+
+        // Resolver PIC e SIC com nomes
+        const tripByCanac = new Map<string, Tripulante>();
+        tripulantesData.forEach((t) => {
+          if (t.canac) tripByCanac.set(t.canac, t);
+        });
+
+        const lancamentosComNomes = lancamentosData.map((l) => ({
+          ...l,
+          pic: l.pic_canac ? tripByCanac.get(l.pic_canac) : null,
+          sic: l.sic_canac ? tripByCanac.get(l.sic_canac) : null,
+        }));
+
+        // Calcular totais
+        const totaisData = {
+          tVoo: sumDecimal(lancamentosData.map((l) => l.tempo_voo)),
+          tTotal: sumDecimal(lancamentosData.map((l) => l.tempo_total)),
+          tDia: sumDecimal(lancamentosData.map((l) => l.horas_diurnas)),
+          tNoit: sumDecimal(lancamentosData.map((l) => l.horas_noturnas)),
+          ifr: sumDecimal(lancamentosData.map((l) => l.tempo_ifr)),
+          pousos: lancamentosData.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
+          abast: sumDecimal(lancamentosData.map((l) => l.combustivel_adicionado)),
+          fuel: sumDecimal(lancamentosData.map((l) => l.litros_combustivel_inicio_voo)),
+          totalDiarias: lancamentosData.reduce((s, l) => s + Number(l.tarifa_diaria ?? 0), 0),
+        };
+
+        // Calcular resumo por cotista
+        const mapCotista = new Map<string, { label: string; horas: number }>();
+        for (const l of lancamentosData) {
+          const horas = Number((modoCelula === "tvoo" ? l.tempo_voo : l.tempo_total) ?? 0);
+          const nat = (l.natureza_voo ?? "").trim();
+          const naturezasRateio = ["Translado", "Cheque", "Voo de Teste", "Teste"];
+          let label: string;
+
+          if (naturezasRateio.some((n) => nat.toLowerCase() === n.toLowerCase())) {
+            label = nat.toUpperCase();
+          } else if (l.socios_cliente_id) {
+            const s = sociosData.find((x) => x.id === l.socios_cliente_id);
+            label = s?.nome ?? l.socios_nome ?? "Sócio";
+          } else if (l.clientes_id) {
+            const c = clientesData.find((x) => x.id === l.clientes_id);
+            label = c?.razao_social ?? c?.proprietario ?? "Cliente";
+          } else {
+            label = nat || "—";
+          }
+
+          const cur = mapCotista.get(label) ?? { label, horas: 0 };
+          cur.horas += horas;
+          mapCotista.set(label, cur);
+        }
+
+        const porCotistaData = Array.from(mapCotista.values()).sort((a, b) => b.horas - a.horas);
+
+        mesesdados.push({
+          mes: mês,
+          ano: year,
+          lancamentos: lancamentosComNomes,
+          totals: totaisData,
+          porCotista: porCotistaData,
+          temDiaria: diarioMes?.tem_tarifa_diaria === true,
+        });
+      }
+
+      // Gerar PDF
+      const pdf = await exportDiarioBordoPDF(
+        {
+          aeronave: {
+            matricula: aeronave!.matricula,
+            modelo: aeronave!.modelo,
+            ano: aeronave!.ano,
+          },
+          meses: mesesdados,
+        },
+        "/share.png" // Logo da pasta public
+      );
+
+      // Baixar PDF
+      const fileName = `Diario_${aeronave!.matricula}_${new Date().getTime()}.pdf`;
+      pdf.save(fileName);
+
+      toast.success("PDF exportado com sucesso!");
+      setShowExportModal(false);
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      toast.error("Erro ao exportar PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading || !aircraftId) {
     return (
       <Layout>
@@ -480,7 +636,7 @@ function DiarioBordoDetalhes() {
             </button>
             <div className="flex items-center gap-3 flex-1">
               <div className="p-2.5 bg-cyan-500/15 border border-cyan-500/25 rounded-xl">
-                <Plane className="w-5 h-5 text-cyan-400" />
+                <className="w-5 h-5 text-cyan-400" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white tracking-wide uppercase">
@@ -499,6 +655,11 @@ function DiarioBordoDetalhes() {
                 onClick={() => setShowForm(true)}
                 className="bg-cyan-500 hover:bg-cyan-600 text-slate-900 font-semibold gap-2 inline-flex items-center rounded-xl px-5 py-2.5 text-sm transition-transform hover:scale-105 shrink-0 shadow-lg shadow-cyan-500/10">
                 <Plus className="w-4 h-4" /> Novo Voo
+              </button>
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold gap-2 inline-flex items-center rounded-xl px-5 py-2.5 text-sm transition-transform hover:scale-105 shrink-0 shadow-lg shadow-amber-500/10">
+                <FileText className="w-4 h-4" /> Exportar PDF
               </button>
             </div>
           </div>
@@ -1204,6 +1365,16 @@ function DiarioBordoDetalhes() {
         currentModoCelula={aeronave?.modo_celula}
         previousMonthData={previousMonthForCreation}
         onCreate={handleCreateMonth}
+      />
+
+      <ExportDiarioModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportarPDF}
+        availableMeses={availableMeses}
+        currentMes={mes ?? 1}
+        currentAno={ano ?? new Date().getFullYear()}
+        isLoading={isExporting}
       />
     </Layout>
   );
