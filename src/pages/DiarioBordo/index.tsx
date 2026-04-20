@@ -201,7 +201,7 @@ function DiarioBordo() {
                                 <div className="mb-1 flex items-center gap-2">
                                   <Gauge className="h-3.5 w-3.5 text-slate-400" />
                                   <span className="text-xs text-slate-400">
-                                    Horímetro
+                                    Célula Atual
                                   </span>
                                 </div>
                                 <p className="font-bold text-white">{num(horas, 1)}h</p>
@@ -211,32 +211,20 @@ function DiarioBordo() {
 
                           {/* Progress bar próxima revisão */}
                           {prox > 0 && (() => {
-                            const horasDisponiveis = prox - horas;
-                            const alertColor =
-                              horasDisponiveis > 15
-                                ? "from-[hsl(192,70%,50%)] to-[hsl(192,65%,55%)]"
-                                : horasDisponiveis >= 10
-                                  ? "from-[hsl(45,100%,55%)] to-[hsl(45,100%,60%)]"
-                                  : "from-[hsl(0,75%,60%)] to-[hsl(0,75%,50%)]";
-                            const barBgColor =
-                              horasDisponiveis > 15
-                                ? "bg-[hsl(192,70%,50%,0.15)]"
-                                : horasDisponiveis >= 10
-                                  ? "bg-[hsl(45,100%,55%,0.15)]"
-                                  : "bg-[hsl(0,75%,60%,0.15)]";
+                            const colors = getProxRevColor(prox);
                             return (
                               <div className="mb-4">
                                 <div className="mb-1.5 flex items-center justify-between">
                                   <span className="flex items-center gap-1 text-xs text-slate-400">
-                                    <Activity className="h-3 w-3" /> Próxima revisão
+                                    <Activity className={`h-3 w-3 ${colors.textClass}`} /> Próxima revisão
                                   </span>
-                                  <span className="text-xs font-medium text-white">
+                                  <span className={`text-xs font-medium ${colors.textClass}`}>
                                     {num(prox, 0)}h
                                   </span>
                                 </div>
-                                <div className={`h-1.5 overflow-hidden rounded-full ${barBgColor}`}>
+                                <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
                                   <div
-                                    className={`h-full rounded-full bg-gradient-to-r ${alertColor} transition-all`}
+                                    className={`h-full rounded-full ${colors.barClass} transition-all`}
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
