@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Calendar, Gauge, Fuel, MapPin, DollarSign, Plane } from "lucide-react";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CreateMonthDialogProps {
@@ -16,13 +17,13 @@ interface CreateMonthDialogProps {
   month: number;
   year: number;
   previousMonthData: {
-    celula_atual?: number | null;
-    celula_prox_revisao?: number | null;
+    celula_atual_ttotal?: number | null;
+    celula_prox_revisao_ttotal?: number | null;
     horimetro_final?: number | null;
-    base_aerodrome?: string | null;
-    fuel_consumption?: string | null;
-    has_daily_rate?: boolean | null;
-    daily_rate?: number | null;
+    aerodromo_base?: string | null;
+    consumo_combustivel?: string | null;
+    tem_tarifa_diaria?: boolean | null;
+    tarifa_diaria?: number | null;
   } | null;
   onCreate: (data: any) => Promise<void>;
 }
@@ -69,17 +70,17 @@ export function CreateMonthDialog({
       fetchAerodromes();
       setSelectedMonth(initialMonth);
       setSelectedYear(initialYear);
-      
+
       // Se há dados anteriores, usa como sugestão inicial
-      if (previousMonthData?.celula_atual) {
+      if (previousMonthData?.celula_atual_ttotal) {
         setFormData({
-          celula_anterior: previousMonthData.celula_atual || 0,
-          celula_prox_revisao: previousMonthData.celula_prox_revisao || 0,
+          celula_anterior: previousMonthData.celula_atual_ttotal || 0,
+          celula_prox_revisao: previousMonthData.celula_prox_revisao_ttotal || 0,
           horimetro_inicio: previousMonthData.horimetro_final || 0,
-          base_aerodrome: previousMonthData.base_aerodrome || "",
-          fuel_consumption: previousMonthData.fuel_consumption || "",
-          has_daily_rate: previousMonthData.has_daily_rate || false,
-          daily_rate: previousMonthData.daily_rate || 0,
+          base_aerodrome: previousMonthData.aerodromo_base || "",
+          fuel_consumption: previousMonthData.consumo_combustivel || "",
+          has_daily_rate: previousMonthData.tem_tarifa_diaria || false,
+          daily_rate: previousMonthData.tarifa_diaria || 0,
         });
       } else {
         // Caso contrário, inicia vazio
@@ -213,8 +214,8 @@ export function CreateMonthDialog({
               placeholder="Ex: 3250.50"
             />
             <p className="text-xs text-slate-400">
-              {previousMonthData?.celula_atual
-                ? `Preenchido automaticamente com o valor de "Célula Atual" do mês anterior: ${previousMonthData.celula_atual.toFixed(2)}h`
+              {previousMonthData?.celula_atual_ttotal
+                ? `Preenchido automaticamente com o valor de "Célula Atual" do mês anterior: ${previousMonthData.celula_atual_ttotal.toFixed(2)}h`
                 : 'Total de horas de célula da aeronave no início deste mês'}
             </p>
           </div>
@@ -234,8 +235,8 @@ export function CreateMonthDialog({
               placeholder="Ex: 3500.00"
             />
             <p className="text-xs text-slate-400">
-              {previousMonthData?.celula_prox_revisao
-                ? `Valor anterior sugerido: ${previousMonthData.celula_prox_revisao.toFixed(2)}h - Altere se necessário`
+              {previousMonthData?.celula_prox_revisao_ttotal
+                ? `Valor anterior sugerido: ${previousMonthData.celula_prox_revisao_ttotal.toFixed(2)}h - Altere se necessário`
                 : 'Horas de célula previstas para a próxima revisão da aeronave'}
             </p>
           </div>
@@ -262,24 +263,16 @@ export function CreateMonthDialog({
               <MapPin className="w-4 h-4" />
               Base Aeródromo
             </Label>
-            <Select
+            <SearchableCombobox
+              items={aerodromes.map((ad) => ({ id: ad.designativo, label: `${ad.designativo} - ${ad.name}` }))}
               value={formData.base_aerodrome}
-              onValueChange={(value) => setFormData({ ...formData, base_aerodrome: value })}
-            >
-              <SelectTrigger className="bg-slate-900 border-violet-500/50 text-white focus:ring-violet-500">
-                <SelectValue placeholder="Selecione o aeródromo base" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700 max-h-60">
-                {aerodromes.map((ad) => (
-                  <SelectItem key={ad.id} value={ad.designativo} className="text-white">
-                    {ad.designativo} - {ad.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(value) => setFormData({ ...formData, base_aerodrome: value })}
+              placeholder="Selecione o aeródromo base"
+              searchPlaceholder="Buscar aeródromo..."
+            />
             <p className="text-xs text-slate-400">
-              {previousMonthData?.base_aerodrome
-                ? `Mantém o valor anterior: ${previousMonthData.base_aerodrome} - Editar se necessário`
+              {previousMonthData?.aerodromo_base
+                ? ` ${previousMonthData.aerodromo_base} - Editar se necessário`
                 : 'Selecione o aeródromo base da aeronave'}
             </p>
           </div>
@@ -298,8 +291,8 @@ export function CreateMonthDialog({
               placeholder="Ex: 45"
             />
             <p className="text-xs text-slate-400">
-              {previousMonthData?.fuel_consumption
-                ? `Mantém o valor anterior: ${previousMonthData.fuel_consumption} L/H - Editar se necessário`
+              {previousMonthData?.consumo_combustivel
+                ? ` ${previousMonthData.consumo_combustivel} L/H - Editar se necessário`
                 : 'Consumo de combustível médio da aeronave (litros por hora)'}
             </p>
           </div>
@@ -313,8 +306,8 @@ export function CreateMonthDialog({
                   Esta aeronave possui sistema de diárias?
                 </Label>
                 <p className="text-xs text-slate-400 mt-1">
-                  {previousMonthData?.has_daily_rate !== undefined
-                    ? `Valor anterior: ${previousMonthData.has_daily_rate ? 'Ativado' : 'Desativado'} - Alterar se necessário`
+                  {previousMonthData?.tem_tarifa_diaria !== undefined
+                    ? ` ${previousMonthData.tem_tarifa_diaria ? 'Ativado' : 'Desativado'} - Alterar se necessário`
                     : 'Ative se deseja calcular diárias para voos fora da base'}
                 </p>
               </div>
@@ -335,9 +328,9 @@ export function CreateMonthDialog({
                   className="bg-slate-900 border-green-500/50 text-white focus:ring-green-500"
                   placeholder="0.00"
                 />
-                {previousMonthData?.daily_rate && (
+                {previousMonthData?.tarifa_diaria && (
                   <p className="text-xs text-slate-400">
-                    Valor anterior: R$ {previousMonthData.daily_rate.toFixed(2)}
+                    Valor anterior: R$ {previousMonthData.tarifa_diaria.toFixed(2)}
                   </p>
                 )}
               </div>
