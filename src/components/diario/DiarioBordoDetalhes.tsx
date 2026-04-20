@@ -760,15 +760,13 @@ function DiarioBordoDetalhes() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setModoCelula(modoCelula === "tvoo" ? "tempo_total" : "tvoo")}
-                    className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-cyan-500/50 hover:bg-slate-800 transition-all cursor-pointer text-left">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 text-left">
                     <div className="flex items-center gap-1.5 mb-1">
                       <Clock className="w-3 h-3 text-cyan-400" />
                       <span className="text-slate-500 text-xs">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
                     </div>
                     <p className="text-cyan-400 font-semibold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
-                  </button>
+                  </div>
                   <Stat icon={<PlaneLanding className="w-3 h-3" />} label="Pousos" value={String(totals.pousos)} accent="success" />
                   <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
                 </div>
