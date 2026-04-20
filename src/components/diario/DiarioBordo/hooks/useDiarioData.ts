@@ -44,40 +44,33 @@ export const useDiarioData = (
     const loadData = async () => {
       setLoading(true);
       try {
-        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
-          supabase.from('aeronave').select('*').eq('status', 'ativa').eq('id', aircraftId).single(),
-          supabase.from('membros_tripulacao').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
-          supabase.from('crew').select('id, nome_completo, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
-          supabase.from('aerodromes').select('*').order('designativo'),
-          supabase.from('clientes').select('id, razao_social, cnpj, client_aircraft(aircraft_id, share_percentage)').order('razao_social'),
-          supabase.from('lancamentos_diario_bordo').select('*').eq('aeronave_id', aircraftId).order('numero_sequencial', { ascending: true }),
-          supabase.from('diario_mes').select('mes, ano').eq('aeronave_id', aircraftId).eq('fechado', false).order('ano', { ascending: false }).order('mes', { ascending: false }),
-          supabase.from('aircraft_partners').select('*, clients(id, razao_social)').eq('aeronave_id', aircraftId),
-          supabase.from('socios_cliente').select('id, name, cpf, client_id').order('name')
+        const sb: any = supabase;
+        const [acRes, crewMembersRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
+          sb.from('aeronave').select('*').eq('status', 'ativa').eq('id', aircraftId).single(),
+          sb.from('membros_tripulacao').select('*').eq('status', 'ativo').order('nome_completo', { ascending: true }),
+          sb.from('aerodromes').select('*').order('designativo'),
+          sb.from('clientes').select('id, razao_social, cnpj, cotistas_aeronave(id_aeronave, percentual_sociedade)').order('razao_social'),
+          sb.from('lancamentos_diario_bordo').select('*').eq('aeronave_id', aircraftId).order('numero_sequencial', { ascending: true }),
+          sb.from('diario_mes').select('mes, ano').eq('aeronave_id', aircraftId).eq('fechado', false).order('ano', { ascending: false }).order('mes', { ascending: false }),
+          sb.from('cotistas_aeronave').select('*, clientes!cotistas_aeronave_id_clientes_fkey(id, razao_social)').eq('id_aeronave', aircraftId),
+          sb.from('socios_cliente').select('id, nome, cpf, id_clientes').order('nome')
         ]);
 
         if (acRes.data) {
           setAircraft(acRes.data);
-          setLastCelula(acRes.data.cell_hours_current || 0);
         } else {
           toast.error('Aeronave não encontrada ou não está ativa');
           onBack?.();
           return;
         }
 
-        const crewMembersData = crewMembersRes.data || [];
-        const crewTableData = (crewTableRes.data || []).map((p: any) => ({
-          id: p.id,
-          full_name: p.nome_completo,
-          canac: p.canac,
-          status: p.status
+        const crewMembersData = (crewMembersRes.data || []).map((m: any) => ({
+          id: m.id,
+          full_name: m.nome_completo,
+          canac: m.canac,
+          status: m.status
         }));
-        const existingIds = new Set(crewMembersData.map((c: any) => c.id));
-        const mergedCrew = [
-          ...crewMembersData,
-          ...crewTableData.filter((c: any) => !existingIds.has(c.id))
-        ];
-        setCrew(mergedCrew);
+        setCrew(crewMembersData);
 
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
         if (clientRes.data) {
@@ -88,7 +81,11 @@ export const useDiarioData = (
           logSuccess('Entradas carregadas', { count: entriesRes.data.length });
           setEntries(entriesRes.data || []);
         }
-        if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
+        if (monthsRes.data) {
+          setAvailableMonths(
+            (monthsRes.data || []).map((m: any) => ({ month: m.mes, year: m.ano }))
+          );
+        }
         if (partnersRes.data) setPartners(partnersRes.data || []);
 
         if (clientPartnersRes.data) {
@@ -96,23 +93,26 @@ export const useDiarioData = (
           const partnersByClientId: Record<string, any[]> = {};
           clientPartnersRes.data.forEach((p: any) => {
             partnerMap[p.id] = p;
-            if (!partnersByClientId[p.client_id]) {
-              partnersByClientId[p.client_id] = [];
+            const clientKey = p.id_clientes;
+            if (clientKey) {
+              if (!partnersByClientId[clientKey]) {
+                partnersByClientId[clientKey] = [];
+              }
+              partnersByClientId[clientKey].push(p);
             }
-            partnersByClientId[p.client_id].push(p);
           });
           setClientPartners(partnerMap);
           setClientPartnersByClientId(partnersByClientId);
         }
 
-        const loansRes = await (supabase as any)
-          .from('aircraft_loans')
+        const loansRes = await sb
+          .from('emprestimos_aeronave')
           .select('*')
-          .eq('lender_aircraft_id', aircraftId)
-          .order('entry_date', { ascending: false });
+          .eq('aeronave_id', aircraftId)
+          .order('data_lancamento', { ascending: false });
         if (loansRes.data) setLoans(loansRes.data || []);
 
-        let { data: monthData } = await supabase
+        const { data: monthData } = await sb
           .from('diario_mes')
           .select('*')
           .eq('aeronave_id', aircraftId)
@@ -124,7 +124,7 @@ export const useDiarioData = (
           setLogbookMonth(monthData);
           setLastCelula(monthData.celula_anterior_ttotal || 0);
         } else {
-          const { data: lastMonthData } = await supabase
+          const { data: lastMonthData } = await sb
             .from('diario_mes')
             .select('*')
             .eq('aeronave_id', aircraftId)
@@ -133,7 +133,7 @@ export const useDiarioData = (
             .limit(1)
             .maybeSingle();
 
-          let celulaAnterior = acRes.data?.cell_hours_current || 0;
+          let celulaAnterior = 0;
           if (lastMonthData && lastMonthData.celula_atual_ttotal) {
             celulaAnterior = lastMonthData.celula_atual_ttotal;
           }
