@@ -801,7 +801,7 @@ function DiarioBordoDetalhes() {
                           className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
                           {num(modoCelula === "tvoo" ? (diarioMes?.celula_anterior_tvoo ?? 0) : (diarioMes?.celula_anterior_ttotal ?? 0), 1)}h
                         </button>
-                        <p className="text-xs text-amber-900 mt-1">clique para editar</p>
+                        <p className="text-xs text-orange-700 mt-1">clique para editar</p>
                       </div>
                     )}
                   </div>
@@ -869,7 +869,7 @@ function DiarioBordoDetalhes() {
                   </div>
                   <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Próxima Revisão</span>
+                      <span className="text-cyan-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Próxima Revisão</span>
                       {editProxRev && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
                     {editProxRev ? (
@@ -902,7 +902,7 @@ function DiarioBordoDetalhes() {
                           className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
                           {num(modoCelula === "tvoo" ? (diarioMes?.celula_prox_revisao_tvoo ?? 0) : (diarioMes?.celula_prox_revisao_ttotal ?? 0), 1)}h
                         </button>
-                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                        <p className="text-xs text-orange-700 mt-1">clique para editar</p>
                       </div>
                     )}
                   </div>
@@ -1081,7 +1081,7 @@ function DiarioBordoDetalhes() {
               {/* Card Consumo */}
               <button
                 onClick={() => setShowConsumo(true)}
-                className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl pt-[2px] pb-[2px] pl-[44px] pr-[44px] mt-[17px] mb-[17px] ml-[29px] mr-[29px] text-left transition-all hover:shadow-lg hover:shadow-amber-500/20">
+                className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl pt-[2px] pb-[2px] pl-[44px] pr-[44px] mt-[94px] mb-[94px] ml-[13px] mr-[13px] text-left transition-all hover:shadow-lg hover:shadow-amber-500/20">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-amber-400 group-hover:text-amber-300">Consumo · clique para detalhes</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
