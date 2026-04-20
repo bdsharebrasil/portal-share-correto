@@ -137,6 +137,7 @@ function DiarioBordoDetalhes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [modoTabela, setModoTabela] = useState<"completo" | "resumo">("completo");
+  const [showCelulaTvoo, setShowCelulaTvoo] = useState<boolean>(false);
 
   // Column widths (resizable)
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
@@ -955,7 +956,17 @@ function DiarioBordoDetalhes() {
                       <th className="px-3 py-2 text-center text-emerald-400 relative" style={{ width: colWidths["pousos"] ?? 60 }}>POUSOS<ResizeHandle col="pousos" /></th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["abast"] ?? 65, color: "rgb(205, 132, 10)" }}>ABAST+<ResizeHandle col="abast" /></th>
                       <th className="px-3 py-2 text-left text-amber-400 relative" style={{ width: colWidths["fuel"] ?? 55 }}>FUEL<ResizeHandle col="fuel" /></th>
-                      <th className="px-3 py-2 text-left relative" style={{ width: colWidths["celula"] ?? 70 }}>CÉLULA<ResizeHandle col="celula" /></th>
+                      <th className="px-3 py-2 text-left relative" style={{ width: colWidths["celula"] ?? 70 }}>
+                        <button
+                          onClick={() => setShowCelulaTvoo(!showCelulaTvoo)}
+                          className={`font-semibold transition-colors py-1 px-2 rounded hover:opacity-80 ${
+                            showCelulaTvoo ? "text-blue-400" : "text-slate-400"
+                          }`}
+                          title={`Clique para alternar entre Célula ${showCelulaTvoo ? "Total" : "T.Voo"}`}>
+                          CÉLULA {showCelulaTvoo && "(T.Voo)"}
+                        </button>
+                        <ResizeHandle col="celula" />
+                      </th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["pic"] ?? 110 }}>PIC<ResizeHandle col="pic" /></th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["sic"] ?? 110 }}>SIC<ResizeHandle col="sic" /></th>
                       <th className="px-3 py-2 text-left relative" style={{ width: colWidths["voopara"] ?? 120 }}>VOO PARA<ResizeHandle col="voopara" /></th>
@@ -1032,17 +1043,8 @@ function DiarioBordoDetalhes() {
                             })()}
                           </Td>
                           <Td className="text-amber-400">{num(l.litros_combustivel_inicio_voo, 0)}</Td>
-                          <Td>
-                            <button
-                              onClick={() => setSelectedLancId(selectedLancId === l.id ? null : l.id)}
-                              className={`font-mono font-semibold transition-colors px-2 py-1 rounded ${
-                                selectedLancId === l.id
-                                  ? "text-cyan-400 bg-cyan-500/15 border border-cyan-500/40"
-                                  : "text-white hover:text-cyan-400 hover:bg-cyan-500/10"
-                              }`}
-                              title="Clique para carregar os dados desta célula">
-                              {num(l.celula, 1)}h
-                            </button>
+                          <Td className="font-mono text-white">
+                            {showCelulaTvoo ? num(l.celula_tvoo ?? 0, 1) : num(l.celula ?? 0, 1)}h
                           </Td>
                           <Td className="text-xs truncate">{picT?.nome_completo ?? l.pic_canac ?? "—"}</Td>
                           <Td className="text-xs truncate">{sicT?.nome_completo ?? l.sic_name ?? l.sic_canac ?? "—"}</Td>
