@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plane, Calendar, Gauge, Activity, ChevronRight, Plus } from "lucide-react";
+import { Plane, Calendar, Gauge, Activity, ChevronRight, Plus, PlaneTakeoff } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,7 +105,7 @@ function DiarioBordo() {
               onClick={() => navigate("/aerodromos")}
               className="gap-2 whitespace-nowrap"
             >
-              <PlaneTakeoficoicon className="h-4 w-4" /> Aeródromos
+              <PlaneTakeof className="h-4 w-4" /> Aeródromos
             </Button>
           </div>
         </motion.div>
