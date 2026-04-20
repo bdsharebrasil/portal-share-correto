@@ -752,7 +752,7 @@ function DiarioBordoDetalhes() {
             {/* Linha 1: Dados da Aeronave - Full Width */}
             <div className="grid grid-cols-1 gap-5">
               {/* Card Dados da Aeronave */}
-              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl p-6 hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
+              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[1px] pb-[1px] pl-[44px] pr-[44px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 <div className="relative flex items-center gap-2 mb-5">
                   <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
@@ -760,7 +760,7 @@ function DiarioBordoDetalhes() {
                   </div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Dados da Aeronave</p>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-[10px] mb-[1px] pt-[9px] pb-[9px] pl-[17px] pr-[17px]">
                   <Stat icon={<Plane className="w-4 h-4" />} label="Matrícula" value={aeronave?.matricula ?? "—"} />
                   <Stat icon={<Gauge className="w-4 h-4" />} label="Modelo" value={aeronave?.modelo ?? "—"} />
                   <Stat label="Ano" value={aeronave?.ano ?? "—"} />
@@ -768,7 +768,7 @@ function DiarioBordoDetalhes() {
                   <div className="hidden" />
                   <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Célula Anterior</span>
+                      <span className="text-cyan-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Célula Anterior</span>
                       {editCelulaAnt && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
                     {editCelulaAnt ? (
@@ -801,7 +801,7 @@ function DiarioBordoDetalhes() {
                           className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
                           {num(modoCelula === "tvoo" ? (diarioMes?.celula_anterior_tvoo ?? 0) : (diarioMes?.celula_anterior_ttotal ?? 0), 1)}h
                         </button>
-                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                        <p className="text-xs text-amber-900 mt-1">clique para editar</p>
                       </div>
                     )}
                   </div>
@@ -811,7 +811,7 @@ function DiarioBordoDetalhes() {
                       : "bg-slate-800/40 border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50"
                   }`}>
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className={`text-xs ${selectedLancId ? "text-cyan-400" : "text-slate-500"}`}>
+                      <span className={`text-xs ${selectedLancId ? "text-cyan-400" : "text-cyan-400"}`}>
                         Célula Atual {selectedLancId && "· Do Voo"}
                       </span>
                       {selectedLancId && (
@@ -1535,7 +1535,7 @@ function Stat({ icon, label, value, accent }: { icon?: React.ReactNode; label: s
     <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
       <div className="flex items-center gap-1.5 mb-1">
         {icon && <span className="text-cyan-400 flex items-center">{icon}</span>}
-        <span className="text-slate-500 text-xs">{label}</span>
+        <span className="text-cyan-400 text-xs">{label}</span>
       </div>
       <p className={`font-semibold text-sm ${color}`}>{value}</p>
     </div>
