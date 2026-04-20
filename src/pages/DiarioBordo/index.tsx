@@ -31,9 +31,9 @@ function DiarioBordo() {
 
   // Determina a cor baseado em horas para próxima revisão
   const getProxRevColor = (horas: number) => {
-    if (horas > 15) return { label: "cyan", text: "text-cyan-400", bar: "from-cyan-500 to-blue-500" };
-    if (horas >= 10) return { label: "amber", text: "text-amber-400", bar: "from-amber-500 to-yellow-500" };
-    return { label: "red", text: "text-red-400", bar: "from-red-500 to-orange-500" };
+    if (horas > 15) return { textClass: "text-cyan-400", barClass: "bg-gradient-to-r from-cyan-500 to-blue-500" };
+    if (horas >= 10) return { textClass: "text-amber-400", barClass: "bg-gradient-to-r from-amber-500 to-yellow-500" };
+    return { textClass: "text-red-400", barClass: "bg-gradient-to-r from-red-500 to-orange-500" };
   };
 
   useEffect(() => {
@@ -216,15 +216,15 @@ function DiarioBordo() {
                               <div className="mb-4">
                                 <div className="mb-1.5 flex items-center justify-between">
                                   <span className="flex items-center gap-1 text-xs text-slate-400">
-                                    <Activity className={`h-3 w-3 ${colors.text}`} /> Próxima revisão
+                                    <Activity className={`h-3 w-3 ${colors.textClass}`} /> Próxima revisão
                                   </span>
-                                  <span className={`text-xs font-medium ${colors.text}`}>
+                                  <span className={`text-xs font-medium ${colors.textClass}`}>
                                     {num(prox, 0)}h
                                   </span>
                                 </div>
                                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
                                   <div
-                                    className={`h-full rounded-full bg-gradient-to-r ${colors.bar} transition-all`}
+                                    className={`h-full rounded-full ${colors.barClass} transition-all`}
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
