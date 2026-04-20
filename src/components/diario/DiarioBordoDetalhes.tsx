@@ -904,9 +904,9 @@ function DiarioBordoDetalhes() {
                       </span>
                     </div>
                     <p className="font-bold text-sm text-emerald-300">
-                      {num(modoCelula === "tvoo"
+                      {num(Math.max(0, modoCelula === "tvoo"
                         ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_tvoo ?? 0))
-                        : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
+                        : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))), 1) + "h"}
                     </p>
                   </div>
                 </div>
