@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plane, Calendar, Gauge, Activity, ChevronRight } from "lucide-react";
+import { Plane, Calendar, Gauge, Activity, ChevronRight, Plus, BookOpenCheck, PlaneTakeoff } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { num } from "@/lib/formatters";
 
@@ -86,18 +87,26 @@ function DiarioBordo() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-cyan-500/20 border border-cyan-500/30 rounded-2xl">
-              <Plane className="w-7 h-7 text-cyan-400" />
+          <div className="flex items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-cyan-500/20 border border-cyan-500/30 rounded-2xl">
+                <BookOpenCheck className="w-7 h-7 text-cyan-400" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white tracking-wide">
+                  Diários de Bordo
+                </h1>
+                <p className="text-slate-400 mt-0.5">
+                  Gerencie os diários de bordo digitais das aeronaves
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white tracking-wide">
-                Diários de Bordo
-              </h1>
-              <p className="text-slate-400 mt-0.5">
-                Gerencie os diários de bordo digitais das aeronaves
-              </p>
-            </div>
+            <Button
+              onClick={() => navigate("/aerodromos")}
+              className="gap-2 whitespace-nowrap"
+            >
+              <PlaneTakeoff className="h-4 w-4" /> Aeródromos
+            </Button>
           </div>
         </motion.div>
 
