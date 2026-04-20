@@ -122,6 +122,7 @@ function DiarioBordoDetalhes() {
   const [aeronave, setAeronave] = useState<Aeronave | null>(null);
   const [diarioMes, setDiarioMes] = useState<DiarioMesRow | null>(null);
   const [lancamentos, setLancamentos] = useState<Lanc[]>([]);
+  const [lancamentosAno, setLancamentosAno] = useState<Lanc[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [tripulantes, setTripulantes] = useState<Tripulante[]>([]);
@@ -173,11 +174,17 @@ function DiarioBordoDetalhes() {
     const fimDate = new Date(ano, mes, 0);
     const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
 
-    const [aRes, dmRes, lRes, cRes, sRes, tRes, abRes] = await Promise.all([
+    const anoIni = `${ano}-01-01`;
+    const anoFim = `${ano}-12-31`;
+
+    const [aRes, dmRes, lRes, lAnoRes, cRes, sRes, tRes, abRes] = await Promise.all([
       supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
         .gte("data_registro", ini).lte("data_registro", fim)
+        .order("data_registro", { ascending: true }),
+      supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
+        .gte("data_registro", anoIni).lte("data_registro", anoFim)
         .order("data_registro", { ascending: true }),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
       (supabase as any).from("socios_cliente").select("id,nome,cliente_id").order("nome"),
@@ -193,6 +200,7 @@ function DiarioBordoDetalhes() {
     }
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
+    setLancamentosAno((lAnoRes.data ?? []) as unknown as Lanc[]);
     setClientes((cRes.data ?? []) as Cliente[]);
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
@@ -741,10 +749,10 @@ function DiarioBordoDetalhes() {
 
           {/* Info row - Seção redesenhada */}
           <div className="space-y-5">
-            {/* Linha 1: Dados da Aeronave e Período */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {/* Linha 1: Dados da Aeronave - Full Width */}
+            <div className="grid grid-cols-1 gap-5">
               {/* Card Dados da Aeronave */}
-              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl p-6 hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
+              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[1px] pb-[1px] pl-[44px] pr-[44px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 <div className="relative flex items-center gap-2 mb-5">
                   <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
@@ -752,7 +760,7 @@ function DiarioBordoDetalhes() {
                   </div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Dados da Aeronave</p>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-[10px] mb-[1px] pt-[9px] pb-[9px] pl-[17px] pr-[17px]">
                   <Stat icon={<Plane className="w-4 h-4" />} label="Matrícula" value={aeronave?.matricula ?? "—"} />
                   <Stat icon={<Gauge className="w-4 h-4" />} label="Modelo" value={aeronave?.modelo ?? "—"} />
                   <Stat label="Ano" value={aeronave?.ano ?? "—"} />
@@ -760,7 +768,7 @@ function DiarioBordoDetalhes() {
                   <div className="hidden" />
                   <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Célula Anterior</span>
+                      <span className="text-cyan-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">Célula Anterior</span>
                       {editCelulaAnt && <span className="text-xs text-cyan-400">✎</span>}
                     </div>
                     {editCelulaAnt ? (
@@ -793,7 +801,7 @@ function DiarioBordoDetalhes() {
                           className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
                           {num(modoCelula === "tvoo" ? (diarioMes?.celula_anterior_tvoo ?? 0) : (diarioMes?.celula_anterior_ttotal ?? 0), 1)}h
                         </button>
-                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                        <p className="text-xs text-amber-900 mt-1">clique para editar</p>
                       </div>
                     )}
                   </div>
@@ -803,7 +811,7 @@ function DiarioBordoDetalhes() {
                       : "bg-slate-800/40 border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50"
                   }`}>
                     <div className="flex items-center justify-between gap-1.5 mb-1">
-                      <span className={`text-xs ${selectedLancId ? "text-cyan-400" : "text-slate-500"}`}>
+                      <span className={`text-xs ${selectedLancId ? "text-cyan-400" : "text-cyan-400"}`}>
                         Célula Atual {selectedLancId && "· Do Voo"}
                       </span>
                       {selectedLancId && (
@@ -912,49 +920,10 @@ function DiarioBordoDetalhes() {
                   </div>
                 </div>
               </div>
-
-              {/* Card Período */}
-              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[62px] pb-[62px] pl-[17px] pr-[17px] mt-[38px] mb-[38px] ml-[-13px] mr-[-13px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                <div className="relative flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
-                      <Calendar className="w-4 h-4 text-cyan-400" />
-                    </div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Período</p>
-                  </div>
-                  <div className="flex gap-2 flex-col items-end">
-                    <div className="flex gap-2">
-                      <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
-                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
-                        {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
-                      </select>
-                      <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
-                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
-                        {Array.from({ length: 6 }).map((_, i) => {
-                          const y = today.getFullYear() - i;
-                          return <option key={y} value={y}>{y}</option>;
-                        })}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Clock className="w-4 h-4 text-cyan-400" />
-                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
-                    </div>
-                    <p className="text-cyan-300 font-bold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
-                  </div>
-                  <Stat icon={<PlaneLanding className="w-4 h-4" />} label="Pousos" value={String(totals.pousos)} accent="success" />
-                  <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
-                </div>
-              </div>
             </div>
 
-            {/* Linha 2: Horímetro e Consumo */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {/* Linha 2: Horímetro - Full Width */}
+            <div className="grid grid-cols-1 gap-5">
               {/* Card Horímetro */}
               <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-slate-400">Horímetro</p>
@@ -1064,6 +1033,48 @@ function DiarioBordoDetalhes() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Linha 3: Período e Consumo */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {/* Card Período */}
+              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[62px] pb-[62px] pl-[17px] pr-[17px] mt-[38px] mb-[38px] ml-[-13px] mr-[-13px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                <div className="relative flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
+                      <Calendar className="w-4 h-4 text-cyan-400" />
+                    </div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Período</p>
+                  </div>
+                  <div className="flex gap-2 flex-col items-end">
+                    <div className="flex gap-2">
+                      <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
+                        {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
+                      </select>
+                      <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700/60 bg-slate-800/60 backdrop-blur-sm px-3 py-2 text-xs text-white font-medium hover:border-slate-600 focus:border-cyan-500/70 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all duration-200">
+                        {Array.from({ length: 6 }).map((_, i) => {
+                          const y = today.getFullYear() - i;
+                          return <option key={y} value={y}>{y}</option>;
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-slate-800/40 backdrop-blur-sm rounded-lg p-3.5 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/50 transition-all duration-200 group/cell">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Clock className="w-4 h-4 text-cyan-400" />
+                      <span className="text-slate-400 text-xs font-medium group-hover/cell:text-slate-300 transition-colors">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
+                    </div>
+                    <p className="text-cyan-300 font-bold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
+                  </div>
+                  <Stat icon={<PlaneLanding className="w-4 h-4" />} label="Pousos" value={String(totals.pousos)} accent="success" />
+                  <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
                 </div>
               </div>
 
@@ -1214,7 +1225,8 @@ function DiarioBordoDetalhes() {
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_pou)}</Td>
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_cor)}</Td>
                           <Td className="font-mono font-semibold" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(Number(l.tempo_voo ?? 0))}</Td>
-                          <Td className="font-mono" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(Number(l.horas_diurnas ?? 0))}</Td>
+                          <Td className="font-mono" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(Number(l.tempo_total ?? 0))}</Td>
+
                           <Td className="font-mono" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(Number(l.horas_noturnas ?? 0))}</Td>
                           <Td className="font-mono text-amber-400">{decimalToHHMM(Number(l.tempo_ifr ?? 0))}</Td>
                           <Td className="text-center text-emerald-400">{l.pousos_total ?? 0}</Td>
@@ -1306,7 +1318,8 @@ function DiarioBordoDetalhes() {
                           TOTAIS DO PERÍODO
                         </td>
                         <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(43, 122, 216)" }}>{decimalToHHMM(totals.tVoo)}</td>
-                        <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(totals.tDia)}</td>
+                        <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(106, 226, 231)" }}>{decimalToHHMM(totals.tTotal)}</td>
+
                         <td className="px-3 py-3 font-mono font-bold text-sm" style={{ color: "rgb(144, 19, 254)" }}>{decimalToHHMM(totals.tNoit)}</td>
                         <td className="px-3 py-3 font-mono font-bold text-amber-400 text-sm">{decimalToHHMM(totals.ifr)}</td>
                         <td className="px-3 py-3 text-center font-bold text-emerald-400 text-sm">{totals.pousos}</td>
@@ -1473,6 +1486,7 @@ function DiarioBordoDetalhes() {
           <ConsumoDialog
             aeronave={aeronave}
             lancamentos={lancamentos}
+            lancamentosAno={lancamentosAno}
             clientes={clientes} socios={socios}
             mes={mes} ano={ano}
             labelVooPara={labelVooPara}
@@ -1523,7 +1537,7 @@ function Stat({ icon, label, value, accent }: { icon?: React.ReactNode; label: s
     <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40">
       <div className="flex items-center gap-1.5 mb-1">
         {icon && <span className="text-cyan-400 flex items-center">{icon}</span>}
-        <span className="text-slate-500 text-xs">{label}</span>
+        <span className="text-cyan-400 text-xs">{label}</span>
       </div>
       <p className={`font-semibold text-sm ${color}`}>{value}</p>
     </div>
