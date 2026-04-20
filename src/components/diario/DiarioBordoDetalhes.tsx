@@ -605,7 +605,6 @@ function DiarioBordoDetalhes() {
                 <h1 className="text-base font-bold text-white tracking-wide truncate">
                   Diário {monthNames[(mes ?? 1) - 1]} {ano} — {aeronave.matricula}
                 </h1>
-                <p className="text-slate-500 text-xs">{aeronave.modelo}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
