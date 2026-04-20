@@ -8,7 +8,7 @@ export function StatsGrid() {
     queryKey: ["clients-count"],
     queryFn: async () => {
       const { count, error } = await supabase
-        .from("clients")
+        .from("clientes")
         .select("*", { count: "exact", head: true });
       if (error) throw error;
       return count || 0;

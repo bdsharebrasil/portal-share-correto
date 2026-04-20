@@ -575,7 +575,7 @@ export function FuelRecordsByAircraft({
       return;
     }
     const { data: clientData, error: clientError } = await (supabase as any)
-      .from('clients')
+      .from('clientes')
       .select('*')
       .eq('id', currentClientId)
       .single();

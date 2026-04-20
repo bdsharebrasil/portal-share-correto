@@ -176,7 +176,7 @@ export function DynamicLogbookForm({
     queryKey: ['all-clients-for-loan'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('clients')
+        .from('clientes')
         .select('id, company_name, proprietario')
         .order('company_name');
       if (error) {
