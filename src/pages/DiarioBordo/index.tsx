@@ -211,20 +211,32 @@ function DiarioBordo() {
 
                           {/* Progress bar próxima revisão */}
                           {prox > 0 && (() => {
-                            const colors = getProxRevColor(prox);
+                            const horasDisponiveis = prox - horas;
+                            const alertColor =
+                              horasDisponiveis > 15
+                                ? "from-[hsl(192,70%,50%)] to-[hsl(192,65%,55%)]"
+                                : horasDisponiveis >= 10
+                                  ? "from-[hsl(45,100%,55%)] to-[hsl(45,100%,60%)]"
+                                  : "from-[hsl(0,75%,60%)] to-[hsl(0,75%,50%)]";
+                            const barBgColor =
+                              horasDisponiveis > 15
+                                ? "bg-[hsl(192,70%,50%,0.15)]"
+                                : horasDisponiveis >= 10
+                                  ? "bg-[hsl(45,100%,55%,0.15)]"
+                                  : "bg-[hsl(0,75%,60%,0.15)]";
                             return (
                               <div className="mb-4">
                                 <div className="mb-1.5 flex items-center justify-between">
                                   <span className="flex items-center gap-1 text-xs text-slate-400">
-                                    <Activity className={`h-3 w-3 ${colors.textClass}`} /> Próxima revisão
+                                    <Activity className="h-3 w-3" /> Próxima revisão
                                   </span>
-                                  <span className={`text-xs font-medium ${colors.textClass}`}>
+                                  <span className="text-xs font-medium text-white">
                                     {num(prox, 0)}h
                                   </span>
                                 </div>
-                                <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
+                                <div className={`h-1.5 overflow-hidden rounded-full ${barBgColor}`}>
                                   <div
-                                    className={`h-full rounded-full ${colors.barClass} transition-all`}
+                                    className={`h-full rounded-full bg-gradient-to-r ${alertColor} transition-all`}
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
