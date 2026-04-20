@@ -19,6 +19,7 @@ import {
   decimalToHHMM, diffDecimalHours, hhmmToMinutes, minutesToHHMM,
   pgTimeToHHMM, subtractMinutesHHMM, sumDecimal,
 } from "@/lib/time";
+import { calculateCelulaDisponivel } from "@/utils/flightTime";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -476,7 +477,19 @@ function DiarioBordoDetalhes() {
   const saveDiarioMesField = async (field: string, value: number | string) => {
     try {
       if (!diarioMes?.id) return;
-      const { error } = await supabase.from("diario_mes").update({ [field]: value }).eq("id", diarioMes.id);
+
+      const updateData: any = { [field]: value };
+
+      // Se atualizando prox_revisao, recalcular celula_disponivel automaticamente
+      if (field === "celula_prox_revisao_ttotal") {
+        const celulaAtual = diarioMes.celula_atual_ttotal ?? 0;
+        updateData.celula_disponivel_ttotal = calculateCelulaDisponivel(Number(value), celulaAtual);
+      } else if (field === "celula_prox_revisao_tvoo") {
+        const celulaAtual = diarioMes.celula_atual_tvoo ?? 0;
+        updateData.celula_disponivel_tvoo = calculateCelulaDisponivel(Number(value), celulaAtual);
+      }
+
+      const { error } = await supabase.from("diario_mes").update(updateData).eq("id", diarioMes.id);
       if (error) toast.error("Erro ao salvar: " + error.message);
       else { toast.success("Salvo!"); await reload(); }
     } catch { toast.error("Erro ao salvar"); }
