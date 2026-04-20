@@ -91,7 +91,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim)
         .order('data', { ascending: false });
-      if (aeronaveId) query = query.eq('aircraft_id', aeronaveId);
+      if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -163,7 +163,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
         .from('horas_mensais_consolidadas')
         .select('ano, mes, horas_voadas, percentual_uso, aeronave_registro')
         .eq('clientes_id', clienteId);
-      if (aeronaveId) query = query.eq('aircraft_id', aeronaveId);
+      if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);
       const { data, error } = await query;
       if (error) throw error;
       return data || [];

@@ -124,7 +124,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
         .eq('client_id', clienteId);
 
       if (aeronaveId) {
-        q = q.eq('aircraft_id', aeronaveId);
+        q = q.eq('aeronave_id', aeronaveId);
       }
 
       const { data: horasConsolidadas } = await q;
