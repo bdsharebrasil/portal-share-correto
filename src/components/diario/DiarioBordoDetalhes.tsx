@@ -29,6 +29,7 @@ type Aeronave = {
   ano?: string | null;
   base?: string | null;
   consumo_combustivel: number | null;
+  modo_celula?: "tvoo" | "tempo_total" | null;
 };
 type Lanc = {
   id: string;
@@ -151,7 +152,7 @@ function DiarioBordoDetalhes() {
     const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
 
     const [aRes, dmRes, lRes, cRes, sRes, tRes, abRes] = await Promise.all([
-      supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel").eq("id", aircraftId).maybeSingle(),
+      supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
         .gte("data_registro", ini).lte("data_registro", fim)
@@ -165,6 +166,9 @@ function DiarioBordoDetalhes() {
         .not("logbook_entry_id", "is", null),
     ]);
     setAeronave(aRes.data as Aeronave | null);
+    if (aRes.data?.modo_celula) {
+      setModoCelula(aRes.data.modo_celula as "tvoo" | "tempo_total");
+    }
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
     setClientes((cRes.data ?? []) as Cliente[]);
@@ -361,17 +365,27 @@ function DiarioBordoDetalhes() {
         });
       }
 
-      // Criar novo mês
+      // Atualizar modo de cálculo na aeronave
+      await supabase.from("aeronave")
+        .update({ modo_celula: data.modo_celula })
+        .eq("id", aircraftId);
+
+      // Criar novo mês com ambos os conjuntos de colunas preenchidos
       const { error } = await supabase
         .from("diario_mes")
         .insert({
           aeronave_id: aircraftId,
           ano: data.year,
           mes: data.month,
+          // Preencher ambos os conjuntos com os mesmos valores iniciais
           celula_anterior_ttotal: data.celula_anterior,
           celula_atual_ttotal: data.celula_atual,
           celula_prox_revisao_ttotal: data.celula_prox_revisao,
           celula_disponivel_ttotal: data.celula_disponivel,
+          celula_anterior_tvoo: data.celula_anterior,
+          celula_atual_tvoo: data.celula_atual,
+          celula_prox_revisao_tvoo: data.celula_prox_revisao,
+          celula_disponivel_tvoo: data.celula_disponivel,
           horimetro_inicio: data.horimetro_inicio,
           horimetro_final: data.horimetro_final,
           aerodromo_base: data.base_aerodrome,
@@ -383,6 +397,8 @@ function DiarioBordoDetalhes() {
       if (error) {
         toast.error("Erro ao criar novo mês: " + error.message);
       } else {
+        // Atualizar estado local
+        setModoCelula(data.modo_celula);
         toast.success("Novo mês criado com sucesso!");
         setMes(data.month);
         setAno(data.year);
@@ -522,11 +538,14 @@ function DiarioBordoDetalhes() {
                         />
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setEditCelulaAnt(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
-                        {num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditCelulaAnt(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
+                          {num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className={`rounded-xl p-3 border transition-colors ${
@@ -646,11 +665,14 @@ function DiarioBordoDetalhes() {
                         />
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setEditProxRev(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
-                        {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditProxRev(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
+                          {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className={`rounded-xl p-3 border transition-colors ${
@@ -720,30 +742,31 @@ function DiarioBordoDetalhes() {
               <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Período</p>
-                  <div className="flex gap-2">
-                    <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
-                    </select>
-                    <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {Array.from({ length: 6 }).map((_, i) => {
-                        const y = today.getFullYear() - i;
-                        return <option key={y} value={y}>{y}</option>;
-                      })}
-                    </select>
+                  <div className="flex gap-2 flex-col items-end">
+                    <div className="flex gap-2">
+                      <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                        {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
+                      </select>
+                      <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                        {Array.from({ length: 6 }).map((_, i) => {
+                          const y = today.getFullYear() - i;
+                          return <option key={y} value={y}>{y}</option>;
+                        })}
+                      </select>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">clique para mudar</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setModoCelula(modoCelula === "tvoo" ? "tempo_total" : "tvoo")}
-                    className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-cyan-500/50 hover:bg-slate-800 transition-all cursor-pointer text-left">
+                  <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 text-left">
                     <div className="flex items-center gap-1.5 mb-1">
                       <Clock className="w-3 h-3 text-cyan-400" />
                       <span className="text-slate-500 text-xs">{modoCelula === "tvoo" ? "T. Voo" : "Tempo Total"}</span>
                     </div>
                     <p className="text-cyan-400 font-semibold text-sm">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
-                  </button>
+                  </div>
                   <Stat icon={<PlaneLanding className="w-3 h-3" />} label="Pousos" value={String(totals.pousos)} accent="success" />
                   <Stat label="Total Lançamentos" value={String(lancamentos.length)} accent="primary" />
                 </div>
@@ -781,11 +804,14 @@ function DiarioBordoDetalhes() {
                         autoFocus
                       />
                     ) : (
-                      <button
-                        onClick={() => setEditHorIni(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
-                        {num(diarioMes?.horimetro_inicio ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditHorIni(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                          {num(diarioMes?.horimetro_inicio ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
@@ -813,11 +839,14 @@ function DiarioBordoDetalhes() {
                         autoFocus
                       />
                     ) : (
-                      <button
-                        onClick={() => setEditHorFim(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
-                        {num(diarioMes?.horimetro_final ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditHorFim(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                          {num(diarioMes?.horimetro_final ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
@@ -845,11 +874,14 @@ function DiarioBordoDetalhes() {
                         autoFocus
                       />
                     ) : (
-                      <button
-                        onClick={() => setEditHorAtv(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
-                        {num(diarioMes?.horimetro_ativo ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditHorAtv(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                          {num(diarioMes?.horimetro_ativo ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1181,6 +1213,7 @@ function DiarioBordoDetalhes() {
                         </div>
                         <span className="text-slate-500 text-xs shrink-0">{pct.toFixed(1)}%</span>
                       </div>
+                      <p className="text-xs text-slate-500 mt-1">clique para ver mais</p>
                     </button>
                   );
                 })}
@@ -1196,6 +1229,7 @@ function DiarioBordoDetalhes() {
           <NovoVooDialog
             aeronave={aeronave}
             mes={mes} ano={ano}
+            modoCelula={modoCelula}
             clientes={clientes} socios={socios} tripulantes={tripulantes}
             ultimaCelula={diarioMes?.celula_atual_ttotal ?? 0}
             ultimaCelulaTvoo={diarioMes?.celula_atual_tvoo ?? 0}
@@ -1242,6 +1276,7 @@ function DiarioBordoDetalhes() {
         aircraftRegistration={aeronave?.matricula ?? ""}
         month={mes ?? new Date().getMonth() + 1}
         year={ano ?? new Date().getFullYear()}
+        currentModoCelula={aeronave?.modo_celula}
         previousMonthData={previousMonthForCreation}
         onCreate={handleCreateMonth}
       />
@@ -1292,9 +1327,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function NovoVooDialog({
-  aeronave, mes, ano, clientes, socios, tripulantes, ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
+  aeronave, mes, ano, modoCelula, clientes, socios, tripulantes, ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
 }: {
   aeronave: Aeronave; mes: number; ano: number;
+  modoCelula: "tvoo" | "tempo_total";
   clientes: Cliente[]; socios: Socio[]; tripulantes: Tripulante[];
   ultimaCelula: number; ultimaCelulaTvoo: number;
   temDiaria: boolean;
@@ -1427,7 +1463,13 @@ function NovoVooDialog({
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
       if (ins.error) throw ins.error;
-      await supabase.from("diario_mes").update({ celula_atual_ttotal: celula, celula_atual_tvoo: celulaTvoo }).eq("id", dmId);
+
+      // Atualizar apenas a coluna relevante baseado em modoCelula
+      const updatePayload = modoCelula === "tvoo"
+        ? { celula_atual_tvoo: celulaTvoo }
+        : { celula_atual_ttotal: celula };
+
+      await supabase.from("diario_mes").update(updatePayload).eq("id", dmId);
       onSaved();
     } catch (e: unknown) {
       console.error(e);
