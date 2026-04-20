@@ -63,6 +63,8 @@ interface ConsumoDialogProps {
   ano: number;
   labelVooPara: (l: Lanc) => string;
   onClose: () => void;
+  /** Se true, renderiza como painel inline sem modal */
+  inline?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -214,6 +216,7 @@ export function ConsumoDialog({
   ano,
   labelVooPara,
   onClose,
+  inline = false,
 }: ConsumoDialogProps) {
   const historico = aeronave.consumo_combustivel ?? 0;
 
@@ -298,6 +301,289 @@ export function ConsumoDialog({
 
   const totalAbastClientes = porCliente.reduce((s, c) => s + c.abast, 0);
 
+  // ── Conteúdo comum (todos os blocos) ──
+  const contentJSX = (
+    <>
+      {/* ═══ BLOCO 1 — KPIs do mês ═══ */}
+      <section>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          resumo do mês — {MONTH_NAMES[mes - 1]}/{ano}
+        </p>
+
+        {/* Explicação */}
+        <div className="mb-4 rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3 text-xs text-slate-400 leading-relaxed">
+          <span className="text-slate-300 font-medium">Como é calculado: </span>
+          <span className="text-blue-400 font-medium">L/H por T. voo</span> = litros abastecidos ÷ horas de voo efetivo (decolagem → pouso).{" "}
+          <span className="text-amber-400 font-medium">L/H por T. total</span> = litros ÷ tempo total do motor ligado (acionamento → corte), incluindo táxi e solo.
+          O T. voo dá um consumo maior porque o denominador é menor. O T. total é mais conservador e reflete o consumo real operacional.
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* L/H por T. voo */}
+          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
+            <p className="text-xs text-slate-500 mb-1">L/H por T. voo</p>
+            <LHCell val={mesTotals.lhVoo} ref={historico} />
+            <p className="text-xs text-slate-600 mt-1">base: horas efetivas</p>
+            <div className="mt-2">
+              <DiffBadge val={mesTotals.lhVoo} ref={historico} />
+            </div>
+          </div>
+
+          {/* L/H por T. total */}
+          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
+            <p className="text-xs text-slate-500 mb-1">L/H por T. total</p>
+            <LHCell val={mesTotals.lhTotal} ref={historico} />
+            <p className="text-xs text-slate-600 mt-1">inclui táxi / solo</p>
+            <div className="mt-2">
+              <DiffBadge val={mesTotals.lhTotal} ref={historico} />
+            </div>
+          </div>
+
+          {/* Total abastecido */}
+          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
+            <p className="text-xs text-slate-500 mb-1">abastecido no mês</p>
+            <p className="text-lg font-bold text-white font-mono">{num(mesTotals.abast, 0)} L</p>
+            <p className="text-xs text-slate-600 mt-1">{lancamentos.length} voos registrados</p>
+          </div>
+
+          {/* Horas */}
+          <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
+            <p className="text-xs text-slate-500 mb-1">horas de voo</p>
+            <p className="text-lg font-bold text-cyan-400 font-mono">{decimalToHHMM(mesTotals.tVoo)}</p>
+            <p className="text-xs text-slate-600 mt-1">T. total: {decimalToHHMM(mesTotals.tTotal)}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ BLOCO 2 — Tabela anual ═══ */}
+      {anuais.length > 0 && (
+        <section>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+            tabela anual — {ano}
+          </p>
+
+          {/* Gráfico de linha */}
+          <div className="mb-4 rounded-xl border border-slate-700/30 bg-slate-800/30 px-4 pt-4 pb-2">
+            <div className="flex flex-wrap items-center gap-4 mb-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-8 h-0.5 bg-blue-500 rounded" />
+                L/H por T. voo
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-8 h-px bg-amber-400 rounded border-dashed border-t border-amber-400" />
+                L/H por T. total
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-8 h-px bg-slate-500 rounded" style={{ borderTop: "2px dashed" }} />
+                referência histórica ({num(historico, 1)})
+              </span>
+            </div>
+            <LineChart
+              data={anuais.map(r => ({ label: r.nomeMes, lhVoo: r.lhVoo, lhTotal: r.lhTotal }))}
+              historico={historico}
+            />
+          </div>
+
+          {/* Tabela */}
+          <div className="overflow-x-auto rounded-xl border border-slate-700/40">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5 text-left font-medium">Mês</th>
+                  <th className="px-4 py-2.5 text-right font-medium">T. voo (h)</th>
+                  <th className="px-4 py-2.5 text-right font-medium">T. total (h)</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Abast. (L)</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-slate-600">vs histórico</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anuais.map((r, idx) => (
+                  <tr
+                    key={r.mes}
+                    className={[
+                      "border-t border-slate-700/30 transition-colors hover:bg-slate-800/40",
+                      r.mes === mes ? "bg-amber-500/5 border-l-2 border-l-amber-500/50" : "",
+                      idx % 2 === 0 ? "bg-slate-800/10" : "",
+                    ].join(" ")}
+                  >
+                    <td className="px-4 py-2.5 font-semibold text-white capitalize">{r.nomeMes}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-slate-300">{r.tVoo.toFixed(2)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-slate-400">{r.tTotal.toFixed(2)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-slate-300">
+                      {r.abast.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <LHCell val={r.lhVoo} ref={historico} />
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <LHCell val={r.lhTotal} ref={historico} />
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <DiffBadge val={r.lhVoo} ref={historico} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-amber-500/30 bg-slate-800/60">
+                  <td className="px-4 py-3 font-bold text-amber-400 text-xs uppercase tracking-wide">Total / Média</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-white">{anoTotals.tVoo.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-slate-300">{anoTotals.tTotal.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-white">
+                    {anoTotals.abast.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <LHCell val={anoTotals.lhVoo} ref={historico} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <LHCell val={anoTotals.lhTotal} ref={historico} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <DiffBadge val={anoTotals.lhVoo} ref={historico} />
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ BLOCO 3 — Por cliente / cotista ═══ */}
+      <section>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          consumo por cliente / cotista — {MONTH_NAMES[mes - 1]}/{ano}
+        </p>
+
+        {porCliente.length === 0 ? (
+          <p className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-6 text-center text-sm text-slate-500">
+            Nenhum voo com combustível registrado neste período.
+          </p>
+        ) : (
+          <div className="rounded-xl border border-slate-700/40 overflow-hidden">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5 text-left font-medium">Cliente / Cotista</th>
+                  <th className="px-4 py-2.5 text-center font-medium">Voos</th>
+                  <th className="px-4 py-2.5 text-right font-medium">T. voo</th>
+                  <th className="px-4 py-2.5 text-right font-medium">T. total</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Abast. (L)</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
+                  <th className="px-4 py-2.5 text-right font-medium">% abast.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {porCliente.map((c, idx) => {
+                  const pct = totalAbastClientes > 0 ? (c.abast / totalAbastClientes) * 100 : 0;
+                  const cor = SERIE_COLORS[idx % SERIE_COLORS.length];
+                  return (
+                    <tr key={c.label} className="border-t border-slate-700/30 hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cor }} />
+                          <span className="font-medium text-white truncate max-w-[160px]">{c.label}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center text-slate-400">{c.voos}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-300">{decimalToHHMM(c.tVoo)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-400">{decimalToHHMM(c.tTotal)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-300">{num(c.abast, 0)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <LHCell val={c.lhVoo} ref={historico} />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <LHCell val={c.lhTotal} ref={historico} />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-20 h-1.5 rounded-full bg-slate-700/50 overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct.toFixed(0)}%`, background: cor }} />
+                          </div>
+                          <span className="text-xs text-slate-400 w-10 text-right">{pct.toFixed(1)}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* ═══ BLOCO 4 — Por voo ═══ */}
+      <section>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          detalhe por voo — {MONTH_NAMES[mes - 1]}/{ano}
+        </p>
+
+        {porVoo.length === 0 ? (
+          <p className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-6 text-center text-sm text-slate-500">
+            Nenhum voo no período.
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-slate-700/40 max-h-72 overflow-y-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="sticky top-0 bg-slate-800/95 backdrop-blur z-10">
+                <tr className="text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5 text-left font-medium">Data</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Trecho</th>
+                  <th className="px-4 py-2.5 text-left font-medium">Para</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Abast. (L)</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {porVoo.map(({ l, abast, lhVoo, lhTotal }, idx) => (
+                  <tr
+                    key={l.id}
+                    className={[
+                      "border-t border-slate-700/30 hover:bg-slate-800/50 transition-colors",
+                      idx % 2 === 0 ? "bg-slate-800/10" : "",
+                    ].join(" ")}
+                  >
+                    <td className="px-4 py-2.5 font-mono text-slate-400 text-xs">
+                      {new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-slate-300">
+                      {l.trecho ?? `${l.aerodromo_partida ?? "—"} → ${l.aerodromo_chegada ?? "—"}`}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-slate-400 max-w-[120px] truncate">
+                      {labelVooPara(l)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-mono text-slate-300">
+                      {abast > 0 ? num(abast, 0) : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <LHCell val={lhVoo} ref={historico} />
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <LHCell val={lhTotal} ref={historico} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+
+  // ── Renderização: inline vs modal ──
+  if (inline) {
+    // Modo inline: renderiza sem o modal
+    return <div className="space-y-8">{contentJSX}</div>;
+  }
+
+  // Modo modal: renderiza com dialog
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-2 backdrop-blur-sm">
       <motion.div
@@ -324,278 +610,7 @@ export function ConsumoDialog({
         </div>
 
         <div className="p-6 space-y-8">
-
-          {/* ═══ BLOCO 1 — KPIs do mês ═══ */}
-          <section>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-              resumo do mês — {MONTH_NAMES[mes - 1]}/{ano}
-            </p>
-
-            {/* Explicação */}
-            <div className="mb-4 rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3 text-xs text-slate-400 leading-relaxed">
-              <span className="text-slate-300 font-medium">Como é calculado: </span>
-              <span className="text-blue-400 font-medium">L/H por T. voo</span> = litros abastecidos ÷ horas de voo efetivo (decolagem → pouso).{" "}
-              <span className="text-amber-400 font-medium">L/H por T. total</span> = litros ÷ tempo total do motor ligado (acionamento → corte), incluindo táxi e solo.
-              O T. voo dá um consumo maior porque o denominador é menor. O T. total é mais conservador e reflete o consumo real operacional.
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {/* L/H por T. voo */}
-              <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-                <p className="text-xs text-slate-500 mb-1">L/H por T. voo</p>
-                <LHCell val={mesTotals.lhVoo} ref={historico} />
-                <p className="text-xs text-slate-600 mt-1">base: horas efetivas</p>
-                <div className="mt-2">
-                  <DiffBadge val={mesTotals.lhVoo} ref={historico} />
-                </div>
-              </div>
-
-              {/* L/H por T. total */}
-              <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-                <p className="text-xs text-slate-500 mb-1">L/H por T. total</p>
-                <LHCell val={mesTotals.lhTotal} ref={historico} />
-                <p className="text-xs text-slate-600 mt-1">inclui táxi / solo</p>
-                <div className="mt-2">
-                  <DiffBadge val={mesTotals.lhTotal} ref={historico} />
-                </div>
-              </div>
-
-              {/* Total abastecido */}
-              <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-                <p className="text-xs text-slate-500 mb-1">abastecido no mês</p>
-                <p className="text-lg font-bold text-white font-mono">{num(mesTotals.abast, 0)} L</p>
-                <p className="text-xs text-slate-600 mt-1">{lancamentos.length} voos registrados</p>
-              </div>
-
-              {/* Horas */}
-              <div className="rounded-xl border border-slate-700/40 bg-slate-800/50 p-4">
-                <p className="text-xs text-slate-500 mb-1">horas de voo</p>
-                <p className="text-lg font-bold text-cyan-400 font-mono">{decimalToHHMM(mesTotals.tVoo)}</p>
-                <p className="text-xs text-slate-600 mt-1">T. total: {decimalToHHMM(mesTotals.tTotal)}</p>
-              </div>
-            </div>
-          </section>
-
-          {/* ═══ BLOCO 2 — Tabela anual ═══ */}
-          {anuais.length > 0 && (
-            <section>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                tabela anual — {ano}
-              </p>
-
-              {/* Gráfico de linha */}
-              <div className="mb-4 rounded-xl border border-slate-700/30 bg-slate-800/30 px-4 pt-4 pb-2">
-                <div className="flex flex-wrap items-center gap-4 mb-3 text-xs text-slate-500">
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-8 h-0.5 bg-blue-500 rounded" />
-                    L/H por T. voo
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-8 h-px bg-amber-400 rounded border-dashed border-t border-amber-400" />
-                    L/H por T. total
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-8 h-px bg-slate-500 rounded" style={{ borderTop: "2px dashed" }} />
-                    referência histórica ({num(historico, 1)})
-                  </span>
-                </div>
-                <LineChart
-                  data={anuais.map(r => ({ label: r.nomeMes, lhVoo: r.lhVoo, lhTotal: r.lhTotal }))}
-                  historico={historico}
-                />
-              </div>
-
-              {/* Tabela */}
-              <div className="overflow-x-auto rounded-xl border border-slate-700/40">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
-                      <th className="px-4 py-2.5 text-left font-medium">Mês</th>
-                      <th className="px-4 py-2.5 text-right font-medium">T. voo (h)</th>
-                      <th className="px-4 py-2.5 text-right font-medium">T. total (h)</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Abast. (L)</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-slate-600">vs histórico</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {anuais.map((r, idx) => (
-                      <tr
-                        key={r.mes}
-                        className={[
-                          "border-t border-slate-700/30 transition-colors hover:bg-slate-800/40",
-                          r.mes === mes ? "bg-amber-500/5 border-l-2 border-l-amber-500/50" : "",
-                          idx % 2 === 0 ? "bg-slate-800/10" : "",
-                        ].join(" ")}
-                      >
-                        <td className="px-4 py-2.5 font-semibold text-white capitalize">{r.nomeMes}</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-slate-300">{r.tVoo.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-slate-400">{r.tTotal.toFixed(2)}</td>
-                        <td className="px-4 py-2.5 text-right font-mono text-slate-300">
-                          {r.abast.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <LHCell val={r.lhVoo} ref={historico} />
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <LHCell val={r.lhTotal} ref={historico} />
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <DiffBadge val={r.lhVoo} ref={historico} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-amber-500/30 bg-slate-800/60">
-                      <td className="px-4 py-3 font-bold text-amber-400 text-xs uppercase tracking-wide">Total / Média</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-white">{anoTotals.tVoo.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-300">{anoTotals.tTotal.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-white">
-                        {anoTotals.abast.toLocaleString("pt-BR", { minimumFractionDigits: 1 })}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <LHCell val={anoTotals.lhVoo} ref={historico} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <LHCell val={anoTotals.lhTotal} ref={historico} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <DiffBadge val={anoTotals.lhVoo} ref={historico} />
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {/* ═══ BLOCO 3 — Por cliente / cotista ═══ */}
-          <section>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-              consumo por cliente / cotista — {MONTH_NAMES[mes - 1]}/{ano}
-            </p>
-
-            {porCliente.length === 0 ? (
-              <p className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-6 text-center text-sm text-slate-500">
-                Nenhum voo com combustível registrado neste período.
-              </p>
-            ) : (
-              <div className="rounded-xl border border-slate-700/40 overflow-hidden">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-500">
-                      <th className="px-4 py-2.5 text-left font-medium">Cliente / Cotista</th>
-                      <th className="px-4 py-2.5 text-center font-medium">Voos</th>
-                      <th className="px-4 py-2.5 text-right font-medium">T. voo</th>
-                      <th className="px-4 py-2.5 text-right font-medium">T. total</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Abast. (L)</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
-                      <th className="px-4 py-2.5 text-right font-medium">% abast.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {porCliente.map((c, idx) => {
-                      const pct = totalAbastClientes > 0 ? (c.abast / totalAbastClientes) * 100 : 0;
-                      const cor = SERIE_COLORS[idx % SERIE_COLORS.length];
-                      return (
-                        <tr key={c.label} className="border-t border-slate-700/30 hover:bg-slate-800/40 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cor }} />
-                              <span className="font-medium text-white truncate max-w-[160px]">{c.label}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center text-slate-400">{c.voos}</td>
-                          <td className="px-4 py-3 text-right font-mono text-slate-300">{decimalToHHMM(c.tVoo)}</td>
-                          <td className="px-4 py-3 text-right font-mono text-slate-400">{decimalToHHMM(c.tTotal)}</td>
-                          <td className="px-4 py-3 text-right font-mono text-slate-300">{num(c.abast, 0)}</td>
-                          <td className="px-4 py-3 text-right">
-                            <LHCell val={c.lhVoo} ref={historico} />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <LHCell val={c.lhTotal} ref={historico} />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-20 h-1.5 rounded-full bg-slate-700/50 overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${pct.toFixed(0)}%`, background: cor }} />
-                              </div>
-                              <span className="text-xs text-slate-400 w-10 text-right">{pct.toFixed(1)}%</span>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          {/* ═══ BLOCO 4 — Por voo ═══ */}
-          <section>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
-              detalhe por voo — {MONTH_NAMES[mes - 1]}/{ano}
-            </p>
-
-            {porVoo.length === 0 ? (
-              <p className="rounded-xl border border-slate-700/40 bg-slate-800/30 p-6 text-center text-sm text-slate-500">
-                Nenhum voo no período.
-              </p>
-            ) : (
-              <div className="overflow-hidden rounded-xl border border-slate-700/40 max-h-72 overflow-y-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead className="sticky top-0 bg-slate-800/95 backdrop-blur z-10">
-                    <tr className="text-xs uppercase tracking-wide text-slate-500">
-                      <th className="px-4 py-2.5 text-left font-medium">Data</th>
-                      <th className="px-4 py-2.5 text-left font-medium">Trecho</th>
-                      <th className="px-4 py-2.5 text-left font-medium">Para</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Abast. (L)</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {porVoo.map(({ l, abast, lhVoo, lhTotal }, idx) => (
-                      <tr
-                        key={l.id}
-                        className={[
-                          "border-t border-slate-700/30 hover:bg-slate-800/50 transition-colors",
-                          idx % 2 === 0 ? "bg-slate-800/10" : "",
-                        ].join(" ")}
-                      >
-                        <td className="px-4 py-2.5 font-mono text-slate-400 text-xs">
-                          {new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                          })}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-xs text-slate-300">
-                          {l.trecho ?? `${l.aerodromo_partida ?? "—"} → ${l.aerodromo_chegada ?? "—"}`}
-                        </td>
-                        <td className="px-4 py-2.5 text-xs text-slate-400 max-w-[120px] truncate">
-                          {labelVooPara(l)}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono text-slate-300">
-                          {abast > 0 ? num(abast, 0) : <span className="text-slate-600">—</span>}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <LHCell val={lhVoo} ref={historico} />
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <LHCell val={lhTotal} ref={historico} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
+          {contentJSX}
         </div>
       </motion.div>
     </div>
