@@ -925,7 +925,7 @@ function DiarioBordoDetalhes() {
                         <td colSpan={3} className="px-3 py-3 text-slate-500">—</td>
                         {temDiaria && (
                           <td className="px-3 py-3 font-bold text-violet-400 text-sm text-center">
-                            {totals.totalDiarias}d
+                            {totals.totalDiarias}
                             <span className="block text-xs text-violet-300/70">R${num(totalDiariaReais, 0)}</span>
                           </td>
                         )}
