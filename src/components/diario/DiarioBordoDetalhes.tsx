@@ -861,7 +861,6 @@ function DiarioBordoDetalhes() {
                         })}
                       </select>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">clique para mudar</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
