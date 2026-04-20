@@ -680,27 +680,11 @@ function DiarioBordoDetalhes() {
                         Disponível
                       </span>
                     </div>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <p className="font-semibold text-sm cursor-help text-emerald-400">
-                            {num(modoCelula === "tvoo"
-                              ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
-                              : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
-                          </p>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="bg-slate-900/80 border-slate-700/50 text-slate-100">
-                          <div className="space-y-1 text-xs">
-                            {modoCelula === "tvoo" ? (
-                              <p><span className="text-cyan-400">Célula Atual (T. Voo):</span> {num(diarioMes?.celula_atual_tvoo ?? 0, 1)}h</p>
-                            ) : (
-                              <p><span className="text-cyan-400">Célula Atual (Total):</span> {num(diarioMes?.celula_atual_ttotal ?? 0, 1)}h</p>
-                            )}
-                            <p><span className="text-amber-400">Próxima Revisão:</span> {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <p className="font-semibold text-sm text-emerald-400">
+                      {num(modoCelula === "tvoo"
+                        ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))
+                        : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
+                    </p>
                   </div>
                 </div>
               </div>
