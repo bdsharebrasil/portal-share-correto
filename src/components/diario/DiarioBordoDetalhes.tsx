@@ -106,7 +106,20 @@ type DiarioMesRow = {
 };
 type Cliente = { id: string; razao_social: string | null; proprietario: string | null };
 type Socio = { id: string; nome: string; cliente_id: string };
-type Abastecimento = { id: string; data: string; local: string | null; litros: number | null; valor_total: number | null; tipo_combustivel: string | null; logbook_entry_id: string };
+type Abastecimento = {
+  id: string;
+  data: string;
+  local: string | null;
+  litros: number | null;
+  valor_total: number | null;
+  valor_unitario: number | null;
+  tipo_combustivel: string | null;
+  logbook_entry_id: string;
+  comanda: string | null;
+  abastecedor: string | null;
+  nf: string | null;
+  tipo_faturamento: string | null;
+};
 
 const NATUREZAS = ["Privado", "Teste", "Translado", "Cheque"];
 const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -201,7 +214,7 @@ function DiarioBordoDetalhes() {
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
       (supabase as any).from("socios_cliente").select("id,nome,cliente_id").order("nome"),
       supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
-      supabase.from("abastecimentos").select("id,data,local,litros,valor_total,tipo_combustivel,logbook_entry_id")
+      supabase.from("abastecimentos").select("id,data,local,litros,valor_total,valor_unitario,tipo_combustivel,logbook_entry_id,comanda,abastecedor,nf,tipo_faturamento")
         .eq("aeronave_id", aircraftId)
         .gte("data", ini).lte("data", fim)
         .not("logbook_entry_id", "is", null),
@@ -287,6 +300,22 @@ function DiarioBordoDetalhes() {
       } catch {}
     })();
   }, [aircraftId]);
+
+  // Validar se o mês selecionado existe no ano selecionado
+  useEffect(() => {
+    if (ano !== null && mes !== null && availableMeses.length > 0) {
+      const mesExisteNoAno = availableMeses.some(am => am.ano === ano && am.mes === mes);
+      if (!mesExisteNoAno) {
+        // Se o mês não existe, selecionar o primeiro mês disponível do ano
+        const primeiraMesAno = availableMeses
+          .filter(am => am.ano === ano)
+          .sort((a, b) => a.mes - b.mes)[0];
+        if (primeiraMesAno) {
+          setMes(primeiraMesAno.mes);
+        }
+      }
+    }
+  }, [ano, availableMeses]);
 
   const totals = useMemo(() => {
     const tVoo = sumDecimal(lancamentos.map((l) => l.tempo_voo));
@@ -818,14 +847,19 @@ function DiarioBordoDetalhes() {
                   <div className="flex gap-1">
                     <select value={mes!} onChange={(e) => setMes(Number(e.target.value))}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.slice(0, 3).toUpperCase()}</option>))}
+                      {monthNames.map((m, i) => {
+                        // Mostrar apenas meses que existem em availableMeses para o ano selecionado
+                        const hasData = availableMeses.some(am => am.ano === ano && am.mes === i + 1);
+                        if (!hasData) return null;
+                        return <option key={i} value={i + 1}>{m.slice(0, 3).toUpperCase()}</option>;
+                      })}
                     </select>
                     <select value={ano!} onChange={(e) => setAno(Number(e.target.value))}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {Array.from({ length: 6 }).map((_, i) => {
-                        const y = today.getFullYear() - i;
-                        return <option key={y} value={y}>{y}</option>;
-                      })}
+                      {/* Mostrar apenas anos que existem em availableMeses */}
+                      {Array.from(new Set(availableMeses.map(am => am.ano)))
+                        .sort((a, b) => b - a)
+                        .map((y) => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>
                 </div>
@@ -995,10 +1029,39 @@ function DiarioBordoDetalhes() {
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button onClick={() => navigate('/abastecimento')} className="text-blue-400 font-semibold hover:text-blue-300 hover:underline">{totalAbast}</button>
+                                      <button
+                                        onClick={() => {
+                                          // Se há apenas um abastecimento, navegar direto com o ID
+                                          if (abastVinculados.length === 1) {
+                                            navigate('/abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
+                                          } else {
+                                            // Se há vários, navegar para a página de abastecimentos (deixar o usuário escolher)
+                                            navigate('/abastecimento');
+                                          }
+                                        }}
+                                        className="text-blue-400 font-semibold hover:text-blue-300 hover:underline"
+                                      >
+                                        {totalAbast}
+                                      </button>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-blue-900/80 border-blue-500/50 text-blue-100 text-xs">
-                                      {abastVinculados.length} abast. vinculado(s)
+                                    <TooltipContent side="top" className="bg-slate-900 border border-slate-700 text-slate-100 text-xs p-2 max-w-xs">
+                                      <div className="space-y-2">
+                                        <div className="font-semibold border-b border-slate-700 pb-1">
+                                          {abastVinculados.length} abast. vinculado{abastVinculados.length !== 1 ? 's' : ''}
+                                        </div>
+                                        {abastVinculados.map((ab, idx) => (
+                                          <div key={ab.id} className="space-y-0.5 text-[11px]">
+                                            {idx > 0 && <div className="border-t border-slate-700 my-1"></div>}
+                                            {ab.comanda && <div><span className="text-slate-400">Comanda:</span> {ab.comanda}</div>}
+                                            {ab.litros !== null && ab.litros !== undefined && <div><span className="text-slate-400">Litros:</span> {ab.litros.toFixed(2)}</div>}
+                                            {ab.valor_unitario !== null && ab.valor_unitario !== undefined && <div><span className="text-slate-400">V. Unitário:</span> R$ {ab.valor_unitario.toFixed(2)}</div>}
+                                            {ab.valor_total !== null && ab.valor_total !== undefined && <div><span className="text-slate-400">V. Total:</span> R$ {ab.valor_total.toFixed(2)}</div>}
+                                            {ab.abastecedor && <div><span className="text-slate-400">Abastecedor:</span> {ab.abastecedor}</div>}
+                                            {ab.nf && <div><span className="text-slate-400">NF:</span> {ab.nf}</div>}
+                                            {ab.tipo_faturamento && <div><span className="text-slate-400">Faturamento:</span> {ab.tipo_faturamento}</div>}
+                                          </div>
+                                        ))}
+                                      </div>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
