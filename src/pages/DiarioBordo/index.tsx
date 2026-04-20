@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plane, Calendar, Gauge, Activity, ChevronRight, Plus, PlaneTakeoff } from "lucide-react";
+import { Plane, Calendar, Gauge, Activity, ChevronRight, Plus, BookOpenCheck, PlaneTakeoff } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,7 +90,7 @@ function DiarioBordo() {
           <div className="flex items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-cyan-500/20 border border-cyan-500/30 rounded-2xl">
-                <Plane className="w-7 h-7 text-cyan-400" />
+                <BookOpenCheck className="w-7 h-7 text-cyan-400" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-white tracking-wide">
