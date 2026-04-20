@@ -12,6 +12,7 @@ import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { num } from "@/lib/formatters";
 import { ExportDiarioModal } from "./ExportDiarioModal";
+import { ConsumoDialog } from "./ConsumoDialog";
 import { exportDiarioBordoPDF } from "@/utils/exportDiarioBordoPDF";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import {
@@ -24,6 +25,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { CreateMonthDialog } from "./CreateMonthDialog";
 
@@ -896,9 +905,9 @@ function DiarioBordoDetalhes() {
                       </span>
                     </div>
                     <p className="font-bold text-sm text-emerald-300">
-                      {num(modoCelula === "tvoo"
+                      {num(Math.max(0, modoCelula === "tvoo"
                         ? ((diarioMes?.celula_atual_tvoo ?? 0) - (diarioMes?.celula_prox_revisao_tvoo ?? 0))
-                        : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0)), 1) + "h"}
+                        : ((diarioMes?.celula_atual_ttotal ?? 0) - (diarioMes?.celula_prox_revisao_ttotal ?? 0))), 1) + "h"}
                     </p>
                   </div>
                 </div>
@@ -1266,11 +1275,24 @@ function DiarioBordoDetalhes() {
                           <Td className="text-center">
                             {!isConfirmado && (
                               <button
-                                onClick={() => setEditingLanc(l)}
-                                className="rounded-lg border border-slate-700 bg-slate-800 p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                                title="Editar lançamento">
-                                <Pencil className="w-3.5 h-3.5" />
+                                onClick={() => handleConfirmar(l)}
+                                className="rounded-lg border border-emerald-600/40 bg-emerald-900/20 p-1.5 text-emerald-400 hover:bg-emerald-800/40 hover:text-emerald-300 transition-colors"
+                                title="Confirmar lançamento">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
                               </button>
+                            )}
+                          </Td>
+                          <Td className="text-center">
+                            {l.pic_canac === tripulacaoUsuario?.canac && !l.assinado_por && (
+                              <button
+                                onClick={() => handleAssinarPic(l)}
+                                className="rounded-lg border border-blue-600/40 bg-blue-900/20 p-1.5 text-blue-400 hover:bg-blue-800/40 hover:text-blue-300 transition-colors"
+                                title="Assinar como PIC">
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {l.assinado_por && (
+                              <span className="text-xs text-blue-400 font-semibold">✓ Assinado</span>
                             )}
                           </Td>
                         </tr>
@@ -1395,6 +1417,27 @@ function DiarioBordoDetalhes() {
 
         </div>
       </div>
+
+      <AlertDialog open={editConfirmDialog.open} onOpenChange={(open) => {
+        if (!open) setEditConfirmDialog({ open: false, lanc: null });
+      }}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogTitle className="text-white">Editar Lançamento?</AlertDialogTitle>
+          <AlertDialogDescription className="text-slate-300">
+            Deseja editar esse lançamento? As alterações atualizarão os dados do registro.
+          </AlertDialogDescription>
+          <div className="flex justify-end gap-3 mt-6">
+            <AlertDialogCancel className="bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-600">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmEdit}
+              className="bg-blue-600 text-white hover:bg-blue-700">
+              Sim, editar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AnimatePresence>
         {showForm && aeronave && (
@@ -2212,154 +2255,6 @@ function EditarVooDialog({
             className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-60">
             <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar edição"}
           </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ---------- Consumo Dialog ---------- */
-
-function ConsumoDialog({
-  aeronave, lancamentos, clientes, socios, mes, ano, labelVooPara, onClose,
-}: {
-  aeronave: Aeronave; lancamentos: Lanc[]; clientes: Cliente[]; socios: Socio[];
-  mes: number; ano: number; labelVooPara: (l: Lanc) => string; onClose: () => void;
-}) {
-  const porVoo = lancamentos.map((l) => {
-    const tv = Number(l.tempo_voo ?? 0);
-    const consumoVoo = Number(l.consumo_combustivel_voo ?? 0);
-    const consumoTotal = Number(l.consumo_combustivel_total ?? 0);
-    return { l, tv, consumoVoo, consumoTotal };
-  });
-
-  const porCliente = new Map<string, { label: string; consumoVoo: number; consumoTotal: number; count: number }>();
-  for (const { l, consumoVoo, consumoTotal } of porVoo) {
-    const key = labelVooPara(l);
-    const cur = porCliente.get(key) ?? { label: key, consumoVoo: 0, consumoTotal: 0, count: 0 };
-    cur.consumoVoo += consumoVoo;
-    cur.consumoTotal += consumoTotal;
-    cur.count += 1;
-    porCliente.set(key, cur);
-  }
-
-  const avgConsumoVoo = porVoo.length > 0 ? porVoo.reduce((s, x) => s + x.consumoVoo, 0) / porVoo.length : 0;
-  const avgConsumoTotal = porVoo.length > 0 ? porVoo.reduce((s, x) => s + x.consumoTotal, 0) / porVoo.length : 0;
-  const lhHistorico = aeronave.consumo_combustivel ?? 0;
-  const diffPct = lhHistorico > 0 ? ((avgConsumoVoo - lhHistorico) / lhHistorico) * 100 : 0;
-
-  void clientes; void socios;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-2 backdrop-blur-sm">
-      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="max-h-[95vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-amber-500/30 bg-slate-900 shadow-2xl shadow-amber-500/10">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700/50 bg-slate-900/95 p-5 backdrop-blur">
-          <div>
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <Droplets className="w-5 h-5 text-amber-400" /> Consumo · {aeronave.matricula}
-            </h3>
-            <p className="text-xs text-slate-400">{monthNames[mes - 1]}/{ano} — histórico: {num(lhHistorico, 1)} L/H</p>
-          </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-        </div>
-
-        <div className="space-y-4 p-5">
-          {/* KPIs + Por cliente em grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* KPIs */}
-            <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-600/5 p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-amber-400 mb-3">Total da aeronave no mês</p>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <Stat label="Consumo médio (voo)" value={`${num(avgConsumoVoo, 1)} L/h`} accent="warning" />
-                <Stat label="Consumo médio (total)" value={`${num(avgConsumoTotal, 1)} L/h`} accent="warning" />
-                <Stat label="Voos no período" value={String(porVoo.length)} accent="primary" />
-              </div>
-              {/* Comparativo histórico vs mês */}
-              <div className="rounded-xl border border-slate-700/50 bg-slate-900/50 p-3 flex items-center gap-2 text-sm">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-500 mb-1">Histórico cadastrado</p>
-                  <p className="text-base font-bold text-slate-300">{num(lhHistorico, 1)} L/h</p>
-                </div>
-                <div className="text-lg text-slate-600">→</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-500 mb-1">Este mês (consumo voo)</p>
-                  <p className="text-base font-bold text-white">{num(avgConsumoVoo, 1)} L/h</p>
-                </div>
-                <div className={`rounded-lg px-2 py-1 text-xs font-bold shrink-0 ${diffPct > 5 ? "bg-red-500/20 text-red-400" : diffPct < -5 ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700/50 text-slate-300"}`}>
-                  {diffPct > 0 ? "+" : ""}{diffPct.toFixed(1)}%
-                </div>
-              </div>
-            </div>
-
-            {/* Por cliente com L/h e barra */}
-            <div>
-              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Por cliente / cotista</p>
-              {porCliente.size === 0 ? (
-                <p className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-500">Sem dados.</p>
-              ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                  {Array.from(porCliente.values()).sort((a, b) => b.consumoVoo - a.consumoVoo).map((r) => {
-                    const avgConsumoVooCliente = r.count > 0 ? r.consumoVoo / r.count : 0;
-                    const avgConsumoTotalCliente = r.count > 0 ? r.consumoTotal / r.count : 0;
-                    const pctVoo = avgConsumoVoo > 0 ? (avgConsumoVooCliente / avgConsumoVoo) * 100 : 0;
-                    return (
-                      <div key={r.label} className="rounded-xl border border-slate-700/40 bg-slate-800/40 p-2">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-semibold text-white text-xs truncate">{r.label}</span>
-                          <span className="font-mono text-xs text-slate-400">{r.count}v</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                          <span>Voo: <span className={`font-bold font-mono ${avgConsumoVooCliente > lhHistorico * 1.1 ? "text-red-400" : avgConsumoVooCliente < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>{num(avgConsumoVooCliente, 1)}</span></span>
-                          <span>Total: <span className={`font-bold font-mono ${avgConsumoTotalCliente > lhHistorico * 1.1 ? "text-red-400" : avgConsumoTotalCliente < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>{num(avgConsumoTotalCliente, 1)}</span></span>
-                        </div>
-                        <div className="h-1 overflow-hidden rounded-full bg-slate-900">
-                          <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500" style={{ width: `${pctVoo}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Por voo */}
-          <div>
-            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Por voo</p>
-            {porVoo.length === 0 ? (
-              <p className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-3 text-center text-sm text-slate-500">Sem voos no período.</p>
-            ) : (
-              <div className="overflow-hidden rounded-xl border border-slate-700/50 max-h-96 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0">
-                    <tr>
-                      <th className="px-2 py-1.5 text-left">Data</th>
-                      <th className="px-2 py-1.5 text-left">Trecho</th>
-                      <th className="px-2 py-1.5 text-left">Para</th>
-                      <th className="px-2 py-1.5 text-right">L/h (tempo voo)</th>
-                      <th className="px-2 py-1.5 text-right">L/h (tempo total)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-slate-900 text-slate-300 text-xs">
-                    {porVoo.map(({ l, tv, consumoVoo, consumoTotal }) => (
-                      <tr key={l.id} className="border-t border-slate-700/50 hover:bg-slate-800/50">
-                        <td className="px-2 py-1">{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</td>
-                        <td className="px-2 py-1 font-mono text-xs">{l.aerodromo_partida ?? "—"} → {l.aerodromo_chegada ?? "—"}</td>
-                        <td className="px-2 py-1 text-xs truncate">{labelVooPara(l)}</td>
-                        <td className={`px-2 py-1 text-right font-mono font-bold ${consumoVoo > lhHistorico * 1.1 ? "text-red-400" : consumoVoo < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>
-                          {consumoVoo > 0 ? num(consumoVoo, 1) : "—"}
-                        </td>
-                        <td className={`px-2 py-1 text-right font-mono font-bold ${consumoTotal > lhHistorico * 1.1 ? "text-red-400" : consumoTotal < lhHistorico * 0.9 ? "text-emerald-400" : "text-cyan-400"}`}>
-                          {consumoTotal > 0 ? num(consumoTotal, 1) : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
         </div>
       </motion.div>
     </div>
