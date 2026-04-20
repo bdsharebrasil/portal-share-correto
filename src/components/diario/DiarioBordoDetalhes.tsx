@@ -729,10 +729,10 @@ function DiarioBordoDetalhes() {
 
               {/* Two sub-rows */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                <MiniStat label="Matrícula" value={aeronave?.matricula ?? "—"} />
-                <MiniStat label="Modelo" value={aeronave?.modelo ?? "—"} />
-                <MiniStat label="Ano" value={aeronave?.ano ?? "—"} />
-                <MiniStat label="Base" value={aeronave?.base ?? "—"} />
+                <MiniStat label="Matrícula" value={aeronave?.matricula ?? "—"} labelColor="text-cyan-400" />
+                <MiniStat label="Modelo" value={aeronave?.modelo ?? "—"} labelColor="text-cyan-400" />
+                <MiniStat label="Ano" value={aeronave?.ano ?? "—"} labelColor="text-cyan-400" />
+                <MiniStat label="Base" value={aeronave?.base ?? "—"} labelColor="text-cyan-400" />
               </div>
 
               {/* Célula row */}
@@ -753,10 +753,11 @@ function DiarioBordoDetalhes() {
                     onSave={saveDiarioMesField}
                     unit="h"
                     hint="clique para editar"
+                    labelColor="text-violet-400"
                   />
                   {/* Célula Atual */}
                   <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
-                    <p className="text-[10px] text-slate-500 mb-1">Atual</p>
+                    <p className="text-[10px] text-violet-400 mb-1">Atual</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -784,6 +785,7 @@ function DiarioBordoDetalhes() {
                     onSave={saveDiarioMesField}
                     unit="h"
                     hint="clique para editar"
+                    labelColor="text-violet-400"
                   />
                   {/* Disponível – sempre mostra o valor calculado (pode ser negativo) */}
                   <div className={`rounded-lg p-2.5 border ${celulaDisponivel < 0 ? 'bg-red-900/20 border-red-500/20' : 'bg-emerald-900/20 border-emerald-500/20'}`}>
@@ -803,9 +805,9 @@ function DiarioBordoDetalhes() {
                   <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">Horímetro</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <EditableCell label="Inicial" value={diarioMes?.horimetro_inicio ?? 0} fieldName="horimetro_inicio" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" />
-                  <EditableCell label="Final" value={diarioMes?.horimetro_final ?? 0} fieldName="horimetro_final" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" />
-                  <EditableCell label="Ativo" value={diarioMes?.horimetro_ativo ?? 0} fieldName="horimetro_ativo" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" />
+                  <EditableCell label="Inicial" value={diarioMes?.horimetro_inicio ?? 0} fieldName="horimetro_inicio" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
+                  <EditableCell label="Final" value={diarioMes?.horimetro_final ?? 0} fieldName="horimetro_final" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
+                  <EditableCell label="Ativo" value={diarioMes?.horimetro_ativo ?? 0} fieldName="horimetro_ativo" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
                 </div>
               </div>
 
@@ -1206,26 +1208,27 @@ function DiarioBordoDetalhes() {
 }
 
 /* ─── MiniStat ─────────────────────────────────────────────────────────────── */
-function MiniStat({ label, value }: { label: string; value: any }) {
+function MiniStat({ label, value, labelColor = "text-slate-500" }: { label: string; value: any; labelColor?: string }) {
   return (
     <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
-      <p className="text-[10px] text-slate-500 mb-0.5">{label}</p>
+      <p className={`text-[10px] ${labelColor} mb-0.5`}>{label}</p>
       <p className="text-sm font-semibold text-white truncate">{value ?? "—"}</p>
     </div>
   );
 }
 
 /* ─── EditableCell ──────────────────────────────────────────────────────────── */
-function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor = "cyan", hint }: {
+function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor = "cyan", hint, labelColor }: {
   label: string; value: number; fieldName: string;
   onSave: (field: string, val: number) => void;
-  unit?: string; accentColor?: "cyan" | "amber"; hint?: string;
+  unit?: string; accentColor?: "cyan" | "amber"; hint?: string; labelColor?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const accent = accentColor === "amber" ? "text-amber-400" : "text-cyan-400";
+  const labelCls = labelColor || "text-slate-500";
   return (
     <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
-      <p className="text-[10px] text-slate-500 mb-1">{label}</p>
+      <p className={`text-[10px] ${labelCls} mb-1`}>{label}</p>
       {hint && <p className="text-[9px] text-slate-600 mb-1.5">{hint}</p>}
       {editing ? (
         <input
