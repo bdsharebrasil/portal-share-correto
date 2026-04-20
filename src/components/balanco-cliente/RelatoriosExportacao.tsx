@@ -177,7 +177,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
       let query = (supabase as any)
         .from('abastecimentos')
         .select('data, litros, valor_total')
-        .eq('clientes_id', clienteId)
+        .eq('id_clientes', clienteId)
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim);
       if (aeronaveId) query = query.eq('aeronave_id', aeronaveId);

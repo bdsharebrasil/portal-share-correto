@@ -33,7 +33,7 @@ export async function processReceiptRateio(receiptId: string) {
     // 2. Buscar todos os clients que compartilham esta aeronave
     const { data: aircraftClients, error: acError } = await supabase
       .from("cotistas_aeronave")
-      .select("id_cliente, percentual_sociedade, clientes:id_cliente(id, razao_social)")
+      .select("id_clientes, percentual_sociedade, clientes:id_clientes(id, razao_social)")
       .eq("id_aeronave", receipt.aeronave_id);
 
     if (acError) {
@@ -74,7 +74,7 @@ export async function processReceiptRateio(receiptId: string) {
 
       const rateioPayload = {
         despesa_id,
-        client_id: ac.id_cliente,
+        client_id: ac.id_clientes,
         client_name: clientData?.razao_social || "Unknown",
         aeronave_id: receipt.aeronave_id,
         aeronave_registro: receipt.documento_number || null,

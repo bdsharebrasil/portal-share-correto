@@ -88,7 +88,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
     try {
       const { data: abastecimento, error } = await supabase
         .from('abastecimentos')
-        .select('clientes_id, aeronave_id')
+        .select('id_clientes, aeronave_id')
         .eq('id', selectedAbastecimentoId)
         .single();
 
