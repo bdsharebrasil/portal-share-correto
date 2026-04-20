@@ -164,11 +164,9 @@ function DiarioBordoDetalhes() {
         .not("logbook_entry_id", "is", null),
     ]);
     setAeronave(aRes.data as Aeronave | null);
-    console.log("DEBUG - modo_celula da aeronave:", aRes.data?.modo_celula);
     if (aRes.data?.modo_celula) {
       setModoCelula(aRes.data.modo_celula as "tvoo" | "tempo_total");
     }
-    console.log("DEBUG - diario_mes:", dmRes.data);
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
     setClientes((cRes.data ?? []) as Cliente[]);

@@ -29,6 +29,13 @@ function DiarioBordo() {
   const [loading, setLoading] = useState(true);
   const ano = new Date().getFullYear();
 
+  // Determina a cor baseado em horas para próxima revisão
+  const getProxRevColor = (horas: number) => {
+    if (horas > 15) return { label: "cyan", text: "text-cyan-400", bar: "from-cyan-500 to-blue-500" };
+    if (horas >= 10) return { label: "amber", text: "text-amber-400", bar: "from-amber-500 to-yellow-500" };
+    return { label: "red", text: "text-red-400", bar: "from-red-500 to-orange-500" };
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -203,24 +210,27 @@ function DiarioBordo() {
                           </div>
 
                           {/* Progress bar próxima revisão */}
-                          {prox > 0 && (
-                            <div className="mb-4">
-                              <div className="mb-1.5 flex items-center justify-between">
-                                <span className="flex items-center gap-1 text-xs text-slate-400">
-                                  <Activity className="h-3 w-3" /> Próxima revisão
-                                </span>
-                                <span className="text-xs font-medium text-slate-300">
-                                  {num(prox, 0)}h
-                                </span>
+                          {prox > 0 && (() => {
+                            const colors = getProxRevColor(prox);
+                            return (
+                              <div className="mb-4">
+                                <div className="mb-1.5 flex items-center justify-between">
+                                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                                    <Activity className={`h-3 w-3 ${colors.text}`} /> Próxima revisão
+                                  </span>
+                                  <span className={`text-xs font-medium ${colors.text}`}>
+                                    {num(prox, 0)}h
+                                  </span>
+                                </div>
+                                <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
+                                  <div
+                                    className={`h-full rounded-full bg-gradient-to-r ${colors.bar} transition-all`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
                               </div>
-                              <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
-                                <div
-                                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Footer */}
                           <div className="flex items-center justify-between border-t border-slate-700/50 pt-2.5 text-xs text-slate-500">
