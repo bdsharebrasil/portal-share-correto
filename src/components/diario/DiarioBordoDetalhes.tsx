@@ -783,10 +783,10 @@ function DiarioBordoDetalhes() {
                     onSave={saveDiarioMesField}
                     unit="h"
                   />
-                  {/* Disponível – uses celula_disponivel_* from DB (CHANGE 2) */}
-                  <div className="bg-emerald-900/20 rounded-lg p-2.5 border border-emerald-500/20">
-                    <p className="text-[10px] text-emerald-400/70 mb-1">Disponível</p>
-                    <p className="text-sm font-bold text-emerald-300">{num(Math.max(0, celulaDisponivel), 1)}h</p>
+                  {/* Disponível – sempre mostra o valor calculado (pode ser negativo) */}
+                  <div className={`rounded-lg p-2.5 border ${celulaDisponivel < 0 ? 'bg-red-900/20 border-red-500/20' : 'bg-emerald-900/20 border-emerald-500/20'}`}>
+                    <p className={`text-[10px] mb-1 ${celulaDisponivel < 0 ? 'text-red-400/70' : 'text-emerald-400/70'}`}>Disponível</p>
+                    <p className={`text-sm font-bold ${celulaDisponivel < 0 ? 'text-red-300' : 'text-emerald-300'}`}>{num(celulaDisponivel, 1)}h</p>
                   </div>
                 </div>
               </div>
