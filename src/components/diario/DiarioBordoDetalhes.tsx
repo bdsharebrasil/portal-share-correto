@@ -431,10 +431,16 @@ function DiarioBordoDetalhes() {
   const valorDiaria = Number(diarioMes?.tarifa_diaria ?? 0);
   const totalDiariaReais = totals.totalDiarias * valorDiaria;
 
-  // ── CHANGE 2: Disponível usa celula_disponivel_* do banco ─────────────────
+  // ── CHANGE 2: Disponível é sempre derivado da fórmula (prox - atual) ─────────────────
   const celulaDisponivel = modoCelula === "tvoo"
-    ? (diarioMes?.celula_disponivel_tvoo ?? 0)
-    : (diarioMes?.celula_disponivel_ttotal ?? 0);
+    ? calculateCelulaDisponivel(
+        diarioMes?.celula_prox_revisao_tvoo ?? 0,
+        diarioMes?.celula_atual_tvoo ?? 0
+      )
+    : calculateCelulaDisponivel(
+        diarioMes?.celula_prox_revisao_ttotal ?? 0,
+        diarioMes?.celula_atual_ttotal ?? 0
+      );
 
   const handleOpenCreateMonth = async () => {
     try {
@@ -592,14 +598,11 @@ function DiarioBordoDetalhes() {
               <ArrowLeft className="w-3.5 h-3.5" /> Voltar
             </button>
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
-              <div className="p-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg shrink-0">
-                <Plane className="w-4 h-4 text-cyan-400" />
-              </div>
+              
               <div className="min-w-0">
                 <h1 className="text-base font-bold text-white tracking-wide truncate">
                   Diário {monthNames[(mes ?? 1) - 1]} {ano} — {aeronave.matricula}
                 </h1>
-                <p className="text-slate-500 text-xs">{aeronave.modelo}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -723,10 +726,10 @@ function DiarioBordoDetalhes() {
 
               {/* Two sub-rows */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                <MiniStat label="Matrícula" value={aeronave?.matricula ?? "—"} />
-                <MiniStat label="Modelo" value={aeronave?.modelo ?? "—"} />
-                <MiniStat label="Ano" value={aeronave?.ano ?? "—"} />
-                <MiniStat label="Base" value={aeronave?.base ?? "—"} />
+                <MiniStat label="Matrícula" value={aeronave?.matricula ?? "—"} labelColor="text-cyan-400" />
+                <MiniStat label="Modelo" value={aeronave?.modelo ?? "—"} labelColor="text-cyan-400" />
+                <MiniStat label="Ano" value={aeronave?.ano ?? "—"} labelColor="text-cyan-400" />
+                <MiniStat label="Base" value={aeronave?.base ?? "—"} labelColor="text-cyan-400" />
               </div>
 
               {/* Célula row */}
@@ -746,10 +749,12 @@ function DiarioBordoDetalhes() {
                     fieldName={modoCelula === "tvoo" ? "celula_anterior_tvoo" : "celula_anterior_ttotal"}
                     onSave={saveDiarioMesField}
                     unit="h"
+                    hint="clique para editar"
+                    labelColor="text-violet-400"
                   />
                   {/* Célula Atual */}
                   <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
-                    <p className="text-[10px] text-slate-500 mb-1">Atual</p>
+                    <p className="text-[10px] text-violet-400 mb-1">Atual</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -776,11 +781,13 @@ function DiarioBordoDetalhes() {
                     fieldName={modoCelula === "tvoo" ? "celula_prox_revisao_tvoo" : "celula_prox_revisao_ttotal"}
                     onSave={saveDiarioMesField}
                     unit="h"
+                    hint="clique para editar"
+                    labelColor="text-violet-400"
                   />
-                  {/* Disponível – uses celula_disponivel_* from DB (CHANGE 2) */}
-                  <div className="bg-emerald-900/20 rounded-lg p-2.5 border border-emerald-500/20">
-                    <p className="text-[10px] text-emerald-400/70 mb-1">Disponível</p>
-                    <p className="text-sm font-bold text-emerald-300">{num(Math.max(0, celulaDisponivel), 1)}h</p>
+                  {/* Disponível – sempre mostra o valor calculado (pode ser negativo) */}
+                  <div className={`rounded-lg p-2.5 border ${celulaDisponivel < 0 ? 'bg-red-900/20 border-red-500/20' : 'bg-emerald-900/20 border-emerald-500/20'}`}>
+                    <p className={`text-[10px] mb-1 ${celulaDisponivel < 0 ? 'text-red-400/70' : 'text-emerald-400/70'}`}>Disponível</p>
+                    <p className={`text-sm font-bold ${celulaDisponivel < 0 ? 'text-red-300' : 'text-emerald-300'}`}>{num(celulaDisponivel, 1)}h</p>
                   </div>
                 </div>
               </div>
@@ -795,9 +802,9 @@ function DiarioBordoDetalhes() {
                   <span className="text-xs font-semibold uppercase tracking-widest text-amber-400">Horímetro</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <EditableCell label="Inicial" value={diarioMes?.horimetro_inicio ?? 0} fieldName="horimetro_inicio" onSave={saveDiarioMesField} unit="h" accentColor="amber" />
-                  <EditableCell label="Final" value={diarioMes?.horimetro_final ?? 0} fieldName="horimetro_final" onSave={saveDiarioMesField} unit="h" accentColor="amber" />
-                  <EditableCell label="Ativo" value={diarioMes?.horimetro_ativo ?? 0} fieldName="horimetro_ativo" onSave={saveDiarioMesField} unit="h" accentColor="amber" />
+                  <EditableCell label="Inicial" value={diarioMes?.horimetro_inicio ?? 0} fieldName="horimetro_inicio" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
+                  <EditableCell label="Final" value={diarioMes?.horimetro_final ?? 0} fieldName="horimetro_final" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
+                  <EditableCell label="Ativo" value={diarioMes?.horimetro_ativo ?? 0} fieldName="horimetro_ativo" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
                 </div>
               </div>
 
@@ -1198,26 +1205,28 @@ function DiarioBordoDetalhes() {
 }
 
 /* ─── MiniStat ─────────────────────────────────────────────────────────────── */
-function MiniStat({ label, value }: { label: string; value: any }) {
+function MiniStat({ label, value, labelColor = "text-slate-500" }: { label: string; value: any; labelColor?: string }) {
   return (
     <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
-      <p className="text-[10px] text-slate-500 mb-0.5">{label}</p>
+      <p className={`text-[10px] ${labelColor} mb-0.5`}>{label}</p>
       <p className="text-sm font-semibold text-white truncate">{value ?? "—"}</p>
     </div>
   );
 }
 
 /* ─── EditableCell ──────────────────────────────────────────────────────────── */
-function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor = "cyan" }: {
+function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor = "cyan", hint, labelColor }: {
   label: string; value: number; fieldName: string;
   onSave: (field: string, val: number) => void;
-  unit?: string; accentColor?: "cyan" | "amber";
+  unit?: string; accentColor?: "cyan" | "amber"; hint?: string; labelColor?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const accent = accentColor === "amber" ? "text-amber-400" : "text-cyan-400";
+  const labelCls = labelColor || "text-slate-500";
   return (
     <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
-      <p className="text-[10px] text-slate-500 mb-1">{label}</p>
+      <p className={`text-[10px] ${labelCls} mb-1`}>{label}</p>
+      {hint && <p className="text-[9px] text-slate-600 mb-1.5">{hint}</p>}
       {editing ? (
         <input
           type="number" step="0.1" autoFocus
