@@ -838,7 +838,7 @@ function DiarioBordoDetalhes() {
               </div>
 
               {/* Card Período */}
-              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl p-6 hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
+              <div className="group relative bg-gradient-to-br from-slate-800/50 to-slate-900/80 border border-slate-700/30 rounded-2xl pt-[62px] pb-[62px] pl-[17px] pr-[17px] mt-[38px] mb-[38px] ml-[-13px] mr-[-13px] hover:border-slate-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/5">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 <div className="relative flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2">
@@ -994,7 +994,7 @@ function DiarioBordoDetalhes() {
               {/* Card Consumo */}
               <button
                 onClick={() => setShowConsumo(true)}
-                className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-5 text-left transition-all hover:shadow-lg hover:shadow-amber-500/20">
+                className="relative group bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl pt-[2px] pb-[2px] pl-[44px] pr-[44px] mt-[17px] mb-[17px] ml-[29px] mr-[29px] text-left transition-all hover:shadow-lg hover:shadow-amber-500/20">
                 <p className="mb-4 text-xs font-medium uppercase tracking-wider text-amber-400 group-hover:text-amber-300">Consumo · clique para detalhes</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
