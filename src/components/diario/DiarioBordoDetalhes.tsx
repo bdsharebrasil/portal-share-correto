@@ -522,11 +522,14 @@ function DiarioBordoDetalhes() {
                         />
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setEditCelulaAnt(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
-                        {num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditCelulaAnt(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
+                          {num(diarioMes?.celula_anterior_ttotal ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className={`rounded-xl p-3 border transition-colors ${
@@ -646,11 +649,14 @@ function DiarioBordoDetalhes() {
                         />
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setEditProxRev(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
-                        {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditProxRev(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left">
+                          {num(diarioMes?.celula_prox_revisao_ttotal ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className={`rounded-xl p-3 border transition-colors ${
@@ -720,18 +726,21 @@ function DiarioBordoDetalhes() {
               <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Período</p>
-                  <div className="flex gap-2">
-                    <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
-                    </select>
-                    <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {Array.from({ length: 6 }).map((_, i) => {
-                        const y = today.getFullYear() - i;
-                        return <option key={y} value={y}>{y}</option>;
-                      })}
-                    </select>
+                  <div className="flex gap-2 flex-col items-end">
+                    <div className="flex gap-2">
+                      <select value={mes} onChange={(e) => setMes(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                        {monthNames.map((m, i) => (<option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>))}
+                      </select>
+                      <select value={ano} onChange={(e) => setAno(Number(e.target.value))}
+                        className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                        {Array.from({ length: 6 }).map((_, i) => {
+                          const y = today.getFullYear() - i;
+                          return <option key={y} value={y}>{y}</option>;
+                        })}
+                      </select>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">clique para mudar</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -781,11 +790,14 @@ function DiarioBordoDetalhes() {
                         autoFocus
                       />
                     ) : (
-                      <button
-                        onClick={() => setEditHorIni(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
-                        {num(diarioMes?.horimetro_inicio ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditHorIni(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                          {num(diarioMes?.horimetro_inicio ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
@@ -813,11 +825,14 @@ function DiarioBordoDetalhes() {
                         autoFocus
                       />
                     ) : (
-                      <button
-                        onClick={() => setEditHorFim(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
-                        {num(diarioMes?.horimetro_final ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditHorFim(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                          {num(diarioMes?.horimetro_final ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                   <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/40 hover:border-slate-600 transition-colors">
@@ -845,11 +860,14 @@ function DiarioBordoDetalhes() {
                         autoFocus
                       />
                     ) : (
-                      <button
-                        onClick={() => setEditHorAtv(true)}
-                        className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
-                        {num(diarioMes?.horimetro_ativo ?? 0, 1)}h
-                      </button>
+                      <div>
+                        <button
+                          onClick={() => setEditHorAtv(true)}
+                          className="text-white font-semibold text-sm hover:text-cyan-400 transition-colors text-left w-full">
+                          {num(diarioMes?.horimetro_ativo ?? 0, 1)}h
+                        </button>
+                        <p className="text-xs text-slate-500 mt-1">clique para editar</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1181,6 +1199,7 @@ function DiarioBordoDetalhes() {
                         </div>
                         <span className="text-slate-500 text-xs shrink-0">{pct.toFixed(1)}%</span>
                       </div>
+                      <p className="text-xs text-slate-500 mt-1">clique para ver mais</p>
                     </button>
                   );
                 })}
