@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { CreateMonthDialog } from "./CreateMonthDialog";
-import "./ItemHints.css";
 
 type Aeronave = {
   id: string; matricula: string; modelo: string;
@@ -1061,48 +1060,22 @@ function DiarioBordoDetalhes() {
 
             {/* ── DICA SOBRE COLUNA # ────────────────────────────────────── */}
             <div className="px-4 py-3 border-b border-slate-700/40 bg-slate-800/20">
-              <div className="item-hints">
-                <div className="hint" data-position="1">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1, duration: 0.4 }}
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    className="group rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-900/80 to-slate-900/40 p-4 flex flex-col gap-3 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <motion.div
-                        className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 group-hover:border-blue-400/50 transition-colors"
-                        whileHover={{ rotate: 5 }}
-                      >
-                        <Pencil className="w-4 h-4 text-blue-400" />
-                      </motion.div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
-                        Dica
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Na coluna{" "}
-                      <kbd className="inline-flex items-center justify-center bg-slate-800/80 border border-slate-600/60 rounded px-1.5 py-0.5 font-mono text-[10px] text-white mx-0.5 shadow-sm">
-                        #
-                      </kbd>{" "}
-                      clique no número do lançamento para abrir as opções de{" "}
-                      <span className="text-white font-medium">editar</span> ou{" "}
-                      <span className="text-white font-medium">excluir</span> aquele registro.
-                    </p>
-                    <div className="flex items-center gap-3 mt-0.5 pt-2 border-t border-slate-700/50">
-                      <span className="flex items-center gap-1.5 text-[10px] text-slate-500 group-hover:text-blue-400 transition-colors">
-                        <Pencil className="w-3 h-3" /> Editar
-                      </span>
-                      <span className="flex items-center gap-1.5 text-[10px] text-slate-500 group-hover:text-blue-400 transition-colors">
-                        <Trash2 className="w-3 h-3" /> Excluir
-                      </span>
-                    </div>
-                  </motion.div>
-                  <div className="hint-content">
-                    <p className="text-xs text-white font-medium px-4">Clique no número para editar ou excluir</p>
+              <div className="flex items-center gap-2">
+                {/* Dica Icon */}
+                <div className="group relative">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full border border-slate-500 text-slate-400 text-sm font-bold cursor-help hover:border-blue-400 hover:text-blue-400 transition-colors">
+                    !
                   </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    whileHover={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-0 mt-2 w-56 p-2.5 text-xs text-slate-300 bg-slate-900 border border-slate-700 rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-10"
+                  >
+                    <p className="leading-relaxed">Na coluna <span className="text-white font-medium">#</span> clique no número do lançamento para abrir as opções de <span className="text-white">editar</span> ou <span className="text-white">excluir</span> aquele registro.</p>
+                  </motion.div>
                 </div>
+                <span className="text-xs text-slate-400">Dica: Clique no número da coluna <span className="text-blue-400 font-medium">#</span> para editar ou excluir</span>
               </div>
             </div>
 
@@ -1370,9 +1343,23 @@ function DiarioBordoDetalhes() {
           {/* Horas Emprestimos */}
           <section className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4">
             <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <History className="w-4 h-4 text-amber-400" />
                 <h2 className="text-sm font-semibold text-white">Horas Emprestimos</h2>
+                {/* Dica Icon */}
+                <div className="group relative">
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs font-bold cursor-help hover:border-amber-400 hover:text-amber-400 transition-colors">
+                    !
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    whileHover={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-0 mt-2 w-64 p-2.5 text-xs text-slate-300 bg-slate-900 border border-slate-700 rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-10"
+                  >
+                    <p className="leading-relaxed">Registros de horas emprestadas para outros pilotos durante voos neste período.</p>
+                  </motion.div>
+                </div>
               </div>
               {loans.length > 0 && (
                 <span className="text-xs font-medium text-slate-400">
