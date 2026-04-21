@@ -140,7 +140,6 @@ type AeronaveEmprestimo = {
 const NATUREZAS = ["Privado", "Teste", "Translado", "Cheque"];
 const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
-// ─── Panel type for inline layout ────────────────────────────────────────────
 type ActivePanel = "none" | "novoVoo" | "editarVoo" | "consumo";
 
 function DiarioBordoDetalhes() {
@@ -165,7 +164,6 @@ function DiarioBordoDetalhes() {
   const [loans, setLoans] = useState<AeronaveEmprestimo[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ── INLINE PANEL (replaces dialogs for NovoVoo, Consumo) ──────────────────
   const [activePanel, setActivePanel] = useState<ActivePanel>("none");
   const [editingLanc, setEditingLanc] = useState<Lanc | null>(null);
 
@@ -176,36 +174,39 @@ function DiarioBordoDetalhes() {
   const [availableMeses, setAvailableMeses] = useState<Array<{ mes: number; ano: number }>>([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Filtro cotista
-  const [cotistaFiltro, setCotistaFiltro] = useState<string | null>(null);
+  const emprestimosPorCotista = useMemo(() => {
+    const map = new Map<string, { label: string; horas: number }>();
+    for (const loan of loans) {
+      const horas = loan.horas_emprestadas || 0;
+      const label = loan.nome_piloto || "Sem piloto";
+      const cur = map.get(label) ?? { label, horas: 0 };
+      cur.horas += horas;
+      map.set(label, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.horas - a.horas);
+  }, [loans]);
 
-  // Célula selecionada de lançamento
+  const [cotistaFiltro, setCotistaFiltro] = useState<string | null>(null);
   const [selectedLancId, setSelectedLancId] = useState<string | null>(null);
 
-  // Inline edit do diario_mes
   const [editCelulaAnt, setEditCelulaAnt] = useState(false);
   const [editProxRev, setEditProxRev] = useState(false);
   const [editHorIni, setEditHorIni] = useState(false);
   const [editHorFim, setEditHorFim] = useState(false);
   const [editHorAtv, setEditHorAtv] = useState(false);
 
-  // Dialog de confirmação para editar lançamento
   const [editConfirmDialog, setEditConfirmDialog] = useState<{ open: boolean; lanc: Lanc | null; action: "edit" | "delete" }>({ open: false, lanc: null, action: "edit" });
 
-  // Usuário atual (para assinatura de PIC)
   const [usuarioAtual, setUsuarioAtual] = useState<{ id: string; email: string; nome?: string } | null>(null);
   const [tripulacaoUsuario, setTripulacaoUsuario] = useState<Tripulante | null>(null);
 
-  // Table controls
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [modoTabela, setModoTabela] = useState<"completo" | "resumo">("completo");
 
-  // Row action popover
   const [rowActionOpen, setRowActionOpen] = useState<string | null>(null);
 
-  // Column widths (resizable)
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const resizingRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
 
@@ -249,7 +250,6 @@ function DiarioBordoDetalhes() {
     setTripulantes((tRes.data ?? []) as Tripulante[]);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
 
-    // Buscar empréstimos vinculados aos lancamentos da aeronave
     if (logbookIdsRes.data && logbookIdsRes.data.length > 0) {
       const logbookIds = logbookIdsRes.data.map((e: any) => e.id);
       const loansRes = await supabase
@@ -333,12 +333,10 @@ function DiarioBordoDetalhes() {
     })();
   }, [aircraftId]);
 
-  // Validar se o mês selecionado existe no ano selecionado
   useEffect(() => {
     if (ano !== null && mes !== null && availableMeses.length > 0) {
       const mesExisteNoAno = availableMeses.some(am => am.ano === ano && am.mes === mes);
       if (!mesExisteNoAno) {
-        // Se o mês não existe, selecionar o primeiro mês disponível do ano
         const primeiraMesAno = availableMeses
           .filter(am => am.ano === ano)
           .sort((a, b) => a.mes - b.mes)[0];
@@ -487,7 +485,6 @@ function DiarioBordoDetalhes() {
     else { toast.success("Lançamento assinado como PIC"); await reload(); }
   };
 
-  // ── CHANGE 1: Row actions – edit OR delete ────────────────────────────────
   const handleClickRowAction = (l: Lanc, action: "edit" | "delete") => {
     setRowActionOpen(null);
     if (l.confirmado && !canEditConfirmed) {
@@ -505,7 +502,6 @@ function DiarioBordoDetalhes() {
       setEditingLanc(lanc);
       setActivePanel("editarVoo");
     } else {
-      // Delete
       const { error } = await supabase.from("lancamentos_diario_bordo").delete().eq("id", lanc.id);
       if (error) toast.error("Erro ao excluir lançamento: " + error.message);
       else { toast.success("Lançamento excluído"); await reload(); }
@@ -516,7 +512,6 @@ function DiarioBordoDetalhes() {
   const valorDiaria = Number(diarioMes?.tarifa_diaria ?? 0);
   const totalDiariaReais = totals.totalDiarias * valorDiaria;
 
-  // ── CHANGE 2: Disponível é sempre derivado da fórmula (prox - atual) ─────────────────
   const celulaDisponivel = modoCelula === "tvoo"
     ? calculateCelulaDisponivel(
         diarioMes?.celula_prox_revisao_tvoo ?? 0,
@@ -571,7 +566,6 @@ function DiarioBordoDetalhes() {
 
       const updateData: any = { [field]: value };
 
-      // Se atualizando prox_revisao, recalcular celula_disponivel automaticamente
       if (field === "celula_prox_revisao_ttotal") {
         const celulaAtual = diarioMes.celula_atual_ttotal ?? 0;
         updateData.celula_disponivel_ttotal = calculateCelulaDisponivel(Number(value), celulaAtual);
@@ -668,7 +662,6 @@ function DiarioBordoDetalhes() {
     <span onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-cyan-500/50 transition-colors select-none z-10" />
   );
 
-  // ── CHANGE 3: Determine if inline panel is shown ──────────────────────────
   const showInlinePanel = activePanel !== "none";
 
   return (
@@ -683,7 +676,6 @@ function DiarioBordoDetalhes() {
               <ArrowLeft className="w-3.5 h-3.5" /> Voltar
             </button>
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
-              
               <div className="min-w-0">
                 <h1 className="text-base font-bold text-white tracking-wide truncate">
                   Diário {monthNames[(mes ?? 1) - 1]} {ano} — {aeronave.matricula}
@@ -770,7 +762,6 @@ function DiarioBordoDetalhes() {
                 className="overflow-hidden"
               >
                 <div className="rounded-xl border border-amber-500/30 bg-slate-800/70">
-                  {/* Inline consumo header */}
                   <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700/50">
                     <div className="flex items-center gap-2">
                       <Droplets className="w-4 h-4 text-amber-400" />
@@ -797,19 +788,17 @@ function DiarioBordoDetalhes() {
             )}
           </AnimatePresence>
 
-          {/* ── CHANGE 4: CARDS REDESIGN ──────────────────────────────── */}
+          {/* ── CARDS ─────────────────────────────────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
             {/* Card 1 – Aeronave + Célula */}
             <div className="lg:col-span-2 bg-slate-800/50 border border-slate-700/40 rounded-xl p-4">
-              {/* Header row */}
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-1 h-4 rounded-full bg-cyan-400" />
                 <span className="text-xs font-semibold uppercase tracking-widest text-cyan-400">Aeronave</span>
                 <span className="ml-auto text-xs text-slate-500">{aeronave.matricula} · {aeronave.modelo}</span>
               </div>
 
-              {/* Two sub-rows */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 <MiniStat label="Matrícula" value={aeronave?.matricula ?? "—"} labelColor="text-cyan-400" />
                 <MiniStat label="Modelo" value={aeronave?.modelo ?? "—"} labelColor="text-cyan-400" />
@@ -817,7 +806,6 @@ function DiarioBordoDetalhes() {
                 <MiniStat label="Base" value={aeronave?.base ?? "—"} labelColor="text-cyan-400" />
               </div>
 
-              {/* Célula row */}
               <div className="border-t border-slate-700/40 pt-3">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-1 h-3 rounded-full bg-violet-400" />
@@ -827,7 +815,6 @@ function DiarioBordoDetalhes() {
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {/* Célula Anterior – editable */}
                   <EditableCell
                     label="Anterior"
                     value={modoCelula === "tvoo" ? (diarioMes?.celula_anterior_tvoo ?? 0) : (diarioMes?.celula_anterior_ttotal ?? 0)}
@@ -837,7 +824,6 @@ function DiarioBordoDetalhes() {
                     hint="clique para editar"
                     labelColor="text-violet-400"
                   />
-                  {/* Célula Atual */}
                   <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
                     <p className="text-[10px] text-violet-400 mb-1">Atual</p>
                     <TooltipProvider>
@@ -859,17 +845,15 @@ function DiarioBordoDetalhes() {
                       <button onClick={() => setSelectedLancId(null)} className="text-[9px] text-cyan-400 hover:underline mt-0.5">limpar</button>
                     )}
                   </div>
-                  {/* Próxima Revisão – editable */}
                   <EditableCell
                     label="Próx. Revisão"
-                    value={modoCelula === "tvoo" ? (diarioMes?.celula_prox_revisao_tvoo ?? 0) : (diarioMes?.celula_prox_revisao_ttotal ?? 0)}
+                    value={modoCelula === "tvoo" ? (diarioMes?.celula_prox_revisao_tvoo ?? 0) : (diarioMis?.celula_prox_revisao_ttotal ?? 0)}
                     fieldName={modoCelula === "tvoo" ? "celula_prox_revisao_tvoo" : "celula_prox_revisao_ttotal"}
                     onSave={saveDiarioMesField}
                     unit="h"
                     hint="clique para editar"
                     labelColor="text-violet-400"
                   />
-                  {/* Disponível – sempre mostra o valor calculado (pode ser negativo) */}
                   <div className={`rounded-lg p-2.5 border ${celulaDisponivel < 0 ? 'bg-red-900/20 border-red-500/20' : 'bg-emerald-900/20 border-emerald-500/20'}`}>
                     <p className={`text-[10px] mb-1 ${celulaDisponivel < 0 ? 'text-red-400/70' : 'text-emerald-400/70'}`}>Disponível</p>
                     <p className={`text-sm font-bold ${celulaDisponivel < 0 ? 'text-red-300' : 'text-emerald-300'}`}>{num(celulaDisponivel, 1)}h</p>
@@ -880,7 +864,6 @@ function DiarioBordoDetalhes() {
 
             {/* Card 2 – Horímetro + Período */}
             <div className="flex flex-col gap-3">
-              {/* Horímetro */}
               <div className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4 flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-amber-400" />
@@ -893,7 +876,6 @@ function DiarioBordoDetalhes() {
                 </div>
               </div>
 
-              {/* Período */}
               <div className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4 flex-1">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -904,7 +886,6 @@ function DiarioBordoDetalhes() {
                     <select value={mes!} onChange={(e) => setMes(Number(e.target.value))}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
                       {monthNames.map((m, i) => {
-                        // Mostrar apenas meses que existem em availableMeses para o ano selecionado
                         const hasData = availableMeses.some(am => am.ano === ano && am.mes === i + 1);
                         if (!hasData) return null;
                         return <option key={i} value={i + 1}>{m.slice(0, 3).toUpperCase()}</option>;
@@ -912,7 +893,6 @@ function DiarioBordoDetalhes() {
                     </select>
                     <select value={ano!} onChange={(e) => setAno(Number(e.target.value))}
                       className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {/* Mostrar apenas anos que existem em availableMeses */}
                       {Array.from(new Set(availableMeses.map(am => am.ano)))
                         .sort((a, b) => b - a)
                         .map((y) => <option key={y} value={y}>{y}</option>)}
@@ -937,7 +917,7 @@ function DiarioBordoDetalhes() {
             </div>
           </div>
 
-          {/* ── CHANGE 3: Consumo inline trigger card ─────────────────── */}
+          {/* ── Consumo inline trigger ─────────────────────────────────── */}
           <button
             onClick={() => setActivePanel(activePanel === "consumo" ? "none" : "consumo")}
             className={`w-full text-left rounded-xl border p-4 transition-all ${
@@ -1044,7 +1024,6 @@ function DiarioBordoDetalhes() {
                             isHighlight ? "bg-cyan-500/10" : idx % 2 === 0 ? "bg-slate-800/20" : "",
                             "hover:bg-slate-800/50",
                           ].join(" ")}>
-                          {/* ── CHANGE 1: Row actions with edit + delete ─── */}
                           <Td className="text-center">
                             <Popover open={rowActionOpen === l.id} onOpenChange={(o) => setRowActionOpen(o ? l.id : null)}>
                               <PopoverTrigger asChild>
@@ -1087,13 +1066,7 @@ function DiarioBordoDetalhes() {
                                     <TooltipTrigger asChild>
                                       <button
                                         onClick={() => {
-                                          // Se há apenas um abastecimento, navegar direto com o ID
-                                          if (abastVinculados.length === 1) {
-                                            navigate('/controle-abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
-                                          } else {
-                                            // Se há vários, navegar para a página de abastecimentos (deixar o usuário escolher)
-                                            navigate('/controle-abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
-                                          }
+                                          navigate('/controle-abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
                                         }}
                                         className="text-blue-400 font-semibold hover:text-blue-300 hover:underline"
                                       >
@@ -1185,7 +1158,6 @@ function DiarioBordoDetalhes() {
                   )}
                 </table>
               ) : (
-                /* MODO RESUMO */
                 <table className="w-full border-collapse text-xs [&_td]:border-r [&_td]:border-slate-700/40 [&_th]:border-r [&_th]:border-slate-700/40 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0">
                   <thead className="border-b border-slate-700/40 bg-slate-800/50 sticky top-0">
                     <tr className="text-[10px] uppercase tracking-wide text-slate-500">
@@ -1286,36 +1258,23 @@ function DiarioBordoDetalhes() {
             ) : (
               <>
                 {/* Resumo Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                  {/* Card Horas Emprestadas */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                   <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
                     <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Emprestado</p>
                     <p className="text-xl font-bold text-sky-400 font-mono">{decimalToHHMM(emprestimosResumo.totalEmprestadas)}</p>
                   </div>
 
-                  {/* Card Horas Devolvidas */}
                   <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
                     <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Devolvido</p>
                     <p className="text-xl font-bold text-emerald-400 font-mono">{decimalToHHMM(emprestimosResumo.totalDevolvidas)}</p>
                   </div>
 
-                  {/* Card Saldo Pendente */}
                   <div className={`border rounded-lg p-3 ${emprestimosResumo.totalPendente > 0 ? "bg-red-500/10 border-red-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
                     <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-red-600" : "text-emerald-600"}`}>
                       Saldo Pendente
                     </p>
                     <p className={`text-xl font-bold font-mono ${emprestimosResumo.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
                       {decimalToHHMM(emprestimosResumo.totalPendente)}
-                    </p>
-                  </div>
-
-                  {/* Card Status */}
-                  <div className={`border rounded-lg p-3 text-center ${emprestimosResumo.totalPendente > 0 ? "bg-amber-500/10 border-amber-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
-                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                      Status
-                    </p>
-                    <p className={`text-sm font-bold ${emprestimosResumo.totalPendente > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                      {emprestimosResumo.totalPendente > 0 ? "⏳ Pendente" : "✓ Quitado"}
                     </p>
                   </div>
                 </div>
@@ -1328,12 +1287,11 @@ function DiarioBordoDetalhes() {
                         <tr className="bg-slate-800/50 text-slate-400">
                           <th className="px-3 py-2 text-left">Data</th>
                           <th className="px-3 py-2 text-left">Trecho</th>
-                          <th className="px-3 py-2 text-center">Emprestado</th>
+                          <th className="px-3 py-2 text-center">Emprestado Para</th>
                           <th className="px-3 py-2 text-center">Devolvido</th>
                           <th className="px-3 py-2 text-center">Saldo</th>
                           <th className="px-3 py-2 text-left">PIC</th>
-                          <th className="px-3 py-2 text-center">Fuel (L)</th>
-                          <th className="px-3 py-2 text-left">Observações</th>
+                          <th className="px-3 py-2 text-center">Abastecimento (L)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/30">
@@ -1347,7 +1305,6 @@ function DiarioBordoDetalhes() {
                             : "-");
                           const fuelAdded = loan.combustivel_adicionado ? Number(loan.combustivel_adicionado).toFixed(1) : "-";
                           const pilotName = loan.nome_piloto || "-";
-                          const observations = loan.observacoes || "-";
                           const isPending = saldo > 0;
 
                           return (
@@ -1361,7 +1318,6 @@ function DiarioBordoDetalhes() {
                               </td>
                               <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
                               <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
-                              <td className="px-3 py-2 text-slate-400 truncate text-xs" title={observations}>{observations}</td>
                             </tr>
                           );
                         })}
@@ -1376,7 +1332,7 @@ function DiarioBordoDetalhes() {
         </div>
       </div>
 
-      {/* ── CHANGE 1: Confirm dialog (edit or delete) ─────────────────── */}
+      {/* ── Confirm dialog ────────────────────────────────────────────── */}
       <AlertDialog open={editConfirmDialog.open} onOpenChange={(open) => {
         if (!open) setEditConfirmDialog({ open: false, lanc: null, action: "edit" });
       }}>
@@ -1926,7 +1882,7 @@ function EditarVooInline({
   );
 }
 
-/* ─── AbastecimentoModal (unchanged, kept as dialog for sub-workflow) ──────── */
+/* ─── AbastecimentoModal ───────────────────────────────────────────────────── */
 function AbastecimentoModal({
   clienteId, aeronaveId, abastecimentos, onSelectAbastecimento, onCreateNew, onClose,
 }: {
