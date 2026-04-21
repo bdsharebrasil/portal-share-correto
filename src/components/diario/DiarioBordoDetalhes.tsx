@@ -1776,10 +1776,10 @@ function NovoVooInline({
         </Section>
         <Section title="Aeródromo">
           <Field label="Origem (ICAO)">
-            <SearchableCombobox items={aerodromes.map((ad) => ({ id: ad.designativo, label: `${ad.designativo} - ${ad.name}` }))} value={origem} onChange={setOrigem} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === origem).toString()} onChange={(id, label) => setOrigem(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
           <Field label="Destino (ICAO)">
-            <SearchableCombobox items={aerodromes.map((ad) => ({ id: ad.designativo, label: `${ad.designativo} - ${ad.name}` }))} value={destino} onChange={setDestino} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === destino).toString()} onChange={(id, label) => setDestino(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
         </Section>
         <Section title="Horários (Zulu) — apresentação auto 30min">
@@ -1958,10 +1958,10 @@ function EditarVooInline({
             </select>
           </Field>
           <Field label="Origem (ICAO)">
-            <SearchableCombobox items={aerodromes.map((ad) => ({ id: ad.designativo, label: `${ad.designativo} - ${ad.name}` }))} value={origem} onChange={setOrigem} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === origem).toString()} onChange={(id, label) => setOrigem(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
           <Field label="Destino (ICAO)">
-            <SearchableCombobox items={aerodromes.map((ad) => ({ id: ad.designativo, label: `${ad.designativo} - ${ad.name}` }))} value={destino} onChange={setDestino} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === destino).toString()} onChange={(id, label) => setDestino(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
         </Section>
         <Section title="Horários (Zulu)">
