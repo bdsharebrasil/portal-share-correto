@@ -793,6 +793,7 @@ function DiarioBordoDetalhes() {
                   <NovoVooInline
                     aeronave={aeronave} mes={mes!} ano={ano!} modoCelula={modoCelula}
                     clientes={clientes} socios={socios} tripulantes={tripulantes}
+                    aerodromes={aerodromes}
                     ultimaCelula={diarioMes?.celula_atual_ttotal ?? 0}
                     ultimaCelulaTvoo={diarioMes?.celula_atual_tvoo ?? 0}
                     temDiaria={temDiaria}
@@ -818,6 +819,7 @@ function DiarioBordoDetalhes() {
                   <EditarVooInline
                     lanc={editingLanc} aeronave={aeronave}
                     clientes={clientes} socios={socios} tripulantes={tripulantes}
+                    aerodromes={aerodromes}
                     temDiaria={temDiaria}
                     onClose={() => { setActivePanel("none"); setEditingLanc(null); }}
                     onSaved={async () => { setActivePanel("none"); setEditingLanc(null); await reload(); }}
@@ -1571,11 +1573,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ─── NovoVooInline ────────────────────────────────────────────────────────── */
 function NovoVooInline({
   aeronave, mes, ano, modoCelula, clientes, socios, tripulantes,
-  ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
+  aerodromes, ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
 }: {
   aeronave: Aeronave; mes: number; ano: number;
   modoCelula: "tvoo" | "tempo_total";
   clientes: Cliente[]; socios: Socio[]; tripulantes: Tripulante[];
+  aerodromes: Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>;
   ultimaCelula: number; ultimaCelulaTvoo: number;
   temDiaria: boolean; onClose: () => void; onSaved: () => void;
 }) {
@@ -1830,10 +1833,11 @@ function NovoVooInline({
 
 /* ─── EditarVooInline ──────────────────────────────────────────────────────── */
 function EditarVooInline({
-  lanc, aeronave, clientes, socios, tripulantes, temDiaria, onClose, onSaved,
+  lanc, aeronave, clientes, socios, tripulantes, aerodromes, temDiaria, onClose, onSaved,
 }: {
   lanc: Lanc; aeronave: Aeronave;
   clientes: Cliente[]; socios: Socio[]; tripulantes: Tripulante[];
+  aerodromes: Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>;
   temDiaria: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const fmtTime = (v: string | null) => v ? v.slice(0, 5) : "";
