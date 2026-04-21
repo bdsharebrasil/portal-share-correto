@@ -1075,7 +1075,7 @@ function DiarioBordoDetalhes() {
                     <p className="leading-relaxed">Na coluna <span className="text-white font-medium">#</span> clique no número do lançamento para abrir as opções de <span className="text-white">editar</span> ou <span className="text-white">excluir</span> aquele registro.</p>
                   </motion.div>
                 </div>
-                <span className="text-xs text-slate-400">Dica: Clique no número da coluna <span className="text-blue-400 font-medium">#</span> para editar ou excluir</span>
+                <span className="text-xs text-slate-400"> Clique no número da coluna <span className="text-blue-400 font-medium">#</span> para editar ou excluir</span>
               </div>
             </div>
 
