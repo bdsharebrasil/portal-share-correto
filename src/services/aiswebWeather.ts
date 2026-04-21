@@ -144,7 +144,7 @@ export const transformAISWebMETAR = (data: any, icao: string): AISWebMETARData =
     undefined;
 
   if (!metarRaw) {
-    console.warn(`[transformAISWebMETAR] METAR vazio para ${loc}. Data recebida:`, data);
+    console.debug(`[transformAISWebMETAR] METAR vazio para ${loc}. Usando fallback ou mock data.`);
   }
 
   return {
@@ -174,7 +174,8 @@ export async function fetchAISWebMETAR(icao: string): Promise<AISWebMETARData | 
     if (!data) return null;
     return transformAISWebMETAR(data, icao);
   } catch (error) {
-    console.error(`[AISWeb] Erro ao buscar METAR para ${icao}:`, error);
+    // Log apenas como debug já que o fallback para mock data é esperado
+    console.debug(`[AISWeb] Falha ao buscar METAR para ${icao}, usando fallback`);
     return null;
   }
 }

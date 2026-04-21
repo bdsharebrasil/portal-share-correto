@@ -100,7 +100,7 @@ export default function WeatherWidget() {
 
       // Check explícito: se getWeather retornar null, não tentar transformar
       if (!wxData) {
-        console.warn(`[WeatherWidget] Dados nulos para ${airport.icao} — usando fallback`);
+        console.debug(`[WeatherWidget] Dados indisponíveis para ${airport.icao} — usando fallback`);
         setWxToUnknown(airport);
         return;
       }
@@ -110,7 +110,7 @@ export default function WeatherWidget() {
 
       // Validar que o METAR não ficou vazio (fallback silencioso)
       if (!metarData.rawOb) {
-        console.warn(`[WeatherWidget] METAR vazio para ${airport.icao} — usando fallback`);
+        console.debug(`[WeatherWidget] METAR vazio para ${airport.icao} — usando fallback`);
         setWxToUnknown(airport);
         return;
       }
@@ -129,8 +129,8 @@ export default function WeatherWidget() {
         time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
       });
     } catch (weatherError: any) {
-      const errorMsg = weatherError?.message || String(weatherError);
-      console.warn(`[WeatherWidget] Falha ao carregar dados para ${airport.icao}: ${errorMsg}`);
+      // Erro esperado quando API falha - mock fallback será usado silenciosamente
+      console.debug(`[WeatherWidget] Dados de weather indisponíveis para ${airport.icao}`);
       // Mostrar estado desconhecido com dados locais do aeroporto
       setWxToUnknown(airport);
     }
