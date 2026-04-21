@@ -14,8 +14,7 @@ export function DiarioBordoDicas() {
         whileTap={{ scale: 0.95 }}
         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/40 text-amber-400 hover:border-amber-400/60 hover:shadow-lg hover:shadow-amber-500/20 transition-all duration-300"
       >
-        <Sparkles className="w-4 h-4" />
-        <span className="text-sm font-medium">DICAS</span>
+        <span className="text-sm font-medium">DICAS !</span>
       </motion.button>
 
       {/* Modal de Dicas */}
@@ -86,7 +85,7 @@ export function DiarioBordoDicas() {
                     <p className="text-xs text-slate-400 leading-relaxed">
                       Na coluna{" "}
                       <kbd className="inline-flex items-center justify-center bg-slate-800/80 border border-slate-600/60 rounded px-1.5 py-0.5 font-mono text-[10px] text-white mx-0.5 shadow-sm">
-                        #
+                        Coluna #
                       </kbd>{" "}
                       clique no número do lançamento para abrir as opções de{" "}
                       <span className="text-white font-medium">editar</span> ou{" "}
