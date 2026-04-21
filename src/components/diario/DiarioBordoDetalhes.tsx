@@ -889,9 +889,6 @@ function DiarioBordoDetalhes() {
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-1 h-3 rounded-full bg-violet-400" />
                   <span className="text-xs font-semibold uppercase tracking-widest text-violet-400">Célula</span>
-                  <span className="ml-auto text-[10px] text-slate-600 bg-slate-700/50 px-2 py-0.5 rounded-full">
-                    {modoCelula === "tvoo" ? "T. Voo" : "T. Total"}
-                  </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <EditableCell
@@ -1326,7 +1323,7 @@ function DiarioBordoDetalhes() {
                       onClick={() => setCotistaFiltro(cotistaFiltro === c.label ? null : c.label)}
                       className={`rounded-xl border p-3 flex flex-col gap-1.5 transition-all text-left ${cotistaFiltro === c.label ? "border-cyan-400 bg-cyan-500/10" : "border-slate-700/40 bg-slate-800/50 hover:border-slate-600"}`}>
                       <span className="truncate text-[10px] font-medium text-slate-400" title={c.label}>{c.label}</span>
-                      <span className={`font-mono text-base font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>{decimalToHHMM(c.horas)}</span>
+                      <span className={`text-base font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`} style={{ fontFamily: 'Arial, sans-serif' }}>{decimalToHHMM(c.horas)}</span>
                       <div className="flex items-center gap-1.5">
                         <div className="flex-1 h-1 overflow-hidden rounded-full bg-slate-900">
                           <div className={`h-full rounded-full bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }} />
@@ -1556,7 +1553,7 @@ function EditableCell({ label, value, fieldName, onSave, unit = "", accentColor 
   return (
     <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
       <p className={`text-[10px] ${labelCls} mb-1`}>{label}</p>
-      {hint && <p className="text-[9px] text-slate-600 mb-1.5">{hint}</p>}
+      {hint && <p className="text-[9px] mb-1.5" style={{ color: 'rgba(102, 95, 89, 1)' }}>{hint}</p>}
       {editing ? (
         <input
           type="number" step="0.1" autoFocus
