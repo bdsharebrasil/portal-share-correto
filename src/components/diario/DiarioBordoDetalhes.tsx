@@ -209,10 +209,6 @@ function DiarioBordoDetalhes() {
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const resizingRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
 
-  // Empréstimos - cliente/sócio selecionado para visualizar detalhes
-  const [selectedEmprestadorId, setSelectedEmprestadorId] = useState<string | null>(null);
-  const [selectedEmprestadorTipo, setSelectedEmprestadorTipo] = useState<"cliente" | "socio" | null>(null);
-
   const reload = async () => {
     if (!aircraftId || mes === null || ano === null) return;
     setLoading(true);
@@ -253,9 +249,19 @@ function DiarioBordoDetalhes() {
     setTripulantes((tRes.data ?? []) as Tripulante[]);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
 
-    // Empréstimos agora são filtrados dos próprios lançamentos (onde emprestimo = true)
-    // Isso será feito via useMemo nos cálculos abaixo
-    setLoans([]);
+    // Buscar empréstimos vinculados aos lancamentos da aeronave
+    if (logbookIdsRes.data && logbookIdsRes.data.length > 0) {
+      const logbookIds = logbookIdsRes.data.map((e: any) => e.id);
+      const loansRes = await supabase
+        .from("emprestimos_aeronave")
+        .select("id,horas_emprestadas,horas_devolvidas,lancamento_diario_id,lancamento_devolucao_id,data_lancamento,observacoes,aerodromo_partida,aerodromo_chegada,trecho,combustivel_adicionado,nome_piloto")
+        .in("lancamento_diario_id", logbookIds)
+        .order("data_lancamento", { ascending: false });
+
+      setLoans((loansRes.data ?? []) as unknown as AeronaveEmprestimo[]);
+    } else {
+      setLoans([]);
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -394,76 +400,29 @@ function DiarioBordoDetalhes() {
     return Array.from(map.values()).sort((a, b) => b.horas - a.horas);
   }, [lancamentos, modoCelula, labelVooPara]);
 
-  // Empréstimos agrupados por cliente/sócio emprestador
-  const emprestimosPorCotista = useMemo(() => {
-    const map = new Map<string, {
-      id: string;
-      nome: string;
-      tipo: "cliente" | "socio";
-      lancamentos: Lanc[];
-      totalHoras: number;
-      totalPendente: number;
-    }>();
-
-    for (const l of lancamentos) {
-      if (!l.emprestimo) continue;
-
-      let cotistId = "";
-      let cotistNome = "";
-      let cotistTipo: "cliente" | "socio" = "cliente";
-
-      // Determinar quem emprestou (cliente ou sócio)
-      if (l.socios_cliente_id) {
-        const s = socios.find((x) => x.id === l.socios_cliente_id);
-        cotistId = l.socios_cliente_id;
-        cotistNome = s?.nome ?? l.socios_nome ?? "Sócio Desconhecido";
-        cotistTipo = "socio";
-      } else if (l.clientes_id) {
-        const c = clientes.find((x) => x.id === l.clientes_id);
-        cotistId = l.clientes_id;
-        cotistNome = c?.razao_social ?? c?.proprietario ?? "Cliente Desconhecido";
-        cotistTipo = "cliente";
-      }
-
-      if (!cotistId) continue;
-
-      const key = `${cotistTipo}:${cotistId}`;
-      const cur = map.get(key) ?? {
-        id: cotistId,
-        nome: cotistNome,
-        tipo: cotistTipo,
-        lancamentos: [],
-        totalHoras: 0,
-        totalPendente: 0,
-      };
-
-      const horas = Number(l.tempo_voo ?? 0);
-      cur.lancamentos.push(l);
-      cur.totalHoras += horas;
-
-      map.set(key, cur);
-    }
-
-    return Array.from(map.values()).sort((a, b) => b.totalHoras - a.totalHoras);
-  }, [lancamentos, clientes, socios]);
-
   const emprestimosResumo = useMemo(() => {
     let totalEmprestadas = 0;
+    let totalDevolvidas = 0;
     let totalPendente = 0;
     let quantidadeEmprestimos = 0;
 
-    for (const emp of emprestimosPorCotista) {
-      totalEmprestadas += emp.totalHoras;
-      quantidadeEmprestimos += emp.lancamentos.length;
+    for (const loan of loans) {
+      const emprestadas = loan.horas_emprestadas || 0;
+      const devolvidas = loan.horas_devolvidas || 0;
+
+      totalEmprestadas += emprestadas;
+      totalDevolvidas += devolvidas;
+      totalPendente += emprestadas - devolvidas;
+      quantidadeEmprestimos++;
     }
 
     return {
       totalEmprestadas,
-      totalDevolvidas: 0, // Não temos dados de devolução agora
+      totalDevolvidas,
       totalPendente,
       quantidadeEmprestimos,
     };
-  }, [emprestimosPorCotista]);
+  }, [loans]);
 
   const abastByLanc = useMemo(() => {
     const m = new Map<string, Abastecimento[]>();
@@ -1316,127 +1275,89 @@ function DiarioBordoDetalhes() {
                 <History className="w-4 h-4 text-amber-400" />
                 <h2 className="text-sm font-semibold text-white">Horas Emprestimos</h2>
               </div>
-              {emprestimosResumo.quantidadeEmprestimos > 0 && (
+              {loans.length > 0 && (
                 <span className="text-xs font-medium text-slate-400">
                   {emprestimosResumo.quantidadeEmprestimos} {emprestimosResumo.quantidadeEmprestimos === 1 ? "empréstimo" : "empréstimos"}
                 </span>
               )}
             </div>
-            {emprestimosPorCotista.length === 0 ? (
+            {loans.length === 0 ? (
               <p className="py-4 text-center text-slate-500 text-xs">Sem empréstimos registrados.</p>
             ) : (
               <>
-                {/* Cards de Cliente/Sócio */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {emprestimosPorCotista.map((emp, idx) => {
-                    const isSelected = selectedEmprestadorId === emp.id && selectedEmprestadorTipo === emp.tipo;
-                    const colors = ["from-cyan-500 to-blue-500", "from-violet-500 to-purple-500", "from-emerald-500 to-teal-500", "from-amber-500 to-orange-500", "from-rose-500 to-pink-500"];
-                    const color = colors[idx % colors.length];
+                {/* Resumo Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  {/* Card Horas Emprestadas */}
+                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Emprestado</p>
+                    <p className="text-xl font-bold text-sky-400 font-mono">{decimalToHHMM(emprestimosResumo.totalEmprestadas)}</p>
+                  </div>
 
-                    return (
-                      <button
-                        key={`${emp.tipo}:${emp.id}`}
-                        onClick={() => {
-                          setSelectedEmprestadorId(emp.id);
-                          setSelectedEmprestadorTipo(emp.tipo);
-                        }}
-                        className={`rounded-xl border p-4 flex flex-col gap-2.5 transition-all text-left ${
-                          isSelected
-                            ? "border-amber-400 bg-amber-500/10 shadow-lg shadow-amber-500/20"
-                            : "border-slate-700/40 bg-slate-800/50 hover:border-slate-600"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="truncate text-xs font-semibold text-white" title={emp.nome}>
-                            {emp.nome}
-                          </span>
-                          <span className="text-[10px] bg-slate-700/50 px-2 py-1 rounded text-slate-300">
-                            {emp.tipo === "socio" ? "Sócio" : "Cliente"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className={`font-mono text-lg font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>
-                            {decimalToHHMM(emp.totalHoras)}
-                          </span>
-                          <p className="text-[10px] text-slate-400 mt-1">{emp.lancamentos.length} {emp.lancamentos.length === 1 ? "empréstimo" : "empréstimos"}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {/* Card Horas Devolvidas */}
+                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Devolvido</p>
+                    <p className="text-xl font-bold text-emerald-400 font-mono">{decimalToHHMM(emprestimosResumo.totalDevolvidas)}</p>
+                  </div>
+
+                  {/* Card Saldo Pendente */}
+                  <div className={`border rounded-lg p-3 ${emprestimosResumo.totalPendente > 0 ? "bg-red-500/10 border-red-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
+                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      Saldo Pendente
+                    </p>
+                    <p className={`text-xl font-bold font-mono ${emprestimosResumo.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                      {decimalToHHMM(emprestimosResumo.totalPendente)}
+                    </p>
+                  </div>
+
+                  
+
+                {/* Tabela de Detalhes de Empréstimos */}
+                <div className="bg-slate-900/40 border border-slate-700/40 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-[10px] font-bold uppercase">
+                      <thead>
+                        <tr className="bg-slate-800/50 text-slate-400">
+                          <th className="px-3 py-2 text-left">Data</th>
+                          <th className="px-3 py-2 text-left">Trecho</th>
+                          <th className="px-3 py-2 text-center">Emprestado Para</th>
+                          <th className="px-3 py-2 text-center">Devolvido</th>
+                          <th className="px-3 py-2 text-center">Saldo</th>
+                          <th className="px-3 py-2 text-left">PIC</th>
+                          <th className="px-3 py-2 text-center">Abastecimento (L)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/30">
+                        {loans.map(loan => {
+                          const emprestadas = loan.horas_emprestadas || 0;
+                          const devolvidas = loan.horas_devolvidas || 0;
+                          const saldo = emprestadas - devolvidas;
+                          const formattedDate = new Date(loan.data_lancamento).toLocaleDateString("pt-BR");
+                          const trecho = loan.trecho || (loan.aerodromo_partida && loan.aerodromo_chegada
+                            ? `${loan.aerodromo_partida} → ${loan.aerodromo_chegada}`
+                            : "-");
+                          const fuelAdded = loan.combustivel_adicionado ? Number(loan.combustivel_adicionado).toFixed(1) : "-";
+                          const pilotName = loan.nome_piloto || "-";
+                          const observations = loan.observacoes || "-";
+                          const isPending = saldo > 0;
+
+                          return (
+                            <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
+                              <td className="px-3 py-2 text-slate-300 whitespace-nowrap">{formattedDate}</td>
+                              <td className="px-3 py-2 text-slate-300 font-mono text-xs">{trecho}</td>
+                              <td className="px-3 py-2 text-center text-sky-400 font-mono whitespace-nowrap">{decimalToHHMM(emprestadas)}</td>
+                              <td className="px-3 py-2 text-center text-emerald-400 font-mono whitespace-nowrap">{decimalToHHMM(devolvidas)}</td>
+                              <td className={`px-3 py-2 text-center font-mono whitespace-nowrap ${isPending ? "text-red-400" : "text-emerald-400"}`}>
+                                {decimalToHHMM(saldo)}
+                              </td>
+                              <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
+                              <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
+                              
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-
-                {/* Tabela de Detalhes - Mostrada quando um cliente/sócio é selecionado */}
-                <AnimatePresence>
-                  {selectedEmprestadorId && selectedEmprestadorTipo && (() => {
-                    const selectedEmp = emprestimosPorCotista.find(
-                      (e) => e.id === selectedEmprestadorId && e.tipo === selectedEmprestadorTipo
-                    );
-                    return selectedEmp ? (
-                      <motion.div
-                        key={`details:${selectedEmprestadorTipo}:${selectedEmprestadorId}`}
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="mt-6 bg-slate-900/40 border border-slate-700/40 rounded-lg overflow-hidden"
-                      >
-                        <div className="bg-slate-800/50 px-4 py-3 border-b border-slate-700/40 flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-white">Empréstimos de {selectedEmp.nome}</h3>
-                          <button
-                            onClick={() => {
-                              setSelectedEmprestadorId(null);
-                              setSelectedEmprestadorTipo(null);
-                            }}
-                            className="p-1 hover:bg-slate-700/50 rounded transition-colors"
-                          >
-                            <X className="w-4 h-4 text-slate-400" />
-                          </button>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full border-collapse text-[10px] font-bold uppercase">
-                            <thead>
-                              <tr className="bg-slate-800/50 text-slate-400 border-b border-slate-700/40">
-                                <th className="px-3 py-2 text-left">Data</th>
-                                <th className="px-3 py-2 text-left">Emprestado para</th>
-                                <th className="px-3 py-2 text-left">Trecho</th>
-                                <th className="px-3 py-2 text-center">Horas Voo</th>
-                                <th className="px-3 py-2 text-left">PIC</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/30">
-                              {selectedEmp.lancamentos.map((lanc) => {
-                                const formattedDate = new Date(lanc.data_registro + "T00:00").toLocaleDateString("pt-BR");
-                                const trecho = lanc.trecho ?? `${lanc.aerodromo_partida ?? "—"} → ${lanc.aerodromo_chegada ?? "—"}`;
-                                const horasVoo = decimalToHHMM(Number(lanc.tempo_voo ?? 0));
-
-                                // Determinar quem tomou emprestado
-                                let tomadorNome = "—";
-                                if (lanc.socio_tomador_emprestimo_id) {
-                                  const s = socios.find((x) => x.id === lanc.socio_tomador_emprestimo_id);
-                                  tomadorNome = s?.nome ?? "Sócio Desconhecido";
-                                } else if (lanc.cliente_tomador_emprestimo_id) {
-                                  const c = clientes.find((x) => x.id === lanc.cliente_tomador_emprestimo_id);
-                                  tomadorNome = c?.razao_social ?? c?.proprietario ?? "Cliente Desconhecido";
-                                }
-
-                                const picName = lanc.pic?.nome_completo || lanc.pic_canac || "—";
-
-                                return (
-                                  <tr key={lanc.id} className="hover:bg-slate-800/20 transition-colors">
-                                    <td className="px-3 py-2 text-slate-300 whitespace-nowrap">{formattedDate}</td>
-                                    <td className="px-3 py-2 text-slate-300 text-xs">{tomadorNome}</td>
-                                    <td className="px-3 py-2 text-slate-300 font-mono text-xs">{trecho}</td>
-                                    <td className="px-3 py-2 text-center text-sky-400 font-mono whitespace-nowrap">{horasVoo}</td>
-                                    <td className="px-3 py-2 text-slate-300 text-xs truncate">{picName}</td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </motion.div>
-                    ) : null;
-                  })()}
-                </AnimatePresence>
               </>
             )}
           </section>
