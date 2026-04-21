@@ -125,6 +125,8 @@ type AeronaveEmprestimo = {
   id: string;
   horas_emprestadas: number;
   horas_devolvidas: number | null;
+  cliente_tomador_emprestimo_id: string | null;
+  socio_tomador_emprestimo_id: string | null;
   data_lancamento: string;
   status?: string;
   lancamento_diario_id: string | null;
@@ -162,6 +164,7 @@ function DiarioBordoDetalhes() {
   const [tripulantes, setTripulantes] = useState<Tripulante[]>([]);
   const [abastecimentos, setAbastecimentos] = useState<Abastecimento[]>([]);
   const [loans, setLoans] = useState<AeronaveEmprestimo[]>([]);
+  const [aerodromes, setAerodromes] = useState<Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>>([]);
   const [loading, setLoading] = useState(true);
 
   const [activePanel, setActivePanel] = useState<ActivePanel>("none");
@@ -173,6 +176,7 @@ function DiarioBordoDetalhes() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [availableMeses, setAvailableMeses] = useState<Array<{ mes: number; ano: number }>>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [expandedEmprestimoCliente, setExpandedEmprestimoCliente] = useState<string | null>(null);
 
   const emprestimosPorCotista = useMemo(() => {
     const map = new Map<string, { label: string; horas: number }>();
@@ -220,7 +224,7 @@ function DiarioBordoDetalhes() {
     const anoIni = `${ano}-01-01`;
     const anoFim = `${ano}-12-31`;
 
-    const [aRes, dmRes, lRes, lAnoRes, cRes, sRes, tRes, abRes, logbookIdsRes] = await Promise.all([
+    const [aRes, dmRes, lRes, lAnoRes, cRes, sRes, tRes, abRes, logbookIdsRes, aeroRes] = await Promise.all([
       supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
@@ -237,8 +241,9 @@ function DiarioBordoDetalhes() {
         .gte("data", ini).lte("data", fim)
         .not("logbook_entry_id", "is", null),
       supabase.from("lancamentos_diario_bordo").select("id").eq("aeronave_id", aircraftId),
+      supabase.from("aerodromes").select("id,designativo,name,coordenadas").order("designativo"),
     ]);
-    setAeronave(aRes.data as Aeronave | null);
+    setAeronave(aRes.data as unknown as Aeronave | null);
     if (aRes.data?.modo_celula) {
       setModoCelula(aRes.data.modo_celula as "tvoo" | "tempo_total");
     }
@@ -249,6 +254,7 @@ function DiarioBordoDetalhes() {
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
+    setAerodromes((aeroRes.data ?? []) as unknown as Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>);
 
     if (logbookIdsRes.data && logbookIdsRes.data.length > 0) {
       const logbookIds = logbookIdsRes.data.map((e: any) => e.id);
@@ -398,6 +404,22 @@ function DiarioBordoDetalhes() {
     return Array.from(map.values()).sort((a, b) => b.horas - a.horas);
   }, [lancamentos, modoCelula, labelVooPara]);
 
+  const lancamentosMap = useMemo(() => {
+    const m = new Map<string, Lanc>();
+    for (const l of lancamentosAno) {
+      m.set(l.id, l);
+    }
+    return m;
+  }, [lancamentosAno]);
+
+  const aerodromesMap = useMemo(() => {
+    const m = new Map<string, { id: string; designativo: string; name: string; coordenadas: string | null }>();
+    for (const a of aerodromes) {
+      m.set(a.id, a);
+    }
+    return m;
+  }, [aerodromes]);
+
   const emprestimosResumo = useMemo(() => {
     let totalEmprestadas = 0;
     let totalDevolvidas = 0;
@@ -421,6 +443,60 @@ function DiarioBordoDetalhes() {
       quantidadeEmprestimos,
     };
   }, [loans]);
+
+  const emprestimosPorCliente = useMemo(() => {
+    const map = new Map<string, {
+      id: string;
+      nome: string;
+      loans: AeronaveEmprestimo[];
+      totalEmprestadas: number;
+      totalDevolvidas: number;
+      totalPendente: number;
+    }>();
+
+    for (const loan of loans) {
+      const lancamento = lancamentosMap.get(loan.lancamento_diario_id || "");
+      let clienteId = "";
+      let clienteNome = "";
+
+      if (lancamento) {
+        if (lancamento.socios_cliente_id) {
+          const socio = socios.find(s => s.id === lancamento.socios_cliente_id);
+          clienteId = lancamento.socios_cliente_id;
+          clienteNome = socio?.nome || lancamento.socios_nome || `Sócio (${lancamento.socios_cliente_id})`;
+        } else if (lancamento.clientes_id) {
+          const cliente = clientes.find(c => c.id === lancamento.clientes_id);
+          clienteId = lancamento.clientes_id;
+          clienteNome = cliente?.razao_social || cliente?.proprietario || `Cliente (${lancamento.clientes_id})`;
+        }
+      }
+
+      if (!clienteId) {
+        clienteId = "unknown";
+        clienteNome = "Sem cliente";
+      }
+
+      const cur = map.get(clienteId) ?? {
+        id: clienteId,
+        nome: clienteNome,
+        loans: [],
+        totalEmprestadas: 0,
+        totalDevolvidas: 0,
+        totalPendente: 0,
+      };
+
+      const emprestadas = loan.horas_emprestadas || 0;
+      const devolvidas = loan.horas_devolvidas || 0;
+      cur.loans.push(loan);
+      cur.totalEmprestadas += emprestadas;
+      cur.totalDevolvidas += devolvidas;
+      cur.totalPendente += emprestadas - devolvidas;
+
+      map.set(clienteId, cur);
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.totalEmprestadas - a.totalEmprestadas);
+  }, [loans, lancamentosMap, clientes, socios]);
 
   const abastByLanc = useMemo(() => {
     const m = new Map<string, Abastecimento[]>();
@@ -847,7 +923,7 @@ function DiarioBordoDetalhes() {
                   </div>
                   <EditableCell
                     label="Próx. Revisão"
-                    value={modoCelula === "tvoo" ? (diarioMes?.celula_prox_revisao_tvoo ?? 0) : (diarioMis?.celula_prox_revisao_ttotal ?? 0)}
+                    value={modoCelula === "tvoo" ? (diarioMes?.celula_prox_revisao_tvoo ?? 0) : (diarioMes?.celula_prox_revisao_ttotal ?? 0)}
                     fieldName={modoCelula === "tvoo" ? "celula_prox_revisao_tvoo" : "celula_prox_revisao_ttotal"}
                     onSave={saveDiarioMesField}
                     unit="h"
@@ -1257,73 +1333,109 @@ function DiarioBordoDetalhes() {
               <p className="py-4 text-center text-slate-500 text-xs">Sem empréstimos registrados.</p>
             ) : (
               <>
-                {/* Resumo Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Emprestado</p>
-                    <p className="text-xl font-bold text-sky-400 font-mono">{decimalToHHMM(emprestimosResumo.totalEmprestadas)}</p>
-                  </div>
+               
 
-                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Devolvido</p>
-                    <p className="text-xl font-bold text-emerald-400 font-mono">{decimalToHHMM(emprestimosResumo.totalDevolvidas)}</p>
-                  </div>
+                {/* Cliente/Socio Cards */}
+                <div className="space-y-3">
+                  {emprestimosPorCliente.map(clienteGroup => (
+                    <div key={clienteGroup.id} className="border border-slate-700/40 rounded-lg overflow-hidden bg-slate-900/30">
+                      {/* Card Header - Clickable */}
+                      <button
+                        onClick={() => setExpandedEmprestimoCliente(expandedEmprestimoCliente === clienteGroup.id ? null : clienteGroup.id)}
+                        className="w-full px-4 py-3 hover:bg-slate-800/30 transition-colors text-left flex items-center justify-between"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-white">{clienteGroup.nome}</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {clienteGroup.loans.length} {clienteGroup.loans.length === 1 ? "empréstimo" : "empréstimos"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4 mr-4">
+                          <div className="text-right">
+                            <div className="text-xs text-slate-400">Saldo</div>
+                            <div className={`font-mono font-bold ${clienteGroup.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                              {decimalToHHMM(clienteGroup.totalPendente)}
+                            </div>
+                          </div>
+                          <div className={`transition-transform ${expandedEmprestimoCliente === clienteGroup.id ? "rotate-180" : ""}`}>
+                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                          </div>
+                        </div>
+                      </button>
 
-                  <div className={`border rounded-lg p-3 ${emprestimosResumo.totalPendente > 0 ? "bg-red-500/10 border-red-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
-                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-red-600" : "text-emerald-600"}`}>
-                      Saldo Pendente
-                    </p>
-                    <p className={`text-xl font-bold font-mono ${emprestimosResumo.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
-                      {decimalToHHMM(emprestimosResumo.totalPendente)}
-                    </p>
-                  </div>
-                </div>
+                      {/* Expanded Details Table */}
+                      {expandedEmprestimoCliente === clienteGroup.id && (
+                        <div className="border-t border-slate-700/40 bg-slate-950/40 overflow-x-auto">
+                          <table className="w-full border-collapse text-[10px] font-bold uppercase">
+                            <thead>
+                              <tr className="bg-slate-800/50 text-slate-400">
+                                <th className="px-3 py-2 text-left">Data</th>
+                                <th className="px-3 py-2 text-left">Cotista Emprestimo</th>
+                                <th className="px-3 py-2 text-left">Trecho</th>
+                                <th className="px-3 py-2 text-center">Origem (ICAO)</th>
+                                <th className="px-3 py-2 text-center">Destino (ICAO)</th>
+                                <th className="px-3 py-2 text-center">Emprestado</th>
+                                <th className="px-3 py-2 text-center">Devolvido</th>
+                                <th className="px-3 py-2 text-center">Saldo</th>
+                                <th className="px-3 py-2 text-left">PIC</th>
+                                <th className="px-3 py-2 text-center">Abastecimento (L)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/30">
+                              {clienteGroup.loans.map(loan => {
+                                const emprestadas = loan.horas_emprestadas || 0;
+                                const devolvidas = loan.horas_devolvidas || 0;
+                                const saldo = emprestadas - devolvidas;
+                                const formattedDate = new Date(loan.data_lancamento).toLocaleDateString("pt-BR");
+                                const trecho = loan.trecho || (loan.aerodromo_partida && loan.aerodromo_chegada
+                                  ? `${loan.aerodromo_partida} → ${loan.aerodromo_chegada}`
+                                  : "-");
+                                const fuelAdded = loan.combustivel_adicionado ? Number(loan.combustivel_adicionado).toFixed(1) : "-";
+                                const pilotName = loan.nome_piloto || "-";
+                                const isPending = saldo > 0;
 
-                {/* Tabela de Detalhes de Empréstimos */}
-                <div className="bg-slate-900/40 border border-slate-700/40 rounded-lg overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-[10px] font-bold uppercase">
-                      <thead>
-                        <tr className="bg-slate-800/50 text-slate-400">
-                          <th className="px-3 py-2 text-left">Data</th>
-                          <th className="px-3 py-2 text-left">Trecho</th>
-                          <th className="px-3 py-2 text-center">Emprestado Para</th>
-                          <th className="px-3 py-2 text-center">Devolvido</th>
-                          <th className="px-3 py-2 text-center">Saldo</th>
-                          <th className="px-3 py-2 text-left">PIC</th>
-                          <th className="px-3 py-2 text-center">Abastecimento (L)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/30">
-                        {loans.map(loan => {
-                          const emprestadas = loan.horas_emprestadas || 0;
-                          const devolvidas = loan.horas_devolvidas || 0;
-                          const saldo = emprestadas - devolvidas;
-                          const formattedDate = new Date(loan.data_lancamento).toLocaleDateString("pt-BR");
-                          const trecho = loan.trecho || (loan.aerodromo_partida && loan.aerodromo_chegada
-                            ? `${loan.aerodromo_partida} → ${loan.aerodromo_chegada}`
-                            : "-");
-                          const fuelAdded = loan.combustivel_adicionado ? Number(loan.combustivel_adicionado).toFixed(1) : "-";
-                          const pilotName = loan.nome_piloto || "-";
-                          const isPending = saldo > 0;
+                                // Obter dados dos aerodromes
+                                const aerodromoPartida = aerodromesMap.get(loan.aerodromo_partida || "");
+                                const aerodromeChegada = aerodromesMap.get(loan.aerodromo_chegada || "");
+                                const origemICAO = aerodromoPartida?.designativo || loan.aerodromo_partida || "-";
+                                const destinoICAO = aerodromeChegada?.designativo || loan.aerodromo_chegada || "-";
 
-                          return (
-                            <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
-                              <td className="px-3 py-2 text-slate-300 whitespace-nowrap">{formattedDate}</td>
-                              <td className="px-3 py-2 text-slate-300 font-mono text-xs">{trecho}</td>
-                              <td className="px-3 py-2 text-center text-sky-400 font-mono whitespace-nowrap">{decimalToHHMM(emprestadas)}</td>
-                              <td className="px-3 py-2 text-center text-emerald-400 font-mono whitespace-nowrap">{decimalToHHMM(devolvidas)}</td>
-                              <td className={`px-3 py-2 text-center font-mono whitespace-nowrap ${isPending ? "text-red-400" : "text-emerald-400"}`}>
-                                {decimalToHHMM(saldo)}
-                              </td>
-                              <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
-                              <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                                // Obter o nome do cotista que recebeu o empréstimo
+                                const lancamentoDiario = lancamentosMap.get(loan.lancamento_diario_id || "");
+                                let cotistaTomador = "-";
+                                if (lancamentoDiario) {
+                                  if (lancamentoDiario.socio_tomador_emprestimo_id) {
+                                    const socioTomador = socios.find(s => s.id === lancamentoDiario.socio_tomador_emprestimo_id);
+                                    cotistaTomador = socioTomador?.nome || `Sócio (${lancamentoDiario.socio_tomador_emprestimo_id})`;
+                                  } else if (lancamentoDiario.cliente_tomador_emprestimo_id) {
+                                    const clienteTomador = clientes.find(c => c.id === lancamentoDiario.cliente_tomador_emprestimo_id);
+                                    cotistaTomador = clienteTomador?.razao_social || clienteTomador?.proprietario || `Cliente (${lancamentoDiario.cliente_tomador_emprestimo_id})`;
+                                  }
+                                }
+
+                                return (
+                                  <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
+                                    <td className="px-3 py-2 text-slate-300 whitespace-nowrap">{formattedDate}</td>
+                                    <td className="px-3 py-2 text-slate-300 text-xs truncate" title={cotistaTomador}>{cotistaTomador}</td>
+                                    <td className="px-3 py-2 text-slate-300 font-mono text-xs">{trecho}</td>
+                                    <td className="px-3 py-2 text-center text-sky-300 font-mono text-xs">{origemICAO}</td>
+                                    <td className="px-3 py-2 text-center text-sky-300 font-mono text-xs">{destinoICAO}</td>
+                                    <td className="px-3 py-2 text-center text-sky-400 font-mono whitespace-nowrap">{decimalToHHMM(emprestadas)}</td>
+                                    <td className="px-3 py-2 text-center text-emerald-400 font-mono whitespace-nowrap">{decimalToHHMM(devolvidas)}</td>
+                                    <td className={`px-3 py-2 text-center font-mono whitespace-nowrap ${isPending ? "text-red-400" : "text-emerald-400"}`}>
+                                      {decimalToHHMM(saldo)}
+                                    </td>
+                                    <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
+                                    <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </>
             )}
@@ -1812,6 +1924,12 @@ function EditarVooInline({
           </Field>
           <Field label="Sócio">
             <SearchableCombobox items={sociosDoCliente.map((s) => ({ id: s.id, label: s.nome }))} value={socioId} onChange={setSocioId} placeholder="Selecionar..." searchPlaceholder="Buscar..." disabled={!clienteId || sociosDoCliente.length === 0} />
+          </Field>
+          <Field label="Emprestado?">
+            <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs cursor-pointer">
+              <input type="checkbox" checked={emprestimo} onChange={(e) => setEmprestimo(e.target.checked)} disabled={!clienteId} className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500" />
+              <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "Sim" : "Não"}</span>
+            </label>
           </Field>
         </Section>
         <Section title="Identificação">
