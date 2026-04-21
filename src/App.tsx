@@ -322,6 +322,7 @@ const App = () => {
                             )
                           } />
                           <Route path="/abastecimento" element={renderProtected(<ControleAbastecimento />)} />
+                          <Route path="/controle-abastecimento" element={renderProtected(<ControleAbastecimento />)} />
 
                           {/* Diário de Bordo */}
                           <Route
