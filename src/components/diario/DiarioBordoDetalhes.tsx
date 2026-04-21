@@ -793,6 +793,7 @@ function DiarioBordoDetalhes() {
                   <NovoVooInline
                     aeronave={aeronave} mes={mes!} ano={ano!} modoCelula={modoCelula}
                     clientes={clientes} socios={socios} tripulantes={tripulantes}
+                    aerodromes={aerodromes}
                     ultimaCelula={diarioMes?.celula_atual_ttotal ?? 0}
                     ultimaCelulaTvoo={diarioMes?.celula_atual_tvoo ?? 0}
                     temDiaria={temDiaria}
@@ -818,6 +819,7 @@ function DiarioBordoDetalhes() {
                   <EditarVooInline
                     lanc={editingLanc} aeronave={aeronave}
                     clientes={clientes} socios={socios} tripulantes={tripulantes}
+                    aerodromes={aerodromes}
                     temDiaria={temDiaria}
                     onClose={() => { setActivePanel("none"); setEditingLanc(null); }}
                     onSaved={async () => { setActivePanel("none"); setEditingLanc(null); await reload(); }}
@@ -1571,11 +1573,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ─── NovoVooInline ────────────────────────────────────────────────────────── */
 function NovoVooInline({
   aeronave, mes, ano, modoCelula, clientes, socios, tripulantes,
-  ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
+  aerodromes, ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
 }: {
   aeronave: Aeronave; mes: number; ano: number;
   modoCelula: "tvoo" | "tempo_total";
   clientes: Cliente[]; socios: Socio[]; tripulantes: Tripulante[];
+  aerodromes: Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>;
   ultimaCelula: number; ultimaCelulaTvoo: number;
   temDiaria: boolean; onClose: () => void; onSaved: () => void;
 }) {
@@ -1773,10 +1776,10 @@ function NovoVooInline({
         </Section>
         <Section title="Aeródromo">
           <Field label="Origem (ICAO)">
-            <SearchableCombobox items={[{ id: "SBSP", label: "SBSP - São Paulo (Congonhas)" }, { id: "SBRJ", label: "SBRJ - Rio de Janeiro (Santos Dumont)" }, { id: "SBKP", label: "SBKP - Campinas (Viracopos)" }, { id: "SBGR", label: "SBGR - São Paulo (Guarulhos)" }]} value={origem} onChange={setOrigem} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === origem).toString()} onChange={(id, label) => setOrigem(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
           <Field label="Destino (ICAO)">
-            <SearchableCombobox items={[{ id: "SBSP", label: "SBSP - São Paulo (Congonhas)" }, { id: "SBRJ", label: "SBRJ - Rio de Janeiro (Santos Dumont)" }, { id: "SBKP", label: "SBKP - Campinas (Viracopos)" }, { id: "SBGR", label: "SBGR - São Paulo (Guarulhos)" }]} value={destino} onChange={setDestino} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === destino).toString()} onChange={(id, label) => setDestino(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
         </Section>
         <Section title="Horários (Zulu) — apresentação auto 30min">
@@ -1830,10 +1833,11 @@ function NovoVooInline({
 
 /* ─── EditarVooInline ──────────────────────────────────────────────────────── */
 function EditarVooInline({
-  lanc, aeronave, clientes, socios, tripulantes, temDiaria, onClose, onSaved,
+  lanc, aeronave, clientes, socios, tripulantes, aerodromes, temDiaria, onClose, onSaved,
 }: {
   lanc: Lanc; aeronave: Aeronave;
   clientes: Cliente[]; socios: Socio[]; tripulantes: Tripulante[];
+  aerodromes: Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>;
   temDiaria: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const fmtTime = (v: string | null) => v ? v.slice(0, 5) : "";
@@ -1954,10 +1958,10 @@ function EditarVooInline({
             </select>
           </Field>
           <Field label="Origem (ICAO)">
-            <SearchableCombobox items={[{ id: "SBSP", label: "SBSP - Congonhas" }, { id: "SBRJ", label: "SBRJ - Santos Dumont" }, { id: "SBKP", label: "SBKP - Viracopos" }, { id: "SBGR", label: "SBGR - Guarulhos" }]} value={origem} onChange={setOrigem} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === origem).toString()} onChange={(id, label) => setOrigem(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
           <Field label="Destino (ICAO)">
-            <SearchableCombobox items={[{ id: "SBSP", label: "SBSP - Congonhas" }, { id: "SBRJ", label: "SBRJ - Santos Dumont" }, { id: "SBKP", label: "SBKP - Viracopos" }, { id: "SBGR", label: "SBGR - Guarulhos" }]} value={destino} onChange={setDestino} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
+            <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={aerodromes.findIndex(ad => ad.designativo === destino).toString()} onChange={(id, label) => setDestino(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
         </Section>
         <Section title="Horários (Zulu)">
