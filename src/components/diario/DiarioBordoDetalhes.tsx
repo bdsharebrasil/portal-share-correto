@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { CreateMonthDialog } from "./CreateMonthDialog";
+import "./ItemHints.css";
 
 type Aeronave = {
   id: string; matricula: string; modelo: string;
@@ -1055,6 +1056,53 @@ function DiarioBordoDetalhes() {
                 <Plane className="w-3.5 h-3.5 text-cyan-400" /> Registros de Voo
               </h2>
               <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">{lancamentos.length} voos</span>
+            </div>
+
+            {/* ── DICA SOBRE COLUNA # ────────────────────────────────────── */}
+            <div className="px-4 py-3 border-b border-slate-700/40 bg-slate-800/20">
+              <div className="item-hints">
+                <div className="hint" data-position="1">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1, duration: 0.4 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className="group rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-900/80 to-slate-900/40 p-4 flex flex-col gap-3 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <motion.div
+                        className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 group-hover:border-blue-400/50 transition-colors"
+                        whileHover={{ rotate: 5 }}
+                      >
+                        <Pencil className="w-4 h-4 text-blue-400" />
+                      </motion.div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
+                        Dica
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Na coluna{" "}
+                      <kbd className="inline-flex items-center justify-center bg-slate-800/80 border border-slate-600/60 rounded px-1.5 py-0.5 font-mono text-[10px] text-white mx-0.5 shadow-sm">
+                        #
+                      </kbd>{" "}
+                      clique no número do lançamento para abrir as opções de{" "}
+                      <span className="text-white font-medium">editar</span> ou{" "}
+                      <span className="text-white font-medium">excluir</span> aquele registro.
+                    </p>
+                    <div className="flex items-center gap-3 mt-0.5 pt-2 border-t border-slate-700/50">
+                      <span className="flex items-center gap-1.5 text-[10px] text-slate-500 group-hover:text-blue-400 transition-colors">
+                        <Pencil className="w-3 h-3" /> Editar
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[10px] text-slate-500 group-hover:text-blue-400 transition-colors">
+                        <Trash2 className="w-3 h-3" /> Excluir
+                      </span>
+                    </div>
+                  </motion.div>
+                  <div className="hint-content">
+                    <p className="text-xs text-white font-medium px-4">Clique no número para editar ou excluir</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="overflow-auto max-h-[420px]">
