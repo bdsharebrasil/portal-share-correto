@@ -1308,8 +1308,7 @@ function DiarioBordoDetalhes() {
                       {decimalToHHMM(emprestimosResumo.totalPendente)}
                     </p>
                   </div>
-
-                  
+                </div>
 
                 {/* Tabela de Detalhes de Empréstimos */}
                 <div className="bg-slate-900/40 border border-slate-700/40 rounded-lg overflow-hidden">
@@ -1351,7 +1350,7 @@ function DiarioBordoDetalhes() {
                               </td>
                               <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
                               <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
-                              
+                            </tr>
                           );
                         })}
                       </tbody>
