@@ -1309,16 +1309,7 @@ function DiarioBordoDetalhes() {
                     </p>
                   </div>
 
-                  {/* Card Status */}
-                  <div className={`border rounded-lg p-3 text-center ${emprestimosResumo.totalPendente > 0 ? "bg-amber-500/10 border-amber-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
-                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                      Status
-                    </p>
-                    <p className={`text-sm font-bold ${emprestimosResumo.totalPendente > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                      {emprestimosResumo.totalPendente > 0 ? "⏳ Pendente" : "✓ Quitado"}
-                    </p>
-                  </div>
-                </div>
+                  
 
                 {/* Tabela de Detalhes de Empréstimos */}
                 <div className="bg-slate-900/40 border border-slate-700/40 rounded-lg overflow-hidden">
@@ -1333,7 +1324,6 @@ function DiarioBordoDetalhes() {
                           <th className="px-3 py-2 text-center">Saldo</th>
                           <th className="px-3 py-2 text-left">PIC</th>
                           <th className="px-3 py-2 text-center">Fuel (L)</th>
-                          <th className="px-3 py-2 text-left">Observações</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/30">
@@ -1361,8 +1351,7 @@ function DiarioBordoDetalhes() {
                               </td>
                               <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
                               <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
-                              <td className="px-3 py-2 text-slate-400 truncate text-xs" title={observations}>{observations}</td>
-                            </tr>
+                              
                           );
                         })}
                       </tbody>
