@@ -256,8 +256,9 @@ function DiarioBordoDetalhes() {
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
     setAerodromes((aeroRes.data ?? []) as unknown as Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>);
 
-    if (logbookIdsRes.data && logbookIdsRes.data.length > 0) {
-      const logbookIds = logbookIdsRes.data.map((e: any) => e.id);
+    // Usar apenas os lancamentos do mês selecionado
+    if (lRes.data && lRes.data.length > 0) {
+      const logbookIds = (lRes.data as any[]).map((e: any) => e.id);
       const loansRes = await supabase
         .from("emprestimos_aeronave")
         .select("id,horas_emprestadas,horas_devolvidas,lancamento_diario_id,lancamento_devolucao_id,data_lancamento,observacoes,aerodromo_partida,aerodromo_chegada,trecho,combustivel_adicionado,nome_piloto")
@@ -1057,6 +1058,27 @@ function DiarioBordoDetalhes() {
               <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400">{lancamentos.length} voos</span>
             </div>
 
+            {/* ── DICA SOBRE COLUNA # ────────────────────────────────────── */}
+            <div className="px-4 py-3 border-b border-slate-700/40 bg-slate-800/20">
+              <div className="flex items-center gap-2">
+                {/* Dica Icon */}
+                <div className="group relative">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full border border-slate-500 text-slate-400 text-sm font-bold cursor-help hover:border-blue-400 hover:text-blue-400 transition-colors">
+                    !
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    whileHover={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-0 mt-2 w-56 p-2.5 text-xs text-slate-300 bg-slate-900 border border-slate-700 rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-10"
+                  >
+                    <p className="leading-relaxed">Na coluna <span className="text-white font-medium">#</span> clique no número do lançamento para abrir as opções de <span className="text-white">editar</span> ou <span className="text-white">excluir</span> aquele registro.</p>
+                  </motion.div>
+                </div>
+                <span className="text-xs text-slate-400"> Clique no número da coluna <span className="text-blue-400 font-medium">#</span> para poder editar ou excluir</span>
+              </div>
+            </div>
+
             <div className="overflow-auto max-h-[420px]">
               {modoTabela === "completo" ? (
                 <table className="w-full border-collapse text-xs [&_td]:border-r [&_td]:border-slate-700/50 [&_th]:border-r [&_th]:border-slate-700/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0" style={{ tableLayout: "fixed" }}>
@@ -1321,9 +1343,23 @@ function DiarioBordoDetalhes() {
           {/* Horas Emprestimos */}
           <section className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4">
             <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <History className="w-4 h-4 text-amber-400" />
                 <h2 className="text-sm font-semibold text-white">Horas Emprestimos</h2>
+                {/* Dica Icon */}
+                <div className="group relative">
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-slate-500 text-slate-400 text-xs font-bold cursor-help hover:border-amber-400 hover:text-amber-400 transition-colors">
+                    !
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    whileHover={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute left-0 mt-2 w-64 p-2.5 text-xs text-slate-300 bg-slate-900 border border-slate-700 rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-10"
+                  >
+                    <p className="leading-relaxed">Registros de horas emprestadas para outros pilotos durante voos neste período.</p>
+                  </motion.div>
+                </div>
               </div>
               {loans.length > 0 && (
                 <span className="text-xs font-medium text-slate-400">

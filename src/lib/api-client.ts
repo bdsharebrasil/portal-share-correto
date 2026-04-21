@@ -73,7 +73,13 @@ async function fetchJson(url: string, options: RequestInit = {}, timeoutMs = FET
     }
     return await res.json()
   } catch (error: any) {
-    console.error(`[API Error] ${url}:`, error.message)
+    // Para weather requests, apenas log de debug (fallback para mock será usado)
+    const isWeatherRequest = url.includes('/weather/')
+    if (isWeatherRequest) {
+      console.debug(`[API Weather] Falha ao buscar dados: ${error.message}`)
+    } else {
+      console.error(`[API Error] ${url}:`, error.message)
+    }
     throw error
   }
 }
@@ -126,7 +132,11 @@ async function cachedFetch(
     idbSet(key, { timestamp: Date.now(), data }) // fire-and-forget
     return data
   } catch (fetchError: any) {
-    console.warn(`[Fetch FAILED] ${key}:`, fetchError.message)
+    // Apenas log de warn se não for fallback automático
+    const isWeatherFail = key.startsWith('weather-')
+    if (!isWeatherFail) {
+      console.warn(`[Fetch FAILED] ${key}:`, fetchError.message)
+    }
 
     // 3. Stale fallback — devolve dado expirado se existir
     try {
@@ -141,7 +151,10 @@ async function cachedFetch(
     if (allowMockFallback) {
       const icao = key.replace('weather-', '')
       const mockData = await loadMockWeatherData(icao)
-      if (mockData) return mockData
+      if (mockData) {
+        console.debug(`[Mock Fallback] Usando dados mock para ${icao}`)
+        return mockData
+      }
     }
 
     throw fetchError
