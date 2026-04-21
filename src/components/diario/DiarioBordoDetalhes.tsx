@@ -6,7 +6,7 @@ import {
   Fuel, Users, X, Save, Droplets, Wrench, CloudLightning, PlaneLanding,
   Pencil, Trash2, Activity, ArrowUpDown, ArrowUp, ArrowDown, Search, CheckCircle2,
   Eye, EyeOff, ChevronRight, AlertTriangle, Lock, LayoutList, Map as MapIcon, CalendarIcon,
-  FileText, ChevronDown
+  FileText, ChevronDown, History
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
@@ -121,6 +121,22 @@ type Abastecimento = {
   tipo_faturamento: string | null;
 };
 
+type AeronaveEmprestimo = {
+  id: string;
+  horas_emprestadas: number;
+  horas_devolvidas: number | null;
+  data_lancamento: string;
+  status?: string;
+  lancamento_diario_id: string | null;
+  lancamento_devolucao_id: string | null;
+  observacoes: string | null;
+  aerodromo_partida: string | null;
+  aerodromo_chegada: string | null;
+  trecho: string | null;
+  combustivel_adicionado: number | null;
+  nome_piloto: string | null;
+};
+
 const NATUREZAS = ["Privado", "Teste", "Translado", "Cheque"];
 const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -146,6 +162,7 @@ function DiarioBordoDetalhes() {
   const [socios, setSocios] = useState<Socio[]>([]);
   const [tripulantes, setTripulantes] = useState<Tripulante[]>([]);
   const [abastecimentos, setAbastecimentos] = useState<Abastecimento[]>([]);
+  const [loans, setLoans] = useState<AeronaveEmprestimo[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ── INLINE PANEL (replaces dialogs for NovoVoo, Consumo) ──────────────────
@@ -202,7 +219,7 @@ function DiarioBordoDetalhes() {
     const anoIni = `${ano}-01-01`;
     const anoFim = `${ano}-12-31`;
 
-    const [aRes, dmRes, lRes, lAnoRes, cRes, sRes, tRes, abRes] = await Promise.all([
+    const [aRes, dmRes, lRes, lAnoRes, cRes, sRes, tRes, abRes, logbookIdsRes] = await Promise.all([
       supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
@@ -218,6 +235,7 @@ function DiarioBordoDetalhes() {
         .eq("aeronave_id", aircraftId)
         .gte("data", ini).lte("data", fim)
         .not("logbook_entry_id", "is", null),
+      supabase.from("lancamentos_diario_bordo").select("id").eq("aeronave_id", aircraftId),
     ]);
     setAeronave(aRes.data as Aeronave | null);
     if (aRes.data?.modo_celula) {
@@ -230,6 +248,20 @@ function DiarioBordoDetalhes() {
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
+
+    // Buscar empréstimos vinculados aos lancamentos da aeronave
+    if (logbookIdsRes.data && logbookIdsRes.data.length > 0) {
+      const logbookIds = logbookIdsRes.data.map((e: any) => e.id);
+      const loansRes = await supabase
+        .from("emprestimos_aeronave")
+        .select("id,horas_emprestadas,horas_devolvidas,lancamento_diario_id,lancamento_devolucao_id,data_lancamento,observacoes,aerodromo_partida,aerodromo_chegada,trecho,combustivel_adicionado,nome_piloto")
+        .in("lancamento_diario_id", logbookIds)
+        .order("data_lancamento", { ascending: false });
+
+      setLoans((loansRes.data ?? []) as unknown as AeronaveEmprestimo[]);
+    } else {
+      setLoans([]);
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -367,6 +399,30 @@ function DiarioBordoDetalhes() {
     }
     return Array.from(map.values()).sort((a, b) => b.horas - a.horas);
   }, [lancamentos, modoCelula, labelVooPara]);
+
+  const emprestimosResumo = useMemo(() => {
+    let totalEmprestadas = 0;
+    let totalDevolvidas = 0;
+    let totalPendente = 0;
+    let quantidadeEmprestimos = 0;
+
+    for (const loan of loans) {
+      const emprestadas = loan.horas_emprestadas || 0;
+      const devolvidas = loan.horas_devolvidas || 0;
+
+      totalEmprestadas += emprestadas;
+      totalDevolvidas += devolvidas;
+      totalPendente += emprestadas - devolvidas;
+      quantidadeEmprestimos++;
+    }
+
+    return {
+      totalEmprestadas,
+      totalDevolvidas,
+      totalPendente,
+      quantidadeEmprestimos,
+    };
+  }, [loans]);
 
   const abastByLanc = useMemo(() => {
     const m = new Map<string, Abastecimento[]>();
@@ -1209,6 +1265,111 @@ function DiarioBordoDetalhes() {
                   );
                 })}
               </div>
+            )}
+          </section>
+
+          {/* Horas Emprestimos */}
+          <section className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-amber-400" />
+                <h2 className="text-sm font-semibold text-white">Horas Emprestimos</h2>
+              </div>
+              {loans.length > 0 && (
+                <span className="text-xs font-medium text-slate-400">
+                  {emprestimosResumo.quantidadeEmprestimos} {emprestimosResumo.quantidadeEmprestimos === 1 ? "empréstimo" : "empréstimos"}
+                </span>
+              )}
+            </div>
+            {loans.length === 0 ? (
+              <p className="py-4 text-center text-slate-500 text-xs">Sem empréstimos registrados.</p>
+            ) : (
+              <>
+                {/* Resumo Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  {/* Card Horas Emprestadas */}
+                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Emprestado</p>
+                    <p className="text-xl font-bold text-sky-400 font-mono">{decimalToHHMM(emprestimosResumo.totalEmprestadas)}</p>
+                  </div>
+
+                  {/* Card Horas Devolvidas */}
+                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Devolvido</p>
+                    <p className="text-xl font-bold text-emerald-400 font-mono">{decimalToHHMM(emprestimosResumo.totalDevolvidas)}</p>
+                  </div>
+
+                  {/* Card Saldo Pendente */}
+                  <div className={`border rounded-lg p-3 ${emprestimosResumo.totalPendente > 0 ? "bg-red-500/10 border-red-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
+                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      Saldo Pendente
+                    </p>
+                    <p className={`text-xl font-bold font-mono ${emprestimosResumo.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                      {decimalToHHMM(emprestimosResumo.totalPendente)}
+                    </p>
+                  </div>
+
+                  {/* Card Status */}
+                  <div className={`border rounded-lg p-3 text-center ${emprestimosResumo.totalPendente > 0 ? "bg-amber-500/10 border-amber-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
+                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                      Status
+                    </p>
+                    <p className={`text-sm font-bold ${emprestimosResumo.totalPendente > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                      {emprestimosResumo.totalPendente > 0 ? "⏳ Pendente" : "✓ Quitado"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tabela de Detalhes de Empréstimos */}
+                <div className="bg-slate-900/40 border border-slate-700/40 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-[10px] font-bold uppercase">
+                      <thead>
+                        <tr className="bg-slate-800/50 text-slate-400">
+                          <th className="px-3 py-2 text-left">Data</th>
+                          <th className="px-3 py-2 text-left">Trecho</th>
+                          <th className="px-3 py-2 text-center">Emprestado</th>
+                          <th className="px-3 py-2 text-center">Devolvido</th>
+                          <th className="px-3 py-2 text-center">Saldo</th>
+                          <th className="px-3 py-2 text-left">PIC</th>
+                          <th className="px-3 py-2 text-center">Fuel (L)</th>
+                          <th className="px-3 py-2 text-left">Observações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/30">
+                        {loans.map(loan => {
+                          const emprestadas = loan.horas_emprestadas || 0;
+                          const devolvidas = loan.horas_devolvidas || 0;
+                          const saldo = emprestadas - devolvidas;
+                          const formattedDate = new Date(loan.data_lancamento).toLocaleDateString("pt-BR");
+                          const trecho = loan.trecho || (loan.aerodromo_partida && loan.aerodromo_chegada
+                            ? `${loan.aerodromo_partida} → ${loan.aerodromo_chegada}`
+                            : "-");
+                          const fuelAdded = loan.combustivel_adicionado ? Number(loan.combustivel_adicionado).toFixed(1) : "-";
+                          const pilotName = loan.nome_piloto || "-";
+                          const observations = loan.observacoes || "-";
+                          const isPending = saldo > 0;
+
+                          return (
+                            <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
+                              <td className="px-3 py-2 text-slate-300 whitespace-nowrap">{formattedDate}</td>
+                              <td className="px-3 py-2 text-slate-300 font-mono text-xs">{trecho}</td>
+                              <td className="px-3 py-2 text-center text-sky-400 font-mono whitespace-nowrap">{decimalToHHMM(emprestadas)}</td>
+                              <td className="px-3 py-2 text-center text-emerald-400 font-mono whitespace-nowrap">{decimalToHHMM(devolvidas)}</td>
+                              <td className={`px-3 py-2 text-center font-mono whitespace-nowrap ${isPending ? "text-red-400" : "text-emerald-400"}`}>
+                                {decimalToHHMM(saldo)}
+                              </td>
+                              <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
+                              <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
+                              <td className="px-3 py-2 text-slate-400 truncate text-xs" title={observations}>{observations}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
           </section>
 
