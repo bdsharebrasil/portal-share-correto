@@ -126,9 +126,15 @@ type AeronaveEmprestimo = {
   horas_emprestadas: number;
   horas_devolvidas: number | null;
   data_lancamento: string;
-  status: string;
+  status?: string;
   lancamento_diario_id: string | null;
   lancamento_devolucao_id: string | null;
+  observacoes: string | null;
+  aerodromo_partida: string | null;
+  aerodromo_chegada: string | null;
+  trecho: string | null;
+  combustivel_adicionado: number | null;
+  nome_piloto: string | null;
 };
 
 const NATUREZAS = ["Privado", "Teste", "Translado", "Cheque"];
@@ -248,7 +254,7 @@ function DiarioBordoDetalhes() {
       const logbookIds = logbookIdsRes.data.map((e: any) => e.id);
       const loansRes = await supabase
         .from("emprestimos_aeronave")
-        .select("id,horas_emprestadas,horas_devolvidas,lancamento_diario_id,lancamento_devolucao_id,data_lancamento,status")
+        .select("id,horas_emprestadas,horas_devolvidas,lancamento_diario_id,lancamento_devolucao_id,data_lancamento,observacoes,aerodromo_partida,aerodromo_chegada,trecho,combustivel_adicionado,nome_piloto")
         .in("lancamento_diario_id", logbookIds)
         .order("data_lancamento", { ascending: false });
 
@@ -1278,39 +1284,92 @@ function DiarioBordoDetalhes() {
             {loans.length === 0 ? (
               <p className="py-4 text-center text-slate-500 text-xs">Sem empréstimos registrados.</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                {/* Card Horas Emprestadas */}
-                <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
-                  <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Emprestado</p>
-                  <p className="text-xl font-bold text-sky-400 font-mono">{decimalToHHMM(emprestimosResumo.totalEmprestadas)}</p>
+              <>
+                {/* Resumo Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  {/* Card Horas Emprestadas */}
+                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Emprestado</p>
+                    <p className="text-xl font-bold text-sky-400 font-mono">{decimalToHHMM(emprestimosResumo.totalEmprestadas)}</p>
+                  </div>
+
+                  {/* Card Horas Devolvidas */}
+                  <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
+                    <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Devolvido</p>
+                    <p className="text-xl font-bold text-emerald-400 font-mono">{decimalToHHMM(emprestimosResumo.totalDevolvidas)}</p>
+                  </div>
+
+                  {/* Card Saldo Pendente */}
+                  <div className={`border rounded-lg p-3 ${emprestimosResumo.totalPendente > 0 ? "bg-red-500/10 border-red-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
+                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      Saldo Pendente
+                    </p>
+                    <p className={`text-xl font-bold font-mono ${emprestimosResumo.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                      {decimalToHHMM(emprestimosResumo.totalPendente)}
+                    </p>
+                  </div>
+
+                  {/* Card Status */}
+                  <div className={`border rounded-lg p-3 text-center ${emprestimosResumo.totalPendente > 0 ? "bg-amber-500/10 border-amber-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
+                    <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                      Status
+                    </p>
+                    <p className={`text-sm font-bold ${emprestimosResumo.totalPendente > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                      {emprestimosResumo.totalPendente > 0 ? "⏳ Pendente" : "✓ Quitado"}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Card Horas Devolvidas */}
-                <div className="bg-slate-950/40 border border-slate-700/30 rounded-lg p-3">
-                  <p className="text-[9px] font-bold text-slate-500 uppercase mb-2">Devolvido</p>
-                  <p className="text-xl font-bold text-emerald-400 font-mono">{decimalToHHMM(emprestimosResumo.totalDevolvidas)}</p>
-                </div>
+                {/* Tabela de Detalhes de Empréstimos */}
+                <div className="bg-slate-900/40 border border-slate-700/40 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-[10px] font-bold uppercase">
+                      <thead>
+                        <tr className="bg-slate-800/50 text-slate-400">
+                          <th className="px-3 py-2 text-left">Data</th>
+                          <th className="px-3 py-2 text-left">Trecho</th>
+                          <th className="px-3 py-2 text-center">Emprestado</th>
+                          <th className="px-3 py-2 text-center">Devolvido</th>
+                          <th className="px-3 py-2 text-center">Saldo</th>
+                          <th className="px-3 py-2 text-left">PIC</th>
+                          <th className="px-3 py-2 text-center">Fuel (L)</th>
+                          <th className="px-3 py-2 text-left">Observações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/30">
+                        {loans.map(loan => {
+                          const emprestadas = loan.horas_emprestadas || 0;
+                          const devolvidas = loan.horas_devolvidas || 0;
+                          const saldo = emprestadas - devolvidas;
+                          const formattedDate = new Date(loan.data_lancamento).toLocaleDateString("pt-BR");
+                          const trecho = loan.trecho || (loan.aerodromo_partida && loan.aerodromo_chegada
+                            ? `${loan.aerodromo_partida} → ${loan.aerodromo_chegada}`
+                            : "-");
+                          const fuelAdded = loan.combustivel_adicionado ? Number(loan.combustivel_adicionado).toFixed(1) : "-";
+                          const pilotName = loan.nome_piloto || "-";
+                          const observations = loan.observacoes || "-";
+                          const isPending = saldo > 0;
 
-                {/* Card Saldo Pendente */}
-                <div className={`border rounded-lg p-3 ${emprestimosResumo.totalPendente > 0 ? "bg-red-500/10 border-red-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
-                  <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-red-600" : "text-emerald-600"}`}>
-                    Saldo Pendente
-                  </p>
-                  <p className={`text-xl font-bold font-mono ${emprestimosResumo.totalPendente > 0 ? "text-red-400" : "text-emerald-400"}`}>
-                    {decimalToHHMM(emprestimosResumo.totalPendente)}
-                  </p>
+                          return (
+                            <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
+                              <td className="px-3 py-2 text-slate-300 whitespace-nowrap">{formattedDate}</td>
+                              <td className="px-3 py-2 text-slate-300 font-mono text-xs">{trecho}</td>
+                              <td className="px-3 py-2 text-center text-sky-400 font-mono whitespace-nowrap">{decimalToHHMM(emprestadas)}</td>
+                              <td className="px-3 py-2 text-center text-emerald-400 font-mono whitespace-nowrap">{decimalToHHMM(devolvidas)}</td>
+                              <td className={`px-3 py-2 text-center font-mono whitespace-nowrap ${isPending ? "text-red-400" : "text-emerald-400"}`}>
+                                {decimalToHHMM(saldo)}
+                              </td>
+                              <td className="px-3 py-2 text-slate-300 truncate text-xs">{pilotName}</td>
+                              <td className="px-3 py-2 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
+                              <td className="px-3 py-2 text-slate-400 truncate text-xs" title={observations}>{observations}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-
-                {/* Card Status */}
-                <div className={`border rounded-lg p-3 text-center ${emprestimosResumo.totalPendente > 0 ? "bg-amber-500/10 border-amber-500/20" : "bg-emerald-500/10 border-emerald-500/20"}`}>
-                  <p className={`text-[9px] font-bold uppercase mb-2 ${emprestimosResumo.totalPendente > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                    Status
-                  </p>
-                  <p className={`text-sm font-bold ${emprestimosResumo.totalPendente > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                    {emprestimosResumo.totalPendente > 0 ? "⏳ Pendente" : "✓ Quitado"}
-                  </p>
-                </div>
-              </div>
+              </>
             )}
           </section>
 
