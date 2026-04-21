@@ -99,7 +99,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
 
       // Armazenar os IDs para selecionar depois
       setPendingAbastecimento({
-        clientId: (abastecimento as any).clientes_id,
+        clientId: (abastecimento as any).id_clientes,
         aircraftId: (abastecimento as any).aeronave_id
       });
     } catch (err) {

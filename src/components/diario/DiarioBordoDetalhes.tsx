@@ -1033,10 +1033,10 @@ function DiarioBordoDetalhes() {
                                         onClick={() => {
                                           // Se há apenas um abastecimento, navegar direto com o ID
                                           if (abastVinculados.length === 1) {
-                                            navigate('/abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
+                                            navigate('/controle-abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
                                           } else {
                                             // Se há vários, navegar para a página de abastecimentos (deixar o usuário escolher)
-                                            navigate('/abastecimento');
+                                            navigate('/controle-abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
                                           }
                                         }}
                                         className="text-blue-400 font-semibold hover:text-blue-300 hover:underline"

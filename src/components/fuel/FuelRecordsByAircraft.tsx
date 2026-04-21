@@ -575,7 +575,7 @@ export function FuelRecordsByAircraft({
       return;
     }
     const { data: clientData, error: clientError } = await (supabase as any)
-      .from('clients')
+      .from('clientes')
       .select('*')
       .eq('id', currentClientId)
       .single();
@@ -2139,7 +2139,7 @@ export function FuelRecordsByAircraft({
                   id={`fuel-record-${record.id}`}
                   className={`border-b border-border/50 transition-all duration-300 ${
                     selectedAbastecimentoId === record.id
-                      ? 'bg-primary/8 dark:bg-primary/12 border-l-4 border-l-primary ring-1 ring-primary/20 hover:bg-primary/12 dark:hover:bg-primary/16 shadow-md'
+                      ? 'bg-primary/25 dark:bg-primary/20 border-l-4 border-l-primary ring-2 ring-primary/60 ring-offset-0 hover:bg-primary/30 dark:hover:bg-primary/25 shadow-lg relative'
                       : 'hover:bg-muted/30'
                   }`}
                 >
