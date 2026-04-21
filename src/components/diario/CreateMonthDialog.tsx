@@ -190,8 +190,10 @@ export function CreateMonthDialog({
 
                 {/* Opção: Tempo Total */}
                 <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/50 transition-colors"
-                  style={{ borderColor: modoCelula === "tempo_total" ? "#06b6d4" : "inherit" }}
-                  style={modoCelula === "tempo_total" ? { backgroundColor: "rgb(8, 47, 73)" } : {}}>
+                  style={{
+                    borderColor: modoCelula === "tempo_total" ? "#06b6d4" : "inherit",
+                    backgroundColor: modoCelula === "tempo_total" ? "rgb(8, 47, 73)" : "inherit"
+                  }}>
                   <div className="flex items-center mt-1">
                     <input
                       type="radio"
@@ -211,8 +213,10 @@ export function CreateMonthDialog({
 
                 {/* Opção: Tempo de Voo */}
                 <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-700 cursor-pointer hover:bg-slate-800/50 transition-colors"
-                  style={{ borderColor: modoCelula === "tvoo" ? "#06b6d4" : "inherit" }}
-                  style={modoCelula === "tvoo" ? { backgroundColor: "rgb(8, 47, 73)" } : {}}>
+                  style={{
+                    borderColor: modoCelula === "tvoo" ? "#06b6d4" : "inherit",
+                    backgroundColor: modoCelula === "tvoo" ? "rgb(8, 47, 73)" : "inherit"
+                  }}>
                   <div className="flex items-center mt-1">
                     <input
                       type="radio"
