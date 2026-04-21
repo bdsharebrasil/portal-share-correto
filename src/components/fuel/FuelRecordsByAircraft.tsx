@@ -2139,11 +2139,14 @@ export function FuelRecordsByAircraft({
                   id={`fuel-record-${record.id}`}
                   className={`border-b border-border/50 transition-all duration-300 ${
                     selectedAbastecimentoId === record.id
-                      ? 'bg-primary/8 dark:bg-primary/12 border-l-4 border-l-primary ring-1 ring-primary/20 hover:bg-primary/12 dark:hover:bg-primary/16 shadow-md'
+                      ? 'bg-primary/25 dark:bg-primary/20 border-l-4 border-l-primary ring-2 ring-primary/60 ring-offset-0 hover:bg-primary/30 dark:hover:bg-primary/25 shadow-lg relative'
                       : 'hover:bg-muted/30'
                   }`}
                 >
-                  <TableCell className="font-medium text-foreground">
+                  <TableCell className="font-medium text-foreground flex items-center gap-2">
+                    {selectedAbastecimentoId === record.id && (
+                      <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" title="Abastecimento selecionado"></span>
+                    )}
                     {formatDateBrazil(record.data, "dd/MM/yyyy")}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
