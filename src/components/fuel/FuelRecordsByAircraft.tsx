@@ -2143,10 +2143,7 @@ export function FuelRecordsByAircraft({
                       : 'hover:bg-muted/30'
                   }`}
                 >
-                  <TableCell className="font-medium text-foreground flex items-center gap-2">
-                    {selectedAbastecimentoId === record.id && (
-                      <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" title="Abastecimento selecionado"></span>
-                    )}
+                  <TableCell className="font-medium text-foreground">
                     {formatDateBrazil(record.data, "dd/MM/yyyy")}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
