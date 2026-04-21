@@ -257,8 +257,9 @@ function DiarioBordoDetalhes() {
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
     setAerodromes((aeroRes.data ?? []) as unknown as Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>);
 
-    if (logbookIdsRes.data && logbookIdsRes.data.length > 0) {
-      const logbookIds = logbookIdsRes.data.map((e: any) => e.id);
+    // Usar apenas os lancamentos do mês selecionado
+    if (lRes.data && lRes.data.length > 0) {
+      const logbookIds = (lRes.data as any[]).map((e: any) => e.id);
       const loansRes = await supabase
         .from("emprestimos_aeronave")
         .select("id,horas_emprestadas,horas_devolvidas,lancamento_diario_id,lancamento_devolucao_id,data_lancamento,observacoes,aerodromo_partida,aerodromo_chegada,trecho,combustivel_adicionado,nome_piloto")
