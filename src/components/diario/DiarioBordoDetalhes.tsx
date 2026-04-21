@@ -1323,7 +1323,7 @@ function DiarioBordoDetalhes() {
                       onClick={() => setCotistaFiltro(cotistaFiltro === c.label ? null : c.label)}
                       className={`rounded-xl border p-3 flex flex-col gap-1.5 transition-all text-left ${cotistaFiltro === c.label ? "border-cyan-400 bg-cyan-500/10" : "border-slate-700/40 bg-slate-800/50 hover:border-slate-600"}`}>
                       <span className="truncate text-[10px] font-medium text-slate-400" title={c.label}>{c.label}</span>
-                      <span className={`font-mono text-base font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>{decimalToHHMM(c.horas)}</span>
+                      <span className={`text-base font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`} style={{ fontFamily: 'Arial, sans-serif' }}>{decimalToHHMM(c.horas)}</span>
                       <div className="flex items-center gap-1.5">
                         <div className="flex-1 h-1 overflow-hidden rounded-full bg-slate-900">
                           <div className={`h-full rounded-full bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }} />
