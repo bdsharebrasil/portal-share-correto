@@ -7,60 +7,86 @@ interface SearchInputProps {
 
 export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: SearchInputProps) {
   return (
-    <div class="custom_input">
-  <svg
-    viewBox="0 0 16 16"
-    class="svg_icon bi-search"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"
-    ></path>
-  </svg>
-  <input placeholder="Placeholder Text" type="text" class="input" />
-</div>
+    <div className="search-input-container">
+      {/* ✅ Fix 4: input vem ANTES do ícone para o seletor CSS adjacente (+) funcionar */}
+      <input
+        type="text"
+        className="search-input"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
 
-<style>
-  .input {
-    max-width: 190px;
-  }
+      <svg
+        className="icon"
+        xmlns="http://www.w3.org/2000/svg"
+        id="Isolation_Mode"
+        data-name="Isolation Mode"
+        viewBox="0 0 24 24"
+        width="22"
+        height="22"
+      >
+        <path d="M18.9,16.776A10.539,10.539,0,1,0,16.776,18.9l5.1,5.1L24,21.88ZM10.5,18A7.5,7.5,0,1,1,18,10.5,7.507,7.507,0,0,1,10.5,18Z" />
+      </svg>
 
-  .custom_input {
-    display: flex;
-    align-items: center;
-    position: relative;
-    max-width: 100%;
-  }
+      <style>{`
+        .search-input-container {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
 
-  .input {
-    font-size: 18px;
-    padding: 5px 10px;
-    width: 100%;
-    padding-left: 35px;
-    outline: none;
-    background: #ffffff;
-    color: #000000;
-    border: 1px solid #c4d1eb;
-    border-radius: 5px;
-    box-shadow: 3px 3px 2px 0px #e2e2e2;
-    transition: 0.3s ease;
-  }
+        .search-input {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          border: none;
+          outline: none;
+          padding: 18px 16px;
+          background-color: transparent;
+          cursor: pointer;
+          transition: all .5s ease-in-out;
+        }
 
-  .input:focus {
-    background: #f2f2f2;
-    border: 1px solid #5a7ec7;
-    border-radius: 10px;
-  }
+        .search-input::placeholder {
+          color: transparent;
+        }
 
-  .input::placeholder {
-    color: #dddddd;
-  }
+        .search-input:focus,
+        .search-input:not(:placeholder-shown) {
+          background-color: #fff;
+          border: 1px solid rgb(98, 0, 255);
+          width: 290px;
+          cursor: text;
+          padding: 18px 16px 18px 40px;
+        }
 
-  .svg_icon {
-    position: absolute;
-    left: 10px;
-    fill: #4660dc;
-    width: 18px;
-    height: 18px;
-  }
-</style>
+        .icon {
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 40px;
+          width: 40px;
+          background-color: #fff;
+          border-radius: 10px;
+          z-index: -1;
+          fill: rgb(98, 0, 255);
+          border: 1px solid rgb(98, 0, 255);
+          padding: 9px;
+        }
+
+        .search-input:hover + .icon {
+          transform: rotate(360deg);
+          transition: .2s ease-in-out;
+        }
+
+        .search-input:focus + .icon,
+        .search-input:not(:placeholder-shown) + .icon {
+          z-index: 0;
+          background-color: transparent;
+          border: none;
+        }
+      `}</style>
+    </div>
+  );
+}
