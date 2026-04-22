@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 
 interface Task {
   id: string;
-  title: string;
-  priority: "baixa" | "media" | "alta";
-  status: "pendente" | "em progresso" | "concluida";
-  due_date: string | null;
+  titulo: string;
+  prioridade: "baixa" | "media" | "alta";
+  status: "aberto" | "em_progresso" | "concluida";
+  prazo: string | null;
 }
 
 export function TasksPanel() {
@@ -32,15 +32,15 @@ export function TasksPanel() {
       }
 
       const { data, error } = await supabase
-        .from("tasks")
+        .from("tarefas")
         .select("*")
-        .eq("assigned_to", user.id)
-        .order("due_date", { ascending: true });
+        .eq("atribuido_para", user.id)
+        .order("prazo", { ascending: true });
 
       if (error) throw error;
 
       const tasks = (data || []) as Task[];
-      const pending = tasks.filter(t => t.status === "pendente" || t.status === "em progresso");
+      const pending = tasks.filter(t => t.status === "aberto" || t.status === "em_progresso");
       
       setPendingTasks(pending.slice(0, 3));
       setTotalTasks(pending.length);
@@ -97,18 +97,18 @@ export function TasksPanel() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
-                  {task.due_date && (
+                  <p className="text-sm font-medium text-foreground truncate">{task.titulo}</p>
+                  {task.prazo && (
                     <p className="text-xs text-muted-foreground">
-                      Vence em {new Date(task.due_date).toLocaleDateString("pt-BR")}
+                      Vence em {new Date(task.prazo).toLocaleDateString("pt-BR")}
                     </p>
                   )}
                 </div>
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs flex-shrink-0 ${getPriorityColor(task.priority)}`}
+                <Badge
+                  variant="outline"
+                  className={`text-xs flex-shrink-0 ${getPriorityColor(task.prioridade)}`}
                 >
-                  {task.priority}
+                  {task.prioridade}
                 </Badge>
               </div>
             </div>
