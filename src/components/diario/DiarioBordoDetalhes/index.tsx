@@ -1745,9 +1745,9 @@ function NovoVooInline({
         ocorrencias: obs || null, consumo_combustivel_voo: consumoCombustivelVoo || null,
         preco_combustivel_litro: precoCombustivel || null, local_combustivel: localCombustivel || null,
         tipo_combustivel: tipoCombustivel || null,
-        // FIX: usa 'tripulacao' conforme constraint do banco
-        origem_pic: picId ? 'tripulacao' : null,
-        origem_sic: sicId ? 'tripulacao' : null,
+        // TODO: origem_pic e origem_sic deixados como null para evitar constraint de tabela inexistente (crew_members)
+        origem_pic: null,
+        origem_sic: null,
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
       if (ins.error) throw ins.error;
@@ -1963,8 +1963,9 @@ function EditarVooInline({
         clientes_id: clienteId || null, socios_cliente_id: socioId || null, socios_nome: socioNome,
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
-        origem_pic: picId ? 'tripulacao' : null,
-        origem_sic: sicId ? 'tripulacao' : null,
+        // TODO: origem_pic e origem_sic deixados como null para evitar constraint de tabela inexistente (crew_members)
+        origem_pic: null,
+        origem_sic: null,
       } as never).eq("id", lanc.id);
       if (error) throw error;
       onSaved();

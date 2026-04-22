@@ -27,16 +27,16 @@ export type FlightNature = typeof ALLOWED_FLIGHT_NATURES[number];
 
 /**
  * Valores permitidos para origem_pic
- * CHECK constraint: origem_pic = ANY (ARRAY['crew_members'::text, 'crew'::text])
+ * CHECK constraint: origem_pic = ANY (ARRAY['tripulacao'::text, 'crew'::text, 'membros_tripulacao'::text])
  */
-export const ALLOWED_PIC_SOURCES = ['crew_members', 'crew'] as const;
+export const ALLOWED_PIC_SOURCES = ['tripulacao', 'crew', 'membros_tripulacao'] as const;
 export type PICSource = typeof ALLOWED_PIC_SOURCES[number];
 
 /**
  * Valores permitidos para origem_sic
- * CHECK constraint: origem_sic = ANY (ARRAY['crew_members'::text, 'crew'::text])
+ * CHECK constraint: origem_sic = ANY (ARRAY['tripulacao'::text, 'crew'::text, 'membros_tripulacao'::text])
  */
-export const ALLOWED_SIC_SOURCES = ['crew_members', 'crew'] as const;
+export const ALLOWED_SIC_SOURCES = ['tripulacao', 'crew', 'membros_tripulacao'] as const;
 export type SICSource = typeof ALLOWED_SIC_SOURCES[number];
 
 /**
