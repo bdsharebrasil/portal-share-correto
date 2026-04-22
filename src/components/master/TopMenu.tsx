@@ -18,6 +18,10 @@ export function TopMenu() {
       label: "Relatórios",
       path: "/relatorios",
     },
+    {
+      label: "Tarefas",
+      path: "/financeiro/master/tarefas",
+    },
   ];
 
   return (

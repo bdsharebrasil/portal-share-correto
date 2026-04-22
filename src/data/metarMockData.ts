@@ -1,5 +1,16 @@
 // METARData type for fallback data - matches API response format
 interface METARData {
+  flightCategory: string;
+  wgst: string;
+  wgst: any;
+  [x: string]: any;
+  wdir: any;
+  wdir: any;
+  wspd: any;
+  wgst: any;
+  flightCategory: string;
+  temp: number;
+  rawOb: string;
   loc: string;
   metar: string;
   taf: string;

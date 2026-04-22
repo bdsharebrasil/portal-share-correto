@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PastasRelatorios } from '@/components/travel/PastasRelatorios';
+
 
 // ---------------------------------------------------------------------------
 // Tipo — espelha exatamente as colunas de travel_expense_reports
@@ -414,7 +416,7 @@ export default function RelatorioViagem() {
 
       let reportNumber = reportData.numero_relatorio;
       if (!isUpdate) {
-        reportNumber = await generateReportNumber(reportData.client || '', reportData.aeronave_id);
+        reportNumber = await generateReportNumber(reportData.client, reportData.matricula_aeronave);
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -485,7 +487,7 @@ export default function RelatorioViagem() {
           if (!error) { savedReport = data; insertError = null; break; }
 
           if (error.code === '23505' && error.message?.includes('numero_relatorio')) {
-            payload.numero_relatorio = await generateReportNumber(reportData.client || '', reportData.aeronave_id);
+            payload.numero_relatorio = await generateReportNumber(reportData.client || '', reportData.matricula_aeronave);
             await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
             insertError = error;
           } else {
@@ -804,13 +806,6 @@ export default function RelatorioViagem() {
     Enviado: 'border-l-4 border-l-green-400',
   };
 
-  const CyanFolderIcon = () => (
-    <svg viewBox="0 0 120 100" className="w-full h-full drop-shadow-lg" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 25 L10 15 Q10 8 17 8 L42 8 Q46 8 48 12 L54 22 Q56 25 60 25 Z" fill="#06b6d4" opacity="0.9" />
-      <rect x="6" y="25" width="108" height="68" rx="8" fill="#06b6d4" />
-    </svg>
-  );
-
   const renderReportCard = (report: TravelReport) => (
     <div
       key={report.id}
@@ -1022,39 +1017,29 @@ export default function RelatorioViagem() {
                         <p className="text-muted-foreground text-sm">Finalize um rascunho para vê-lo aqui</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-                        {Object.entries(
-                          reportsWithClient.reduce((acc, r) => {
-                            const key = r.client || 'Sem Cliente';
-                            if (!acc[key]) acc[key] = [];
-                            acc[key].push(r);
-                            return acc;
-                          }, {} as Record<string, TravelReport[]>),
-                        ).map(([clientName, group]) => (
-                          <button
-                            key={clientName}
-                            onClick={() => {
-                              const clientId = group[0]?.clientes_id;
-                              if (clientId) {
-                                navigate(`/financeiro/relatorios-cliente/${clientId}`, {
-                                  state: { clientName, clientPartner: group[0]?.socios_cliente_id },
-                                });
-                              }
-                            }}
-                            className="group flex flex-col items-center gap-2 p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200"
-                          >
-                            <div className="w-24 h-20 relative group-hover:scale-105 transition-transform duration-200">
-                              <CyanFolderIcon />
-                            </div>
-                            <div className="text-center w-full">
-                              <p className="text-sm font-semibold text-foreground truncate">{clientName}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {group.length} {group.length === 1 ? 'relatório' : 'relatórios'}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                      <PastasRelatorios
+                        reports={reportsWithClient.map(r => ({
+                          id: r.id,
+                          report_number: r.numero_relatorio,
+                          client: r.client || 'Sem Cliente',
+                          aircraft_registration: r.matricula_aeronave,
+                          start_date: r.data_inicio,
+                          end_date: r.data_fim,
+                          total_amount: r.total_valor,
+                          status: r.status,
+                        }))}
+                        onView={handleViewPDF}
+                        onEdit={editReport}
+                        onDelete={deleteReport}
+                        onSend={(report) => {
+                          const fullReport = reportsWithClient.find(r => r.id === report.id);
+                          if (fullReport) {
+                            setSendReportTarget(fullReport);
+                            setSendDueDate('');
+                            setSendDialogOpen(true);
+                          }
+                        }}
+                      />
                     )}
                   </div>
                 )}

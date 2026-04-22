@@ -1,6 +1,7 @@
 import React from 'react';
+import Folder from './Folder';
 
-const Card = () => {
+const FolderCard = () => {
   return (
     <section className="relative group flex flex-col items-center justify-center w-full h-full">
       <div className="file relative w-60 h-40 cursor-pointer origin-bottom [perspective:1500px] z-50">
@@ -15,4 +16,4 @@ const Card = () => {
   );
 }
 
-export default Card;
+export default FolderCard;

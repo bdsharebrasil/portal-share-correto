@@ -70,6 +70,7 @@ import GestaoFiscal from "./pages/financeiro/GestaoFiscal";
 import ConfiguracoesFiscais from "./pages/financeiro/ConfiguracoesFiscais";
 import Master from "./pages/financeiro/Master";
 import MasterColaboradores from "./pages/financeiro/MasterColaboradores";
+import MasterTarefas from "./pages/financeiro/MasterTarefas";
 import ConfigMovimentacoes from "./pages/financeiro/ConfigMovimentacoes";
 import CalendarioFerias from "./pages/CalendarioFerias";
 import DashboardOperacoes from "./pages/DashboardOperacoes";
@@ -255,6 +256,13 @@ const App = () => {
                               </RoleProtected>
                             )
                           } />
+                          <Route path="/financeiro/master/tarefas" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master"]}>
+                                <MasterTarefas />
+                              </RoleProtected>
+                            )
+                          } />
                           <Route path="/financeiro/balanco-cliente" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
@@ -322,7 +330,6 @@ const App = () => {
                             )
                           } />
                           <Route path="/abastecimento" element={renderProtected(<ControleAbastecimento />)} />
-                          <Route path="/controle-abastecimento" element={renderProtected(<ControleAbastecimento />)} />
 
                           {/* Diário de Bordo */}
                           <Route

@@ -12050,6 +12050,102 @@ export type Database = {
           },
         ]
       }
+      tarefas: {
+        Row: {
+          atribuido_para: string | null
+          criado_em: string | null
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          prazo: string | null
+          prioridade: string | null
+          publico: boolean | null
+          status: string | null
+          titulo: string
+          atualizado_em: string | null
+        }
+        Insert: {
+          atribuido_para?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          prazo?: string | null
+          prioridade?: string | null
+          publico?: boolean | null
+          status?: string | null
+          titulo: string
+          atualizado_em?: string | null
+        }
+        Update: {
+          atribuido_para?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          prazo?: string | null
+          prioridade?: string | null
+          publico?: boolean | null
+          status?: string | null
+          titulo?: string
+          atualizado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_atribuido_para_fkey"
+            columns: ["atribuido_para"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefas_comentarios: {
+        Row: {
+          comentario: string
+          criado_em: string | null
+          id: string
+          tarefa_id: string
+          usuario_id: string
+        }
+        Insert: {
+          comentario: string
+          criado_em?: string | null
+          id?: string
+          tarefa_id: string
+          usuario_id: string
+        }
+        Update: {
+          comentario?: string
+          criado_em?: string | null
+          id?: string
+          tarefa_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_comentarios_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_comentarios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_correction_requests: {
         Row: {
           approved_at: string | null

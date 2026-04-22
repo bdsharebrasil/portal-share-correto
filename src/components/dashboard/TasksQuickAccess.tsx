@@ -32,15 +32,26 @@ export function TasksQuickAccess() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("tasks")
+      const { data, error } = await (supabase as any)
+        .from("tarefas")
         .select("*")
-        .or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`)
-        .eq("status", "aberto")
-        .order("due_date", { ascending: true });
+        .or(`criado_por.eq.${user.id},atribuido_para.eq.${user.id}`)
+        .neq("status", "concluido")
+        .order("prazo", { ascending: true });
 
       if (!error && data) {
-        setPendingTasks((data as unknown as Task[]).slice(0, 3));
+        const mapped = (data as any[]).map((t) => ({
+          id: t.id,
+          title: t.titulo,
+          description: t.descricao,
+          due_date: t.prazo,
+          priority: (t.prioridade ?? "media") as Task["priority"],
+          status: "pendente" as Task["status"],
+          assigned_to: t.atribuido_para,
+          requested_by: t.criado_por,
+          created_at: t.criado_em,
+        })) as Task[];
+        setPendingTasks(mapped.slice(0, 3));
       }
       setLoading(false);
     };

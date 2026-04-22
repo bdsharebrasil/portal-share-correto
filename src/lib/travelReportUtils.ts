@@ -1,21 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
-// ---------------------------------------------------------------------------
-// Expense — campos em inglês alinhados ao schema (despesas salvas como JSON)
-// ---------------------------------------------------------------------------
 export interface Expense {
-  id?: string;
   category: string;
   description: string;
   amount: number;
   paid_by: string;
   receipt_url?: string;
-  expense_date?: string;
+  id?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Totals
-// ---------------------------------------------------------------------------
 export interface TravelTotals {
   total_fuel: number;
   total_lodging: number;
@@ -30,10 +23,6 @@ export interface TravelTotals {
   total_amount: number;
 }
 
-// ---------------------------------------------------------------------------
-// Shape used by enrichReportWithCorrectTotals / getCrewTotalsWithNames
-// Fields match travel_expense_reports columns
-// ---------------------------------------------------------------------------
 export interface TravelReportWithTotals {
   total_fuel: number;
   total_lodging: number;
@@ -46,17 +35,20 @@ export interface TravelReportWithTotals {
   total_client: number;
   total_sharebrasil: number;
   total_amount: number;
-  nome_tripulante?: string;       // was crew_member_name
-  nome_tripulante_2?: string;     // was crew_member_name_2
+  crew_member_name?: string;
+  crew_member_name_2?: string;
   [key: string]: any;
 }
 
-// ---------------------------------------------------------------------------
-// calculateReportTotals
-// ---------------------------------------------------------------------------
 /**
- * Recalcula todos os totais a partir das despesas.
- * Deve ser chamada sempre que um relatório é carregado ou processado.
+ * Recalcula todos os totais de um relatório a partir das despesas.
+ * Esta função deve ser chamada SEMPRE que um relatório é carregado ou processado
+ * para garantir que os totais estão corretos, mesmo se foram salvos com lógica antiga.
+ * 
+ * Suporta separação de pagamentos entre Tripulante 1 e Tripulante 2.
+ * 
+ * @param expenses - Array de despesas do relatório
+ * @returns Objeto com todos os totais recalculados
  */
 export function calculateReportTotals(expenses: Expense[]): TravelTotals {
   const totals: TravelTotals = {
@@ -73,24 +65,40 @@ export function calculateReportTotals(expenses: Expense[]): TravelTotals {
     total_amount: 0,
   };
 
-  if (!Array.isArray(expenses)) return totals;
+  if (!expenses || !Array.isArray(expenses)) {
+    return totals;
+  }
 
-  for (const expense of expenses) {
+  expenses.forEach((expense) => {
     const amount = Number(expense.amount) || 0;
-    if (amount <= 0) continue;
 
-    // By category
-    switch (expense.category) {
-      case 'Combustível': totals.total_fuel += amount; break;
-      case 'Hospedagem': totals.total_lodging += amount; break;
-      case 'Alimentação': totals.total_food += amount; break;
-      case 'Transporte': totals.total_transport += amount; break;
-      default: totals.total_other += amount;
+    // Se não há valor válido, pula este item
+    if (amount <= 0) {
+      return;
     }
 
-    // By payer — keep backward-compat with old "Tripulante" value
+    // Acumula por categoria
+    switch (expense.category) {
+      case 'Combustível':
+        totals.total_fuel += amount;
+        break;
+      case 'Hospedagem':
+        totals.total_lodging += amount;
+        break;
+      case 'Alimentação':
+        totals.total_food += amount;
+        break;
+      case 'Transporte':
+        totals.total_transport += amount;
+        break;
+      default:
+        totals.total_other += amount;
+    }
+
+    // Acumula por quem pagou - suporta Tripulante 1 e Tripulante 2
     const paidBy = expense.paid_by || '';
     if (paidBy === 'Tripulante 1' || paidBy === 'Tripulante') {
+      // Compatibilidade com dados antigos que usavam "Tripulante"
       totals.total_crew1 += amount;
       totals.total_crew += amount;
     } else if (paidBy === 'Tripulante 2') {
@@ -101,145 +109,168 @@ export function calculateReportTotals(expenses: Expense[]): TravelTotals {
     } else if (paidBy === 'ShareBrasil') {
       totals.total_sharebrasil += amount;
     }
-  }
+  });
 
-  totals.total_amount =
-    totals.total_crew + totals.total_client + totals.total_sharebrasil;
+  // O total geral é a soma dos valores pagos por cada tipo de pagador
+  totals.total_amount = totals.total_crew + totals.total_client + totals.total_sharebrasil;
 
   return totals;
 }
 
-// ---------------------------------------------------------------------------
-// enrichReportWithCorrectTotals
-// ---------------------------------------------------------------------------
 /**
- * Enriquece um relatório carregado do banco com totais recalculados,
- * corrigindo eventuais divergências salvas com lógica anterior.
+ * Enriquece um relatório carregado do banco com totais recalculados.
+ * Isto garante que mesmo se os totais no banco estiverem errados (por terem sido
+ * calculados com lógica anterior), eles serão corrigidos.
+ * 
+ * @param report - Relatório carregado do banco
+ * @param expenses - Despesas do relatório (já parsed)
+ * @returns Relatório com totais recalculados
  */
 export function enrichReportWithCorrectTotals<T extends TravelReportWithTotals>(
   report: T,
-  expenses: Expense[],
+  expenses: Expense[]
 ): T {
-  return { ...report, ...calculateReportTotals(expenses) };
-}
-
-// ---------------------------------------------------------------------------
-// extractPayerTotals
-// ---------------------------------------------------------------------------
-/**
- * Extrai os totais por pagador para criação de conciliações bancárias.
- *
- * - Cliente deve pagar: totalSharebrasil + totalCrew1 + totalCrew2
- * - Tripulante 1 recebe reembolso: totalCrew1
- * - Tripulante 2 recebe reembolso: totalCrew2
- */
-export function extractPayerTotals(expenses: Expense[]) {
-  const t = calculateReportTotals(expenses);
+  const correctedTotals = calculateReportTotals(expenses);
   return {
-    totalCrew: t.total_crew,
-    totalCrew1: t.total_crew1,
-    totalCrew2: t.total_crew2,
-    totalClient: t.total_client,
-    totalSharebrasil: t.total_sharebrasil,
+    ...report,
+    ...correctedTotals,
   };
 }
 
-// ---------------------------------------------------------------------------
-// hasValidExpenses / getValidExpenses
-// ---------------------------------------------------------------------------
-/** Retorna true se há pelo menos uma despesa com categoria e valor > 0. */
-export function hasValidExpenses(expenses: Expense[]): boolean {
-  return expenses.some(e => e.category && Number(e.amount) > 0);
-}
-
-/** Filtra apenas as despesas com categoria e valor > 0. */
-export function getValidExpenses(expenses: Expense[]): Expense[] {
-  return expenses.filter(e => e.category && Number(e.amount) > 0);
-}
-
-// ---------------------------------------------------------------------------
-// getCrewTotalsWithNames
-// ---------------------------------------------------------------------------
 /**
- * Retorna os totais separados por tripulante com seus nomes.
- * Usa nome_tripulante / nome_tripulante_2 (colunas do banco).
+ * Extrai os totais de pagadores de um relatório para criar conciliações.
+ * Isto é essencial para garantir que as conciliações bancárias sejam criadas
+ * com os valores CORRETOS, recalculados a partir das despesas.
+ *
+ * IMPORTANTE para uso correto em RelatorioViagem.tsx:
+ * - Para CLIENTE: amount = totalSharebrasil + totalCrew1 + totalCrew2
+ *   (O que o cliente deve pagar = tudo que não foi pago por ele)
+ * - Para TRIPULANTE 1: amount = totalCrew1 (reembolso)
+ * - Para TRIPULANTE 2: amount = totalCrew2 (reembolso)
+ * - Para SHAREBRASIL: amount = totalSharebrasil (custos de operação)
+ *
+ * @param expenses - Despesas do relatório
+ * @returns Objeto com totais por tipo de pagador, incluindo separação por tripulante
  */
-export function getCrewTotalsWithNames(
-  report: TravelReportWithTotals,
-  expenses: Expense[],
-) {
+export function extractPayerTotals(expenses: Expense[]) {
   const totals = calculateReportTotals(expenses);
   return {
+    totalCrew: totals.total_crew,
+    totalCrew1: totals.total_crew1,
+    totalCrew2: totals.total_crew2,
+    totalClient: totals.total_client,
+    totalSharebrasil: totals.total_sharebrasil,
+  };
+}
+
+/**
+ * Valida se um conjunto de despesas tem pelo menos um item válido.
+ * Despesas válidas são aquelas com categoria e valor > 0.
+ * 
+ * @param expenses - Array de despesas
+ * @returns true se há pelo menos uma despesa válida
+ */
+export function hasValidExpenses(expenses: Expense[]): boolean {
+  return expenses.some((e) => e.category && Number(e.amount) > 0);
+}
+
+/**
+ * Filtra apenas as despesas válidas de um array.
+ * 
+ * @param expenses - Array de despesas
+ * @returns Array contendo apenas despesas válidas
+ */
+export function getValidExpenses(expenses: Expense[]): Expense[] {
+  return expenses.filter((e) => e.category && Number(e.amount) > 0);
+}
+
+/**
+ * Retorna os totais separados por tripulante com seus nomes
+ * @param report - Relatório com informações dos tripulantes
+ * @param expenses - Despesas do relatório
+ * @returns Objeto com totais e nomes dos tripulantes
+ */
+export function getCrewTotalsWithNames(report: TravelReportWithTotals, expenses: Expense[]) {
+  const totals = calculateReportTotals(expenses);
+
+  return {
     tripulante1: {
-      name: report.nome_tripulante || 'Tripulante 1',
+      name: report.crew_member_name || 'Tripulante 1',
       total: totals.total_crew1,
     },
     tripulante2: {
-      name: report.nome_tripulante_2 || null,
+      name: report.crew_member_name_2 || null,
       total: totals.total_crew2,
     },
-    hasSecondCrew:
-      !!report.nome_tripulante_2 && report.nome_tripulante_2.trim() !== '',
+    hasSecondCrew: !!report.crew_member_name_2 && report.crew_member_name_2.trim() !== '',
   };
 }
 
-// ---------------------------------------------------------------------------
-// generateReportNumber
-// ---------------------------------------------------------------------------
 /**
- * Gera o próximo número de relatório para um determinado cliente E aeronave.
- * Cada cliente+aeronave tem sua própria sequência numerada.
- * Padrão: REL-XXX-001/YY
+ * Gera o próximo número de relatório de viagem para um cliente + aeronave.
  *
- * @param clientName - Nome do cliente (para extrair iniciais)
- * @param aeronaveId - ID da aeronave (para filtrar sequência específica)
+ * Formato: `REL-XXX-001/26 PT-OPC`
+ *  - XXX  = iniciais do cliente (até 3 letras, preenchidas com X)
+ *  - 001  = sequência POR aeronave dentro do mesmo cliente (cada matrícula
+ *           tem sua própria contagem começando em 1)
+ *  - 26   = ano com 2 dígitos
+ *  - PT-OPC = matrícula da aeronave (sufixo)
+ *
+ * Exemplo:
+ *  GASP + PT-OPC → REL-GAS-001/26 PT-OPC
+ *  GASP + PR-MDL → REL-GAS-001/26 PR-MDL  (contagem reinicia)
+ *  GASP + PR-MDL → REL-GAS-002/26 PR-MDL
+ *
+ * @param clientName Nome do cliente (gera as iniciais).
+ * @param aircraftRegistration Matrícula da aeronave (sufixo + filtro).
  */
 export async function generateReportNumber(
   clientName: string,
-  aeronaveId?: string,
-  matricula?: string,
+  aircraftRegistration?: string,
 ): Promise<string> {
-  const yearShort = new Date().getFullYear().toString().slice(-2);
-  const matriculaUpper = (matricula || '').toUpperCase().trim();
-  const matriculaSuffix = matriculaUpper ? ` ${matriculaUpper}` : '';
+  const year = new Date().getFullYear();
+  const yearShort = year.toString().slice(-2);
+  const reg = (aircraftRegistration ?? '').trim().toUpperCase();
+  const suffix = reg ? ` ${reg}` : '';
 
-  if (!clientName?.trim()) {
-    return `REL-XXX-001/${yearShort}${matriculaSuffix}`;
+  if (!clientName || clientName.trim() === '') {
+    return `REL-XXX-001/${yearShort}${suffix}`;
   }
 
-  const initials = clientName
-    .trim()
-    .split(/\s+/)
-    .map(w => w.charAt(0).toUpperCase())
-    .join('')
-    .replace(/[^A-Z]/g, '')
-    .substring(0, 3)
-    .padEnd(3, 'X');
+  const getClientInitials = (name: string): string => {
+    const words = name.trim().split(/\s+/);
+    return words
+      .map(w => w.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 3)
+      .padEnd(3, 'X');
+  };
 
-  // Sequência separada por cliente + aeronave (matrícula)
-  let query = (supabase as any)
+  const clientInitials = getClientInitials(clientName);
+
+  // Filtra pelo prefixo do cliente
+  let query = supabase
     .from('travel_expense_reports')
-    .select('numero_relatorio')
-    .ilike('numero_relatorio', `REL-${initials}-%`);
+    .select('report_number')
+    .ilike('report_number', `REL-${clientInitials}-%`);
 
-  if (aeronaveId?.trim()) {
-    query = query.eq('aeronave_id', aeronaveId);
-  } else if (matriculaUpper) {
-    query = query.eq('matricula_aeronave', matriculaUpper);
+  // Se houver matrícula, filtra adicionalmente pelo sufixo para garantir
+  // numeração independente por aeronave
+  if (reg) {
+    query = query.ilike('report_number', `%${reg}`);
   }
 
-  const { data: existing } = await query;
+  const { data: existingReports, error } = await query;
 
   let nextNumber = 1;
-  if (existing && existing.length > 0) {
-    const nums = (existing as any[])
-      .map((r: any) => {
-        const m = String(r.numero_relatorio || '').match(/REL-[A-Z]{3}-(\d+)/);
-        return m?.[1] ? parseInt(m[1]) : 0;
-      })
-      .filter(n => n > 0);
-    if (nums.length > 0) nextNumber = Math.max(...nums) + 1;
+  if (!error && existingReports && existingReports.length > 0) {
+    const maxFound = existingReports.reduce((max, row: any) => {
+      const m = row.report_number?.match(/REL-[A-Z]{3}-(\d+)/);
+      const n = m && m[1] ? parseInt(m[1], 10) : 0;
+      return n > max ? n : max;
+    }, 0);
+    nextNumber = maxFound + 1;
   }
 
-  return `REL-${initials}-${String(nextNumber).padStart(3, '0')}/${yearShort}${matriculaSuffix}`;
+  return `REL-${clientInitials}-${String(nextNumber).padStart(3, '0')}/${yearShort}${suffix}`;
 }
