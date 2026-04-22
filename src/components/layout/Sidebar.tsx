@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Wallet,
-  PieChart
+  PieChart,
+  CheckSquare
 } from
   "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,7 +49,8 @@ const baseMenuGroups: MenuGroup[] = [
     items: [
       { title: "Início", icon: Home, href: "/", isMain: true },
       { title: "Documentos", icon: FileText, href: "/documentos" },
-      { title: "Senhas", icon: Key, href: "/senhas" }]
+      { title: "Senhas", icon: Key, href: "/senhas" },
+      { title: "Minhas Tarefas", icon: CheckSquare, href: "/minhas-tarefas" }]
 
   },
   {
