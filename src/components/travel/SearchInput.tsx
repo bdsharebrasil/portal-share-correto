@@ -8,7 +8,6 @@ interface SearchInputProps {
 export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: SearchInputProps) {
   return (
     <div className="search-input-container">
-    
       {/* ✅ Fix 4: input vem ANTES do ícone para o seletor CSS adjacente (+) funcionar */}
       <input
         type="text"
@@ -44,19 +43,19 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           border: none;
           outline: none;
           padding: 18px 16px;
-          background-color: #3b82f680;
+          background-color: transparent;
           cursor: pointer;
           transition: all .5s ease-in-out;
         }
 
         .search-input::placeholder {
-          color: #796794b8;
+          color: transparent;
         }
 
         .search-input:focus,
         .search-input:not(:placeholder-shown) {
-          background-color: #4d459a8e;
-          border: 1px solid #1e1b7e75;
+          background-color: #fff;
+          border: 1px solid rgb(98, 0, 255);
           width: 290px;
           cursor: text;
           padding: 18px 16px 18px 40px;
@@ -64,15 +63,16 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
 
         .icon {
           position: absolute;
-  left: 0;
-  top: 0;
-  height: 40px;
-  width: 40px;
-  background-color: #fff;
-  border-radius: 10px;
-  z-index: -1;
-  fill: rgb(98, 0, 255);
-  border: 1px solid rgb(98, 0, 255);
+          left: 0;
+          top: 0;
+          height: 40px;
+          width: 40px;
+          background-color: #fff;
+          border-radius: 10px;
+          z-index: -1;
+          fill: rgb(98, 0, 255);
+          border: 1px solid rgb(98, 0, 255);
+          padding: 9px;
         }
 
         .search-input:hover + .icon {
@@ -83,7 +83,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
         .search-input:focus + .icon,
         .search-input:not(:placeholder-shown) + .icon {
           z-index: 0;
-          background-color: #7d7a83be;
+          background-color: transparent;
           border: none;
         }
       `}</style>
