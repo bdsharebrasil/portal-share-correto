@@ -20,7 +20,25 @@ export function RoleProtected({ children, allowedRoles }: RoleProtectedProps) {
     );
   }
 
-  const hasAny = allowedRoles.some(r => (userRoles as string[]).includes(r));
+  // Se não tem roles carregadas, negar acesso
+  if (!userRoles || userRoles.length === 0) {
+    return (
+      <Layout>
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso negado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  const hasAny = allowedRoles.some(r => userRoles.includes(r));
 
   if (!hasAny) {
     // Mostrar mensagem de Acesso Negado dentro do layout

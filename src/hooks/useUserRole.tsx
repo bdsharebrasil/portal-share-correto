@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useUserRole() {
-  const { data: userRoles = [] as string[], isLoading } = useQuery<string[]>({
+  const { data: userRoles = [] as string[], isLoading, error } = useQuery<string[]>({
     queryKey: ["user_roles"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -13,11 +13,18 @@ export function useUserRole() {
         .select("role")
         .eq("user_id", user.id);
 
-      if (error) throw error;
-      return (data || []).map((r) => r.role as string);
+      if (error) {
+        console.error("Erro ao carregar roles do usuário:", error);
+        throw error;
+      }
+
+      const roles = (data || []).map((r) => r.role as string);
+      console.log("Roles carregadas:", roles);
+      return roles;
     },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 1 * 60 * 1000, // Reduzido de 5 para 1 minuto
+    gcTime: 5 * 60 * 1000, // Reduzido de 10 para 5 minutos
+    retry: 2,
   });
 
   const hasRole = (role: string) => {
