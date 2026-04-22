@@ -308,13 +308,14 @@ export default function TarefasKanban({
   // -------------------------------------------------- Filtragem
   const visibleTasks = useMemo(() => {
     if (myView) {
+      // "Minhas": apenas tarefas PRIVADAS criadas pelo usuário
       return tarefas.filter(
-        (t) => t.atribuido_para === me || t.criado_por === me,
+        (t) => t.criado_por === me && t.publico === false,
       );
     }
-    // Visão geral: respeita o filtro do RLS; ainda assim oculta privadas para admin/gestor
+    // "Equipe": tarefas PÚBLICAS atribuídas ao usuário (criadas por admin/gestor_master)
     return tarefas.filter(
-      (t) => t.publico === true || t.criado_por === me || t.atribuido_para === me,
+      (t) => t.atribuido_para === me && t.publico === true,
     );
   }, [tarefas, me, myView]);
 
@@ -322,7 +323,30 @@ export default function TarefasKanban({
     visibleTasks.filter((t) => statusToColumn(t.status) === colId);
 
   // -------------------------------------------------- Mutations
+  const canChangeStatus = (task: Tarefa): boolean => {
+    // Em "Minhas" (visão privada), usuário sempre pode mudar
+    if (!myView) {
+      // Em "Equipe" (tarefas públicas):
+      // - Apenas o criador ou admin/gestor_master podem mudar status
+      // - O usuário atribuído NÃO pode mudar status, apenas comentar
+      if (task.criado_por === me || isManager) {
+        return true;
+      }
+      return false;
+    }
+    return true;
+  };
+
   const handleStatusChange = async (id: string, newStatus: Status) => {
+    const task = tarefas.find((t) => t.id === id);
+    if (!task) return;
+
+    // Verificar permissão
+    if (!canChangeStatus(task)) {
+      toast.error("Você não tem permissão para alterar o status desta tarefa");
+      return;
+    }
+
     const previous = tarefas;
     setTarefas((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
@@ -735,31 +759,56 @@ export default function TarefasKanban({
                           style={{ display: "flex", gap: 5 }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <select
-                            value={statusToColumn(task.status)}
-                            onChange={(e) =>
-                              void handleStatusChange(
-                                task.id,
-                                e.target.value as Status,
-                              )
-                            }
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                              fontSize: 10,
-                              border: "1px solid hsl(222 20% 26%)",
-                              borderRadius: 6,
-                              padding: "2px 4px",
-                              color: "hsl(210 40% 75%)",
-                              cursor: "pointer",
-                              background: "hsl(222 25% 15%)",
-                            }}
-                          >
-                            {COLUMNS.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.label}
-                              </option>
-                            ))}
-                          </select>
+                          {canChangeStatus(task) ? (
+                            <select
+                              value={statusToColumn(task.status)}
+                              onChange={(e) =>
+                                void handleStatusChange(
+                                  task.id,
+                                  e.target.value as Status,
+                                )
+                              }
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                fontSize: 10,
+                                border: "1px solid hsl(222 20% 26%)",
+                                borderRadius: 6,
+                                padding: "2px 4px",
+                                color: "hsl(210 40% 75%)",
+                                cursor: "pointer",
+                                background: "hsl(222 25% 15%)",
+                              }}
+                              title="Mudar status"
+                            >
+                              {COLUMNS.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div
+                              style={{
+                                fontSize: 10,
+                                border: "1px solid hsl(222 20% 26%)",
+                                borderRadius: 6,
+                                padding: "2px 4px",
+                                color: "hsl(215 20% 55%)",
+                                background: "hsl(222 25% 15%)",
+                                cursor: "not-allowed",
+                                opacity: 0.6,
+                              }}
+                              title="Apenas o criador pode mudar o status desta tarefa"
+                            >
+                              {statusToColumn(task.status) === "a-fazer"
+                                ? "A Fazer"
+                                : statusToColumn(task.status) === "em-andamento"
+                                  ? "Em Andamento"
+                                  : statusToColumn(task.status) === "revisao"
+                                    ? "Revisão"
+                                    : "Concluído"}
+                            </div>
+                          )}
                           {canDelete && (
                             <button
                               onClick={(e) => {
@@ -1119,6 +1168,12 @@ function DetailDialog({
   const assigned = task.atribuido_para ? userById.get(task.atribuido_para) : undefined;
   const creator = task.criado_por ? userById.get(task.criado_por) : undefined;
 
+  // Permite editar status apenas se:
+  // - É uma tarefa privada (criada_por === meId)
+  // - OU é o criador da tarefa
+  // - OU é manager (admin/gestor_master)
+  const canEditStatus = task.criado_por === meId || canManage;
+
   const handleSend = async () => {
     if (!text.trim() || !meId) return;
     const { error } = await supabase
@@ -1190,11 +1245,17 @@ function DetailDialog({
           <div>
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Status
+              {!canEditStatus && (
+                <span className="ml-2 text-[10px] text-amber-500">
+                  (Somente leitura - apenas o criador pode editar)
+                </span>
+              )}
             </label>
             <select
               defaultValue={statusToColumn(task.status)}
-              onChange={(e) => void handleStatus(e.target.value as Status)}
-              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
+              onChange={(e) => canEditStatus && void handleStatus(e.target.value as Status)}
+              disabled={!canEditStatus}
+              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {COLUMNS.map((c) => (
                 <option key={c.id} value={c.id}>

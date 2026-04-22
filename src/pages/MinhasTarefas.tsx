@@ -1,520 +1,65 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, X, CheckSquare, Eye, LayoutGrid, List } from "lucide-react";
-import { toast } from "sonner";
-import TaskForm from "@/components/tasks/TaskForm";
-import NotesTab from "@/components/tasks/NotesTab";
 import TarefasKanban from "@/components/tarefas/TarefasKanban";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface Task {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  prazo: string | null;
-  prioridade: "baixa" | "media" | "alta";
-  status: "aberto" | "em_progresso" | "concluida";
-  atribuido_para: string | null;
-  criado_por: string | null;
-  criado_em: string;
-}
-
-interface TaskNotification {
-  id: string;
-  id_da_tarefa: string;
-  user_id: string;
-  mensagem: string;
-  status_alterado_para: string | null;
-  lido: boolean;
-  criado_em: string;
-}
+import { CheckSquare, User, Users } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { cn } from "@/lib/utils";
 
 export default function MinhasTarefas() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [notifications, setNotifications] = useState<TaskNotification[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [viewingTask, setViewingTask] = useState<Task | null>(null);
-  const [viewMode, setViewMode] = useState<"kanban" | "lista">("kanban");
-
-  useEffect(() => {
-    void fetchTasks();
-    void fetchNotifications();
-
-    // Subscribe to notification changes
-    const channel = supabase
-      .channel('tarefas-notificacoes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'tarefas_notificacoes'
-        },
-        () => {
-          void fetchNotifications();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchTasks = async () => {
-    setLoadingTasks(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setTasks([]);
-      setLoadingTasks(false);
-      return;
-    }
-    const { data, error } = await supabase
-      .from("tarefas")
-      .select("*")
-      .or(`criado_por.eq.${user.id},atribuido_para.eq.${user.id}`)
-      .order("prazo", { ascending: true });
-
-    if (error) {
-      console.error("Erro ao carregar tarefas:", error);
-      toast.error("Erro ao carregar tarefas");
-      setLoadingTasks(false);
-      return;
-    }
-
-    setTasks((data ?? []) as any);
-    setLoadingTasks(false);
-  };
-
-  const fetchNotifications = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setNotifications([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("tarefas_notificacoes")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("lido", false)
-      .order("criado_em", { ascending: false });
-
-    if (error) {
-      console.error("Erro ao carregar notificações:", error);
-      setNotifications([]);
-      return;
-    }
-
-    setNotifications((data ?? []) as TaskNotification[]);
-  };
-
-  const markNotificationAsRead = async (notificationId: string) => {
-    const { error } = await supabase
-      .from("tarefas_notificacoes")
-      .update({ lido: true })
-      .eq("id", notificationId);
-
-    if (error) {
-      console.error("Erro ao marcar notificação como lida:", error);
-      return;
-    }
-
-    void fetchNotifications();
-  };
-
-  const handleEdit = (task: Task) => {
-    setEditingTask(task);
-    setShowForm(true);
-  };
-
-  const handleNewTask = () => {
-    setEditingTask(null);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (task: Task) => {
-    if (!window.confirm(`Deseja realmente excluir a tarefa "${task.title}"?`)) {
-      return;
-    }
-
-    const { error } = await supabase
-      .from("tarefas")
-      .delete()
-      .eq("id", task.id);
-
-    if (error) {
-      console.error("Erro ao deletar tarefa:", error);
-      toast.error("Erro ao deletar tarefa");
-      return;
-    }
-
-    toast.success("Tarefa deletada com sucesso!");
-    void fetchTasks();
-  };
-
-  const toggleTask = async (task: Task, checked: boolean) => {
-    const nextStatus: Task["status"] = checked ? "concluida" : "aberto";
-    const { error } = await supabase
-      .from("tarefas")
-      .update({ status: nextStatus })
-      .eq("id", task.id);
-    if (error) {
-      console.error("Erro ao atualizar tarefa:", error);
-      toast.error("Erro ao atualizar tarefa");
-      return;
-    }
-
-    // Criar notificação se a tarefa foi atribuída a alguém (atribuido_para !== criado_por)
-    if (task.atribuido_para && task.criado_por && task.atribuido_para !== task.criado_por) {
-      const statusMap = {
-        "aberto": "Aberto",
-        "em_progresso": "Em Progresso",
-        "concluida": "Concluída"
-      };
-
-      const notificationMessage = `Tarefa "${task.titulo}" foi marcada como ${statusMap[nextStatus]}`;
-
-      const { error: notificationError } = await supabase
-        .from("tarefas_notificacoes")
-        .insert({
-          id_da_tarefa: task.id,
-          user_id: task.criado_por,
-          mensagem: notificationMessage,
-          status_alterado_para: nextStatus,
-          lido: false,
-          criado_em: new Date().toISOString()
-        });
-
-      if (notificationError) {
-        console.error("Erro ao criar notificação:", notificationError);
-        // Não impedir a atualização da tarefa se a notificação falhar
-      }
-    }
-
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
-  };
-
-  const handleSave = () => {
-    void fetchTasks();
-    void fetchNotifications();
-    setShowForm(false);
-    setEditingTask(null);
-  };
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingTask(null);
-  };
-
-  const getPriorityColor = (prioridade: Task["prioridade"]) => {
-    switch (prioridade) {
-      case "alta":
-        return "bg-red-500";
-      case "media":
-        return "bg-yellow-500";
-      case "baixa":
-        return "bg-green-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  const getStatusColor = (status: Task["status"]) => {
-    switch (status) {
-      case "concluida":
-        return "bg-green-600";
-      case "em_progresso":
-        return "bg-blue-600";
-      case "aberto":
-        return "bg-gray-600";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  const getStatusLabel = (status: Task["status"]) => {
-    switch (status) {
-      case "concluida":
-        return "Concluída";
-      case "em_progresso":
-        return "Em Progresso";
-      case "aberto":
-        return "Aberto";
-      default:
-        return status;
-    }
-  };
+  const { isAdmin, isGestorMaster } = useUserRole();
+  const isManager = isAdmin || isGestorMaster;
+  const [view, setView] = useState<"minhas" | "equipe">("minhas");
 
   return (
     <Layout>
-      <div className="p-6 space-y-4 flex flex-col h-full overflow-hidden">
-        <div className="flex items-center justify-between flex-shrink-0">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-blue-400 to-cyan-400 bg-clip-text text-transparent">Minhas Tarefas</h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Gerencie suas atividades, acompanhe o progresso e organize suas notas
-            </p>
-          </div>
-        </div>
-
-        <Tabs defaultValue="tarefas" className="flex-1 flex flex-col overflow-hidden bg-card/40 rounded-2xl border border-border/50 backdrop-blur-sm">
-          <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
-            <TabsList className="bg-transparent w-auto justify-start rounded-none px-0 gap-6">
-              <TabsTrigger value="tarefas" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2">
-                <CheckSquare className="h-4 w-4 mr-2" />
-                Tarefas
-              </TabsTrigger>
-              <TabsTrigger value="notas" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2">
-                <Edit2 className="h-4 w-4 mr-2" />
-                Notas
-              </TabsTrigger>
-            </TabsList>
-            {/* Toggle de visualização - só aparece na aba de tarefas */}
-            <div className="flex gap-2 ml-auto">
-              <Button
-                variant={viewMode === "kanban" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("kanban")}
-                className="h-9 gap-1.5 rounded-lg"
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Kanban
-              </Button>
-              <Button
-                variant={viewMode === "lista" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("lista")}
-                className="h-9 gap-1.5 rounded-lg"
-              >
-                <List className="h-4 w-4" />
-                Lista
-              </Button>
+      <div className="space-y-6 pb-8">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <CheckSquare className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                {view === "minhas" ? "Minhas Tarefas" : "Tarefas da Equipe"}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {view === "minhas"
+                  ? "Tarefas privadas criadas por você - com controle total"
+                  : "Tarefas atribuídas a você por administradores - visualizar e comentar"}
+              </p>
             </div>
           </div>
 
-          <TabsContent value="tarefas" className="flex-1 overflow-hidden flex flex-col px-6 py-4">
-            {/* Modo Kanban */}
-            {viewMode === "kanban" ? (
-              <div className="flex-1 overflow-hidden min-h-0">
-                <TarefasKanban
-                  myView={true}
-                  title="Minhas Tarefas"
-                  subtitle="Visualize e organize suas tarefas em colunas"
-                />
-              </div>
-            ) : (
-              /* Modo Lista */
-              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
-                <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                  <div>
-                    <h2 className="text-xl font-bold text-foreground">Minhas Tarefas</h2>
-                  </div>
-                  <Button onClick={handleNewTask} className="flex items-center gap-2">
-                    {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                    {showForm ? "Cancelar" : "Nova Tarefa"}
-                  </Button>
-                </div>
-
-                {showForm && (
-                  <div className="border-b border-border pb-4 mb-4 flex-shrink-0">
-                    <Card className="border-dashed rounded-xl">
-                      <CardContent className="p-6">
-                        <TaskForm
-                          task={editingTask ?? undefined}
-                          onSave={handleSave}
-                          onCancel={handleCancel}
-                        />
-                      </CardContent>
-                    </Card>
-                  </div>
+          {isManager && (
+            <div className="inline-flex rounded-lg border border-border bg-card p-1">
+              <button
+                onClick={() => setView("minhas")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                  view === "minhas"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
-
-                <div className="flex-1 overflow-y-auto min-h-0">
-                  {loadingTasks ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      Carregando tarefas...
-                    </div>
-                  ) : tasks.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      Nenhuma tarefa encontrada
-                    </div>
-                  ) : (
-                    <div className="space-y-3 pr-4">
-                      {tasks.map((task) => (
-                        <div key={task.id} className="space-y-0">
-                          <Card
-                            className="hover:shadow-md transition-all cursor-pointer rounded-xl border-border/50"
-                          >
-                            <CardContent className="p-4">
-                              <div className="flex items-start gap-3">
-                                <Checkbox
-                                  checked={task.status === 'concluida'}
-                                  onCheckedChange={(v) => {
-                                    toggleTask(task, Boolean(v));
-                                  }}
-                                  className="mt-1"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1">
-                                      <h3 className={`text-sm font-semibold leading-tight break-words ${task.status === 'concluida'
-                                          ? 'line-through text-muted-foreground'
-                                          : 'text-foreground'
-                                        }`}>
-                                        {task.titulo}
-                                      </h3>
-                                      {task.descricao && (
-                                        <p className="text-muted-foreground text-xs mt-1 line-clamp-1">
-                                          {task.descricao}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="flex gap-1 flex-shrink-0">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setViewingTask(viewingTask?.id === task.id ? null : task);
-                                        }}
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        title="Ver detalhes"
-                                      >
-                                        <Eye className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEdit(task);
-                                        }}
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        title="Editar"
-                                      >
-                                        <Edit2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDelete(task);
-                                        }}
-                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                        title="Deletar"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex gap-2 mt-2 flex-wrap">
-                                    <Badge className={`${getPriorityColor(task.prioridade)} text-xs rounded-lg`}>
-                                      {task.prioridade.charAt(0).toUpperCase() + task.prioridade.slice(1)}
-                                    </Badge>
-                                    <Badge className={`${getStatusColor(task.status)} text-xs rounded-lg`}>
-                                      {getStatusLabel(task.status)}
-                                    </Badge>
-                                    {task.prazo && (
-                                      <div className="text-xs text-muted-foreground">
-                                        {format(new Date(task.prazo), "dd/MM/yyyy", { locale: ptBR })}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-
-                          {viewingTask?.id === task.id && (
-                            <Card className="rounded-t-none border-t-0 bg-muted/30 animate-in fade-in slide-in-from-top-1 duration-200 rounded-xl">
-                              <CardContent className="p-4 space-y-4">
-                                {task.descricao && (
-                                  <div>
-                                    <h3 className="font-semibold text-sm mb-2 text-foreground">Descrição</h3>
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
-                                      {task.descricao}
-                                    </p>
-                                  </div>
-                                )}
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <h3 className="font-semibold text-sm mb-2 text-foreground">Prioridade</h3>
-                                    <Badge className={`${getPriorityColor(task.prioridade)} rounded-lg`}>
-                                      {task.prioridade.charAt(0).toUpperCase() + task.prioridade.slice(1)}
-                                    </Badge>
-                                  </div>
-
-                                  <div>
-                                    <h3 className="font-semibold text-sm mb-2 text-foreground">Status</h3>
-                                    <Badge className={`${getStatusColor(task.status)} rounded-lg`}>
-                                      {getStatusLabel(task.status)}
-                                    </Badge>
-                                  </div>
-                                </div>
-
-                                {task.prazo && (
-                                  <div>
-                                    <h3 className="font-semibold text-sm mb-2 text-foreground">Prazo</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      {format(new Date(task.prazo), "dd/MM/yyyy", { locale: ptBR })}
-                                    </p>
-                                  </div>
-                                )}
-
-                                <div className="flex gap-2 pt-2">
-                                  <Button
-                                    onClick={() => {
-                                      handleEdit(task);
-                                      setViewingTask(null);
-                                    }}
-                                    size="sm"
-                                    className="flex-1"
-                                  >
-                                    <Edit2 className="h-3 w-3 mr-1" />
-                                    Editar
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    onClick={() => {
-                                      handleDelete(task);
-                                      setViewingTask(null);
-                                    }}
-                                    size="sm"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="notas" className="flex-1 overflow-y-auto min-h-0 mt-4">
-            <NotesTab />
-          </TabsContent>
-        </Tabs>
-
+              >
+                <User className="h-4 w-4" />
+                Minhas
+              </button>
+              <button
+                onClick={() => setView("equipe")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                  view === "equipe"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Users className="h-4 w-4" />
+                Equipe
+              </button>
+            </div>
+          )}
+        </div>
+        <TarefasKanban myView={view === "minhas"} />
       </div>
     </Layout>
   );

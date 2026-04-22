@@ -2,22 +2,45 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useUserRole() {
-  const { data: userRoles = [] as string[], isLoading } = useQuery<string[]>({
+  const { data: userRoles = [] as string[], isLoading, error } = useQuery<string[]>({
     queryKey: ["user_roles"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
+        if (!user) {
+          console.warn("Nenhum usuário autenticado");
+          return [];
+        }
 
-      if (error) throw error;
-      return (data || []).map((r) => r.role as string);
+        console.log("Buscando roles para usuário:", user.id);
+
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id);
+
+        if (error) {
+          console.error("Erro ao carregar roles do usuário:", error);
+          throw error;
+        }
+
+        const roles = (data || []).map((r) => r.role as string);
+        console.log("Roles carregadas com sucesso:", roles);
+
+        if (roles.length === 0) {
+          console.warn("Usuário não possui nenhuma role cadastrada!");
+        }
+
+        return roles;
+      } catch (err) {
+        console.error("Erro na função queryFn de roles:", err);
+        throw err;
+      }
     },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 0, // Sem cache - sempre buscar roles atualizadas
+    gcTime: 1 * 60 * 1000, // Mínimo de cache
+    retry: 3, // Aumentado para 3 tentativas
   });
 
   const hasRole = (role: string) => {

@@ -12,6 +12,13 @@ interface RoleProtectedProps {
 export function RoleProtected({ children, allowedRoles }: RoleProtectedProps) {
   const { userRoles, isLoading } = useUserRole();
 
+  console.log("[RoleProtected] Verificando acesso:", {
+    isLoading,
+    userRoles,
+    allowedRoles,
+    timestamp: new Date().toISOString(),
+  });
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -20,10 +27,9 @@ export function RoleProtected({ children, allowedRoles }: RoleProtectedProps) {
     );
   }
 
-  const hasAny = allowedRoles.some(r => (userRoles as string[]).includes(r));
-
-  if (!hasAny) {
-    // Mostrar mensagem de Acesso Negado dentro do layout
+  // Se não tem roles carregadas, negar acesso
+  if (!userRoles || userRoles.length === 0) {
+    console.warn("[RoleProtected] Acesso negado: usuário sem roles");
     return (
       <Layout>
         <div className="p-6">
@@ -40,5 +46,33 @@ export function RoleProtected({ children, allowedRoles }: RoleProtectedProps) {
     );
   }
 
+  const hasAny = allowedRoles.some(r => userRoles.includes(r));
+
+  console.log("[RoleProtected] Verificação de roles:", {
+    hasAny,
+    rolesDoUsuario: userRoles,
+    rolesPermitidas: allowedRoles,
+  });
+
+  if (!hasAny) {
+    // Mostrar mensagem de Acesso Negado dentro do layout
+    console.warn("[RoleProtected] Acesso negado: role não autorizada");
+    return (
+      <Layout>
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso negado</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Você não tem permissão para acessar esta página.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  console.log("[RoleProtected] Acesso permitido");
   return <>{children}</>;
 }
