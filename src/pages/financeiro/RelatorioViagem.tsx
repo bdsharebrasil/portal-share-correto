@@ -1031,9 +1031,35 @@ export default function RelatorioViagem() {
                         onView={handleViewPDF}
                         onEdit={editReport}
                         onDelete={deleteReport}
-                        onSend={(report) => {
+                        onSend={async (report, type) => {
                           const fullReport = reportsWithClient.find(r => r.id === report.id);
-                          if (fullReport) {
+                          if (!fullReport) return;
+
+                          // Enviar ao Tripulante: gera link de assinatura
+                          if (type === 'conferencia') {
+                            try {
+                              const { data: refreshed } = await supabase
+                                .from('travel_expense_reports')
+                                .select('approval_token, numero_relatorio, nome_tripulante, tripulacao_id')
+                                .eq('id', fullReport.id)
+                                .single();
+                              if (refreshed?.approval_token) {
+                                const approvalUrl = `${window.location.origin}/#/aprovar-relatorio/${refreshed.approval_token}`;
+                                setApprovalLinkData({
+                                  url: approvalUrl,
+                                  numero: refreshed.numero_relatorio,
+                                  tripulante: refreshed.nome_tripulante,
+                                });
+                                setApprovalLinkOpen(true);
+                                toast.success('✓ Link de assinatura gerado!');
+                              }
+                            } catch (err) {
+                              console.error('Erro ao gerar link:', err);
+                              toast.error('Erro ao gerar link de assinatura');
+                            }
+                          }
+                          // Enviar ao Cliente: abre dialog com prazo de vencimento
+                          else if (type === 'cliente') {
                             setSendReportTarget(fullReport);
                             setSendDueDate('');
                             setSendDialogOpen(true);
