@@ -261,7 +261,7 @@ export default function WeatherWidget() {
               <span className="wc-cell-val">{isOk && wx.wind ? wx.wind : "—"}</span>
             </div>
             <div className="wc-cell">
-              <span className="wc-cell-lbl">Dewpoint</span>
+              <span className="wc-cell-lbl">Ponto de Orvalho</span>
               <span className="wc-cell-val">{isOk && wx.dewpoint != null ? `${wx.dewpoint}°C` : "—"}</span>
             </div>
           </div>
