@@ -83,7 +83,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
         .search-input:focus + .icon,
         .search-input:not(:placeholder-shown) + .icon {
           z-index: 0;
-          background-color: #150331ff;
+          background-color: #301e4ebe;
           border: none;
         }
       `}</style>
