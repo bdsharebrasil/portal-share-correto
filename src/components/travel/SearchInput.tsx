@@ -40,10 +40,10 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           width: 40px;
           height: 40px;
           border-radius: 10px;
-          border: none;
+          border: 1px solid rgb(98, 0, 255);
           outline: none;
           padding: 18px 16px;
-          background-color: transparent;
+          background-color: #fff;
           cursor: pointer;
           transition: all .5s ease-in-out;
         }
@@ -58,7 +58,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           border: 1px solid rgb(98, 0, 255);
           width: 290px;
           cursor: text;
-          padding: 18px 16px 18px 40px;
+          padding: 18px 16px 18px 50px;
         }
 
         .icon {
@@ -67,15 +67,16 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           top: 0;
           height: 40px;
           width: 40px;
-          background-color: #fff;
+          background-color: transparent;
           border-radius: 10px;
-          z-index: -1;
+          z-index: 1;
           color: rgb(98, 0, 255);
-          border: 1px solid rgb(98, 0, 255);
+          border: none;
           padding: 9px;
           display: flex;
           align-items: center;
           justify-content: center;
+          pointer-events: none;
         }
 
         .search-input:hover + .icon {
@@ -85,7 +86,6 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
 
         .search-input:focus + .icon,
         .search-input:not(:placeholder-shown) + .icon {
-          z-index: 0;
           background-color: transparent;
           border: none;
         }
