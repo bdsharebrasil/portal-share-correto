@@ -26,7 +26,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
         width="22"
         height="22"
       >
-        <path d="M18.9,16.776A10.539,10.539,0,1,0,16.776,18.9l5.1,5.1L24,21.88ZM10.5,18A7.5,7.5,0,1,1,18,10.5,7.507,7.507,0,0,1,10.5,18Z" />
+        <path d="M18.9,16.776A10.539,10.539,0,1,0,16.776,18.9l5.1,5.1L24,21.88ZM10.5,18A7.5,7.5,0,1,1,18,10.5,7.507,7.507,0,0,1,10.5,18Z" fill="currentColor" />
       </svg>
 
       <style>{`
@@ -70,9 +70,12 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           background-color: #fff;
           border-radius: 10px;
           z-index: -1;
-          fill: rgb(98, 0, 255);
+          color: rgb(98, 0, 255);
           border: 1px solid rgb(98, 0, 255);
           padding: 9px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .search-input:hover + .icon {
