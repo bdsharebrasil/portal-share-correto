@@ -166,6 +166,46 @@ function StatusBadge({ status }: { status: PastaReportItem['status'] }) {
   );
 }
 
+// ─── Action Button (com estilo moderno) ────────────────────────────────────────
+function ActionButton({ children, onClick, gradient }: { children: React.ReactNode; onClick: () => void; gradient: string }) {
+  const [isActive, setIsActive] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseDown={() => setIsActive(true)}
+      onMouseUp={() => setIsActive(false)}
+      onMouseLeave={() => setIsActive(false)}
+      style={{
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        background: gradient,
+        color: 'white',
+        padding: '0.6em 1em',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: 'none',
+        borderRadius: '25px',
+        boxShadow: '0px 5px 10px rgba(0, 0, 0, 0.2)',
+        transition: 'all 0.3s',
+        cursor: 'pointer',
+        transform: isActive ? 'scale(0.95)' : 'translateY(0)',
+        gap: '0.5em',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-3px)';
+        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0px 8px 15px rgba(0, 0, 0, 0.3)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0px 5px 10px rgba(0, 0, 0, 0.2)';
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 // ─── Report Card ───────────────────────────────────────────────────────────────
 function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: PastaReportItem; onSend: (rep: PastaReportItem, type: string) => void; onEdit: (id: string) => void; onView: (id: string) => void; onDelete: (id: string | undefined) => void }) {
   const [h, setH] = useState(false);
@@ -178,88 +218,109 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: Past
       onMouseLeave={() => setH(false)}
       style={{
         display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
         gap: 12,
-        padding: '11px 14px',
+        padding: '14px',
         borderRadius: 10,
         transition: 'background .15s',
         background: h ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(255,255,255,0.08)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flex: 1, minWidth: 0 }}>
-        <FileText size={15} style={{ color: 'rgba(255,255,255,0.28)', marginTop: 2, flexShrink: 0 }} />
+      {/* Linha principal: informações + botões topo */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flex: 1, minWidth: 0 }}>
+          <FileText size={15} style={{ color: 'rgba(255,255,255,0.28)', marginTop: 2, flexShrink: 0 }} />
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              margin: 0,
-              fontFamily: '"JetBrains Mono","Fira Code",monospace',
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: '0.03em',
-              color: 'rgba(255,255,255,0.9)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {report.report_number}
-          </p>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: '"JetBrains Mono","Fira Code",monospace',
+                fontWeight: 700,
+                fontSize: 13,
+                letterSpacing: '0.03em',
+                color: 'rgba(255,255,255,0.9)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {report.report_number}
+            </p>
 
-          <p
-            style={{
-              margin: '3px 0 6px',
-              fontSize: 10.5,
-              color: 'rgba(255,255,255,0.32)',
-              fontFamily: 'system-ui,sans-serif',
-              letterSpacing: '0.01em',
-            }}
-          >
-            {dateRange}
-          </p>
+            <p
+              style={{
+                margin: '3px 0 6px',
+                fontSize: 10.5,
+                color: 'rgba(255,255,255,0.32)',
+                fontFamily: 'system-ui,sans-serif',
+                letterSpacing: '0.01em',
+              }}
+            >
+              {dateRange}
+            </p>
 
-          <StatusBadge status={report.status} />
+            <StatusBadge status={report.status} />
 
-          <p
-            style={{
-              margin: '5px 0 0',
-              fontFamily: '"JetBrains Mono","Fira Code",monospace',
-              fontSize: 11.5,
-              color: 'rgba(255,255,255,0.4)',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {amount}
-          </p>
+            <p
+              style={{
+                margin: '5px 0 0',
+                fontFamily: '"JetBrains Mono","Fira Code",monospace',
+                fontSize: 11.5,
+                color: 'rgba(255,255,255,0.4)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {amount}
+            </p>
+          </div>
+        </div>
+
+        {/* Botões topo: Visualizar e Excluir */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+          <IconBtn title="Visualizar PDF" onClick={() => onView(report.id!)} hoverColor="#818cf8" hoverBg="rgba(99,102,241,0.15)">
+            <Eye size={14} />
+          </IconBtn>
+
+          <DeleteButton onClick={() => onDelete(report.id)} />
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, marginTop: 1 }}>
-        {report.status === 'Finalizado' && (
-          <IconBtn title="Enviar para Conferência (tripulante)" onClick={() => onSend(report, 'conferencia')} hoverColor="#fb923c" hoverBg="rgba(251,146,60,0.15)">
-            <Clock size={14} />
-          </IconBtn>
-        )}
-
+      {/* Botões ação (Enviar ao Cliente e Enviar para Tripulante) */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {/* Enviar ao Cliente - Assinado → Enviado */}
         {report.status === 'Assinado' && (
-          <IconBtn title="Enviar ao Cliente para Pagamento" onClick={() => onSend(report, 'cliente')} hoverColor="#22d3ee" hoverBg="rgba(6,182,212,0.15)">
-            <Send size={14} />
-          </IconBtn>
+          <ActionButton
+            onClick={() => onSend(report, 'cliente')}
+            gradient="linear-gradient(to bottom, #4dc7d9 0%, #66a6ff 100%)"
+          >
+            <Send size={16} />
+            <span>Enviar ao Cliente</span>
+          </ActionButton>
         )}
 
+        {/* Enviar para Tripulante - Finalizado → Ag. Conferência */}
+        {report.status === 'Finalizado' && (
+          <ActionButton
+            onClick={() => onSend(report, 'conferencia')}
+            gradient="linear-gradient(to bottom, #fb923c 0%, #fb6b1e 100%)"
+          >
+            <Clock size={16} />
+            <span>Enviar Tripulante</span>
+          </ActionButton>
+        )}
+
+        {/* Editar - apenas Rascunho */}
         {report.status === 'Rascunho' && (
-          <IconBtn title="Editar" onClick={() => onEdit(report.id!)} hoverColor="#818cf8" hoverBg="rgba(99,102,241,0.15)">
-            <Edit size={14} />
-          </IconBtn>
+          <ActionButton
+            onClick={() => onEdit(report.id!)}
+            gradient="linear-gradient(to bottom, #818cf8 0%, #6366f1 100%)"
+          >
+            <Edit size={16} />
+            <span>Editar</span>
+          </ActionButton>
         )}
-
-        <IconBtn title="Visualizar PDF" onClick={() => onView(report.id!)} hoverColor="#818cf8" hoverBg="rgba(99,102,241,0.15)">
-          <Eye size={14} />
-        </IconBtn>
-
-        <DeleteButton onClick={() => onDelete(report.id)} />
       </div>
     </div>
   );
