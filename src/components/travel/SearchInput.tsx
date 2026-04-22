@@ -40,12 +40,14 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           width: 40px;
           height: 40px;
           border-radius: 10px;
-          border: none;
+          border: 1px solid rgba(88, 118, 146, 1);
           outline: none;
-          padding: 18px 16px;
+          padding: 0px 23px;
+          margin: 1px -8px;
           background-color: #3b82f680;
           cursor: pointer;
           transition: all .5s ease-in-out;
+          box-shadow: 1px 1px 9px 3px rgba(10, 30, 68, 1);
         }
 
         .search-input::placeholder {
