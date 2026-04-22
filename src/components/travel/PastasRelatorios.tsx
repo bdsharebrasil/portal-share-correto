@@ -167,38 +167,42 @@ function StatusBadge({ status }: { status: PastaReportItem['status'] }) {
 }
 
 // ─── Action Button (com estilo moderno) ────────────────────────────────────────
-function ActionButton({ children, onClick, gradient }: { children: React.ReactNode; onClick: () => void; gradient: string }) {
+function ActionButton({ children, onClick, gradient, title }: { children: React.ReactNode; onClick: () => void; gradient: string; title?: string }) {
   const [isActive, setIsActive] = useState(false);
   return (
     <button
       onClick={onClick}
+      title={title}
       onMouseDown={() => setIsActive(true)}
       onMouseUp={() => setIsActive(false)}
       onMouseLeave={() => setIsActive(false)}
       style={{
         fontFamily: 'inherit',
-        fontSize: '14px',
+        fontSize: '15px',
+        fontWeight: 500,
         background: gradient,
         color: 'white',
-        padding: '0.6em 1em',
+        padding: '10px 18px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         border: 'none',
-        borderRadius: '25px',
-        boxShadow: '0px 5px 10px rgba(0, 0, 0, 0.2)',
-        transition: 'all 0.3s',
+        borderRadius: '28px',
+        boxShadow: isActive ? '0px 2px 8px rgba(0, 0, 0, 0.15)' : '0px 5px 15px rgba(0, 0, 0, 0.2)',
+        transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
         cursor: 'pointer',
-        transform: isActive ? 'scale(0.95)' : 'translateY(0)',
-        gap: '0.5em',
+        transform: isActive ? 'scale(0.96)' : 'translateY(0px)',
+        gap: '8px',
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-3px)';
-        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0px 8px 15px rgba(0, 0, 0, 0.3)';
+        if (!isActive) {
+          (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = '0px 8px 20px rgba(0, 0, 0, 0.25)';
+        }
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0px 5px 10px rgba(0, 0, 0, 0.2)';
+        (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0px)';
+        (e.currentTarget as HTMLButtonElement).style.boxShadow = '0px 5px 15px rgba(0, 0, 0, 0.2)';
       }}
     >
       {children}
@@ -288,37 +292,40 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: Past
       </div>
 
       {/* Botões ação (Enviar ao Cliente e Enviar para Tripulante) */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {/* Enviar ao Cliente - Assinado → Enviado */}
-        {report.status === 'Assinado' && (
-          <ActionButton
-            onClick={() => onSend(report, 'cliente')}
-            gradient="linear-gradient(to bottom, #4dc7d9 0%, #66a6ff 100%)"
-          >
-            <Send size={16} />
-            <span>Enviar ao Cliente</span>
-          </ActionButton>
-        )}
-
-        {/* Enviar para Tripulante - Finalizado → Ag. Conferência */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+        {/* Enviar para Tripulante - Finalizado → Ag. Conferência (Laranja) */}
         {report.status === 'Finalizado' && (
           <ActionButton
             onClick={() => onSend(report, 'conferencia')}
-            gradient="linear-gradient(to bottom, #fb923c 0%, #fb6b1e 100%)"
+            gradient="linear-gradient(135deg, #ff9a56 0%, #ff7f2f 100%)"
+            title="Gera link para tripulante assinar"
           >
-            <Clock size={16} />
-            <span>Enviar Tripulante</span>
+            <Send size={16} style={{ strokeWidth: 2.5 }} />
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>Enviar Tripulante</span>
           </ActionButton>
         )}
 
-        {/* Editar - apenas Rascunho */}
+        {/* Enviar ao Cliente - Assinado → Enviado (Azul) */}
+        {report.status === 'Assinado' && (
+          <ActionButton
+            onClick={() => onSend(report, 'cliente')}
+            gradient="linear-gradient(135deg, #4dc7d9 0%, #47a3c0 100%)"
+            title="Envia relatório para o cliente"
+          >
+            <Send size={16} style={{ strokeWidth: 2.5 }} />
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>Enviar Cliente</span>
+          </ActionButton>
+        )}
+
+        {/* Editar - apenas Rascunho (Roxo) */}
         {report.status === 'Rascunho' && (
           <ActionButton
             onClick={() => onEdit(report.id!)}
-            gradient="linear-gradient(to bottom, #818cf8 0%, #6366f1 100%)"
+            gradient="linear-gradient(135deg, #9f7aea 0%, #805ad5 100%)"
+            title="Editar relatório"
           >
-            <Edit size={16} />
-            <span>Editar</span>
+            <Edit size={16} style={{ strokeWidth: 2.5 }} />
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>Editar</span>
           </ActionButton>
         )}
       </div>
