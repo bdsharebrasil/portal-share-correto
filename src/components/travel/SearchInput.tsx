@@ -71,7 +71,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           background-color: #677689ba;
           border-radius: 10px;
           z-index: -1;
-          fill: rgba(26, 66, 92, 0.79);
+  fill: rgb(98, 0, 255);
           border: 1px solid #150331ff;
           padding: 9px;
         }
