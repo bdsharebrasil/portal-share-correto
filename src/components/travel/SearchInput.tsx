@@ -43,7 +43,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           border: none;
           outline: none;
           padding: 18px 16px;
-          background-color: #1e1b7e75;
+          background-color: #3b82f680;
           cursor: pointer;
           transition: all .5s ease-in-out;
         }
