@@ -64,16 +64,15 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
 
         .icon {
           position: absolute;
-          left: 0;
-          top: 0;
-          height: 40px;
-          width: 40px;
-          background-color: #677689ba;
-          border-radius: 10px;
-          z-index: -1;
+  left: 0;
+  top: 0;
+  height: 40px;
+  width: 40px;
+  background-color: #fff;
+  border-radius: 10px;
+  z-index: -1;
   fill: rgb(98, 0, 255);
   border: 1px solid rgb(98, 0, 255);
-          padding: 9px;
         }
 
         .search-input:hover + .icon {
