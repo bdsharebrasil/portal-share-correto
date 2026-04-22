@@ -305,17 +305,15 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: Past
           </ActionButton>
         )}
 
-        {/* Enviar ao Cliente - Assinado → Enviado (Azul) */}
-        {report.status === 'Assinado' && (
-          <ActionButton
-            onClick={() => onSend(report, 'cliente')}
-            gradient="linear-gradient(135deg, #4dc7d9 0%, #47a3c0 100%)"
-            title="Envia relatório para o cliente"
-          >
-            <Send size={16} style={{ strokeWidth: 2.5 }} />
-            <span style={{ fontSize: '14px', fontWeight: 600 }}>Enviar Cliente</span>
-          </ActionButton>
-        )}
+        {/* Enviar ao Cliente - sempre disponível (Azul) */}
+        <ActionButton
+          onClick={() => onSend(report, 'cliente')}
+          gradient="linear-gradient(135deg, #4dc7d9 0%, #47a3c0 100%)"
+          title="Envia relatório para o cliente"
+        >
+          <Send size={16} style={{ strokeWidth: 2.5 }} />
+          <span style={{ fontSize: '14px', fontWeight: 600 }}>Enviar Cliente</span>
+        </ActionButton>
 
         {/* Editar - apenas Rascunho (Roxo) */}
         {report.status === 'Rascunho' && (
