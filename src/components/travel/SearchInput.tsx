@@ -46,6 +46,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           background-color: #fff;
           cursor: pointer;
           transition: all .5s ease-in-out;
+          color: rgba(11, 27, 44, 1);
         }
 
         .search-input::placeholder {
