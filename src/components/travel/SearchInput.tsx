@@ -1,5 +1,4 @@
-import React from 'react'; // ✅ Fix 1: removido useState não utilizado
-
+import React from 'react'; 
 interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -8,7 +7,6 @@ interface SearchInputProps {
 
 export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: SearchInputProps) {
   return (
-    // ✅ Fix 2: classe corrigida de "search-container" para "search-input-container"
     <div className="search-input-container">
       {/* ✅ Fix 4: input vem ANTES do ícone para o seletor CSS adjacente (+) funcionar */}
       <input
@@ -19,8 +17,6 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
         onChange={(e) => onChange(e.target.value)}
       />
 
-      {/* ✅ Fix 3: adicionado className="icon" no SVG */}
-      {/* ✅ Fix 4: SVG vem DEPOIS do input */}
       <svg
         className="icon"
         xmlns="http://www.w3.org/2000/svg"
@@ -56,7 +52,6 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           color: transparent;
         }
 
-        /* ✅ Fix 5: trocado ".input" por ".search-input" */
         .search-input:focus,
         .search-input:not(:placeholder-shown) {
           background-color: #fff;
@@ -85,7 +80,6 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           transition: .2s ease-in-out;
         }
 
-        /* ✅ Fix 5: trocado ".input" por ".search-input" */
         .search-input:focus + .icon,
         .search-input:not(:placeholder-shown) + .icon {
           z-index: 0;
