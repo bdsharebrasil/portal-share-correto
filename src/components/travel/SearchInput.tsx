@@ -30,47 +30,64 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
       />
 
       <style>{`
-        .search-container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 12px 20px;
-          overflow: hidden;
-          width: 60px;
-          height: 60px;
-          background: hsl(var(--primary));
-          box-shadow: 2px 2px 20px rgba(0, 0, 0, 0.08);
-          border-radius: 9999px;
-          transition: width 0.3s ease;
-          gap: 12px;
-          flex-shrink: 0;
-        }
+        .search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 
-        .search-container:hover {
-          width: 270px;
-          transition-duration: 0.3s;
-        }
+.search-input {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  padding: 18px 16px;
+  background-color: transparent;
+  cursor: pointer;
+  transition: all .5s ease-in-out;
+}
 
-        .search-input {
-          outline: none;
-          font-size: 16px;
-          background: transparent;
-          width: 100%;
-          color: white;
-          font-weight: 500;
-          border: none;
-          font-family: inherit;
-        }
 
         .search-input::placeholder {
-          color: rgba(255, 255, 255, 0.7);
-        }
+  color: transparent;
+}
 
-        .search-input::-webkit-outer-spin-button,
-        .search-input::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-        }
+
+        .search-input:focus,.input:not(:placeholder-shown) {
+  background-color: #fff;
+  border: 1px solid rgb(98, 0, 255);
+  width: 290px;
+  cursor: none;
+  padding: 18px 16px 18px 40px;
+}
+
+.icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 40px;
+  width: 40px;
+  background-color: #fff;
+  border-radius: 10px;
+  z-index: -1;
+  fill: rgb(98, 0, 255);
+  border: 1px solid rgb(98, 0, 255);
+}
+
+
+        .search-input:hover + .icon {
+  transform: rotate(360deg);
+  transition: .2s ease-in-out;
+}
+
+
+        .search-input:focus + .icon,.input:not(:placeholder-shown) + .icon {
+  z-index: 0;
+  background-color: transparent;
+  border: none;
+}
+
       `}</style>
     </div>
   );
