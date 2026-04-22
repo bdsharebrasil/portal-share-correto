@@ -8,14 +8,7 @@ interface SearchInputProps {
 export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: SearchInputProps) {
   return (
     <div className="search-input-container">
-    <svg
-        className="icon"
-        xmlns="http://www.w3.org/2000/svg"
-        id="Isolation_Mode"
-        data-name="Isolation Mode"
-        viewBox="0 0 24 24"
-        width="22"
-        height="22"
+    
       {/* ✅ Fix 4: input vem ANTES do ícone para o seletor CSS adjacente (+) funcionar */}
       <input
         type="text"
