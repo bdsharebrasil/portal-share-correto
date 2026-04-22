@@ -175,7 +175,6 @@ function ActionButton({ children, onClick, gradient, title }: { children: React.
       title={title}
       onMouseDown={() => setIsActive(true)}
       onMouseUp={() => setIsActive(false)}
-      onMouseLeave={() => setIsActive(false)}
       style={{
         fontFamily: 'inherit',
         fontSize: '15px',
@@ -201,6 +200,7 @@ function ActionButton({ children, onClick, gradient, title }: { children: React.
         }
       }}
       onMouseLeave={(e) => {
+        setIsActive(false);
         (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0px)';
         (e.currentTarget as HTMLButtonElement).style.boxShadow = '0px 5px 15px rgba(0, 0, 0, 0.2)';
       }}

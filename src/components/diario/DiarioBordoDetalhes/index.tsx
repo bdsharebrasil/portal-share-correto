@@ -1745,9 +1745,9 @@ function NovoVooInline({
         ocorrencias: obs || null, consumo_combustivel_voo: consumoCombustivelVoo || null,
         preco_combustivel_litro: precoCombustivel || null, local_combustivel: localCombustivel || null,
         tipo_combustivel: tipoCombustivel || null,
-        // FIX: usa 'crew_members' conforme constraint do banco
-        origem_pic: picId ? 'crew_members' : null,
-        origem_sic: sicId ? 'crew_members' : null,
+        // TODO: origem_pic e origem_sic deixados como null para evitar constraint de tabela inexistente (crew_members)
+        origem_pic: null,
+        origem_sic: null,
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
       if (ins.error) throw ins.error;
@@ -1923,9 +1923,11 @@ function EditarVooInline({
   const [picId, setPicId] = useState(lanc.pic_canac ?? "");
   const [sicId, setSicId] = useState(lanc.sic_canac ?? "");
   const [sicNome, setSicNome] = useState(lanc.sic_name ?? "");
-  const [clienteId, setClienteId] = useState(lanc.emprestimo ? (lanc.cliente_tomador_emprestimo_id ?? lanc.clientes_id ?? "") : (lanc.clientes_id ?? ""));
-  const [socioId, setSocioId] = useState(lanc.emprestimo ? (lanc.socio_tomador_emprestimo_id ?? lanc.socios_cliente_id ?? "") : (lanc.socios_cliente_id ?? ""));
+  const [clienteId, setClienteId] = useState(lanc.clientes_id ?? "");
+  const [socioId, setSocioId] = useState(lanc.socios_cliente_id ?? "");
   const [emprestimo, setEmprestimo] = useState(lanc.emprestimo ?? false);
+  const [clienteTomadorId, setClienteTomadorId] = useState(lanc.cliente_tomador_emprestimo_id ?? "");
+  const [socioTomadorId, setSocioTomadorId] = useState(lanc.socio_tomador_emprestimo_id ?? "");
   const [qtdDiarias, setQtdDiarias] = useState(Number(lanc.tarifa_diaria ?? 0));
   const [celula, setCelula] = useState(Number(lanc.celula ?? 0));
   const [celulaTvoo, setCelulaTvoo] = useState(Number(lanc.celula_tvoo ?? 0));
@@ -1959,10 +1961,11 @@ function EditarVooInline({
         pic_canac: picId || null, sic_canac: sicId || null, sic_name: sicNome || null,
         natureza_voo: natureza, tarifa_diaria: temDiaria ? String(qtdDiarias) : null,
         clientes_id: clienteId || null, socios_cliente_id: socioId || null, socios_nome: socioNome,
-        emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteId || null) : null,
-        socio_tomador_emprestimo_id: emprestimo ? (socioId || null) : null,
-        origem_pic: picId ? 'crew_members' : null,
-        origem_sic: sicId ? 'crew_members' : null,
+        emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
+        socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
+        // TODO: origem_pic e origem_sic deixados como null para evitar constraint de tabela inexistente (crew_members)
+        origem_pic: null,
+        origem_sic: null,
       } as never).eq("id", lanc.id);
       if (error) throw error;
       onSaved();
@@ -1989,10 +1992,10 @@ function EditarVooInline({
           <Field label="SIC">
             <SearchableCombobox items={tripOptions.map((t) => ({ id: t.id, label: `${t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}` }))} value={sicId} onChange={setSicId} placeholder="Selecionar SIC..." searchPlaceholder="Buscar..." />
           </Field>
-          <Field label="Cliente">
+          <Field label="Cliente (dono do voo)">
             <SearchableCombobox items={clientes.map((c) => ({ id: c.id, label: c.razao_social ?? c.proprietario ?? c.id.slice(0, 6) }))} value={clienteId} onChange={(v) => { setClienteId(v); setSocioId(""); }} placeholder="Selecionar..." searchPlaceholder="Buscar..." />
           </Field>
-          <Field label="Sócio">
+          <Field label="Sócio (dono do voo)">
             <SearchableCombobox items={sociosDoCliente.map((s) => ({ id: s.id, label: s.nome }))} value={socioId} onChange={setSocioId} placeholder="Selecionar..." searchPlaceholder="Buscar..." disabled={!clienteId || sociosDoCliente.length === 0} />
           </Field>
           <Field label="Emprestado?">
@@ -2001,6 +2004,29 @@ function EditarVooInline({
               <span className={emprestimo ? "font-semibold text-amber-400" : "text-slate-400"}>{emprestimo ? "Sim" : "Não"}</span>
             </label>
           </Field>
+          {emprestimo && (
+            <>
+              <Field label="Cliente Tomador">
+                <SearchableCombobox
+                  items={clientes.map((c) => ({ id: c.id, label: c.razao_social ?? c.proprietario ?? c.id.slice(0, 6) }))}
+                  value={clienteTomadorId}
+                  onChange={(v) => { setClienteTomadorId(v); setSocioTomadorId(""); }}
+                  placeholder="Selecionar..."
+                  searchPlaceholder="Buscar..."
+                />
+              </Field>
+              <Field label="Sócio Tomador">
+                <SearchableCombobox
+                  items={socios.filter(s => s.cliente_id === clienteTomadorId).map((s) => ({ id: s.id, label: s.nome }))}
+                  value={socioTomadorId}
+                  onChange={setSocioTomadorId}
+                  placeholder="Selecionar..."
+                  searchPlaceholder="Buscar..."
+                  disabled={!clienteTomadorId || socios.filter(s => s.cliente_id === clienteTomadorId).length === 0}
+                />
+              </Field>
+            </>
+          )}
         </Section>
         <Section title="Identificação">
           <Field label="Data">
