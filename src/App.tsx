@@ -60,9 +60,6 @@ import AeronaveDetalhes from "./pages/AeronaveDetalhes";
 import GestaoSalarios from "./pages/GestaoSalarios";
 import GerenciarUsuarios from "./pages/GerenciarUsuarios";
 import GestaoFuncionarios from "./pages/GestaoFuncionarios";
-import GestaoCTM from "./pages/GestaoCTM";
-import CTMDetailPage from "./pages/manutencao/CTMDetailPage";
-import OrcamentosCTM from "./pages/manutencao/OrcamentosCTM";
 import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
@@ -406,9 +403,6 @@ const App = () => {
                           <Route path="/manutencao/programacao" element={renderProtected(<ProgramacaoManutencao />)} />
                           <Route path="/manutencao/relatorios" element={renderProtected(<RelatoriosTecnicos />)} />
                           <Route path="/manutencao/mapa-componentes" element={renderProtected(<MapaComponentes />)} />
-                          <Route path="/manutencao/ctm" element={renderProtected(<GestaoCTM />)} />
-                          <Route path="/manutencao/ctm-detail" element={renderProtected(<CTMDetailPage />)} />
-                          <Route path="/manutencao/orcamentos" element={renderProtected(<OrcamentosCTM />)} />
                           <Route path="/manutencao/preventiva" element={renderProtected(<ManutencaoPreventiva />)} />
                           <Route path="/manutencao/aeronaves" element={renderProtected(<ManutencaoAeronave />)} />
                           <Route path="/ferias" element={renderProtected(<Ferias />)} />

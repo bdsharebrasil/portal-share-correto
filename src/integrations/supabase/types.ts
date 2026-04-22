@@ -139,13 +139,6 @@ export type Database = {
             foreignKeyName: "abastecimentos_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "abastecimentos_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -182,13 +175,6 @@ export type Database = {
             columns: ["id_clientes"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "abastecimentos_id_clientes_fkey"
-            columns: ["id_clientes"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -366,6 +352,7 @@ export type Database = {
           id: string
           matricula: string
           modelo: string
+          modo_celula: string | null
           nome_proprietario: string
           numero_serie: string
           preco_hora: string | null
@@ -383,6 +370,7 @@ export type Database = {
           id?: string
           matricula: string
           modelo: string
+          modo_celula?: string | null
           nome_proprietario: string
           numero_serie: string
           preco_hora?: string | null
@@ -400,6 +388,7 @@ export type Database = {
           id?: string
           matricula?: string
           modelo?: string
+          modo_celula?: string | null
           nome_proprietario?: string
           numero_serie?: string
           preco_hora?: string | null
@@ -469,135 +458,6 @@ export type Database = {
         }
         Relationships: []
       }
-      aircraft_partners: {
-        Row: {
-          aircraft_id: string
-          balance_hours: number | null
-          created_at: string | null
-          id: string
-          partner_id: string
-          quota_hours: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          aircraft_id: string
-          balance_hours?: number | null
-          created_at?: string | null
-          id?: string
-          partner_id: string
-          quota_hours?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          aircraft_id?: string
-          balance_hours?: number | null
-          created_at?: string | null
-          id?: string
-          partner_id?: string
-          quota_hours?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "aircraft_partners_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-        ]
-      }
       aircraft_shareholders: {
         Row: {
           aircraft_id: string
@@ -632,13 +492,6 @@ export type Database = {
             foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -675,13 +528,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -773,13 +619,6 @@ export type Database = {
             foreignKeyName: "oil_analysis_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "oil_analysis_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -810,13 +649,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "oil_analysis_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -929,13 +761,6 @@ export type Database = {
             foreignKeyName: "client_portal_files_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_portal_files_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -972,13 +797,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_portal_files_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -1331,13 +1149,6 @@ export type Database = {
             foreignKeyName: "flight_cycles_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -1380,13 +1191,6 @@ export type Database = {
             foreignKeyName: "flight_cycles_client_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -1417,13 +1221,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_partner_fkey"
-            columns: ["socio_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "flight_cycles_partner_fkey"
@@ -1507,13 +1304,6 @@ export type Database = {
             columns: ["aeronave"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aeronave"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -1761,13 +1551,6 @@ export type Database = {
             foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -1810,13 +1593,6 @@ export type Database = {
             foreignKeyName: "bank_reconciliations_client_partner_fkey"
             columns: ["socio_cliente_id"]
             isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_client_partner_fkey"
-            columns: ["socio_cliente_id"]
-            isOneToOne: false
             referencedRelation: "socios_cliente"
             referencedColumns: ["id"]
           },
@@ -1853,13 +1629,6 @@ export type Database = {
             columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -1927,13 +1696,6 @@ export type Database = {
             columns: ["aeronave_id"]
             isOneToOne: true
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "scheduling_aircraft_config_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -2019,13 +1781,6 @@ export type Database = {
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_maintenance_config_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -2237,13 +1992,6 @@ export type Database = {
             foreignKeyName: "contas_apagar_aeronave_registro_fkey"
             columns: ["aeronave_registro"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["registration"]
-          },
-          {
-            foreignKeyName: "contas_apagar_aeronave_registro_fkey"
-            columns: ["aeronave_registro"]
-            isOneToOne: false
             referencedRelation: "ciclos_voo_ativos"
             referencedColumns: ["registration"]
           },
@@ -2260,13 +2008,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "historico_voo_tripulante"
             referencedColumns: ["matricula_aeronave"]
-          },
-          {
-            foreignKeyName: "contas_apagar_aeronave_registro_fkey"
-            columns: ["aeronave_registro"]
-            isOneToOne: false
-            referencedRelation: "pending_booking_requests"
-            referencedColumns: ["aircraft_registration"]
           },
           {
             foreignKeyName: "contas_apagar_aeronave_registro_fkey"
@@ -2356,13 +2097,6 @@ export type Database = {
             foreignKeyName: "contas_apagar_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contas_apagar_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -2406,13 +2140,6 @@ export type Database = {
             columns: ["fornecedor_favorito_id"]
             isOneToOne: false
             referencedRelation: "fornecedores_favoritos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contas_apagar_socios_cliente_id_fkey"
-            columns: ["socios_cliente_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
             referencedColumns: ["id"]
           },
           {
@@ -2524,13 +2251,6 @@ export type Database = {
             foreignKeyName: "contas_areceber_aeronave_fkey"
             columns: ["aeronave"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["registration"]
-          },
-          {
-            foreignKeyName: "contas_areceber_aeronave_fkey"
-            columns: ["aeronave"]
-            isOneToOne: false
             referencedRelation: "ciclos_voo_ativos"
             referencedColumns: ["registration"]
           },
@@ -2547,13 +2267,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "historico_voo_tripulante"
             referencedColumns: ["matricula_aeronave"]
-          },
-          {
-            foreignKeyName: "contas_areceber_aeronave_fkey"
-            columns: ["aeronave"]
-            isOneToOne: false
-            referencedRelation: "pending_booking_requests"
-            referencedColumns: ["aircraft_registration"]
           },
           {
             foreignKeyName: "contas_areceber_aeronave_fkey"
@@ -2787,13 +2500,6 @@ export type Database = {
             foreignKeyName: "client_contracts_client_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_contracts_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -2975,13 +2681,6 @@ export type Database = {
             foreignKeyName: "controle_bancario_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -3025,13 +2724,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -3136,13 +2828,6 @@ export type Database = {
             foreignKeyName: "controle_bancario_socios_cliente_id_fkey"
             columns: ["socios_cliente_id"]
             isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_socios_cliente_id_fkey"
-            columns: ["socios_cliente_id"]
-            isOneToOne: false
             referencedRelation: "socios_cliente"
             referencedColumns: ["id"]
           },
@@ -3204,13 +2889,6 @@ export type Database = {
             foreignKeyName: "client_aircraft_aircraft_id_fkey"
             columns: ["id_aeronave"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["id_aeronave"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -3253,13 +2931,6 @@ export type Database = {
             foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
             columns: ["id_clientes"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["id_clientes"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -3295,102 +2966,7 @@ export type Database = {
             foreignKeyName: "cotistas_aeronave_socios_id_fkey"
             columns: ["socios_id"]
             isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_socios_id_fkey"
-            columns: ["socios_id"]
-            isOneToOne: false
             referencedRelation: "socios_cliente"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_anexos_orcamento: {
-        Row: {
-          arquivo_nome: string
-          arquivo_path: string
-          criado_em: string | null
-          criado_por: string | null
-          id: string
-          servico_id: string
-          tamanho_bytes: number | null
-          tipo: string | null
-        }
-        Insert: {
-          arquivo_nome: string
-          arquivo_path: string
-          criado_em?: string | null
-          criado_por?: string | null
-          id?: string
-          servico_id: string
-          tamanho_bytes?: number | null
-          tipo?: string | null
-        }
-        Update: {
-          arquivo_nome?: string
-          arquivo_path?: string
-          criado_em?: string | null
-          criado_por?: string | null
-          id?: string
-          servico_id?: string
-          tamanho_bytes?: number | null
-          tipo?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ctm_service_attachments_service_id_fkey"
-            columns: ["servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_servicos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_aprovacoes_ordem_servico: {
-        Row: {
-          atualizado_em: string | null
-          criado_em: string | null
-          id: string
-          motivo_rejeicao: string | null
-          ordem_servico_id: string
-          revisado_em: string | null
-          revisado_por: string | null
-          status: string
-          submetido_em: string
-          submetido_por: string
-        }
-        Insert: {
-          atualizado_em?: string | null
-          criado_em?: string | null
-          id?: string
-          motivo_rejeicao?: string | null
-          ordem_servico_id: string
-          revisado_em?: string | null
-          revisado_por?: string | null
-          status?: string
-          submetido_em?: string
-          submetido_por: string
-        }
-        Update: {
-          atualizado_em?: string | null
-          criado_em?: string | null
-          id?: string
-          motivo_rejeicao?: string | null
-          ordem_servico_id?: string
-          revisado_em?: string | null
-          revisado_por?: string | null
-          status?: string
-          submetido_em?: string
-          submetido_por?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ctm_service_order_approvals_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
             referencedColumns: ["id"]
           },
         ]
@@ -3431,134 +3007,109 @@ export type Database = {
         }
         Relationships: []
       }
-      ctm_detalhes_relatorio_voo: {
+      ctm_diretrizes: {
         Row: {
-          cliente_id: string
-          criado_em: string | null
-          horas_voadas: number | null
+          aeronave_id: string
+          aplicabilidade: string | null
+          compliance_date: string | null
+          compliance_hours: number | null
+          compliance_method: string | null
+          created_at: string | null
+          data_vencimento: string | null
+          descricao: string | null
+          devido_horas: number | null
+          due_cycles: number | null
           id: string
-          relatorio_voo_id: string
+          numero: string
+          observations: string | null
+          responsible: string | null
+          status: string | null
+          tipo: string
+          titulo: string
+          updated_at: string | null
         }
         Insert: {
-          cliente_id: string
-          criado_em?: string | null
-          horas_voadas?: number | null
+          aeronave_id: string
+          aplicabilidade?: string | null
+          compliance_date?: string | null
+          compliance_hours?: number | null
+          compliance_method?: string | null
+          created_at?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          devido_horas?: number | null
+          due_cycles?: number | null
           id?: string
-          relatorio_voo_id: string
+          numero: string
+          observations?: string | null
+          responsible?: string | null
+          status?: string | null
+          tipo: string
+          titulo: string
+          updated_at?: string | null
         }
         Update: {
-          cliente_id?: string
-          criado_em?: string | null
-          horas_voadas?: number | null
+          aeronave_id?: string
+          aplicabilidade?: string | null
+          compliance_date?: string | null
+          compliance_hours?: number | null
+          compliance_method?: string | null
+          created_at?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          devido_horas?: number | null
+          due_cycles?: number | null
           id?: string
-          relatorio_voo_id?: string
+          numero?: string
+          observations?: string | null
+          responsible?: string | null
+          status?: string | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "ctm_diretrizes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "clientes"
+            referencedRelation: "aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "ctm_diretrizes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "clients"
+            referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "ctm_diretrizes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "ctm_diretrizes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "ctm_diretrizes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_diretrizes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_flight_report_details_flight_report_id_fkey"
-            columns: ["relatorio_voo_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_relatorios_voo"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_documentos_oas: {
-        Row: {
-          atualizado_em: string | null
-          caminho_arquivo: string
-          criado_em: string | null
-          criado_por: string | null
-          descricao: string | null
-          id: string
-          nome_arquivo: string
-          ordem_servico_id: string
-          tamanho_arquivo: number | null
-          tipo_arquivo: string | null
-          tipo_documento: string | null
-        }
-        Insert: {
-          atualizado_em?: string | null
-          caminho_arquivo: string
-          criado_em?: string | null
-          criado_por?: string | null
-          descricao?: string | null
-          id?: string
-          nome_arquivo: string
-          ordem_servico_id: string
-          tamanho_arquivo?: number | null
-          tipo_arquivo?: string | null
-          tipo_documento?: string | null
-        }
-        Update: {
-          atualizado_em?: string | null
-          caminho_arquivo?: string
-          criado_em?: string | null
-          criado_por?: string | null
-          descricao?: string | null
-          id?: string
-          nome_arquivo?: string
-          ordem_servico_id?: string
-          tamanho_arquivo?: number | null
-          tipo_arquivo?: string | null
-          tipo_documento?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ctm_oas_documents_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
+            referencedColumns: ["aeronave_id"]
           },
         ]
       }
@@ -3632,13 +3183,6 @@ export type Database = {
             foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_itens_nao_controlados_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -3672,364 +3216,176 @@ export type Database = {
           },
         ]
       }
-      ctm_itens_orcamento: {
+      ctm_itens_peso_balanceamento: {
         Row: {
           atualizado_em: string | null
+          braço_posicao: number
+          categoria: string | null
           criado_em: string | null
           descricao: string
           id: string
-          modelo: string | null
-          numero_serie: string | null
-          ordenacao: number
-          quantidade: number
-          servico_id: string
-          subtotal: number | null
-          valor_unitario: number
+          incluir_no_calculo: boolean | null
+          momento: number
+          observacao: string | null
+          peso_balanceamento_id: string
+          peso_sem_combustivel: number
         }
         Insert: {
           atualizado_em?: string | null
+          braço_posicao: number
+          categoria?: string | null
           criado_em?: string | null
           descricao: string
           id?: string
-          modelo?: string | null
-          numero_serie?: string | null
-          ordenacao: number
-          quantidade?: number
-          servico_id: string
-          subtotal?: number | null
-          valor_unitario?: number
+          incluir_no_calculo?: boolean | null
+          momento: number
+          observacao?: string | null
+          peso_balanceamento_id: string
+          peso_sem_combustivel: number
         }
         Update: {
           atualizado_em?: string | null
+          braço_posicao?: number
+          categoria?: string | null
           criado_em?: string | null
           descricao?: string
           id?: string
-          modelo?: string | null
-          numero_serie?: string | null
-          ordenacao?: number
-          quantidade?: number
-          servico_id?: string
-          subtotal?: number | null
-          valor_unitario?: number
+          incluir_no_calculo?: boolean | null
+          momento?: number
+          observacao?: string | null
+          peso_balanceamento_id?: string
+          peso_sem_combustivel?: number
         }
         Relationships: [
           {
-            foreignKeyName: "ctm_itens_servico_servico_id_fkey"
-            columns: ["servico_id"]
+            foreignKeyName: "weight_balance_items_weight_balance_id_fkey"
+            columns: ["peso_balanceamento_id"]
             isOneToOne: false
-            referencedRelation: "ctm_orcamentos"
+            referencedRelation: "ctm_peso_balanceamento"
             referencedColumns: ["id"]
           },
         ]
       }
-      ctm_orcamentos: {
-        Row: {
-          aeronave_id: string
-          ano: number
-          aprovado_em: string | null
-          aprovado_por: string | null
-          atualizado_em: string | null
-          caminho_arquivo_oas: string | null
-          caminho_arquivo_orcamento: string | null
-          caminho_arquivo_pdf: string | null
-          caminho_arquivo_relatorio: string | null
-          cliente_id: string | null
-          criado_em: string | null
-          criado_por: string | null
-          descricao: string | null
-          detalhes_orcamento: Json | null
-          id: string
-          itens_orcamento: Json | null
-          itens_servico_id: string | null
-          mes: number
-          motivo_rejeicao: string | null
-          nome_aprovador: string | null
-          nome_arquivo_oas: string | null
-          nome_arquivo_orcamento: string | null
-          nome_arquivo_pdf: string | null
-          nome_arquivo_relatorio: string | null
-          nome_fornecedor: string | null
-          notas: string | null
-          numero_orcamento: number | null
-          referencia_financeira_id: string | null
-          socio_cliente_id: string | null
-          status: string | null
-          status_aprovacao: string | null
-          status_pagamento: string | null
-          submetido_em: string | null
-          tabela_referencia_financeira: string | null
-          tipo_fornecedor: string | null
-          tipo_pagamento: string | null
-          valor_total: number | null
-        }
-        Insert: {
-          aeronave_id: string
-          ano: number
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          atualizado_em?: string | null
-          caminho_arquivo_oas?: string | null
-          caminho_arquivo_orcamento?: string | null
-          caminho_arquivo_pdf?: string | null
-          caminho_arquivo_relatorio?: string | null
-          cliente_id?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          descricao?: string | null
-          detalhes_orcamento?: Json | null
-          id?: string
-          itens_orcamento?: Json | null
-          itens_servico_id?: string | null
-          mes: number
-          motivo_rejeicao?: string | null
-          nome_aprovador?: string | null
-          nome_arquivo_oas?: string | null
-          nome_arquivo_orcamento?: string | null
-          nome_arquivo_pdf?: string | null
-          nome_arquivo_relatorio?: string | null
-          nome_fornecedor?: string | null
-          notas?: string | null
-          numero_orcamento?: number | null
-          referencia_financeira_id?: string | null
-          socio_cliente_id?: string | null
-          status?: string | null
-          status_aprovacao?: string | null
-          status_pagamento?: string | null
-          submetido_em?: string | null
-          tabela_referencia_financeira?: string | null
-          tipo_fornecedor?: string | null
-          tipo_pagamento?: string | null
-          valor_total?: number | null
-        }
-        Update: {
-          aeronave_id?: string
-          ano?: number
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          atualizado_em?: string | null
-          caminho_arquivo_oas?: string | null
-          caminho_arquivo_orcamento?: string | null
-          caminho_arquivo_pdf?: string | null
-          caminho_arquivo_relatorio?: string | null
-          cliente_id?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          descricao?: string | null
-          detalhes_orcamento?: Json | null
-          id?: string
-          itens_orcamento?: Json | null
-          itens_servico_id?: string | null
-          mes?: number
-          motivo_rejeicao?: string | null
-          nome_aprovador?: string | null
-          nome_arquivo_oas?: string | null
-          nome_arquivo_orcamento?: string | null
-          nome_arquivo_pdf?: string | null
-          nome_arquivo_relatorio?: string | null
-          nome_fornecedor?: string | null
-          notas?: string | null
-          numero_orcamento?: number | null
-          referencia_financeira_id?: string | null
-          socio_cliente_id?: string | null
-          status?: string | null
-          status_aprovacao?: string | null
-          status_pagamento?: string | null
-          submetido_em?: string | null
-          tabela_referencia_financeira?: string | null
-          tipo_fornecedor?: string | null
-          tipo_pagamento?: string | null
-          valor_total?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_service_order_id_fkey"
-            columns: ["itens_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_ordem_acompanhamento_servico: {
+      ctm_mapa_componente: {
         Row: {
           aeronave_id: string
           atualizado_em: string | null
+          categoria: string | null
+          ciclos_de_vida_atuais: number | null
+          ciclos_de_vida_totais: number | null
+          ciclos_instalados: number | null
           criado_em: string | null
-          criado_por: string | null
-          data_entrada: string | null
-          data_saida: string | null
-          dias_efetivos: number | null
-          dias_previstos: number | null
-          horas_celula: number | null
+          csn: number | null
+          cso: number | null
+          data_de_vencimento: string | null
+          data_instalada: string
+          fabricante: string | null
+          horas_de_vida_atuais: number | null
+          horas_instaladas: number | null
           id: string
-          mecanico_responsavel: string | null
-          numero: string
-          objetivo: string | null
+          localizacao: string | null
+          nome: string
+          numero_da_peça: string
+          numero_de_serie: string
           observacoes: string | null
-          oficina: string | null
-          periodo: string | null
-          porcentagem_rateio: string | null
+          porcentagem_restante: number | null
+          remaining_hours: number | null
           status: string | null
-          tipo_rateio: string | null
-          total_individual_cotista: string | null
-          total_valor_os: number | null
-          total_valor_os_mo: number | null
-          total_valor_os_pecas: number | null
-          total_voado_porcentagem: string | null
+          total_horas_de_vida: number | null
+          tso: number | null
         }
         Insert: {
           aeronave_id: string
           atualizado_em?: string | null
+          categoria?: string | null
+          ciclos_de_vida_atuais?: number | null
+          ciclos_de_vida_totais?: number | null
+          ciclos_instalados?: number | null
           criado_em?: string | null
-          criado_por?: string | null
-          data_entrada?: string | null
-          data_saida?: string | null
-          dias_efetivos?: number | null
-          dias_previstos?: number | null
-          horas_celula?: number | null
+          csn?: number | null
+          cso?: number | null
+          data_de_vencimento?: string | null
+          data_instalada: string
+          fabricante?: string | null
+          horas_de_vida_atuais?: number | null
+          horas_instaladas?: number | null
           id?: string
-          mecanico_responsavel?: string | null
-          numero: string
-          objetivo?: string | null
+          localizacao?: string | null
+          nome: string
+          numero_da_peça: string
+          numero_de_serie: string
           observacoes?: string | null
-          oficina?: string | null
-          periodo?: string | null
-          porcentagem_rateio?: string | null
+          porcentagem_restante?: number | null
+          remaining_hours?: number | null
           status?: string | null
-          tipo_rateio?: string | null
-          total_individual_cotista?: string | null
-          total_valor_os?: number | null
-          total_valor_os_mo?: number | null
-          total_valor_os_pecas?: number | null
-          total_voado_porcentagem?: string | null
+          total_horas_de_vida?: number | null
+          tso?: number | null
         }
         Update: {
           aeronave_id?: string
           atualizado_em?: string | null
+          categoria?: string | null
+          ciclos_de_vida_atuais?: number | null
+          ciclos_de_vida_totais?: number | null
+          ciclos_instalados?: number | null
           criado_em?: string | null
-          criado_por?: string | null
-          data_entrada?: string | null
-          data_saida?: string | null
-          dias_efetivos?: number | null
-          dias_previstos?: number | null
-          horas_celula?: number | null
+          csn?: number | null
+          cso?: number | null
+          data_de_vencimento?: string | null
+          data_instalada?: string
+          fabricante?: string | null
+          horas_de_vida_atuais?: number | null
+          horas_instaladas?: number | null
           id?: string
-          mecanico_responsavel?: string | null
-          numero?: string
-          objetivo?: string | null
+          localizacao?: string | null
+          nome?: string
+          numero_da_peça?: string
+          numero_de_serie?: string
           observacoes?: string | null
-          oficina?: string | null
-          periodo?: string | null
-          porcentagem_rateio?: string | null
+          porcentagem_restante?: number | null
+          remaining_hours?: number | null
           status?: string | null
-          tipo_rateio?: string | null
-          total_individual_cotista?: string | null
-          total_valor_os?: number | null
-          total_valor_os_mo?: number | null
-          total_valor_os_pecas?: number | null
-          total_voado_porcentagem?: string | null
+          total_horas_de_vida?: number | null
+          tso?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "ctm_ordem_acompanhamento_servico_oficina_fkey"
-            columns: ["oficina"]
-            isOneToOne: false
-            referencedRelation: "oficinas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
+            foreignKeyName: "components_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
+            foreignKeyName: "components_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
+            foreignKeyName: "components_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
+            foreignKeyName: "components_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave_simples"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
+            foreignKeyName: "components_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_despesas_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "ctm_service_orders_aircraft_id_fkey"
+            foreignKeyName: "components_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
@@ -4037,70 +3393,366 @@ export type Database = {
           },
         ]
       }
-      ctm_pecas: {
+      ctm_pecas_trocadas: {
         Row: {
           criado_em: string | null
-          dados_pagamento: string | null
-          data_compra: string | null
           descricao: string
           fornecedor: string | null
-          garantia_meses: number | null
           id: string
-          modelo: string | null
-          modo_pagamento: string | null
-          nota_fiscal: string | null
-          numero_peca: string | null
-          numero_serie: string | null
           observacoes: string | null
           ordem_servico_id: string
+          p_n_instalado: string | null
+          p_n_removido: string | null
+          quantidade: number
+          s_n_instalado: string | null
+          s_n_removido: string | null
+        }
+        Insert: {
+          criado_em?: string | null
+          descricao: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          ordem_servico_id: string
+          p_n_instalado?: string | null
+          p_n_removido?: string | null
+          quantidade?: number
+          s_n_instalado?: string | null
+          s_n_removido?: string | null
+        }
+        Update: {
+          criado_em?: string | null
+          descricao?: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          ordem_servico_id?: string
+          p_n_instalado?: string | null
+          p_n_removido?: string | null
+          quantidade?: number
+          s_n_instalado?: string | null
+          s_n_removido?: string | null
+        }
+        Relationships: []
+      }
+      ctm_peso_balanceamento: {
+        Row: {
+          aeronave_id: string
+          atualizado_em: string | null
+          braco_cg_padrao: number
+          capacidade_combustivel_total: number | null
+          capacidade_combustivel_util: number | null
+          cg_limite_dianteiro: number
+          cg_limite_traseiro: number
+          criado_em: string | null
+          criado_por: string | null
+          id: string
+          lemac_distancia: number
+          mac_comprimento: number
+          momento_padrao: number | null
+          notas: string | null
+          peso_maximo_decolagem: number
+          peso_maximo_pouso: number
+          peso_maximo_sem_combustivel: number | null
+          peso_vazio_padrao: number
+          validado: boolean | null
+          validado_em: string | null
+          validado_por: string | null
+        }
+        Insert: {
+          aeronave_id: string
+          atualizado_em?: string | null
+          braco_cg_padrao: number
+          capacidade_combustivel_total?: number | null
+          capacidade_combustivel_util?: number | null
+          cg_limite_dianteiro: number
+          cg_limite_traseiro: number
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          lemac_distancia: number
+          mac_comprimento: number
+          momento_padrao?: number | null
+          notas?: string | null
+          peso_maximo_decolagem: number
+          peso_maximo_pouso: number
+          peso_maximo_sem_combustivel?: number | null
+          peso_vazio_padrao: number
+          validado?: boolean | null
+          validado_em?: string | null
+          validado_por?: string | null
+        }
+        Update: {
+          aeronave_id?: string
+          atualizado_em?: string | null
+          braco_cg_padrao?: number
+          capacidade_combustivel_total?: number | null
+          capacidade_combustivel_util?: number | null
+          cg_limite_dianteiro?: number
+          cg_limite_traseiro?: number
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          lemac_distancia?: number
+          mac_comprimento?: number
+          momento_padrao?: number | null
+          notas?: string | null
+          peso_maximo_decolagem?: number
+          peso_maximo_pouso?: number
+          peso_maximo_sem_combustivel?: number | null
+          peso_vazio_padrao?: number
+          validado?: boolean | null
+          validado_em?: string | null
+          validado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weight_balance_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: true
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weight_balance_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: true
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weight_balance_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: true
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "weight_balance_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: true
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "weight_balance_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: true
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "weight_balance_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: true
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
+      }
+      ctm_ras: {
+        Row: {
+          aeronave_id: string
+          criado_em: string | null
+          criado_por: string | null
+          data_entrada: string
+          data_saida: string | null
+          descricao: string | null
+          dias_efetivos: number | null
+          dias_planejados: number | null
+          horas_celula_entrada: number | null
+          horas_celula_saida: number | null
+          id: string
+          numero: string
+          oas_numero: string | null
+          objetivo: string | null
+          periodo: string | null
+          status: string | null
+          tipo_manutencao: string
+          total_geral: number | null
+          total_pecas: number | null
+          total_trabalho: number | null
+        }
+        Insert: {
+          aeronave_id: string
+          criado_em?: string | null
+          criado_por?: string | null
+          data_entrada: string
+          data_saida?: string | null
+          descricao?: string | null
+          dias_efetivos?: number | null
+          dias_planejados?: number | null
+          horas_celula_entrada?: number | null
+          horas_celula_saida?: number | null
+          id?: string
+          numero: string
+          oas_numero?: string | null
+          objetivo?: string | null
+          periodo?: string | null
+          status?: string | null
+          tipo_manutencao: string
+          total_geral?: number | null
+          total_pecas?: number | null
+          total_trabalho?: number | null
+        }
+        Update: {
+          aeronave_id?: string
+          criado_em?: string | null
+          criado_por?: string | null
+          data_entrada?: string
+          data_saida?: string | null
+          descricao?: string | null
+          dias_efetivos?: number | null
+          dias_planejados?: number | null
+          horas_celula_entrada?: number | null
+          horas_celula_saida?: number | null
+          id?: string
+          numero?: string
+          oas_numero?: string | null
+          objetivo?: string | null
+          periodo?: string | null
+          status?: string | null
+          tipo_manutencao?: string
+          total_geral?: number | null
+          total_pecas?: number | null
+          total_trabalho?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ras_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ras_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ras_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ras_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ras_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ras_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ras_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_ras_fotos: {
+        Row: {
+          enviado_em: string | null
+          id: string
+          legenda: string | null
+          ras_id: string
+          url_foto: string
+        }
+        Insert: {
+          enviado_em?: string | null
+          id?: string
+          legenda?: string | null
+          ras_id: string
+          url_foto: string
+        }
+        Update: {
+          enviado_em?: string | null
+          id?: string
+          legenda?: string | null
+          ras_id?: string
+          url_foto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ras_fotos_ras_id_fkey"
+            columns: ["ras_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_ras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_ras_itens: {
+        Row: {
+          criado_em: string | null
+          descricao: string
+          fornecedor: string | null
+          id: string
+          item_tipo: string
+          numero_fatura: string | null
+          numero_peca: string | null
+          numero_serie: string | null
+          periodo: string | null
           quantidade: number | null
+          ras_id: string
           valor_total: number | null
           valor_unitario: number | null
         }
         Insert: {
           criado_em?: string | null
-          dados_pagamento?: string | null
-          data_compra?: string | null
           descricao: string
           fornecedor?: string | null
-          garantia_meses?: number | null
           id?: string
-          modelo?: string | null
-          modo_pagamento?: string | null
-          nota_fiscal?: string | null
+          item_tipo: string
+          numero_fatura?: string | null
           numero_peca?: string | null
           numero_serie?: string | null
-          observacoes?: string | null
-          ordem_servico_id: string
+          periodo?: string | null
           quantidade?: number | null
+          ras_id: string
           valor_total?: number | null
           valor_unitario?: number | null
         }
         Update: {
           criado_em?: string | null
-          dados_pagamento?: string | null
-          data_compra?: string | null
           descricao?: string
           fornecedor?: string | null
-          garantia_meses?: number | null
           id?: string
-          modelo?: string | null
-          modo_pagamento?: string | null
-          nota_fiscal?: string | null
+          item_tipo?: string
+          numero_fatura?: string | null
           numero_peca?: string | null
           numero_serie?: string | null
-          observacoes?: string | null
-          ordem_servico_id?: string
+          periodo?: string | null
           quantidade?: number | null
+          ras_id?: string
           valor_total?: number | null
           valor_unitario?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "ctm_parts_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
+            foreignKeyName: "ras_items_ras_id_fkey"
+            columns: ["ras_id"]
             isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
+            referencedRelation: "ctm_ras"
             referencedColumns: ["id"]
           },
         ]
@@ -4181,13 +3833,6 @@ export type Database = {
             foreignKeyName: "ctm_tracking_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_tracking_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -4224,13 +3869,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_tracking_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -4322,13 +3960,6 @@ export type Database = {
             foreignKeyName: "ctm_cost_sharing_client_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_cost_sharing_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -4359,208 +3990,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_cost_sharing_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_relatorios_voo: {
-        Row: {
-          ano: number
-          criado_em: string | null
-          horas_oficina: number | null
-          id: string
-          mes: string
-          ordem_servico_id: string
-        }
-        Insert: {
-          ano: number
-          criado_em?: string | null
-          horas_oficina?: number | null
-          id?: string
-          mes: string
-          ordem_servico_id: string
-        }
-        Update: {
-          ano?: number
-          criado_em?: string | null
-          horas_oficina?: number | null
-          id?: string
-          mes?: string
-          ordem_servico_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ctm_flight_reports_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_servicos: {
-        Row: {
-          aprovado_em: string | null
-          aprovado_por: string | null
-          categoria: string | null
-          cliente_id: string | null
-          condicoes_pagamento: string | null
-          criado_em: string | null
-          dados_pagamento: string | null
-          data_execucao: string | null
-          descricao: string
-          fornecedor: string | null
-          fornecedor_id: string | null
-          id: string
-          modelo: string | null
-          modo_pagamento: string | null
-          n_s: string | null
-          nome_aprovador: string | null
-          nota_fiscal: string | null
-          numero_servico: string | null
-          observacoes: string | null
-          ordem_servico_id: string
-          p_n: string | null
-          periodo: string | null
-          quantidade: number | null
-          quantidade_items: number | null
-          referencia_financeira_id: string | null
-          socio_cliente_id: string | null
-          status: string | null
-          status_aprovacao: string | null
-          status_pagamento: string | null
-          submetido_em: string | null
-          tabela_referencia_financeira: string | null
-          tipo_pagamento: string | null
-          valor: number | null
-          valor_unitario: number | null
-        }
-        Insert: {
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          categoria?: string | null
-          cliente_id?: string | null
-          condicoes_pagamento?: string | null
-          criado_em?: string | null
-          dados_pagamento?: string | null
-          data_execucao?: string | null
-          descricao: string
-          fornecedor?: string | null
-          fornecedor_id?: string | null
-          id?: string
-          modelo?: string | null
-          modo_pagamento?: string | null
-          n_s?: string | null
-          nome_aprovador?: string | null
-          nota_fiscal?: string | null
-          numero_servico?: string | null
-          observacoes?: string | null
-          ordem_servico_id: string
-          p_n?: string | null
-          periodo?: string | null
-          quantidade?: number | null
-          quantidade_items?: number | null
-          referencia_financeira_id?: string | null
-          socio_cliente_id?: string | null
-          status?: string | null
-          status_aprovacao?: string | null
-          status_pagamento?: string | null
-          submetido_em?: string | null
-          tabela_referencia_financeira?: string | null
-          tipo_pagamento?: string | null
-          valor?: number | null
-          valor_unitario?: number | null
-        }
-        Update: {
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          categoria?: string | null
-          cliente_id?: string | null
-          condicoes_pagamento?: string | null
-          criado_em?: string | null
-          dados_pagamento?: string | null
-          data_execucao?: string | null
-          descricao?: string
-          fornecedor?: string | null
-          fornecedor_id?: string | null
-          id?: string
-          modelo?: string | null
-          modo_pagamento?: string | null
-          n_s?: string | null
-          nome_aprovador?: string | null
-          nota_fiscal?: string | null
-          numero_servico?: string | null
-          observacoes?: string | null
-          ordem_servico_id?: string
-          p_n?: string | null
-          periodo?: string | null
-          quantidade?: number | null
-          quantidade_items?: number | null
-          referencia_financeira_id?: string | null
-          socio_cliente_id?: string | null
-          status?: string | null
-          status_aprovacao?: string | null
-          status_pagamento?: string | null
-          submetido_em?: string | null
-          tabela_referencia_financeira?: string | null
-          tipo_pagamento?: string | null
-          valor?: number | null
-          valor_unitario?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ctm_services_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ctm_versoes_orcamento: {
-        Row: {
-          alterado_em: string | null
-          alterado_por: string | null
-          campos_alterados: Json | null
-          criado_em: string | null
-          dados: Json | null
-          id: string
-          orcamento_id: string | null
-          versao: number
-        }
-        Insert: {
-          alterado_em?: string | null
-          alterado_por?: string | null
-          campos_alterados?: Json | null
-          criado_em?: string | null
-          dados?: Json | null
-          id?: string
-          orcamento_id?: string | null
-          versao: number
-        }
-        Update: {
-          alterado_em?: string | null
-          alterado_por?: string | null
-          campos_alterados?: Json | null
-          criado_em?: string | null
-          dados?: Json | null
-          id?: string
-          orcamento_id?: string | null
-          versao?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ctm_budget_versions_budget_id_fkey"
-            columns: ["orcamento_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_orcamentos"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -4640,13 +4069,6 @@ export type Database = {
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "blocked_flight_dates_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -4873,13 +4295,6 @@ export type Database = {
             foreignKeyName: "despesas_cliente_direto_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "despesas_cliente_direto_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -4923,13 +4338,6 @@ export type Database = {
             columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "despesas_cliente_direto_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -5045,13 +4453,6 @@ export type Database = {
             foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -5094,13 +4495,6 @@ export type Database = {
             foreignKeyName: "despesas_manutencao_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "despesas_manutencao_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -5133,24 +4527,10 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "despesas_manutencao_manutencao_id_fkey"
-            columns: ["manutencao_id"]
-            isOneToOne: false
-            referencedRelation: "manutencoes"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "despesas_manutencao_partner_expense_id_fkey"
             columns: ["partner_expense_id"]
             isOneToOne: false
             referencedRelation: "partner_expenses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "despesas_manutencao_service_order_id_fkey"
-            columns: ["service_order_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
             referencedColumns: ["id"]
           },
         ]
@@ -5187,13 +4567,6 @@ export type Database = {
           valor?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "despesas_manutencao_rateio_client_partner_id_fkey"
-            columns: ["client_partner_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "despesas_manutencao_rateio_client_partner_id_fkey"
             columns: ["client_partner_id"]
@@ -5373,13 +4746,6 @@ export type Database = {
             foreignKeyName: "diario_mes_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "diario_mes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -5407,119 +4773,6 @@ export type Database = {
           {
             foreignKeyName: "diario_mes_aeronave_id_fkey"
             columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-        ]
-      }
-      directives: {
-        Row: {
-          aircraft_id: string
-          applicability: string | null
-          compliance_date: string | null
-          compliance_hours: number | null
-          compliance_method: string | null
-          created_at: string | null
-          description: string | null
-          due_cycles: number | null
-          due_date: string | null
-          due_hours: number | null
-          id: string
-          number: string
-          observations: string | null
-          responsible: string | null
-          status: string | null
-          title: string
-          type: string
-          updated_at: string | null
-        }
-        Insert: {
-          aircraft_id: string
-          applicability?: string | null
-          compliance_date?: string | null
-          compliance_hours?: number | null
-          compliance_method?: string | null
-          created_at?: string | null
-          description?: string | null
-          due_cycles?: number | null
-          due_date?: string | null
-          due_hours?: number | null
-          id?: string
-          number: string
-          observations?: string | null
-          responsible?: string | null
-          status?: string | null
-          title: string
-          type: string
-          updated_at?: string | null
-        }
-        Update: {
-          aircraft_id?: string
-          applicability?: string | null
-          compliance_date?: string | null
-          compliance_hours?: number | null
-          compliance_method?: string | null
-          created_at?: string | null
-          description?: string | null
-          due_cycles?: number | null
-          due_date?: string | null
-          due_hours?: number | null
-          id?: string
-          number?: string
-          observations?: string | null
-          responsible?: string | null
-          status?: string | null
-          title?: string
-          type?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "directives_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "directives_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "directives_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "directives_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "directives_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "directives_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "directives_aircraft_id_fkey"
-            columns: ["aircraft_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
@@ -5619,13 +4872,6 @@ export type Database = {
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_documents_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -6014,13 +5260,6 @@ export type Database = {
             foreignKeyName: "expenses_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "expenses_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -6056,7 +5295,7 @@ export type Database = {
             foreignKeyName: "expenses_ras_id_fkey"
             columns: ["ras_id"]
             isOneToOne: false
-            referencedRelation: "ras"
+            referencedRelation: "ctm_ras"
             referencedColumns: ["id"]
           },
         ]
@@ -6190,217 +5429,6 @@ export type Database = {
         }
         Relationships: []
       }
-      flight_payments: {
-        Row: {
-          amount: number
-          created_at: string | null
-          flight_schedule_id: string | null
-          id: string
-          notes: string | null
-          payment_date: string
-          payment_method: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          amount: number
-          created_at?: string | null
-          flight_schedule_id?: string | null
-          id?: string
-          notes?: string | null
-          payment_date: string
-          payment_method?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          amount?: number
-          created_at?: string | null
-          flight_schedule_id?: string | null
-          id?: string
-          notes?: string | null
-          payment_date?: string
-          payment_method?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "flight_payments_flight_schedule_id_fkey"
-            columns: ["flight_schedule_id"]
-            isOneToOne: false
-            referencedRelation: "flight_schedules"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      flight_schedules: {
-        Row: {
-          aircraft_id: string | null
-          client_id: string | null
-          contact: string | null
-          created_at: string | null
-          crew_member_id: string | null
-          destination: string | null
-          estimated_duration: string | null
-          flight_date: string | null
-          flight_time: string | null
-          flight_type: string | null
-          id: string
-          observations: string | null
-          origin: string | null
-          passengers: number | null
-          status: string
-          updated_at: string | null
-        }
-        Insert: {
-          aircraft_id?: string | null
-          client_id?: string | null
-          contact?: string | null
-          created_at?: string | null
-          crew_member_id?: string | null
-          destination?: string | null
-          estimated_duration?: string | null
-          flight_date?: string | null
-          flight_time?: string | null
-          flight_type?: string | null
-          id?: string
-          observations?: string | null
-          origin?: string | null
-          passengers?: number | null
-          status?: string
-          updated_at?: string | null
-        }
-        Update: {
-          aircraft_id?: string | null
-          client_id?: string | null
-          contact?: string | null
-          created_at?: string | null
-          crew_member_id?: string | null
-          destination?: string | null
-          estimated_duration?: string | null
-          flight_date?: string | null
-          flight_time?: string | null
-          flight_type?: string | null
-          id?: string
-          observations?: string | null
-          origin?: string | null
-          passengers?: number | null
-          status?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_crew_member_id"
-            columns: ["crew_member_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_crew_member_id"
-            columns: ["crew_member_id"]
-            isOneToOne: false
-            referencedRelation: "membros_tripulacao"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-        ]
-      }
       fornecedores_combustivel: {
         Row: {
           atualizado_em: string | null
@@ -6523,13 +5551,6 @@ export type Database = {
           validade_cma?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "crew_licenses_crew_member_id_fkey"
-            columns: ["membro_tripulacao_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "crew_licenses_crew_member_id_fkey"
             columns: ["membro_tripulacao_id"]
@@ -6693,13 +5714,6 @@ export type Database = {
             foreignKeyName: "receipt_history_client_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "receipt_history_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -6845,13 +5859,6 @@ export type Database = {
             foreignKeyName: "crew_flight_hours_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crew_flight_hours_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -6882,13 +5889,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "crew_flight_hours_crew_member_id_fkey"
-            columns: ["membro_tripulacao_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "crew_flight_hours_crew_member_id_fkey"
@@ -7050,13 +6050,6 @@ export type Database = {
             foreignKeyName: "hour_transactions_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hour_transactions_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -7099,13 +6092,6 @@ export type Database = {
             foreignKeyName: "hour_transactions_from_partner_id_fkey"
             columns: ["from_partner_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hour_transactions_from_partner_id_fkey"
-            columns: ["from_partner_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -7142,13 +6128,6 @@ export type Database = {
             columns: ["to_partner_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hour_transactions_to_partner_id_fkey"
-            columns: ["to_partner_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -7263,56 +6242,6 @@ export type Database = {
         }
         Relationships: []
       }
-      itens_peso_balanceamento: {
-        Row: {
-          atualizado_em: string | null
-          braço_posicao: number
-          categoria: string | null
-          criado_em: string | null
-          descricao: string
-          id: string
-          incluir_no_calculo: boolean | null
-          momento: number
-          observacao: string | null
-          peso_balanceamento_id: string
-          peso_sem_combustivel: number
-        }
-        Insert: {
-          atualizado_em?: string | null
-          braço_posicao: number
-          categoria?: string | null
-          criado_em?: string | null
-          descricao: string
-          id?: string
-          incluir_no_calculo?: boolean | null
-          momento: number
-          observacao?: string | null
-          peso_balanceamento_id: string
-          peso_sem_combustivel: number
-        }
-        Update: {
-          atualizado_em?: string | null
-          braço_posicao?: number
-          categoria?: string | null
-          criado_em?: string | null
-          descricao?: string
-          id?: string
-          incluir_no_calculo?: boolean | null
-          momento?: number
-          observacao?: string | null
-          peso_balanceamento_id?: string
-          peso_sem_combustivel?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weight_balance_items_weight_balance_id_fkey"
-            columns: ["peso_balanceamento_id"]
-            isOneToOne: false
-            referencedRelation: "peso_balanceamento"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       lancamentos_diario_bordo: {
         Row: {
           abastecido: boolean | null
@@ -7320,15 +6249,17 @@ export type Database = {
           aerodromo_chegada: string
           aerodromo_partida: string
           aeronave_id: string
+          assinado_por: string | null
           carga_kg: string | null
           celula: number | null
+          celula_tvoo: number | null
           cliente_tomador_emprestimo_id: string | null
           clientes_id: string | null
           combustivel_adicionado: number | null
           confirmado: boolean | null
           confirmado_em: string | null
-          confirmado_por: string | null
-          consumo_combustivel: number | null
+          consumo_combustivel_total: number | null
+          consumo_combustivel_voo: number | null
           criado_em: string | null
           criado_por: string | null
           data_assinatura_piloto: string | null
@@ -7338,7 +6269,7 @@ export type Database = {
           discrepancias: string | null
           distancia_nm: number | null
           divisao_igual: boolean | null
-          empreendimento: boolean | null
+          emprestimo: boolean | null
           fechado: boolean | null
           fechado_em: string | null
           fechado_por: string | null
@@ -7346,14 +6277,13 @@ export type Database = {
           horas_diurnas: number | null
           horas_noturnas: number | null
           id: string
-          litros_combustivel: number | null
+          litros_combustivel_inicio_voo: number | null
           local_combustivel: string | null
           natureza_voo: string
           numero_sequencial: number | null
           ocorrencias: string | null
           origem_pic: string | null
           origem_sic: string | null
-          parceiro_tomador_emprestimo_id: string | null
           passageiros: number | null
           pic_canac: string
           pousos_total: number | null
@@ -7361,6 +6291,7 @@ export type Database = {
           responsavel_aprovacao_manutencao: string | null
           sic_canac: string | null
           sic_name: string | null
+          socio_tomador_emprestimo_id: string | null
           socios_cliente_id: string | null
           socios_nome: string | null
           tarifa_diaria: string | null
@@ -7383,15 +6314,17 @@ export type Database = {
           aerodromo_chegada: string
           aerodromo_partida: string
           aeronave_id: string
+          assinado_por?: string | null
           carga_kg?: string | null
           celula?: number | null
+          celula_tvoo?: number | null
           cliente_tomador_emprestimo_id?: string | null
           clientes_id?: string | null
           combustivel_adicionado?: number | null
           confirmado?: boolean | null
           confirmado_em?: string | null
-          confirmado_por?: string | null
-          consumo_combustivel?: number | null
+          consumo_combustivel_total?: number | null
+          consumo_combustivel_voo?: number | null
           criado_em?: string | null
           criado_por?: string | null
           data_assinatura_piloto?: string | null
@@ -7401,7 +6334,7 @@ export type Database = {
           discrepancias?: string | null
           distancia_nm?: number | null
           divisao_igual?: boolean | null
-          empreendimento?: boolean | null
+          emprestimo?: boolean | null
           fechado?: boolean | null
           fechado_em?: string | null
           fechado_por?: string | null
@@ -7409,14 +6342,13 @@ export type Database = {
           horas_diurnas?: number | null
           horas_noturnas?: number | null
           id?: string
-          litros_combustivel?: number | null
+          litros_combustivel_inicio_voo?: number | null
           local_combustivel?: string | null
           natureza_voo: string
           numero_sequencial?: number | null
           ocorrencias?: string | null
           origem_pic?: string | null
           origem_sic?: string | null
-          parceiro_tomador_emprestimo_id?: string | null
           passageiros?: number | null
           pic_canac: string
           pousos_total?: number | null
@@ -7424,6 +6356,7 @@ export type Database = {
           responsavel_aprovacao_manutencao?: string | null
           sic_canac?: string | null
           sic_name?: string | null
+          socio_tomador_emprestimo_id?: string | null
           socios_cliente_id?: string | null
           socios_nome?: string | null
           tarifa_diaria?: string | null
@@ -7446,15 +6379,17 @@ export type Database = {
           aerodromo_chegada?: string
           aerodromo_partida?: string
           aeronave_id?: string
+          assinado_por?: string | null
           carga_kg?: string | null
           celula?: number | null
+          celula_tvoo?: number | null
           cliente_tomador_emprestimo_id?: string | null
           clientes_id?: string | null
           combustivel_adicionado?: number | null
           confirmado?: boolean | null
           confirmado_em?: string | null
-          confirmado_por?: string | null
-          consumo_combustivel?: number | null
+          consumo_combustivel_total?: number | null
+          consumo_combustivel_voo?: number | null
           criado_em?: string | null
           criado_por?: string | null
           data_assinatura_piloto?: string | null
@@ -7464,7 +6399,7 @@ export type Database = {
           discrepancias?: string | null
           distancia_nm?: number | null
           divisao_igual?: boolean | null
-          empreendimento?: boolean | null
+          emprestimo?: boolean | null
           fechado?: boolean | null
           fechado_em?: string | null
           fechado_por?: string | null
@@ -7472,14 +6407,13 @@ export type Database = {
           horas_diurnas?: number | null
           horas_noturnas?: number | null
           id?: string
-          litros_combustivel?: number | null
+          litros_combustivel_inicio_voo?: number | null
           local_combustivel?: string | null
           natureza_voo?: string
           numero_sequencial?: number | null
           ocorrencias?: string | null
           origem_pic?: string | null
           origem_sic?: string | null
-          parceiro_tomador_emprestimo_id?: string | null
           passageiros?: number | null
           pic_canac?: string
           pousos_total?: number | null
@@ -7487,6 +6421,7 @@ export type Database = {
           responsavel_aprovacao_manutencao?: string | null
           sic_canac?: string | null
           sic_name?: string | null
+          socio_tomador_emprestimo_id?: string | null
           socios_cliente_id?: string | null
           socios_nome?: string | null
           tarifa_diaria?: string | null
@@ -7512,17 +6447,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "logbook_entries_aeronave_id_fkey"
-            columns: ["aeronave_id"]
+            foreignKeyName: "lancamentos_diario_bordo_diario_mes_fkey"
+            columns: ["diario_mes"]
             isOneToOne: false
-            referencedRelation: "aeronave"
+            referencedRelation: "diario_mes_com_disponivel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_diario_bordo_socio_tomador_emprestimo_id_fkey"
+            columns: ["socio_tomador_emprestimo_id"]
+            isOneToOne: false
+            referencedRelation: "socios_cliente"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "logbook_entries_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
+            referencedRelation: "aeronave"
             referencedColumns: ["id"]
           },
           {
@@ -7565,13 +6507,6 @@ export type Database = {
             columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -7627,13 +6562,6 @@ export type Database = {
             foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
             columns: ["cliente_tomador_emprestimo_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
-            columns: ["cliente_tomador_emprestimo_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -7666,70 +6594,10 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "logbook_entries_loan_recipient_partner_fkey"
-            columns: ["parceiro_tomador_emprestimo_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_loan_recipient_partner_fkey"
-            columns: ["parceiro_tomador_emprestimo_id"]
-            isOneToOne: false
-            referencedRelation: "socios_cliente"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_socios_cliente_id_fkey"
-            columns: ["socios_cliente_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "logbook_entries_socios_cliente_id_fkey"
             columns: ["socios_cliente_id"]
             isOneToOne: false
             referencedRelation: "socios_cliente"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      logbook_crew_members: {
-        Row: {
-          created_at: string | null
-          crew_member_id: string
-          funcao_codigo: number
-          id: string
-          logbook_entry_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          crew_member_id: string
-          funcao_codigo: number
-          id?: string
-          logbook_entry_id: string
-        }
-        Update: {
-          created_at?: string | null
-          crew_member_id?: string
-          funcao_codigo?: number
-          id?: string
-          logbook_entry_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "logbook_crew_members_member_fkey"
-            columns: ["crew_member_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "logbook_crew_members_member_fkey"
-            columns: ["crew_member_id"]
-            isOneToOne: false
-            referencedRelation: "membros_tripulacao"
             referencedColumns: ["id"]
           },
         ]
@@ -7798,13 +6666,6 @@ export type Database = {
             columns: ["aircraft_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maintenance_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -7884,13 +6745,6 @@ export type Database = {
             columns: ["aircraft_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maintenance_notifications_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -7994,13 +6848,6 @@ export type Database = {
             foreignKeyName: "maintenance_reports_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "maintenance_reports_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -8045,254 +6892,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
-          },
-        ]
-      }
-      manutencoes: {
-        Row: {
-          aeronave_id: string | null
-          created_at: string | null
-          custo_estimado: number | null
-          data_programada: string
-          etapa: string
-          horas_realizadas: number | null
-          id: string
-          mecanico: string | null
-          numero_oas: string | null
-          observacoes: string | null
-          oficina: string | null
-          oficina_id: string | null
-          tipo: string
-          updated_at: string | null
-          vencimento_horas: number | null
-          vencimento_tipo: string | null
-        }
-        Insert: {
-          aeronave_id?: string | null
-          created_at?: string | null
-          custo_estimado?: number | null
-          data_programada: string
-          etapa?: string
-          horas_realizadas?: number | null
-          id?: string
-          mecanico?: string | null
-          numero_oas?: string | null
-          observacoes?: string | null
-          oficina?: string | null
-          oficina_id?: string | null
-          tipo: string
-          updated_at?: string | null
-          vencimento_horas?: number | null
-          vencimento_tipo?: string | null
-        }
-        Update: {
-          aeronave_id?: string | null
-          created_at?: string | null
-          custo_estimado?: number | null
-          data_programada?: string
-          etapa?: string
-          horas_realizadas?: number | null
-          id?: string
-          mecanico?: string | null
-          numero_oas?: string | null
-          observacoes?: string | null
-          oficina?: string | null
-          oficina_id?: string | null
-          tipo?: string
-          updated_at?: string | null
-          vencimento_horas?: number | null
-          vencimento_tipo?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "manutencoes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manutencoes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manutencoes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manutencoes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "manutencoes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "manutencoes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "manutencoes_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "manutencoes_oficina_id_fkey"
-            columns: ["oficina_id"]
-            isOneToOne: false
-            referencedRelation: "oficinas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      mapa_componente: {
-        Row: {
-          aeronave_id: string
-          atualizado_em: string | null
-          categoria: string | null
-          ciclos_de_vida_atuais: number | null
-          ciclos_de_vida_totais: number | null
-          ciclos_instalados: number | null
-          criado_em: string | null
-          csn: number | null
-          cso: number | null
-          data_de_vencimento: string | null
-          data_instalada: string
-          fabricante: string | null
-          horas_de_vida_atuais: number | null
-          horas_instaladas: number | null
-          id: string
-          localizacao: string | null
-          nome: string
-          numero_da_peça: string
-          numero_de_serie: string
-          observacoes: string | null
-          porcentagem_restante: number | null
-          remaining_hours: number | null
-          status: string | null
-          total_horas_de_vida: number | null
-          tso: number | null
-        }
-        Insert: {
-          aeronave_id: string
-          atualizado_em?: string | null
-          categoria?: string | null
-          ciclos_de_vida_atuais?: number | null
-          ciclos_de_vida_totais?: number | null
-          ciclos_instalados?: number | null
-          criado_em?: string | null
-          csn?: number | null
-          cso?: number | null
-          data_de_vencimento?: string | null
-          data_instalada: string
-          fabricante?: string | null
-          horas_de_vida_atuais?: number | null
-          horas_instaladas?: number | null
-          id?: string
-          localizacao?: string | null
-          nome: string
-          numero_da_peça: string
-          numero_de_serie: string
-          observacoes?: string | null
-          porcentagem_restante?: number | null
-          remaining_hours?: number | null
-          status?: string | null
-          total_horas_de_vida?: number | null
-          tso?: number | null
-        }
-        Update: {
-          aeronave_id?: string
-          atualizado_em?: string | null
-          categoria?: string | null
-          ciclos_de_vida_atuais?: number | null
-          ciclos_de_vida_totais?: number | null
-          ciclos_instalados?: number | null
-          criado_em?: string | null
-          csn?: number | null
-          cso?: number | null
-          data_de_vencimento?: string | null
-          data_instalada?: string
-          fabricante?: string | null
-          horas_de_vida_atuais?: number | null
-          horas_instaladas?: number | null
-          id?: string
-          localizacao?: string | null
-          nome?: string
-          numero_da_peça?: string
-          numero_de_serie?: string
-          observacoes?: string | null
-          porcentagem_restante?: number | null
-          remaining_hours?: number | null
-          status?: string | null
-          total_horas_de_vida?: number | null
-          tso?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "components_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
           },
         ]
       }
@@ -8393,13 +6992,6 @@ export type Database = {
             columns: ["aircraft_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "monthly_diary_closures_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -8509,13 +7101,6 @@ export type Database = {
             foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
             columns: ["aeronave"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["registration"]
-          },
-          {
-            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
-            columns: ["aeronave"]
-            isOneToOne: false
             referencedRelation: "ciclos_voo_ativos"
             referencedColumns: ["registration"]
           },
@@ -8532,13 +7117,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "historico_voo_tripulante"
             referencedColumns: ["matricula_aeronave"]
-          },
-          {
-            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
-            columns: ["aeronave"]
-            isOneToOne: false
-            referencedRelation: "pending_booking_requests"
-            referencedColumns: ["aircraft_registration"]
           },
           {
             foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
@@ -8614,13 +7192,6 @@ export type Database = {
             foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -8657,13 +7228,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -8739,251 +7303,7 @@ export type Database = {
             foreignKeyName: "notifications_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      oas_fotos: {
-        Row: {
-          arquivo_nome: string
-          arquivo_path: string
-          criado_em: string | null
-          id: string
-          legenda: string | null
-          ordem: number | null
-          ordem_servico_id: string
-        }
-        Insert: {
-          arquivo_nome: string
-          arquivo_path: string
-          criado_em?: string | null
-          id?: string
-          legenda?: string | null
-          ordem?: number | null
-          ordem_servico_id: string
-        }
-        Update: {
-          arquivo_nome?: string
-          arquivo_path?: string
-          criado_em?: string | null
-          id?: string
-          legenda?: string | null
-          ordem?: number | null
-          ordem_servico_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "oas_fotos_order_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      oas_orcamentos: {
-        Row: {
-          aprovado_em: string | null
-          aprovado_por: string | null
-          atualizado_em: string | null
-          criado_em: string | null
-          descricao: string
-          fornecedor: string | null
-          id: string
-          motivo_rejeicao: string | null
-          numero_peca: string | null
-          observacoes: string | null
-          ordem_servico_id: string
-          quantidade: number | null
-          status: string | null
-          submetido_em: string | null
-          submetido_por: string | null
-          tipo: string
-          valor_total: number | null
-          valor_unitario: number | null
-        }
-        Insert: {
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          atualizado_em?: string | null
-          criado_em?: string | null
-          descricao: string
-          fornecedor?: string | null
-          id?: string
-          motivo_rejeicao?: string | null
-          numero_peca?: string | null
-          observacoes?: string | null
-          ordem_servico_id: string
-          quantidade?: number | null
-          status?: string | null
-          submetido_em?: string | null
-          submetido_por?: string | null
-          tipo?: string
-          valor_total?: number | null
-          valor_unitario?: number | null
-        }
-        Update: {
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          atualizado_em?: string | null
-          criado_em?: string | null
-          descricao?: string
-          fornecedor?: string | null
-          id?: string
-          motivo_rejeicao?: string | null
-          numero_peca?: string | null
-          observacoes?: string | null
-          ordem_servico_id?: string
-          quantidade?: number | null
-          status?: string | null
-          submetido_em?: string | null
-          submetido_por?: string | null
-          tipo?: string
-          valor_total?: number | null
-          valor_unitario?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "oas_budgets_service_order_id_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      oas_pecas_trocadas: {
-        Row: {
-          criado_em: string | null
-          descricao: string
-          fornecedor: string | null
-          id: string
-          observacoes: string | null
-          ordem_servico_id: string
-          p_n_instalado: string | null
-          p_n_removido: string | null
-          quantidade: number
-          s_n_instalado: string | null
-          s_n_removido: string | null
-        }
-        Insert: {
-          criado_em?: string | null
-          descricao: string
-          fornecedor?: string | null
-          id?: string
-          observacoes?: string | null
-          ordem_servico_id: string
-          p_n_instalado?: string | null
-          p_n_removido?: string | null
-          quantidade?: number
-          s_n_instalado?: string | null
-          s_n_removido?: string | null
-        }
-        Update: {
-          criado_em?: string | null
-          descricao?: string
-          fornecedor?: string | null
-          id?: string
-          observacoes?: string | null
-          ordem_servico_id?: string
-          p_n_instalado?: string | null
-          p_n_removido?: string | null
-          quantidade?: number
-          s_n_instalado?: string | null
-          s_n_removido?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "oas_pecas_trocadas_order_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: false
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      oas_rateio: {
-        Row: {
-          atualizado_em: string | null
-          criado_em: string | null
-          id: string
-          observacoes: string | null
-          ordem_servico_id: string
-          periodo_fim: string | null
-          periodo_inicio: string | null
-          tipo_rateio: string
-          valor_total: number
-        }
-        Insert: {
-          atualizado_em?: string | null
-          criado_em?: string | null
-          id?: string
-          observacoes?: string | null
-          ordem_servico_id: string
-          periodo_fim?: string | null
-          periodo_inicio?: string | null
-          tipo_rateio?: string
-          valor_total?: number
-        }
-        Update: {
-          atualizado_em?: string | null
-          criado_em?: string | null
-          id?: string
-          observacoes?: string | null
-          ordem_servico_id?: string
-          periodo_fim?: string | null
-          periodo_inicio?: string | null
-          tipo_rateio?: string
-          valor_total?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "oas_rateio_order_fkey"
-            columns: ["ordem_servico_id"]
-            isOneToOne: true
-            referencedRelation: "ctm_ordem_acompanhamento_servico"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      oas_rateio_socios: {
-        Row: {
-          criado_em: string | null
-          horas_uso: number | null
-          id: string
-          percentual: number
-          rateio_id: string
-          socio_nome: string
-          status_pagamento: string | null
-          valor_devido: number | null
-        }
-        Insert: {
-          criado_em?: string | null
-          horas_uso?: number | null
-          id?: string
-          percentual?: number
-          rateio_id: string
-          socio_nome: string
-          status_pagamento?: string | null
-          valor_devido?: number | null
-        }
-        Update: {
-          criado_em?: string | null
-          horas_uso?: number | null
-          id?: string
-          percentual?: number
-          rateio_id?: string
-          socio_nome?: string
-          status_pagamento?: string | null
-          valor_devido?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "oas_rateio_socios_rateio_fkey"
-            columns: ["rateio_id"]
-            isOneToOne: false
-            referencedRelation: "oas_rateio"
+            referencedRelation: "tarefas"
             referencedColumns: ["id"]
           },
         ]
@@ -9153,13 +7473,6 @@ export type Database = {
             foreignKeyName: "partner_accounts_clientes_id_fkey"
             columns: ["clientes_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_accounts_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -9190,13 +7503,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "partner_accounts_socios_cliente_id_fkey"
-            columns: ["socios_cliente_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "partner_accounts_socios_cliente_id_fkey"
@@ -9325,13 +7631,6 @@ export type Database = {
             foreignKeyName: "partner_expenses_aircraft_id_fkey"
             columns: ["id_aeronave"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_expenses_aircraft_id_fkey"
-            columns: ["id_aeronave"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -9368,13 +7667,6 @@ export type Database = {
             columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_expenses_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -9509,13 +7801,6 @@ export type Database = {
             foreignKeyName: "partner_transactions_clientes_id_fkey"
             columns: ["clientes_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_transactions_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -9619,128 +7904,6 @@ export type Database = {
           },
         ]
       }
-      peso_balanceamento: {
-        Row: {
-          aeronave_id: string
-          atualizado_em: string | null
-          braco_cg_padrao: number
-          capacidade_combustivel_total: number | null
-          capacidade_combustivel_util: number | null
-          cg_limite_dianteiro: number
-          cg_limite_traseiro: number
-          criado_em: string | null
-          criado_por: string | null
-          id: string
-          lemac_distancia: number
-          mac_comprimento: number
-          momento_padrao: number | null
-          notas: string | null
-          peso_maximo_decolagem: number
-          peso_maximo_pouso: number
-          peso_maximo_sem_combustivel: number | null
-          peso_vazio_padrao: number
-          validado: boolean | null
-          validado_em: string | null
-          validado_por: string | null
-        }
-        Insert: {
-          aeronave_id: string
-          atualizado_em?: string | null
-          braco_cg_padrao: number
-          capacidade_combustivel_total?: number | null
-          capacidade_combustivel_util?: number | null
-          cg_limite_dianteiro: number
-          cg_limite_traseiro: number
-          criado_em?: string | null
-          criado_por?: string | null
-          id?: string
-          lemac_distancia: number
-          mac_comprimento: number
-          momento_padrao?: number | null
-          notas?: string | null
-          peso_maximo_decolagem: number
-          peso_maximo_pouso: number
-          peso_maximo_sem_combustivel?: number | null
-          peso_vazio_padrao: number
-          validado?: boolean | null
-          validado_em?: string | null
-          validado_por?: string | null
-        }
-        Update: {
-          aeronave_id?: string
-          atualizado_em?: string | null
-          braco_cg_padrao?: number
-          capacidade_combustivel_total?: number | null
-          capacidade_combustivel_util?: number | null
-          cg_limite_dianteiro?: number
-          cg_limite_traseiro?: number
-          criado_em?: string | null
-          criado_por?: string | null
-          id?: string
-          lemac_distancia?: number
-          mac_comprimento?: number
-          momento_padrao?: number | null
-          notas?: string | null
-          peso_maximo_decolagem?: number
-          peso_maximo_pouso?: number
-          peso_maximo_sem_combustivel?: number | null
-          peso_vazio_padrao?: number
-          validado?: boolean | null
-          validado_em?: string | null
-          validado_por?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "weight_balance_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "weight_balance_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "weight_balance_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "weight_balance_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "weight_balance_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "weight_balance_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "weight_balance_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-        ]
-      }
       pilot_hours: {
         Row: {
           aircraft_id: string
@@ -9793,13 +7956,6 @@ export type Database = {
             foreignKeyName: "pilot_hours_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pilot_hours_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -9830,13 +7986,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "pilot_hours_service_order_id_fkey"
-            columns: ["service_order_id"]
-            isOneToOne: false
-            referencedRelation: "service_orders"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -9919,13 +8068,6 @@ export type Database = {
             foreignKeyName: "flight_plans_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_plans_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -9956,13 +8098,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_plans_flight_schedule_id_fkey"
-            columns: ["ciclo_voo_id"]
-            isOneToOne: false
-            referencedRelation: "flight_schedules"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -10322,220 +8457,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ras: {
-        Row: {
-          aeronave_id: string
-          criado_em: string | null
-          criado_por: string | null
-          data_entrada: string
-          data_saida: string | null
-          descricao: string | null
-          dias_efetivos: number | null
-          dias_planejados: number | null
-          horas_celula_entrada: number | null
-          horas_celula_saida: number | null
-          id: string
-          numero: string
-          oas_numero: string | null
-          objetivo: string | null
-          periodo: string | null
-          status: string | null
-          tipo_manutencao: string
-          total_geral: number | null
-          total_pecas: number | null
-          total_trabalho: number | null
-        }
-        Insert: {
-          aeronave_id: string
-          criado_em?: string | null
-          criado_por?: string | null
-          data_entrada: string
-          data_saida?: string | null
-          descricao?: string | null
-          dias_efetivos?: number | null
-          dias_planejados?: number | null
-          horas_celula_entrada?: number | null
-          horas_celula_saida?: number | null
-          id?: string
-          numero: string
-          oas_numero?: string | null
-          objetivo?: string | null
-          periodo?: string | null
-          status?: string | null
-          tipo_manutencao: string
-          total_geral?: number | null
-          total_pecas?: number | null
-          total_trabalho?: number | null
-        }
-        Update: {
-          aeronave_id?: string
-          criado_em?: string | null
-          criado_por?: string | null
-          data_entrada?: string
-          data_saida?: string | null
-          descricao?: string | null
-          dias_efetivos?: number | null
-          dias_planejados?: number | null
-          horas_celula_entrada?: number | null
-          horas_celula_saida?: number | null
-          id?: string
-          numero?: string
-          oas_numero?: string | null
-          objetivo?: string | null
-          periodo?: string | null
-          status?: string | null
-          tipo_manutencao?: string
-          total_geral?: number | null
-          total_pecas?: number | null
-          total_trabalho?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ras_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ras_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ras_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ras_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ras_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ras_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ras_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ras_criado_por_fkey"
-            columns: ["criado_por"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ras_fotos: {
-        Row: {
-          enviado_em: string | null
-          id: string
-          legenda: string | null
-          ras_id: string
-          url_foto: string
-        }
-        Insert: {
-          enviado_em?: string | null
-          id?: string
-          legenda?: string | null
-          ras_id: string
-          url_foto: string
-        }
-        Update: {
-          enviado_em?: string | null
-          id?: string
-          legenda?: string | null
-          ras_id?: string
-          url_foto?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ras_fotos_ras_id_fkey"
-            columns: ["ras_id"]
-            isOneToOne: false
-            referencedRelation: "ras"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ras_itens: {
-        Row: {
-          criado_em: string | null
-          descricao: string
-          fornecedor: string | null
-          id: string
-          item_tipo: string
-          numero_fatura: string | null
-          numero_peca: string | null
-          numero_serie: string | null
-          periodo: string | null
-          quantidade: number | null
-          ras_id: string
-          valor_total: number | null
-          valor_unitario: number | null
-        }
-        Insert: {
-          criado_em?: string | null
-          descricao: string
-          fornecedor?: string | null
-          id?: string
-          item_tipo: string
-          numero_fatura?: string | null
-          numero_peca?: string | null
-          numero_serie?: string | null
-          periodo?: string | null
-          quantidade?: number | null
-          ras_id: string
-          valor_total?: number | null
-          valor_unitario?: number | null
-        }
-        Update: {
-          criado_em?: string | null
-          descricao?: string
-          fornecedor?: string | null
-          id?: string
-          item_tipo?: string
-          numero_fatura?: string | null
-          numero_peca?: string | null
-          numero_serie?: string | null
-          periodo?: string | null
-          quantidade?: number | null
-          ras_id?: string
-          valor_total?: number | null
-          valor_unitario?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ras_items_ras_id_fkey"
-            columns: ["ras_id"]
-            isOneToOne: false
-            referencedRelation: "ras"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       rateio_despesas: {
         Row: {
           aeronave_id: string | null
@@ -10669,13 +8590,6 @@ export type Database = {
             foreignKeyName: "rateio_despesas_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -10732,13 +8646,6 @@ export type Database = {
             foreignKeyName: "rateio_despesas_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rateio_despesas_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -10769,13 +8676,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "rateio_despesas_socio_id_fkey"
-            columns: ["socio_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rateio_despesas_socio_id_fkey"
@@ -10948,27 +8848,6 @@ export type Database = {
         }
         Relationships: []
       }
-      receipt_descriptions: {
-        Row: {
-          atualizado_em: string | null
-          criado_em: string | null
-          descricao: string
-          id: string
-        }
-        Insert: {
-          atualizado_em?: string | null
-          criado_em?: string | null
-          descricao: string
-          id?: string
-        }
-        Update: {
-          atualizado_em?: string | null
-          criado_em?: string | null
-          descricao?: string
-          id?: string
-        }
-        Relationships: []
-      }
       recibos: {
         Row: {
           aeronave_id: string | null
@@ -11072,13 +8951,6 @@ export type Database = {
             foreignKeyName: "receipts_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "receipts_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -11121,13 +8993,6 @@ export type Database = {
             foreignKeyName: "receipts_client_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "receipts_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -11158,110 +9023,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
-          },
-        ]
-      }
-      registros_manutencao_aeronave: {
-        Row: {
-          aeronave_id: string
-          atualizado_em: string | null
-          centro_manutencao: string | null
-          criado_em: string | null
-          criado_por: string | null
-          custo: number | null
-          data_realizada: string
-          descricao: string | null
-          horas_realizada: number
-          id: string
-          nome_mecanico: string | null
-          numero_ordem_servico: string | null
-          observacoes: string | null
-          proxima_vencimento_horas: number
-          tipo_manutencao: string
-        }
-        Insert: {
-          aeronave_id: string
-          atualizado_em?: string | null
-          centro_manutencao?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          custo?: number | null
-          data_realizada?: string
-          descricao?: string | null
-          horas_realizada: number
-          id?: string
-          nome_mecanico?: string | null
-          numero_ordem_servico?: string | null
-          observacoes?: string | null
-          proxima_vencimento_horas: number
-          tipo_manutencao: string
-        }
-        Update: {
-          aeronave_id?: string
-          atualizado_em?: string | null
-          centro_manutencao?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          custo?: number | null
-          data_realizada?: string
-          descricao?: string | null
-          horas_realizada?: number
-          id?: string
-          nome_mecanico?: string | null
-          numero_ordem_servico?: string | null
-          observacoes?: string | null
-          proxima_vencimento_horas?: number
-          tipo_manutencao?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "aircraft_maintenance_records_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_maintenance_records_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_maintenance_records_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_maintenance_records_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_maintenance_records_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_maintenance_records_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_maintenance_records_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
           },
         ]
       }
@@ -11333,13 +9094,6 @@ export type Database = {
             foreignKeyName: "scheduling_crew_config_crew_member_id_fkey"
             columns: ["crew_member_id"]
             isOneToOne: true
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "scheduling_crew_config_crew_member_id_fkey"
-            columns: ["crew_member_id"]
-            isOneToOne: true
             referencedRelation: "membros_tripulacao"
             referencedColumns: ["id"]
           },
@@ -11405,197 +9159,6 @@ export type Database = {
         }
         Relationships: []
       }
-      service_items: {
-        Row: {
-          aircraft_id: string
-          created_at: string | null
-          description: string
-          id: string
-          nfse: string | null
-          period: string | null
-          provider: string
-          service_order_id: string
-          status: string | null
-          updated_at: string | null
-          value: number
-        }
-        Insert: {
-          aircraft_id: string
-          created_at?: string | null
-          description: string
-          id?: string
-          nfse?: string | null
-          period?: string | null
-          provider: string
-          service_order_id: string
-          status?: string | null
-          updated_at?: string | null
-          value: number
-        }
-        Update: {
-          aircraft_id?: string
-          created_at?: string | null
-          description?: string
-          id?: string
-          nfse?: string | null
-          period?: string | null
-          provider?: string
-          service_order_id?: string
-          status?: string | null
-          updated_at?: string | null
-          value?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "service_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "service_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "service_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "service_items_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "service_items_service_order_id_fkey"
-            columns: ["service_order_id"]
-            isOneToOne: false
-            referencedRelation: "service_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      service_orders: {
-        Row: {
-          aircraft_id: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          order_number: string
-          period: string | null
-          service_type: string
-          status: string
-          supplier: string | null
-          updated_at: string | null
-          value: number | null
-        }
-        Insert: {
-          aircraft_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          order_number: string
-          period?: string | null
-          service_type: string
-          status?: string
-          supplier?: string | null
-          updated_at?: string | null
-          value?: number | null
-        }
-        Update: {
-          aircraft_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          order_number?: string
-          period?: string | null
-          service_type?: string
-          status?: string
-          supplier?: string | null
-          updated_at?: string | null
-          value?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "service_orders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_orders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_orders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "service_orders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "service_orders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "service_orders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "service_orders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-        ]
-      }
       socios_cliente: {
         Row: {
           atualizado_em: string
@@ -11630,13 +9193,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -11743,13 +9299,6 @@ export type Database = {
             foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -11829,13 +9378,6 @@ export type Database = {
             foreignKeyName: "aircraft_live_status_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: true
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_live_status_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: true
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -11871,55 +9413,125 @@ export type Database = {
             foreignKeyName: "aircraft_live_status_current_flight_id_fkey"
             columns: ["voo_atual_id"]
             isOneToOne: false
-            referencedRelation: "pending_booking_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_live_status_current_flight_id_fkey"
-            columns: ["voo_atual_id"]
-            isOneToOne: false
             referencedRelation: "solicitacoes_reserva_voo"
             referencedColumns: ["id"]
           },
         ]
       }
-      task_notifications: {
+      tarefas: {
         Row: {
-          created_at: string | null
+          atribuido_para: string | null
+          atualizado_em: string | null
+          criado_em: string | null
+          criado_por: string | null
+          descricao: string | null
           id: string
-          message: string
-          read: boolean | null
-          status_changed_to: string | null
-          task_id: string
-          updated_at: string | null
+          prazo: string | null
+          prioridade: string | null
+          publico: boolean | null
+          status: string | null
+          titulo: string
+        }
+        Insert: {
+          atribuido_para?: string | null
+          atualizado_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          prazo?: string | null
+          prioridade?: string | null
+          publico?: boolean | null
+          status?: string | null
+          titulo: string
+        }
+        Update: {
+          atribuido_para?: string | null
+          atualizado_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          prazo?: string | null
+          prioridade?: string | null
+          publico?: boolean | null
+          status?: string | null
+          titulo?: string
+        }
+        Relationships: []
+      }
+      tarefas_comentarios: {
+        Row: {
+          atualizado_em: string
+          comentario: string
+          criado_em: string
+          id: string
+          tarefa_id: string
+          usuario_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          comentario: string
+          criado_em?: string
+          id?: string
+          tarefa_id: string
+          usuario_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          comentario?: string
+          criado_em?: string
+          id?: string
+          tarefa_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_comentarios_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefas_notificacoes: {
+        Row: {
+          atualizado_em: string | null
+          criado_em: string | null
+          id: string
+          id_da_tarefa: string
+          lido: boolean | null
+          mensagem: string
+          status_alterado_para: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string | null
+          atualizado_em?: string | null
+          criado_em?: string | null
           id?: string
-          message: string
-          read?: boolean | null
-          status_changed_to?: string | null
-          task_id: string
-          updated_at?: string | null
+          id_da_tarefa: string
+          lido?: boolean | null
+          mensagem: string
+          status_alterado_para?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string | null
+          atualizado_em?: string | null
+          criado_em?: string | null
           id?: string
-          message?: string
-          read?: boolean | null
-          status_changed_to?: string | null
-          task_id?: string
-          updated_at?: string | null
+          id_da_tarefa?: string
+          lido?: boolean | null
+          mensagem?: string
+          status_alterado_para?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "task_notifications_task_id_fkey"
-            columns: ["task_id"]
+            foreignKeyName: "tarefas_notificacoes_id_da_tarefa_fkey"
+            columns: ["id_da_tarefa"]
             isOneToOne: false
-            referencedRelation: "tasks"
+            referencedRelation: "tarefas"
             referencedColumns: ["id"]
           },
           {
@@ -11930,51 +9542,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      tasks: {
-        Row: {
-          archived: string | null
-          assigned_to: string | null
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          due_date: string | null
-          id: string
-          is_public: boolean | null
-          priority: string | null
-          status: string | null
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          archived?: string | null
-          assigned_to?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          is_public?: boolean | null
-          priority?: string | null
-          status?: string | null
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          archived?: string | null
-          assigned_to?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          due_date?: string | null
-          id?: string
-          is_public?: boolean | null
-          priority?: string | null
-          status?: string | null
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       taxas_hora_aeronave: {
         Row: {
@@ -12010,13 +9577,6 @@ export type Database = {
             foreignKeyName: "aircraft_hourly_rates_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_hourly_rates_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -12047,102 +9607,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-        ]
-      }
-      tarefas: {
-        Row: {
-          atribuido_para: string | null
-          criado_em: string | null
-          criado_por: string | null
-          descricao: string | null
-          id: string
-          prazo: string | null
-          prioridade: string | null
-          publico: boolean | null
-          status: string | null
-          titulo: string
-          atualizado_em: string | null
-        }
-        Insert: {
-          atribuido_para?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          descricao?: string | null
-          id?: string
-          prazo?: string | null
-          prioridade?: string | null
-          publico?: boolean | null
-          status?: string | null
-          titulo: string
-          atualizado_em?: string | null
-        }
-        Update: {
-          atribuido_para?: string | null
-          criado_em?: string | null
-          criado_por?: string | null
-          descricao?: string | null
-          id?: string
-          prazo?: string | null
-          prioridade?: string | null
-          publico?: boolean | null
-          status?: string | null
-          titulo?: string
-          atualizado_em?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tarefas_criado_por_fkey"
-            columns: ["criado_por"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tarefas_atribuido_para_fkey"
-            columns: ["atribuido_para"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tarefas_comentarios: {
-        Row: {
-          comentario: string
-          criado_em: string | null
-          id: string
-          tarefa_id: string
-          usuario_id: string
-        }
-        Insert: {
-          comentario: string
-          criado_em?: string | null
-          id?: string
-          tarefa_id: string
-          usuario_id: string
-        }
-        Update: {
-          comentario?: string
-          criado_em?: string | null
-          id?: string
-          tarefa_id?: string
-          usuario_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tarefas_comentarios_tarefa_id_fkey"
-            columns: ["tarefa_id"]
-            isOneToOne: false
-            referencedRelation: "tarefas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tarefas_comentarios_usuario_id_fkey"
-            columns: ["usuario_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -12309,19 +9773,29 @@ export type Database = {
       travel_expense_reports: {
         Row: {
           aeronave_id: string | null
+          approval_token: string | null
+          client_approval_notes: string | null
+          client_approval_status: string | null
+          client_approved_at: string | null
           clientes_id: string | null
           created_at: string | null
+          crew_approval_notes: string | null
+          crew_approval_status: string | null
+          crew_approved_at: string | null
           criado_por: string | null
           data_fim: string
           data_inicio: string
           despesas: string | null
           dias_count: number
+          generated_by_user_id: string | null
           id: string
           matricula_aeronave: string | null
           nome_tripulante: string | null
           nome_tripulante_2: string | null
           numero_relatorio: string
           observacoes: string | null
+          pdf_path: string | null
+          requires_client_approval: boolean | null
           rota: string | null
           socios_cliente_id: string | null
           status: string | null
@@ -12343,19 +9817,29 @@ export type Database = {
         }
         Insert: {
           aeronave_id?: string | null
+          approval_token?: string | null
+          client_approval_notes?: string | null
+          client_approval_status?: string | null
+          client_approved_at?: string | null
           clientes_id?: string | null
           created_at?: string | null
+          crew_approval_notes?: string | null
+          crew_approval_status?: string | null
+          crew_approved_at?: string | null
           criado_por?: string | null
           data_fim: string
           data_inicio: string
           despesas?: string | null
           dias_count: number
+          generated_by_user_id?: string | null
           id?: string
           matricula_aeronave?: string | null
           nome_tripulante?: string | null
           nome_tripulante_2?: string | null
           numero_relatorio: string
           observacoes?: string | null
+          pdf_path?: string | null
+          requires_client_approval?: boolean | null
           rota?: string | null
           socios_cliente_id?: string | null
           status?: string | null
@@ -12377,19 +9861,29 @@ export type Database = {
         }
         Update: {
           aeronave_id?: string | null
+          approval_token?: string | null
+          client_approval_notes?: string | null
+          client_approval_status?: string | null
+          client_approved_at?: string | null
           clientes_id?: string | null
           created_at?: string | null
+          crew_approval_notes?: string | null
+          crew_approval_status?: string | null
+          crew_approved_at?: string | null
           criado_por?: string | null
           data_fim?: string
           data_inicio?: string
           despesas?: string | null
           dias_count?: number
+          generated_by_user_id?: string | null
           id?: string
           matricula_aeronave?: string | null
           nome_tripulante?: string | null
           nome_tripulante_2?: string | null
           numero_relatorio?: string
           observacoes?: string | null
+          pdf_path?: string | null
+          requires_client_approval?: boolean | null
           rota?: string | null
           socios_cliente_id?: string | null
           status?: string | null
@@ -12415,13 +9909,6 @@ export type Database = {
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "travel_expense_reports_aeronave_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -12470,13 +9957,6 @@ export type Database = {
             foreignKeyName: "travel_expense_reports_clientes_id_fkey"
             columns: ["clientes_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "travel_expense_reports_clientes_id_fkey"
-            columns: ["clientes_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -12512,14 +9992,48 @@ export type Database = {
             foreignKeyName: "travel_expense_reports_socios_cliente_id_fkey"
             columns: ["socios_cliente_id"]
             isOneToOne: false
-            referencedRelation: "client_partners"
+            referencedRelation: "socios_cliente"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      travel_report_approval_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_type: string
+          created_at: string
+          id: string
+          notes: string | null
+          report_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_type: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          report_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_type?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          report_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "travel_expense_reports_socios_cliente_id_fkey"
-            columns: ["socios_cliente_id"]
+            foreignKeyName: "travel_report_approval_log_report_id_fkey"
+            columns: ["report_id"]
             isOneToOne: false
-            referencedRelation: "socios_cliente"
+            referencedRelation: "travel_expense_reports"
             referencedColumns: ["id"]
           },
         ]
@@ -12686,6 +10200,82 @@ export type Database = {
           },
         ]
       }
+      user_clientes: {
+        Row: {
+          atualizado_em: string | null
+          avatar_url: string | null
+          clientes_id: string | null
+          criado_em: string | null
+          display_name: string | null
+          email: string
+          id: string
+          razao_social: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          avatar_url?: string | null
+          clientes_id?: string | null
+          criado_em?: string | null
+          display_name?: string | null
+          email: string
+          id: string
+          razao_social: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          avatar_url?: string | null
+          clientes_id?: string | null
+          criado_em?: string | null
+          display_name?: string | null
+          email?: string
+          id?: string
+          razao_social?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_clientes_clientes_id_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_clientes_clientes_id_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "user_clientes_clientes_id_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "user_clientes_clientes_id_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "user_clientes_clientes_id_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "user_clientes_clientes_id_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+        ]
+      }
       user_documents: {
         Row: {
           caminho_arquivo: string
@@ -12828,13 +10418,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_profiles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -12984,319 +10567,6 @@ export type Database = {
       }
     }
     Views: {
-      aircraft: {
-        Row: {
-          base: string | null
-          created_at: string | null
-          cruise_speed: string | null
-          fuel_consumption: number | null
-          hour_price: string | null
-          id: string | null
-          image_url: string | null
-          manufacturer: string | null
-          model: string | null
-          owner_name: string | null
-          registration: string | null
-          serial_number: string | null
-          status: string | null
-          updated_at: string | null
-          year: string | null
-        }
-        Insert: {
-          base?: string | null
-          created_at?: string | null
-          cruise_speed?: string | null
-          fuel_consumption?: number | null
-          hour_price?: string | null
-          id?: string | null
-          image_url?: string | null
-          manufacturer?: string | null
-          model?: string | null
-          owner_name?: string | null
-          registration?: string | null
-          serial_number?: string | null
-          status?: string | null
-          updated_at?: string | null
-          year?: string | null
-        }
-        Update: {
-          base?: string | null
-          created_at?: string | null
-          cruise_speed?: string | null
-          fuel_consumption?: number | null
-          hour_price?: string | null
-          id?: string | null
-          image_url?: string | null
-          manufacturer?: string | null
-          model?: string | null
-          owner_name?: string | null
-          registration?: string | null
-          serial_number?: string | null
-          status?: string | null
-          updated_at?: string | null
-          year?: string | null
-        }
-        Relationships: []
-      }
-      bank_reconciliations: {
-        Row: {
-          afeta_caixa_empresa: boolean | null
-          aircraft_id: string | null
-          amount: number | null
-          boleto_url: string | null
-          categoria_movimentacao_id: string | null
-          category: string | null
-          client_id: string | null
-          client_partner: string | null
-          colaborador: string | null
-          comprovante_url: string | null
-          controle_bancario_id: string | null
-          created_at: string | null
-          criado_por: string | null
-          data_reembolso: string | null
-          date: string | null
-          description: string | null
-          doc: string | null
-          forma_pagamento: string | null
-          fornecedor_dados: Json | null
-          fornecedor_nome: string | null
-          id: string | null
-          nf_url: string | null
-          partner_name: string | null
-          percentual: string | null
-          prazo_pagamento: string | null
-          receiver_id: string | null
-          reference_id: string | null
-          reference_type: string | null
-          saldo_pendente: number | null
-          status: string | null
-          tipo_documento: string | null
-          type: string | null
-          updated_at: string | null
-          valor_reembolsado: number | null
-        }
-        Insert: {
-          afeta_caixa_empresa?: boolean | null
-          aircraft_id?: string | null
-          amount?: number | null
-          boleto_url?: string | null
-          categoria_movimentacao_id?: string | null
-          category?: string | null
-          client_id?: string | null
-          client_partner?: string | null
-          colaborador?: string | null
-          comprovante_url?: string | null
-          controle_bancario_id?: string | null
-          created_at?: string | null
-          criado_por?: string | null
-          data_reembolso?: string | null
-          date?: string | null
-          description?: string | null
-          doc?: string | null
-          forma_pagamento?: string | null
-          fornecedor_dados?: Json | null
-          fornecedor_nome?: string | null
-          id?: string | null
-          nf_url?: string | null
-          partner_name?: string | null
-          percentual?: string | null
-          prazo_pagamento?: string | null
-          receiver_id?: string | null
-          reference_id?: string | null
-          reference_type?: string | null
-          saldo_pendente?: number | null
-          status?: string | null
-          tipo_documento?: string | null
-          type?: string | null
-          updated_at?: string | null
-          valor_reembolsado?: number | null
-        }
-        Update: {
-          afeta_caixa_empresa?: boolean | null
-          aircraft_id?: string | null
-          amount?: number | null
-          boleto_url?: string | null
-          categoria_movimentacao_id?: string | null
-          category?: string | null
-          client_id?: string | null
-          client_partner?: string | null
-          colaborador?: string | null
-          comprovante_url?: string | null
-          controle_bancario_id?: string | null
-          created_at?: string | null
-          criado_por?: string | null
-          data_reembolso?: string | null
-          date?: string | null
-          description?: string | null
-          doc?: string | null
-          forma_pagamento?: string | null
-          fornecedor_dados?: Json | null
-          fornecedor_nome?: string | null
-          id?: string | null
-          nf_url?: string | null
-          partner_name?: string | null
-          percentual?: string | null
-          prazo_pagamento?: string | null
-          receiver_id?: string | null
-          reference_id?: string | null
-          reference_type?: string | null
-          saldo_pendente?: number | null
-          status?: string | null
-          tipo_documento?: string | null
-          type?: string | null
-          updated_at?: string | null
-          valor_reembolsado?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_categoria_fkey"
-            columns: ["categoria_movimentacao_id"]
-            isOneToOne: false
-            referencedRelation: "categorias_movimentacao"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_client_partner_fkey"
-            columns: ["client_partner"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_client_partner_fkey"
-            columns: ["client_partner"]
-            isOneToOne: false
-            referencedRelation: "socios_cliente"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_controle_bancario_id_fkey"
-            columns: ["controle_bancario_id"]
-            isOneToOne: false
-            referencedRelation: "controle_bancario"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_controle_bancario_id_fkey"
-            columns: ["controle_bancario_id"]
-            isOneToOne: false
-            referencedRelation: "v_folha_pagamento_completa"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_controle_bancario_id_fkey"
-            columns: ["controle_bancario_id"]
-            isOneToOne: false
-            referencedRelation: "vw_financeiro_caixa"
-            referencedColumns: ["lancamento_caixa_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_receiver_id_fkey"
-            columns: ["receiver_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-        ]
-      }
       ciclos_voo_ativos: {
         Row: {
           aircraft_id: string | null
@@ -13334,13 +10604,6 @@ export type Database = {
             foreignKeyName: "flight_cycles_aircraft_id_fkey"
             columns: ["aircraft_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
@@ -13383,13 +10646,6 @@ export type Database = {
             foreignKeyName: "flight_cycles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente"
             referencedColumns: ["cliente_id"]
           },
@@ -13423,464 +10679,79 @@ export type Database = {
           },
         ]
       }
-      client_aircraft: {
+      diario_mes_com_disponivel: {
         Row: {
-          aircraft_id: string | null
-          aircraft_model: string | null
-          client_id: string | null
-          created_at: string | null
+          aerodromo_base: string | null
+          aeronave_id: string | null
+          ano: number | null
+          celula_anterior_ttotal: number | null
+          celula_anterior_tvoo: number | null
+          celula_atual_ttotal: number | null
+          celula_atual_tvoo: number | null
+          celula_disponivel: number | null
+          celula_disponivel_ttotal: number | null
+          celula_disponivel_tvoo: number | null
+          celula_prox_revisao_ttotal: number | null
+          celula_prox_revisao_tvoo: number | null
+          confirmado: boolean | null
+          confirmado_em: string | null
+          confirmado_por: string | null
+          consumo_combustivel: string | null
+          criado_em: string | null
+          fechado: boolean | null
+          horimetro_ativo: number | null
+          horimetro_final: number | null
+          horimetro_inicio: number | null
           id: string | null
-          login: string | null
-          partner_id: string | null
-          password: string | null
-          share_percentage: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          aircraft_id?: string | null
-          aircraft_model?: string | null
-          client_id?: string | null
-          created_at?: string | null
-          id?: string | null
-          login?: string | null
-          partner_id?: string | null
-          password?: string | null
-          share_percentage?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          aircraft_id?: string | null
-          aircraft_model?: string | null
-          client_id?: string | null
-          created_at?: string | null
-          id?: string | null
-          login?: string | null
-          partner_id?: string | null
-          password?: string | null
-          share_percentage?: number | null
-          updated_at?: string | null
+          mes: number | null
+          modo_celula: string | null
+          tarifa_diaria: number | null
+          tem_tarifa_diaria: boolean | null
         }
         Relationships: [
           {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "diario_mes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "diario_mes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "diario_mes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "diario_mes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_balanco_aeronave_simples"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "diario_mes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_despesas_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "client_aircraft_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_id_clientes_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_socios_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cotistas_aeronave_socios_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "socios_cliente"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      client_partners: {
-        Row: {
-          client_id: string | null
-          cpf: string | null
-          created_at: string | null
-          id: string | null
-          name: string | null
-          share_percentage: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          client_id?: string | null
-          cpf?: string | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          share_percentage?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          client_id?: string | null
-          cpf?: string | null
-          created_at?: string | null
-          id?: string | null
-          name?: string | null
-          share_percentage?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-        ]
-      }
-      clients: {
-        Row: {
-          address: string | null
-          aircraft_id: string | null
-          city: string | null
-          cnpj: string | null
-          company_name: string | null
-          created_at: string | null
-          documents: Json | null
-          email: string | null
-          financial_contact: string | null
-          has_partner: boolean | null
-          id: string | null
-          logo_url: string | null
-          notes: string | null
-          owner: string | null
-          partnership_percentage: number | null
-          phone: string | null
-          state: string | null
-          state_registration: string | null
-          status: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          address?: string | null
-          aircraft_id?: string | null
-          city?: string | null
-          cnpj?: string | null
-          company_name?: string | null
-          created_at?: string | null
-          documents?: Json | null
-          email?: string | null
-          financial_contact?: string | null
-          has_partner?: boolean | null
-          id?: string | null
-          logo_url?: string | null
-          notes?: string | null
-          owner?: string | null
-          partnership_percentage?: number | null
-          phone?: string | null
-          state?: string | null
-          state_registration?: string | null
-          status?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          address?: string | null
-          aircraft_id?: string | null
-          city?: string | null
-          cnpj?: string | null
-          company_name?: string | null
-          created_at?: string | null
-          documents?: Json | null
-          email?: string | null
-          financial_contact?: string | null
-          has_partner?: boolean | null
-          id?: string | null
-          logo_url?: string | null
-          notes?: string | null
-          owner?: string | null
-          partnership_percentage?: number | null
-          phone?: string | null
-          state?: string | null
-          state_registration?: string | null
-          status?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "clients_aircraft_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "diario_mes_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
           },
         ]
-      }
-      crew_licenses: {
-        Row: {
-          CMA: Database["public"]["Enums"]["cma_classe"] | null
-          cma_expiration: string | null
-          created_at: string | null
-          crew_member_id: string | null
-          expiration_date: string | null
-          FS_RH: string | null
-          id: string | null
-          license_number: string | null
-          license_type: string | null
-          observation: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          CMA?: Database["public"]["Enums"]["cma_classe"] | null
-          cma_expiration?: string | null
-          created_at?: string | null
-          crew_member_id?: string | null
-          expiration_date?: string | null
-          FS_RH?: string | null
-          id?: string | null
-          license_number?: string | null
-          license_type?: string | null
-          observation?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          CMA?: Database["public"]["Enums"]["cma_classe"] | null
-          cma_expiration?: string | null
-          created_at?: string | null
-          crew_member_id?: string | null
-          expiration_date?: string | null
-          FS_RH?: string | null
-          id?: string | null
-          license_number?: string | null
-          license_type?: string | null
-          observation?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crew_licenses_crew_member_id_fkey"
-            columns: ["crew_member_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crew_licenses_crew_member_id_fkey"
-            columns: ["crew_member_id"]
-            isOneToOne: false
-            referencedRelation: "membros_tripulacao"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crew_members: {
-        Row: {
-          address: string | null
-          admission_date: string | null
-          avatar_url: string | null
-          birth_date: string | null
-          canac: string | null
-          cpf: string | null
-          created_at: string | null
-          full_name: string | null
-          id: string | null
-          phone: string | null
-          rg: string | null
-          status: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          address?: string | null
-          admission_date?: string | null
-          avatar_url?: string | null
-          birth_date?: string | null
-          canac?: string | null
-          cpf?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          id?: string | null
-          phone?: string | null
-          rg?: string | null
-          status?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          address?: string | null
-          admission_date?: string | null
-          avatar_url?: string | null
-          birth_date?: string | null
-          canac?: string | null
-          cpf?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          id?: string | null
-          phone?: string | null
-          rg?: string | null
-          status?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
       }
       disponibilidade_aeronave: {
         Row: {
@@ -13910,79 +10781,6 @@ export type Database = {
           tempo_total: number | null
         }
         Relationships: []
-      }
-      pending_booking_requests: {
-        Row: {
-          aircraft_id: string | null
-          aircraft_model: string | null
-          aircraft_registration: string | null
-          client_contact: string | null
-          client_email: string | null
-          client_id: string | null
-          client_name: string | null
-          client_phone: string | null
-          created_at: string | null
-          departure_time: string | null
-          destination: string | null
-          duration_days: number | null
-          id: string | null
-          notes: string | null
-          origin: string | null
-          passenger_count: number | null
-          scheduled_date: string | null
-          status: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "flight_booking_requests_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-        ]
       }
       v_folha_pagamento_completa: {
         Row: {
@@ -14016,13 +10814,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "partner_accounts_clientes_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -14139,24 +10930,73 @@ export type Database = {
       }
       vw_balanco_cliente: {
         Row: {
+          aeronave_principal_id: string | null
           aeronaves: string | null
           cliente_cnpj: string | null
           cliente_id: string | null
           cliente_nome: string | null
+          cotistas_parceiros: Json | null
           despesas_por_categoria: Json | null
           mes_ano: string | null
           mes_referencia: string | null
+          percentual_cliente: number | null
           qtd_aguardando: number | null
           qtd_processado: number | null
           qtd_reembolsado: number | null
           saldo_pendente: number | null
+          saldo_rateio: number | null
           total_despesas: number | null
           total_movimentacoes: number | null
           valor_cliente_pagou_direto: number | null
+          valor_devido_cliente: number | null
           valor_empresa_adiantou: number | null
+          valor_pago_cliente: number | null
           valor_reembolsado: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_aircraft_fkey"
+            columns: ["aeronave_principal_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_aircraft_fkey"
+            columns: ["aeronave_principal_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_aircraft_fkey"
+            columns: ["aeronave_principal_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "clients_aircraft_fkey"
+            columns: ["aeronave_principal_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "clients_aircraft_fkey"
+            columns: ["aeronave_principal_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "clients_aircraft_fkey"
+            columns: ["aeronave_principal_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
       }
       vw_balanco_cliente_simples: {
         Row: {
@@ -14194,13 +11034,6 @@ export type Database = {
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
             referencedColumns: ["id"]
           },
           {
@@ -14256,13 +11089,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conciliacoes_bancarias_clientes_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
@@ -14517,6 +11343,10 @@ export type Database = {
         Args: { p_email: string; p_password: string }
         Returns: Json
       }
+      calcular_consumo_combustivel: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       calculate_total_hours: {
         Args: {
           p_clock_in: string
@@ -14596,6 +11426,10 @@ export type Database = {
         Args: { p_aeronave_id: string; p_data: string }
         Returns: string
       }
+      gerar_numero_relatorio_viagem: {
+        Args: { p_cliente_id: string; p_matricula: string }
+        Returns: string
+      }
       get_partner_by_cpf: {
         Args: { p_cpf: string }
         Returns: {
@@ -14657,6 +11491,10 @@ export type Database = {
           status: string
           valor_rateado: number
         }[]
+      }
+      recalcular_consumo_aeronave: {
+        Args: { p_aeronave_id: string }
+        Returns: number
       }
       refresh_anniversary_alerts: { Args: never; Returns: undefined }
       refresh_expiration_alerts: { Args: never; Returns: undefined }

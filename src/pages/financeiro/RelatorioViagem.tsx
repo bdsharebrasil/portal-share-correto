@@ -103,7 +103,7 @@ import {
   extractPayerTotals,
   getValidExpenses,
 } from '@/lib/travelReportUtils';
-import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
+import { PartnerSelectModal } from '@/components/diario/DiarioBordoDetalhes/components/PartnerSelectModal';
 import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
 import { TravelReportForm } from '@/components/travel/TravelReportForm';
 

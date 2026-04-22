@@ -34,25 +34,34 @@ export interface DiarioPDFData {
 }
 
 export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string) => {
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const pageWidth = pdf.internal.pageSize.getWidth();
-
-  // Carregar logo com tratamento robusto de erro
-  let logoImg: string | undefined;
-  if (logoUrl) {
-    try {
-      const fullUrl = logoUrl.startsWith('http') ? logoUrl : `${window.location.origin}${logoUrl}`;
-      const response = await fetch(fullUrl, { mode: 'cors' });
-      if (!response.ok) throw new Error(`Status ${response.status}`);
-      const blob = await response.blob();
-      logoImg = await blobToBase64(blob);
-    } catch (e) {
-      console.warn("Erro ao carregar logo, continuando sem logo:", e);
-      // Continua sem logo se houver erro
+  try {
+    if (!data || !data.meses || data.meses.length === 0) {
+      throw new Error("Nenhum dado de mês disponível para exportação");
     }
-  }
+
+    if (!data.aeronave || !data.aeronave.matricula) {
+      throw new Error("Matrícula da aeronave não encontrada");
+    }
+
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+
+    // Carregar logo com tratamento robusto de erro
+    let logoImg: string | undefined;
+    if (logoUrl) {
+      try {
+        const fullUrl = logoUrl.startsWith('http') ? logoUrl : `${window.location.origin}${logoUrl}`;
+        const response = await fetch(fullUrl, { mode: 'cors' });
+        if (!response.ok) throw new Error(`Status ${response.status}`);
+        const blob = await response.blob();
+        logoImg = await blobToBase64(blob);
+      } catch (e) {
+        console.warn("Erro ao carregar logo, continuando sem logo:", e);
+        // Continua sem logo se houver erro
+      }
+    }
 
   // Para cada mês, criar páginas
   for (let i = 0; i < data.meses.length; i++) {
@@ -385,7 +394,12 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
     }
   }
 
-  return pdf;
+    return pdf;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Erro desconhecido ao gerar PDF";
+    console.error("Erro em exportDiarioBordoPDF:", errorMsg, error);
+    throw new Error(`Falha ao gerar PDF: ${errorMsg}`);
+  }
 };
 
 function blobToBase64(blob: Blob): Promise<string> {
