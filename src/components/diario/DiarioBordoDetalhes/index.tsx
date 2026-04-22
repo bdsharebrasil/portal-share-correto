@@ -1745,9 +1745,9 @@ function NovoVooInline({
         ocorrencias: obs || null, consumo_combustivel_voo: consumoCombustivelVoo || null,
         preco_combustivel_litro: precoCombustivel || null, local_combustivel: localCombustivel || null,
         tipo_combustivel: tipoCombustivel || null,
-        // FIX: usa 'crew_members' conforme constraint do banco
-        origem_pic: picId ? 'crew_members' : null,
-        origem_sic: sicId ? 'crew_members' : null,
+        // FIX: usa 'tripulacao' conforme constraint do banco
+        origem_pic: picId ? 'tripulacao' : null,
+        origem_sic: sicId ? 'tripulacao' : null,
       };
       const ins = await supabase.from("lancamentos_diario_bordo").insert(payload as never);
       if (ins.error) throw ins.error;
@@ -1963,8 +1963,8 @@ function EditarVooInline({
         clientes_id: clienteId || null, socios_cliente_id: socioId || null, socios_nome: socioNome,
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
-        origem_pic: picId ? 'crew_members' : null,
-        origem_sic: sicId ? 'crew_members' : null,
+        origem_pic: picId ? 'tripulacao' : null,
+        origem_sic: sicId ? 'tripulacao' : null,
       } as never).eq("id", lanc.id);
       if (error) throw error;
       onSaved();
