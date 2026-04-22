@@ -20,7 +20,7 @@ interface PastasRelatoriosProps {
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string | undefined) => void;
-  onSend: (report: PastaReportItem, type?: string) => void;
+  onSend: (report: PastaReportItem, type: 'conferencia' | 'cliente') => void | Promise<void>;
 }
 
 // ─── Status config ─────────────────────────────────────────────────────────────

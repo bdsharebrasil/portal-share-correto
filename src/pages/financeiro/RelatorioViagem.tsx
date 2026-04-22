@@ -759,7 +759,7 @@ export default function RelatorioViagem() {
   };
 
   // -------------------------------------------------------------------------
-  // Envio
+  // Envio ao Cliente
   // -------------------------------------------------------------------------
   const handleSendReport = async () => {
     if (!sendReportTarget?.id || !sendDueDate) {
@@ -768,17 +768,37 @@ export default function RelatorioViagem() {
     }
     setIsSending(true);
     try {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+
+      // 1. Atualizar status do relatório para "Enviado"
+      const { error: reportError } = await supabase
         .from('travel_expense_reports')
         .update({ status: 'Enviado', updated_at: new Date().toISOString() })
         .eq('id', sendReportTarget.id);
-      if (error) throw error;
+      if (reportError) throw reportError;
 
-      // FIX: usar reference_id e reference_type consistentemente
-      await supabase
+      // 2. Inserir/Atualizar registro em conciliacoes_bancarias
+      const reconciliationData = {
+        tipo: 'cliente',
+        data: new Date().toISOString().split('T')[0],
+        descricao: `Relatório de Viagem ${sendReportTarget.numero_relatorio}`,
+        valor: sendReportTarget.total_valor || 0,
+        status: 'enviado',
+        clientes_id: sendReportTarget.clientes_id,
+        aeronave_id: sendReportTarget.aeronave_id,
+        prazo_pagamento: sendDueDate,
+        tipo_referencia: 'travel_expense_report',
+        referencia_id: sendReportTarget.id,
+        tipo_documento: 'despesa_viagem',
+        criado_por: user.id,
+        criado_em: new Date().toISOString(),
+      };
+
+      const { error: reconcError } = await supabase
         .from('conciliacoes_bancarias')
-        .update({ status: 'enviado', prazo_pagamento: sendDueDate } as any)
-        .eq('id', sendReportTarget.id);
+        .insert([reconciliationData]);
+      if (reconcError) throw reconcError;
 
       toast.success('✓ Relatório enviado ao cliente com sucesso!');
       setSendDialogOpen(false);
@@ -786,6 +806,7 @@ export default function RelatorioViagem() {
       setSendDueDate('');
       loadReports();
     } catch (error: any) {
+      console.error('Erro ao enviar relatório:', error);
       toast.error(`❌ Erro ao enviar: ${error.message}`);
     } finally {
       setIsSending(false);
@@ -1151,44 +1172,52 @@ export default function RelatorioViagem() {
         title="Comprovante Anexado"
       />
 
-      {/* Dialog de envio */}
+      {/* Dialog de envio ao cliente */}
       <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-slate-900 border border-slate-700">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-emerald-500" />
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Send className="h-5 w-5 text-cyan-400" />
               Enviar Relatório ao Cliente
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Relatório</p>
-              <p className="font-semibold">{sendReportTarget?.numero_relatorio}</p>
-              <p className="text-xs text-muted-foreground">{sendReportTarget?.client}</p>
+          <div className="space-y-4 mt-4">
+            <div className="rounded-lg bg-slate-800/50 p-4 border border-slate-700">
+              <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Relatório</p>
+              <p className="font-mono font-semibold text-white text-lg">{sendReportTarget?.numero_relatorio}</p>
+              <p className="text-xs text-slate-400 mt-1">{sendReportTarget?.client}</p>
             </div>
+
             <div>
-              <p className="text-sm text-muted-foreground mb-1">
-                Total:{' '}
-                <span className="font-bold text-foreground">{fmt(sendReportTarget?.total_valor)}</span>
+              <p className="text-sm text-slate-400 mb-2">
+                Total: <span className="font-bold text-white text-base">{fmt(sendReportTarget?.total_valor)}</span>
               </p>
             </div>
+
             <div>
-              <Label htmlFor="due-date">Prazo de Vencimento</Label>
+              <Label htmlFor="due-date" className="text-slate-300 text-sm font-medium">Prazo de Vencimento</Label>
               <Input
                 id="due-date"
                 type="date"
                 value={sendDueDate}
                 onChange={e => setSendDueDate(e.target.value)}
-                className="mt-1"
+                className="mt-2 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-400 focus:ring-cyan-400/20"
               />
             </div>
           </div>
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setSendDialogOpen(false)}>Cancelar</Button>
+
+          <DialogFooter className="mt-6 gap-2 flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setSendDialogOpen(false)}
+              className="border-slate-600 text-slate-300 hover:bg-slate-800"
+            >
+              Cancelar
+            </Button>
             <Button
               onClick={handleSendReport}
               disabled={!sendDueDate || isSending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+              className="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white gap-2 font-medium"
             >
               {isSending ? 'Enviando...' : <><Send className="h-4 w-4" /> Enviar</>}
             </Button>
