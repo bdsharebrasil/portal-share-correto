@@ -20,9 +20,6 @@ import { HashRouter, Route, Routes, useParams, useNavigate } from "react-router-
 // Import das páginas
 import AgendaHub from "./pages/AgendaHub";
 import Agendamento from "./pages/Agendamento";
-import Aniversarios from "./pages/agenda/Aniversarios";
-import Clientes from "./pages/agenda/Clientes";
-import Contatos from "./pages/agenda/Contatos";
 import ConfigEmpresa from "./pages/financeiro/ConfigEmpresa";
 import EmissaoRecibo from "./pages/financeiro/EmissaoRecibo";
 import RelatorioViagem from "./pages/financeiro/RelatorioViagem";
@@ -69,7 +66,6 @@ import Master from "./pages/financeiro/Master";
 import MasterColaboradores from "./pages/financeiro/MasterColaboradores";
 import MasterTarefas from "./pages/financeiro/MasterTarefas";
 import ConfigMovimentacoes from "./pages/financeiro/ConfigMovimentacoes";
-import CalendarioFerias from "./pages/CalendarioFerias";
 import DashboardOperacoes from "./pages/DashboardOperacoes";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import DashboardGestorPage from "./pages/DashboardGestorPage";
@@ -196,10 +192,6 @@ const App = () => {
                             )
                           } />
                           <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
-                          <Route path="/agenda/contatos" element={renderProtected(<Contatos />)} />
-                          <Route path="/agenda/clientes" element={renderProtected(<Clientes />)} />
-                          <Route path="/agenda/aniversarios" element={renderProtected(<Aniversarios />)} />
-                          <Route path="/agenda/calendario-ferias" element={renderProtected(<CalendarioFerias />)} />
                           <Route path="/documentos" element={renderProtected(<Documentos />)} />
                           <Route path="/senhas" element={renderProtected(<Senhas />)} />
                           <Route path="/agendamento" element={renderProtected(<Agendamento />)} />
