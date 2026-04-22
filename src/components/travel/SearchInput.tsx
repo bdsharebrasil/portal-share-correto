@@ -49,7 +49,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
         }
 
         .search-input::placeholder {
-          color: transparent;
+          color: #fff;
         }
 
         .search-input:focus,
