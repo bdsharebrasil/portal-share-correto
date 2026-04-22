@@ -15,25 +15,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Task {
   id: string;
-  title: string;
-  description: string | null;
-  due_date: string | null;
-  priority: "baixa" | "media" | "alta";
-  status: "pendente" | "em progresso" | "concluida";
-  assigned_to: string | null;
-  requested_by: string | null;
-  created_at: string;
-  created_by?: string | null;
+  titulo: string;
+  descricao: string | null;
+  prazo: string | null;
+  prioridade: "baixa" | "media" | "alta";
+  status: "aberto" | "em_progresso" | "concluida";
+  atribuido_para: string | null;
+  criado_por: string | null;
+  criado_em: string;
 }
 
 interface TaskNotification {
   id: string;
-  task_id: string;
+  id_da_tarefa: string;
   user_id: string;
-  message: string;
-  status_changed_to: string;
-  read: boolean;
-  created_at: string;
+  mensagem: string;
+  status_alterado_para: string | null;
+  lido: boolean;
+  criado_em: string;
 }
 
 export default function MinhasTarefas() {
@@ -51,13 +50,13 @@ export default function MinhasTarefas() {
 
     // Subscribe to notification changes
     const channel = supabase
-      .channel('task-notifications')
+      .channel('tarefas-notificacoes')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'task_notifications'
+          table: 'tarefas_notificacoes'
         },
         () => {
           void fetchNotifications();
@@ -79,10 +78,10 @@ export default function MinhasTarefas() {
       return;
     }
     const { data, error } = await supabase
-      .from("tasks")
+      .from("tarefas")
       .select("*")
-      .or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`)
-      .order("due_date", { ascending: true });
+      .or(`criado_por.eq.${user.id},atribuido_para.eq.${user.id}`)
+      .order("prazo", { ascending: true });
 
     if (error) {
       console.error("Erro ao carregar tarefas:", error);
@@ -103,10 +102,10 @@ export default function MinhasTarefas() {
     }
 
     const { data, error } = await supabase
-      .from("task_notifications")
+      .from("tarefas_notificacoes")
       .select("*")
       .eq("user_id", user.id)
-      .eq("read", false)
+      .eq("lido", false)
       .order("criado_em", { ascending: false });
 
     if (error) {
@@ -120,8 +119,8 @@ export default function MinhasTarefas() {
 
   const markNotificationAsRead = async (notificationId: string) => {
     const { error } = await supabase
-      .from("task_notifications")
-      .update({ read: true })
+      .from("tarefas_notificacoes")
+      .update({ lido: true })
       .eq("id", notificationId);
 
     if (error) {
@@ -148,7 +147,7 @@ export default function MinhasTarefas() {
     }
 
     const { error } = await supabase
-      .from("tasks")
+      .from("tarefas")
       .delete()
       .eq("id", task.id);
 
@@ -165,7 +164,7 @@ export default function MinhasTarefas() {
   const toggleTask = async (task: Task, checked: boolean) => {
     const nextStatus: Task["status"] = checked ? "concluida" : "aberto";
     const { error } = await supabase
-      .from("tasks")
+      .from("tarefas")
       .update({ status: nextStatus })
       .eq("id", task.id);
     if (error) {
@@ -174,25 +173,25 @@ export default function MinhasTarefas() {
       return;
     }
 
-    // Criar notificação se a tarefa foi atribuída a alguém (assigned_to !== created_by)
-    if (task.assigned_to && task.created_by && task.assigned_to !== task.created_by) {
+    // Criar notificação se a tarefa foi atribuída a alguém (atribuido_para !== criado_por)
+    if (task.atribuido_para && task.criado_por && task.atribuido_para !== task.criado_por) {
       const statusMap = {
-        "pendente": "Pendente",
+        "aberto": "Aberto",
         "em_progresso": "Em Progresso",
         "concluida": "Concluída"
       };
 
-      const notificationMessage = `Tarefa "${task.title}" foi marcada como ${statusMap[nextStatus]}`;
+      const notificationMessage = `Tarefa "${task.titulo}" foi marcada como ${statusMap[nextStatus]}`;
 
       const { error: notificationError } = await supabase
-        .from("task_notifications")
+        .from("tarefas_notificacoes")
         .insert({
-          task_id: task.id,
-          user_id: task.created_by,
-          message: notificationMessage,
-          status_changed_to: nextStatus,
-          read: false,
-          created_at: new Date().toISOString()
+          id_da_tarefa: task.id,
+          user_id: task.criado_por,
+          mensagem: notificationMessage,
+          status_alterado_para: nextStatus,
+          lido: false,
+          criado_em: new Date().toISOString()
         });
 
       if (notificationError) {
@@ -216,8 +215,8 @@ export default function MinhasTarefas() {
     setEditingTask(null);
   };
 
-  const getPriorityColor = (priority: Task["priority"]) => {
-    switch (priority) {
+  const getPriorityColor = (prioridade: Task["prioridade"]) => {
+    switch (prioridade) {
       case "alta":
         return "bg-red-500";
       case "media":
@@ -233,9 +232,9 @@ export default function MinhasTarefas() {
     switch (status) {
       case "concluida":
         return "bg-green-600";
-      case "em progresso":
+      case "em_progresso":
         return "bg-blue-600";
-      case "pendente":
+      case "aberto":
         return "bg-gray-600";
       default:
         return "bg-gray-500";
@@ -246,10 +245,10 @@ export default function MinhasTarefas() {
     switch (status) {
       case "concluida":
         return "Concluída";
-      case "em progresso":
+      case "em_progresso":
         return "Em Progresso";
-      case "pendente":
-        return "Pendente";
+      case "aberto":
+        return "Aberto";
       default:
         return status;
     }
@@ -335,7 +334,7 @@ export default function MinhasTarefas() {
                                         ? 'line-through text-muted-foreground'
                                         : 'text-foreground'
                                       }`}>
-                                      {task.title}
+                                      {task.titulo}
                                     </h3>
                                     {task.descricao && (
                                       <p className="text-muted-foreground text-xs mt-1 line-clamp-1">
@@ -384,15 +383,15 @@ export default function MinhasTarefas() {
                                 </div>
 
                                 <div className="flex gap-2 mt-2 flex-wrap">
-                                  <Badge className={`${getPriorityColor(task.priority)} text-xs`}>
-                                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                                  <Badge className={`${getPriorityColor(task.prioridade)} text-xs`}>
+                                    {task.prioridade.charAt(0).toUpperCase() + task.prioridade.slice(1)}
                                   </Badge>
                                   <Badge className={`${getStatusColor(task.status)} text-xs`}>
                                     {getStatusLabel(task.status)}
                                   </Badge>
-                                  {task.due_date && (
+                                  {task.prazo && (
                                     <div className="text-xs text-muted-foreground">
-                                      {format(new Date(task.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                                      {format(new Date(task.prazo), "dd/MM/yyyy", { locale: ptBR })}
                                     </div>
                                   )}
                                 </div>
@@ -416,8 +415,8 @@ export default function MinhasTarefas() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <h3 className="font-semibold text-sm mb-2 text-foreground">Prioridade</h3>
-                                  <Badge className={getPriorityColor(task.priority)}>
-                                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                                  <Badge className={getPriorityColor(task.prioridade)}>
+                                    {task.prioridade.charAt(0).toUpperCase() + task.prioridade.slice(1)}
                                   </Badge>
                                 </div>
 
@@ -429,11 +428,11 @@ export default function MinhasTarefas() {
                                 </div>
                               </div>
 
-                              {task.due_date && (
+                              {task.prazo && (
                                 <div>
                                   <h3 className="font-semibold text-sm mb-2 text-foreground">Prazo</h3>
                                   <p className="text-sm text-muted-foreground">
-                                    {format(new Date(task.due_date), "dd/MM/yyyy", { locale: ptBR })}
+                                    {format(new Date(task.prazo), "dd/MM/yyyy", { locale: ptBR })}
                                   </p>
                                 </div>
                               )}

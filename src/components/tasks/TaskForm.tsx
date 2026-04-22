@@ -26,12 +26,12 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TaskFormData {
-  title: string;
-  description: string;
-  due_date: string;
-  priority: "baixa" | "media" | "alta";
-  status: "pendente" | "em progresso" | "concluida";
-  assigned_to: string;
+  titulo: string;
+  descricao: string;
+  prazo: string;
+  prioridade: "baixa" | "media" | "alta";
+  status: "aberto" | "em_progresso" | "concluida";
+  atribuido_para: string;
 }
 
 interface TaskFormProps {
@@ -42,13 +42,13 @@ interface TaskFormProps {
 
 interface Task {
   id: string;
-  title: string;
-  description: string | null;
-  due_date: string | null;
-  priority: "baixa" | "media" | "alta";
-  status: "pendente" | "em progresso" | "concluida";
-  assigned_to: string | null;
-  requested_by: string | null;
+  titulo: string;
+  descricao: string | null;
+  prazo: string | null;
+  prioridade: "baixa" | "media" | "alta";
+  status: "aberto" | "em_progresso" | "concluida";
+  atribuido_para: string | null;
+  criado_por: string | null;
 }
 
 interface UserProfile {
@@ -59,12 +59,12 @@ interface UserProfile {
 
 export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
   const [formData, setFormData] = useState<TaskFormData>({
-    title: "",
-    description: "",
-    due_date: "",
-    priority: "media",
-    status: "pendente",
-    assigned_to: "",
+    titulo: "",
+    descricao: "",
+    prazo: "",
+    prioridade: "media",
+    status: "aberto",
+    atribuido_para: "",
   });
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>("");
@@ -119,21 +119,21 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
   useEffect(() => {
     if (task) {
       setFormData({
-        title: task.title ?? "",
-        description: task.descricao ?? "",
-        due_date: task.data_vencimento ?? "",
-        priority: task.priority ?? "media",
-        status: task.status ?? "pendente",
-        assigned_to: task.assigned_to ?? currentUserId,
+        titulo: task.titulo ?? "",
+        descricao: task.descricao ?? "",
+        prazo: task.prazo ?? "",
+        prioridade: task.prioridade ?? "media",
+        status: task.status ?? "aberto",
+        atribuido_para: task.atribuido_para ?? currentUserId,
       });
     } else {
       setFormData({
-        title: "",
-        description: "",
-        due_date: "",
-        priority: "media",
-        status: "pendente",
-        assigned_to: currentUserId,
+        titulo: "",
+        descricao: "",
+        prazo: "",
+        prioridade: "media",
+        status: "aberto",
+        atribuido_para: currentUserId,
       });
     }
   }, [task, currentUserId]);
@@ -156,13 +156,13 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
 
     try {
       const taskPayload = {
-        title: formData.title.trim(),
-        description: formData.descricao.trim() || null,
-        due_date: formData.data_vencimento ? formData.data_vencimento : null,
-        priority: formData.priority,
+        titulo: formData.titulo.trim(),
+        descricao: formData.descricao.trim() || null,
+        prazo: formData.prazo ? formData.prazo : null,
+        prioridade: formData.prioridade,
         status: formData.status,
-        assigned_to: formData.assigned_to && formData.assigned_to !== currentUserId ? formData.assigned_to : null,
-        created_by: currentUserId,
+        atribuido_para: formData.atribuido_para && formData.atribuido_para !== currentUserId ? formData.atribuido_para : null,
+        criado_por: currentUserId,
       };
 
       console.log("📋 Payload da tarefa:", taskPayload);
@@ -172,7 +172,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
       if (task) {
         console.log("✏️ Atualizando tarefa:", task.id);
         const { error } = await supabase
-          .from("tasks")
+          .from("tarefas")
           .update(taskPayload)
           .eq("id", task.id);
 
@@ -186,7 +186,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         toast.success("Tarefa atualizada com sucesso!");
       } else {
         console.log("➕ Criando nova tarefa");
-        const { error } = await supabase.from("tasks").insert([taskPayload]);
+        const { error } = await supabase.from("tarefas").insert([taskPayload]);
 
         if (error) {
           console.error("❌ Erro ao criar tarefa:", error);
@@ -235,9 +235,9 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             <Label htmlFor="task-title">Título *</Label>
             <Input
               id="task-title"
-              value={formData.title}
+              value={formData.titulo}
               onChange={(event) =>
-                setFormData((prev) => ({ ...prev, title: event.target.value }))
+                setFormData((prev) => ({ ...prev, titulo: event.target.value }))
               }
               required
               disabled={loading}
@@ -250,7 +250,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
               id="task-description"
               value={formData.descricao}
               onChange={(event) =>
-                setFormData((prev) => ({ ...prev, description: event.target.value }))
+                setFormData((prev) => ({ ...prev, descricao: event.target.value }))
               }
               rows={3}
               disabled={loading}
@@ -268,22 +268,22 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
                     disabled={loading}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_vencimento
-                      ? format(new Date(formData.data_vencimento), "dd/MM/yyyy", { locale: ptBR })
+                    {formData.prazo
+                      ? format(new Date(formData.prazo), "dd/MM/yyyy", { locale: ptBR })
                       : "Selecione a data"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
                   <Calendar
                     mode="single"
-                    selected={formData.data_vencimento ? new Date(formData.data_vencimento) : undefined}
+                    selected={formData.prazo ? new Date(formData.prazo) : undefined}
                     onSelect={(date) => {
                       if (date) {
                         const year = date.getFullYear();
                         const month = String(date.getMonth() + 1).padStart(2, '0');
                         const day = String(date.getDate()).padStart(2, '0');
                         const formattedDate = `${year}-${month}-${day}`;
-                        setFormData((prev) => ({ ...prev, due_date: formattedDate }));
+                        setFormData((prev) => ({ ...prev, prazo: formattedDate }));
                         setDueDateOpen(false);
                       }
                     }}
@@ -297,9 +297,9 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             <div className="space-y-2">
               <Label htmlFor="task-priority">Prioridade</Label>
               <Select
-                value={formData.priority}
-                onValueChange={(value: TaskFormData["priority"]) =>
-                  setFormData((prev) => ({ ...prev, priority: value }))
+                value={formData.prioridade}
+                onValueChange={(value: TaskFormData["prioridade"]) =>
+                  setFormData((prev) => ({ ...prev, prioridade: value }))
                 }
                 disabled={loading}
               >
@@ -328,8 +328,8 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
                 <SelectValue placeholder="Selecione o status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="em progresso">Em Progresso</SelectItem>
+                <SelectItem value="aberto">Aberto</SelectItem>
+                <SelectItem value="em_progresso">Em Progresso</SelectItem>
                 <SelectItem value="concluida">Concluída</SelectItem>
               </SelectContent>
             </Select>
@@ -339,9 +339,9 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             <div className="space-y-2">
               <Label htmlFor="task-assignee">Atribuir para (opcional)</Label>
               <Select
-                value={formData.assigned_to}
+                value={formData.atribuido_para}
                 onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, assigned_to: value }))
+                  setFormData((prev) => ({ ...prev, atribuido_para: value }))
                 }
                 disabled={loading}
               >

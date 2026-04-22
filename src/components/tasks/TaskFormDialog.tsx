@@ -21,12 +21,12 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
+    titulo: "",
+    descricao: "",
     status: "aberto",
-    priority: "media",
-    due_date: "",
-    assigned_to: ""
+    prioridade: "media",
+    prazo: "",
+    atribuido_para: ""
   });
 
   useEffect(() => {
@@ -49,21 +49,21 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
 
   const loadTask = async () => {
     if (!taskId) return;
-    
+
     const { data } = await supabase
-      .from("tasks")
+      .from("tarefas")
       .select("*")
       .eq("id", taskId)
       .single();
-    
+
     if (data) {
       setFormData({
-        title: data.title,
-        description: data.descricao || "",
+        titulo: data.titulo,
+        descricao: data.descricao || "",
         status: data.status,
-        priority: data.priority,
-        due_date: data.data_vencimento || "",
-        assigned_to: data.assigned_to || ""
+        prioridade: data.prioridade,
+        prazo: data.prazo || "",
+        atribuido_para: data.atribuido_para || ""
       });
     }
   };
@@ -82,13 +82,13 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
       console.log("👤 Usuário logado:", user.id);
 
       const taskData = {
-        title: formData.title,
-        description: formData.descricao || null,
-        due_date: formData.data_vencimento || null,
-        priority: formData.priority,
+        titulo: formData.titulo,
+        descricao: formData.descricao || null,
+        prazo: formData.prazo || null,
+        prioridade: formData.prioridade,
         status: formData.status,
-        assigned_to: formData.assigned_to || null,
-        created_by: user.id,
+        atribuido_para: formData.atribuido_para || null,
+        criado_por: user.id,
       };
 
       console.log("📋 Dados da tarefa:", taskData);
@@ -96,10 +96,10 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
       if (taskId) {
         console.log("✏️ Atualizando tarefa:", taskId);
         const { error } = await supabase
-          .from("tasks")
+          .from("tarefas")
           .update(taskData)
           .eq("id", taskId);
-        
+
         if (error) {
           console.error("❌ Erro ao atualizar:", error);
           throw error;
@@ -109,7 +109,7 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
       } else {
         console.log("➕ Criando nova tarefa");
         const { error } = await supabase
-          .from("tasks")
+          .from("tarefas")
           .insert([taskData]);
         
         if (error) {
@@ -135,12 +135,12 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
 
       setOpen(false);
       setFormData({
-        title: "",
-        description: "",
+        titulo: "",
+        descricao: "",
         status: "aberto",
-        priority: "media",
-        due_date: "",
-        assigned_to: ""
+        prioridade: "media",
+        prazo: "",
+        atribuido_para: ""
       });
       onSuccess?.();
     } catch (error: any) {
@@ -170,11 +170,11 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="title">Título *</Label>
+            <Label htmlFor="titulo">Título *</Label>
             <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              id="titulo"
+              value={formData.titulo}
+              onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
               required
             />
           </div>
@@ -184,17 +184,17 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
             <Textarea
               id="descricao"
               value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               rows={3}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="priority">Prioridade</Label>
+              <Label htmlFor="prioridade">Prioridade</Label>
               <Select
-                value={formData.priority}
-                onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                value={formData.prioridade}
+                onValueChange={(value) => setFormData({ ...formData, prioridade: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -218,8 +218,8 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="aberto">Aberto</SelectItem>
-                  <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                  <SelectItem value="concluido">Concluído</SelectItem>
+                  <SelectItem value="em_progresso">Em Progresso</SelectItem>
+                  <SelectItem value="concluida">Concluída</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -227,10 +227,10 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="assigned_to">Atribuir para</Label>
+              <Label htmlFor="atribuido_para">Atribuir para</Label>
               <Select
-                value={formData.assigned_to}
-                onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                value={formData.atribuido_para}
+                onValueChange={(value) => setFormData({ ...formData, atribuido_para: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um usuário" />
@@ -246,12 +246,12 @@ export function TaskFormDialog({ taskId, onSuccess, children }: TaskFormDialogPr
             </div>
 
             <div>
-              <Label htmlFor="data_vencimento">Data de Vencimento</Label>
+              <Label htmlFor="prazo">Data de Vencimento</Label>
               <Input
-                id="data_vencimento"
-                type="data"
-                value={formData.data_vencimento}
-                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                id="prazo"
+                type="date"
+                value={formData.prazo}
+                onChange={(e) => setFormData({ ...formData, prazo: e.target.value })}
               />
             </div>
           </div>
