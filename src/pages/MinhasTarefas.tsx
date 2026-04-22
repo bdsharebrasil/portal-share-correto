@@ -24,8 +24,8 @@ export default function MinhasTarefas() {
               </h1>
               <p className="text-sm text-muted-foreground">
                 {view === "minhas"
-                  ? "Tarefas atribuídas a você ou criadas por você"
-                  : "Tarefas públicas e delegadas (privadas ocultas)"}
+                  ? "Tarefas privadas criadas por você - com controle total"
+                  : "Tarefas atribuídas a você por administradores - visualizar e comentar"}
               </p>
             </div>
           </div>
