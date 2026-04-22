@@ -20,13 +20,6 @@ interface TimeEntry {
   status: string;
   total_hours?: number;
 }
-interface Task {
-  id: string;
-  title: string;
-  priority: "baixa" | "media" | "alta";
-  status: string;
-  due_date: string | null;
-}
 interface Note {
   id: string;
   content: string;
@@ -39,15 +32,12 @@ export function FinanceiroDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeClockHistoryOpen, setTimeClockHistoryOpen] = useState(false);
   const [showFlightCycle, setShowFlightCycle] = useState(false);
-  const [pendingTasks, setPendingTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
   const [notesLoading, setNotesLoading] = useState(true);
   const [reportDiscordances, setReportDiscordances] = useState<any[]>([]);
   const [discordancesLoading, setDiscordancesLoading] = useState(true);
   useEffect(() => {
     loadTodayEntry();
-    loadTasks();
     loadNotes();
     loadReportDiscordances();
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -70,32 +60,6 @@ export function FinanceiroDashboard() {
       setTodayEntry(data);
     } catch (error) {
       console.error('Erro ao carregar ponto:', error);
-    }
-  };
-  const loadTasks = async () => {
-    try {
-      const {
-        data: {
-          user
-        }
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setTasksLoading(false);
-        return;
-      }
-      const {
-        data,
-        error
-      } = await supabase.from("tasks").select("id, title, priority, status, due_date").or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`).eq("status", "aberto").order("due_date", {
-        ascending: true
-      }).limit(4);
-      if (!error && data) {
-        setPendingTasks(data as Task[]);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar tarefas:', error);
-    } finally {
-      setTasksLoading(false);
     }
   };
   const loadNotes = async () => {
@@ -357,43 +321,6 @@ export function FinanceiroDashboard() {
 
       {/* Left Column */}
       <div className="col-span-12 lg:col-span-6 space-y-4">
-        {/* Tasks Card */}
-        <div className="rounded-2xl bg-card/60 border border-border/50 p-5 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-violet-500/20">
-                <FileText className="h-5 w-5 text-violet-400" />
-              </div>
-              <span className="font-semibold text-foreground">Minhas Tarefas</span>
-            </div>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={() => navigate("/minhas-tarefas")}>
-              Ver todas
-              <ArrowUpRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-
-          {tasksLoading ? <div className="text-center py-8 text-muted-foreground text-sm">
-            Carregando tarefas...
-          </div> : pendingTasks.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-            <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Nenhuma tarefa pendente! 🎉</p>
-          </div> : <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {pendingTasks.map(task => <div key={task.id} onClick={() => navigate("/minhas-tarefas")} className="p-3 rounded-xl bg-background/50 border border-border/30 hover:border-primary/30 transition-all cursor-pointer group">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-                  {task.title}
-                </p>
-                <Badge variant="outline" className={cn("text-[10px] shrink-0", getPriorityColor(task.priority))}>
-                  {task.priority}
-                </Badge>
-              </div>
-              {task.due_date && <p className="text-xs text-muted-foreground mt-2">
-                Vence: {format(new Date(task.due_date), "dd/MM")}
-              </p>}
-            </div>)}
-          </div>}
-        </div>
-
         {/* Notes/Recados Card */}
         <div className="rounded-2xl bg-card/60 border border-border/50 p-5 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
