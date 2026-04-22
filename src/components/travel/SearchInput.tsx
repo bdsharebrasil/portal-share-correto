@@ -1,77 +1,81 @@
-import React, { useState } from 'react';
+import React from 'react';
+import styled from 'styled-components';
 
-interface SearchInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}
-
-export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: SearchInputProps) {
+const Input = () => {
   return (
-    <div className="search-container">
-      <div className="flex items-center justify-center fill-white">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          id="Isolation_Mode"
-          data-name="Isolation Mode"
-          viewBox="0 0 24 24"
-          width="22"
-          height="22"
-        >
-          <path d="M18.9,16.776A10.539,10.539,0,1,0,16.776,18.9l5.1,5.1L24,21.88ZM10.5,18A7.5,7.5,0,1,1,18,10.5,7.507,7.507,0,0,1,10.5,18Z" />
-        </svg>
+    <StyledWrapper>
+      <div className="input-wrapper">
+        <button className="icon">
+          <svg width="25px" height="25px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M22 22L20 20" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <input type="text" name="text" className="input" placeholder="search.." />
       </div>
-      <input
-        type="text"
-        className="search-input"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-
-      <style>{`
-        .search-container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 12px 20px;
-          overflow: hidden;
-          width: 60px;
-          height: 60px;
-          background: hsl(var(--primary));
-          box-shadow: 2px 2px 20px rgba(0, 0, 0, 0.08);
-          border-radius: 9999px;
-          transition: width 0.3s ease;
-          gap: 12px;
-          flex-shrink: 0;
-        }
-
-        .search-container:hover {
-          width: 270px;
-          transition-duration: 0.3s;
-        }
-
-        .search-input {
-          outline: none;
-          font-size: 16px;
-          background: transparent;
-          width: 100%;
-          color: white;
-          font-weight: 500;
-          border: none;
-          font-family: inherit;
-        }
-
-        .search-input::placeholder {
-          color: rgba(255, 255, 255, 0.7);
-        }
-
-        .search-input::-webkit-outer-spin-button,
-        .search-input::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-        }
-      `}</style>
-    </div>
+    </StyledWrapper>
   );
 }
+
+const StyledWrapper = styled.div`
+  .input-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    position: relative;
+  }
+
+  .input {
+    border-style: none;
+    height: 50px;
+    width: 50px;
+    padding: 10px;
+    outline: none;
+    border-radius: 50%;
+    transition: 0.5s ease-in-out;
+    background-color: #1557c0;
+    box-shadow: 0px 0px 3px #1557c0;
+    padding-right: 40px;
+    color: #fff;
+  }
+
+  .input::placeholder,
+  .input {
+    font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande",
+      "Lucida Sans", Arial, sans-serif;
+    font-size: 17px;
+  }
+
+  .input::placeholder {
+    color: #8f8f8f;
+  }
+
+  .icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 0px;
+    cursor: pointer;
+    width: 50px;
+    height: 50px;
+    outline: none;
+    border-style: none;
+    border-radius: 50%;
+    pointer-events: painted;
+    background-color: transparent;
+    transition: 0.2s linear;
+  }
+
+  .icon:focus ~ .input,
+  .input:focus {
+    box-shadow: none;
+    width: 250px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-bottom: 3px solid #1557c0;
+    transition: all 500ms cubic-bezier(0, 0.11, 0.35, 2);
+  }`;
+
+export default Input;
