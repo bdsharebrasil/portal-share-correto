@@ -40,18 +40,16 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           width: 40px;
           height: 40px;
           border-radius: 10px;
-          border: 1px solid rgba(88, 118, 146, 1);
+          border: none;
           outline: none;
-          padding: 0px 23px;
-          margin: 1px -8px;
+          padding: 18px 16px;
           background-color: #3b82f680;
           cursor: pointer;
           transition: all .5s ease-in-out;
-          box-shadow: 1px 1px 9px 3px rgba(10, 30, 68, 1);
         }
 
         .search-input::placeholder {
-          color: #fff;
+          color: #150331ff;
         }
 
         .search-input:focus,
@@ -73,7 +71,7 @@ export function SearchInput({ value, onChange, placeholder = 'Buscar...' }: Sear
           border-radius: 10px;
           z-index: -1;
           fill: rgb(98, 0, 255);
-          border: 1px solid rgb(98, 0, 255);
+          border: 1px solid #150331ff;
           padding: 9px;
         }
 
