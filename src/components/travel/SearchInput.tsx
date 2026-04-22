@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 
-const SearchInput = () => {
+const Input = () => {
   return (
     <StyledWrapper>
       <div className="input-container">
@@ -71,4 +71,4 @@ const StyledWrapper = styled.div`
     border: none;
   }`;
 
-export default SearchInput;
+export default Input;
