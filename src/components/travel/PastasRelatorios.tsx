@@ -36,6 +36,7 @@ export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend }: 
   const [openAircraft, setOpenAircraft] = useState<Record<string, boolean>>({});
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
 
   // Estrutura: cliente -> matrícula -> relatórios
   const tree = useMemo(() => {
@@ -104,6 +105,7 @@ export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend }: 
             onClick={() => {
               setSelectedClient(null);
               setSearchQuery('');
+              setClientSearchQuery('');
             }}
             className="gap-2 text-muted-foreground hover:text-foreground flex-shrink-0"
           >
@@ -227,29 +229,53 @@ export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend }: 
   }
 
   // View principal com grid de pastas de clientes
+  const filteredTree = tree.filter(({ client }) =>
+    client.toLowerCase().includes(clientSearchQuery.toLowerCase())
+  );
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-      {tree.map(({ client, numAircraft, totalReports }) => (
-        <button
-          key={client}
-          onClick={() => setSelectedClient(client)}
-          className="group flex flex-col items-center gap-3 p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200"
-        >
-          {/* Ícone de pasta estilizado */}
-          <div className="w-24 h-20 relative group-hover:scale-105 transition-transform duration-200">
-            <svg viewBox="0 0 120 100" className="w-full h-full drop-shadow-lg" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M10 25 L10 15 Q10 8 17 8 L42 8 Q46 8 48 12 L54 22 Q56 25 60 25 Z" fill="#06b6d4" opacity="0.9" />
-              <rect x="6" y="25" width="108" height="68" rx="8" fill="#06b6d4" />
-            </svg>
-          </div>
-          <div className="text-center w-full">
-            <p className="text-sm font-semibold text-foreground truncate">{client}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {numAircraft} {numAircraft === 1 ? 'aeronave' : 'aeronaves'} • {totalReports} {totalReports === 1 ? 'relatório' : 'relatórios'}
-            </p>
-          </div>
-        </button>
-      ))}
+    <div className="space-y-6">
+      {/* SearchInput no topo da lista de clientes */}
+      <div className="flex justify-center">
+        <SearchInput
+          value={clientSearchQuery}
+          onChange={setClientSearchQuery}
+          placeholder="Buscar cliente..."
+        />
+      </div>
+
+      {/* Grid de pastas */}
+      {filteredTree.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Folder className="h-12 w-12 text-muted-foreground/40 mb-3" />
+          <p className="text-muted-foreground font-medium">Nenhum cliente encontrado</p>
+          <p className="text-muted-foreground text-sm">Tente usar outro termo de busca</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+          {filteredTree.map(({ client, numAircraft, totalReports }) => (
+            <button
+              key={client}
+              onClick={() => setSelectedClient(client)}
+              className="group flex flex-col items-center gap-3 p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200"
+            >
+              {/* Ícone de pasta estilizado */}
+              <div className="w-24 h-20 relative group-hover:scale-105 transition-transform duration-200">
+                <svg viewBox="0 0 120 100" className="w-full h-full drop-shadow-lg" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M10 25 L10 15 Q10 8 17 8 L42 8 Q46 8 48 12 L54 22 Q56 25 60 25 Z" fill="#06b6d4" opacity="0.9" />
+                  <rect x="6" y="25" width="108" height="68" rx="8" fill="#06b6d4" />
+                </svg>
+              </div>
+              <div className="text-center w-full">
+                <p className="text-sm font-semibold text-foreground truncate">{client}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {numAircraft} {numAircraft === 1 ? 'aeronave' : 'aeronaves'} • {totalReports} {totalReports === 1 ? 'relatório' : 'relatórios'}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
