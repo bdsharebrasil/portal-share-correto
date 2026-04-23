@@ -4,7 +4,7 @@ import { useClientesCotistas } from "@/hooks/useFinanceiroCotista";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plane, Users, ChevronRight, Search, X } from "lucide-react";
+import { ArrowLeft, Plane, Users, ChevronRight, Search, X, Bell, Share2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -196,10 +196,11 @@ export default function FinanceiroCotistas() {
                     navigate(`/financeiro/financeiro-cotistas/${c.id}`);
                   }
                 }}
-                className="text-left bg-card/60 backdrop-blur-sm rounded-xl border border-border hover:border-primary/60 hover:bg-card transition-all duration-200 group p-5 flex flex-col gap-3"
+                className="text-left bg-gradient-to-b from-slate-800 to-slate-900 backdrop-blur-sm rounded-2xl border border-slate-700 hover:border-primary/50 hover:from-slate-700 hover:to-slate-800 transition-all duration-200 group p-6 flex flex-col gap-4 relative overflow-hidden"
               >
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center overflow-hidden shrink-0">
+                {/* Header com logo, título e ícones */}
+                <div className="flex items-start gap-4 justify-between">
+                  <div className="w-14 h-14 rounded-lg bg-red-500 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
                     {c.url_logo ? (
                       <img
                         src={c.url_logo}
@@ -207,36 +208,68 @@ export default function FinanceiroCotistas() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <Users className="h-5 w-5 text-primary" />
+                      <Users className="h-7 w-7 text-white" />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate">
-                      {c.razao_social || "Sem razão social"}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {c.proprietario || c.cnpj || "—"}
-                    </p>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 rounded-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 transition-all"
+                    >
+                      <Bell className="h-4 w-4 text-slate-400" />
+                    </button>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 rounded-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 transition-all"
+                    >
+                      <Share2 className="h-4 w-4 text-slate-400" />
+                    </button>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {c.aeronaves.slice(0, 3).map((a: any) => (
-                    <Badge
+                {/* Título e subtítulo */}
+                <div className="flex-1">
+                  <p className="font-bold text-white text-lg leading-tight">
+                    {c.razao_social || "Sem razão social"}
+                  </p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    {c.proprietario || c.cnpj || "—"}
+                  </p>
+                </div>
+
+                {/* Divisor */}
+                <div className="h-px bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700"></div>
+
+                {/* Seção de participação ativa */}
+                <div className="text-sm text-slate-300">
+                  Participação ativa em {c.aeronaves.length} aeronave{c.aeronaves.length !== 1 ? "s" : ""}
+                </div>
+
+                {/* Botões das aeronaves */}
+                <div className="flex flex-col gap-2 pt-2">
+                  {c.aeronaves.slice(0, 2).map((a: any) => (
+                    <button
                       key={a.id_aeronave}
-                      variant="secondary"
-                      className="gap-1 text-xs"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left group/btn"
                     >
-                      <Plane className="h-3 w-3" />
-                      {a.aeronave?.matricula || "—"} ·{" "}
-                      {a.percentual_sociedade}%
-                    </Badge>
+                      <Plane className="h-4 w-4 text-slate-300 shrink-0" />
+                      <span className="text-sm font-medium text-slate-200">
+                        {a.aeronave?.matricula || "—"} · {a.percentual_sociedade}%
+                      </span>
+                    </button>
                   ))}
-                  {c.aeronaves.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{c.aeronaves.length - 3}
-                    </Badge>
+                  {c.aeronaves.length > 2 && (
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left"
+                    >
+                      <Plane className="h-4 w-4 text-slate-300 shrink-0" />
+                      <span className="text-sm font-medium text-slate-200">
+                        +{c.aeronaves.length - 2} aeronave{c.aeronaves.length - 2 !== 1 ? "s" : ""}
+                      </span>
+                    </button>
                   )}
                 </div>
               </button>
@@ -248,4 +281,3 @@ export default function FinanceiroCotistas() {
     </Layout>
   );
 }
-
