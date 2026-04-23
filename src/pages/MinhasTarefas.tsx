@@ -1,14 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import TarefasKanban from "@/components/tarefas/TarefasKanban";
-import { CheckSquare, User, Users } from "lucide-react";
+import TarefasLista from "@/components/tarefas/TarefasLista";
+import TaskNotificationModal from "@/components/tarefas/TaskNotificationModal";
+import { CheckSquare, User, Users, LayoutGrid, List } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function MinhasTarefas() {
   const { isAdmin, isGestorMaster } = useUserRole();
   const isManager = isAdmin || isGestorMaster;
   const [view, setView] = useState<"minhas" | "equipe">("minhas");
+  const [layout, setLayout] = useState<"kanban" | "lista">("kanban");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar dados do usuário
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        setUserId(user.id);
+      }
+
+      // Carregar lista de usuários
+      const { data: usersData } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, display_name, email, avatar_url")
+        .order("full_name", { ascending: true });
+
+      if (usersData) {
+        setUsers(usersData);
+      }
+
+      setLoading(false);
+    })();
+  }, []);
 
   return (
     <Layout>
@@ -36,37 +68,79 @@ export default function MinhasTarefas() {
             </div>
           </div>
 
-          {isManager && (
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Seletor de Visualização de Pessoas */}
+            {isManager && (
+              <div className="inline-flex rounded-lg border border-border bg-card p-1">
+                <button
+                  onClick={() => setView("minhas")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    view === "minhas"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <User className="h-4 w-4" />
+                  Minhas
+                </button>
+                <button
+                  onClick={() => setView("equipe")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                    view === "equipe"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Users className="h-4 w-4" />
+                  Equipe
+                </button>
+              </div>
+            )}
+
+            {/* Seletor de Layout (Kanban/Lista) */}
             <div className="inline-flex rounded-lg border border-border bg-card p-1">
               <button
-                onClick={() => setView("minhas")}
+                onClick={() => setLayout("kanban")}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
-                  view === "minhas"
+                  layout === "kanban"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
+                title="Visualização Kanban"
               >
-                <User className="h-4 w-4" />
-                Minhas
+                <LayoutGrid className="h-4 w-4" />
+                Kanban
               </button>
               <button
-                onClick={() => setView("equipe")}
+                onClick={() => setLayout("lista")}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
-                  view === "equipe"
+                  layout === "lista"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
+                title="Visualização em Lista"
               >
-                <Users className="h-4 w-4" />
-                Equipe
+                <List className="h-4 w-4" />
+                Lista
               </button>
             </div>
-          )}
+          </div>
         </div>
-        <TarefasKanban myView={isManager && view === "minhas"} isManager={isManager} />
+
+        {/* Renderizar com base no layout selecionado */}
+        {layout === "kanban" ? (
+          <TarefasKanban myView={isManager && view === "minhas"} isManager={isManager} />
+        ) : (
+          <TarefasLista myView={isManager && view === "minhas"} isManager={isManager} />
+        )}
       </div>
+
+      {/* Modal de notificações de tarefas recebidas */}
+      <TaskNotificationModal meId={userId} users={users} />
     </Layout>
   );
 }

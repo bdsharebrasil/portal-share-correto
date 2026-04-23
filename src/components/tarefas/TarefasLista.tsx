@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-import { Plus, MessageSquare, Trash2, Send } from "lucide-react";
+import { Plus, Trash2, Send, MessageSquare } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,72 +12,257 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-// ============================================================
-// Constantes
-// ============================================================
-const COLUMNS = [
-  { id: "a-fazer", label: "A Fazer", color: "hsl(192 70% 50%)" },
-  { id: "em-andamento", label: "Em Andamento", color: "hsl(45 100% 55%)" },
-  { id: "revisao", label: "Revisão", color: "hsl(217 91% 60%)" },
-  { id: "concluido", label: "Concluído", color: "hsl(142 60% 45%)" },
-] as const;
+// CSS para checklist animado
+const checklistStyles = `
+#checklist {
+  --background: #fff;
+  --text: #414856;
+  --check: #221d6d;
+  --disabled: #c3c8de;
+  --width: 100px;
+  --height: 180px;
+  --border-radius: 10px;
+  background: var(--background);
+  width: var(--width);
+  height: var(--height);
+  border-radius: var(--border-radius);
+  position: relative;
+  box-shadow: 0 10px 30px rgba(65, 72, 86, 0.05);
+  padding: 30px 85px;
+  display: grid;
+  grid-template-columns: 30px auto;
+  align-items: center;
+  justify-content: center;
+}
 
-const PRIORITY = {
-  baixa: {
-    label: "Baixa",
-    icon: "●",
-    color: "hsl(142 60% 50%)",
-    bg: "hsl(142 60% 50% / 0.15)",
-    border: "hsl(142 60% 50% / 0.4)",
-  },
-  media: {
-    label: "Média",
-    icon: "●",
-    color: "hsl(45 100% 55%)",
-    bg: "hsl(45 100% 55% / 0.15)",
-    border: "hsl(45 100% 55% / 0.4)",
-  },
-  alta: {
-    label: "Alta",
-    icon: "●",
-    color: "hsl(20 90% 60%)",
-    bg: "hsl(20 90% 60% / 0.15)",
-    border: "hsl(20 90% 60% / 0.4)",
-  },
-  urgente: {
-    label: "Urgente",
-    icon: "▲",
-    color: "hsl(0 75% 65%)",
-    bg: "hsl(0 75% 65% / 0.15)",
-    border: "hsl(0 75% 65% / 0.4)",
-  },
-} as const;
+#checklist label {
+  color: var(--text);
+  position: relative;
+  cursor: pointer;
+  display: grid;
+  align-items: center;
+  width: fit-content;
+  transition: color 0.3s ease;
+  margin-right: 20px;
+}
 
-type Priority = keyof typeof PRIORITY;
-type Status = (typeof COLUMNS)[number]["id"];
+#checklist label::before, #checklist label::after {
+  content: "";
+  position: absolute;
+}
 
-// Map de status legacy (banco) -> coluna kanban
-function statusToColumn(s: string | null | undefined): Status {
-  if (!s) return "a-fazer";
-  if (COLUMNS.find((c) => c.id === s)) return s as Status;
-  switch (s) {
-    case "aberto":
-    case "pendente":
-      return "a-fazer";
-    case "em progresso":
-    case "em_progresso":
-      return "em-andamento";
-    case "revisao":
-    case "revisão":
-      return "revisao";
-    case "concluida":
-    case "concluído":
-    case "concluido":
-      return "concluido";
-    default:
-      return "a-fazer";
+#checklist label::before {
+  height: 2px;
+  width: 8px;
+  left: -27px;
+  background: var(--check);
+  border-radius: 2px;
+  transition: background 0.3s ease;
+}
+
+#checklist label:after {
+  height: 4px;
+  width: 4px;
+  top: 8px;
+  left: -25px;
+  border-radius: 50%;
+}
+
+#checklist input[type="checkbox"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+  height: 15px;
+  width: 15px;
+  outline: none;
+  border: 0;
+  margin: 0 15px 0 0;
+  cursor: pointer;
+  background: var(--background);
+  display: grid;
+  align-items: center;
+  margin-right: 20px;
+}
+
+#checklist input[type="checkbox"]::before, #checklist input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  height: 2px;
+  top: auto;
+  background: var(--check);
+  border-radius: 2px;
+}
+
+#checklist input[type="checkbox"]::before {
+  width: 0px;
+  right: 60%;
+  transform-origin: right bottom;
+}
+
+#checklist input[type="checkbox"]::after {
+  width: 0px;
+  left: 40%;
+  transform-origin: left bottom;
+}
+
+#checklist input[type="checkbox"]:checked::before {
+  animation: check-01 0.4s ease forwards;
+}
+
+#checklist input[type="checkbox"]:checked::after {
+  animation: check-02 0.4s ease forwards;
+}
+
+#checklist input[type="checkbox"]:checked + label {
+  color: var(--disabled);
+  animation: move 0.3s ease 0.1s forwards;
+}
+
+#checklist input[type="checkbox"]:checked + label::before {
+  background: var(--disabled);
+  animation: slice 0.4s ease forwards;
+}
+
+#checklist input[type="checkbox"]:checked + label::after {
+  animation: firework 0.5s ease forwards 0.1s;
+}
+
+@keyframes move {
+  50% {
+    padding-left: 8px;
+    padding-right: 0px;
+  }
+
+  100% {
+    padding-right: 4px;
   }
 }
+
+@keyframes slice {
+  60% {
+    width: 100%;
+    left: 4px;
+  }
+
+  100% {
+    width: 100%;
+    left: -2px;
+    padding-left: 0;
+  }
+}
+
+@keyframes check-01 {
+  0% {
+    width: 4px;
+    top: auto;
+    transform: rotate(0);
+  }
+
+  50% {
+    width: 0px;
+    top: auto;
+    transform: rotate(0);
+  }
+
+  51% {
+    width: 0px;
+    top: 8px;
+    transform: rotate(45deg);
+  }
+
+  100% {
+    width: 5px;
+    top: 8px;
+    transform: rotate(45deg);
+  }
+}
+
+@keyframes check-02 {
+  0% {
+    width: 4px;
+    top: auto;
+    transform: rotate(0);
+  }
+
+  50% {
+    width: 0px;
+    top: auto;
+    transform: rotate(0);
+  }
+
+  51% {
+    width: 0px;
+    top: 8px;
+    transform: rotate(-45deg);
+  }
+
+  100% {
+    width: 10px;
+    top: 8px;
+    transform: rotate(-45deg);
+  }
+}
+
+@keyframes firework {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0, 0 0 0 -2px #4f29f0;
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    box-shadow: 0 -15px 0 0px #4f29f0, 14px -8px 0 0px #4f29f0, 14px 8px 0 0px #4f29f0, 0 15px 0 0px #4f29f0, -14px 8px 0 0px #4f29f0, -14px -8px 0 0px #4f29f0;
+  }
+}
+
+/* Estilos customizados para lista de tarefas */
+.checklist-item {
+  display: grid;
+  grid-template-columns: 30px auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.checklist-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
+
+.checklist-item label {
+  margin-right: 0;
+  flex: 1;
+  font-weight: 500;
+  color: #414856;
+}
+
+.checklist-item-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.checklist-item:hover .checklist-item-actions {
+  opacity: 1;
+}
+
+.checklist-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+}
+`;
 
 interface UserOption {
   id: string;
@@ -108,19 +293,18 @@ interface Comentario {
   criado_em: string | null;
 }
 
-// ============================================================
-// Helpers UI
-// ============================================================
 function userInitials(u: UserOption | undefined): string {
   if (!u) return "?";
   const name = u.full_name || u.display_name || u.email || "?";
   const parts = name.split(" ").filter(Boolean);
   return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || "?";
 }
+
 function userName(u: UserOption | undefined): string {
   if (!u) return "—";
   return u.full_name || u.display_name || u.email || "—";
 }
+
 function userColor(id: string | null | undefined): string {
   if (!id) return "hsl(215 20% 55%)";
   const palette = [
@@ -162,57 +346,24 @@ function Avatar({
   );
 }
 
-function PriorityBadge({ priority }: { priority: string | null | undefined }) {
-  const key = (priority as Priority) in PRIORITY ? (priority as Priority) : "media";
-  const p = PRIORITY[key];
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border"
-      style={{
-        background: p.bg,
-        color: p.color,
-        borderColor: p.border,
-      }}
-    >
-      <span className="text-[8px]">{p.icon}</span>
-      {p.label}
-    </span>
-  );
-}
-
-// ============================================================
-// Componente principal
-// ============================================================
 interface Props {
-  /** Se true, mostra apenas as tarefas atribuídas/criadas pelo usuário (visão "minhas"). */
   myView?: boolean;
-  /** Se true, o usuário é admin ou gestor_master e tem duas visualizações. */
   isManager?: boolean;
-  title?: string;
-  subtitle?: string;
 }
 
-export default function TarefasKanban({
-  myView = false,
-  title,
-  subtitle,
-}: Props) {
+export default function TarefasLista({ myView = false, isManager = false }: Props) {
   const { isAdmin, isGestorMaster, isLoading: roleLoading } = useUserRole();
-  const isManager = isAdmin || isGestorMaster;
+  const actualIsManager = isManager || isAdmin || isGestorMaster;
 
   const [me, setMe] = useState<string | null>(null);
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState<string | null>(null);
-
   const [createOpen, setCreateOpen] = useState(false);
-  const [defaultStatus, setDefaultStatus] = useState<Status>("a-fazer");
   const [detailTask, setDetailTask] = useState<Tarefa | null>(null);
+  const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
 
-  // -------------------------------------------------- Load
+  // Load data
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -254,10 +405,10 @@ export default function TarefasKanban({
     };
   }, []);
 
-  // -------------------------------------------------- Realtime
+  // Realtime subscription
   useEffect(() => {
     const channel = supabase
-      .channel("tarefas-kanban")
+      .channel("tarefas-lista")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tarefas" },
@@ -292,10 +443,9 @@ export default function TarefasKanban({
     return m;
   }, [users]);
 
-  // -------------------------------------------------- Filtragem
+  // Filter visible tasks
   const visibleTasks = useMemo(() => {
-    if (isManager) {
-      // Admin/Gestor: tem duas visualizações
+    if (actualIsManager) {
       if (myView) {
         // "Minhas": apenas tarefas PRIVADAS criadas por ele
         return tarefas.filter(
@@ -307,46 +457,38 @@ export default function TarefasKanban({
         (t) => t.criado_por === me && t.publico === true,
       );
     }
-    // Usuário comum: visão única com tarefas privadas + tarefas públicas atribuídas
+    // Usuário comum
     return tarefas.filter(
       (t) => (t.criado_por === me && t.publico === false) || (t.atribuido_para === me && t.publico === true),
     );
-  }, [tarefas, me, myView, isManager]);
+  }, [tarefas, me, myView, actualIsManager]);
 
-  const getColTasks = (colId: Status) =>
-    visibleTasks.filter((t) => statusToColumn(t.status) === colId);
+  // Separa tarefas pendentes e concluídas
+  const { pending, completed } = useMemo(() => {
+    return {
+      pending: visibleTasks.filter((t) => t.status !== "concluido"),
+      completed: visibleTasks.filter((t) => t.status === "concluido"),
+    };
+  }, [visibleTasks]);
 
-  // -------------------------------------------------- Mutations
-  const canChangeStatus = (task: Tarefa): boolean => {
-    if (isManager) {
-      // Admin/Gestor sempre pode mudar status em qualquer visualização
-      return true;
-    }
-    // Usuário comum: pode mudar status apenas em tarefas privadas que criou
-    // Não pode mudar tarefas públicas atribuídas (só pode comentar)
-    return task.criado_por === me && task.publico === false;
-  };
-
-  const handleStatusChange = async (id: string, newStatus: Status) => {
-    const task = tarefas.find((t) => t.id === id);
+  const handleToggleTask = async (taskId: string, isComplete: boolean) => {
+    const task = tarefas.find((t) => t.id === taskId);
     if (!task) return;
 
-    // Verificar permissão
-    if (!canChangeStatus(task)) {
-      toast.error("Você não tem permissão para alterar o status desta tarefa");
-      return;
-    }
-
+    const newStatus = isComplete ? "concluido" : "a-fazer";
     const previous = tarefas;
+    
     setTarefas((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)),
     );
+
     const { error } = await supabase
       .from("tarefas")
       .update({ status: newStatus, atualizado_em: new Date().toISOString() })
-      .eq("id", id);
+      .eq("id", taskId);
+    
     if (error) {
-      toast.error("Erro ao atualizar status");
+      toast.error("Erro ao atualizar tarefa");
       setTarefas(previous);
     }
   };
@@ -364,19 +506,12 @@ export default function TarefasKanban({
     }
   };
 
-  const handleDrop = (colId: Status) => {
-    if (!dragId) return;
-    void handleStatusChange(dragId, colId);
-    setDragId(null);
-  };
-
   const handleCreate = async (form: {
     titulo: string;
     descricao: string;
     atribuido_para: string;
     prazo: string;
-    prioridade: Priority;
-    status: Status;
+    prioridade: string;
     publico: boolean;
   }) => {
     if (!me) return;
@@ -386,7 +521,7 @@ export default function TarefasKanban({
       atribuido_para: form.atribuido_para || me,
       criado_por: me,
       prioridade: form.prioridade,
-      status: form.status,
+      status: "a-fazer",
       prazo: form.prazo || null,
       publico: form.publico,
     };
@@ -415,17 +550,6 @@ export default function TarefasKanban({
     setCreateOpen(false);
   };
 
-  // -------------------------------------------------- Stats
-  const stats = useMemo(() => {
-    return {
-      total: visibleTasks.length,
-      urgente: visibleTasks.filter((t) => t.prioridade === "urgente").length,
-      concluido: visibleTasks.filter(
-        (t) => statusToColumn(t.status) === "concluido",
-      ).length,
-    };
-  }, [visibleTasks]);
-
   if (loading || roleLoading) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -434,205 +558,237 @@ export default function TarefasKanban({
     );
   }
 
-  const canCreateForOthers = isManager;
-  const headingTitle =
-    title || (myView ? "Minhas Tarefas" : "Painel de Tarefas");
-  const headingSubtitle =
-    subtitle ||
-    (myView
-      ? "Tarefas atribuídas a você ou criadas por você"
-      : isManager
-        ? "Gerencie e acompanhe todas as tarefas da equipe"
-        : "Suas tarefas");
-
   return (
-    <div className="bg-[#0f1115] rounded-2xl border border-white/5 text-slate-200 font-sans overflow-hidden shadow-2xl flex flex-col h-full">
-      {/* Sub-header Premium */}
-      <div className="bg-white/[0.02] border-b border-white/5 px-6 py-5 flex items-center justify-between flex-wrap gap-4 backdrop-blur-md">
-        <div className="flex gap-6 items-center flex-wrap">
+    <>
+      <style>{checklistStyles}</style>
+      
+      <div className="bg-gradient-to-b from-slate-50 to-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="bg-white border-b border-slate-200 px-6 py-5 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
-              {headingTitle}
+            <h1 className="text-xl font-bold text-foreground">
+              {myView ? "Minhas Tarefas" : "Tarefas em Lista"}
             </h1>
-            <p className="text-xs text-slate-400 mt-1 font-medium">
-              {headingSubtitle}
+            <p className="text-sm text-muted-foreground mt-1">
+              {myView
+                ? "Tarefas privadas criadas por você"
+                : actualIsManager
+                  ? "Tarefas que você delegou para a equipe"
+                  : "Tarefas atribuídas a você"}
             </p>
           </div>
 
-          <div className="hidden md:flex gap-3">
-            {[
-              { label: "Total", val: stats.total, color: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20" },
-              { label: "Urgentes", val: stats.urgente, color: "text-rose-400", bg: "bg-rose-400/10", border: "border-rose-400/20" },
-              { label: "Concluídas", val: stats.concluido, color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
-            ].map((s) => (
-              <div key={s.label} className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-xl border ${s.bg} ${s.border}`}>
-                <span className={`text-lg font-black leading-none ${s.color}`}>{s.val}</span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-1">{s.label}</span>
-              </div>
-            ))}
-          </div>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={18} />
+            Nova Tarefa
+          </button>
         </div>
 
-        <button
-          onClick={() => {
-            setDefaultStatus("a-fazer");
-            setCreateOpen(true);
-          }}
-          className="group relative flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-none rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] active:scale-95"
-        >
-          <Plus size={18} className="transition-transform group-hover:rotate-90" />
-          Nova Tarefa
-        </button>
-      </div>
+        {/* Content */}
+        <div className="p-6 space-y-8">
+          {/* Tarefas Pendentes */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+                  {pending.length}
+                </span>
+                Pendentes
+              </h2>
+            </div>
 
-      {/* Board Kanban */}
-      <div className="flex gap-5 p-6 overflow-x-auto min-h-[500px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-        {COLUMNS.map((col) => {
-          const colTasks = getColTasks(col.id);
-          const isOver = dragOver === col.id;
-
-          return (
-            <div
-              key={col.id}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(col.id); }}
-              onDrop={(e) => { e.preventDefault(); handleDrop(col.id); setDragOver(null); }}
-              onDragLeave={() => setDragOver(null)}
-              className={`w-[290px] shrink-0 rounded-2xl p-4 flex flex-col transition-all duration-300 border ${
-                isOver ? "bg-white/[0.04] border-white/20 shadow-lg" : "bg-black/20 border-white/5"
-              }`}
-            >
-              {/* Header da Coluna */}
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: col.color, boxShadow: `0 0 10px ${col.color}80` }} />
-                  <span className="font-bold text-sm text-slate-100 tracking-wide">{col.label}</span>
-                  <span className="bg-white/10 text-slate-300 text-[10px] font-bold rounded-full px-2 py-0.5 ml-1">
-                    {colTasks.length}
-                  </span>
+            <div className="space-y-2">
+              {pending.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma tarefa pendente
                 </div>
-                <button
-                  onClick={() => { setDefaultStatus(col.id); setCreateOpen(true); }}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
+              ) : (
+                pending.map((task) => {
+                  const assigned = task.atribuido_para
+                    ? userById.get(task.atribuido_para)
+                    : undefined;
+                  const canDelete =
+                    task.criado_por === me || (actualIsManager && task.publico);
 
-              {/* Lista de Tarefas */}
-              <div className="flex flex-col gap-3 flex-1">
-                {colTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-white/5 rounded-xl text-slate-500">
-                    <span className="text-xs font-medium">Nenhuma tarefa</span>
-                  </div>
-                ) : (
-                  colTasks.map((task) => {
-                    const assigned = task.atribuido_para ? userById.get(task.atribuido_para) : undefined;
-                    const pKey = (task.prioridade as Priority) in PRIORITY ? (task.prioridade as Priority) : "media";
-                    const p = PRIORITY[pKey];
-                    const canDelete = task.criado_por === me || (isManager && task.publico);
-                    const isDragging = dragId === task.id;
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-md transition-all group"
+                    >
+                      <input
+                        type="checkbox"
+                        onChange={(e) =>
+                          void handleToggleTask(task.id, e.target.checked)
+                        }
+                        className="w-5 h-5 rounded border-slate-300 text-blue-600 cursor-pointer"
+                      />
 
-                    return (
                       <div
-                        key={task.id}
-                        draggable
-                        onDragStart={(e) => { setDragId(task.id); e.dataTransfer.effectAllowed = "move"; }}
-                        onDragEnd={() => setDragId(null)}
+                        className="flex-1 cursor-pointer hover:text-blue-600 transition-colors"
                         onClick={() => setDetailTask(task)}
-                        className={`group relative bg-[#15181e] rounded-xl p-4 cursor-grab active:cursor-grabbing border-l-4 transition-all duration-200 ${
-                          isDragging ? "opacity-50 scale-95 shadow-none" : "hover:-translate-y-1 hover:shadow-xl border-y border-r border-transparent hover:border-white/10"
-                        }`}
-                        style={{ borderLeftColor: p.color }}
                       >
-                        <div className="flex justify-between items-start mb-3">
-                          <PriorityBadge priority={task.prioridade} />
-                          <Avatar user={assigned} size={24} />
-                        </div>
-
-                        <h3 className="text-sm font-semibold text-slate-200 leading-snug mb-4 line-clamp-2">
+                        <div className="font-medium text-foreground">
                           {task.titulo}
-                        </h3>
-
-                        <div className="flex items-center justify-between mt-auto">
-                          <div className="flex items-center gap-3">
-                            {task.prazo && (
-                              <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium bg-white/5 px-2 py-1 rounded-md">
-                                📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: '2-digit', month: 'short' })}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-cyan-400 transition-colors">
-                              <MessageSquare size={12} /> Abrir
-                            </div>
+                        </div>
+                        {task.descricao && (
+                          <div className="text-sm text-muted-foreground line-clamp-1">
+                            {task.descricao}
                           </div>
+                        )}
+                      </div>
 
-                          {/* Ações (Aparecem suavemente no hover ou no mobile) */}
-                          <div className="flex gap-1.5 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                            {canChangeStatus(task) && (
-                              <select
-                                value={statusToColumn(task.status)}
-                                onChange={(e) => void handleStatusChange(task.id, e.target.value as Status)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[10px] bg-black/40 border border-white/10 rounded px-1.5 py-1 text-slate-300 cursor-pointer hover:bg-white/10 transition-colors appearance-none"
-                              >
-                                {COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                              </select>
-                            )}
-                            {canDelete && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); void handleDelete(task.id); }}
-                                className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
+                      <div className="flex items-center gap-3">
+                        {task.prazo && (
+                          <div className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
+                            📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                           </div>
+                        )}
+                        <Avatar user={assigned} size={28} />
+
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => void setDetailTask(task)}
+                            className="p-1.5 text-slate-500 hover:text-blue-600 transition-colors"
+                            title="Abrir"
+                          >
+                            <MessageSquare size={16} />
+                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => void handleDelete(task.id)}
+                              className="p-1.5 text-slate-500 hover:text-red-600 transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </div>
-                    );
-                  })
-                )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Tarefas Concluídas */}
+          {completed.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                    {completed.length}
+                  </span>
+                  Concluídas
+                </h2>
+              </div>
+
+              <div className="space-y-2">
+                {completed.map((task) => {
+                  const assigned = task.atribuido_para
+                    ? userById.get(task.atribuido_para)
+                    : undefined;
+                  const canDelete =
+                    task.criado_por === me || (actualIsManager && task.publico);
+
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg hover:shadow-md transition-all group line-through text-muted-foreground"
+                    >
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        onChange={(e) =>
+                          void handleToggleTask(task.id, e.target.checked)
+                        }
+                        className="w-5 h-5 rounded border-emerald-300 text-emerald-600 cursor-pointer"
+                      />
+
+                      <div
+                        className="flex-1 cursor-pointer hover:text-emerald-700 transition-colors"
+                        onClick={() => setDetailTask(task)}
+                      >
+                        <div className="font-medium text-foreground">
+                          {task.titulo}
+                        </div>
+                        {task.descricao && (
+                          <div className="text-sm line-clamp-1">
+                            {task.descricao}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {task.prazo && (
+                          <div className="text-xs bg-emerald-100 px-2 py-1 rounded">
+                            📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                          </div>
+                        )}
+                        <Avatar user={assigned} size={28} />
+
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => void setDetailTask(task)}
+                            className="p-1.5 text-slate-500 hover:text-emerald-600 transition-colors"
+                            title="Abrir"
+                          >
+                            <MessageSquare size={16} />
+                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => void handleDelete(task.id)}
+                              className="p-1.5 text-slate-500 hover:text-red-600 transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
 
-      {/* Modal de criação */}
-      <CreateModal
+      {/* Create Modal */}
+      <CreateListaModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onSave={handleCreate}
-        defaultStatus={defaultStatus}
         users={users}
-        canAssignOthers={canCreateForOthers}
-        myView={myView}
+        canAssignOthers={actualIsManager}
         meId={me}
       />
 
-      {/* Modal de detalhes / comentários */}
+      {/* Detail Dialog */}
       <DetailDialog
         task={detailTask}
         onClose={() => setDetailTask(null)}
         users={users}
         meId={me}
-        canManage={isManager}
+        canManage={actualIsManager}
       />
-    </div>
+    </>
   );
 }
 
 // ============================================================
-// CreateModal
+// CreateListaModal
 // ============================================================
-function CreateModal({
+function CreateListaModal({
   open,
   onClose,
   onSave,
-  defaultStatus,
   users,
   canAssignOthers,
-  myView,
   meId,
 }: {
   open: boolean;
@@ -642,14 +798,11 @@ function CreateModal({
     descricao: string;
     atribuido_para: string;
     prazo: string;
-    prioridade: Priority;
-    status: Status;
+    prioridade: string;
     publico: boolean;
   }) => Promise<void>;
-  defaultStatus: Status;
   users: UserOption[];
   canAssignOthers: boolean;
-  myView: boolean;
   meId: string | null;
 }) {
   const [form, setForm] = useState({
@@ -657,9 +810,7 @@ function CreateModal({
     descricao: "",
     atribuido_para: meId || "",
     prazo: "",
-    prioridade: "media" as Priority,
-    status: defaultStatus,
-    /** Tarefas privadas: só o usuário vê. publico=true permite admin/gestor verem. */
+    prioridade: "media",
     publico: canAssignOthers,
   });
 
@@ -671,17 +822,16 @@ function CreateModal({
         atribuido_para: meId || "",
         prazo: "",
         prioridade: "media",
-        status: defaultStatus,
         publico: canAssignOthers,
       });
     }
-  }, [open, defaultStatus, meId, canAssignOthers]);
+  }, [open, meId, canAssignOthers]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nova Tarefa</DialogTitle>
+          <DialogTitle>Nova Tarefa em Lista</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -729,7 +879,7 @@ function CreateModal({
                   .filter((u) => u.id !== meId)
                   .map((u) => (
                     <option key={u.id} value={u.id}>
-                      {userName(u)}
+                      {u.full_name || u.display_name || u.email}
                     </option>
                   ))}
               </select>
@@ -740,73 +890,34 @@ function CreateModal({
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Prioridade
             </label>
-            <div className="flex gap-2 mt-1">
-              {(Object.keys(PRIORITY) as Priority[]).map((key) => {
-                const p = PRIORITY[key];
-                const active = form.prioridade === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({ ...prev, prioridade: key }))
-                    }
-                    style={{
-                      flex: 1,
-                      padding: "7px 0",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: 11,
-                      background: active ? p.bg : "hsl(222 25% 14%)",
-                      color: active ? p.color : "hsl(215 20% 60%)",
-                      border: `1.5px solid ${
-                        active ? p.border : "hsl(222 20% 24%)"
-                      }`,
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
+            <select
+              value={form.prioridade}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, prioridade: e.target.value }))
+              }
+              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
+            >
+              <option value="baixa">Baixa</option>
+              <option value="media">Média</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                Prazo
-              </label>
-              <input
-                type="date"
-                value={form.prazo}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, prazo: e.target.value }))
-                }
-                className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                Coluna
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, status: e.target.value as Status }))
-                }
-                className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
-              >
-                {COLUMNS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+              Prazo
+            </label>
+            <input
+              type="date"
+              value={form.prazo}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, prazo: e.target.value }))
+              }
+              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
+            />
           </div>
 
-          {/* Privacidade */}
           {!canAssignOthers && (
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <input
@@ -843,7 +954,7 @@ function CreateModal({
 }
 
 // ============================================================
-// DetailDialog: comentários + status
+// DetailDialog
 // ============================================================
 function DetailDialog({
   task,
@@ -887,7 +998,7 @@ function DetailDialog({
     })();
 
     const channel = supabase
-      .channel(`tarefa-coments-${task.id}`)
+      .channel(`tarefa-lista-coments-${task.id}`)
       .on(
         "postgres_changes",
         {
@@ -920,14 +1031,10 @@ function DetailDialog({
 
   if (!task) return null;
 
-  const assigned = task.atribuido_para ? userById.get(task.atribuido_para) : undefined;
+  const assigned = task.atribuido_para
+    ? userById.get(task.atribuido_para)
+    : undefined;
   const creator = task.criado_por ? userById.get(task.criado_por) : undefined;
-
-  // Permite editar status apenas se:
-  // - É uma tarefa privada (criada_por === meId)
-  // - OU é o criador da tarefa
-  // - OU é manager (admin/gestor_master)
-  const canEditStatus = task.criado_por === meId || canManage;
 
   const handleSend = async () => {
     if (!text.trim() || !meId) return;
@@ -945,15 +1052,6 @@ function DetailDialog({
     setText("");
   };
 
-  const handleStatus = async (s: Status) => {
-    const { error } = await supabase
-      .from("tarefas")
-      .update({ status: s, atualizado_em: new Date().toISOString() })
-      .eq("id", task.id);
-    if (error) toast.error("Erro ao atualizar status");
-    else toast.success("Status atualizado");
-  };
-
   const handleDeleteComment = async (id: string) => {
     const { error } = await supabase
       .from("tarefas_comentarios")
@@ -966,10 +1064,7 @@ function DetailDialog({
     <Dialog open={!!task} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <PriorityBadge priority={task.prioridade} />
-            <span className="truncate">{task.titulo}</span>
-          </DialogTitle>
+          <DialogTitle className="truncate">{task.titulo}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
@@ -983,12 +1078,12 @@ function DetailDialog({
             <div className="flex items-center gap-2">
               <span>Atribuído:</span>
               <Avatar user={assigned} size={22} />
-              <span>{userName(assigned)}</span>
+              <span>{assigned ? (assigned.full_name || assigned.display_name || assigned.email) : "—"}</span>
             </div>
             <div className="flex items-center gap-2">
               <span>Criado por:</span>
               <Avatar user={creator} size={22} />
-              <span>{userName(creator)}</span>
+              <span>{creator ? (creator.full_name || creator.display_name || creator.email) : "—"}</span>
             </div>
             {task.prazo && (
               <div>
@@ -1000,24 +1095,10 @@ function DetailDialog({
           <div>
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Status
-              {!canEditStatus && (
-                <span className="ml-2 text-[10px] text-amber-500">
-                  (Somente leitura - apenas o criador pode editar)
-                </span>
-              )}
             </label>
-            <select
-              defaultValue={statusToColumn(task.status)}
-              onChange={(e) => canEditStatus && void handleStatus(e.target.value as Status)}
-              disabled={!canEditStatus}
-              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {COLUMNS.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            <div className="text-sm font-medium mt-1">
+              {task.status === "concluido" ? "✅ Concluída" : "⏳ Pendente"}
+            </div>
           </div>
 
           <div>
@@ -1046,7 +1127,7 @@ function DetailDialog({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-semibold truncate">
-                            {userName(u)}
+                            {u ? (u.full_name || u.display_name || u.email) : "—"}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
                             {c.criado_em
