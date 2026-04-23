@@ -769,17 +769,25 @@ export default function RelatorioViagem() {
             });
             setApprovalLinkOpen(true);
 
-            // Enviar notificação para o tripulante
-            if (refreshed.tripulacao_id) {
+            // Enviar notificação para o segundo tripulante (membro da equipe com user_id)
+            if (refreshed.tripulante_id2) {
               try {
-                const { error: notifError } = await supabase.from('notifications').insert({
-                  user_id: refreshed.tripulacao_id,
-                  title: 'Novo Relatório de Viagem para Aprovação',
-                  message: `O relatório nº ${refreshed.numero_relatorio} foi gerado e aguarda sua aprovação. Clique para revisar.`,
-                  type: 'info',
-                  read: false,
-                });
-                if (notifError) console.error('Erro ao enviar notificação:', notifError);
+                const { data: tripulante } = await supabase
+                  .from('membros_tripulacao')
+                  .select('user_id')
+                  .eq('id', refreshed.tripulante_id2)
+                  .single();
+
+                if (tripulante?.user_id) {
+                  const { error: notifError } = await supabase.from('notifications').insert({
+                    user_id: tripulante.user_id,
+                    title: 'Novo Relatório de Viagem para Aprovação',
+                    message: `O relatório nº ${refreshed.numero_relatorio} foi gerado e aguarda sua aprovação. Clique para revisar.`,
+                    type: 'info',
+                    read: false,
+                  });
+                  if (notifError) console.error('Erro ao enviar notificação:', notifError);
+                }
               } catch (notifErr) {
                 console.error('Erro ao enviar notificação:', notifErr);
               }

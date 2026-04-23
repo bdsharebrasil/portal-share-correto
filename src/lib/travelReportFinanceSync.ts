@@ -187,7 +187,6 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
           cliente_id: params.clientesId || null,
           socios_cliente_id: null, // Será preenchido conforme necessário
           aeronave_registro: params.matriculaAeronave || null,
-          aeronave_id: params.aeronaveId || null,
           observacoes: `Gerado automaticamente pelo Relatório de Viagem ${params.numeroRelatorio}`,
           criado_por: params.userId || null,
         };

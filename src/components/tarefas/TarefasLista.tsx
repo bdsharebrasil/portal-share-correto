@@ -620,7 +620,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
       
       <div className="bg-slate-50 rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-6 py-5 flex items-center justify-between flex-wrap gap-4">
+        <div className="border-b border-slate-200 px-6 py-5 flex items-center justify-between flex-wrap gap-4 bg-slate-950">
           <div>
             <h1 className="text-xl font-bold text-foreground">
               {myView ? "Minhas Tarefas" : "Tarefas em Lista"}
