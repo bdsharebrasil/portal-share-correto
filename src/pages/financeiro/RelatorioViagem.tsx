@@ -71,10 +71,10 @@ type TravelReport = {
   requires_client_approval?: boolean;
   crew_approval_status?: 'pending' | 'approved' | 'rejected';
   client_approval_status?: 'pending' | 'approved' | 'rejected';
-  generated_by_user_id?: string;
+  criado_por?: string;
+  criado_por_nome?: string;
   created_at?: string;
   updated_at?: string;
-  criado_por?: string;
 
   // helper de exibição
   client?: string;
@@ -185,7 +185,8 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome)
+        partner_id_rel:socios_cliente_id(nome),
+        criado_por(display_name, full_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -207,6 +208,7 @@ export default function RelatorioViagem() {
         client: clientName,
         expenses,
         status: normalizeStatus(r.status),
+        criado_por_nome: r.generated_by_user?.display_name || r.generated_by_user?.full_name || null,
       } as TravelReport;
     });
 
@@ -219,7 +221,8 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome)
+        partner_id_rel:socios_cliente_id(nome),
+        generated_by_user:criado_por(display_name, full_name)
       `)
       .eq('id', reportId)
       .single();
@@ -242,6 +245,7 @@ export default function RelatorioViagem() {
       client: clientName,
       expenses: expenses as Expense[],
       status: normalizeStatus(r.status),
+      criado_por_nome: r.generated_by_user?.display_name || r.generated_by_user?.full_name || null,
     } as TravelReport;
   };
 
@@ -482,7 +486,7 @@ export default function RelatorioViagem() {
         payload.crew_approval_status = 'pending';
         payload.requires_client_approval = !!requireClientApproval;
         if (requireClientApproval) payload.client_approval_status = 'pending';
-        if (user?.id) payload.generated_by_user_id = user.id;
+        if (user?.id) payload.criado_por = user.id;
       }
 
       if (!isUpdate && user?.id) payload.criado_por = user.id;

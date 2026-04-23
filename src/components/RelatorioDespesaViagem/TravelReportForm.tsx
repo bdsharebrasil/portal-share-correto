@@ -96,6 +96,10 @@ export interface TravelReport {
 
   status: "Rascunho" | "Finalizado" | "Enviado";
 
+  // Usuário que criou o relatório
+  criado_por?: string | null;
+  criado_por_nome?: string | null;
+
   // Helpers de exibição (não persistidos diretamente)
   client?: string;
 }

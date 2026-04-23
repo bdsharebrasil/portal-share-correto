@@ -175,9 +175,9 @@ export default function AprovarRelatorioViagem() {
 
           if (isCrew) {
             // Tripulante discordou - notificar gerente/admin que criou o relatório
-            if (report.generated_by_user_id) {
+            if (report.criado_por) {
               notificationsToCreate.push({
-                user_id: report.generated_by_user_id,
+                user_id: report.criado_por,
                 title: '⚠️ Tripulante Discordou de Relatório',
                 message: `${report.nome_tripulante} discordou do relatório nº ${report.numero_relatorio}. Motivo: ${notes || 'Não informado'}`,
                 type: 'warning',
@@ -210,9 +210,9 @@ export default function AprovarRelatorioViagem() {
             }
           } else {
             // Cliente discordou - notificar gerente/admin que criou o relatório
-            if (report.generated_by_user_id) {
+            if (report.criado_por) {
               notificationsToCreate.push({
-                user_id: report.generated_by_user_id,
+                user_id: report.criado_por,
                 title: '⚠️ Cliente Discordou de Relatório',
                 message: `${report.clientes_id_rel?.razao_social} discordou do relatório nº ${report.numero_relatorio}. Motivo: ${notes || 'Não informado'}`,
                 type: 'warning',

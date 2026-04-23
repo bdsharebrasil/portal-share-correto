@@ -320,7 +320,7 @@ export type Database = {
           created_at: string | null
           designativo: string
           id: string
-          name: string
+          nome: string
           updated_at: string | null
         }
         Insert: {
@@ -328,7 +328,7 @@ export type Database = {
           created_at?: string | null
           designativo: string
           id?: string
-          name: string
+          nome: string
           updated_at?: string | null
         }
         Update: {
@@ -336,7 +336,7 @@ export type Database = {
           created_at?: string | null
           designativo?: string
           id?: string
-          name?: string
+          nome?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -4251,6 +4251,7 @@ export type Database = {
           observacoes_pagamento: string | null
           observacoes_validacao: string | null
           outros_documentos: Json | null
+          percentual: number | null
           quantidade_lembretes: number | null
           status: string
           validado_por: string | null
@@ -4292,6 +4293,7 @@ export type Database = {
           observacoes_pagamento?: string | null
           observacoes_validacao?: string | null
           outros_documentos?: Json | null
+          percentual?: number | null
           quantidade_lembretes?: number | null
           status?: string
           validado_por?: string | null
@@ -4333,6 +4335,7 @@ export type Database = {
           observacoes_pagamento?: string | null
           observacoes_validacao?: string | null
           outros_documentos?: Json | null
+          percentual?: number | null
           quantidade_lembretes?: number | null
           status?: string
           validado_por?: string | null
@@ -7103,15 +7106,18 @@ export type Database = {
           categoria_id: string
           clientes_id: string | null
           comprovante_url: string | null
+          conciliacao_id: string | null
           conta_bancaria: string | null
           contas_apagar_id: string | null
           contas_areceber_id: string | null
+          controle_bancario_id: string | null
           criado_em: string
           criado_por: string | null
           data_competencia: string
           data_pagamento: string | null
           data_vencimento: string | null
           descricao: string
+          despesa_cliente_direto_id: string | null
           forma_pagamento: string | null
           fornecedor_nome: string | null
           grupo_custo: string | null
@@ -7125,6 +7131,7 @@ export type Database = {
           numero_parcela: number
           numero_recibo: string | null
           observacoes: string | null
+          pago_diretamente: boolean
           quantidade_parcelas: number
           recibo_url: string | null
           reembolsavel: boolean
@@ -7143,15 +7150,18 @@ export type Database = {
           categoria_id: string
           clientes_id?: string | null
           comprovante_url?: string | null
+          conciliacao_id?: string | null
           conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
+          controle_bancario_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_competencia: string
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao: string
+          despesa_cliente_direto_id?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
           grupo_custo?: string | null
@@ -7165,6 +7175,7 @@ export type Database = {
           numero_parcela?: number
           numero_recibo?: string | null
           observacoes?: string | null
+          pago_diretamente?: boolean
           quantidade_parcelas?: number
           recibo_url?: string | null
           reembolsavel?: boolean
@@ -7183,15 +7194,18 @@ export type Database = {
           categoria_id?: string
           clientes_id?: string | null
           comprovante_url?: string | null
+          conciliacao_id?: string | null
           conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
+          controle_bancario_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_competencia?: string
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string
+          despesa_cliente_direto_id?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
           grupo_custo?: string | null
@@ -7205,6 +7219,7 @@ export type Database = {
           numero_parcela?: number
           numero_recibo?: string | null
           observacoes?: string | null
+          pago_diretamente?: boolean
           quantidade_parcelas?: number
           recibo_url?: string | null
           reembolsavel?: boolean
@@ -9733,6 +9748,7 @@ export type Database = {
           criado_por: string | null
           descricao: string | null
           id: string
+          origem: string
           prazo: string | null
           prioridade: string | null
           publico: boolean | null
@@ -9746,6 +9762,7 @@ export type Database = {
           criado_por?: string | null
           descricao?: string | null
           id?: string
+          origem?: string
           prazo?: string | null
           prioridade?: string | null
           publico?: boolean | null
@@ -9759,6 +9776,7 @@ export type Database = {
           criado_por?: string | null
           descricao?: string | null
           id?: string
+          origem?: string
           prazo?: string | null
           prioridade?: string | null
           publico?: boolean | null
@@ -10081,10 +10099,14 @@ export type Database = {
         Row: {
           aeronave_id: string | null
           approval_token: string | null
+          assinado_em: string | null
           client_approval_notes: string | null
           client_approval_status: string | null
           client_approved_at: string | null
           clientes_id: string | null
+          contas_pagar_trip1_id: string | null
+          contas_pagar_trip2_id: string | null
+          contas_receber_id: string | null
           created_at: string | null
           crew_approval_notes: string | null
           crew_approval_status: string | null
@@ -10094,6 +10116,8 @@ export type Database = {
           data_inicio: string
           despesas: string | null
           dias_count: number
+          enviado_cliente_em: string | null
+          enviado_tripulante_em: string | null
           generated_by_user_id: string | null
           id: string
           matricula_aeronave: string | null
@@ -10101,6 +10125,7 @@ export type Database = {
           nome_tripulante_2: string | null
           numero_relatorio: string
           observacoes: string | null
+          pago_em: string | null
           pdf_path: string | null
           requires_client_approval: boolean | null
           rota: string | null
@@ -10125,10 +10150,14 @@ export type Database = {
         Insert: {
           aeronave_id?: string | null
           approval_token?: string | null
+          assinado_em?: string | null
           client_approval_notes?: string | null
           client_approval_status?: string | null
           client_approved_at?: string | null
           clientes_id?: string | null
+          contas_pagar_trip1_id?: string | null
+          contas_pagar_trip2_id?: string | null
+          contas_receber_id?: string | null
           created_at?: string | null
           crew_approval_notes?: string | null
           crew_approval_status?: string | null
@@ -10138,6 +10167,8 @@ export type Database = {
           data_inicio: string
           despesas?: string | null
           dias_count: number
+          enviado_cliente_em?: string | null
+          enviado_tripulante_em?: string | null
           generated_by_user_id?: string | null
           id?: string
           matricula_aeronave?: string | null
@@ -10145,6 +10176,7 @@ export type Database = {
           nome_tripulante_2?: string | null
           numero_relatorio: string
           observacoes?: string | null
+          pago_em?: string | null
           pdf_path?: string | null
           requires_client_approval?: boolean | null
           rota?: string | null
@@ -10169,10 +10201,14 @@ export type Database = {
         Update: {
           aeronave_id?: string | null
           approval_token?: string | null
+          assinado_em?: string | null
           client_approval_notes?: string | null
           client_approval_status?: string | null
           client_approved_at?: string | null
           clientes_id?: string | null
+          contas_pagar_trip1_id?: string | null
+          contas_pagar_trip2_id?: string | null
+          contas_receber_id?: string | null
           created_at?: string | null
           crew_approval_notes?: string | null
           crew_approval_status?: string | null
@@ -10182,6 +10218,8 @@ export type Database = {
           data_inicio?: string
           despesas?: string | null
           dias_count?: number
+          enviado_cliente_em?: string | null
+          enviado_tripulante_em?: string | null
           generated_by_user_id?: string | null
           id?: string
           matricula_aeronave?: string | null
@@ -10189,6 +10227,7 @@ export type Database = {
           nome_tripulante_2?: string | null
           numero_relatorio?: string
           observacoes?: string | null
+          pago_em?: string | null
           pdf_path?: string | null
           requires_client_approval?: boolean | null
           rota?: string | null
@@ -11945,6 +11984,10 @@ export type Database = {
       generate_travel_report_number: {
         Args: { p_client_name: string }
         Returns: string
+      }
+      gerar_financeiro_relatorio_viagem: {
+        Args: { p_report_id: string }
+        Returns: undefined
       }
       gerar_numero_os: {
         Args: { p_aeronave_id: string; p_data: string }
