@@ -321,6 +321,31 @@ function userColor(id: string | null | undefined): string {
   return palette[h % palette.length];
 }
 
+const TASK_STATUS_LABELS: Record<string, string> = {
+  "a-fazer": "A Fazer",
+  pendente: "Pendente",
+  "em-andamento": "Em Andamento",
+  "em_andamento": "Em Andamento",
+  revisao: "Revisão",
+  "revisão": "Revisão",
+  concluido: "Concluído",
+  concluído: "Concluído",
+};
+
+function normalizeTaskStatus(status: string | null | undefined) {
+  if (!status) return "a-fazer";
+  const normalized = status.trim().toLowerCase().replace(/_/g, "-");
+  if (normalized === "em-andamento") return "em-andamento";
+  if (normalized === "revisao" || normalized === "revisão") return "revisao";
+  if (normalized === "concluido" || normalized === "concluído") return "concluido";
+  if (normalized === "pendente" || normalized === "a-fazer") return "a-fazer";
+  return normalized;
+}
+
+function taskStatusLabel(status: string | null | undefined) {
+  return TASK_STATUS_LABELS[status?.trim().toLowerCase().replace(/_/g, "-")] || "Pendente";
+}
+
 function Avatar({
   user,
   size = 30,
@@ -471,6 +496,14 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     };
   }, [visibleTasks]);
 
+  const canEditTaskStatus = (task: Tarefa) => {
+    return (
+      actualIsManager ||
+      task.criado_por === me ||
+      task.atribuido_para === me
+    );
+  };
+
   const handleToggleTask = async (taskId: string, isComplete: boolean) => {
     const task = tarefas.find((t) => t.id === taskId);
     if (!task) return;
@@ -489,6 +522,29 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     
     if (error) {
       toast.error("Erro ao atualizar tarefa");
+      setTarefas(previous);
+    }
+  };
+
+  const handleChangeStatus = async (taskId: string, newStatus: string) => {
+    const task = tarefas.find((t) => t.id === taskId);
+    if (!task) return;
+    if (!canEditTaskStatus(task)) {
+      toast.error("Você não tem permissão para alterar o status desta tarefa");
+      return;
+    }
+
+    const previous = tarefas;
+    setTarefas((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)),
+    );
+
+    const { error } = await supabase
+      .from("tarefas")
+      .update({ status: newStatus, atualizado_em: new Date().toISOString() })
+      .eq("id", taskId);
+    if (error) {
+      toast.error("Erro ao atualizar status");
       setTarefas(previous);
     }
   };
@@ -562,7 +618,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     <>
       <style>{checklistStyles}</style>
       
-      <div className="bg-gradient-to-b from-slate-50 to-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+      <div className="bg-slate-50 rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-white border-b border-slate-200 px-6 py-5 flex items-center justify-between flex-wrap gap-4">
           <div>
@@ -616,10 +672,11 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-md transition-all group"
+                      className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-md transition-all group"
                     >
                       <input
                         type="checkbox"
+                        checked={normalizeTaskStatus(task.status) === "concluido"}
                         onChange={(e) =>
                           void handleToggleTask(task.id, e.target.checked)
                         }
@@ -640,32 +697,54 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        {task.prazo && (
-                          <div className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
-                            📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                          </div>
-                        )}
-                        <Avatar user={assigned} size={28} />
-
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => void setDetailTask(task)}
-                            className="p-1.5 text-slate-500 hover:text-blue-600 transition-colors"
-                            title="Abrir"
-                          >
-                            <MessageSquare size={16} />
-                          </button>
-                          {canDelete && (
-                            <button
-                              onClick={() => void handleDelete(task.id)}
-                              className="p-1.5 text-slate-500 hover:text-red-600 transition-colors"
-                              title="Excluir"
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                            {taskStatusLabel(task.status)}
+                          </span>
+                          {canEditTaskStatus(task) ? (
+                            <select
+                              value={normalizeTaskStatus(task.status)}
+                              onChange={(e) =>
+                                void handleChangeStatus(task.id, e.target.value)
+                              }
+                              className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
                             >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                              <option value="a-fazer">A Fazer</option>
+                              <option value="em-andamento">Em Andamento</option>
+                              <option value="revisao">Revisão</option>
+                              <option value="concluido">Concluído</option>
+                            </select>
+                          ) : null}
                         </div>
+
+                        <div className="flex items-center gap-3">
+                          {task.prazo && (
+                            <div className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
+                              📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                            </div>
+                          )}
+                          <Avatar user={assigned} size={28} />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => void setDetailTask(task)}
+                          className="p-1.5 text-slate-500 hover:text-blue-600 transition-colors"
+                          title="Abrir"
+                        >
+                          <MessageSquare size={16} />
+                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => void handleDelete(task.id)}
+                            className="p-1.5 text-slate-500 hover:text-red-600 transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -1097,7 +1176,7 @@ function DetailDialog({
               Status
             </label>
             <div className="text-sm font-medium mt-1">
-              {task.status === "concluido" ? "✅ Concluída" : "⏳ Pendente"}
+              {task.status === "concluido" || task.status === "concluído" ? "✅ Concluída" : task.status?.toLowerCase().includes("em") ? "⏳ Em Andamento" : "⏳ Pendente"}
             </div>
           </div>
 

@@ -76,7 +76,7 @@ export function AerodromeCombobox({
               {aerodromes.map((ad) => (
                 <CommandItem
                   key={ad.id}
-                  value={`${ad.designativo} ${ad.name}`}
+                  value={`${ad.designativo} ${ad.nome}`}
                   onSelect={() => {
                     onChange(ad.designativo === value ? '' : ad.designativo);
                     setOpen(false);
@@ -89,7 +89,7 @@ export function AerodromeCombobox({
                     )}
                   />
                   <span className="font-mono font-semibold mr-2">{ad.designativo}</span>
-                  <span className="text-muted-foreground truncate">{ad.name}</span>
+                  <span className="text-muted-foreground truncate">{ad.nome}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

@@ -213,9 +213,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             // ✅ FIX: coluna correta é 'designativo', não 'code'
             const result = await supabase
               .from('aerodromes')
-              .select('designativo, name')
+              .select('designativo, nome')
               .in('designativo', codesArray);
-            const aerodromes = result.data as any[];
+            const aerodromes = (result.data || []).map((a: any) => ({ ...a, name: a.nome }));
             if (aerodromes && aerodromes.length > 0) {
               aerodromes.forEach((aero: any) => {
                 aerodromeMap[aero.designativo] = { code: aero.designativo, name: aero.nome };

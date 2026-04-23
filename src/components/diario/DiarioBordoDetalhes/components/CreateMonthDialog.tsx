@@ -115,9 +115,9 @@ export function CreateMonthDialog({
   const fetchAerodromes = async () => {
     const { data } = await supabase
       .from('aerodromes')
-      .select('id, designativo, name')
+      .select('id, designativo, nome')
       .order('designativo');
-    if (data) setAerodromes(data);
+    if (data) setAerodromes(((data as Array<{ id: string; designativo: string; nome: string }>).map((a) => ({ ...a, name: a.nome }))));
   };
 
   const handleSubmit = async () => {

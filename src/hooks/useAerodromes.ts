@@ -16,7 +16,7 @@ export const useAerodromes = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("aerodromes")
-        .select("id, designativo, name, coordenadas")
+        .select("id, designativo, nome, coordenadas")
         .order("designativo", { ascending: true });
 
       if (error) {
@@ -24,7 +24,7 @@ export const useAerodromes = () => {
         throw error;
       }
 
-      return (data as Aerodromo[]) || [];
+      return (data as unknown as Aerodromo[]) || [];
     },
     staleTime: 24 * 60 * 60 * 1000, // 24 horas
     gcTime: 30 * 60 * 1000, // 30 minutos

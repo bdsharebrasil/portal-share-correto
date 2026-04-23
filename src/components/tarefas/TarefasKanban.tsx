@@ -59,12 +59,18 @@ type Status = (typeof COLUMNS)[number]["id"];
 // Map de status legacy (banco) -> coluna kanban
 function statusToColumn(s: string | null | undefined): Status {
   if (!s) return "a-fazer";
-  if (COLUMNS.find((c) => c.id === s)) return s as Status;
-  switch (s) {
+  const normalized = s.trim().toLowerCase().replace(/_/g, "-");
+  if (COLUMNS.find((c) => c.id === normalized)) return normalized as Status;
+  switch (normalized) {
     case "aberto":
     case "pendente":
+    case "a-fazer":
       return "a-fazer";
+    case "em andamento":
+    case "em-andamento":
+      return "em-andamento";
     case "em progresso":
+    case "em-progresso":
     case "em_progresso":
       return "em-andamento";
     case "revisao":
@@ -322,9 +328,8 @@ export default function TarefasKanban({
       // Admin/Gestor sempre pode mudar status em qualquer visualização
       return true;
     }
-    // Usuário comum: pode mudar status apenas em tarefas privadas que criou
-    // Não pode mudar tarefas públicas atribuídas (só pode comentar)
-    return task.criado_por === me && task.publico === false;
+    // Usuário comum: pode mudar status em tarefas que criou ou nas que recebeu para executar
+    return task.criado_por === me || task.atribuido_para === me;
   };
 
   const handleStatusChange = async (id: string, newStatus: Status) => {

@@ -76,6 +76,7 @@ import RelatoriosFinanceiros from "./components/dashboard/gestor/socios/reports/
 import RelatorioMensal from "./components/dashboard/gestor/socios/reports/RelatorioMensal";
 import CentroLancamentoCustos from "./components/dashboard/gestor/FinanceiroCotista/balanco-socio/CentroLancamentoCustos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
+import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -341,6 +342,13 @@ const App = () => {
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
                                 <FinanceiroCotistaDetalhe />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/lancamento/:clienteId/:aeronaveId" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <LancamentoForm />
                               </RoleProtected>
                             )
                           } />

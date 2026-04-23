@@ -25,10 +25,8 @@ import { useUpdateTransaction } from "@/hooks/useFinanceiroSocios"
 import { useClientPartners } from "@/hooks/useClientPartners"
 import { useContasBancarias } from "@/hooks/useContasBancarias"
 import { useFuelSuppliers } from "@/hooks/useFuelSuppliers"
-import { useAircraftMaintenances } from "@/hooks/useMaintenanceExpenses"
 import { EXPENSE_CATEGORIES, IMPOSTOS_SUBTYPES, BANK_EXPENSE_CATEGORIES } from "@/components/dashboard/gestor/socios/ExpenseForm"
 import { formatCPF } from "@/lib/formatters"
-import { format, parseISO } from "date-fns"
 import { supabase } from "@/integrations/supabase/client"
 
 interface Transaction {
@@ -78,15 +76,23 @@ export function TransactionEditModal({
   const isAbastecimento = transaction?.tipo_referencia === "abastecimento" || transaction?.expense_type === "abastecimento"
   const isExpense = transaction?.tipo_referencia === "partner_expense" || transaction?.transaction_type === "expense"
 
-  const [aircraftId, setAircraftId] = useState<string | null>(null)
-  const [selectedMaintenanceId, setSelectedMaintenanceId] = useState<string>("")
-  const [linkedMaintenanceRecordId, setLinkedMaintenanceRecordId] = useState<string | null>(null)
-
-  const [serviceOrders, setServiceOrders] = useState<any[]>([])
-  const [loadingServiceOrders, setLoadingServiceOrders] = useState(false)
-  const [selectedOasId, setSelectedOasId] = useState<string>("")
-
-  const { data: manutencoes = [] } = useAircraftMaintenances(aircraftId)
+  const [formData, setFormData] = useState({
+    description: "",
+    amount: 0,
+    paymentDate: "",
+    dueDate: "",
+    notes: "",
+    bankName: "",
+    prazo: "",
+    category: "",
+    expenseType: "",
+    supplierName: "",
+    paymentMethod: "",
+    status: "",
+    assignedPartnerCpf: "none",
+    invoiceNumber: "",
+    invoiceUrl: "",
+  })
 
   const normalizeCategoryValue = (value?: string | null) => {
     if (!value) return ""
@@ -115,31 +121,8 @@ export function TransactionEditModal({
     return matchedPartner?.cpf || "none"
   }
 
-  const [formData, setFormData] = useState({
-    description: "",
-    amount: 0,
-    paymentDate: "",
-    dueDate: "",
-    notes: "",
-    bankName: "",
-    prazo: "",
-    category: "",
-    expenseType: "",
-    supplierName: "",
-    paymentMethod: "",
-    status: "",
-    assignedPartnerCpf: "none",
-    invoiceNumber: "",
-    invoiceUrl: "",
-  })
-
   useEffect(() => {
-    if (!transaction) {
-      setAircraftId(null)
-      setSelectedMaintenanceId("")
-      setLinkedMaintenanceRecordId(null)
-      return
-    }
+    if (!transaction) return
 
     const loadRelatedData = async () => {
       let sourceTransaction: any = { ...transaction }
@@ -220,96 +203,10 @@ export function TransactionEditModal({
         invoiceNumber: sourceTransaction.invoice_number || "",
         invoiceUrl: sourceTransaction.invoice_url || "",
       })
-
-      // Determine aeronave_id for loading manutenções/OAS
-      let currentAircraftId = sourceTransaction.aeronave_id || null
-
-      // If this expense is linked to a travel report, try to get the aircraft from the report
-      if (!currentAircraftId && sourceTransaction.tipo_referencia === "travel_expense_report" && sourceTransaction.referencia_id) {
-        try {
-          const { data: report } = await supabase
-            .from("travel_expense_reports")
-            .select("aeronave_id")
-            .eq("id", sourceTransaction.referencia_id)
-            .single()
-          currentAircraftId = report?.aeronave_id || null
-        } catch {
-          // ignore
-        }
-      }
-
-      if (!currentAircraftId) {
-        try {
-          const { data: clientAircraft } = await supabase
-            .from("cotistas_aeronave")
-            .select("id_aeronave")
-            .eq("id_clientes", clientId)
-            .limit(1)
-            .single()
-          currentAircraftId = clientAircraft?.aeronave_id || null
-        } catch {
-          currentAircraftId = null
-        }
-      }
-
-      setAircraftId(currentAircraftId)
-
-      // If the transaction was already linked to an active OAS, keep it selected
-      if (sourceTransaction.tipo_referencia === "ctm_service_order" && sourceTransaction.referencia_id) {
-        setSelectedOasId(sourceTransaction.referencia_id)
-      }
-
-      // Load linked manutenções (OAs) for this expense
-      try {
-        const { data: linked } = await supabase
-          .from("despesas_manutencao")
-          .select("id, manutencao_id, service_order_id")
-          .eq("partner_expense_id", transaction.id)
-          .maybeSingle()
-
-        if (linked) {
-          setSelectedMaintenanceId(linked.manutencao_id || "")
-          setSelectedOasId(linked.service_order_id || linked.manutencao_id || "")
-          setLinkedMaintenanceRecordId(linked.id)
-        } else {
-          setSelectedMaintenanceId("")
-          setLinkedMaintenanceRecordId(null)
-        }
-      } catch {
-        setSelectedMaintenanceId("")
-        setLinkedMaintenanceRecordId(null)
-      }
     }
 
     loadRelatedData()
   }, [transaction, isOpen, contasBancarias, clientId, partners, isAbastecimento, isExpense])
-
-  useEffect(() => {
-    if (!aircraftId) return;
-
-    setLoadingServiceOrders(true);
-    supabase
-      .from("ctm_ordem_acompanhamento_servico")
-      .select("id, numero, status, tipo_manutencao, oficina_nome, data_entrada")
-      .eq("aeronave_id", aircraftId)
-      .order("criado_em", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Erro ao carregar OAS:", error);
-          setServiceOrders([]);
-        } else {
-          setServiceOrders(data || []);
-        }
-        setLoadingServiceOrders(false);
-      });
-  }, [aircraftId]);
-
-  useEffect(() => {
-    if (formData.categoria !== "MANUTENCAO") {
-      setSelectedMaintenanceId("")
-      setSelectedOasId("")
-    }
-  }, [formData.categoria])
 
   const handleSave = async () => {
     if (!transaction) return
@@ -321,7 +218,6 @@ export function TransactionEditModal({
 
     const transactionType = transaction.tipo_referencia || transaction.transaction_type
 
-    // Resolve bank name from ID
     const selectedConta = contasBancarias.find((c) => c.id === formData.bankName)
     const bankNameResolved = selectedConta ? selectedConta.banco : formData.bankName || null
 
@@ -329,7 +225,6 @@ export function TransactionEditModal({
       ? partners.find((p) => p.cpf === formData.assignedPartnerCpf)
       : null
 
-    // For bank expenses without assigned partner, use uppercase bank name
     const finalAssignedPartnerName = isAbastecimento
       ? assignedPartner?.nome || null
       : assignedPartner?.nome || (bankNameResolved ? bankNameResolved.toUpperCase() : null)
@@ -355,103 +250,9 @@ export function TransactionEditModal({
         assignedPartnerName: finalAssignedPartnerName,
         invoiceNumber: formData.invoiceNumber || null,
         invoiceUrl: formData.invoiceUrl || null,
-        referenceType: selectedOasId ? "ctm_service_order" : transaction.tipo_referencia || null,
-        referenceId: selectedOasId || transaction.referencia_id || null,
-        aircraftId,
+        referenceType: transaction.tipo_referencia || null,
+        referenceId: transaction.referencia_id || null,
       })
-
-      // Se categoria for Manutenção, garantir que a despesa seja vinculada à OAS e criar rateio
-      if (formData.categoria === "MANUTENCAO") {
-        try {
-          if (selectedMaintenanceId || selectedOasId) {
-            const oasId = selectedOasId || selectedMaintenanceId;
-            const payload = {
-              service_order_id: oasId,
-              manutencao_id: null,
-              aeronave_id: aircraftId,
-              client_id: clientId,
-              descricao: formData.descricao,
-              valor: formData.valor,
-              tipo_rateio: "igual",
-              partner_expense_id: transaction.id,
-            }
-
-            let despesaId = linkedMaintenanceRecordId;
-
-            if (linkedMaintenanceRecordId) {
-              const { error } = await supabase
-                .from("despesas_manutencao")
-                .update(payload)
-                .eq("id", linkedMaintenanceRecordId)
-              if (error) {
-                console.error("Erro ao atualizar despesa_manutencao:", error)
-                throw error
-              }
-            } else {
-              const { data, error } = await supabase
-                .from("despesas_manutencao")
-                .insert(payload)
-                .select()
-                .single()
-
-              if (error) {
-                console.error("Erro ao inserir despesa_manutencao:", error)
-                throw error
-              }
-
-              if (data?.id) {
-                despesaId = data.id
-                setLinkedMaintenanceRecordId(data.id)
-              }
-            }
-
-            // Criar/atualizar rateio entre sócios
-            if (despesaId && partners.length > 0) {
-              // Remover rateios antigos
-              await supabase
-                .from("despesas_manutencao_rateio")
-                .delete()
-                .eq("despesa_manutencao_id", despesaId)
-
-              // Criar rateio igual entre todos os sócios
-              const pctPerPartner = Math.round((100 / partners.length) * 100) / 100;
-              const valPerPartner = Math.round((formData.valor / partners.length) * 100) / 100;
-
-              const rateioRecords = partners.map((p) => ({
-                despesa_manutencao_id: despesaId!,
-                client_partner_id: p.id,
-                percentual: pctPerPartner,
-                valor: valPerPartner,
-                status_pagamento: "pendente",
-              }));
-
-              await supabase
-                .from("despesas_manutencao_rateio")
-                .insert(rateioRecords)
-            }
-          }
-        } catch (err) {
-          console.error("Erro ao vincular despesa à manutenção:", err)
-        }
-      } else if (linkedMaintenanceRecordId) {
-        // Se categoria não for mais manutenção, remover vínculo existente
-        try {
-          await supabase
-            .from("despesas_manutencao_rateio")
-            .delete()
-            .eq("despesa_manutencao_id", linkedMaintenanceRecordId)
-
-          await supabase
-            .from("despesas_manutencao")
-            .delete()
-            .eq("id", linkedMaintenanceRecordId)
-
-          setLinkedMaintenanceRecordId(null)
-          setSelectedMaintenanceId("")
-        } catch (err) {
-          console.error("Erro ao remover vínculo de manutenção:", err)
-        }
-      }
 
       onClose()
     } catch (error) {
@@ -611,67 +412,6 @@ export function TransactionEditModal({
               </div>
             )}
           </div>
-
-          {/* Vincular Manutenção (OAS) */}
-          {isExpense && formData.categoria === "MANUTENCAO" && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Ordem de Acompanhamento de Serviço (OAS)</Label>
-                <Select
-                  value={selectedOasId}
-                  onValueChange={(v) => setSelectedOasId(v)}
-                  disabled={loadingServiceOrders}
-                >
-                  <SelectTrigger className="text-sm">
-                    <SelectValue
-                      placeholder={
-                        loadingServiceOrders
-                          ? "Carregando OAS..."
-                          : serviceOrders.length === 0
-                            ? "Nenhuma OAS encontrada"
-                            : "Selecione a OAS ativa"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {serviceOrders.length === 0 ? (
-                      <div className="p-4 text-sm text-muted-foreground text-center">
-                        Nenhuma OAS encontrada para esta aeronave.
-                      </div>
-                    ) : (
-                      serviceOrders.map((so: any) => {
-                        const getStatusLabel = (status: string) => {
-                          switch (status) {
-                            case "concluida": return "Concluída";
-                            case "em_andamento": return "Em Andamento";
-                            case "aguardando": return "Pendente";
-                            case "cancelada": return "Cancelada";
-                            default: return status;
-                          }
-                        };
-                        return (
-                          <SelectItem key={so.id} value={so.id} className="py-3">
-                            <div className="text-sm space-y-0.5">
-                              <div className="font-medium">
-                                OAS #{so.numero}
-                                {so.status ? ` • ${getStatusLabel(so.status)}` : ""}
-                              </div>
-                              <div className="text-xs text-muted-foreground flex gap-2">
-                                {so.data_entrada && (
-                                  <span>{format(parseISO(so.data_entrada), "dd/MM/yyyy")}</span>
-                                )}
-                                {so.oficina_nome && <span>• {so.oficina_nome}</span>}
-                              </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
 
           {/* Datas */}
           <div className="grid grid-cols-2 gap-4">

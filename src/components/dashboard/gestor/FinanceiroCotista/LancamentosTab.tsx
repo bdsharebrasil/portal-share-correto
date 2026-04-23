@@ -263,7 +263,7 @@ export function LancamentosTab({ clienteId, aeronaveId, aeronaveLabel }: Lancame
   );
 }
 
-function LancamentoDialog({
+export function LancamentoDialog({
   open,
   onOpenChange,
   clienteId,

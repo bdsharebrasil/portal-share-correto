@@ -4,7 +4,7 @@ import { useClientesCotistas } from "@/hooks/useFinanceiroCotista";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plane, Users, ChevronRight, Search, X, Bell, Share2 } from "lucide-react";
+import { ArrowLeft, Plane, Users, ChevronRight, Search, X, Bell } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,12 +200,12 @@ export default function FinanceiroCotistas() {
               >
                 {/* Header com logo, título e ícones */}
                 <div className="flex items-start gap-4 justify-between">
-                  <div className="w-14 h-14 rounded-lg bg-red-500 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
+                  <div className="w-14 h-14 rounded-lg bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
                     {c.url_logo ? (
                       <img
                         src={c.url_logo}
                         alt={c.razao_social}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     ) : (
                       <Users className="h-7 w-7 text-white" />
@@ -218,12 +218,6 @@ export default function FinanceiroCotistas() {
                       className="p-2 rounded-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 transition-all"
                     >
                       <Bell className="h-4 w-4 text-slate-400" />
-                    </button>
-                    <button
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-2 rounded-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 transition-all"
-                    >
-                      <Share2 className="h-4 w-4 text-slate-400" />
                     </button>
                   </div>
                 </div>

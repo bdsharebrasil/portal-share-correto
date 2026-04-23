@@ -37,7 +37,6 @@ import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { useAerodromes } from "@/hooks/useAerodromes";
 import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
-import { useAircraftMaintenances, useCreateMaintenanceExpense } from "@/hooks/useMaintenanceExpenses";
 import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
 import { useFuelSuppliers } from "@/hooks/useFuelSuppliers";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
@@ -85,7 +84,6 @@ export const IMPOSTOS_SUBTYPES = [
 export type ExpenseCategoryId = (typeof EXPENSE_CATEGORIES)[number]["id"];
 
 // ─── Helpers para lógica de campos condicionais ───────────────────────────────
-// Categorias que ocultam Descrição e Fornecedor e mostram campo "documento"
 const CATEGORIES_WITH_DOC_FIELD = ["IMPOSTOS", "DECEA", "INFRAERO"] as const;
 type DocFieldCategory = (typeof CATEGORIES_WITH_DOC_FIELD)[number];
 
@@ -106,7 +104,6 @@ function getDocFieldPlaceholder(category: string): string {
   return "Ex: DOC-001";
 }
 
-// Categorias INFRAERO e DECEA que usam número demonstrativo + mês
 const INFRAERO_DECEA_CATEGORIES = ["DECEA", "INFRAERO"] as const;
 type InfraeoDeceaCategory = (typeof INFRAERO_DECEA_CATEGORIES)[number];
 
@@ -130,14 +127,11 @@ const EMPTY_FORM = {
   status: "pago",
   abastecimentoId: "",
   criarNovoAbastecimento: false,
-  // Campos para INFRAERO/DECEA
   demonstrativoNumber: "",
   mesReferente: format(new Date(), "MM-yyyy"),
-  // Campo doc (usado por IMPOSTOS, DECEA, INFRAERO)
   doc: "",
   boletoUrl: "",
   demonstrativoUrl: "",
-  // Campos para novo abastecimento
   novoAbastVincularDiario: false,
   novoAbastData: format(new Date(), "yyyy-MM-dd"),
   novoAbastLocal: "",
@@ -163,7 +157,6 @@ const EMPTY_FORM = {
   isInstallment: false,
   installmentCount: "1",
   installmentStartDate: format(new Date(), "yyyy-MM-dd"),
-  // Campos abastecimento extras
   comandaUrl: "",
   comprovantePagamento: "",
   notaFiscalUrl: "",
@@ -223,14 +216,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   } | null>(null);
   const [loadingReports, setLoadingReports] = useState(false);
 
-  // Maintenance linking states
-  const [selectedManutencaoId, setSelectedManutencaoId] = useState<string>("");
-  const [manutencaoTipoRateio, setManutencaoTipoRateio] = useState<"igual" | "por_uso" | "manual">("igual");
-  const [manualRateios, setManualRateios] = useState<Record<string, number>>({});
-  const [vincularAManutencao, setVincularAManutencao] = useState(false);
-
   const addExpense = useCreateExpense(false);
-  const createMaintenanceExpense = useCreateMaintenanceExpense();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
   const { data: abastecimentos = [] } = useClientAbastecimentos(clienteId);
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
@@ -238,32 +224,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
   const { aerodromes } = useAerodromes();
 
-  // Fetch aircraft ID for this client
-  const [clientAircraftId, setClientAircraftId] = useState<string | null>(null);
-  useEffect(() => {
-    const fetchAircraft = async () => {
-      const { data } = await supabase
-        .from("cotistas_aeronave")
-        .select("id_aeronave")
-        .eq("id_clientes", clienteId)
-        .limit(1)
-        .single();
-      setClientAircraftId(data?.id_aeronave || null);
-    };
-    if (clienteId) fetchAircraft();
-  }, [clienteId]);
-
-  // Fetch manutencoes for the aircraft
-  const { data: manutencoes = [] } = useAircraftMaintenances(clientAircraftId);
-
-  // Filtrar apenas fornecedores da categoria 'share'
   const fornecedoresShare = fornecedoresFavoritos.filter((f) => f.categoria === "share");
 
   const set =
     (key: keyof typeof EMPTY_FORM) => (value: string | boolean) =>
       setForm((prev) => ({ ...prev, [key]: value }));
 
-  // Fetch aircraft_id for this client
   const getAircraftId = async (): Promise<string | null> => {
     try {
       const { data } = await supabase
@@ -278,7 +244,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     }
   };
 
-  // helper to get partner object from CPF
   const assignedPartner =
     form.assignedPartnerCpf && form.assignedPartnerCpf !== "none"
       ? partners.find((p) => p.cpf === form.assignedPartnerCpf)
@@ -300,12 +265,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       setExistingReports([]);
       setSelectedReport(null);
     }
-    if (form.categoria !== "MANUTENÇÃO") {
-      setSelectedManutencaoId("");
-      setManutencaoTipoRateio("igual");
-      setManualRateios({});
-    }
-    // Reset doc-related fields when category changes
     setForm((prev) => ({ ...prev, doc: "", demonstrativoNumber: "", mesReferente: format(new Date(), "MM-yyyy") }));
   }, [form.categoria]);
 
@@ -327,7 +286,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     }
   }, [form.supplierName, form.novoAbastCombustivel, form.categoria, form.criarNovoAbastecimento, fuelSuppliers]);
 
-  // Auto-calculate totalAmount for abastecimento from litros × valorUnitario
+  // Auto-calculate totalAmount for abastecimento
   useEffect(() => {
     if (form.categoria === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
       const litros = parseFloat(form.novoAbastLitros || "0");
@@ -343,7 +302,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       }
     }
   }, [form.novoAbastLitros, form.novoAbastValorUnitario, form.categoria, form.criarNovoAbastecimento, form.novoAbastCombustivel]);
-
 
   useEffect(() => {
     const fetchReportsForPartner = async (partnerId: string | null) => {
@@ -377,7 +335,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     }
   }, [linkOption, assignedPartner?.id, clienteId]);
 
-  // Derived flags
   const isDocCategory = isDocFieldCategory(form.categoria as string);
   const isInfraeoDececaExpense = isInfraeoDececaCategory(form.categoria as string);
   const hideDescriptionAndSupplier = isDocCategory || isInfraeoDececaExpense;
@@ -385,7 +342,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation differs by category
     if (isInfraeoDececaExpense) {
       if (!form.demonstrativoNumber || !form.mesReferente || !form.totalAmount || !form.categoria) return;
     } else if (isDocCategory) {
@@ -406,7 +362,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     const bankNameResolved = selectedConta ? selectedConta.banco : form.bankName || null;
     const aircraftId = await getAircraftId();
 
-    // For INFRAERO/DECEA, format description as "INFRAERO/03-26" or "DECEA/03-26"
     let effectiveDescription = "";
     let effectiveDoc = "";
 
@@ -414,7 +369,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       effectiveDescription = `${form.categoria}/${form.mesReferente}`;
       effectiveDoc = form.mesReferente;
     } else if (isDocCategory) {
-      // IMPOSTOS uses doc as description
       effectiveDescription = form.documento;
     } else {
       effectiveDescription = form.descricao;
@@ -469,7 +423,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       }
     }
 
-    // ─── CRIAR NOVO ABASTECIMENTO SE NECESSÁRIO ───
     let abastecimentoId = form.abastecimentoId || null;
 
     if (form.categoria === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
@@ -555,14 +508,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       referenceType,
       referenceId,
       abastecimentoId: abastecimentoId,
-      // For INFRAERO/DECEA, save mesReferente in doc; for IMPOSTOS, save doc field
       doc: isInfraeoDececaExpense ? effectiveDoc : (isDocCategory ? form.documento : null),
       boletoUrl: isInfraeoDececaExpense ? (form.boletoUrl || null) : (isDocCategory ? form.boletoUrl || null : null),
       demonstrativoUrl: isInfraeoDececaExpense ? (form.demonstrativoUrl || null) : (isDocCategory ? form.demonstrativoUrl || null : null),
       percentualSocio: form.percentualSocio ? parseFloat(form.percentualSocio) : null,
     };
 
-    // Para abastecimentos, não criar em partner_expenses - apenas abastecimentos foi criado acima
     if (form.categoria !== "ABASTECIMENTO") {
       if (!assignedPartnerCpf && partners.length > 1) {
         const splitAmount = parseFloat(form.totalAmount) / partners.length;
@@ -602,63 +553,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       }
     }
 
-    if (form.categoria === "MANUTENÇÃO" && selectedManutencaoId) {
-      try {
-        const valor = parseFloat(form.totalAmount);
-        let rateios: Array<{ clientPartnerId: string; percentual: number; valor: number }> = [];
-
-        if (manutencaoTipoRateio === "igual" && partners.length > 0) {
-          const pct = 100 / partners.length;
-          const partVal = Math.round((valor / partners.length) * 100) / 100;
-          rateios = partners.map((p) => ({
-            clientPartnerId: p.id,
-            percentual: Math.round(pct * 100) / 100,
-            valor: partVal,
-          }));
-        } else if (manutencaoTipoRateio === "por_uso" && partners.length > 0) {
-          const totalPct = partners.reduce((s, p) => s + (p.percentual_participacao || 0), 0);
-          if (totalPct > 0) {
-            rateios = partners.map((p) => {
-              const pct = (p.percentual_participacao || 0) / totalPct * 100;
-              return {
-                clientPartnerId: p.id,
-                percentual: Math.round(pct * 100) / 100,
-                valor: Math.round((valor * pct / 100) * 100) / 100,
-              };
-            });
-          } else {
-            const pct = 100 / partners.length;
-            rateios = partners.map((p) => ({
-              clientPartnerId: p.id,
-              percentual: Math.round(pct * 100) / 100,
-              valor: Math.round((valor / partners.length) * 100) / 100,
-            }));
-          }
-        } else if (manutencaoTipoRateio === "manual") {
-          rateios = partners.map((p) => {
-            const pct = manualRateios[p.id] || 0;
-            return {
-              clientPartnerId: p.id,
-              percentual: pct,
-              valor: Math.round((valor * pct / 100) * 100) / 100,
-            };
-          });
-        }
-
-        await createMaintenanceExpense.mutateAsync({
-          manutencaoId: selectedManutencaoId,
-          aircraftId: clientAircraftId,
-          clientId: clienteId,
-          descricao: effectiveDescription,
-          valor,
-          tipoRateio: manutencaoTipoRateio,
-          rateios,
-        });
-      } catch (err) {
-        console.error("Erro ao criar despesa de manutenção:", err);
-      }
-    }
-
     toast.success("Despesa criada com sucesso!");
     setOpen(false);
     setForm(EMPTY_FORM);
@@ -666,10 +560,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     setLinkOption(null);
     setExistingReports([]);
     setSelectedReport(null);
-    setSelectedManutencaoId("");
-    setManutencaoTipoRateio("igual");
-    setManualRateios({});
-    setVincularAManutencao(false);
   };
 
   const handleBankSubmit = async (e: React.FormEvent) => {
@@ -738,7 +628,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const selectedCategory = EXPENSE_CATEGORIES.find((c) => c.id === form.categoria);
   const isAbastecimento = form.categoria === "ABASTECIMENTO";
 
-  // Validation
   const isValid = isInfraeoDececaExpense
     ? !!form.demonstrativoNumber && !!form.mesReferente && !!form.totalAmount && !!form.categoria
     : isDocCategory
@@ -759,7 +648,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           </Button>
         </DialogTrigger>
 
-        {/* ── Dialog maior: max-w-6xl, padding generoso ── */}
         <DialogContent
           className="
             w-full max-w-6xl
@@ -792,7 +680,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             </DialogHeader>
           </div>
 
-          {/* ── Body com padding maior ── */}
+          {/* ── Body ── */}
           <div className="px-10 py-8">
             <Tabs value={tab} onValueChange={(v) => setTab(v as "expense" | "bank")}>
               <TabsList className="w-full h-12 rounded-xl bg-muted/60 p-1 mb-8">
@@ -822,7 +710,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               <TabsContent value="expense">
                 <form onSubmit={handleSubmit} className="space-y-7">
 
-                  {/* ── Sócio Responsável + Categoria lado a lado ── */}
+                  {/* Sócio Responsável + Categoria */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <FormSection label="Sócio Responsável">
                       <Select
@@ -880,7 +768,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                   </div>
 
-                  {/* Percentual do Sócio - aparece quando sócio é selecionado */}
+                  {/* Percentual do Sócio */}
                   {assignedPartner && partners.length > 1 && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <FormSection label="% Compartilhamento">
@@ -913,7 +801,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── IMPOSTOS: Tipo de Imposto ── */}
+                  {/* IMPOSTOS: Tipo de Imposto */}
                   {(form.categoria as string) === "IMPOSTOS" && (
                     <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-6 space-y-4">
                       <div className="flex items-center gap-2.5">
@@ -937,7 +825,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── INFRAERO/DECEA: Número Demonstrativo e Mês Referente ── */}
+                  {/* INFRAERO/DECEA */}
                   {isInfraeoDececaExpense && (
                     <div className="rounded-2xl bg-sky-950/30 border border-sky-700/40 p-6 space-y-4">
                       <div className="flex items-center gap-2.5 mb-3">
@@ -1017,7 +905,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Campo DOC (IMPOSTOS only) ── */}
+                  {/* Campo DOC (IMPOSTOS only) */}
                   {form.categoria === "IMPOSTOS" && (
                     <div className={cn(
                       "rounded-2xl border p-6 space-y-2",
@@ -1096,7 +984,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Vincular Relatório de Viagem ── */}
+                  {/* Vincular Relatório de Viagem */}
                   {form.categoria === "DESPESAS DE VIAGEM" && (
                     <FormSection label="Deseja vincular a um relatório de viagem?">
                       <div className="flex flex-col sm:flex-row gap-4">
@@ -1162,7 +1050,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                   )}
 
-                  {/* ── Abastecimento ── */}
+                  {/* Abastecimento */}
                   {isAbastecimento && (
                     <div className="rounded-2xl bg-amber-950/40 border border-amber-700/50 p-6 space-y-5">
                       <div className="flex items-center gap-2.5">
@@ -1221,7 +1109,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         </>
                       ) : (
                         <div className="space-y-5">
-                          {/* STEP 1: Vincular ao Diário de Bordo */}
                           <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4 space-y-3">
                             <div className="flex items-center gap-2">
                               <input
@@ -1597,147 +1484,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Manutenção ── */}
-                  {form.categoria === "MANUTENÇÃO" && (
-                    <div className="rounded-2xl bg-muted/50 border border-border/60 p-6 space-y-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                          <span className="text-base">🔧</span>
-                        </div>
-                        <p className="font-semibold text-sm text-foreground">
-                          Vincular com Manutenção
-                        </p>
-                      </div>
-
-                      <Select value={selectedManutencaoId} onValueChange={setSelectedManutencaoId}>
-                        <SelectTrigger className="h-13 rounded-xl border-border/60 text-sm">
-                          <SelectValue placeholder="Selecione a manutenção da aeronave" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          {manutencoes.length === 0 ? (
-                            <div className="p-4 text-sm text-muted-foreground text-center">
-                              Nenhuma manutenção encontrada
-                            </div>
-                          ) : (
-                            manutencoes.map((m) => {
-                              const formatDate = (dateStr: string) => {
-                                try {
-                                  const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
-                                  return format(parsed, "dd/MM/yyyy", { locale: ptBR });
-                                } catch {
-                                  return dateStr;
-                                }
-                              };
-                              const formatStatus = (status: string) => {
-                                return status.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-                              };
-                              return (
-                                <SelectItem key={m.id} value={m.id} className="py-3">
-                                  <div className="text-sm space-y-0.5">
-                                    <div className="font-medium">
-                                      {m.tipo} {m.numero_os ? `(${m.numero_os})` : ""}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground flex gap-2">
-                                      <span>{formatDate(m.data_programada)}</span>
-                                      <span>{formatStatus(m.etapa)}</span>
-                                      {m.oficina && <span>• {m.oficina}</span>}
-                                    </div>
-                                  </div>
-                                </SelectItem>
-                              );
-                            })
-                          )}
-                        </SelectContent>
-                      </Select>
-
-                      {selectedManutencaoId && (
-                        <div className="space-y-3 pt-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            Tipo de Rateio
-                          </p>
-                          <div className="grid grid-cols-3 gap-3">
-                            {[
-                              { value: "igual" as const, label: "Igual", desc: "Dividido igualmente" },
-                              { value: "por_uso" as const, label: "Por Uso", desc: "Proporcional ao uso" },
-                              { value: "manual" as const, label: "Manual", desc: "Definir percentuais" },
-                            ].map((opt) => (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => setManutencaoTipoRateio(opt.value)}
-                                className={cn(
-                                  "p-3 rounded-xl border text-left transition-all text-sm",
-                                  manutencaoTipoRateio === opt.value
-                                    ? "border-primary bg-primary/10 text-foreground"
-                                    : "border-border/50 hover:border-border text-muted-foreground"
-                                )}
-                              >
-                                <div className="font-medium">{opt.label}</div>
-                                <div className="text-xs mt-0.5 opacity-70">{opt.desc}</div>
-                              </button>
-                            ))}
-                          </div>
-
-                          {manutencaoTipoRateio === "manual" && partners.length > 0 && (
-                            <div className="space-y-2 rounded-xl border border-border/40 p-4">
-                              <p className="text-xs font-medium text-muted-foreground">Percentual por sócio</p>
-                              {partners.map((p) => (
-                                <div key={p.id} className="flex items-center gap-3">
-                                  <span className="text-sm flex-1 truncate">{p.nome}</span>
-                                  <div className="flex items-center gap-1.5">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      step="0.01"
-                                      value={manualRateios[p.id] || ""}
-                                      onChange={(e) =>
-                                        setManualRateios((prev) => ({
-                                          ...prev,
-                                          [p.id]: parseFloat(e.target.value) || 0,
-                                        }))
-                                      }
-                                      className="w-20 h-9 text-sm rounded-lg"
-                                    />
-                                    <span className="text-xs text-muted-foreground">%</span>
-                                  </div>
-                                </div>
-                              ))}
-                              {(() => {
-                                const total = Object.values(manualRateios).reduce((s, v) => s + v, 0);
-                                return (
-                                  <p className={cn(
-                                    "text-xs font-medium text-right",
-                                    Math.abs(total - 100) < 0.01 ? "text-emerald-500" : "text-destructive"
-                                  )}>
-                                    Total: {total.toFixed(2)}%
-                                  </p>
-                                );
-                              })()}
-                            </div>
-                          )}
-
-                          {manutencaoTipoRateio === "por_uso" && partners.length > 0 && (
-                            <div className="rounded-xl border border-border/40 p-4 space-y-2">
-                              <p className="text-xs font-medium text-muted-foreground">Rateio estimado por uso</p>
-                              {partners.map((p) => {
-                                const totalPct = partners.reduce((s, pp) => s + (pp.percentual_participacao || 0), 0);
-                                const pct = totalPct > 0 ? ((p.percentual_participacao || 0) / totalPct * 100) : (100 / partners.length);
-                                return (
-                                  <div key={p.id} className="flex items-center justify-between text-sm">
-                                    <span className="truncate">{p.nome}</span>
-                                    <span className="text-muted-foreground font-mono">{pct.toFixed(1)}%</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ── Descrição (oculta para IMPOSTOS / DECEA / INFRAERO e ABASTECIMENTO com novo) ── */}
+                  {/* Descrição */}
                   {!hideDescriptionAndSupplier && !(isAbastecimento && form.criarNovoAbastecimento) && (
                     <FormSection label="Descrição" required>
                       <Input
@@ -1755,37 +1502,37 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </FormSection>
                   )}
 
-                  {/* ── Valor + Datas (oculto para ABASTECIMENTO com novo - já tem no formulário acima) ── */}
+                  {/* Valor + Datas */}
                   {!(isAbastecimento && form.criarNovoAbastecimento) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <FormSection label="Valor (R$)" required>
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
-                          R$
-                        </span>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          value={form.totalAmount}
-                          onChange={(e) => set("totalAmount")(e.target.value)}
-                          placeholder="0,00"
-                          required
-                          disabled={addExpense.isPending}
-                          className="h-13 rounded-xl border-border/70 text-sm pl-10 font-mono"
-                        />
-                      </div>
-                    </FormSection>
-                    <FormSection label="Data de Pagamento" required>
-                      <DateFieldWithInput value={form.paidDate} onChange={(v) => set("paidDate")(v)} />
-                    </FormSection>
-                    <FormSection label="Data de Vencimento">
-                      <DateFieldWithInput value={form.dueDate} onChange={(v) => set("dueDate")(v)} />
-                    </FormSection>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                      <FormSection label="Valor (R$)" required>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
+                            R$
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={form.totalAmount}
+                            onChange={(e) => set("totalAmount")(e.target.value)}
+                            placeholder="0,00"
+                            required
+                            disabled={addExpense.isPending}
+                            className="h-13 rounded-xl border-border/70 text-sm pl-10 font-mono"
+                          />
+                        </div>
+                      </FormSection>
+                      <FormSection label="Data de Pagamento" required>
+                        <DateFieldWithInput value={form.paidDate} onChange={(v) => set("paidDate")(v)} />
+                      </FormSection>
+                      <FormSection label="Data de Vencimento">
+                        <DateFieldWithInput value={form.dueDate} onChange={(v) => set("dueDate")(v)} />
+                      </FormSection>
+                    </div>
                   )}
 
-                  {/* ── Fornecedor + NF (oculto para IMPOSTOS / DECEA / INFRAERO e ABASTECIMENTO com novo) ── */}
+                  {/* Fornecedor + NF */}
                   {!hideDescriptionAndSupplier && !(isAbastecimento && form.criarNovoAbastecimento) && (
                     <div className="space-y-5">
                       <FormSection label="Fornecedor">
@@ -1888,56 +1635,56 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Status + Forma de Pagamento (oculto para ABASTECIMENTO com novo - já tem no formulário acima) ── */}
+                  {/* Status + Forma de Pagamento */}
                   {!(isAbastecimento && form.criarNovoAbastecimento) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <FormSection label="Status da Despesa">
-                      <Select value={form.status} onValueChange={set("status")}>
-                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="pago" className="py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                              <span className="text-sm font-medium">Pago</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="pendente" className="py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-amber-500 flex-shrink-0" />
-                              <span className="text-sm font-medium">Pendente</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="cancelado" className="py-3">
-                            <div className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-zinc-400 flex-shrink-0" />
-                              <span className="text-sm font-medium">Cancelado</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormSection>
-                    <FormSection label="Forma de Pagamento">
-                      <Select value={form.paymentMethod} onValueChange={set("paymentMethod")}>
-                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
-                          <SelectValue placeholder="Selecione (opcional)" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="nao_informado" className="py-2">— Não informado —</SelectItem>
-                          <SelectItem value="pix" className="py-2">PIX</SelectItem>
-                          <SelectItem value="ted" className="py-2">TED</SelectItem>
-                          <SelectItem value="boleto" className="py-2">Boleto</SelectItem>
-                          <SelectItem value="cartao" className="py-2">Cartão</SelectItem>
-                          <SelectItem value="dinheiro" className="py-2">Dinheiro</SelectItem>
-                          <SelectItem value="outros" className="py-2">Outros</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormSection>
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <FormSection label="Status da Despesa">
+                        <Select value={form.status} onValueChange={set("status")}>
+                          <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
+                            <SelectValue placeholder="Selecione o status" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="pago" className="py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                                <span className="text-sm font-medium">Pago</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="pendente" className="py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-amber-500 flex-shrink-0" />
+                                <span className="text-sm font-medium">Pendente</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="cancelado" className="py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-zinc-400 flex-shrink-0" />
+                                <span className="text-sm font-medium">Cancelado</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormSection>
+                      <FormSection label="Forma de Pagamento">
+                        <Select value={form.paymentMethod} onValueChange={set("paymentMethod")}>
+                          <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
+                            <SelectValue placeholder="Selecione (opcional)" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="nao_informado" className="py-2">— Não informado —</SelectItem>
+                            <SelectItem value="pix" className="py-2">PIX</SelectItem>
+                            <SelectItem value="ted" className="py-2">TED</SelectItem>
+                            <SelectItem value="boleto" className="py-2">Boleto</SelectItem>
+                            <SelectItem value="cartao" className="py-2">Cartão</SelectItem>
+                            <SelectItem value="dinheiro" className="py-2">Dinheiro</SelectItem>
+                            <SelectItem value="outros" className="py-2">Outros</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormSection>
+                    </div>
                   )}
 
-                  {/* ── Parcelamento em Cartão ── */}
+                  {/* Parcelamento em Cartão */}
                   {form.paymentMethod === "cartao" && (
                     <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-6 space-y-4">
                       <div className="flex items-center gap-2.5">
@@ -2032,77 +1779,77 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {/* ── Conta Bancária + Prazo (oculto para ABASTECIMENTO com novo) ── */}
+                  {/* Conta Bancária + Prazo */}
                   {!(isAbastecimento && form.criarNovoAbastecimento) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <FormSection label="Conta Bancaria">
-                      <Select
-                        value={form.bankName}
-                        onValueChange={set("bankName")}
-                        disabled={loadingContas}
-                      >
-                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
-                          <SelectValue
-                            placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"}
-                          />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          {contasBancarias.length === 0 && !loadingContas ? (
-                            <div className="p-4 text-sm text-muted-foreground text-center">
-                              Nenhuma conta bancária cadastrada
-                            </div>
-                          ) : (
-                            contasBancarias.map((conta) => (
-                              <SelectItem key={conta.id} value={conta.id} className="py-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <FormSection label="Conta Bancaria">
+                        <Select
+                          value={form.bankName}
+                          onValueChange={set("bankName")}
+                          disabled={loadingContas}
+                        >
+                          <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
+                            <SelectValue
+                              placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"}
+                            />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            {contasBancarias.length === 0 && !loadingContas ? (
+                              <div className="p-4 text-sm text-muted-foreground text-center">
+                                Nenhuma conta bancária cadastrada
+                              </div>
+                            ) : (
+                              contasBancarias.map((conta) => (
+                                <SelectItem key={conta.id} value={conta.id} className="py-3">
+                                  <div>
+                                    <div className="font-medium text-sm">{conta.banco}</div>
+                                    {conta.numero_conta && (
+                                      <div className="text-xs text-muted-foreground font-mono">
+                                        Cta: {conta.numero_conta}
+                                        {conta.tipo_conta ? ` · ${conta.tipo_conta}` : ""}
+                                      </div>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </FormSection>
+                      <FormSection label="Prazo" required>
+                        <Select
+                          value={form.prazo}
+                          onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}
+                        >
+                          <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
+                            <SelectValue placeholder="Selecione o tipo" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="mensal" className="py-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
                                 <div>
-                                  <div className="font-medium text-sm">{conta.banco}</div>
-                                  {conta.numero_conta && (
-                                    <div className="text-xs text-muted-foreground font-mono">
-                                      Cta: {conta.numero_conta}
-                                      {conta.tipo_conta ? ` · ${conta.tipo_conta}` : ""}
-                                    </div>
-                                  )}
+                                  <div className="font-medium text-sm">Mensal</div>
+                                  <div className="text-xs text-muted-foreground">Ciclo mensal regular</div>
                                 </div>
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FormSection>
-                    <FormSection label="Prazo" required>
-                      <Select
-                        value={form.prazo}
-                        onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}
-                      >
-                        <SelectTrigger className="h-13 rounded-xl border-border/70 text-sm">
-                          <SelectValue placeholder="Selecione o tipo" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="mensal" className="py-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
-                              <div>
-                                <div className="font-medium text-sm">Mensal</div>
-                                <div className="text-xs text-muted-foreground">Ciclo mensal regular</div>
                               </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="extra" className="py-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="h-2.5 w-2.5 rounded-full bg-orange-500 flex-shrink-0" />
-                              <div>
-                                <div className="font-medium text-sm">Extra</div>
-                                <div className="text-xs text-muted-foreground">Evento ou gasto avulso</div>
+                            </SelectItem>
+                            <SelectItem value="extra" className="py-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="h-2.5 w-2.5 rounded-full bg-orange-500 flex-shrink-0" />
+                                <div>
+                                  <div className="font-medium text-sm">Extra</div>
+                                  <div className="text-xs text-muted-foreground">Evento ou gasto avulso</div>
+                                </div>
                               </div>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormSection>
-                  </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormSection>
+                    </div>
                   )}
 
-                  {/* ── Observações ── */}
+                  {/* Observações */}
                   <FormSection label="Observações">
                     <Textarea
                       value={form.notes}
@@ -2114,7 +1861,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     />
                   </FormSection>
 
-                  {/* ── Submit ── */}
+                  {/* Submit */}
                   <Button
                     type="submit"
                     className="
@@ -2146,7 +1893,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               {/* ── TAB: DESPESAS BANCO ── */}
               <TabsContent value="bank">
                 <form onSubmit={handleBankSubmit} className="space-y-7">
-                  {/* Info banner */}
                   <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-5 py-4 text-sm text-blue-800 dark:bg-blue-950/30 dark:border-blue-800/40 dark:text-blue-300">
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
                       <Landmark className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -2159,7 +1905,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   </div>
 
-                  {/* Atribuição */}
                   <FormSection label="Atribuição da Despesa" required>
                     <div className="grid grid-cols-3 gap-3">
                       {[

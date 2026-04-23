@@ -75,7 +75,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
         supabase.from('aeronave').select('id, matricula, modelo').eq("status", "ativa"),
         supabase.from("tripulacao").select("id, nome_completo").eq("status", "ativo"),
         supabase.from("clientes").select("id, razao_social"),
-        supabase.from("aerodromes").select("id, name, designativo"),
+        supabase.from('aerodromes').select('id, nome, designativo'),
       ]);
 
       if (aircraftRes.error) throw aircraftRes.error;
@@ -86,7 +86,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
       setAircraft(aircraftRes.data || []);
       setCrewMembers(crewRes.data || []);
       setClients(clientsRes.data || []);
-      setAerodromes((aerodromeRes.data || []) as Aerodrome[]);
+      setAerodromes(((aerodromeRes.data || []) as Array<{ id: string; nome: string; designativo: string }>).map((a) => ({ ...a, name: a.nome })));
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Erro ao carregar dados");

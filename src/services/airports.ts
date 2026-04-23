@@ -53,7 +53,7 @@ export async function getAirportCoordinates(icao: string): Promise<AirportInfo |
   try {
     const { data, error } = await supabase
       .from('aerodromes')
-      .select('designativo, name, coordenadas')
+      .select('designativo, nome, coordenadas')
       .eq('designativo', upperIcao)
       .single();
 
@@ -103,8 +103,8 @@ export async function searchAirports(query: string): Promise<AirportInfo[]> {
   const q = query.toLowerCase();
   const { data, error } = await supabase
     .from('aerodromes')
-    .select('designativo, name, coordenadas')
-    .or(`designativo.ilike.%${q}%,name.ilike.%${q}%`)
+    .select('designativo, nome, coordenadas')
+    .or(`designativo.ilike.%${q}%,nome.ilike.%${q}%`)
     .limit(20);
 
   if (error) {
