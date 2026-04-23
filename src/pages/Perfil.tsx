@@ -25,6 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
 import { TimeClockTab } from "@/components/profile/TimeClockTab";
 import EmployeeBankStatement from "@/components/profile/ExtratoBancarioFuncionario";
+import { TravelReportApprovalsTab } from "@/components/profile/TravelReportApprovalsTab";
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;
@@ -201,6 +202,21 @@ export default function Perfil() {
   const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.atualizado_em), [profile?.atualizado_em]);
   const isProfileBusy = isUpdating || avatarUploading;
   const userId = user?.id ?? "";
+
+  // Verificar se é tripulante
+  const { data: isCrewMember = false } = useQuery({
+    queryKey: ["crew_member_check", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("membros_tripulacao")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) return false;
+      return !!data;
+    },
+  });
   const {
     data: salaryPayments = []
   } = useQuery({
@@ -819,12 +835,13 @@ export default function Perfil() {
         </div>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className={`grid w-full ${showTimeClock ? 'grid-cols-6' : 'grid-cols-5'} bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto`}>
+          <TabsList className={`grid w-full ${showTimeClock ? (isCrewMember ? 'grid-cols-7' : 'grid-cols-6') : (isCrewMember ? 'grid-cols-6' : 'grid-cols-5')} bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto`}>
             <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Dados</TabsTrigger>
             {showTimeClock && <TabsTrigger value="ponto" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Ponto</TabsTrigger>}
             <TabsTrigger value="salario" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Salário</TabsTrigger>
             <TabsTrigger value="ferias" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Férias</TabsTrigger>
             <TabsTrigger value="extrato" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Extrato</TabsTrigger>
+            {isCrewMember && <TabsTrigger value="aprovacoes" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Aprovações</TabsTrigger>}
             <TabsTrigger value="documentos" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Documentos</TabsTrigger>
           </TabsList>
 
@@ -1274,6 +1291,10 @@ export default function Perfil() {
           <TabsContent value="extrato">
             <EmployeeBankStatement employeeId={userId} employeeName={displayName} />
           </TabsContent>
+
+          {isCrewMember && <TabsContent value="aprovacoes">
+            <TravelReportApprovalsTab userId={userId} />
+          </TabsContent>}
 
           <TabsContent value="documentos">
             <EmployeeDocumentsManager userId={userId} userName={displayName} isAdmin={isAdmin} isFinanceiroMaster={roles.includes("financeiro_master")} isGestorMaster={isGestorMaster} currentUserId={user?.id} />
