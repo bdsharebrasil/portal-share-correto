@@ -390,12 +390,27 @@ export default function TarefasKanban({
       prazo: form.prazo || null,
       publico: form.publico,
     };
-    const { error } = await supabase.from("tarefas").insert(payload);
+    const { data, error } = await supabase.from("tarefas").insert(payload).select().single();
     if (error) {
       console.error(error);
       toast.error("Erro ao criar tarefa");
       return;
     }
+
+    // Criar notificação para o usuário atribuído (se diferente do criador)
+    if (data && form.atribuido_para && form.atribuido_para !== me) {
+      const atribuidoPara = form.atribuido_para;
+      const usuario = users.find((u) => u.id === atribuidoPara);
+      const nomeCriador = users.find((u) => u.id === me)?.full_name || me;
+
+      await supabase.from("tarefas_notificacoes").insert({
+        id_da_tarefa: data.id,
+        user_id: atribuidoPara,
+        mensagem: `${nomeCriador} delegou uma nova tarefa: "${form.titulo}"`,
+        lido: false,
+      });
+    }
+
     toast.success("Tarefa criada");
     setCreateOpen(false);
   };

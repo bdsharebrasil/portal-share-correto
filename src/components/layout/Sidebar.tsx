@@ -23,6 +23,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useUserRole } from "@/hooks/useUserRole";
 import { getDashboardRouteFromRoles } from "@/lib/dashboard-routing";
+import { useUnviewedTasks } from "@/hooks/useUnviewedTasks";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MenuItem {
   title: string;
@@ -89,7 +91,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [expandedMenu, setExpandedMenu] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const { userRoles } = useUserRole();
+  const { count: unviewedCount } = useUnviewedTasks(userId);
+
+  // Obter user ID
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    })();
+  }, []);
 
   // Obter a rota correta do dashboard baseado nas roles do usuário
   const dashboardRoute = useMemo(() => {
@@ -216,6 +232,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       title={item.title}>
 
                       {item.icon && <item.icon className="h-5 w-5 transition-colors" />}
+
+                      {/* Badge de tarefas não visualizadas */}
+                      {item.title === "Minhas Tarefas" && unviewedCount > 0 && (
+                        <motion.div
+                          className="absolute top-0 right-0 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
+                          animate={{ scale: [1, 1.1, 1] }}
+                          transition={{ duration: 0.5, repeat: Infinity }}
+                        >
+                          {unviewedCount > 99 ? "99+" : unviewedCount}
+                        </motion.div>
+                      )}
+
                       <motion.div
                         className="absolute left-20 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium text-foreground pointer-events-none whitespace-nowrap z-10"
                         animate={{

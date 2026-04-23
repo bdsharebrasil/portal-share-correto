@@ -1,16 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import TarefasKanban from "@/components/tarefas/TarefasKanban";
 import TarefasLista from "@/components/tarefas/TarefasLista";
+import TaskNotificationModal from "@/components/tarefas/TaskNotificationModal";
 import { CheckSquare, User, Users, LayoutGrid, List } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function MinhasTarefas() {
   const { isAdmin, isGestorMaster } = useUserRole();
   const isManager = isAdmin || isGestorMaster;
   const [view, setView] = useState<"minhas" | "equipe">("minhas");
   const [layout, setLayout] = useState<"kanban" | "lista">("kanban");
+  const [userId, setUserId] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar dados do usuário
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        setUserId(user.id);
+      }
+
+      // Carregar lista de usuários
+      const { data: usersData } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, display_name, email, avatar_url")
+        .order("full_name", { ascending: true });
+
+      if (usersData) {
+        setUsers(usersData);
+      }
+
+      setLoading(false);
+    })();
+  }, []);
 
   return (
     <Layout>
@@ -108,6 +138,9 @@ export default function MinhasTarefas() {
           <TarefasLista myView={isManager && view === "minhas"} isManager={isManager} />
         )}
       </div>
+
+      {/* Modal de notificações de tarefas recebidas */}
+      <TaskNotificationModal meId={userId} users={users} />
     </Layout>
   );
 }
