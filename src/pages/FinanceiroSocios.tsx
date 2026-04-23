@@ -10,10 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Search, ArrowRight, Loader2, Users, Building2, BarChart3 } from "lucide-react"
 
 // Componentes
-import { PartnerCards } from "@/components/socios/PartnerCards"
-import { TransactionsTable } from "@/components/socios/TransactionsTable"
-import { DepositForm } from "@/components/socios/DepositForm"
-import { ExpenseForm } from "@/components/socios/ExpenseForm"
+import { PartnerCards } from "@/components/dashboard/gestor/socios/PartnerCards"
+import { TransactionsTable } from "@/components/dashboard/gestor/socios/TransactionsTable"
+import { DepositForm } from "@/components/dashboard/gestor/socios/DepositForm"
+import { ExpenseForm } from "@/components/dashboard/gestor/socios/ExpenseForm"
 
 // Hooks
 import { useSocioAccounts, useSocioTransactions } from "@/hooks/useFinanceiroSocios"

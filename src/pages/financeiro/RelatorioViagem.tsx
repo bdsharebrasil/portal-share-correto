@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PastasRelatorios } from '@/components/travel/PastasRelatorios';
+import { PastasRelatorios } from '@/components/RelatorioDespesaViagem/PastasRelatorios';
 
 
 // ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ type TravelReport = {
   total_clientes: number;
   total_sharebrasil: number;
 
-  status: 'Rascunho' | 'Finalizado' | 'Enviado';
+  status: 'Rascunho' | 'Ag. Conferência' | 'Enviado' | 'Assinado' | 'Finalizado';
   url_pdf?: string;
   pdf_path?: string;
   approval_token?: string;
@@ -84,7 +84,7 @@ type TravelReport = {
 // Helpers
 // ---------------------------------------------------------------------------
 const normalizeStatus = (status: string): TravelReport['status'] => {
-  const valid: TravelReport['status'][] = ['Rascunho', 'Finalizado', 'Enviado'];
+  const valid: TravelReport['status'][] = ['Rascunho', 'Ag. Conferência', 'Enviado', 'Assinado', 'Finalizado'];
   return valid.includes(status as TravelReport['status'])
     ? (status as TravelReport['status'])
     : 'Rascunho';
@@ -104,8 +104,8 @@ import {
   getValidExpenses,
 } from '@/lib/travelReportUtils';
 import { PartnerSelectModal } from '@/components/diario/DiarioBordoDetalhes/components/PartnerSelectModal';
-import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
-import { TravelReportForm } from '@/components/travel/TravelReportForm';
+import { ReceiptViewer } from '@/components/dashboard/financeiro/recibos/ReceiptViewer';
+import { TravelReportForm } from '@/components/RelatorioDespesaViagem/TravelReportForm';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -308,14 +308,37 @@ export default function RelatorioViagem() {
   };
 
   const deleteReport = async (reportId?: string) => {
-    if (!reportId || !window.confirm('⚠ Tem certeza que deseja excluir este relatório? Esta ação não pode ser desfeita.')) return;
+    if (!reportId) return;
+    
+    // Verificar se é um rascunho
+    const report = reports.find(r => r.id === reportId);
+    if (!report) {
+      toast.error('Relatório não encontrado');
+      return;
+    }
+
+    // Apenas rascunhos podem ser deletados
+    if (report.status !== 'Rascunho') {
+      toast.error(
+        '❌ Apenas relatórios em "Rascunho" podem ser deletados. Relatórios em qualquer outro status permanecem no histórico e não podem ser removidos.'
+      );
+      return;
+    }
+
+    if (!window.confirm('⚠ Tem certeza que deseja excluir este RASCUNHO? Esta ação não pode ser desfeita.')) return;
+    
     try {
-      const { error } = await supabase.from('travel_expense_reports').delete().eq('id', reportId);
+      const { error } = await supabase
+        .from('travel_expense_reports')
+        .delete()
+        .eq('id', reportId)
+        .eq('status', 'Rascunho'); // Segurança adicional: só deleta se for realmente rascunho
+      
       if (error) throw error;
-      toast.success('✓ Relatório excluído com sucesso!');
+      toast.success('✓ Rascunho deletado com sucesso!');
       loadReports();
     } catch {
-      toast.error('❌ Erro ao excluir o relatório.');
+      toast.error('❌ Erro ao excluir o rascunho.');
     }
   };
 
@@ -605,6 +628,44 @@ export default function RelatorioViagem() {
         if (reconcToInsert.length > 0) {
           const { error } = await supabase.from('conciliacoes_bancarias').insert(reconcToInsert);
           if (error) console.error('Erro ao registrar conciliações:', error);
+        }
+
+        // --- Sincronização financeira: contas_areceber + contas_apagar + movimentacoes ---
+        try {
+          const { syncTravelReportToFinance } = await import('@/lib/travelReportFinanceSync');
+          const syncResult = await syncTravelReportToFinance({
+            reportId: savedReport.id,
+            numeroRelatorio: savedReport.numero_relatorio,
+            clientesId: reportData.clientes_id!,
+            clienteNome: reportData.client || '',
+            clienteCnpj: (reportData as any).cliente_cnpj || null,
+            aeronaveId: reportData.aeronave_id || null,
+            matriculaAeronave: reportData.matricula_aeronave || null,
+            tripulacaoId: reportData.tripulacao_id || null,
+            nomeTripulante: reportData.nome_tripulante || null,
+            tripulanteId2: reportData.tripulante_id2 || null,
+            nomeTripulante2: reportData.nome_tripulante_2 || null,
+            totalCrew1,
+            totalCrew2,
+            totalSharebrasil,
+            dataReferencia: today,
+            prazoVencimentoDias: 30,
+            userId: user.id,
+          });
+          if (syncResult.errors.length) {
+            console.warn('⚠️ Sync financeiro com avisos:', syncResult.errors);
+            toast.warning(`Sync financeiro: ${syncResult.errors.length} aviso(s) — verifique o console`);
+          } else {
+            const partes = [
+              syncResult.contasAreceberCriado ? '1 conta a receber' : null,
+              syncResult.contasApagarCriadas ? `${syncResult.contasApagarCriadas} conta(s) a pagar` : null,
+              syncResult.movimentacoesCriadas ? `${syncResult.movimentacoesCriadas} movimentação(ões)` : null,
+            ].filter(Boolean).join(', ');
+            if (partes) toast.success(`✓ Financeiro sincronizado: ${partes}`);
+          }
+        } catch (syncErr: any) {
+          console.error('❌ Erro na sincronização financeira:', syncErr);
+          toast.error(`Erro ao sincronizar com financeiro: ${syncErr?.message || 'tente novamente'}`);
         }
 
         // Gerar PDF

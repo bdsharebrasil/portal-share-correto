@@ -14,38 +14,38 @@ const tabs = [
     id: "dados" as const,
     label: "Dados Principais",
     icon: FileText,
-    description: "Informações pessoais"
+    description: "Informações pessoais",
   },
   {
     id: "habilitacoes" as const,
     label: "Habilitações",
     icon: Award,
-    description: "Licenças e certificados"
+    description: "Licenças e certificados",
   },
   {
     id: "escala" as const,
     label: "Escala",
     icon: Calendar,
-    description: "Voos programados"
+    description: "Voos programados",
   },
   {
     id: "horas-voo" as const,
     label: "Horas de Voo",
     icon: Clock,
-    description: "Registro de voos"
+    description: "Registro de voos",
   },
   {
     id: "aprovacoes-pendentes" as const,
     label: "Aprovações",
     icon: CheckCircle2,
-    description: "Relatórios para aprovação"
+    description: "Relatórios para aprovação",
   },
   {
     id: "anexos" as const,
     label: "Anexos",
     icon: Paperclip,
-    description: "Documentos"
-  }
+    description: "Documentos",
+  },
 ];
 
 export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
@@ -57,7 +57,7 @@ export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-            
+
             return (
               <button
                 key={tab.id}
@@ -82,7 +82,7 @@ export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          
+
           return (
             <button
               key={tab.id}
@@ -97,7 +97,8 @@ export function CrewMemberNav({ activeTab, onTabChange }: CrewMemberNavProps) {
               <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5", isActive && "text-cyan-400")} />
               <div className="flex-1">
                 <p className="font-semibold">{tab.label}</p>
-                <p className="text-xs opacity-75">{tab.descricao}</p>
+                {/* Corrigido: era tab.descricao (inexistente) → tab.description */}
+                <p className="text-xs opacity-75">{tab.description}</p>
               </div>
               {isActive && (
                 <div className="h-2 w-2 rounded-full bg-cyan-400 mt-2 flex-shrink-0" />

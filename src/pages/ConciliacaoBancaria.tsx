@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Filter } from "lucide-react";
-import { ConciliacaoClientes } from "@/components/conciliacao/ConciliacaoClientes";
-import { ConciliacaoColaborador } from "@/components/conciliacao/ConciliacaoColaborador";
+import { ConciliacaoClientes } from "@/components/dashboard/financeiro/conciliacao/ConciliacaoClientes";
+import { ConciliacaoColaborador } from "@/components/dashboard/financeiro/conciliacao/ConciliacaoColaborador";
 
 export default function ConciliacaoBancaria() {
   const [selectedPeriod, setSelectedPeriod] = useState("30");

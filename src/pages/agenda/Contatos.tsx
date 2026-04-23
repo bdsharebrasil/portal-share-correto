@@ -1,5 +1,5 @@
-import AgendaPage from "../AgendaPage";
+import AgendaHub from "../AgendaHub";
 
 export default function Contatos() {
-  return <AgendaPage />;
+  return <AgendaHub />;
 }

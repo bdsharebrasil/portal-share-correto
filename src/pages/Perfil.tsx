@@ -24,7 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 // Payslips hook removed - using pagamento_salario_funcionario directly
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
 import { TimeClockTab } from "@/components/profile/TimeClockTab";
-import EmployeeBankStatement from "@/components/financeiro/EmployeeBankStatement";
+import EmployeeBankStatement from "@/components/profile/ExtratoBancarioFuncionario";
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;

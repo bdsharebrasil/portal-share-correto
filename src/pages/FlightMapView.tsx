@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FlightRouteMap as FlightRouteMapPro, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
-import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
+import { useAeronaves } from '@/hooks/useAeronaves';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
@@ -17,10 +17,7 @@ function parseCoordinates(coordStr: string | null): {
   if (coordStr.includes(',') && !coordStr.includes(' ')) {
     const [lat, lng] = coordStr.split(',').map(Number);
     if (!isNaN(lat) && !isNaN(lng)) {
-      return {
-        lat,
-        lng
-      };
+      return { lat, lng };
     }
   }
 
@@ -32,10 +29,7 @@ function parseCoordinates(coordStr: string | null): {
     let lat = parseInt(match[5]) + parseInt(match[6]) / 60 + parseFloat(match[7]) / 3600;
     if (match[4].toUpperCase() === 'W') lng = -lng;
     if (match[8].toUpperCase() === 'S') lat = -lat;
-    return {
-      lat,
-      lng
-    };
+    return { lat, lng };
   }
   return null;
 }
@@ -58,12 +52,10 @@ export default function FlightMapViewPage() {
   const { aerodromes } = useAerodromes();
   const { aeronaves } = useAeronaves();
 
-  // Get params from URL query or use state
   const getAerodromeByCode = useCallback((code: string): Aerodromo | undefined => {
     return aerodromes.find(a => a.designativo === code);
   }, [aerodromes]);
 
-  // Sample data - in a real app, this would come from route params or props
   const [flightData] = useState<FlightMapViewProps>({
     origin: 'SBSP',
     destination: 'SBVT',
@@ -77,7 +69,6 @@ export default function FlightMapViewPage() {
     heading: 45,
   });
 
-  // Calcular pontos da rota
   const routePoints = useMemo((): RoutePoint[] => {
     const points: RoutePoint[] = [];
 
@@ -88,10 +79,10 @@ export default function FlightMapViewPage() {
         if (coords) {
           points.push({
             icao: originAerodrome.designativo,
-            name: originAerodrome.name,
+            name: originAerodrome.name, // schema: aerodromes.name
             lat: coords.lat,
             lng: coords.lng,
-            type: 'departure'
+            type: 'departure',
           });
         }
       }
@@ -104,10 +95,10 @@ export default function FlightMapViewPage() {
         if (coords) {
           points.push({
             icao: destAerodrome.designativo,
-            name: destAerodrome.nome,
+            name: destAerodrome.name, // schema: aerodromes.name (não "nome")
             lat: coords.lat,
             lng: coords.lng,
-            type: 'arrival'
+            type: 'arrival',
           });
         }
       }
@@ -120,10 +111,10 @@ export default function FlightMapViewPage() {
         if (coords) {
           points.push({
             icao: altAerodrome.designativo,
-            name: altAerodrome.nome,
+            name: altAerodrome.name, // schema: aerodromes.name (não "nome")
             lat: coords.lat,
             lng: coords.lng,
-            type: 'alternate'
+            type: 'alternate',
           });
         }
       }

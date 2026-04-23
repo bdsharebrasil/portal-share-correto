@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-import { Plus, MessageSquare, X, Trash2, Send } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -148,20 +148,13 @@ function Avatar({
   return (
     <div
       title={userName(user)}
+      className="flex items-center justify-center rounded-full font-bold text-[#0f1115] shrink-0 shadow-sm ring-2 ring-background"
       style={{
         width: size,
         height: size,
-        borderRadius: "50%",
         background: color,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: size * 0.37,
-        fontWeight: 700,
-        color: "hsl(222 25% 8%)",
-        flexShrink: 0,
-        letterSpacing: 0.4,
-        boxShadow: `0 0 0 2px hsl(222 25% 12%), 0 0 8px ${color}55`,
+        fontSize: size * 0.4,
+        boxShadow: `0 0 8px ${color}40`,
       }}
     >
       {userInitials(user)}
@@ -174,22 +167,14 @@ function PriorityBadge({ priority }: { priority: string | null | undefined }) {
   const p = PRIORITY[key];
   return (
     <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border"
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
         background: p.bg,
         color: p.color,
-        border: `1px solid ${p.border}`,
-        fontSize: 10,
-        fontWeight: 700,
-        padding: "2px 8px",
-        borderRadius: 20,
-        letterSpacing: 0.4,
-        whiteSpace: "nowrap",
+        borderColor: p.border,
       }}
     >
-      <span style={{ fontSize: 8 }}>{p.icon}</span>
+      <span className="text-[8px]">{p.icon}</span>
       {p.label}
     </span>
   );
@@ -201,6 +186,8 @@ function PriorityBadge({ priority }: { priority: string | null | undefined }) {
 interface Props {
   /** Se true, mostra apenas as tarefas atribuídas/criadas pelo usuário (visão "minhas"). */
   myView?: boolean;
+  /** Se true, o usuário é admin ou gestor_master e tem duas visualizações. */
+  isManager?: boolean;
   title?: string;
   subtitle?: string;
 }
@@ -307,34 +294,37 @@ export default function TarefasKanban({
 
   // -------------------------------------------------- Filtragem
   const visibleTasks = useMemo(() => {
-    if (myView) {
-      // "Minhas": apenas tarefas PRIVADAS criadas pelo usuário
+    if (isManager) {
+      // Admin/Gestor: tem duas visualizações
+      if (myView) {
+        // "Minhas": apenas tarefas PRIVADAS criadas por ele
+        return tarefas.filter(
+          (t) => t.criado_por === me && t.publico === false,
+        );
+      }
+      // "Equipe": apenas tarefas PÚBLICAS criadas por ele (delegadas)
       return tarefas.filter(
-        (t) => t.criado_por === me && t.publico === false,
+        (t) => t.criado_por === me && t.publico === true,
       );
     }
-    // "Equipe": tarefas PÚBLICAS atribuídas ao usuário (criadas por admin/gestor_master)
+    // Usuário comum: visão única com tarefas privadas + tarefas públicas atribuídas
     return tarefas.filter(
-      (t) => t.atribuido_para === me && t.publico === true,
+      (t) => (t.criado_por === me && t.publico === false) || (t.atribuido_para === me && t.publico === true),
     );
-  }, [tarefas, me, myView]);
+  }, [tarefas, me, myView, isManager]);
 
   const getColTasks = (colId: Status) =>
     visibleTasks.filter((t) => statusToColumn(t.status) === colId);
 
   // -------------------------------------------------- Mutations
   const canChangeStatus = (task: Tarefa): boolean => {
-    // Em "Minhas" (visão privada), usuário sempre pode mudar
-    if (!myView) {
-      // Em "Equipe" (tarefas públicas):
-      // - Apenas o criador ou admin/gestor_master podem mudar status
-      // - O usuário atribuído NÃO pode mudar status, apenas comentar
-      if (task.criado_por === me || isManager) {
-        return true;
-      }
-      return false;
+    if (isManager) {
+      // Admin/Gestor sempre pode mudar status em qualquer visualização
+      return true;
     }
-    return true;
+    // Usuário comum: pode mudar status apenas em tarefas privadas que criou
+    // Não pode mudar tarefas públicas atribuídas (só pode comentar)
+    return task.criado_por === me && task.publico === false;
   };
 
   const handleStatusChange = async (id: string, newStatus: Status) => {
@@ -421,14 +411,6 @@ export default function TarefasKanban({
     };
   }, [visibleTasks]);
 
-  // -------------------------------------------------- Cores de tema
-  const BG = "hsl(222 25% 8%)";
-  const SURF = "hsl(222 25% 10%)";
-  const BORDER = "hsl(222 20% 20%)";
-  const CYAN = "hsl(192 70% 50%)";
-  const TEXT = "hsl(210 40% 92%)";
-  const MUTED = "hsl(215 20% 55%)";
-
   if (loading || roleLoading) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -449,395 +431,153 @@ export default function TarefasKanban({
         : "Suas tarefas");
 
   return (
-    <div
-      style={{
-        background: BG,
-        borderRadius: 16,
-        border: `1px solid ${BORDER}`,
-        color: TEXT,
-        fontFamily: "'DM Sans', sans-serif",
-        overflow: "hidden",
-      }}
-    >
-      {/* Sub-header */}
-      <div
-        style={{
-          background: SURF,
-          borderBottom: `1px solid ${BORDER}`,
-          padding: "14px 20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", gap: 22, alignItems: "center", flexWrap: "wrap" }}>
+    <div className="bg-[#0f1115] rounded-2xl border border-white/5 text-slate-200 font-sans overflow-hidden shadow-2xl flex flex-col h-full">
+      {/* Sub-header Premium */}
+      <div className="bg-white/[0.02] border-b border-white/5 px-6 py-5 flex items-center justify-between flex-wrap gap-4 backdrop-blur-md">
+        <div className="flex gap-6 items-center flex-wrap">
           <div>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.4 }}>
+            <h1 className="text-xl font-bold tracking-tight text-white">
               {headingTitle}
-            </div>
-            <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
+            </h1>
+            <p className="text-xs text-slate-400 mt-1 font-medium">
               {headingSubtitle}
-            </div>
+            </p>
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
+
+          <div className="hidden md:flex gap-3">
             {[
-              { label: "Total", val: stats.total, color: CYAN },
-              { label: "Urgentes", val: stats.urgente, color: "hsl(0 75% 65%)" },
-              { label: "Concluídas", val: stats.concluido, color: "hsl(142 60% 50%)" },
+              { label: "Total", val: stats.total, color: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20" },
+              { label: "Urgentes", val: stats.urgente, color: "text-rose-400", bg: "bg-rose-400/10", border: "border-rose-400/20" },
+              { label: "Concluídas", val: stats.concluido, color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
             ].map((s) => (
-              <div
-                key={s.label}
-                style={{
-                  background: s.color + "15",
-                  borderRadius: 10,
-                  padding: "6px 14px",
-                  textAlign: "center",
-                  border: `1px solid ${s.color}30`,
-                }}
-              >
-                <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>
-                  {s.val}
-                </div>
-                <div style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>
-                  {s.label}
-                </div>
+              <div key={s.label} className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-xl border ${s.bg} ${s.border}`}>
+                <span className={`text-lg font-black leading-none ${s.color}`}>{s.val}</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-1">{s.label}</span>
               </div>
             ))}
           </div>
         </div>
+
         <button
           onClick={() => {
             setDefaultStatus("a-fazer");
             setCreateOpen(true);
           }}
-          style={{
-            background: `linear-gradient(135deg,${CYAN},hsl(217 91% 55%))`,
-            color: "hsl(222 25% 8%)",
-            border: "none",
-            borderRadius: 10,
-            padding: "9px 20px",
-            fontSize: 13,
-            fontWeight: 800,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            boxShadow: `0 4px 16px ${CYAN}44`,
-          }}
+          className="group relative flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-none rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] active:scale-95"
         >
-          <Plus size={16} /> Adicionar Tarefa
+          <Plus size={18} className="transition-transform group-hover:rotate-90" />
+          Nova Tarefa
         </button>
       </div>
 
-      {/* Board */}
-      <div
-        style={{
-          display: "flex",
-          gap: 14,
-          padding: "20px",
-          overflowX: "auto",
-          minHeight: 480,
-        }}
-      >
+      {/* Board Kanban */}
+      <div className="flex gap-5 p-6 overflow-x-auto min-h-[500px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         {COLUMNS.map((col) => {
           const colTasks = getColTasks(col.id);
+          const isOver = dragOver === col.id;
+
           return (
             <div
               key={col.id}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(col.id);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleDrop(col.id);
-                setDragOver(null);
-              }}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(col.id); }}
+              onDrop={(e) => { e.preventDefault(); handleDrop(col.id); setDragOver(null); }}
               onDragLeave={() => setDragOver(null)}
-              style={{
-                minWidth: 268,
-                width: 268,
-                flexShrink: 0,
-                background:
-                  dragOver === col.id ? "hsl(222 25% 13%)" : "hsl(222 25% 10%)",
-                borderRadius: 16,
-                padding: "14px 12px",
-                border: `1.5px solid ${
-                  dragOver === col.id ? col.color : BORDER
-                }`,
-                transition: "background 0.15s, border-color 0.15s",
-                minHeight: 420,
-              }}
+              className={`w-[290px] shrink-0 rounded-2xl p-4 flex flex-col transition-all duration-300 border ${
+                isOver ? "bg-white/[0.04] border-white/20 shadow-lg" : "bg-black/20 border-white/5"
+              }`}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 14,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <div
-                    style={{
-                      width: 9,
-                      height: 9,
-                      borderRadius: "50%",
-                      background: col.color,
-                      boxShadow: `0 0 6px ${col.color}`,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      fontSize: 13.5,
-                      color: TEXT,
-                    }}
-                  >
-                    {col.label}
-                  </span>
-                  <span
-                    style={{
-                      background: col.color + "22",
-                      color: col.color,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      borderRadius: 20,
-                      padding: "1px 8px",
-                      border: `1px solid ${col.color}44`,
-                    }}
-                  >
+              {/* Header da Coluna */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ background: col.color, boxShadow: `0 0 10px ${col.color}80` }} />
+                  <span className="font-bold text-sm text-slate-100 tracking-wide">{col.label}</span>
+                  <span className="bg-white/10 text-slate-300 text-[10px] font-bold rounded-full px-2 py-0.5 ml-1">
                     {colTasks.length}
                   </span>
                 </div>
                 <button
-                  onClick={() => {
-                    setDefaultStatus(col.id);
-                    setCreateOpen(true);
-                  }}
-                  style={{
-                    background: "none",
-                    border: `1.5px solid ${col.color}66`,
-                    borderRadius: 8,
-                    width: 26,
-                    height: 26,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: col.color,
-                    fontSize: 16,
-                    cursor: "pointer",
-                  }}
+                  onClick={() => { setDefaultStatus(col.id); setCreateOpen(true); }}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
                 >
-                  +
+                  <Plus size={16} />
                 </button>
               </div>
 
-              {colTasks.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "40px 20px",
-                    color: "hsl(215 20% 38%)",
-                    fontSize: 12,
-                  }}
-                >
-                  <div style={{ fontSize: 26, marginBottom: 8, opacity: 0.4 }}>
-                    📋
+              {/* Lista de Tarefas */}
+              <div className="flex flex-col gap-3 flex-1">
+                {colTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-white/5 rounded-xl text-slate-500">
+                    <span className="text-xs font-medium">Nenhuma tarefa</span>
                   </div>
-                  Nenhuma tarefa aqui.
-                </div>
-              ) : (
-                colTasks.map((task) => {
-                  const assigned = task.atribuido_para
-                    ? userById.get(task.atribuido_para)
-                    : undefined;
-                  const pKey =
-                    (task.prioridade as Priority) in PRIORITY
-                      ? (task.prioridade as Priority)
-                      : "media";
-                  const p = PRIORITY[pKey];
-                  const canDelete =
-                    task.criado_por === me ||
-                    (isManager && task.publico);
-                  return (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={(e) => {
-                        setDragId(task.id);
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
-                      onDragEnd={() => setDragId(null)}
-                      onClick={() => setDetailTask(task)}
-                      style={{
-                        background: "hsl(222 25% 11%)",
-                        borderRadius: 12,
-                        padding: "13px 13px 10px",
-                        marginBottom: 10,
-                        boxShadow:
-                          dragId === task.id
-                            ? "0 12px 32px hsl(192 70% 50% / 0.18)"
-                            : "0 2px 8px hsl(222 25% 5% / 0.4)",
-                        border: `1px solid ${
-                          dragId === task.id ? p.border : "hsl(222 20% 22%)"
-                        }`,
-                        borderLeft: `3px solid ${p.color}`,
-                        cursor: "grab",
-                        opacity: dragId === task.id ? 0.45 : 1,
-                        transition:
-                          "box-shadow 0.2s, border-color 0.2s, opacity 0.15s",
-                      }}
-                    >
+                ) : (
+                  colTasks.map((task) => {
+                    const assigned = task.atribuido_para ? userById.get(task.atribuido_para) : undefined;
+                    const pKey = (task.prioridade as Priority) in PRIORITY ? (task.prioridade as Priority) : "media";
+                    const p = PRIORITY[pKey];
+                    const canDelete = task.criado_por === me || (isManager && task.publico);
+                    const isDragging = dragId === task.id;
+
+                    return (
                       <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: 9,
-                        }}
+                        key={task.id}
+                        draggable
+                        onDragStart={(e) => { setDragId(task.id); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragEnd={() => setDragId(null)}
+                        onClick={() => setDetailTask(task)}
+                        className={`group relative bg-[#15181e] rounded-xl p-4 cursor-grab active:cursor-grabbing border-l-4 transition-all duration-200 ${
+                          isDragging ? "opacity-50 scale-95 shadow-none" : "hover:-translate-y-1 hover:shadow-xl border-y border-r border-transparent hover:border-white/10"
+                        }`}
+                        style={{ borderLeftColor: p.color }}
                       >
-                        <PriorityBadge priority={task.prioridade} />
-                        <Avatar user={assigned} />
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: TEXT,
-                          lineHeight: 1.45,
-                          marginBottom: 10,
-                        }}
-                      >
-                        {task.titulo}
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                          gap: 6,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 10,
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          {task.prazo && (
-                            <span
-                              style={{
-                                fontSize: 11,
-                                color: MUTED,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 3,
-                              }}
-                            >
-                              📅 {new Date(task.prazo).toLocaleDateString("pt-BR")}
-                            </span>
-                          )}
-                          <span
-                            style={{
-                              fontSize: 11,
-                              color: MUTED,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 3,
-                            }}
-                          >
-                            <MessageSquare size={11} /> Abrir
-                          </span>
+                        <div className="flex justify-between items-start mb-3">
+                          <PriorityBadge priority={task.prioridade} />
+                          <Avatar user={assigned} size={24} />
                         </div>
-                        <div
-                          style={{ display: "flex", gap: 5 }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {canChangeStatus(task) ? (
-                            <select
-                              value={statusToColumn(task.status)}
-                              onChange={(e) =>
-                                void handleStatusChange(
-                                  task.id,
-                                  e.target.value as Status,
-                                )
-                              }
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                fontSize: 10,
-                                border: "1px solid hsl(222 20% 26%)",
-                                borderRadius: 6,
-                                padding: "2px 4px",
-                                color: "hsl(210 40% 75%)",
-                                cursor: "pointer",
-                                background: "hsl(222 25% 15%)",
-                              }}
-                              title="Mudar status"
-                            >
-                              {COLUMNS.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.label}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <div
-                              style={{
-                                fontSize: 10,
-                                border: "1px solid hsl(222 20% 26%)",
-                                borderRadius: 6,
-                                padding: "2px 4px",
-                                color: "hsl(215 20% 55%)",
-                                background: "hsl(222 25% 15%)",
-                                cursor: "not-allowed",
-                                opacity: 0.6,
-                              }}
-                              title="Apenas o criador pode mudar o status desta tarefa"
-                            >
-                              {statusToColumn(task.status) === "a-fazer"
-                                ? "A Fazer"
-                                : statusToColumn(task.status) === "em-andamento"
-                                  ? "Em Andamento"
-                                  : statusToColumn(task.status) === "revisao"
-                                    ? "Revisão"
-                                    : "Concluído"}
+
+                        <h3 className="text-sm font-semibold text-slate-200 leading-snug mb-4 line-clamp-2">
+                          {task.titulo}
+                        </h3>
+
+                        <div className="flex items-center justify-between mt-auto">
+                          <div className="flex items-center gap-3">
+                            {task.prazo && (
+                              <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium bg-white/5 px-2 py-1 rounded-md">
+                                📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: '2-digit', month: 'short' })}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-cyan-400 transition-colors">
+                              <MessageSquare size={12} /> Abrir
                             </div>
-                          )}
-                          {canDelete && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleDelete(task.id);
-                              }}
-                              style={{
-                                fontSize: 10,
-                                background: "hsl(0 75% 60% / 0.15)",
-                                color: "hsl(0 75% 65%)",
-                                border: "1px solid hsl(0 75% 60% / 0.3)",
-                                borderRadius: 6,
-                                padding: "2px 7px",
-                                cursor: "pointer",
-                                fontWeight: 700,
-                                display: "inline-flex",
-                                alignItems: "center",
-                              }}
-                              aria-label="Excluir"
-                            >
-                              <X size={11} />
-                            </button>
-                          )}
+                          </div>
+
+                          {/* Ações (Aparecem suavemente no hover ou no mobile) */}
+                          <div className="flex gap-1.5 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                            {canChangeStatus(task) && (
+                              <select
+                                value={statusToColumn(task.status)}
+                                onChange={(e) => void handleStatusChange(task.id, e.target.value as Status)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[10px] bg-black/40 border border-white/10 rounded px-1.5 py-1 text-slate-300 cursor-pointer hover:bg-white/10 transition-colors appearance-none"
+                              >
+                                {COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                              </select>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); void handleDelete(task.id); }}
+                                className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
+                    );
+                  })
+                )}
+              </div>
             </div>
           );
         })}

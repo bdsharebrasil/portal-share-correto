@@ -11,8 +11,8 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import WeatherWidget from '@/components/weather/WeatherWidget';
 import { ViewModeToggle } from '@/components/dashboard/ViewModeToggle';
-import { BirthdayAlert } from '@/components/notifications/BirthdayAlert';
-const NotificationBell = lazy(() => import("@/components/notifications/NotificationBell"));
+import { BirthdayAlert } from '@/components/notificacoes/BirthdayAlert';
+const NotificationBell = lazy(() => import("@/components/notificacoes/NotificationBell"));
 interface HeaderProps {
   onMenuClick: () => void;
 }

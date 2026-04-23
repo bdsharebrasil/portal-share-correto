@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar as CalendarIcon, List, Plane, Clock, Users, CheckCircle, XCircle, Trash2, Pencil, Loader2 } from "lucide-react";
-import { FlightScheduleDialog } from "@/components/agendamento/AgendamentoDialog";
+import { FlightScheduleDialog } from "@/components/AgendamentoVoo/FlightScheduleDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";

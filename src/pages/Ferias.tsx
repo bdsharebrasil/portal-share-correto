@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { VacationRequestDialog } from "@/components/vacation/VacationRequestDialog";
-import { VacationApprovalDialog } from "@/components/vacation/VacationApprovalDialog";
+import { VacationRequestDialog } from "@/components/Ferias/VacationRequestDialog";
+import { VacationApprovalDialog } from "@/components/Ferias/VacationApprovalDialog";
 
 export default function Ferias() {
   const { hasAnyRole } = useUserRole();

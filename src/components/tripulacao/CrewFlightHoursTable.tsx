@@ -35,26 +35,30 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
   const [dateTo, setDateTo] = useState<string>("");
   const [selectedAeronave, setSelectedAircraft] = useState<string>("all");
 
-  // Busca horas diretamente do lancamentos_diario_bordo (fonte primária)
+  // Colunas corretas conforme schema real de lancamentos_diario_bordo:
+  //   data_registro  (era entry_date)
+  //   tempo_total    (era total_time)
+  //   tempo_ifr      (era ifr_time)
+  //   horas_noturnas (era night_hours)
+  //   aeronave:aeronave_id(id, matricula, modelo)  — alias correto da FK
   const { data: flightHours = [], isLoading, refetch } = useQuery({
     queryKey: ["crew_flight_hours_from_logbook", crewMemberId],
     enabled: !!crewMemberId,
     queryFn: async () => {
-      // Buscar todas as entradas onde o tripulante é PIC ou SIC
       const { data: entries, error } = await supabase
         .from("lancamentos_diario_bordo")
         .select(`
           id,
-          entry_date,
-          total_time,
-          ifr_time,
-          night_hours,
+          data_registro,
+          tempo_total,
+          tempo_ifr,
+          horas_noturnas,
           pic_canac,
           sic_canac,
-          aircraft:aeronave_id(id, registration, model)
+          aeronave:aeronave_id(id, matricula, modelo)
         `)
         .or(`pic_canac.eq.${crewMemberId},sic_canac.eq.${crewMemberId}`)
-        .order("entry_date", { ascending: false });
+        .order("data_registro", { ascending: false });
 
       if (error) throw error;
 
@@ -62,7 +66,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
       const aggregated: Record<string, {
         month: number;
         year: number;
-        aircraft: { id: string; registration: string } | null;
+        aeronave: { id: string; matricula: string; modelo?: string } | null;
         pic_hours: number;
         sic_hours: number;
         total_hours: number;
@@ -71,17 +75,17 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
       }> = {};
 
       for (const entry of entries || []) {
-        const date = new Date(entry.entry_date);
+        const date = new Date(entry.data_registro);
         const month = date.getMonth() + 1;
         const year = date.getFullYear();
-        const aircraftId = (entry.aeronave as any)?.id || 'unknown';
+        const aircraftId = (entry.aeronave as any)?.id || "unknown";
         const key = `${year}-${month}-${aircraftId}`;
 
         if (!aggregated[key]) {
           aggregated[key] = {
             month,
             year,
-            aircraft: entry.aeronave as any,
+            aeronave: entry.aeronave as any,
             pic_hours: 0,
             sic_hours: 0,
             total_hours: 0,
@@ -90,9 +94,8 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
           };
         }
 
-        const totalTime = Number(entry.total_time || 0);
+        const totalTime = Number(entry.tempo_total || 0);
 
-        // Separar horas de PIC e SIC
         if (entry.pic_canac === crewMemberId) {
           aggregated[key].pic_hours += totalTime;
         } else if (entry.sic_canac === crewMemberId) {
@@ -100,11 +103,10 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
         }
 
         aggregated[key].total_hours += totalTime;
-        aggregated[key].ifr_hours += Number(entry.ifr_time || 0);
-        aggregated[key].not_hours += Number(entry.night_hours || 0);
+        aggregated[key].ifr_hours += Number(entry.tempo_ifr || 0);
+        aggregated[key].not_hours += Number(entry.horas_noturnas || 0);
       }
 
-      // Converter para array e ordenar
       return Object.values(aggregated)
         .map((item, index) => ({ ...item, id: `${index}` }))
         .sort((a, b) => {
@@ -114,46 +116,34 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
     },
   });
 
-  // Obter lista única de aeronaves
+  // Lista única de aeronaves para o filtro
   const aircraftList = useMemo(() => {
-    const aircraftSet = new Set<string>();
-    flightHours.forEach((record) => {
-      if (record.aeronave?.matricula) {
-        aircraftSet.add(record.aeronave.matricula);
-      }
+    const set = new Set<string>();
+    flightHours.forEach((r) => {
+      if (r.aeronave?.matricula) set.add(r.aeronave.matricula);
     });
-    return Array.from(aircraftSet).sort();
+    return Array.from(set).sort();
   }, [flightHours]);
 
-  // Filtrar dados baseado nos critérios
+  // Filtros
   const filteredFlightHours = useMemo(() => {
     let filtered = [...flightHours];
 
-    // Filtrar por data (se fornecida)
     if (dateFrom) {
       const fromDate = new Date(dateFrom);
-      filtered = filtered.filter((record) => {
-        const recordDate = new Date(record.year, record.month - 1, 1);
-        return recordDate >= fromDate;
-      });
+      filtered = filtered.filter((r) => new Date(r.year, r.month - 1, 1) >= fromDate);
     }
 
     if (dateTo) {
       const toDate = new Date(dateTo);
-      filtered = filtered.filter((record) => {
-        const recordDate = new Date(record.year, record.month - 1, 1);
-        return recordDate <= toDate;
-      });
+      filtered = filtered.filter((r) => new Date(r.year, r.month - 1, 1) <= toDate);
     }
 
-    // Filtrar por aeronave
     if (selectedAeronave !== "all") {
-      filtered = filtered.filter(
-        (record) => record.aeronave?.matricula === selectedAeronave
-      );
+      filtered = filtered.filter((r) => r.aeronave?.matricula === selectedAeronave);
     }
 
-    // Se nenhum filtro de data foi aplicado, mostrar apenas os 3 últimos meses
+    // Sem filtros de data: exibe apenas os 3 últimos meses
     if (!dateFrom && !dateTo) {
       filtered = filtered.slice(0, 3);
     }
@@ -163,28 +153,11 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
 
   const monthNames = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
   ];
 
-  const getTotalPicHours = () => {
-    return filteredFlightHours.reduce((sum, record) => sum + (record.pic_hours || 0), 0);
-  };
-
-  const getTotalSicHours = () => {
-    return filteredFlightHours.reduce((sum, record) => sum + (record.sic_hours || 0), 0);
-  };
-
-  const getTotalHours = () => {
-    return filteredFlightHours.reduce((sum, record) => sum + (record.total_hours || 0), 0);
-  };
-
-  const getTotalIfrHours = () => {
-    return filteredFlightHours.reduce((sum, record) => sum + (record.ifr_hours || 0), 0);
-  };
-
-  const getTotalNightHours = () => {
-    return filteredFlightHours.reduce((sum, record) => sum + (record.not_hours || 0), 0);
-  };
+  const sum = (key: keyof typeof filteredFlightHours[0]) =>
+    filteredFlightHours.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
 
   const handleClearFilters = () => {
     setDateFrom("");
@@ -199,7 +172,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
     try {
       await refetch();
       toast.success("Horas de voo atualizadas com sucesso!");
-    } catch (error) {
+    } catch {
       toast.error("Erro ao atualizar horas de voo");
     } finally {
       setIsRecalculating(false);
@@ -213,16 +186,17 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
           <Plane className="h-5 w-5 text-primary" />
           Horas de Voo por Aeronave
         </CardTitle>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleRecalculate}
           disabled={isRecalculating}
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRecalculating ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRecalculating ? "animate-spin" : ""}`} />
           Atualizar
         </Button>
       </CardHeader>
+
       <CardContent className="space-y-4">
         {isLoading ? (
           <div className="text-sm text-muted-foreground">Carregando...</div>
@@ -235,12 +209,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold">Filtros de Pesquisa</h3>
                 {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearFilters}
-                    className="h-8 px-2 text-xs"
-                  >
+                  <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-8 px-2 text-xs">
                     <X className="h-3.5 w-3.5 mr-1" />
                     Limpar filtros
                   </Button>
@@ -248,43 +217,35 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="date-from" className="text-xs">
-                    Data Inicial
-                  </Label>
+                  <Label htmlFor="date-from" className="text-xs">Data Inicial</Label>
                   <Input
                     id="date-from"
-                    type="data"
+                    type="date"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     className="h-9 text-sm"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="date-to" className="text-xs">
-                    Data Final
-                  </Label>
+                  <Label htmlFor="date-to" className="text-xs">Data Final</Label>
                   <Input
                     id="date-to"
-                    type="data"
+                    type="date"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
                     className="h-9 text-sm"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="aircraft-select" className="text-xs">
-                    Aeronave
-                  </Label>
+                  <Label htmlFor="aircraft-select" className="text-xs">Aeronave</Label>
                   <Select value={selectedAeronave} onValueChange={setSelectedAircraft}>
                     <SelectTrigger id="aircraft-select" className="h-9 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas as aeronaves</SelectItem>
-                      {aircraftList.map((aircraft) => (
-                        <SelectItem key={aircraft} value={aircraft}>
-                          {aircraft}
-                        </SelectItem>
+                      {aircraftList.map((a) => (
+                        <SelectItem key={a} value={a}>{a}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -292,26 +253,27 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
               </div>
             </div>
 
+            {/* Totalizadores */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
                 <div className="text-xs text-muted-foreground">PIC (Comandante)</div>
-                <div className="text-2xl font-bold text-emerald-600">{formatHours(getTotalPicHours())}</div>
+                <div className="text-2xl font-bold text-emerald-600">{formatHours(sum("pic_hours"))}</div>
               </div>
               <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
                 <div className="text-xs text-muted-foreground">SIC (2º Piloto)</div>
-                <div className="text-2xl font-bold text-cyan-600">{formatHours(getTotalSicHours())}</div>
+                <div className="text-2xl font-bold text-cyan-600">{formatHours(sum("sic_hours"))}</div>
               </div>
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                 <div className="text-xs text-muted-foreground">Total de Horas</div>
-                <div className="text-2xl font-bold text-primary">{formatHours(getTotalHours())}</div>
+                <div className="text-2xl font-bold text-primary">{formatHours(sum("total_hours"))}</div>
               </div>
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
                 <div className="text-xs text-muted-foreground">Horas IFR</div>
-                <div className="text-2xl font-bold text-blue-600">{formatHours(getTotalIfrHours())}</div>
+                <div className="text-2xl font-bold text-blue-600">{formatHours(sum("ifr_hours"))}</div>
               </div>
               <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
                 <div className="text-xs text-muted-foreground">Horas Noturnas</div>
-                <div className="text-2xl font-bold text-purple-600">{formatHours(getTotalNightHours())}</div>
+                <div className="text-2xl font-bold text-purple-600">{formatHours(sum("not_hours"))}</div>
               </div>
             </div>
 
@@ -354,12 +316,8 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                       <TableCell className="text-right font-semibold">
                         {formatHours(record.total_hours)}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {formatHours(record.ifr_hours)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatHours(record.not_hours)}
-                      </TableCell>
+                      <TableCell className="text-right">{formatHours(record.ifr_hours)}</TableCell>
+                      <TableCell className="text-right">{formatHours(record.not_hours)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

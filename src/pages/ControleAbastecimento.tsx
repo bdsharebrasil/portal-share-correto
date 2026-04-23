@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SupplierDirectory } from "@/components/fuel/SupplierDirectory";
-import { ClientFuelRecords } from "@/components/fuel/ClientFuelRecords";
+import { SupplierDirectory } from "@/components/Abastecimento/SupplierDirectory";
+import { ClientFuelRecords } from "@/components/Abastecimento/ClientFuelRecords";
 import { Fuel, Users } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";

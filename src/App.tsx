@@ -26,14 +26,13 @@ import RelatorioViagem from "./pages/financeiro/RelatorioViagem";
 import AprovarRelatorioViagem from "./pages/financeiro/AprovarRelatorioViagem";
 import RelatoriosClienteDetalhes from "./pages/financeiro/RelatoriosClienteDetalhes";
 import SolicitacaoCompras from "./pages/financeiro/SolicitacaoCompras";
-import ControlFinanceiro from "./pages/financeiro/ControlFinanceiro";
-import AgendamentoPagamentos from "./pages/financeiro/AgendamentoPagamentos";
+import AgendamentoPagamentos from "./components/dashboard/gestor/financeiro-share/agendamento-pagamentos/AgendamentoPagamentos";
 import Invoices from "./pages/financeiro/Invoices";
 import ConciliacaoBancaria from "./pages/ConciliacaoBancaria";
 import ControleVencimentos from "./pages/ControleVencimentos";
-import DiarioBordo from "./pages/DiarioBordo";
 import DiarioBordoDetalhes from "./components/diario/DiarioBordoDetalhes";
-import BancodeHoras from './pages/BancodeHoras';
+import DiarioBordo from "./pages/DiarioBordo";
+import BancodeHoras from './pages/DiarioBordo/BancodeHoras';
 import GestaoTripulacao from "./pages/GestaoTripulacao";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -42,9 +41,7 @@ import NotFound from "./pages/NotFound";
 import Perfil from "./pages/Perfil";
 import PlanoVoo from "./pages/PlanoVoo";
 import FlightMapView from "./pages/FlightMapView";
-import ProgramacaoManutencao from "./pages/ProgramacaoManutencao";
 import Recados from "./pages/Recados";
-import RelatoriosTecnicos from "./pages/RelatoriosTecnicos";
 import MinhasTarefas from "./pages/MinhasTarefas";
 import TripulanteDetalhes from "./pages/TripulanteDetalhes";
 import ValeAlimentacao from "./pages/ValeAlimentacao";
@@ -60,30 +57,25 @@ import GestaoFuncionarios from "./pages/GestaoFuncionarios";
 import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
-import GestaoFiscal from "./pages/financeiro/GestaoFiscal";
-import ConfiguracoesFiscais from "./pages/financeiro/ConfiguracoesFiscais";
-import Master from "./pages/financeiro/Master";
-import MasterColaboradores from "./pages/financeiro/MasterColaboradores";
-import MasterTarefas from "./pages/financeiro/MasterTarefas";
-import ConfigMovimentacoes from "./pages/financeiro/ConfigMovimentacoes";
+import GestaoFiscal from "./components/dashboard/gestor/financeiro-share/Index";
+import ConfiguracoesFiscais from "./components/dashboard/gestor/financeiro-share/ConfiguracoesFiscais";
+import Master from "./components/dashboard/gestor/master/Master";
+import MasterColaboradores from "./components/dashboard/gestor/master/MasterColaboradores";
 import DashboardOperacoes from "./pages/DashboardOperacoes";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import DashboardGestorPage from "./pages/DashboardGestorPage";
-import AprovacaoAgendamentos from "./pages/AprovacaoAgendamentos";
-import AprovacoesorOrcamentos from "./pages/gestor/AprovacoesorOrcamentos";
+import AprovacaoAgendamentos from "./components/AgendamentoVoo/AprovacaoAgendamentos";
 import PainelAgendamentos from "./pages/PainelAgendamentos";
 import CartoesCorporativos from "./pages/CartoesCorporativos";
-import BalancoCliente from "./pages/BalancoCliente";
-import MapaComponentes from "./pages/MapaComponentes";
-import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
-import ManutencaoAeronave from "./pages/ManutencaoAeronave";
+import BalancoCliente from "./components/dashboard/gestor/FinanceiroCotista/balanco-cliente/BalancoCliente";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import FinanceiroSocios from "./pages/FinanceiroSocios";
-import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
-import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
-import RelatorioMensal from "./pages/RelatorioMensal";
-import CentroLancamentoCustos from "./pages/CentroLancamentoCustos";
+import RelatorioTransacoesSocios from "./components/dashboard/gestor/socios/reports/RelatorioTransacoesSocios";
+import RelatoriosFinanceiros from "./components/dashboard/gestor/socios/reports/RelatoriosFinanceiros";
+import RelatorioMensal from "./components/dashboard/gestor/socios/reports/RelatorioMensal";
+import CentroLancamentoCustos from "./components/dashboard/gestor/FinanceiroCotista/balanco-socio/CentroLancamentoCustos";
+import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -186,8 +178,7 @@ const App = () => {
                           } />
                           <Route path="/gestor/aprovacoes-orcamentos" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <AprovacoesorOrcamentos />
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children={""}>
                               </RoleProtected>
                             )
                           } />
@@ -251,15 +242,13 @@ const App = () => {
                           } />
                           <Route path="/financeiro/controle-financeiro" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <ControlFinanceiro />
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children={""}>
                               </RoleProtected>
                             )
                           } />
                           <Route path="/financeiro/config-movimentacoes" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <ConfigMovimentacoes />
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children={""}>
                               </RoleProtected>
                             )
                           } />
@@ -272,6 +261,13 @@ const App = () => {
                           } />
                           <Route path="/financeiro/notas-fiscais" element={renderProtected(<Invoices />)} />
                           <Route path="/financeiro/gestao-fiscal" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <GestaoFiscal />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/financeiro-share-brasil" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
                                 <GestaoFiscal />
@@ -296,13 +292,6 @@ const App = () => {
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master"]}>
                                 <MasterColaboradores />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/master/tarefas" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master"]}>
-                                <MasterTarefas />
                               </RoleProtected>
                             )
                           } />
@@ -338,6 +327,20 @@ const App = () => {
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
                                 <CentroLancamentoCustos />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/financeiro-cotistas" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <FinanceiroCotistas />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/financeiro-cotistas/:clienteId" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <FinanceiroCotistaDetalhe />
                               </RoleProtected>
                             )
                           } />
@@ -391,12 +394,6 @@ const App = () => {
                           <Route path="/vencimentos" element={renderProtected(<ControleVencimentos />)} />
                           <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
                           <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
-                          <Route path="/manutencao/vencimentos" element={renderProtected(<ControleVencimentos />)} />
-                          <Route path="/manutencao/programacao" element={renderProtected(<ProgramacaoManutencao />)} />
-                          <Route path="/manutencao/relatorios" element={renderProtected(<RelatoriosTecnicos />)} />
-                          <Route path="/manutencao/mapa-componentes" element={renderProtected(<MapaComponentes />)} />
-                          <Route path="/manutencao/preventiva" element={renderProtected(<ManutencaoPreventiva />)} />
-                          <Route path="/manutencao/aeronaves" element={renderProtected(<ManutencaoAeronave />)} />
                           <Route path="/ferias" element={renderProtected(<Ferias />)} />
                           <Route path="*" element={renderProtected(<NotFound />)} />
                         </Routes>

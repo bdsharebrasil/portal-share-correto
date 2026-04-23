@@ -20,12 +20,18 @@ export default function MinhasTarefas() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">
-                {view === "minhas" ? "Minhas Tarefas" : "Tarefas da Equipe"}
+                {isManager
+                  ? view === "minhas"
+                    ? "Minhas Tarefas"
+                    : "Tarefas da Equipe"
+                  : "Minhas Tarefas"}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {view === "minhas"
-                  ? "Tarefas privadas criadas por você - com controle total"
-                  : "Tarefas atribuídas a você por administradores - visualizar e comentar"}
+                {isManager
+                  ? view === "minhas"
+                    ? "Tarefas privadas criadas por você - com controle total"
+                    : "Tarefas que você delegou para a equipe"
+                  : "Tarefas privadas criadas por você e tarefas atribuídas pela equipe"}
               </p>
             </div>
           </div>
@@ -59,7 +65,7 @@ export default function MinhasTarefas() {
             </div>
           )}
         </div>
-        <TarefasKanban myView={view === "minhas"} />
+        <TarefasKanban myView={isManager && view === "minhas"} isManager={isManager} />
       </div>
     </Layout>
   );

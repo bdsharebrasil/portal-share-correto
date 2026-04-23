@@ -48,22 +48,25 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
     const pageHeight = pdf.internal.pageSize.getHeight();
     const pageWidth = pdf.internal.pageSize.getWidth();
 
-    // Carregar logo com tratamento robusto de erro
+    // Carregar logo com tratamento robusto
     let logoImg: string | undefined;
     if (logoUrl) {
       try {
-        const fullUrl = logoUrl.startsWith('http') ? logoUrl : `${window.location.origin}${logoUrl}`;
+        // Remove a palavra "public/" caso tenha sido passada por engano, pois a web enxerga a partir da raiz "/"
+        const cleanLogoUrl = logoUrl.replace(/^(\/?public\/)/, '/');
+        const fullUrl = cleanLogoUrl.startsWith('http') 
+          ? cleanLogoUrl 
+          : `${window.location.origin}${cleanLogoUrl.startsWith('/') ? '' : '/'}${cleanLogoUrl}`;
+          
         const response = await fetch(fullUrl, { mode: 'cors' });
         if (!response.ok) throw new Error(`Status ${response.status}`);
         const blob = await response.blob();
         logoImg = await blobToBase64(blob);
       } catch (e) {
         console.warn("Erro ao carregar logo, continuando sem logo:", e);
-        // Continua sem logo se houver erro
       }
     }
 
-  // Para cada mês, criar páginas
   for (let i = 0; i < data.meses.length; i++) {
     const mesData = data.meses[i];
 
@@ -86,10 +89,7 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
 
     // Matrícula, Modelo, Ano
     pdf.setFontSize(14);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(`Matrícula: ${data.aeronave.matricula}`, pageWidth / 2, yPos, {
-      align: "center",
-    });
+    pdf.text(`Matrícula: ${data.aeronave.matricula}`, pageWidth / 2, yPos, { align: "center" });
     yPos += 8;
 
     pdf.setFont("helvetica", "normal");
@@ -115,10 +115,10 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
 
     // PÁGINA 2: TABELA COMPLETA
     pdf.addPage();
-    yPos = 20;
+    yPos = 15;
 
     // Título da página
-    pdf.setFontSize(16);
+    pdf.setFontSize(14);
     pdf.setFont("helvetica", "bold");
     pdf.text(
       `Registros de Voo - ${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${mesData.ano}`,
@@ -126,34 +126,15 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       yPos,
       { align: "center" }
     );
-    yPos += 10;
+    yPos += 8;
 
-    // Preparar dados da tabela (excluindo CONFIRMADO POR)
     const tableColumns = [
-      "#",
-      "Data",
-      "De",
-      "Para",
-      "AC",
-      "DEP",
-      "POU",
-      "COR",
-      "T VOO",
-      "T DIA",
-      "T NOIT",
-      "IFR",
-      "POUSOS",
-      "ABAST+",
-      "FUEL",
-      "CÉLULA",
-      "PIC",
-      "SIC",
-      "VOO PARA",
+      "#", "Data", "De", "Para", "AC", "DEP", "POU", "COR", "T VOO", 
+      "T DIA", "T NOIT", "IFR", "POUSOS", "ABAST+", "FUEL", "CÉLULA", 
+      "PIC", "SIC", "VOO PARA",
     ];
 
-    if (mesData.temDiaria) {
-      tableColumns.push("DIÁRIAS");
-    }
+    if (mesData.temDiaria) tableColumns.push("DIÁRIAS");
 
     const tableData = mesData.lancamentos.map((l, idx) => {
       const row: any[] = [
@@ -181,20 +162,11 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       if (mesData.temDiaria) {
         row.push(l.tarifa_diaria ? num(l.tarifa_diaria, 2) : "—");
       }
-
       return row;
     });
 
-    // Adicionar linha de totais
     const totalRow: any[] = [
-      "TOTAL",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
+      "TOTAL", "", "", "", "", "", "", "",
       num(mesData.totals.tVoo, 2),
       num(mesData.totals.tDia, 2),
       num(mesData.totals.tNoit, 2),
@@ -202,19 +174,15 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       String(mesData.totals.pousos),
       num(mesData.totals.abast, 2),
       num(mesData.totals.fuel, 2),
-      "",
-      "",
-      "",
-      "",
+      "", "", "", "",
     ];
 
     if (mesData.temDiaria) {
       totalRow.push(num(mesData.totals.totalDiarias, 2));
     }
-
     tableData.push(totalRow);
 
-    // Usar AutoTable para criar a tabela
+    // Ajustes do AutoTable para caber todas as colunas
     (pdf as any).autoTable({
       columns: tableColumns.map((c) => ({ header: c, key: c.toLowerCase() })),
       body: tableData,
@@ -222,20 +190,28 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       theme: "grid",
       styles: {
         font: "helvetica",
-        fontSize: 8,
-        cellPadding: 3,
+        fontSize: 6.5, // Fonte menor para caber as 20 colunas
+        cellPadding: 1.2, // Padding bem justo
         textColor: 0,
-        lineColor: 100,
+        lineColor: 150,
+        lineWidth: 0.1,
+        overflow: 'linebreak',
+        halign: 'center', // Centralizado ajuda a economizar largura
+        valign: 'middle'
       },
       headStyles: {
-        fillColor: 40,
+        fillColor: [50, 50, 50],
         textColor: 255,
         fontStyle: "bold",
       },
       alternateRowStyles: {
         fillColor: 245,
       },
-      margin: { left: 10, right: 10, top: 10, bottom: 10 },
+      // Margens extremas (5mm) nas laterais para aproveitar todo o papel
+      margin: { left: 5, right: 5, top: 10, bottom: 10 },
+      // Configuração para forçar a quebra da página caso, mesmo assim, passe da largura
+      horizontalPageBreak: true, 
+      horizontalPageBreakRepeat: 0
     });
 
     // PÁGINA 3: RESUMO
@@ -252,7 +228,6 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
     pdf.text("Resumo de Voos", 15, yPos);
     yPos += 10;
 
-    // Tabela de resumo por cliente/sócio
     const resumoColumns = ["Cliente/Sócio", "Horas"];
     const resumoData = mesData.porCotista.map((c) => [
       c.label,
@@ -283,7 +258,7 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
     });
   }
 
-  // Se houver múltiplos meses, adicionar página final com resumo geral
+  // RESUMO CONSOLIDADO
   if (data.meses.length > 1) {
     pdf.addPage();
     let yPos = 20;
@@ -293,23 +268,12 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
     pdf.text("Resumo Consolidado", pageWidth / 2, yPos, { align: "center" });
     yPos += 15;
 
-    // Calcular totais consolidados
     const totalConsolidado = {
-      tVoo: 0,
-      tTotal: 0,
-      tDia: 0,
-      tNoit: 0,
-      ifr: 0,
-      pousos: 0,
-      abast: 0,
-      fuel: 0,
-      totalDiarias: 0,
+      tVoo: 0, tTotal: 0, tDia: 0, tNoit: 0, ifr: 0,
+      pousos: 0, abast: 0, fuel: 0, totalDiarias: 0,
     };
 
-    const cotistasConsolidado = new Map<
-      string,
-      { label: string; horas: number }
-    >();
+    const cotistasConsolidado = new Map<string, { label: string; horas: number }>();
 
     for (const mes of data.meses) {
       totalConsolidado.tVoo += mes.totals.tVoo;
@@ -329,16 +293,13 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       }
     }
 
-    const periodoTexto = data.meses
-      .map((m) => `${monthNames[m.mes - 1]} de ${m.ano}`)
-      .join(", ");
+    const periodoTexto = data.meses.map((m) => `${monthNames[m.mes - 1]} de ${m.ano}`).join(", ");
 
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "normal");
     pdf.text(`Período: ${periodoTexto}`, 15, yPos);
     yPos += 10;
 
-    // Tabela consolidada
     const resumoColumns = ["Cliente/Sócio", "Horas"];
     const resumoData = Array.from(cotistasConsolidado.values())
       .sort((a, b) => b.horas - a.horas)
@@ -367,7 +328,6 @@ export const exportDiarioBordoPDF = async (data: DiarioPDFData, logoUrl: string)
       margin: { left: 15, right: 15 },
     });
 
-    // Resumo consolidado de horas
     yPos = (pdf as any).lastAutoTable?.finalY || 300;
     yPos += 15;
 

@@ -9,7 +9,7 @@ import { useVencimentosSync } from '@/contexts/VencimentosSyncContext';
 import { Search, Plane, AlertCircle, AlertTriangle, CheckCircle, Plus, Calendar, FileText, Eye, Download, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ModernNotification } from '@/components/notifications/ModernNotification';
+import { ModernNotification } from '@/components/notificacoes/ModernNotification';
 import { getFlightDocumentPublicUrl } from '@/lib/storageHelper';
 
 interface Aircraft {

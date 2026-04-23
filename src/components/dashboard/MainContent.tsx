@@ -1,9 +1,8 @@
 import { useViewMode } from "@/contexts/ViewModeContext";
-import { DashboardHero } from "./DashboardHero";
-import { FleetStatusCards } from "./FleetStatusCards";
-import { OperationsTools } from "./OperationsTools";
-import { MessagesPanel } from "./MessagesPanel";
-import { TasksQuickAccess } from "./TasksQuickAccess";
+import { DashboardHero } from "./operador/DashboardHero";
+import { FleetStatusCards } from "./operador/FleetStatusCards";
+import { OperationsTools } from "./operador/OperationsTools";
+import { MessagesPanel } from "./operador/MessagesPanel";
 import { FinanceiroDashboard } from "./FinanceiroDashboard";
 import { GestorDashboard } from "./GestorDashboard";
 
@@ -50,13 +49,6 @@ export function MainContent() {
           <MessagesPanel />
         </div>
 
-        {/* Tasks Section - Full Width */}
-        <div className="md:col-span-2 lg:col-span-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Minhas Tarefas</h3>
-          </div>
-          <TasksQuickAccess />
-        </div>
       </div>
     </main>
   );

@@ -458,200 +458,6 @@ export type Database = {
         }
         Relationships: []
       }
-      aircraft_shareholders: {
-        Row: {
-          aircraft_id: string
-          client_id: string
-          created_at: string | null
-          id: string
-          quota_hours: number
-        }
-        Insert: {
-          aircraft_id: string
-          client_id: string
-          created_at?: string | null
-          id?: string
-          quota_hours: number
-        }
-        Update: {
-          aircraft_id?: string
-          client_id?: string
-          created_at?: string | null
-          id?: string
-          quota_hours?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-        ]
-      }
-      analise_oleo: {
-        Row: {
-          aeronave_id: string
-          aluminio: number
-          cobre: number
-          created_at: string | null
-          data_analise: string
-          ferro: number
-          id: string
-          ordem_servico_id: string | null
-          silicio: number
-          updated_at: string | null
-          viscosidade: number
-        }
-        Insert: {
-          aeronave_id: string
-          aluminio: number
-          cobre: number
-          created_at?: string | null
-          data_analise: string
-          ferro: number
-          id?: string
-          ordem_servico_id?: string | null
-          silicio: number
-          updated_at?: string | null
-          viscosidade: number
-        }
-        Update: {
-          aeronave_id?: string
-          aluminio?: number
-          cobre?: number
-          created_at?: string | null
-          data_analise?: string
-          ferro?: number
-          id?: string
-          ordem_servico_id?: string | null
-          silicio?: number
-          updated_at?: string | null
-          viscosidade?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "oil_analysis_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "oil_analysis_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "oil_analysis_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "oil_analysis_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "oil_analysis_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "oil_analysis_aircraft_id_fkey"
-            columns: ["aeronave_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-        ]
-      }
       anniversary_alerts: {
         Row: {
           birth_date: string
@@ -1873,6 +1679,7 @@ export type Database = {
           banco: string | null
           boleto_url: string | null
           categoria: string | null
+          categoria_id: string | null
           cliente_id: string | null
           codigo_barras: string | null
           competencia_decea: string | null
@@ -1891,6 +1698,7 @@ export type Database = {
           fornecedor_favorito_id: string | null
           id: string
           infraero_url: string | null
+          movimentacao_id: string | null
           nf_numero: string | null
           nf_url: string | null
           numero_doc: string | null
@@ -1911,6 +1719,7 @@ export type Database = {
           banco?: string | null
           boleto_url?: string | null
           categoria?: string | null
+          categoria_id?: string | null
           cliente_id?: string | null
           codigo_barras?: string | null
           competencia_decea?: string | null
@@ -1929,6 +1738,7 @@ export type Database = {
           fornecedor_favorito_id?: string | null
           id?: string
           infraero_url?: string | null
+          movimentacao_id?: string | null
           nf_numero?: string | null
           nf_url?: string | null
           numero_doc?: string | null
@@ -1949,6 +1759,7 @@ export type Database = {
           banco?: string | null
           boleto_url?: string | null
           categoria?: string | null
+          categoria_id?: string | null
           cliente_id?: string | null
           codigo_barras?: string | null
           competencia_decea?: string | null
@@ -1967,6 +1778,7 @@ export type Database = {
           fornecedor_favorito_id?: string | null
           id?: string
           infraero_url?: string | null
+          movimentacao_id?: string | null
           nf_numero?: string | null
           nf_url?: string | null
           numero_doc?: string | null
@@ -2087,6 +1899,13 @@ export type Database = {
             referencedColumns: ["categoria"]
           },
           {
+            foreignKeyName: "contas_apagar_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_movimentacao"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contas_apagar_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
@@ -2160,7 +1979,9 @@ export type Database = {
           banco_recebimento: string | null
           boleto_url: string | null
           categoria: string
+          categoria_id: string | null
           cliente_cnpj: string
+          cliente_id: string | null
           cliente_nome: string
           comprovante_recebimento_url: string | null
           criado_em: string | null
@@ -2173,11 +1994,13 @@ export type Database = {
           fornecedor_tipo: string | null
           id: string
           metodo_pagamento: string | null
+          movimentacao_id: string | null
           nf_saida_id: string | null
           nota_fiscal_url: string | null
           numero: string
           reference_id: string | null
           reference_type: string | null
+          socio_id: string | null
           status: string
           valor: number
         }
@@ -2189,7 +2012,9 @@ export type Database = {
           banco_recebimento?: string | null
           boleto_url?: string | null
           categoria: string
+          categoria_id?: string | null
           cliente_cnpj: string
+          cliente_id?: string | null
           cliente_nome: string
           comprovante_recebimento_url?: string | null
           criado_em?: string | null
@@ -2202,11 +2027,13 @@ export type Database = {
           fornecedor_tipo?: string | null
           id?: string
           metodo_pagamento?: string | null
+          movimentacao_id?: string | null
           nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero: string
           reference_id?: string | null
           reference_type?: string | null
+          socio_id?: string | null
           status: string
           valor: number
         }
@@ -2218,7 +2045,9 @@ export type Database = {
           banco_recebimento?: string | null
           boleto_url?: string | null
           categoria?: string
+          categoria_id?: string | null
           cliente_cnpj?: string
+          cliente_id?: string | null
           cliente_nome?: string
           comprovante_recebimento_url?: string | null
           criado_em?: string | null
@@ -2231,11 +2060,13 @@ export type Database = {
           fornecedor_tipo?: string | null
           id?: string
           metodo_pagamento?: string | null
+          movimentacao_id?: string | null
           nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero?: string
           reference_id?: string | null
           reference_type?: string | null
+          socio_id?: string | null
           status?: string
           valor?: number
         }
@@ -2332,6 +2163,55 @@ export type Database = {
             referencedColumns: ["aeronave"]
           },
           {
+            foreignKeyName: "contas_areceber_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_movimentacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_areceber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_areceber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_areceber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_areceber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_areceber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_areceber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
             foreignKeyName: "contas_areceber_fornecedor_favorito_fkey"
             columns: ["fornecedor_id"]
             isOneToOne: false
@@ -2343,6 +2223,13 @@ export type Database = {
             columns: ["nf_saida_id"]
             isOneToOne: false
             referencedRelation: "notas_fiscais_saida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_areceber_socio_id_fkey"
+            columns: ["socio_id"]
+            isOneToOne: false
+            referencedRelation: "socios_cliente"
             referencedColumns: ["id"]
           },
         ]
@@ -2971,6 +2858,91 @@ export type Database = {
           },
         ]
       }
+      ctm_analise_oleo: {
+        Row: {
+          aeronave_id: string
+          aluminio: number
+          cobre: number
+          created_at: string | null
+          data_analise: string
+          ferro: number
+          id: string
+          ordem_servico_id: string | null
+          silicio: number
+          updated_at: string | null
+          viscosidade: number
+        }
+        Insert: {
+          aeronave_id: string
+          aluminio: number
+          cobre: number
+          created_at?: string | null
+          data_analise: string
+          ferro: number
+          id?: string
+          ordem_servico_id?: string | null
+          silicio: number
+          updated_at?: string | null
+          viscosidade: number
+        }
+        Update: {
+          aeronave_id?: string
+          aluminio?: number
+          cobre?: number
+          created_at?: string | null
+          data_analise?: string
+          ferro?: number
+          id?: string
+          ordem_servico_id?: string | null
+          silicio?: number
+          updated_at?: string | null
+          viscosidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oil_analysis_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oil_analysis_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oil_analysis_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "oil_analysis_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "oil_analysis_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "oil_analysis_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
+      }
       ctm_categorias_manutencao: {
         Row: {
           ativo: boolean | null
@@ -3007,66 +2979,157 @@ export type Database = {
         }
         Relationships: []
       }
+      ctm_despesas_motor: {
+        Row: {
+          aeronave_id: string
+          atualizado_em: string | null
+          criado_em: string | null
+          data: string
+          descricao: string
+          fornecedor: string | null
+          horas_motor: number | null
+          id: string
+          lado_motor: string
+          numero_oas: string | null
+          observacoes: string | null
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          aeronave_id: string
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data: string
+          descricao: string
+          fornecedor?: string | null
+          horas_motor?: number | null
+          id?: string
+          lado_motor: string
+          numero_oas?: string | null
+          observacoes?: string | null
+          tipo: string
+          valor?: number
+        }
+        Update: {
+          aeronave_id?: string
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data?: string
+          descricao?: string
+          fornecedor?: string | null
+          horas_motor?: number | null
+          id?: string
+          lado_motor?: string
+          numero_oas?: string | null
+          observacoes?: string | null
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_despesas_motor_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_despesas_motor_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_despesas_motor_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_despesas_motor_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_despesas_motor_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_despesas_motor_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
+      }
       ctm_diretrizes: {
         Row: {
           aeronave_id: string
           aplicabilidade: string | null
-          compliance_date: string | null
-          compliance_hours: number | null
-          compliance_method: string | null
-          created_at: string | null
+          atualizado_em: string | null
+          ciclos_devidos: number | null
+          criado_em: string | null
+          data_de_conformidade: string | null
           data_vencimento: string | null
           descricao: string | null
           devido_horas: number | null
-          due_cycles: number | null
+          horas_de_conformidade: number | null
           id: string
+          metodo_de_conformidade: string | null
           numero: string
-          observations: string | null
-          responsible: string | null
+          observacoes: string | null
+          responsavel: string | null
           status: string | null
           tipo: string
           titulo: string
-          updated_at: string | null
         }
         Insert: {
           aeronave_id: string
           aplicabilidade?: string | null
-          compliance_date?: string | null
-          compliance_hours?: number | null
-          compliance_method?: string | null
-          created_at?: string | null
+          atualizado_em?: string | null
+          ciclos_devidos?: number | null
+          criado_em?: string | null
+          data_de_conformidade?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           devido_horas?: number | null
-          due_cycles?: number | null
+          horas_de_conformidade?: number | null
           id?: string
+          metodo_de_conformidade?: string | null
           numero: string
-          observations?: string | null
-          responsible?: string | null
+          observacoes?: string | null
+          responsavel?: string | null
           status?: string | null
           tipo: string
           titulo: string
-          updated_at?: string | null
         }
         Update: {
           aeronave_id?: string
           aplicabilidade?: string | null
-          compliance_date?: string | null
-          compliance_hours?: number | null
-          compliance_method?: string | null
-          created_at?: string | null
+          atualizado_em?: string | null
+          ciclos_devidos?: number | null
+          criado_em?: string | null
+          data_de_conformidade?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           devido_horas?: number | null
-          due_cycles?: number | null
+          horas_de_conformidade?: number | null
           id?: string
+          metodo_de_conformidade?: string | null
           numero?: string
-          observations?: string | null
-          responsible?: string | null
+          observacoes?: string | null
+          responsavel?: string | null
           status?: string | null
           tipo?: string
           titulo?: string
-          updated_at?: string | null
         }
         Relationships: [
           {
@@ -7031,6 +7094,256 @@ export type Database = {
           },
         ]
       }
+      movimentacoes: {
+        Row: {
+          aeronave_id: string | null
+          atualizado_em: string
+          banco_nome: string | null
+          boleto_url: string | null
+          categoria_id: string
+          clientes_id: string | null
+          comprovante_url: string | null
+          conta_bancaria: string | null
+          contas_apagar_id: string | null
+          contas_areceber_id: string | null
+          criado_em: string
+          criado_por: string | null
+          data_competencia: string
+          data_pagamento: string | null
+          data_vencimento: string | null
+          descricao: string
+          forma_pagamento: string | null
+          fornecedor_nome: string | null
+          grupo_custo: string | null
+          id: string
+          movimentacao_origem_id: string | null
+          movimentacao_pai_id: string | null
+          nf_url: string | null
+          numero_boleto: string | null
+          numero_doc: string | null
+          numero_nf: string | null
+          numero_parcela: number
+          numero_recibo: string | null
+          observacoes: string | null
+          quantidade_parcelas: number
+          recibo_url: string | null
+          reembolsavel: boolean
+          reembolso_quitado: boolean
+          socio_id: string | null
+          status: string
+          tipo: string
+          valor: number
+          valor_original: number | null
+        }
+        Insert: {
+          aeronave_id?: string | null
+          atualizado_em?: string
+          banco_nome?: string | null
+          boleto_url?: string | null
+          categoria_id: string
+          clientes_id?: string | null
+          comprovante_url?: string | null
+          conta_bancaria?: string | null
+          contas_apagar_id?: string | null
+          contas_areceber_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_competencia: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          descricao: string
+          forma_pagamento?: string | null
+          fornecedor_nome?: string | null
+          grupo_custo?: string | null
+          id?: string
+          movimentacao_origem_id?: string | null
+          movimentacao_pai_id?: string | null
+          nf_url?: string | null
+          numero_boleto?: string | null
+          numero_doc?: string | null
+          numero_nf?: string | null
+          numero_parcela?: number
+          numero_recibo?: string | null
+          observacoes?: string | null
+          quantidade_parcelas?: number
+          recibo_url?: string | null
+          reembolsavel?: boolean
+          reembolso_quitado?: boolean
+          socio_id?: string | null
+          status?: string
+          tipo: string
+          valor: number
+          valor_original?: number | null
+        }
+        Update: {
+          aeronave_id?: string | null
+          atualizado_em?: string
+          banco_nome?: string | null
+          boleto_url?: string | null
+          categoria_id?: string
+          clientes_id?: string | null
+          comprovante_url?: string | null
+          conta_bancaria?: string | null
+          contas_apagar_id?: string | null
+          contas_areceber_id?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          data_competencia?: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          descricao?: string
+          forma_pagamento?: string | null
+          fornecedor_nome?: string | null
+          grupo_custo?: string | null
+          id?: string
+          movimentacao_origem_id?: string | null
+          movimentacao_pai_id?: string | null
+          nf_url?: string | null
+          numero_boleto?: string | null
+          numero_doc?: string | null
+          numero_nf?: string | null
+          numero_parcela?: number
+          numero_recibo?: string | null
+          observacoes?: string | null
+          quantidade_parcelas?: number
+          recibo_url?: string | null
+          reembolsavel?: boolean
+          reembolso_quitado?: boolean
+          socio_id?: string | null
+          status?: string
+          tipo?: string
+          valor?: number
+          valor_original?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mov_aeronave_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_aeronave_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_aeronave_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "mov_aeronave_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "mov_aeronave_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "mov_aeronave_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "mov_categoria_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_movimentacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_cliente_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_cliente_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "mov_cliente_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "mov_cliente_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "mov_cliente_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "mov_cliente_fkey"
+            columns: ["clientes_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "mov_contas_apagar_fkey"
+            columns: ["contas_apagar_id"]
+            isOneToOne: false
+            referencedRelation: "contas_apagar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_contas_areceber_fkey"
+            columns: ["contas_areceber_id"]
+            isOneToOne: false
+            referencedRelation: "contas_areceber"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_origem_fkey"
+            columns: ["movimentacao_origem_id"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_pai_fkey"
+            columns: ["movimentacao_pai_id"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mov_socio_fkey"
+            columns: ["socio_id"]
+            isOneToOne: false
+            referencedRelation: "socios_cliente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notas_fiscais_saida: {
         Row: {
           aeronave: string | null
@@ -8689,16 +9002,14 @@ export type Database = {
       rateio_despesasold: {
         Row: {
           aeronave_id: string | null
-          aeronave_registro: string | null
-          atualizado_em: string | null
+          aeronave_matricula: string | null
           boleto: string | null
           categoria_custo: string | null
           categoria_id: string | null
-          client_id: string | null
           client_name: string
+          cliente_id: string | null
           comprovante_pagamento_direto_url: string | null
           comprovante_url: string | null
-          criado_em: string | null
           data_envio: string | null
           data_pagamento: string | null
           data_pagamento_direto: string | null
@@ -8717,12 +9028,12 @@ export type Database = {
           observacoes: string | null
           pago_diretamente: boolean | null
           pago_por: string | null
-          partner_id: string | null
-          partner_name: string | null
           percentual: number | null
           percentual_voo: number | null
           recebimento_id: string | null
           recibo_url: string | null
+          socio_id: string | null
+          socio_nome: string | null
           status: string | null
           tipo_rateio: string | null
           valor_pago_real: number | null
@@ -8731,16 +9042,14 @@ export type Database = {
         }
         Insert: {
           aeronave_id?: string | null
-          aeronave_registro?: string | null
-          atualizado_em?: string | null
+          aeronave_matricula?: string | null
           boleto?: string | null
           categoria_custo?: string | null
           categoria_id?: string | null
-          client_id?: string | null
           client_name: string
+          cliente_id?: string | null
           comprovante_pagamento_direto_url?: string | null
           comprovante_url?: string | null
-          criado_em?: string | null
           data_envio?: string | null
           data_pagamento?: string | null
           data_pagamento_direto?: string | null
@@ -8759,12 +9068,12 @@ export type Database = {
           observacoes?: string | null
           pago_diretamente?: boolean | null
           pago_por?: string | null
-          partner_id?: string | null
-          partner_name?: string | null
           percentual?: number | null
           percentual_voo?: number | null
           recebimento_id?: string | null
           recibo_url?: string | null
+          socio_id?: string | null
+          socio_nome?: string | null
           status?: string | null
           tipo_rateio?: string | null
           valor_pago_real?: number | null
@@ -8773,16 +9082,14 @@ export type Database = {
         }
         Update: {
           aeronave_id?: string | null
-          aeronave_registro?: string | null
-          atualizado_em?: string | null
+          aeronave_matricula?: string | null
           boleto?: string | null
           categoria_custo?: string | null
           categoria_id?: string | null
-          client_id?: string | null
           client_name?: string
+          cliente_id?: string | null
           comprovante_pagamento_direto_url?: string | null
           comprovante_url?: string | null
-          criado_em?: string | null
           data_envio?: string | null
           data_pagamento?: string | null
           data_pagamento_direto?: string | null
@@ -8801,12 +9108,12 @@ export type Database = {
           observacoes?: string | null
           pago_diretamente?: boolean | null
           pago_por?: string | null
-          partner_id?: string | null
-          partner_name?: string | null
           percentual?: number | null
           percentual_voo?: number | null
           recebimento_id?: string | null
           recibo_url?: string | null
+          socio_id?: string | null
+          socio_nome?: string | null
           status?: string | null
           tipo_rateio?: string | null
           valor_pago_real?: number | null
@@ -11276,6 +11583,121 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_rateio_cotistas: {
+        Row: {
+          aeronave_id: string | null
+          categoria_custo: string | null
+          cliente_id: string | null
+          cotista_nome: string | null
+          mes_ano: string | null
+          mes_referencia: string | null
+          saldo: number | null
+          socio_id: string | null
+          tipo_rateio: string | null
+          total_devido: number | null
+          total_pago: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_categoria_custo_fkey"
+            columns: ["categoria_custo"]
+            isOneToOne: false
+            referencedRelation: "expense_config"
+            referencedColumns: ["expense_type"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_socio_id_fkey"
+            columns: ["socio_id"]
+            isOneToOne: false
+            referencedRelation: "socios_cliente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_reembolsos_pendentes: {
         Row: {
           aeronave: string | null
@@ -11300,6 +11722,108 @@ export type Database = {
           valor_total: number | null
         }
         Relationships: []
+      }
+      vw_resumo_mensal_cliente: {
+        Row: {
+          aeronave_id: string | null
+          cliente_id: string | null
+          custo_por_hora: number | null
+          horas_totais_aeronave: number | null
+          horas_voadas: number | null
+          mes_ano: string | null
+          mes_referencia: string | null
+          total_devido: number | null
+          total_extra: number | null
+          total_fixo: number | null
+          total_pago: number | null
+          total_variavel: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+        ]
       }
       vw_salarios_sincronizados: {
         Row: {

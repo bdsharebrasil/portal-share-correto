@@ -139,7 +139,18 @@ type AeronaveEmprestimo = {
   nome_piloto: string | null;
 };
 
-const NATUREZAS = ["Privado", "Teste", "Translado", "Cheque"];
+const NATUREZAS = [
+  "AE - Aérea/Regular",
+  "CQ - Cheque",
+  "EX - Executivo",
+  "NR - Não Remunerado",
+  "RE - Retorno/Reposição",
+  "PV - Privado",
+  "SA - Serviço Aéreo",
+  "TN - Transporte Não Regular/Táxi Aéreo",
+  "TR - Traslado",
+  "VOO_TESTE",
+];
 const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 type ActivePanel = "none" | "novoVoo" | "editarVoo" | "consumo";
@@ -372,7 +383,7 @@ function DiarioBordoDetalhes() {
     return m;
   }, [tripulantes]);
 
-  const naturezasRateio = ["Translado", "Cheque", "Voo de Teste", "Teste"];
+  const naturezasRateio = ["TR - Traslado", "CQ - Cheque", "VOO_TESTE", "NR - Não Remunerado"];
   const labelVooPara = useCallback((l: Lanc): string => {
     const nat = (l.natureza_voo ?? "").trim();
     if (naturezasRateio.some((n) => nat.toLowerCase() === n.toLowerCase())) {
@@ -719,7 +730,7 @@ function DiarioBordoDetalhes() {
           for (const l of lancamentosData) {
             const horas = Number((modoCelula === "tvoo" ? l.tempo_voo : l.tempo_total) ?? 0);
             const nat = (l.natureza_voo ?? "").trim();
-            const naturezasRateio = ["Translado", "Cheque", "Voo de Teste", "Teste"];
+            const naturezasRateio = ["TR - Traslado", "CQ - Cheque", "VOO_TESTE", "NR - Não Remunerado"];
             let label: string;
             if (naturezasRateio.some((n) => nat.toLowerCase() === n.toLowerCase())) label = nat.toUpperCase();
             else if (l.socios_cliente_id) { const s = sociosData.find((x) => x.id === l.socios_cliente_id); label = s?.nome ?? l.socios_nome ?? "Sócio"; }
@@ -1919,7 +1930,7 @@ function EditarVooInline({
   const [pousos, setPousos] = useState(lanc.pousos_total ?? 1);
   const [fuelInicio, setFuelInicio] = useState(Number(lanc.litros_combustivel_inicio_voo ?? 0));
   const [abast, setAbast] = useState(Number(lanc.combustivel_adicionado ?? 0));
-  const [natureza, setNatureza] = useState(lanc.natureza_voo ?? "Privado");
+  const [natureza, setNatureza] = useState(lanc.natureza_voo ?? "PV - Privado");
   const [picId, setPicId] = useState(lanc.pic_canac ?? "");
   const [sicId, setSicId] = useState(lanc.sic_canac ?? "");
   const [sicNome, setSicNome] = useState(lanc.sic_name ?? "");

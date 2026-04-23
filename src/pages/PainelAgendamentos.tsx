@@ -53,8 +53,8 @@ import {
   Settings
 } from "lucide-react";
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from "date-fns";
-import { CrewScheduleGrid } from "@/components/scheduling/CrewScheduleGrid";
-import { BlockDateRangeSelector } from "@/components/scheduling/BlockDateRangeSelector";
+import { CrewScheduleGrid } from "@/components/AgendamentoVoo/CrewScheduleGrid";
+import { BlockDateRangeSelector } from "@/components/AgendamentoVoo/BlockDateRangeSelector";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/components/ui/use-toast";
 

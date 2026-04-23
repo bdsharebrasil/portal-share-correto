@@ -27,12 +27,13 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
     queryKey: ["crew-flight-hours-month", crewMemberId, start, end],
     enabled: !!crewMemberId,
     queryFn: async () => {
+      // Colunas corretas conforme schema: tempo_total, horas_noturnas, tempo_ifr, pousos_total, data_registro
       const { data, error } = await supabase
         .from("lancamentos_diario_bordo")
-        .select("id, total_time, pousos, pic_canac, sic_canac, entry_date, ifr_time, night_hours")
+        .select("id, tempo_total, pousos_total, pic_canac, sic_canac, data_registro, tempo_ifr, horas_noturnas")
         .or(`pic_canac.eq.${crewMemberId},sic_canac.eq.${crewMemberId}`)
-        .gte("entry_date", start)
-        .lte("entry_date", end);
+        .gte("data_registro", start)
+        .lte("data_registro", end);
 
       if (error) {
         const errorMessage = error.message || "Erro ao buscar horas de voo";
@@ -50,10 +51,10 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
       };
 
       for (const e of data || []) {
-        const flightTime = Number(e.total_time || 0);
-        const ifrTime = Number(e.ifr_time || 0);
-        const nightTime = Number(e.night_hours || 0);
-        const landings = Number(e.pousos || 0);
+        const flightTime = Number(e.tempo_total || 0);
+        const ifrTime = Number(e.tempo_ifr || 0);
+        const nightTime = Number(e.horas_noturnas || 0);
+        const landings = Number(e.pousos_total || 0);
 
         if (e.pic_canac === crewMemberId) {
           totals.pic += flightTime;
@@ -152,7 +153,6 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
       </CardHeader>
 
       <CardContent className="pt-6 space-y-6">
-        {/* Cards de resumo - estilo iOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/30 dark:to-cyan-900/20 border border-cyan-200/50 dark:border-cyan-800/30 rounded-xl p-4 shadow-sm">
             <div className="text-xs text-cyan-600 dark:text-cyan-400 uppercase tracking-wider font-semibold mb-2">
@@ -191,7 +191,6 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
           </div>
         </div>
 
-        {/* Grid de detalhes */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/50 rounded-xl p-4 text-center shadow-sm">
             <p className="text-xs text-zinc-600 dark:text-zinc-400 uppercase tracking-wider font-semibold mb-2">

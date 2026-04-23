@@ -15,13 +15,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateToBR } from "@/lib/date-utils";
 import { GestaoSalariosContent } from "./GestaoSalarios";
 import { Suspense } from "react";
-import { TimeEntriesTable } from "@/components/time-tracking/TimeEntriesTable";
+import { TimeEntriesTable } from "@/components/ponto/TimeEntriesTable";
 import { DocumentUploadWidget } from "@/components/profile/DocumentUploadWidget";
 import { ThirteenthSalaryManager } from "@/components/vencimentos/ThirteenthSalaryManager";
-import { VacationManagement } from "@/components/vacation/VacationManagement";
-import { EmployeeVacationTab } from "@/components/vacation/EmployeeVacationTab";
+import { VacationManagement } from "@/components/Ferias/VacationManagement";
+import { EmployeeVacationTab } from "@/components/Ferias/EmployeeVacationTab";
 import { Users, FileText, Calendar, Building, Phone, Mail, CreditCard, DollarSign, User as UserIcon, Edit, Save, X, Aperture, Upload, Camera, Trash2, Clock, Palmtree, Search, Receipt } from "lucide-react";
-import { EmployeeStatementTab } from "@/components/funcionarios/EmployeeStatementTab";
+import EmployeeBankStatement from "@/components/profile/ExtratoBancarioFuncionario";
 import { APP_ROLE_VALUES, ROLE_LABELS, type AppRole } from "@/lib/roles";
 import { formatRoleLabel } from "@/lib/roles";
 interface CrewMemberData {
@@ -545,7 +545,7 @@ export default function GestaoFuncionarios() {
             </TabsContent>
 
             <TabsContent value="statement" className="min-h-[400px] mt-0">
-              <EmployeeStatementTab employeeId={selectedEmployee.id} employeeName={selectedEmployee.full_name} />
+              <EmployeeBankStatement employeeId={selectedEmployee.id} employeeName={selectedEmployee.full_name} />
             </TabsContent>
           </Tabs>
         </CardContent>
