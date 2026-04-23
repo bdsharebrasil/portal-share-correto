@@ -250,9 +250,9 @@ export default function RelatorioViagem() {
   // -------------------------------------------------------------------------
   // Delegado ao utilitário (travelReportUtils) que agora considera a aeronave
   // Mantido este wrapper para compatibilidade com a página
-  const generateReportNumber = async (clientName: string, aeronaveId?: string): Promise<string> => {
+  const generateReportNumber = async (clientesId: string, aeronaveId?: string): Promise<string> => {
     const { generateReportNumber: generateNumber } = await import('@/lib/travelReportUtils');
-    return generateNumber(clientName, aeronaveId);
+    return generateNumber(clientesId, aeronaveId);
   };
 
   // -------------------------------------------------------------------------
@@ -439,7 +439,7 @@ export default function RelatorioViagem() {
 
       let reportNumber = reportData.numero_relatorio;
       if (!isUpdate) {
-        reportNumber = await generateReportNumber(reportData.client, reportData.matricula_aeronave);
+        reportNumber = await generateReportNumber(reportData.clientes_id, reportData.matricula_aeronave);
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -510,7 +510,7 @@ export default function RelatorioViagem() {
           if (!error) { savedReport = data; insertError = null; break; }
 
           if (error.code === '23505' && error.message?.includes('numero_relatorio')) {
-            payload.numero_relatorio = await generateReportNumber(reportData.client || '', reportData.matricula_aeronave);
+            payload.numero_relatorio = await generateReportNumber(reportData.clientes_id || '', reportData.matricula_aeronave);
             await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
             insertError = error;
           } else {

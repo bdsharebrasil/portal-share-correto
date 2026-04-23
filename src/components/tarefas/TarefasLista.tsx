@@ -644,7 +644,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-8">
+        <div className="p-6 space-y-8 bg-slate-950">
           {/* Tarefas Pendentes */}
           <div>
             <div className="flex items-center justify-between mb-4">
