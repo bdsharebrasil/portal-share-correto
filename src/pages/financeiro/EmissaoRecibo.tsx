@@ -53,6 +53,10 @@ const parseCurrencyInput = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+// ─── Trecho a substituir em EmissaoRecibo.tsx ───────────────────────────────
+// Substitua a função buildReceiptPdfData pelo código abaixo.
+// Os demais trechos do arquivo permanecem inalterados.
+
 const buildReceiptPdfData = ({
   receiptData,
   receiptType,
@@ -89,6 +93,12 @@ const buildReceiptPdfData = ({
   competencia_decea: originalForm.competenciaDecea || null,
   numero_documento_infraero: originalForm.numeroDocumentoInfraero || null,
   competencia_infraero: originalForm.competenciaInfraero || null,
+  // ── Receiver fields (all populated now) ──
+  receiver_name: originalForm.recebedorNome || null,
+  receiver_document: originalForm.recebedorDocumento || null,
+  receiver_address: originalForm.recebedorEndereco || null,
+  receiver_city: originalForm.recebedorCidade || null,
+  receiver_uf: originalForm.recebedorUF || null,
   emissor: companySettings
     ? {
         razao_social: companySettings.razao_social,
@@ -151,7 +161,12 @@ export default function EmissaoRecibo() {
 
   const loadCompanySettings = async () => {
     try {
-      const { data } = await supabase.from("company_settings").select("*").limit(1).single();
+    const { data } = await supabase
+  .from("configuracao_empresa")
+  .select("*")
+  .order("criado_em", { ascending: false })
+  .limit(1)
+  .single();
       if (data) setCompanySettings(data);
     } catch (err) {
       console.error("Erro ao carregar dados da empresa:", err);
@@ -168,10 +183,10 @@ export default function EmissaoRecibo() {
       setFavoritePayers(
         (data || []).map((d) => ({
           id: d.id,
-          name: d.nome,
-          document: d.documento, 
-          address: d.endereco,
-          city: d.cidade,
+          name: d.name,
+          document: d.document,
+          address: d.address,
+          city: d.city,
           uf: d.uf,
         }))
       );
@@ -743,6 +758,7 @@ export default function EmissaoRecibo() {
                   favoritePayers={favoritePayers}
                   isGenerating={isGenerating}
                   onSubmit={handleGenerateReceipt}
+                  companySettings={companySettings}
                 />
               </div>
             </TabsContent>

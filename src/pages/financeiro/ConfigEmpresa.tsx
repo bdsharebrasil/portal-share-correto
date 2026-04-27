@@ -50,7 +50,6 @@ export default function ConfigEmpresa() {
   const [editLogoPreview, setEditLogoPreview] = useState<string>("");
   const [validationError, setValidationError] = useState<string>("");
 
-  // Carregar dados ao montar
   useEffect(() => {
     loadSettings();
   }, []);
@@ -59,9 +58,9 @@ export default function ConfigEmpresa() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from("company_settings")
+        .from("configuracao_empresa") // ✅ corrigido
         .select("*")
-        .order("criado_em", { ascending: false })
+        .order("created_at", { ascending: false }) // ✅ corrigido
         .limit(1);
 
       if (error) throw error;
@@ -107,10 +106,7 @@ export default function ConfigEmpresa() {
   };
 
   const handleEditInputChange = (field: keyof CompanySettings, value: string) => {
-    setEditData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setEditData((prev) => ({ ...prev, [field]: value }));
   };
 
   const validateEmail = (email: string): boolean => {
@@ -121,7 +117,6 @@ export default function ConfigEmpresa() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo
     if (!file.type.startsWith("image/")) {
       toast({
         title: "Arquivo inválido",
@@ -131,7 +126,6 @@ export default function ConfigEmpresa() {
       return;
     }
 
-    // Validar tamanho (5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Arquivo muito grande",
@@ -143,7 +137,6 @@ export default function ConfigEmpresa() {
 
     setSelectedLogoFile(file);
 
-    // Preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setEditLogoPreview(e.target?.result as string);
@@ -152,7 +145,6 @@ export default function ConfigEmpresa() {
   };
 
   const handleSave = async () => {
-    // Validações
     if (!editData.razao_social.trim()) {
       setValidationError("Razão Social é obrigatória");
       return;
@@ -172,11 +164,10 @@ export default function ConfigEmpresa() {
     setIsSaving(true);
 
     try {
-      let logoUrl = companyData.url_logo; // Manter logo anterior
+      let logoUrl = companyData.url_logo;
 
-      // Se há novo arquivo, fazer upload
       if (selectedLogoFile) {
-        const fileExt = selectedLogoFile.nome.split(".").pop()?.toLowerCase() || "png";
+        const fileExt = selectedLogoFile.name.split(".").pop()?.toLowerCase() || "png"; // ✅ .name
         const fileName = `logo-company-${Date.now()}.${fileExt}`;
         const filePath = `company-logos/${fileName}`;
 
@@ -184,7 +175,7 @@ export default function ConfigEmpresa() {
           .from("company-logos")
           .upload(filePath, selectedLogoFile, {
             upsert: false,
-            contentType: selectedLogoFile.tipo,
+            contentType: selectedLogoFile.type, // ✅ .type
           });
 
         if (uploadError) throw new Error(`Upload: ${uploadError.message}`);
@@ -193,9 +184,7 @@ export default function ConfigEmpresa() {
           .from("company-logos")
           .getPublicUrl(filePath);
 
-        if (!publicUrlData?.publicUrl) {
-          throw new Error("Erro ao gerar URL pública");
-        }
+        if (!publicUrlData?.publicUrl) throw new Error("Erro ao gerar URL pública");
 
         logoUrl = publicUrlData.publicUrl;
       }
@@ -215,13 +204,13 @@ export default function ConfigEmpresa() {
 
       if (companyData.id) {
         const { error } = await supabase
-          .from("company_settings")
+          .from("configuracao_empresa") // ✅ corrigido
           .update(payload)
           .eq("id", companyData.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
-          .from("company_settings")
+          .from("configuracao_empresa") // ✅ corrigido
           .insert(payload)
           .select("id")
           .single();
@@ -231,8 +220,8 @@ export default function ConfigEmpresa() {
         }
       }
 
-      setCompanyData(editData);
-      setLogoPreview(logoUrl);
+      setCompanyData({ ...editData, url_logo: logoUrl, logo_url: logoUrl });
+      setLogoPreview(logoUrl || "");
       setSelectedLogoFile(null);
       setIsEditModalOpen(false);
 
@@ -344,21 +333,13 @@ export default function ConfigEmpresa() {
                   <div className="flex flex-col md:flex-row gap-6 items-start">
                     <div className="w-32 h-32 border border-border rounded-lg overflow-hidden bg-muted flex items-center justify-center flex-shrink-0">
                       {logoPreview ? (
-                        <img
-                          src={logoPreview}
-                          alt="Logo"
-                          className="max-w-full max-h-full object-contain p-2"
-                        />
+                        <img src={logoPreview} alt="Logo" className="max-w-full max-h-full object-contain p-2" />
                       ) : (
                         <Building className="h-8 w-8 text-muted-foreground" />
                       )}
                     </div>
                     <div className="flex-1 text-sm text-muted-foreground">
-                      {logoPreview ? (
-                        <p>✅ Logo configurada</p>
-                      ) : (
-                        <p>Nenhuma logo configurada</p>
-                      )}
+                      {logoPreview ? <p>✅ Logo configurada</p> : <p>Nenhuma logo configurada</p>}
                     </div>
                   </div>
                 </div>
@@ -368,14 +349,11 @@ export default function ConfigEmpresa() {
         </Card>
       </div>
 
-      {/* Edit Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Configurações</DialogTitle>
-            <DialogDescription>
-              Modifique os dados da empresa
-            </DialogDescription>
+            <DialogDescription>Modifique os dados da empresa</DialogDescription>
           </DialogHeader>
 
           {validationError && (
@@ -389,68 +367,39 @@ export default function ConfigEmpresa() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Razão Social *</Label>
-                <Input
-                  value={editData.razao_social}
-                  onChange={(e) => handleEditInputChange("razao_social", e.target.value)}
-                />
+                <Input value={editData.razao_social} onChange={(e) => handleEditInputChange("razao_social", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Nome Fantasia</Label>
-                <Input
-                  value={editData.nome_fantasia}
-                  onChange={(e) => handleEditInputChange("nome_fantasia", e.target.value)}
-                />
+                <Input value={editData.nome_fantasia} onChange={(e) => handleEditInputChange("nome_fantasia", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>CNPJ</Label>
-                <Input
-                  value={editData.cnpj}
-                  onChange={(e) => handleEditInputChange("cnpj", e.target.value)}
-                />
+                <Input value={editData.cnpj} onChange={(e) => handleEditInputChange("cnpj", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
-                <Input
-                  value={editData.telefone}
-                  onChange={(e) => handleEditInputChange("telefone", e.target.value)}
-                />
+                <Input value={editData.telefone} onChange={(e) => handleEditInputChange("telefone", e.target.value)} />
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={editData.email}
-                  onChange={(e) => handleEditInputChange("email", e.target.value)}
-                />
+                <Input type="email" value={editData.email} onChange={(e) => handleEditInputChange("email", e.target.value)} />
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Endereço</Label>
-                <Input
-                  value={editData.endereco}
-                  onChange={(e) => handleEditInputChange("endereco", e.target.value)}
-                />
+                <Input value={editData.endereco} onChange={(e) => handleEditInputChange("endereco", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Cidade</Label>
-                <Input
-                  value={editData.cidade}
-                  onChange={(e) => handleEditInputChange("cidade", e.target.value)}
-                />
+                <Input value={editData.cidade} onChange={(e) => handleEditInputChange("cidade", e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Estado (UF)</Label>
-                <Input
-                  value={editData.estado}
-                  maxLength={2}
-                  onChange={(e) => handleEditInputChange("estado", e.target.value.toUpperCase())}
-                />
+                <Input value={editData.estado} maxLength={2} onChange={(e) => handleEditInputChange("estado", e.target.value.toUpperCase())} />
               </div>
               <div className="space-y-2">
                 <Label>CEP</Label>
-                <Input
-                  value={editData.cep}
-                  onChange={(e) => handleEditInputChange("cep", e.target.value)}
-                />
+                <Input value={editData.cep} onChange={(e) => handleEditInputChange("cep", e.target.value)} />
               </div>
             </div>
 
@@ -462,11 +411,7 @@ export default function ConfigEmpresa() {
               <div className="flex flex-col items-center gap-3">
                 <div className="w-24 h-24 border border-border rounded-lg overflow-hidden bg-muted flex items-center justify-center">
                   {editLogoPreview ? (
-                    <img
-                      src={editLogoPreview}
-                      alt="Logo preview"
-                      className="max-w-full max-h-full object-contain p-2"
-                    />
+                    <img src={editLogoPreview} alt="Logo preview" className="max-w-full max-h-full object-contain p-2" />
                   ) : (
                     <Building className="h-6 w-6 text-muted-foreground" />
                   )}
@@ -477,23 +422,13 @@ export default function ConfigEmpresa() {
                     <span className="text-sm">Escolher Logo</span>
                   </div>
                 </Label>
-                <input
-                  id="edit-logo-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleEditLogoUpload}
-                />
+                <input id="edit-logo-upload" type="file" accept="image/*" className="hidden" onChange={handleEditLogoUpload} />
               </div>
             </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
-              disabled={isSaving}
-            >
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSaving}>
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
