@@ -148,6 +148,36 @@ interface Cliente {
   documento: string;
 }
 
+// --- MAPEAMENTO DE STATUS ---
+
+/**
+ * Mapeia status da NF para o status aceito pela tabela movimentacoes.
+ * movimentacoes aceita: 'pendente' | 'pago' | 'parcial' | 'cancelado'
+ */
+const mapNFStatusToMov = (status: string): string => {
+  switch (status) {
+    case 'recebido': return 'pago';
+    case 'cancelado': return 'cancelado';
+    default: return 'pendente';
+  }
+};
+
+/**
+ * Mapeia status do recibo (conciliacoes_bancarias) para o status aceito pela tabela movimentacoes.
+ */
+const mapReciboStatusToMov = (status: string): string => {
+  switch (status) {
+    case 'pago':
+    case 'recebido':
+    case 'reembolsado':
+      return 'pago';
+    case 'cancelado':
+      return 'cancelado';
+    default:
+      return 'pendente';
+  }
+};
+
 // --- FUNÇÕES DE VALIDAÇÃO ---
 
 const validarNotaFiscal = (formData: any): string | null => {
@@ -164,7 +194,6 @@ const validarNotaFiscal = (formData: any): string | null => {
   if (!formData.data_vencimento || formData.data_vencimento.trim() === "") return "Data de vencimento é obrigatória";
   if (!formData.categoria || formData.categoria.trim() === "") return "Categoria é obrigatória";
 
-  // Validação de aeronave: se registro foi preenchido, ID deve estar presente
   if (formData.aeronave_registro && formData.aeronave_registro.trim() !== "" && (!formData.aeronave_id || formData.aeronave_id.trim() === "")) {
     return "Selecione uma aeronave válida ou limpe o campo de registro";
   }
@@ -212,8 +241,7 @@ export function NotasFiscaisSaida() {
 
   categoriasReceita = categoriasReceita.filter(cat => categoriasNFSaidaIds.includes(cat.id));
 
-  // Filter only receipt categories (must end with "- RECIBO")
-  const categoriasRecibo = categoriasReceita.filter(cat => 
+  const categoriasRecibo = categoriasReceita.filter(cat =>
     cat.nome && cat.nome.toUpperCase().endsWith("- RECIBO")
   );
 
@@ -257,7 +285,6 @@ export function NotasFiscaisSaida() {
   const [isGeneratingPdfEdit, setIsGeneratingPdfEdit] = useState(false);
   const [pendingReciboUpdate, setPendingReciboUpdate] = useState<any | null>(null);
 
-  // Estados para confirmação de recebimento de NF
   const [showRecebimentoDialog, setShowRecebimentoDialog] = useState(false);
   const [pendingNotaRecebimento, setPendingNotaRecebimento] = useState<{ notaId: string; numeroNota: string } | null>(null);
   const [recebimentoData, setRecebimentoData] = useState({
@@ -377,54 +404,39 @@ export function NotasFiscaisSaida() {
     }
   };
 
-
+  // ----------------------------------------------------------------
+  // NOTA FISCAL – Criar / Editar
+  // Também sincroniza com a tabela `movimentacoes`.
+  // ----------------------------------------------------------------
   const handleSave = async () => {
     const erroValidacao = validarNotaFiscal(formData);
     if (erroValidacao) {
-      toast({
-        title: "Validação",
-        description: erroValidacao,
-        variant: "destructive",
-      });
+      toast({ title: "Validação", description: erroValidacao, variant: "destructive" });
       return;
     }
 
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      if (!currentUser || !currentUser.id) {
-        console.error("Erro de autenticação:", { currentUser });
-        toast({
-          title: "Erro",
-          description: "Usuário não autenticado ou ID não disponível",
-          variant: "destructive",
-        });
+      if (!currentUser?.id) {
+        toast({ title: "Erro", description: "Usuário não autenticado ou ID não disponível", variant: "destructive" });
         return;
       }
 
-      // Validar se categoria está preenchida
       if (!formData.categoria || formData.categoria.trim() === "") {
-        toast({
-          title: "Erro",
-          description: "Por favor, selecione uma categoria",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "Por favor, selecione uma categoria", variant: "destructive" });
         return;
       }
 
-      // **BUSCAR O NOME DA CATEGORIA PRIMEIRO**
       const categoriaId = formData.categoria.trim();
-
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
       if (!uuidPattern.test(categoriaId)) {
-        toast({
-          title: "Erro",
-          description: "Categoria inválida. Por favor, selecione novamente.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "Categoria inválida. Por favor, selecione novamente.", variant: "destructive" });
         return;
       }
 
+      // Busca nome e grupo da categoria
       const { data: categoriaData, error: categoriaError } = await supabase
         .from("categorias_movimentacao")
         .select("nome, grupo_categoria")
@@ -432,34 +444,23 @@ export function NotasFiscaisSaida() {
         .single();
 
       if (categoriaError) {
-        toast({
-          title: "Erro",
-          description: `Erro ao buscar informações da categoria: ${categoriaError.message}`,
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: `Erro ao buscar informações da categoria: ${categoriaError.message}`, variant: "destructive" });
         return;
       }
 
       const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
+      const grupoCusto = categoriaData?.grupo_categoria || null;
 
       const clientId = formData.client_id?.trim() || null;
       const aircraftId = formData.aeronave_id?.trim() || null;
 
       if (clientId && !uuidPattern.test(clientId)) {
-        toast({
-          title: "Erro",
-          description: "ID do cliente inválido. Por favor, selecione um cliente válido.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "ID do cliente inválido. Por favor, selecione um cliente válido.", variant: "destructive" });
         return;
       }
 
       if (aircraftId && !uuidPattern.test(aircraftId)) {
-        toast({
-          title: "Erro",
-          description: "ID da aeronave inválido. Por favor, selecione uma aeronave válida.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "ID da aeronave inválido. Por favor, selecione uma aeronave válida.", variant: "destructive" });
         return;
       }
 
@@ -480,44 +481,74 @@ export function NotasFiscaisSaida() {
         criado_por: currentUser.id,
       };
 
+      // Payload para movimentacoes (receita)
+      const movimentacaoPayload: any = {
+        descricao: formData.descricao?.trim() || `NF ${formData.numero} - ${formData.cliente_nome}`,
+        tipo: 'receita',
+        categoria_id: categoriaId,
+        grupo_custo: grupoCusto,
+        valor: parseFloat(formData.valor),
+        data_competencia: formData.data_criacao,
+        data_vencimento: formData.data_vencimento || null,
+        aeronave_id: aircraftId,
+        clientes_id: clientId,
+        status: mapNFStatusToMov(formData.status),
+        numero_nf: formData.numero.trim(),
+        nf_url: pdfUrl || null,
+        fornecedor_nome: formData.cliente_nome.trim(),
+        criado_por: currentUser.id,
+      };
+
       if (editingNota) {
         const editingNotaId = String(editingNota.id).trim();
 
         if (!uuidPattern.test(editingNotaId)) {
-          toast({
-            title: "Erro",
-            description: "ID da nota inválido. Recarregue a página e tente novamente.",
-            variant: "destructive",
-          });
+          toast({ title: "Erro", description: "ID da nota inválido. Recarregue a página e tente novamente.", variant: "destructive" });
           return;
         }
 
-        const { error } = await supabase
+        // Atualiza nota fiscal
+        const { error: nfError } = await supabase
           .from("notas_fiscais_saida")
-          .update({
-            ...notaData,
-            atualizado_em: new Date().toISOString(),
-          })
+          .update({ ...notaData, atualizado_em: new Date().toISOString() })
           .eq("id", editingNotaId);
 
-        if (error) throw error;
+        if (nfError) throw nfError;
 
-        toast({
-          title: "Sucesso",
-          description: "Nota fiscal atualizada com sucesso",
-        });
+        // Atualiza movimentacao existente (localiza pelo numero_nf original da nota em edição)
+        const { error: movError } = await supabase
+          .from("movimentacoes")
+          .update({
+            ...movimentacaoPayload,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq("numero_nf", editingNota.numero)
+          .eq("tipo", "receita");
+
+        if (movError) {
+          console.warn("Aviso ao atualizar movimentacoes (NF):", movError.message);
+        }
+
+        toast({ title: "Sucesso", description: "Nota fiscal atualizada com sucesso" });
       } else {
-        const { error } = await supabase
+        // Cria nota fiscal
+        const { error: nfError } = await supabase
           .from("notas_fiscais_saida")
           .insert([notaData])
           .select();
 
-        if (error) throw error;
+        if (nfError) throw nfError;
 
-        toast({
-          title: "Sucesso",
-          description: "Nota fiscal criada com sucesso",
-        });
+        // Cria movimentacao correspondente
+        const { error: movError } = await supabase
+          .from("movimentacoes")
+          .insert(movimentacaoPayload);
+
+        if (movError) {
+          console.warn("Aviso ao inserir em movimentacoes (NF):", movError.message);
+        }
+
+        toast({ title: "Sucesso", description: "Nota fiscal criada com sucesso" });
       }
 
       setOpenDialog(false);
@@ -526,15 +557,14 @@ export function NotasFiscaisSaida() {
       loadRecibos();
     } catch (error: any) {
       console.error("Erro ao salvar nota:", error);
-      const errorMsg = error?.message || "Erro ao salvar nota fiscal";
-      toast({
-        title: "Erro",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error?.message || "Erro ao salvar nota fiscal", variant: "destructive" });
     }
   };
 
+  // ----------------------------------------------------------------
+  // NOTA FISCAL – Deletar
+  // Também remove da tabela `movimentacoes`.
+  // ----------------------------------------------------------------
   const handleDelete = async () => {
     if (!deleteId) return;
 
@@ -543,34 +573,39 @@ export function NotasFiscaisSaida() {
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
       if (!uuidPattern.test(deleteUuid)) {
-        toast({
-          title: "Erro",
-          description: "ID da nota inválido. Recarregue a página e tente novamente.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "ID da nota inválido. Recarregue a página e tente novamente.", variant: "destructive" });
         return;
       }
 
-      const { error } = await supabase
+      // Busca o número da NF antes de deletar para poder remover movimentacao
+      const notaParaDeletar = notas.find(n => n.id === deleteUuid);
+
+      const { error: nfError } = await supabase
         .from("notas_fiscais_saida")
         .delete()
         .eq("id", deleteUuid);
 
-      if (error) throw error;
-      toast({
-        title: "Sucesso",
-        description: "Nota fiscal deletada com sucesso",
-      });
+      if (nfError) throw nfError;
+
+      // Remove movimentacao correspondente pelo numero_nf
+      if (notaParaDeletar?.numero) {
+        const { error: movError } = await supabase
+          .from("movimentacoes")
+          .delete()
+          .eq("numero_nf", notaParaDeletar.numero)
+          .eq("tipo", "receita");
+
+        if (movError) {
+          console.warn("Aviso ao deletar movimentacoes (NF):", movError.message);
+        }
+      }
+
+      toast({ title: "Sucesso", description: "Nota fiscal deletada com sucesso" });
       setDeleteId(null);
       loadNotas();
     } catch (error: any) {
       console.error("Erro ao deletar nota:", error);
-      const errorMsg = error?.message || "Erro ao deletar nota fiscal";
-      toast({
-        title: "Erro",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error?.message || "Erro ao deletar nota fiscal", variant: "destructive" });
     }
   };
 
@@ -587,7 +622,7 @@ export function NotasFiscaisSaida() {
       categoria: nota.categoria,
       descricao: nota.descricao || "",
       status: nota.status,
-      aeronave_id: nota.aeronave_id || nota.aeronave_id || "",
+      aeronave_id: nota.aeronave_id || "",
       aeronave_registro: nota.aeronave || nota.aeronave_registro || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
@@ -599,47 +634,31 @@ export function NotasFiscaisSaida() {
     if (!file) return;
 
     if (file.type !== "application/pdf") {
-      toast({
-        title: "Erro",
-        description: "Por favor, selecione um arquivo PDF",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Por favor, selecione um arquivo PDF", variant: "destructive" });
       return;
     }
 
     setIsUploadingPDF(true);
     try {
       const fileName = `nf_${Date.now()}_${formData.numero || 'sem_numero'}.pdf`;
-      const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("nfs-share-saida")
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       if (uploadError) {
-        toast({
-          title: "Erro",
-          description: `Erro ao fazer upload: ${uploadError.message}`,
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: `Erro ao fazer upload: ${uploadError.message}`, variant: "destructive" });
         return;
       }
 
       const { data: publicUrlData } = supabase.storage
         .from("nfs-share-saida")
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       setPdfUrl(publicUrlData.publicUrl);
-      toast({
-        title: "Sucesso",
-        description: "Nota Fiscal enviada com sucesso!",
-      });
+      toast({ title: "Sucesso", description: "Nota Fiscal enviada com sucesso!" });
     } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao enviar arquivo",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error.message || "Erro ao enviar arquivo", variant: "destructive" });
     } finally {
       setIsUploadingPDF(false);
     }
@@ -664,35 +683,27 @@ export function NotasFiscaisSaida() {
     setPdfUrl("");
   };
 
+  // ----------------------------------------------------------------
+  // NOTA FISCAL – Alterar Status
+  // Também sincroniza status na tabela `movimentacoes`.
+  // ----------------------------------------------------------------
   const handleChangeStatus = async (notaId: string, newStatus: string) => {
     if (!notaId || typeof notaId !== 'string' || notaId.trim() === '') {
-      toast({
-        title: "Erro",
-        description: "ID de nota inválido",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "ID de nota inválido", variant: "destructive" });
       return;
     }
 
     const idLimpo = notaId.trim();
-
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (!uuidRegex.test(idLimpo)) {
-      toast({
-        title: "Erro",
-        description: `ID inválido: "${idLimpo}"`,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: `ID inválido: "${idLimpo}"`, variant: "destructive" });
       return;
     }
 
     const statusValidos = ["pendente", "recebido", "cancelado"];
     if (!statusValidos.includes(newStatus)) {
-      toast({
-        title: "Erro",
-        description: "Status inválido",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Status inválido", variant: "destructive" });
       return;
     }
 
@@ -711,16 +722,31 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      const { error } = await supabase
+      const nota = notas.find(n => n.id === idLimpo);
+
+      const { error: nfError } = await supabase
         .from("notas_fiscais_saida")
-        .update({
-          status: newStatus,
-          atualizado_em: new Date().toISOString(),
-        })
+        .update({ status: newStatus, atualizado_em: new Date().toISOString() })
         .eq("id", idLimpo)
         .select();
 
-      if (error) throw error;
+      if (nfError) throw nfError;
+
+      // Sincroniza status em movimentacoes
+      if (nota?.numero) {
+        const { error: movError } = await supabase
+          .from("movimentacoes")
+          .update({
+            status: mapNFStatusToMov(newStatus),
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq("numero_nf", nota.numero)
+          .eq("tipo", "receita");
+
+        if (movError) {
+          console.warn("Aviso ao atualizar status em movimentacoes (NF):", movError.message);
+        }
+      }
 
       toast({
         title: "Sucesso",
@@ -733,15 +759,14 @@ export function NotasFiscaisSaida() {
       if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
         errorMsg = "Erro no banco de dados: incompatibilidade de tipos.";
       }
-
-      toast({
-        title: "Erro",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: errorMsg, variant: "destructive" });
     }
   };
 
+  // ----------------------------------------------------------------
+  // RECIBO – Gerar
+  // Também cria registro na tabela `movimentacoes` (via conciliacao_id).
+  // ----------------------------------------------------------------
   const generateReciboNumber = async (clienteNome: string) => {
     const clienteLetras = clienteNome.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X');
     const ano = new Date().getFullYear().toString().slice(-2);
@@ -817,19 +842,29 @@ export function NotasFiscaisSaida() {
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
 
-      // make sure we always have a client id selected from the combobox
       const clientId = reciboData.cliente_id?.trim();
       if (!clientId) {
         throw new Error("Cliente é obrigatório. Por favor, selecione um cliente válido.");
       }
 
-      let aeronaveId = null;
-      const { data: aeroData } = await supabase.from('aeronave').select("id").eq('matricula', reciboData.aeronave_registro).single();
+      // Resolve aeronave_id a partir da matrícula
+      let aeronaveId: string | null = null;
+      const { data: aeroData } = await supabase
+        .from('aeronave')
+        .select("id")
+        .eq('matricula', reciboData.aeronave_registro)
+        .single();
       aeronaveId = aeroData?.id || null;
 
-      const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
+      // Busca grupo_categoria para movimentacoes
+      const { data: categoriaData } = await supabase
+        .from("categorias_movimentacao")
+        .select("grupo_categoria")
+        .eq("id", CATEGORIA_ID)
+        .single();
       const grupoCategoria = categoriaData?.grupo_categoria || null;
 
+      // --- controle_bancario ---
       const { error: controleBancarioError } = await supabase
         .from("controle_bancario")
         .insert({
@@ -854,8 +889,9 @@ export function NotasFiscaisSaida() {
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
-      // Insert into bank_reconciliations to populate the receipts history
-      const { error: bankReconciliationError } = await supabase
+      // --- conciliacoes_bancarias ---
+      // Precisamos do ID da conciliação para linkar com movimentacoes
+      const { data: conciliacaoInserida, error: bankReconciliationError } = await supabase
         .from("conciliacoes_bancarias")
         .insert({
           documento: numeroRecibo,
@@ -871,32 +907,69 @@ export function NotasFiscaisSaida() {
           nf_url: reciboUrl,
           prazo_pagamento: reciboData.data_vencimento,
           criado_por: currentUser.id,
-        });
+        })
+        .select()
+        .single();
 
       if (bankReconciliationError) {
-        console.warn("Aviso ao inserir em bank_reconciliations:", bankReconciliationError.message);
+        console.warn("Aviso ao inserir em conciliacoes_bancarias:", bankReconciliationError.message);
       }
 
+      // --- contas_areceber ---
       if (reciboData.aeronave_registro) {
-        const { error: contasAreceberError } = await supabase.from("contas_areceber").insert({
-          numero: numeroRecibo,
-          cliente_nome: reciboData.cliente_nome,
-          cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00",
-          data_criacao: new Date().toISOString().split("T")[0],
-          data_vencimento: reciboData.data_vencimento,
-          valor: parseFloat(reciboData.valor),
-          categoria: reciboData.categoriaRecibo || "Recibo de Serviço",
-          descricao: reciboData.descricao || "Recibo de Serviço",
-          status: "pendente",
-          aeronave: reciboData.aeronave_registro,
-          arquivo_pdf_url: reciboUrl,
-          criado_por: currentUser.id,
-          fornecedor_tipo: "cliente",
-        });
+        const { error: contasAreceberError } = await supabase
+          .from("contas_areceber")
+          .insert({
+            numero: numeroRecibo,
+            cliente_nome: reciboData.cliente_nome,
+            cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00",
+            data_criacao: new Date().toISOString().split("T")[0],
+            data_vencimento: reciboData.data_vencimento,
+            valor: parseFloat(reciboData.valor),
+            categoria: reciboData.categoriaRecibo || "Recibo de Serviço",
+            descricao: reciboData.descricao || "Recibo de Serviço",
+            status: "pendente",
+            aeronave: reciboData.aeronave_registro,
+            arquivo_pdf_url: reciboUrl,
+            criado_por: currentUser.id,
+            fornecedor_tipo: "cliente",
+          });
 
         if (contasAreceberError) {
           console.warn("Aviso ao inserir em contas_areceber:", contasAreceberError.message);
         }
+      }
+
+      // --- movimentacoes (receita) ---
+      // Usa conciliacao_id para criar vínculo único e evitar duplicatas
+      const movimentacaoPayload: any = {
+        descricao: reciboData.descricao?.trim() || `Recibo ${numeroRecibo} - ${reciboData.cliente_nome}`,
+        tipo: 'receita',
+        categoria_id: CATEGORIA_ID,
+        grupo_custo: grupoCategoria,
+        valor: parseFloat(reciboData.valor),
+        data_competencia: new Date().toISOString().split("T")[0],
+        data_vencimento: reciboData.data_vencimento || null,
+        aeronave_id: aeronaveId,
+        clientes_id: clientId,
+        status: 'pendente',
+        numero_recibo: numeroRecibo,
+        recibo_url: reciboUrl,
+        fornecedor_nome: reciboData.cliente_nome,
+        criado_por: currentUser.id,
+      };
+
+      // Se a conciliação foi criada com sucesso, vincula via conciliacao_id
+      if (conciliacaoInserida?.id) {
+        movimentacaoPayload.conciliacao_id = conciliacaoInserida.id;
+      }
+
+      const { error: movError } = await supabase
+        .from("movimentacoes")
+        .insert(movimentacaoPayload);
+
+      if (movError) {
+        console.warn("Aviso ao inserir em movimentacoes (recibo):", movError.message);
       }
 
       setReciboViewUrl(reciboUrl);
@@ -906,11 +979,9 @@ export function NotasFiscaisSaida() {
       setShowReciboDialog(false);
       resetReciboForm();
       loadRecibos();
-
     } catch (error: any) {
       console.error("Erro ao gerar recibo:", error);
       let message = error.message || "Erro ao gerar recibo";
-      // if the backend complained about contas_areceber constraint, we likely missed the cliente
       if (message.includes("contas_areceber_fornecedor_tipo_check")) {
         message = "Falha ao criar movimento bancário. Verifique se o cliente foi selecionado corretamente.";
       }
@@ -933,27 +1004,10 @@ export function NotasFiscaisSaida() {
     });
   };
 
-  const notasExibicao = notas.filter((n) => n.status !== "recebido");
-
-  const totalPendente = notas
-    .filter((n) => n.status === "pendente")
-    .reduce((acc, n) => acc + n.valor, 0);
-
-  const totalRecebido = notas
-    .filter((n) => n.status === "recebido")
-    .reduce((acc, n) => acc + n.valor, 0);
-
-  const formatDateSafe = (dateStr: string | null | undefined): string => {
-    if (!dateStr) return "-";
-    try {
-      const date = new Date(dateStr + "T12:00:00");
-      if (isNaN(date.getTime())) return "-";
-      return format(date, "dd/MM/yyyy", { locale: ptBR });
-    } catch (error) {
-      return "-";
-    }
-  };
-
+  // ----------------------------------------------------------------
+  // RECIBO – Editar (com ou sem re-geração de PDF)
+  // Também atualiza a tabela `movimentacoes` via conciliacao_id.
+  // ----------------------------------------------------------------
   const handleEditRecibo = (recibo: any) => {
     setEditingRecibo(recibo);
     setReciboEditData({
@@ -994,9 +1048,9 @@ export function NotasFiscaisSaida() {
           numero_recibo: editingRecibo.documento,
           cliente_nome: editingRecibo.clients?.razao_social || "Não informado",
           cliente_cnpj: editingRecibo.clients?.cnpj || "Não informado",
-          descricao: pendingReciboUpdate.descricao,
+          descricao: pendingReciboUpdate.description,
           aeronave_registro: editingRecibo.aeronave?.matricula || "",
-          valor: pendingReciboUpdate.valor,
+          valor: pendingReciboUpdate.amount,
         };
 
         const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
@@ -1005,10 +1059,7 @@ export function NotasFiscaisSaida() {
 
         const { error: uploadError } = await supabase.storage
           .from("nfs-share-saida")
-          .upload(pdfFileName, blob, {
-            contentType: "application/pdf",
-            upsert: true,
-          });
+          .upload(pdfFileName, blob, { contentType: "application/pdf", upsert: true });
 
         if (uploadError) throw uploadError;
 
@@ -1023,20 +1074,38 @@ export function NotasFiscaisSaida() {
         setIsGeneratingPdfEdit(false);
       }
 
-      const { error } = await supabase
+      // Atualiza conciliacoes_bancarias
+      const { error: conciliacaoError } = await supabase
         .from("conciliacoes_bancarias")
         .update({
-          valor: pendingReciboUpdate.valor,
-          descricao: pendingReciboUpdate.descricao,
+          valor: pendingReciboUpdate.amount,
+          descricao: pendingReciboUpdate.description,
           prazo_pagamento: pendingReciboUpdate.prazo_pagamento,
           status: pendingReciboUpdate.status,
-          categoria: pendingReciboUpdate.categoria,
+          categoria: pendingReciboUpdate.category,
           nf_url: nfUrl,
           atualizado_em: new Date().toISOString(),
         })
         .eq("id", String(pendingReciboUpdate.id).trim());
 
-      if (error) throw error;
+      if (conciliacaoError) throw conciliacaoError;
+
+      // Sincroniza movimentacoes via conciliacao_id
+      const { error: movError } = await supabase
+        .from("movimentacoes")
+        .update({
+          valor: pendingReciboUpdate.amount,
+          descricao: pendingReciboUpdate.description,
+          data_vencimento: pendingReciboUpdate.prazo_pagamento,
+          status: mapReciboStatusToMov(pendingReciboUpdate.status),
+          recibo_url: nfUrl,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("conciliacao_id", String(pendingReciboUpdate.id).trim());
+
+      if (movError) {
+        console.warn("Aviso ao atualizar movimentacoes (recibo edit):", movError.message);
+      }
 
       toast({
         title: "Sucesso",
@@ -1052,104 +1121,104 @@ export function NotasFiscaisSaida() {
       loadRecibos();
     } catch (error: any) {
       console.error("Erro ao atualizar recibo:", error);
-      toast({
-        title: "Erro",
-        description: error?.message || "Erro ao atualizar recibo",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error?.message || "Erro ao atualizar recibo", variant: "destructive" });
       setIsGeneratingPdfEdit(false);
     }
   };
 
+  // ----------------------------------------------------------------
+  // RECIBO – Deletar
+  // Também remove da tabela `movimentacoes` via conciliacao_id.
+  // ----------------------------------------------------------------
   const handleDeleteRecibo = async () => {
     if (!deleteReciboId) return;
 
     try {
-      const { error } = await supabase
+      const idLimpo = String(deleteReciboId).trim();
+
+      // Remove movimentacao vinculada via conciliacao_id antes de deletar a conciliacao
+      const { error: movError } = await supabase
+        .from("movimentacoes")
+        .delete()
+        .eq("conciliacao_id", idLimpo);
+
+      if (movError) {
+        console.warn("Aviso ao deletar movimentacoes (recibo):", movError.message);
+      }
+
+      const { error: conciliacaoError } = await supabase
         .from("conciliacoes_bancarias")
         .delete()
-        .eq("id", String(deleteReciboId).trim());
+        .eq("id", idLimpo);
 
-      if (error) throw error;
+      if (conciliacaoError) throw conciliacaoError;
 
-      toast({
-        title: "Sucesso",
-        description: "Recibo deletado com sucesso",
-      });
-
+      toast({ title: "Sucesso", description: "Recibo deletado com sucesso" });
       setDeleteReciboId(null);
       loadRecibos();
     } catch (error: any) {
       console.error("Erro ao deletar recibo:", error);
-      toast({
-        title: "Erro",
-        description: error?.message || "Erro ao deletar recibo",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error?.message || "Erro ao deletar recibo", variant: "destructive" });
     }
   };
 
+  // ----------------------------------------------------------------
+  // RECIBO – Alterar Status via dropdown na tabela
+  // Também sincroniza status na tabela `movimentacoes` via conciliacao_id.
+  // ----------------------------------------------------------------
   const handleUpdateReciboStatus = async (reciboId: string, newStatus: string) => {
     if (!reciboId || typeof reciboId !== 'string' || reciboId.trim() === '') {
-      toast({
-        title: "Erro",
-        description: "ID de recibo inválido",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "ID de recibo inválido", variant: "destructive" });
       return;
     }
 
     const idLimpo = reciboId.trim();
-
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (!uuidRegex.test(idLimpo)) {
-      toast({
-        title: "Erro",
-        description: `ID inválido: "${idLimpo}". Esperado um UUID válido.`,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: `ID inválido: "${idLimpo}". Esperado um UUID válido.`, variant: "destructive" });
       return;
     }
 
     const statusValidos = ["enviado", "pendente", "recebido", "aprovado", "pago", "cancelado", "reembolsado"];
     if (!statusValidos.includes(newStatus)) {
-      toast({
-        title: "Erro",
-        description: `Status inválido: "${newStatus}".`,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: `Status inválido: "${newStatus}".`, variant: "destructive" });
       return;
     }
 
     try {
+      // Atualiza conciliacoes_bancarias
       const { error: updateError } = await supabase
         .from("conciliacoes_bancarias")
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq("id", idLimpo);
 
-      if (updateError) {
-        throw updateError;
+      if (updateError) throw updateError;
+
+      // Sincroniza movimentacoes via conciliacao_id
+      const { error: movError } = await supabase
+        .from("movimentacoes")
+        .update({
+          status: mapReciboStatusToMov(newStatus),
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("conciliacao_id", idLimpo);
+
+      if (movError) {
+        console.warn("Aviso ao atualizar status em movimentacoes (recibo):", movError.message);
       }
 
-      toast({
-        title: "Sucesso",
-        description: `Status atualizado com sucesso`,
-      });
-
+      toast({ title: "Sucesso", description: "Status atualizado com sucesso" });
       loadRecibos();
     } catch (error: any) {
-      let errorMsg = error?.message || "Erro ao atualizar status";
-      toast({
-        title: "Erro",
-        description: errorMsg,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error?.message || "Erro ao atualizar status", variant: "destructive" });
     }
   };
 
+  // ----------------------------------------------------------------
+  // NOTA FISCAL – Confirmar Recebimento
+  // Atualiza NF + movimentacoes para 'pago'.
+  // ----------------------------------------------------------------
   const handleComprovanteUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -1157,7 +1226,8 @@ export function NotasFiscaisSaida() {
     try {
       setIsUploadingComprovante(true);
 
-      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${file.name.substring(file.name.lastIndexOf("."))}`;
+      const ext = file.name.substring(file.name.lastIndexOf("."));
+      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("nfs-share-saida")
@@ -1169,22 +1239,11 @@ export function NotasFiscaisSaida() {
         .from("nfs-share-saida")
         .getPublicUrl(fileName);
 
-      setRecebimentoData({
-        ...recebimentoData,
-        comprovante_url: urlData.publicUrl,
-      });
-
-      toast({
-        title: "Sucesso",
-        description: "Comprovante anexado com sucesso",
-      });
+      setRecebimentoData({ ...recebimentoData, comprovante_url: urlData.publicUrl });
+      toast({ title: "Sucesso", description: "Comprovante anexado com sucesso" });
     } catch (error: any) {
       console.error("Erro ao upload do comprovante:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao anexar comprovante",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Erro ao anexar comprovante", variant: "destructive" });
     } finally {
       setIsUploadingComprovante(false);
     }
@@ -1194,56 +1253,77 @@ export function NotasFiscaisSaida() {
     if (!pendingNotaRecebimento) return;
 
     if (!recebimentoData.banco.trim()) {
-      toast({
-        title: "Erro",
-        description: "Banco é obrigatório",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Banco é obrigatório", variant: "destructive" });
       return;
     }
 
     if (!recebimentoData.data_recebimento) {
-      toast({
-        title: "Erro",
-        description: "Data de recebimento é obrigatória",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Data de recebimento é obrigatória", variant: "destructive" });
       return;
     }
 
     try {
-      const { error } = await supabase
+      // Atualiza nota fiscal para 'recebido'
+      const { error: nfError } = await supabase
         .from("notas_fiscais_saida")
-        .update({
-          status: "recebido",
-          atualizado_em: new Date().toISOString(),
-        })
+        .update({ status: "recebido", atualizado_em: new Date().toISOString() })
         .eq("id", pendingNotaRecebimento.notaId);
 
-      if (error) {
-        throw error;
+      if (nfError) throw nfError;
+
+      // Sincroniza movimentacoes: status → 'pago', data_pagamento e comprovante
+      const { error: movError } = await supabase
+        .from("movimentacoes")
+        .update({
+          status: 'pago',
+          data_pagamento: recebimentoData.data_recebimento,
+          banco_nome: recebimentoData.banco,
+          comprovante_url: recebimentoData.comprovante_url || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("numero_nf", pendingNotaRecebimento.numeroNota)
+        .eq("tipo", "receita");
+
+      if (movError) {
+        console.warn("Aviso ao atualizar movimentacoes no recebimento NF:", movError.message);
       }
 
-      toast({
-        title: "Sucesso",
-        description: "Nota Fiscal marcada como recebida com sucesso",
-      });
-
+      toast({ title: "Sucesso", description: "Nota Fiscal marcada como recebida com sucesso" });
       setShowRecebimentoDialog(false);
       setPendingNotaRecebimento(null);
       loadNotas();
     } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error?.message || "Erro ao confirmar recebimento",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error?.message || "Erro ao confirmar recebimento", variant: "destructive" });
     }
   };
 
+  // --- Computed values ---
+  const notasExibicao = notas.filter((n) => n.status !== "recebido");
+
+  const totalPendente = notas
+    .filter((n) => n.status === "pendente")
+    .reduce((acc, n) => acc + n.valor, 0);
+
+  const totalRecebido = notas
+    .filter((n) => n.status === "recebido")
+    .reduce((acc, n) => acc + n.valor, 0);
+
+  const formatDateSafe = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr + "T12:00:00");
+      if (isNaN(date.getTime())) return "-";
+      return format(date, "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return "-";
+    }
+  };
+
+  // ----------------------------------------------------------------
+  // RENDER
+  // ----------------------------------------------------------------
   return (
     <div className="space-y-6">
-      {/* Tabs */}
       <Tabs defaultValue="notas-fiscais" className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-2 bg-background/30 backdrop-blur-sm border-2 border-border/30 p-2 rounded-xl gap-2">
           <TabsTrigger
@@ -1260,7 +1340,9 @@ export function NotasFiscaisSaida() {
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: Notas Fiscais de Saída */}
+        {/* ============================
+            TAB 1: Notas Fiscais de Saída
+            ============================ */}
         <TabsContent value="notas-fiscais" className="space-y-6 mt-6">
           {/* Cards de Resumo */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1311,7 +1393,7 @@ export function NotasFiscaisSaida() {
             </Card>
           </div>
 
-          {/* Formulário para Nova/Editar Nota - Renderizado Inline */}
+          {/* Formulário Nova/Editar Nota – Inline */}
           {openDialog && (
             <Card className="bg-gradient-to-br from-blue-600/10 to-card border-blue-500/30 shadow-lg mb-6">
               <CardHeader className="border-b border-border/40 pb-4">
@@ -1405,19 +1487,15 @@ export function NotasFiscaisSaida() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-foreground">Aeronave </Label>
+                      <Label className="text-foreground">Aeronave</Label>
                       <SearchableCombobox
-                        items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({ 
-                          id: a.id, 
-                          label: a.matricula 
+                        items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({
+                          id: a.id,
+                          label: a.matricula
                         }))}
                         value={formData.aeronave_id}
                         onChange={(id, label) => {
-                          setFormData({
-                            ...formData,
-                            aeronave_id: id,
-                            aeronave_registro: label
-                          });
+                          setFormData({ ...formData, aeronave_id: id, aeronave_registro: label });
                         }}
                         icon={<Plane className="h-4 w-4" />}
                         placeholder="Selecione a aeronave..."
@@ -1430,13 +1508,7 @@ export function NotasFiscaisSaida() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setFormData({
-                              ...formData,
-                              aeronave_id: "",
-                              aeronave_registro: ""
-                            });
-                          }}
+                          onClick={() => setFormData({ ...formData, aeronave_id: "", aeronave_registro: "" })}
                           className="w-full h-10"
                         >
                           <X className="w-4 h-4 mr-2" />
@@ -1598,18 +1670,24 @@ export function NotasFiscaisSaida() {
           {/* Botões de Ação */}
           {!openDialog && !showReciboDialog && (
             <div className="flex gap-3 mb-6">
-              <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 flex items-center gap-2 font-medium" onClick={() => setOpenDialog(true)}>
+              <Button
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 flex items-center gap-2 font-medium"
+                onClick={() => setOpenDialog(true)}
+              >
                 <Plus className="w-4 h-4" />
                 Nova Nota Fiscal de Saída
               </Button>
-              <Button className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-500/30 flex items-center gap-2 font-medium" onClick={() => setShowReciboDialog(true)}>
+              <Button
+                className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-500/30 flex items-center gap-2 font-medium"
+                onClick={() => setShowReciboDialog(true)}
+              >
                 <Plus className="w-4 h-4" />
                 Novo Recibo Saída
               </Button>
             </div>
           )}
 
-          {/* Formulário para Novo Recibo - Renderizado Inline */}
+          {/* Formulário Novo Recibo – Inline */}
           {showReciboDialog && (
             <Card className="bg-gradient-to-br from-emerald-600/10 to-card border-emerald-500/30 shadow-lg mb-6">
               <CardHeader className="border-b border-border/40 pb-4">
@@ -1617,19 +1695,7 @@ export function NotasFiscaisSaida() {
                   <CardTitle className="text-foreground">Novo Recibo Saída</CardTitle>
                   <Button
                     variant="ghost"
-                    onClick={() => {
-                      setShowReciboDialog(false);
-                      setReciboData({
-                        cliente_id: "",
-                        cliente_nome: "",
-                        cliente_cnpj: "",
-                        aeronave_registro: "",
-                        valor: "",
-                        data_vencimento: new Date().toISOString().split("T")[0],
-                        descricao: "",
-                        categoriaRecibo: "",
-                      });
-                    }}
+                    onClick={() => { setShowReciboDialog(false); resetReciboForm(); }}
                     className="text-muted-foreground hover:text-foreground"
                   >
                     ✕
@@ -1659,20 +1725,16 @@ export function NotasFiscaisSaida() {
                         emptyMessage="Nenhum cliente encontrado."
                       />
                     </div>
-
                     <div>
                       <Label className="text-foreground font-medium mb-2 block">Aeronave * (Obrigatório)</Label>
                       <SearchableCombobox
-                        items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({ 
-                          id: a.matricula, 
-                          label: a.matricula 
+                        items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({
+                          id: a.matricula,
+                          label: a.matricula
                         }))}
                         value={reciboData.aeronave_registro}
                         onChange={(val, label) => {
-                          setReciboData({
-                            ...reciboData,
-                            aeronave_registro: label
-                          });
+                          setReciboData({ ...reciboData, aeronave_registro: label });
                         }}
                         icon={<Plane className="h-4 w-4" />}
                         placeholder="Selecione a aeronave..."
@@ -1694,11 +1756,10 @@ export function NotasFiscaisSaida() {
                         className="bg-background border-border"
                       />
                     </div>
-
                     <div>
                       <Label className="text-foreground font-medium mb-2 block">Data de Vencimento *</Label>
                       <Input
-                        type="data"
+                        type="date"
                         value={reciboData.data_vencimento}
                         onChange={(e) => setReciboData({ ...reciboData, data_vencimento: e.target.value })}
                         className="bg-background border-border"
@@ -1745,19 +1806,7 @@ export function NotasFiscaisSaida() {
                   <div className="flex gap-2 justify-end mt-6">
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        setShowReciboDialog(false);
-                        setReciboData({
-                          cliente_id: "",
-                          cliente_nome: "",
-                          cliente_cnpj: "",
-                          aeronave_registro: "",
-                          valor: "",
-                          data_vencimento: new Date().toISOString().split("T")[0],
-                          descricao: "",
-                          categoriaRecibo: "",
-                        });
-                      }}
+                      onClick={() => { setShowReciboDialog(false); resetReciboForm(); }}
                     >
                       Cancelar
                     </Button>
@@ -1822,22 +1871,14 @@ export function NotasFiscaisSaida() {
                         <TableRow key={nota.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                           <TableCell className="font-medium text-foreground px-4 py-4 text-sm">{nota.numero}</TableCell>
                           <TableCell className="text-foreground px-4 py-4 text-sm">{nota.cliente_nome}</TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">
-                            {nota.aeronave || "—"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">
-                            {formatDateSafe(nota.data_criacao)}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">
-                            {formatDateSafe(nota.data_vencimento)}
-                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">{nota.aeronave || "—"}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">{formatDateSafe(nota.data_criacao)}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">{formatDateSafe(nota.data_vencimento)}</TableCell>
                           <TableCell className="text-foreground font-semibold px-4 py-4 text-right text-sm">
                             R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-4 text-sm">{nota.categoria}</TableCell>
-                          <TableCell className="px-4 py-4 text-sm">
-                            {getStatusBadge(nota.status)}
-                          </TableCell>
+                          <TableCell className="px-4 py-4 text-sm">{getStatusBadge(nota.status)}</TableCell>
                           <TableCell className="px-4 py-4 text-center">
                             {nota.arquivo_pdf_url ? (
                               <a
@@ -1884,7 +1925,7 @@ export function NotasFiscaisSaida() {
             </CardContent>
           </Card>
 
-          {/* Dialog de Confirmação de Exclusão */}
+          {/* Dialog Confirmação Exclusão NF */}
           <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
             <DialogContent className="bg-card border-border">
               <DialogHeader>
@@ -1892,17 +1933,13 @@ export function NotasFiscaisSaida() {
               </DialogHeader>
               <p className="text-muted-foreground">Tem certeza que deseja excluir esta nota fiscal?</p>
               <div className="flex gap-2 justify-end mt-4">
-                <Button variant="outline" onClick={() => setDeleteId(null)}>
-                  Cancelar
-                </Button>
-                <Button variant="destructive" onClick={handleDelete}>
-                  Excluir
-                </Button>
+                <Button variant="outline" onClick={() => setDeleteId(null)}>Cancelar</Button>
+                <Button variant="destructive" onClick={handleDelete}>Excluir</Button>
               </div>
             </DialogContent>
           </Dialog>
 
-          {/* Dialog para Visualizar Recibo */}
+          {/* Dialog Visualizar Recibo */}
           <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
             <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
@@ -1919,12 +1956,7 @@ export function NotasFiscaisSaida() {
                     />
                   </div>
                   <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowReciboViewer(false)}
-                    >
-                      Fechar
-                    </Button>
+                    <Button variant="outline" onClick={() => setShowReciboViewer(false)}>Fechar</Button>
                     <Button
                       className="bg-primary hover:bg-primary/90"
                       onClick={() => {
@@ -1945,9 +1977,10 @@ export function NotasFiscaisSaida() {
           </Dialog>
         </TabsContent>
 
-        {/* TAB 2: Histórico de Recibos de Saída */}
+        {/* ============================
+            TAB 2: Histórico de Recibos
+            ============================ */}
         <TabsContent value="recibos-saida" className="space-y-6 mt-6">
-          {/* Tabela de Recibos de Saída */}
           <Card className="bg-gradient-to-br from-card/80 to-card/40 border-border/60 shadow-lg">
             <CardHeader className="border-b border-border/40 pb-4">
               <CardTitle className="text-lg font-semibold text-foreground">Histórico de Recibos de Saída</CardTitle>
@@ -1985,15 +2018,9 @@ export function NotasFiscaisSaida() {
                         <TableRow key={recibo.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
                           <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.documento}</TableCell>
                           <TableCell className="text-foreground px-4 py-3">{recibo.clients?.razao_social || "-"}</TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {recibo.aeronave?.matricula || "-"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {formatDateSafe(recibo.data)}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {formatDateSafe(recibo.prazo_pagamento)}
-                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.aeronave?.matricula || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{formatDateSafe(recibo.data)}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{formatDateSafe(recibo.prazo_pagamento)}</TableCell>
                           <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
                             R$ {parseFloat(recibo.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
@@ -2003,11 +2030,12 @@ export function NotasFiscaisSaida() {
                               value={recibo.status || "enviado"}
                               onValueChange={(newStatus) => handleUpdateReciboStatus(recibo.id, newStatus)}
                             >
-                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
-                                  recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
-                                  recibo.status === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
-                                    "bg-gray-500/10 text-gray-600 border-gray-500/30"
-                                }`}>
+                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${
+                                recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
+                                recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
+                                recibo.status === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
+                                "bg-gray-500/10 text-gray-600 border-gray-500/30"
+                              }`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="bg-card border-border">
@@ -2069,7 +2097,7 @@ export function NotasFiscaisSaida() {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog de Edição de Recibo */}
+      {/* Dialog Edição de Recibo */}
       <Dialog open={showReciboEditDialog} onOpenChange={setShowReciboEditDialog}>
         <DialogContent className="bg-card border-border max-w-2xl">
           <DialogHeader>
@@ -2077,7 +2105,6 @@ export function NotasFiscaisSaida() {
           </DialogHeader>
           {editingRecibo && (
             <div className="space-y-4">
-              {/* Informações de Cliente e Aeronave (somente leitura) */}
               <div className="bg-muted/30 rounded-lg p-4 border border-border/40">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
@@ -2105,13 +2132,14 @@ export function NotasFiscaisSaida() {
                 <div>
                   <Label className="text-foreground mb-2 block">Data de Vencimento</Label>
                   <Input
-                    type="data"
+                    type="date"
                     value={reciboEditData.max_payment_date}
                     onChange={(e) => setReciboEditData({ ...reciboEditData, max_payment_date: e.target.value })}
                     className="bg-background border-border"
                   />
                 </div>
               </div>
+
               <div>
                 <Label className="text-foreground mb-2 block">Descrição do Serviço *</Label>
                 <Textarea
@@ -2121,6 +2149,7 @@ export function NotasFiscaisSaida() {
                   rows={3}
                 />
               </div>
+
               <div>
                 <Label className="text-foreground mb-2 block">Categoria</Label>
                 <Input
@@ -2130,6 +2159,7 @@ export function NotasFiscaisSaida() {
                   className="bg-background border-border"
                 />
               </div>
+
               <div>
                 <Label className="text-foreground mb-2 block">Status</Label>
                 <Select value={reciboEditData.status} onValueChange={(value) => setReciboEditData({ ...reciboEditData, status: value })}>
@@ -2147,26 +2177,17 @@ export function NotasFiscaisSaida() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="flex gap-2 justify-end mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowReciboEditDialog(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={handleSaveReciboEdit}
-                >
-                  Salvar
-                </Button>
+                <Button variant="outline" onClick={() => setShowReciboEditDialog(false)}>Cancelar</Button>
+                <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleSaveReciboEdit}>Salvar</Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmação de Exclusão de Recibo */}
+      {/* Dialog Confirmação Exclusão Recibo */}
       <Dialog open={!!deleteReciboId} onOpenChange={() => setDeleteReciboId(null)}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -2174,17 +2195,13 @@ export function NotasFiscaisSaida() {
           </DialogHeader>
           <p className="text-muted-foreground">Tem certeza que deseja excluir este recibo?</p>
           <div className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" onClick={() => setDeleteReciboId(null)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteRecibo}>
-              Excluir
-            </Button>
+            <Button variant="outline" onClick={() => setDeleteReciboId(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteRecibo}>Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmação de Geração de PDF */}
+      {/* Dialog Confirmação Geração de PDF */}
       <Dialog open={showPdfConfirmDialog} onOpenChange={setShowPdfConfirmDialog}>
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
@@ -2194,11 +2211,7 @@ export function NotasFiscaisSaida() {
             Deseja gerar um novo PDF do recibo com as informações atualizadas? O PDF anterior será substituído.
           </p>
           <div className="flex gap-2 justify-end mt-6">
-            <Button
-              variant="outline"
-              onClick={() => handleGenerateNewPdf(false)}
-              disabled={isGeneratingPdfEdit}
-            >
+            <Button variant="outline" onClick={() => handleGenerateNewPdf(false)} disabled={isGeneratingPdfEdit}>
               Não
             </Button>
             <Button
@@ -2219,7 +2232,7 @@ export function NotasFiscaisSaida() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmação de Recebimento de NF */}
+      {/* Dialog Confirmação de Recebimento de NF */}
       <Dialog open={showRecebimentoDialog} onOpenChange={setShowRecebimentoDialog}>
         <DialogContent className="bg-card border-border max-w-2xl">
           <DialogHeader>
@@ -2245,7 +2258,7 @@ export function NotasFiscaisSaida() {
               <div>
                 <Label className="text-foreground mb-2 block">Data de Recebimento *</Label>
                 <Input
-                  type="data"
+                  type="date"
                   value={recebimentoData.data_recebimento}
                   onChange={(e) => setRecebimentoData({ ...recebimentoData, data_recebimento: e.target.value })}
                   className="bg-background border-border"
@@ -2301,17 +2314,11 @@ export function NotasFiscaisSaida() {
               <div className="flex gap-2 justify-end mt-6">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowRecebimentoDialog(false);
-                    setPendingNotaRecebimento(null);
-                  }}
+                  onClick={() => { setShowRecebimentoDialog(false); setPendingNotaRecebimento(null); }}
                 >
                   Cancelar
                 </Button>
-                <Button
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={handleConfirmRecebimento}
-                >
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleConfirmRecebimento}>
                   Confirmar Recebimento
                 </Button>
               </div>
