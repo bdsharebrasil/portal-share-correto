@@ -107,9 +107,10 @@ const ReciboDocument = ({ data }: { data: any }) => (
           Este documento serve como comprovante de prestação de serviço e só terá validade após quitação do valor acima discriminado.
         </Text>
         <View style={styles.signatureArea}>
-          <Text style={{ marginBottom: 40 }}>
+          <Text style={{ marginBottom: 20 }}>
             {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </Text>
+          <Image src="/assinatura-para-recibo.png" style={{ width: 120, height: 60, objectFit: 'contain', marginBottom: 10 }} />
           <View style={styles.line} />
           <Text style={styles.signatureName}>SHARE BRASIL</Text>
           <Image src={logoUrl} style={styles.logoSignature} />
@@ -126,7 +127,7 @@ interface NotaFiscalSaida {
   numero: string;
   cliente_nome: string;
   cliente_cnpj: string;
-  client_id: string | null;
+  cliente_id: string | null; // ✅ corrigido de client_id
   data_criacao: string;
   data_vencimento: string;
   valor: number;
@@ -183,7 +184,7 @@ const mapReciboStatusToMov = (status: string): string => {
 const validarNotaFiscal = (formData: any): string | null => {
   if (!formData.numero || formData.numero.trim() === "") return "Número da nota fiscal é obrigatório";
   if (!formData.cliente_nome || formData.cliente_nome.trim() === "") return "Cliente/Empresa é obrigatório";
-  if (!formData.cliente_id || formData.cliente_id.trim() === "") return "Selecione um cliente válido";
+  if (!formData.cliente_id || formData.cliente_id.trim() === "") return "Selecione um cliente válido"; // ✅ corrigido de client_id
   if (!formData.cliente_cnpj || formData.cliente_cnpj.trim() === "") return "CNPJ/CPF do cliente é obrigatório";
   if (!formData.valor || formData.valor.trim() === "") return "Valor é obrigatório";
 
@@ -299,11 +300,12 @@ export function NotasFiscaisSaida() {
 
   const defaultCategoria = categoriasReceita.length > 0 ? categoriasReceita[0].id : "";
 
+  // ✅ cliente_id corrigido (era client_id)
   const [formData, setFormData] = useState({
     numero: "",
     cliente_nome: "",
     cliente_cnpj: "",
-    client_id: "",
+    cliente_id: "",
     data_criacao: new Date().toISOString().split("T")[0],
     data_vencimento: "",
     valor: "",
@@ -380,14 +382,13 @@ export function NotasFiscaisSaida() {
       setIsLoadingRecibos(true);
 
       const { data, error } = await supabase
-        .from("conciliacoes_bancarias")
+        .from("movimentacoes")
         .select(`
           *,
           clientes:clientes_id (id, razao_social, cnpj),
           aircraft:aeronave_id (id, matricula)
         `)
-        .eq("tipo", "cliente")
-        .eq("tipo_referencia", "contas_areceber")
+        .not("numero_recibo", "is", null)
         .order("criado_em", { ascending: false });
 
       if (error) throw error;
@@ -406,7 +407,7 @@ export function NotasFiscaisSaida() {
 
   // ----------------------------------------------------------------
   // NOTA FISCAL – Criar / Editar
-  // Também sincroniza com a tabela `movimentacoes`.
+  // Sincroniza com a tabela `movimentacoes`.
   // ----------------------------------------------------------------
   const handleSave = async () => {
     const erroValidacao = validarNotaFiscal(formData);
@@ -449,12 +450,17 @@ export function NotasFiscaisSaida() {
       }
 
       const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
-      const grupoCusto = categoriaData?.grupo_categoria || null;
+      // ✅ Validar grupo_custo: deve ser um dos valores permitidos
+      const grupoCategoria = categoriaData?.grupo_categoria;
+      const grupoCusto = ['FIXO', 'VARIAVEL', 'EXTRA'].includes(grupoCategoria) 
+        ? grupoCategoria 
+        : 'VARIAVEL';
 
-      const clientId = formData.client_id?.trim() || null;
+      // ✅ corrigido de client_id para cliente_id
+      const clienteId = formData.cliente_id?.trim() || null;
       const aircraftId = formData.aeronave_id?.trim() || null;
 
-      if (clientId && !uuidPattern.test(clientId)) {
+      if (clienteId && !uuidPattern.test(clienteId)) {
         toast({ title: "Erro", description: "ID do cliente inválido. Por favor, selecione um cliente válido.", variant: "destructive" });
         return;
       }
@@ -464,11 +470,12 @@ export function NotasFiscaisSaida() {
         return;
       }
 
+      // ✅ Payload da NF — coluna cliente_id (corrigido de client_id)
       const notaData: any = {
         numero: formData.numero.trim(),
         cliente_nome: formData.cliente_nome.trim(),
         cliente_cnpj: formData.cliente_cnpj.trim(),
-        client_id: clientId,
+        cliente_id: clienteId, // ✅ corrigido de client_id
         data_criacao: formData.data_criacao,
         data_vencimento: formData.data_vencimento,
         valor: parseFloat(formData.valor),
@@ -481,7 +488,7 @@ export function NotasFiscaisSaida() {
         criado_por: currentUser.id,
       };
 
-      // Payload para movimentacoes (receita)
+      // ✅ Payload para movimentacoes — clientes_id (nome correto do schema)
       const movimentacaoPayload: any = {
         descricao: formData.descricao?.trim() || `NF ${formData.numero} - ${formData.cliente_nome}`,
         tipo: 'receita',
@@ -491,7 +498,7 @@ export function NotasFiscaisSaida() {
         data_competencia: formData.data_criacao,
         data_vencimento: formData.data_vencimento || null,
         aeronave_id: aircraftId,
-        clientes_id: clientId,
+        clientes_id: clienteId, // ✅ nome correto do schema
         status: mapNFStatusToMov(formData.status),
         numero_nf: formData.numero.trim(),
         nf_url: pdfUrl || null,
@@ -515,7 +522,7 @@ export function NotasFiscaisSaida() {
 
         if (nfError) throw nfError;
 
-        // Atualiza movimentacao existente (localiza pelo numero_nf original da nota em edição)
+        // Atualiza movimentacao existente pelo numero_nf original
         const { error: movError } = await supabase
           .from("movimentacoes")
           .update({
@@ -615,7 +622,7 @@ export function NotasFiscaisSaida() {
       numero: nota.numero,
       cliente_nome: nota.cliente_nome,
       cliente_cnpj: nota.cliente_cnpj,
-      client_id: nota.client_id || "",
+      cliente_id: nota.cliente_id || "", // ✅ corrigido de client_id
       data_criacao: nota.data_criacao,
       data_vencimento: nota.data_vencimento,
       valor: nota.valor.toString(),
@@ -669,7 +676,7 @@ export function NotasFiscaisSaida() {
       numero: "",
       cliente_nome: "",
       cliente_cnpj: "",
-      client_id: "",
+      cliente_id: "", // ✅ corrigido de client_id
       data_criacao: new Date().toISOString().split("T")[0],
       data_vencimento: "",
       valor: "",
@@ -765,23 +772,24 @@ export function NotasFiscaisSaida() {
 
   // ----------------------------------------------------------------
   // RECIBO – Gerar
-  // Também cria registro na tabela `movimentacoes` (via conciliacao_id).
+  // ✅ Grava APENAS em: movimentacoes
+  // Removidas: conciliacoes_bancarias, controle_bancario e contas_areceber (tabelas redundantes)
   // ----------------------------------------------------------------
   const generateReciboNumber = async (clienteNome: string) => {
     const clienteLetras = clienteNome.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X');
     const ano = new Date().getFullYear().toString().slice(-2);
 
     const { data: existingRecibos } = await supabase
-      .from("controle_bancario")
-      .select("numero_documento")
-      .like("numero_documento", `REC-${clienteLetras}%/${ano}`)
-      .eq("tipo_movimento", "entrada")
-      .order("numero_documento", { ascending: false });
+      .from("movimentacoes")
+      .select("numero_recibo")
+      .like("numero_recibo", `REC-${clienteLetras}%/${ano}`)
+      .not("numero_recibo", "is", null)
+      .order("numero_recibo", { ascending: false });
 
     let numero = 1;
     if (existingRecibos && existingRecibos.length > 0) {
       const ultimoRecibo = existingRecibos[0];
-      const match = ultimoRecibo.numero_documento.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
+      const match = ultimoRecibo.numero_recibo.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
       if (match) {
         numero = parseInt(match[1]) + 1;
       }
@@ -822,8 +830,7 @@ export function NotasFiscaisSaida() {
 
       const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
       const pdfFile = new File([blob], `${numeroRecibo}.pdf`, { type: "application/pdf" });
-      const fileName = `recibo_${numeroRecibo}_${Date.now()}.pdf`;
-      const filePath = `recibos/${fileName}`;
+      const filePath = `recibos/recibo_${numeroRecibo}_${Date.now()}.pdf`;
 
       const { error: uploadError } = await supabase.storage
         .from("nfs-share-saida")
@@ -842,8 +849,8 @@ export function NotasFiscaisSaida() {
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
 
-      const clientId = reciboData.cliente_id?.trim();
-      if (!clientId) {
+      const clienteId = reciboData.cliente_id?.trim();
+      if (!clienteId) {
         throw new Error("Cliente é obrigatório. Por favor, selecione um cliente válido.");
       }
 
@@ -856,120 +863,31 @@ export function NotasFiscaisSaida() {
         .single();
       aeronaveId = aeroData?.id || null;
 
-      // Busca grupo_categoria para movimentacoes
-      const { data: categoriaData } = await supabase
-        .from("categorias_movimentacao")
-        .select("grupo_categoria")
-        .eq("id", CATEGORIA_ID)
-        .single();
-      const grupoCategoria = categoriaData?.grupo_categoria || null;
+      // ✅ Recibo é custo fixo mensal
+      const grupoCategoria = 'FIXO';
 
-      // --- controle_bancario ---
-      const { error: controleBancarioError } = await supabase
-        .from("controle_bancario")
-        .insert({
-          data: new Date().toISOString().split("T")[0],
-          data_vencimento: reciboData.data_vencimento,
-          tipo_movimento: "entrada",
-          status: "pendente",
-          numero_documento: numeroRecibo,
-          valor: parseFloat(reciboData.valor),
-          categoria_id: CATEGORIA_ID,
-          descricao: reciboData.descricao || "Recibo de Saída - Serviços",
-          recibo_url: reciboUrl,
-          client_id: clientId,
-          client_name: reciboData.cliente_nome,
-          aeronave_id: aeronaveId,
-          aeronave_registro: reciboData.aeronave_registro,
-          grupo_categoria: grupoCategoria,
-          criado_por: currentUser.id,
-        })
-        .select()
-        .single();
-
-      if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
-
-      // --- conciliacoes_bancarias ---
-      // Precisamos do ID da conciliação para linkar com movimentacoes
-      const { data: conciliacaoInserida, error: bankReconciliationError } = await supabase
-        .from("conciliacoes_bancarias")
-        .insert({
-          documento: numeroRecibo,
-          data: new Date().toISOString().split("T")[0],
-          descricao: reciboData.descricao || "Recibo de Saída - Serviços",
-          valor: parseFloat(reciboData.valor),
-          tipo: "cliente",
-          tipo_referencia: "contas_areceber",
-          status: "pendente",
-          categoria: reciboData.categoriaRecibo || "Recibo de Serviço",
-          clientes_id: clientId,
-          aeronave_id: aeronaveId,
-          nf_url: reciboUrl,
-          prazo_pagamento: reciboData.data_vencimento,
-          criado_por: currentUser.id,
-        })
-        .select()
-        .single();
-
-      if (bankReconciliationError) {
-        console.warn("Aviso ao inserir em conciliacoes_bancarias:", bankReconciliationError.message);
-      }
-
-      // --- contas_areceber ---
-      if (reciboData.aeronave_registro) {
-        const { error: contasAreceberError } = await supabase
-          .from("contas_areceber")
-          .insert({
-            numero: numeroRecibo,
-            cliente_nome: reciboData.cliente_nome,
-            cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00",
-            data_criacao: new Date().toISOString().split("T")[0],
-            data_vencimento: reciboData.data_vencimento,
-            valor: parseFloat(reciboData.valor),
-            categoria: reciboData.categoriaRecibo || "Recibo de Serviço",
-            descricao: reciboData.descricao || "Recibo de Serviço",
-            status: "pendente",
-            aeronave: reciboData.aeronave_registro,
-            arquivo_pdf_url: reciboUrl,
-            criado_por: currentUser.id,
-            fornecedor_tipo: "cliente",
-          });
-
-        if (contasAreceberError) {
-          console.warn("Aviso ao inserir em contas_areceber:", contasAreceberError.message);
-        }
-      }
-
-      // --- movimentacoes (receita) ---
-      // Usa conciliacao_id para criar vínculo único e evitar duplicatas
-      const movimentacaoPayload: any = {
-        descricao: reciboData.descricao?.trim() || `Recibo ${numeroRecibo} - ${reciboData.cliente_nome}`,
-        tipo: 'receita',
-        categoria_id: CATEGORIA_ID,
-        grupo_custo: grupoCategoria,
-        valor: parseFloat(reciboData.valor),
-        data_competencia: new Date().toISOString().split("T")[0],
-        data_vencimento: reciboData.data_vencimento || null,
-        aeronave_id: aeronaveId,
-        clientes_id: clientId,
-        status: 'pendente',
-        numero_recibo: numeroRecibo,
-        recibo_url: reciboUrl,
-        fornecedor_nome: reciboData.cliente_nome,
-        criado_por: currentUser.id,
-      };
-
-      // Se a conciliação foi criada com sucesso, vincula via conciliacao_id
-      if (conciliacaoInserida?.id) {
-        movimentacaoPayload.conciliacao_id = conciliacaoInserida.id;
-      }
-
+      // ✅ ÚNICO registro: movimentacoes
       const { error: movError } = await supabase
         .from("movimentacoes")
-        .insert(movimentacaoPayload);
+        .insert({
+          descricao: reciboData.descricao?.trim() || `Recibo ${numeroRecibo} - ${reciboData.cliente_nome}`,
+          tipo: 'receita',
+          categoria_id: CATEGORIA_ID,
+          grupo_custo: grupoCategoria,
+          valor: parseFloat(reciboData.valor),
+          data_competencia: new Date().toISOString().split("T")[0],
+          data_vencimento: reciboData.data_vencimento || null,
+          aeronave_id: aeronaveId,
+          clientes_id: clienteId, // ✅ nome correto do schema
+          status: 'pendente',
+          numero_recibo: numeroRecibo,
+          recibo_url: reciboUrl,
+          fornecedor_nome: reciboData.cliente_nome,
+          criado_por: currentUser.id,
+        });
 
       if (movError) {
-        console.warn("Aviso ao inserir em movimentacoes (recibo):", movError.message);
+        throw new Error(`Erro ao criar movimentação: ${movError.message}`);
       }
 
       setReciboViewUrl(reciboUrl);
@@ -981,11 +899,7 @@ export function NotasFiscaisSaida() {
       loadRecibos();
     } catch (error: any) {
       console.error("Erro ao gerar recibo:", error);
-      let message = error.message || "Erro ao gerar recibo";
-      if (message.includes("contas_areceber_fornecedor_tipo_check")) {
-        message = "Falha ao criar movimento bancário. Verifique se o cliente foi selecionado corretamente.";
-      }
-      toast({ title: "Erro", description: message, variant: "destructive" });
+      toast({ title: "Erro", description: error.message || "Erro ao gerar recibo", variant: "destructive" });
     } finally {
       setIsGeneratingRecibo(false);
     }
@@ -1006,7 +920,7 @@ export function NotasFiscaisSaida() {
 
   // ----------------------------------------------------------------
   // RECIBO – Editar (com ou sem re-geração de PDF)
-  // Também atualiza a tabela `movimentacoes` via conciliacao_id.
+  // Também atualiza a tabela `movimentacoes`.
   // ----------------------------------------------------------------
   const handleEditRecibo = (recibo: any) => {
     setEditingRecibo(recibo);
@@ -1046,10 +960,10 @@ export function NotasFiscaisSaida() {
 
         const dadosParaPDF = {
           numero_recibo: editingRecibo.documento,
-          cliente_nome: editingRecibo.clients?.razao_social || "Não informado",
-          cliente_cnpj: editingRecibo.clients?.cnpj || "Não informado",
+          cliente_nome: editingRecibo.clientes?.razao_social || "Não informado",
+          cliente_cnpj: editingRecibo.clientes?.cnpj || "Não informado",
           descricao: pendingReciboUpdate.description,
-          aeronave_registro: editingRecibo.aeronave?.matricula || "",
+          aeronave_registro: editingRecibo.aircraft?.matricula || "",
           valor: pendingReciboUpdate.amount,
         };
 
@@ -1074,23 +988,7 @@ export function NotasFiscaisSaida() {
         setIsGeneratingPdfEdit(false);
       }
 
-      // Atualiza conciliacoes_bancarias
-      const { error: conciliacaoError } = await supabase
-        .from("conciliacoes_bancarias")
-        .update({
-          valor: pendingReciboUpdate.amount,
-          descricao: pendingReciboUpdate.description,
-          prazo_pagamento: pendingReciboUpdate.prazo_pagamento,
-          status: pendingReciboUpdate.status,
-          categoria: pendingReciboUpdate.category,
-          nf_url: nfUrl,
-          atualizado_em: new Date().toISOString(),
-        })
-        .eq("id", String(pendingReciboUpdate.id).trim());
-
-      if (conciliacaoError) throw conciliacaoError;
-
-      // Sincroniza movimentacoes via conciliacao_id
+      // Atualiza movimentacoes
       const { error: movError } = await supabase
         .from("movimentacoes")
         .update({
@@ -1101,7 +999,7 @@ export function NotasFiscaisSaida() {
           recibo_url: nfUrl,
           atualizado_em: new Date().toISOString(),
         })
-        .eq("conciliacao_id", String(pendingReciboUpdate.id).trim());
+        .eq("id", String(pendingReciboUpdate.id).trim());
 
       if (movError) {
         console.warn("Aviso ao atualizar movimentacoes (recibo edit):", movError.message);
@@ -1128,7 +1026,7 @@ export function NotasFiscaisSaida() {
 
   // ----------------------------------------------------------------
   // RECIBO – Deletar
-  // Também remove da tabela `movimentacoes` via conciliacao_id.
+  // Remove da tabela `movimentacoes`.
   // ----------------------------------------------------------------
   const handleDeleteRecibo = async () => {
     if (!deleteReciboId) return;
@@ -1136,22 +1034,12 @@ export function NotasFiscaisSaida() {
     try {
       const idLimpo = String(deleteReciboId).trim();
 
-      // Remove movimentacao vinculada via conciliacao_id antes de deletar a conciliacao
       const { error: movError } = await supabase
         .from("movimentacoes")
         .delete()
-        .eq("conciliacao_id", idLimpo);
-
-      if (movError) {
-        console.warn("Aviso ao deletar movimentacoes (recibo):", movError.message);
-      }
-
-      const { error: conciliacaoError } = await supabase
-        .from("conciliacoes_bancarias")
-        .delete()
         .eq("id", idLimpo);
 
-      if (conciliacaoError) throw conciliacaoError;
+      if (movError) throw movError;
 
       toast({ title: "Sucesso", description: "Recibo deletado com sucesso" });
       setDeleteReciboId(null);
@@ -1164,7 +1052,7 @@ export function NotasFiscaisSaida() {
 
   // ----------------------------------------------------------------
   // RECIBO – Alterar Status via dropdown na tabela
-  // Também sincroniza status na tabela `movimentacoes` via conciliacao_id.
+  // Também sincroniza status na tabela `movimentacoes`.
   // ----------------------------------------------------------------
   const handleUpdateReciboStatus = async (reciboId: string, newStatus: string) => {
     if (!reciboId || typeof reciboId !== 'string' || reciboId.trim() === '') {
@@ -1187,26 +1075,16 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      // Atualiza conciliacoes_bancarias
-      const { error: updateError } = await supabase
-        .from("conciliacoes_bancarias")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", idLimpo);
-
-      if (updateError) throw updateError;
-
-      // Sincroniza movimentacoes via conciliacao_id
+      // Atualiza movimentacoes
       const { error: movError } = await supabase
         .from("movimentacoes")
         .update({
           status: mapReciboStatusToMov(newStatus),
           atualizado_em: new Date().toISOString(),
         })
-        .eq("conciliacao_id", idLimpo);
+        .eq("id", idLimpo);
 
-      if (movError) {
-        console.warn("Aviso ao atualizar status em movimentacoes (recibo):", movError.message);
-      }
+      if (movError) throw movError;
 
       toast({ title: "Sucesso", description: "Status atualizado com sucesso" });
       loadRecibos();
@@ -1458,12 +1336,12 @@ export function NotasFiscaisSaida() {
                       <Label className="text-foreground">Cliente/Empresa *</Label>
                       <SearchableCombobox
                         items={clientes.map(c => ({ id: c.id, label: c.nome }))}
-                        value={formData.client_id}
+                        value={formData.cliente_id} // ✅ corrigido de client_id
                         onChange={(id, label) => {
                           const clienteSelecionado = clientes.find(c => c.id === id);
                           setFormData({
                             ...formData,
-                            client_id: id,
+                            cliente_id: id, // ✅ corrigido de client_id
                             cliente_nome: label,
                             cliente_cnpj: clienteSelecionado?.documento || ""
                           });
@@ -1478,7 +1356,7 @@ export function NotasFiscaisSaida() {
                       <Label className="text-foreground">CNPJ/CPF *</Label>
                       <Input
                         value={formData.cliente_cnpj}
-                        onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value, client_id: "" })}
+                        onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value, cliente_id: "" })} // ✅ corrigido de client_id
                         placeholder="00.000.000/0000-00"
                         className="bg-background border-border"
                       />
@@ -2017,8 +1895,8 @@ export function NotasFiscaisSaida() {
                       {recibos.map((recibo, idx) => (
                         <TableRow key={recibo.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
                           <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.documento}</TableCell>
-                          <TableCell className="text-foreground px-4 py-3">{recibo.clients?.razao_social || "-"}</TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.aeronave?.matricula || "-"}</TableCell>
+                          <TableCell className="text-foreground px-4 py-3">{recibo.clientes?.razao_social || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.aircraft?.matricula || "-"}</TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">{formatDateSafe(recibo.data)}</TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">{formatDateSafe(recibo.prazo_pagamento)}</TableCell>
                           <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
@@ -2109,11 +1987,11 @@ export function NotasFiscaisSaida() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Cliente</p>
-                    <p className="text-foreground font-medium">{editingRecibo.clients?.razao_social || "-"}</p>
+                    <p className="text-foreground font-medium">{editingRecibo.clientes?.razao_social || "-"}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Aeronave</p>
-                    <p className="text-foreground font-medium">{editingRecibo.aeronave?.matricula || "-"}</p>
+                    <p className="text-foreground font-medium">{editingRecibo.aircraft?.matricula || "-"}</p>
                   </div>
                 </div>
               </div>
