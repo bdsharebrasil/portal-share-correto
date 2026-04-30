@@ -181,7 +181,6 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
             .from("rateio_despesas")
             .select("*")
             .in("aeronave_id", aeronaveIds)
-            .eq("cliente_id", clienteId!)
             .order("data_vencimento", { ascending: false }),
           supabase
             .from("abastecimentos")
@@ -257,6 +256,44 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         };
       });
 
+      // Agregar rateios por despesa (mostra todos os cotistas para cada despesa)
+      const rateioPorDespesaMap = new Map<string, any[]>();
+      rateios.forEach((r: any) => {
+        const chave = r.despesa_id || r.id;
+        if (!rateioPorDespesaMap.has(chave)) {
+          rateioPorDespesaMap.set(chave, []);
+        }
+        rateioPorDespesaMap.get(chave)!.push(r);
+      });
+
+      const rateioDespesasDetalhado = Array.from(rateioPorDespesaMap.entries())
+        .map(([despesaId, rateiosArray]) => {
+          const primeiro = rateiosArray[0];
+          return {
+            despesa_id: despesaId,
+            data_vencimento: primeiro.data_vencimento,
+            data_pagamento: primeiro.data_pagamento,
+            numero_nf: primeiro.numero_nf,
+            numero_doc: primeiro.numero_doc,
+            fornecedor_nome: primeiro.fornecedor_nome,
+            descricao_despesa: primeiro.descricao_despesa,
+            categoria_custo: primeiro.categoria_custo,
+            valor_total_despesa: Number(primeiro.valor_total_despesa) || 0,
+            pago_por: primeiro.pago_por,
+            status: primeiro.status,
+            rateios: rateiosArray.map((r: any) => ({
+              cliente_id: r.cliente_id,
+              clientes_nome: r.clientes_nome,
+              percentual_sociedade: Number(r.percentual_sociedade) || 0,
+              valor_rateado: Number(r.valor_rateado) || 0,
+              valor_pago_real: Number(r.valor_pago_real) || 0,
+              pago_diretamente: !!r.pago_diretamente,
+              status: r.status,
+            })),
+          };
+        })
+        .sort((a, b) => new Date(b.data_vencimento || 0).getTime() - new Date(a.data_vencimento || 0).getTime());
+
       return {
         cliente,
         aeronaves: minhasAeronaves || [],
@@ -264,6 +301,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         despesas,
         abastecimentos,
         relatorios,
+        rateioDespesasDetalhado,
       };
     },
   });

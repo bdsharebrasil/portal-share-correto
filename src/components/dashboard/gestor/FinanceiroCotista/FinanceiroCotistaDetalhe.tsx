@@ -28,13 +28,6 @@ import { LancamentosTab } from "./LancamentosTab";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Paperclip } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import type { DespesaUnificada } from "@/hooks/useFinanceiroCotista";
 import {
   Select,
@@ -76,6 +69,7 @@ export default function FinanceiroCotistaDetalhe() {
   const cotistasPorAeronave = data?.cotistasPorAeronave || [];
   const abastecimentos = data?.abastecimentos || [];
   const relatorios = data?.relatorios || [];
+  const rateioDespesasDetalhado = data?.rateioDespesasDetalhado || [];
 
   const aeronaveAtual =
     aeronaveSelecionada || (aeronaves[0] as any)?.id_aeronave || "";
@@ -678,77 +672,113 @@ export default function FinanceiroCotistaDetalhe() {
               <Card className="bg-card/60 border-border">
                 <CardHeader>
                   <CardTitle className="text-base">
-                    Comparativo entre cotistas — {aeronaveInfo?.matricula || "—"}
+                    Comparativo Detalhado entre Cotistas — {aeronaveInfo?.matricula || "—"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {balanco.length === 0 ? (
+                  {rateioDespesasDetalhado.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-6 text-center">
-                      Sem cotistas para comparar.
+                      Sem despesas para comparar.
                     </p>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Cotista</TableHead>
-                          <TableHead className="text-right">% Cota</TableHead>
-                          <TableHead className="text-right">Já pagou</TableHead>
-                          <TableHead className="text-right">Deve (rateio)</TableHead>
-                          <TableHead className="text-right">Saldo</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {balanco.map((b) => (
-                          <TableRow
-                            key={b.cotista_id}
-                            className={
-                              b.cotista_id === clienteId
-                                ? "bg-primary/5"
-                                : undefined
-                            }
-                          >
-                            <TableCell className="font-medium">
-                              {b.cotista_nome}
-                              {b.cotista_id === clienteId && (
-                                <Badge
-                                  variant="secondary"
-                                  className="ml-2 text-[10px]"
-                                >
-                                  Em análise
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right text-xs font-mono">
-                              {b.percentual}%
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm text-success">
-                              {formatBRL(b.total_pago)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm text-destructive">
-                              {formatBRL(b.total_devido)}
-                            </TableCell>
-                            <TableCell
-                              className={`text-right font-mono text-sm font-semibold ${
-                                b.saldo >= 0
-                                  ? "text-success"
-                                  : "text-destructive"
-                              }`}
-                            >
-                              {b.saldo >= 0 ? "+" : "−"}
-                              {formatBRL(Math.abs(b.saldo))}
-                            </TableCell>
+                    <div className="overflow-x-auto border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Data</TableHead>
+                            <TableHead className="text-xs">Doc</TableHead>
+                            <TableHead className="text-xs">Fornecedor</TableHead>
+                            <TableHead className="text-xs">Descrição</TableHead>
+                            <TableHead className="text-xs">Categoria</TableHead>
+                            <TableHead className="text-right text-xs">Valor Total</TableHead>
+                            <TableHead className="text-xs">Quem Pagou</TableHead>
+                            <TableHead className="text-xs">Status</TableHead>
+                            {cotistasDaAeronave.map((cot) => (
+                              <TableHead key={cot.id} className="text-right text-xs">
+                                <div className="font-semibold">{cot.nome}</div>
+                                <div className="text-muted-foreground">{cot.percentual}%</div>
+                              </TableHead>
+                            ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {rateioDespesasDetalhado.map((despesa, idx) => (
+                            <TableRow key={`${despesa.despesa_id}-${idx}`} className="hover:bg-muted/50">
+                              <TableCell className="text-xs font-mono whitespace-nowrap">
+                                {despesa.data_pagamento
+                                  ? formatDate(despesa.data_pagamento)
+                                  : despesa.data_vencimento
+                                  ? formatDate(despesa.data_vencimento)
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-xs font-mono">
+                                {despesa.numero_nf || despesa.numero_doc || "—"}
+                              </TableCell>
+                              <TableCell className="text-xs max-w-[150px] truncate">
+                                {despesa.fornecedor_nome || "—"}
+                              </TableCell>
+                              <TableCell className="text-xs max-w-[200px] truncate">
+                                {despesa.descricao_despesa || "—"}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {despesa.categoria_custo || "—"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm font-semibold">
+                                {formatBRL(despesa.valor_total_despesa)}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {despesa.pago_por || "Share Brasil"}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                <Badge variant="outline" className="text-[10px] py-0">
+                                  {despesa.status || "pendente"}
+                                </Badge>
+                              </TableCell>
+                              {cotistasDaAeronave.map((cot) => {
+                                const rateio = despesa.rateios.find(
+                                  (r) => r.cliente_id === cot.id
+                                );
+                                if (!rateio) {
+                                  return (
+                                    <TableCell key={cot.id} className="text-center text-xs">
+                                      —
+                                    </TableCell>
+                                  );
+                                }
+                                return (
+                                  <TableCell
+                                    key={cot.id}
+                                    className={`text-right text-xs font-mono ${
+                                      rateio.valor_pago_real > 0
+                                        ? "text-success bg-success/5"
+                                        : rateio.pago_diretamente
+                                        ? "text-warning bg-warning/5"
+                                        : "text-destructive"
+                                    }`}
+                                  >
+                                    <div className="font-semibold">
+                                      {formatBRL(rateio.valor_rateado)}
+                                    </div>
+                                    {rateio.valor_pago_real > 0 && (
+                                      <div className="text-[10px] text-muted-foreground">
+                                        Pago: {formatBRL(rateio.valor_pago_real)}
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
 
-              <p className="text-xs text-muted-foreground italic">
-                * "Devido" = % de cota × despesas da aeronave. "Já pagou" = despesas
-                quitadas diretamente do bolso pelo cotista. Saldo positivo: a Share
-                deve reembolsar o cotista. Negativo: o cotista deve à Share.
+              <p className="text-xs text-muted-foreground italic mt-3">
+                * Cada coluna de cotista mostra o valor rateado conforme sua % de cota. "Valor rateado" = valor total × % de cota do
+                cotista. "Pago" = valor efetivamente quitado (se diferente do rateio). Cores: verde = pago, laranja = pago direto, vermelho = pendente.
               </p>
             </TabsContent>
 
@@ -759,14 +789,16 @@ export default function FinanceiroCotistaDetalhe() {
           </div>
         </Tabs>
 
-        {/* Drill-down dos cards do topo */}
-        <DrillDownModal
-          tipo={drillCard}
-          onClose={() => setDrillCard(null)}
-          despesas={despesasDaAeronave}
-          abastecimentos={abastecimentosDaAeronave}
-          aeronaveLabel={aeronaveInfo?.matricula || "—"}
-        />
+        {/* Drill-down dos cards do topo - Visualização Inline */}
+        {drillCard && (
+          <DrillDownModal
+            tipo={drillCard}
+            onClose={() => setDrillCard(null)}
+            despesas={despesasDaAeronave}
+            abastecimentos={abastecimentosDaAeronave}
+            aeronaveLabel={aeronaveInfo?.matricula || "—"}
+          />
+        )}
       </div>
     </Layout>
   );
@@ -1035,105 +1067,117 @@ function DrillDownModal({
   const total =
     tipo === "abast"
       ? abastecimentos.reduce((a, x) => a + (x.valor_total || 0), 0)
-      : listaDespesas.reduce((a, d) => a + d.valor_total, 0);
+      : listaDespesas.reduce((a, d) => a + d.valor_rateado, 0);
 
   // Agrupar por categoria
   const porCategoria = new Map<string, number>();
   listaDespesas.forEach((d) => {
     const k = d.categoria || "Sem categoria";
-    porCategoria.set(k, (porCategoria.get(k) || 0) + d.valor_total);
+    porCategoria.set(k, (porCategoria.get(k) || 0) + d.valor_rateado);
   });
 
   return (
-    <Dialog open={!!tipo} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>{titulo}</span>
-            <span className="text-xl font-mono text-primary">{fmtBRL(total)}</span>
-          </DialogTitle>
-          <DialogDescription>
-            {explicacao} Aeronave: <strong>{aeronaveLabel}</strong>.
-          </DialogDescription>
-        </DialogHeader>
-
+    <Card className="mt-6 border-primary/20 bg-muted/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <CardTitle className="text-2xl">{titulo}</CardTitle>
+            <p className="text-base text-muted-foreground mt-2">
+              {explicacao} Aeronave: <strong>{aeronaveLabel}</strong>.
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground uppercase tracking-wider">Total</p>
+            <p className="text-3xl font-mono text-primary font-bold">{fmtBRL(total)}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="ml-4 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent>
         {tipo !== "abast" && porCategoria.size > 0 && (
-          <div className="mb-4">
-            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+          <div className="mb-6">
+            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">
               Por categoria
             </h4>
             <div className="flex flex-wrap gap-2">
               {Array.from(porCategoria.entries())
                 .sort((a, b) => b[1] - a[1])
                 .map(([cat, val]) => (
-                  <Badge key={cat} variant="outline" className="text-xs py-1 px-3">
-                    {cat}: <span className="ml-1 font-mono font-semibold">{fmtBRL(val)}</span>
+                  <Badge key={cat} variant="outline" className="text-sm py-2 px-4">
+                    {cat}: <span className="ml-1 font-mono font-semibold text-base">{fmtBRL(val)}</span>
                   </Badge>
                 ))}
             </div>
           </div>
         )}
 
-        {tipo !== "abast" ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Doc</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Fornecedor</TableHead>
-                <TableHead>Pago por</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {listaDespesas
-                .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime())
-                .map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell className="text-xs">{fmtDate(d.data)}</TableCell>
-                    <TableCell className="text-xs font-mono">
-                      {d.numero_nf || d.numero_doc || "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">{d.descricao}</TableCell>
-                    <TableCell className="text-xs">{d.fornecedor || "—"}</TableCell>
-                    <TableCell className="text-xs">{d.pago_por}</TableCell>
+        <div className="overflow-x-auto border rounded-lg">
+          {tipo !== "abast" ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-base">Data</TableHead>
+                  <TableHead className="text-base">Doc</TableHead>
+                  <TableHead className="text-base">Descrição</TableHead>
+                  <TableHead className="text-base">Fornecedor</TableHead>
+                  <TableHead className="text-base">Pago por</TableHead>
+                  <TableHead className="text-right text-base">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {listaDespesas
+                  .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime())
+                  .map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell className="text-sm">{fmtDate(d.data)}</TableCell>
+                      <TableCell className="text-sm font-mono">
+                        {d.numero_nf || d.numero_doc || "—"}
+                      </TableCell>
+                      <TableCell className="text-base">{d.descricao}</TableCell>
+                      <TableCell className="text-sm">{d.fornecedor || "—"}</TableCell>
+                      <TableCell className="text-sm">{d.pago_por}</TableCell>
+                      <TableCell className="text-right font-mono text-base font-semibold">
+                        {fmtBRL(d.valor_rateado)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-base">Data</TableHead>
+                  <TableHead className="text-base">Local</TableHead>
+                  <TableHead className="text-base">Abastecedor</TableHead>
+                  <TableHead className="text-right text-base">Litros</TableHead>
+                  <TableHead className="text-right text-base">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {abastecimentos.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="text-sm">{fmtDate(a.data)}</TableCell>
+                    <TableCell className="text-base">{a.trecho || a.local || "—"}</TableCell>
+                    <TableCell className="text-sm">{a.abastecedor || "—"}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
-                      {fmtBRL(d.valor_total)}
+                      {Number(a.litros).toLocaleString("pt-BR")}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-base font-semibold">
+                      {fmtBRL(a.valor_total)}
                     </TableCell>
                   </TableRow>
                 ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Local</TableHead>
-                <TableHead>Abastecedor</TableHead>
-                <TableHead className="text-right">Litros</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {abastecimentos.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="text-xs">{fmtDate(a.data)}</TableCell>
-                  <TableCell className="text-sm">{a.trecho || a.local || "—"}</TableCell>
-                  <TableCell className="text-xs">{a.abastecedor || "—"}</TableCell>
-                  <TableCell className="text-right font-mono text-xs">
-                    {Number(a.litros).toLocaleString("pt-BR")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {fmtBRL(a.valor_total)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </DialogContent>
-    </Dialog>
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
