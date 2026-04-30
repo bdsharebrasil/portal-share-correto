@@ -160,7 +160,6 @@ function DiarioBordoDetalhes() {
   const navigate = useNavigate();
   const { roles } = useAuth();
   const canEditConfirmed = roles.includes("admin") || roles.includes("gestor_master");
-  const canConfirm = roles.includes("admin") || roles.includes("gestor_master") || roles.includes("piloto_chefe");
 
   const today = new Date();
   const [mes, setMes] = useState<number | null>(null);
@@ -556,10 +555,6 @@ function DiarioBordoDetalhes() {
   // FIX: removido confirmado_por (não existe no banco)
   const handleConfirmar = async (l: Lanc) => {
     if (l.confirmado) return;
-    if (!canConfirm) {
-      toast.error("Você não tem permissão para confirmar lançamentos. Apenas admin, gestor_master ou piloto_chefe podem confirmar.");
-      return;
-    }
     const { error } = await supabase.from("lancamentos_diario_bordo")
       .update({ confirmado: true, confirmado_em: new Date().toISOString() })
       .eq("id", l.id);
@@ -1279,22 +1274,11 @@ function DiarioBordoDetalhes() {
                               : "—"}
                           </Td>
                           <Td className="text-center">
-                            {!isConfirmado && canConfirm && (
+                            {!isConfirmado && (
                               <button onClick={() => handleConfirmar(l)}
                                 className="rounded border border-emerald-600/40 bg-emerald-900/20 p-1 text-emerald-400 hover:bg-emerald-800/40 transition-colors" title="Confirmar">
                                 <CheckCircle2 className="w-3 h-3" />
                               </button>
-                            )}
-                            {!isConfirmado && !canConfirm && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button disabled
-                                    className="rounded border border-slate-600/40 bg-slate-900/20 p-1 text-slate-400 cursor-not-allowed" title="Você não tem permissão">
-                                    <Lock className="w-3 h-3" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent>Apenas admin, gestor_master ou piloto_chefe podem confirmar</TooltipContent>
-                              </Tooltip>
                             )}
                           </Td>
                           <Td className="text-center">

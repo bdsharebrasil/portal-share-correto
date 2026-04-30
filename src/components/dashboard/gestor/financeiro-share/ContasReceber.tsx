@@ -200,10 +200,12 @@ export function ContasReceber() {
         console.error("Erro ao carregar despesas:", fluxoError);
       }
 
-      const { data: bankRecData, error: bankRecError } = await (supabase as any).from("conciliacoes_bancarias").select(`
-        id, data, descricao, valor, saldo_pendente, status, clientes_id, aeronave_id, categoria,
-        prazo_pagamento, boleto_url, nf_url, comprovante_url, controle_bancario_id
-      `).eq("tipo", "cliente").is("controle_bancario_id", null).in("status", ["pendente", "enviado", "aberto"]).neq("status", "recebido").order("data", { ascending: false });
+      const { data: bankRecData, error: bankRecError } = await (supabase as any).from("movimentacoes").select(`
+        id, criado_em as data, descricao, valor, status, clientes_id, aeronave_id,
+        data_vencimento as prazo_pagamento, boleto_url, nf_url, comprovante_url, controle_bancario_id,
+        clientes:clientes_id(razao_social),
+        aeronave:aeronave_id(matricula)
+      `).eq("tipo", "receita").is("controle_bancario_id", null).in("status", ["pendente", "pago", "parcial"]).order("criado_em", { ascending: false });
 
       if (bankRecError) {
         console.error("Erro ao carregar bank_reconciliations:", bankRecError);
@@ -259,9 +261,9 @@ export function ContasReceber() {
       });
 
       const contasFromBankRec = (bankRecData || []).map((rec: any) => {
-        const clientName = rec.clients?.razao_social || "Cliente não especificado";
+        const clientName = rec.clientes?.razao_social || "Cliente não especificado";
         const aircraftReg = rec.aeronave?.matricula || "";
-        const valor = Math.abs(rec.saldo_pendente ?? rec.valor ?? 0);
+        const valor = Math.abs(rec.valor ?? 0);
 
         return {
           id: rec.id,
@@ -271,7 +273,7 @@ export function ContasReceber() {
           data_criacao: rec.data,
           data_vencimento: rec.prazo_pagamento || rec.data,
           valor: valor,
-          categoria: rec.categoria || "Despesa Cliente",
+          categoria: "Receita Cliente",
           descricao: rec.descricao,
           status: rec.status || "pendente",
           arquivo_pdf_url: rec.nf_url || rec.comprovante_url || rec.boleto_url,
@@ -301,7 +303,7 @@ export function ContasReceber() {
           let isFromBankRec = false;
 
           if (conta.banco_conciliacao_id) {
-            const { data: bancarioData } = await (supabase as any).from("conciliacoes_bancarias").select("descricao, data").eq("id", conta.banco_conciliacao_id).single();
+            const { data: bancarioData } = await (supabase as any).from("movimentacoes").select("descricao, criado_em as data").eq("id", conta.banco_conciliacao_id).single();
 
             if (bancarioData) {
               referencia = bancarioData.descricao || referencia;

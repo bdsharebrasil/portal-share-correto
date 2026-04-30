@@ -221,15 +221,11 @@ export function getCrewTotalsWithNames(report: TravelReportWithTotals, expenses:
  *  GASP + PR-MDL → REL-GAS-001/26 PR-MDL  (contagem reinicia)
  *  GASP + PR-MDL → REL-GAS-002/26 PR-MDL
  *
- * IMPORTANTE: Recebe clientes_id para garantir consistência na numeração.
- * O nome do cliente é sempre obtido do campo razao_social da tabela clientes,
- * nunca do nome do sócio, garantindo que o mesmo cliente sempre gera o mesmo prefixo.
- *
- * @param clientesId ID do cliente (para buscar o nome consistentemente).
+ * @param clientName Nome do cliente (gera as iniciais).
  * @param aircraftRegistration Matrícula da aeronave (sufixo + filtro).
  */
 export async function generateReportNumber(
-  clientesId: string,
+  clientName: string,
   aircraftRegistration?: string,
 ): Promise<string> {
   const year = new Date().getFullYear();
@@ -237,18 +233,7 @@ export async function generateReportNumber(
   const reg = (aircraftRegistration ?? '').trim().toUpperCase();
   const suffix = reg ? ` ${reg}` : '';
 
-  if (!clientesId || clientesId.trim() === '') {
-    return `REL-XXX-001/${yearShort}${suffix}`;
-  }
-
-  // Busca o nome do cliente (razao_social) usando o ID
-  const { data: clientData, error: clientError } = await supabase
-    .from('clientes')
-    .select('razao_social')
-    .eq('id', clientesId)
-    .single();
-
-  if (clientError || !clientData?.razao_social) {
+  if (!clientName || clientName.trim() === '') {
     return `REL-XXX-001/${yearShort}${suffix}`;
   }
 
@@ -261,19 +246,18 @@ export async function generateReportNumber(
       .padEnd(3, 'X');
   };
 
-  const clientInitials = getClientInitials(clientData.razao_social);
+  const clientInitials = getClientInitials(clientName);
 
   // Filtra pelo prefixo do cliente
   let query = supabase
     .from('travel_expense_reports')
-    .select('numero_relatorio')
-    .eq('clientes_id', clientesId)
-    .ilike('numero_relatorio', `REL-${clientInitials}-%`);
+    .select('report_number')
+    .ilike('report_number', `REL-${clientInitials}-%`);
 
   // Se houver matrícula, filtra adicionalmente pelo sufixo para garantir
   // numeração independente por aeronave
   if (reg) {
-    query = query.ilike('numero_relatorio', `%${reg}`);
+    query = query.ilike('report_number', `%${reg}`);
   }
 
   const { data: existingReports, error } = await query;
@@ -281,7 +265,7 @@ export async function generateReportNumber(
   let nextNumber = 1;
   if (!error && existingReports && existingReports.length > 0) {
     const maxFound = existingReports.reduce((max, row: any) => {
-      const m = row.numero_relatorio?.match(/REL-[A-Z]{3}-(\d+)/);
+      const m = row.report_number?.match(/REL-[A-Z]{3}-(\d+)/);
       const n = m && m[1] ? parseInt(m[1], 10) : 0;
       return n > max ? n : max;
     }, 0);

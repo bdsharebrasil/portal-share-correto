@@ -65,7 +65,7 @@ export function TravelReportPdfModal({
       const correctedTotals = calculateReportTotals(expenses);
 
       const pdfReport = {
-        numero: fullReport.numero_relatorio,
+        numero: fullReport.report_number,
         cliente_nome: fullReport.client,
         aeronave: fullReport.aircraft_registration,
         tripulante: fullReport.crew_member_name,
@@ -258,7 +258,7 @@ export function TravelReportPdfModal({
         const correctedTotals = calculateReportTotals(expenses);
 
         const pdfReport = {
-          numero: fullReport.numero_relatorio,
+          numero: fullReport.report_number,
           cliente_nome: fullReport.client,
           aeronave: fullReport.aircraft_registration,
           tripulante: fullReport.crew_member_name,

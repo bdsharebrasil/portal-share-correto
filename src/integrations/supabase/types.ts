@@ -1188,54 +1188,6 @@ export type Database = {
           },
         ]
       }
-      company_settings: {
-        Row: {
-          cep: string | null
-          cidade: string | null
-          cnpj: string
-          created_at: string | null
-          email: string | null
-          endereco: string | null
-          estado: string | null
-          id: string
-          logo_url: string | null
-          nome_fantasia: string | null
-          razao_social: string
-          telefone: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          cep?: string | null
-          cidade?: string | null
-          cnpj: string
-          created_at?: string | null
-          email?: string | null
-          endereco?: string | null
-          estado?: string | null
-          id?: string
-          logo_url?: string | null
-          nome_fantasia?: string | null
-          razao_social: string
-          telefone?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          cep?: string | null
-          cidade?: string | null
-          cnpj?: string
-          created_at?: string | null
-          email?: string | null
-          endereco?: string | null
-          estado?: string | null
-          id?: string
-          logo_url?: string | null
-          nome_fantasia?: string | null
-          razao_social?: string
-          telefone?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       conciliacoes_bancarias: {
         Row: {
           aeronave_id: string | null
@@ -1625,6 +1577,51 @@ export type Database = {
             referencedColumns: ["aeronave_id"]
           },
         ]
+      }
+      configuracao_empresa: {
+        Row: {
+          cep: string | null
+          cidade: string | null
+          cnpj: string
+          criado_em: string | null
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          id: string
+          logo_url: string | null
+          nome_fantasia: string | null
+          razao_social: string
+          telefone: string | null
+        }
+        Insert: {
+          cep?: string | null
+          cidade?: string | null
+          cnpj: string
+          criado_em?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          logo_url?: string | null
+          nome_fantasia?: string | null
+          razao_social: string
+          telefone?: string | null
+        }
+        Update: {
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string
+          criado_em?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          logo_url?: string | null
+          nome_fantasia?: string | null
+          razao_social?: string
+          telefone?: string | null
+        }
+        Relationships: []
       }
       contacts: {
         Row: {
@@ -10333,6 +10330,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "travel_expense_reports_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "travel_expense_reports_socios_cliente_id_fkey"

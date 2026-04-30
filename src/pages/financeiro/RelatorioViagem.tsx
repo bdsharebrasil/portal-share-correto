@@ -71,10 +71,10 @@ type TravelReport = {
   requires_client_approval?: boolean;
   crew_approval_status?: 'pending' | 'approved' | 'rejected';
   client_approval_status?: 'pending' | 'approved' | 'rejected';
-  criado_por?: string;
-  criado_por_nome?: string;
+  generated_by_user_id?: string;
   created_at?: string;
   updated_at?: string;
+  criado_por?: string;
 
   // helper de exibição
   client?: string;
@@ -185,8 +185,7 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome),
-        criado_por(display_name, full_name)
+        partner_id_rel:socios_cliente_id(nome)
       `)
       .order('created_at', { ascending: false });
 
@@ -208,7 +207,6 @@ export default function RelatorioViagem() {
         client: clientName,
         expenses,
         status: normalizeStatus(r.status),
-        criado_por_nome: r.generated_by_user?.display_name || r.generated_by_user?.full_name || null,
       } as TravelReport;
     });
 
@@ -221,8 +219,7 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome),
-        generated_by_user:criado_por(display_name, full_name)
+        partner_id_rel:socios_cliente_id(nome)
       `)
       .eq('id', reportId)
       .single();
@@ -245,7 +242,6 @@ export default function RelatorioViagem() {
       client: clientName,
       expenses: expenses as Expense[],
       status: normalizeStatus(r.status),
-      criado_por_nome: r.generated_by_user?.display_name || r.generated_by_user?.full_name || null,
     } as TravelReport;
   };
 
@@ -254,9 +250,9 @@ export default function RelatorioViagem() {
   // -------------------------------------------------------------------------
   // Delegado ao utilitário (travelReportUtils) que agora considera a aeronave
   // Mantido este wrapper para compatibilidade com a página
-  const generateReportNumber = async (clientesId: string, aeronaveId?: string): Promise<string> => {
+  const generateReportNumber = async (clientName: string, aeronaveId?: string): Promise<string> => {
     const { generateReportNumber: generateNumber } = await import('@/lib/travelReportUtils');
-    return generateNumber(clientesId, aeronaveId);
+    return generateNumber(clientName, aeronaveId);
   };
 
   // -------------------------------------------------------------------------
@@ -443,7 +439,7 @@ export default function RelatorioViagem() {
 
       let reportNumber = reportData.numero_relatorio;
       if (!isUpdate) {
-        reportNumber = await generateReportNumber(reportData.clientes_id, reportData.matricula_aeronave);
+        reportNumber = await generateReportNumber(reportData.client, reportData.matricula_aeronave);
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -486,7 +482,7 @@ export default function RelatorioViagem() {
         payload.crew_approval_status = 'pending';
         payload.requires_client_approval = !!requireClientApproval;
         if (requireClientApproval) payload.client_approval_status = 'pending';
-        if (user?.id) payload.criado_por = user.id;
+        if (user?.id) payload.generated_by_user_id = user.id;
       }
 
       if (!isUpdate && user?.id) payload.criado_por = user.id;
@@ -514,7 +510,7 @@ export default function RelatorioViagem() {
           if (!error) { savedReport = data; insertError = null; break; }
 
           if (error.code === '23505' && error.message?.includes('numero_relatorio')) {
-            payload.numero_relatorio = await generateReportNumber(reportData.clientes_id || '', reportData.matricula_aeronave);
+            payload.numero_relatorio = await generateReportNumber(reportData.client || '', reportData.matricula_aeronave);
             await new Promise(r => setTimeout(r, 100 * (attempt + 1)));
             insertError = error;
           } else {
@@ -773,25 +769,17 @@ export default function RelatorioViagem() {
             });
             setApprovalLinkOpen(true);
 
-            // Enviar notificação para o segundo tripulante (membro da equipe com user_id)
-            if (refreshed.tripulante_id2) {
+            // Enviar notificação para o tripulante
+            if (refreshed.tripulacao_id) {
               try {
-                const { data: tripulante } = await supabase
-                  .from('membros_tripulacao')
-                  .select('user_id')
-                  .eq('id', refreshed.tripulante_id2)
-                  .single();
-
-                if (tripulante?.user_id) {
-                  const { error: notifError } = await supabase.from('notifications').insert({
-                    user_id: tripulante.user_id,
-                    title: 'Novo Relatório de Viagem para Aprovação',
-                    message: `O relatório nº ${refreshed.numero_relatorio} foi gerado e aguarda sua aprovação. Clique para revisar.`,
-                    type: 'info',
-                    read: false,
-                  });
-                  if (notifError) console.error('Erro ao enviar notificação:', notifError);
-                }
+                const { error: notifError } = await supabase.from('notifications').insert({
+                  user_id: refreshed.tripulacao_id,
+                  title: 'Novo Relatório de Viagem para Aprovação',
+                  message: `O relatório nº ${refreshed.numero_relatorio} foi gerado e aguarda sua aprovação. Clique para revisar.`,
+                  type: 'info',
+                  read: false,
+                });
+                if (notifError) console.error('Erro ao enviar notificação:', notifError);
               } catch (notifErr) {
                 console.error('Erro ao enviar notificação:', notifErr);
               }

@@ -13,14 +13,14 @@ export function useFlightCycles() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('ciclos_voo')
+        .from('flight_cycles')
         .select(`
           *,
           client:clientes(razao_social, proprietario),
           aircraft:aircraft(registration, model),
           expenses:flight_expenses(*)
         `)
-        .order('data_voo', { ascending: false });
+        .order('flight_date', { ascending: false });
 
       if (error) throw error;
       setCycles((data || []) as FlightCycle[]);
@@ -39,7 +39,7 @@ export function useFlightCycles() {
   const createCycle = async (cycleData: Partial<FlightCycle>) => {
     try {
       const { data: cycle, error } = await supabase
-        .from('ciclos_voo')
+        .from('flight_cycles')
         .insert([cycleData as any])
         .select()
         .single();
@@ -153,7 +153,7 @@ export function useFlightCycles() {
       if (status === 'finalizado') updateData.finalized_at = new Date().toISOString();
 
       const { error } = await supabase
-        .from('ciclos_voo')
+        .from('flight_cycles')
         .update(updateData)
         .eq('id', cycleId);
 
@@ -230,7 +230,7 @@ export function useFlightCycles() {
   const deleteCycle = async (cycleId: string) => {
     try {
       const { error } = await supabase
-        .from('ciclos_voo')
+        .from('flight_cycles')
         .delete()
         .eq('id', cycleId);
 

@@ -175,9 +175,9 @@ export default function AprovarRelatorioViagem() {
 
           if (isCrew) {
             // Tripulante discordou - notificar gerente/admin que criou o relatório
-            if (report.criado_por) {
+            if (report.generated_by_user_id) {
               notificationsToCreate.push({
-                user_id: report.criado_por,
+                user_id: report.generated_by_user_id,
                 title: '⚠️ Tripulante Discordou de Relatório',
                 message: `${report.nome_tripulante} discordou do relatório nº ${report.numero_relatorio}. Motivo: ${notes || 'Não informado'}`,
                 type: 'warning',
@@ -210,9 +210,9 @@ export default function AprovarRelatorioViagem() {
             }
           } else {
             // Cliente discordou - notificar gerente/admin que criou o relatório
-            if (report.criado_por) {
+            if (report.generated_by_user_id) {
               notificationsToCreate.push({
-                user_id: report.criado_por,
+                user_id: report.generated_by_user_id,
                 title: '⚠️ Cliente Discordou de Relatório',
                 message: `${report.clientes_id_rel?.razao_social} discordou do relatório nº ${report.numero_relatorio}. Motivo: ${notes || 'Não informado'}`,
                 type: 'warning',
@@ -220,27 +220,15 @@ export default function AprovarRelatorioViagem() {
               });
             }
 
-            // Também notificar o segundo tripulante (membro da equipe com user_id)
-            if (report.tripulante_id2) {
-              try {
-                const { data: tripulante } = await supabase
-                  .from('membros_tripulacao')
-                  .select('user_id')
-                  .eq('id', report.tripulante_id2)
-                  .single();
-
-                if (tripulante?.user_id) {
-                  notificationsToCreate.push({
-                    user_id: tripulante.user_id,
-                    title: '⚠️ Relatório Aguardando Revisão',
-                    message: `O cliente identificou divergências no relatório nº ${report.numero_relatorio}. O documento será revisado.`,
-                    type: 'warning',
-                    read: false,
-                  });
-                }
-              } catch (err) {
-                console.warn('Erro ao buscar tripulante para notificação:', err);
-              }
+            // Também notificar tripulante
+            if (report.tripulacao_id) {
+              notificationsToCreate.push({
+                user_id: report.tripulacao_id,
+                title: '⚠️ Relatório Aguardando Revisão',
+                message: `O cliente identificou divergências no relatório nº ${report.numero_relatorio}. O documento será revisado.`,
+                type: 'warning',
+                read: false,
+              });
             }
           }
 

@@ -283,6 +283,7 @@ interface Tarefa {
   prazo: string | null;
   publico: boolean | null;
   criado_em: string | null;
+  origem?: string | null;
 }
 
 interface Comentario {
@@ -406,6 +407,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
         supabase
           .from("tarefas")
           .select("*")
+          .eq("origem", "lista")
           .order("criado_em", { ascending: false }),
         supabase
           .from("user_profiles")
@@ -441,11 +443,13 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
           setTarefas((prev) => {
             if (payload.eventType === "INSERT") {
               const n = payload.new as Tarefa;
+              if (n.origem !== "lista") return prev;
               if (prev.find((t) => t.id === n.id)) return prev;
               return [n, ...prev];
             }
             if (payload.eventType === "UPDATE") {
               const n = payload.new as Tarefa;
+              if (n.origem !== "lista") return prev;
               return prev.map((t) => (t.id === n.id ? n : t));
             }
             if (payload.eventType === "DELETE") {
@@ -580,7 +584,8 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
       status: "a-fazer",
       prazo: form.prazo || null,
       publico: form.publico,
-    };
+      origem: "lista",
+    } as Database["public"]["Tables"]["tarefas"]["Insert"];
     const { data, error } = await supabase.from("tarefas").insert(payload).select().single();
     if (error) {
       console.error(error);
@@ -622,10 +627,10 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
         {/* Header */}
         <div className="border-b border-slate-200 px-6 py-5 flex items-center justify-between flex-wrap gap-4 bg-slate-950">
           <div>
-            <h1 className="text-xl font-bold text-foreground">
+            <h1 className="text-xl font-bold text-slate-50">
               {myView ? "Minhas Tarefas" : "Tarefas em Lista"}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-slate-400 mt-1">
               {myView
                 ? "Tarefas privadas criadas por você"
                 : actualIsManager
@@ -644,7 +649,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-8 bg-slate-950">
+        <div className="p-6 space-y-8">
           {/* Tarefas Pendentes */}
           <div>
             <div className="flex items-center justify-between mb-4">

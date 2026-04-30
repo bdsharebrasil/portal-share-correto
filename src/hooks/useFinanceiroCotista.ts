@@ -5,13 +5,35 @@ export interface DespesaUnificada {
   id: string;
   origem: "conciliacao" | "direto";
   data: string | null;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
   descricao: string;
   categoria: string | null;
   valor_total: number;
+  valor_rateado: number;
+  /** Rótulo amigável de quem efetivamente pagou (ex: "Share Brasil", nome do sócio, nome do cliente). */
   pago_por: string;
+  /** Código bruto do banco: 'EMPRESA' | 'CLIENTE' | 'SOCIO' | etc. */
+  pago_por_tipo: string | null;
+  pago_diretamente: boolean;
+  forma_pagamento: string | null;
+  fornecedor: string | null;
+  numero_doc: string | null;
+  numero_nf: string | null;
+  numero_boleto: string | null;
+  numero_recibo: string | null;
   status: string | null;
+  observacoes: string | null;
   aeronave_id: string | null;
+  aeronave_registro: string | null;
   cliente_id: string | null;
+  cliente_nome: string | null;
+  socio_id: string | null;
+  socio_nome: string | null;
+  comprovante_url: string | null;
+  recibo_url: string | null;
+  nf_url: string | null;
+  boleto_url: string | null;
 }
 
 export interface BalancoCotista {
@@ -48,6 +70,23 @@ export interface RelatorioViagemItem {
   status: string | null;
   aeronave_id: string | null;
   matricula_aeronave: string | null;
+}
+
+/** Traduz o código bruto de pago_por para um rótulo amigável de gestor. */
+function rotularPagador(r: any): { rotulo: string; tipo: string | null } {
+  const raw = (r.pago_por || "").toString().trim().toUpperCase();
+  if (!raw) {
+    if (r.pago_diretamente && r.clientes_nome) return { rotulo: r.clientes_nome, tipo: "CLIENTE" };
+    return { rotulo: "—", tipo: null };
+  }
+  if (raw === "EMPRESA" || raw === "SHARE" || raw === "SHARE BRASIL")
+    return { rotulo: "Share Brasil", tipo: "EMPRESA" };
+  if (raw === "CLIENTE")
+    return { rotulo: r.clientes_nome || "Cliente", tipo: "CLIENTE" };
+  if (raw === "SOCIO" || raw === "SÓCIO")
+    return { rotulo: r.socios_nome || "Sócio", tipo: "SOCIO" };
+  // valor já vem como nome próprio do pagador
+  return { rotulo: r.pago_por, tipo: "OUTRO" };
 }
 
 /**
@@ -93,7 +132,8 @@ export function useClientesCotistas() {
 }
 
 /**
- * Detalhe completo de um cliente cotista, incluindo abastecimentos e relatórios.
+ * Detalhe completo de um cliente cotista. Agora lê DIRETAMENTE de rateio_despesas
+ * (fonte única e rica) em vez de mesclar conciliacoes_bancarias + despesas_cliente_direto.
  */
 export function useFinanceiroCotistaDetalhe(clienteId?: string) {
   return useQuery({
@@ -120,16 +160,14 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         .filter(Boolean);
 
       let todosCotistas: any[] = [];
-      let conciliacoes: any[] = [];
-      let despesasDiretas: any[] = [];
+      let rateios: any[] = [];
       let abastecimentos: AbastecimentoItem[] = [];
       let relatorios: RelatorioViagemItem[] = [];
 
       if (aeronaveIds.length > 0) {
         const [
           { data: cotistasData },
-          { data: conc },
-          { data: diretas },
+          { data: rats },
           { data: abast },
           { data: rels },
         ] = await Promise.all([
@@ -139,16 +177,12 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
               "id_aeronave, id_clientes, percentual_sociedade, cliente:clientes(id, razao_social, proprietario)"
             )
             .in("id_aeronave", aeronaveIds),
-          supabase
-            .from("conciliacoes_bancarias")
+          (supabase as any)
+            .from("rateio_despesas")
             .select("*")
             .in("aeronave_id", aeronaveIds)
-            .eq("clientes_id", clienteId!),
-          supabase
-            .from("despesas_cliente_direto")
-            .select("*")
-            .in("aeronave_id", aeronaveIds)
-            .eq("clientes_id", clienteId!),
+            .eq("cliente_id", clienteId!)
+            .order("data_vencimento", { ascending: false }),
           supabase
             .from("abastecimentos")
             .select(
@@ -168,8 +202,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         ]);
 
         todosCotistas = cotistasData || [];
-        conciliacoes = conc || [];
-        despesasDiretas = diretas || [];
+        rateios = rats || [];
         abastecimentos = (abast || []).map((a: any) => ({
           ...a,
           litros: Number(a.litros) || 0,
@@ -183,32 +216,46 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         }));
       }
 
-      const despesas: DespesaUnificada[] = [
-        ...conciliacoes.map((c: any) => ({
-          id: `conc-${c.id}`,
-          origem: "conciliacao" as const,
-          data: c.data,
-          descricao: c.descricao || c.fornecedor_nome || "Lançamento",
-          categoria: c.categoria || c.tipo,
-          valor_total: Number(c.valor) || 0,
-          pago_por: "Share Brasil",
-          status: c.status,
-          aeronave_id: c.aeronave_id,
-          cliente_id: c.clientes_id,
-        })),
-        ...despesasDiretas.map((d: any) => ({
-          id: `dir-${d.id}`,
-          origem: "direto" as const,
-          data: d.data_envio || d.data_vencimento,
-          descricao: d.descricao || d.fornecedor_nome || "Despesa direta",
-          categoria: d.categoria_nome,
-          valor_total: Number(d.valor) || 0,
-          pago_por: d.fornecedor_nome || "Fornecedor",
-          status: d.status,
-          aeronave_id: d.aeronave_id,
-          cliente_id: d.clientes_id,
-        })),
-      ];
+      const despesas: DespesaUnificada[] = rateios.map((r: any) => {
+        const { rotulo, tipo } = rotularPagador(r);
+        // Origem: pago direto pelo cliente/sócio = "direto", senão Share pagou = "conciliacao"
+        const origem: "conciliacao" | "direto" =
+          r.pago_diretamente || tipo === "CLIENTE" || tipo === "SOCIO"
+            ? "direto"
+            : "conciliacao";
+        return {
+          id: r.id,
+          origem,
+          data: r.data_pagamento || r.data_vencimento,
+          data_vencimento: r.data_vencimento,
+          data_pagamento: r.data_pagamento,
+          descricao: r.descricao_despesa || r.fornecedor_nome || "Lançamento",
+          categoria: r.categoria_custo,
+          valor_total: Number(r.valor_total_despesa) || 0,
+          valor_rateado: Number(r.valor_rateado) || 0,
+          pago_por: rotulo,
+          pago_por_tipo: tipo,
+          pago_diretamente: !!r.pago_diretamente,
+          forma_pagamento: r.forma_pagamento,
+          fornecedor: r.fornecedor_nome,
+          numero_doc: r.numero_doc,
+          numero_nf: r.numero_nf,
+          numero_boleto: r.numero_boleto,
+          numero_recibo: r.numero_recibo,
+          status: r.status,
+          observacoes: r.observacoes,
+          aeronave_id: r.aeronave_id,
+          aeronave_registro: r.aeronave_registro,
+          cliente_id: r.cliente_id,
+          cliente_nome: r.clientes_nome,
+          socio_id: r.socio_id,
+          socio_nome: r.socios_nome,
+          comprovante_url: r.comprovante_url,
+          recibo_url: r.recibo_url,
+          nf_url: r.nf_url,
+          boleto_url: r.boleto_url,
+        };
+      });
 
       return {
         cliente,
@@ -242,12 +289,11 @@ export function calcularBalanco(
     cotistas.forEach((c) => {
       const item = map.get(c.id)!;
       item.total_devido += d.valor_total * (c.percentual / 100);
-      if (
-        d.origem === "direto" &&
-        d.pago_por &&
-        c.nome &&
-        d.pago_por.toUpperCase().includes(c.nome.toUpperCase().split(" ")[0])
-      ) {
+      // Crédito = pagou diretamente do bolso (CLIENTE ou SOCIO desse cotista)
+      const pagouEsteCotista =
+        (d.pago_por_tipo === "CLIENTE" && d.cliente_id === c.id) ||
+        (d.pago_por_tipo === "SOCIO" && d.socio_id === c.id);
+      if (pagouEsteCotista) {
         item.total_pago += d.valor_total;
       }
     });

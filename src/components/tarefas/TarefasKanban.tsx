@@ -104,6 +104,7 @@ interface Tarefa {
   prazo: string | null;
   publico: boolean | null;
   criado_em: string | null;
+  origem?: string | null;
 }
 
 interface Comentario {
@@ -236,6 +237,7 @@ export default function TarefasKanban({
         supabase
           .from("tarefas")
           .select("*")
+          .or("origem.eq.kanban,origem.is.null")
           .order("criado_em", { ascending: false }),
         supabase
           .from("user_profiles")
@@ -271,11 +273,13 @@ export default function TarefasKanban({
           setTarefas((prev) => {
             if (payload.eventType === "INSERT") {
               const n = payload.new as Tarefa;
+              if (n.origem === "lista") return prev;
               if (prev.find((t) => t.id === n.id)) return prev;
               return [n, ...prev];
             }
             if (payload.eventType === "UPDATE") {
               const n = payload.new as Tarefa;
+              if (n.origem === "lista") return prev;
               return prev.map((t) => (t.id === n.id ? n : t));
             }
             if (payload.eventType === "DELETE") {
@@ -394,7 +398,8 @@ export default function TarefasKanban({
       status: form.status,
       prazo: form.prazo || null,
       publico: form.publico,
-    };
+      origem: "kanban",
+    } as Database["public"]["Tables"]["tarefas"]["Insert"];
     const { data, error } = await supabase.from("tarefas").insert(payload).select().single();
     if (error) {
       console.error(error);

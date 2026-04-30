@@ -383,7 +383,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         referenceId = selectedReport.id;
       } else if (linkOption === "new") {
         try {
-          const reportNumber = await generateReportNumber(clienteId, aircraftId);
+          const { data: clientData } = await supabase
+            .from("clientes")
+            .select("razao_social")
+            .eq("id", clienteId)
+            .single();
+          const clientName = clientData?.razao_social || "";
+          const reportNumber = await generateReportNumber(clientName, aircraftId);
           const today = format(new Date(), "yyyy-MM-dd");
           const expenseItem = {
             category: selectedCategory?.label || "Desconhecido",

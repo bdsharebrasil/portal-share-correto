@@ -211,15 +211,6 @@ export function RelatorioViagemViewer({
           </div>
         </div>
 
-        {/* Rodapé com nome do usuário */}
-        {localReport.criado_por_nome && (
-          <div className="flex justify-end pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              Criado por {localReport.criado_por_nome}
-            </p>
-          </div>
-        )}
-
         {/* Ações */}
         <div className="flex gap-2 pt-4 border-t border-border">
           {onEdit && localReport.status === "Rascunho" && (

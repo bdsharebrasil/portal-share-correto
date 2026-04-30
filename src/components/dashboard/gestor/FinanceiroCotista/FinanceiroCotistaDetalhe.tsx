@@ -26,6 +26,16 @@ import {
 import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
 import { useMemo, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Search, Paperclip } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import type { DespesaUnificada } from "@/hooks/useFinanceiroCotista";
 import {
   Select,
   SelectContent,
@@ -56,6 +66,9 @@ export default function FinanceiroCotistaDetalhe() {
   const navigate = useNavigate();
   const { data, isLoading } = useFinanceiroCotistaDetalhe(clienteId);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
+  const [filtroFin, setFiltroFin] = useState("");
+  const [filtroOrigem, setFiltroOrigem] = useState<"todos" | "conciliacao" | "direto">("todos");
+  const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
 
   const cliente = data?.cliente;
   const aeronaves = data?.aeronaves || [];
@@ -327,25 +340,29 @@ export default function FinanceiroCotistaDetalhe() {
                   icon={<Wallet className="h-5 w-5" />}
                   label="Total despesas"
                   value={formatBRL(totaisAeronave.total)}
-                  sub={aeronaveInfo?.matricula || "—"}
+                  sub={`${despesasDaAeronave.length} lançamentos · ${aeronaveInfo?.matricula || "—"}`}
+                  onClick={() => setDrillCard("total")}
                 />
                 <StatCard
                   icon={<Receipt className="h-5 w-5" />}
-                  label="Pago pela Share"
+                  label="Pago pela Share Brasil"
                   value={formatBRL(totaisAeronave.conc)}
-                  sub="Conciliações bancárias"
+                  sub="Quitado pela operadora (a reembolsar)"
+                  onClick={() => setDrillCard("share")}
                 />
                 <StatCard
                   icon={<FileText className="h-5 w-5" />}
-                  label="Despesas diretas"
+                  label="Pago pelo cliente / sócio"
                   value={formatBRL(totaisAeronave.direto)}
-                  sub="Enviadas ao cliente"
+                  sub="Despesas pagas direto do bolso"
+                  onClick={() => setDrillCard("direto")}
                 />
                 <StatCard
                   icon={<Fuel className="h-5 w-5" />}
                   label="Abastecimentos"
                   value={formatBRL(totaisAeronave.totalAbast)}
                   sub={`${totaisAeronave.totalLitros.toLocaleString("pt-BR")} L`}
+                  onClick={() => setDrillCard("abast")}
                 />
               </div>
 
@@ -419,77 +436,47 @@ export default function FinanceiroCotistaDetalhe() {
             {/* Financeiro */}
             <TabsContent value="financeiro" className="space-y-4 mt-4">
               <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Lançamentos — {aeronaveInfo?.matricula || "—"}
-                  </CardTitle>
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="text-base">
+                      Lançamentos detalhados — {aeronaveInfo?.matricula || "—"}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Visão analítica de cada despesa: pagador, fornecedor, documentos e anexos.
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar descrição, fornecedor, doc..."
+                        value={filtroFin}
+                        onChange={(e) => setFiltroFin(e.target.value)}
+                        className="pl-8 w-64 h-9"
+                      />
+                    </div>
+                    <Select value={filtroOrigem} onValueChange={(v: any) => setFiltroOrigem(v)}>
+                      <SelectTrigger className="w-44 h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas as origens</SelectItem>
+                        <SelectItem value="conciliacao">Pago pela Share</SelectItem>
+                        <SelectItem value="direto">Pago direto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {despesasDaAeronave.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">
-                      Nenhum lançamento encontrado.
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Data</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead>Pago por</TableHead>
-                            <TableHead>Origem</TableHead>
-                            <TableHead className="text-right">Valor</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {despesasDaAeronave
-                            .sort(
-                              (a, b) =>
-                                new Date(b.data || 0).getTime() -
-                                new Date(a.data || 0).getTime()
-                            )
-                            .slice(0, 100)
-                            .map((d) => (
-                              <TableRow key={d.id}>
-                                <TableCell className="text-xs">
-                                  {formatDate(d.data)}
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {d.descricao}
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                  {d.categoria || "—"}
-                                </TableCell>
-                                <TableCell className="text-xs">
-                                  {d.pago_por}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      d.origem === "conciliacao"
-                                        ? "border-blue-500/40 text-blue-400"
-                                        : "border-amber-500/40 text-amber-400"
-                                    }
-                                  >
-                                    {d.origem === "conciliacao"
-                                      ? "Share"
-                                      : "Direto"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-sm">
-                                  {formatBRL(d.valor_total)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                  <DespesasTable
+                    despesas={despesasDaAeronave}
+                    filtro={filtroFin}
+                    filtroOrigem={filtroOrigem}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
+
 
             {/* Relatórios de Viagem */}
             <TabsContent value="viagem" className="mt-4">
@@ -664,24 +651,24 @@ export default function FinanceiroCotistaDetalhe() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <StatCard
                     icon={<TrendingUp className="h-5 w-5 text-success" />}
-                    label="Crédito (você pagou)"
+                    label="Já pago pelo cliente"
                     value={formatBRL(meuBalanco.total_pago)}
-                    sub="Total efetivamente pago"
+                    sub="Despesas quitadas direto pelo cliente/sócio"
                   />
                   <StatCard
                     icon={<TrendingDown className="h-5 w-5 text-destructive" />}
-                    label="Débito (sua parte)"
+                    label="Devido pelo cliente"
                     value={formatBRL(meuBalanco.total_devido)}
                     sub={`Rateio sobre ${meuBalanco.percentual}% de cota`}
                   />
                   <StatCard
                     icon={<Scale className="h-5 w-5" />}
                     label="Saldo"
-                    value={formatBRL(meuBalanco.saldo)}
+                    value={formatBRL(Math.abs(meuBalanco.saldo))}
                     sub={
                       meuBalanco.saldo >= 0
-                        ? "Você tem a receber"
-                        : "Você tem a pagar"
+                        ? "Share deve ao cliente"
+                        : "Cliente deve à Share"
                     }
                     highlight={meuBalanco.saldo >= 0 ? "success" : "destructive"}
                   />
@@ -705,12 +692,8 @@ export default function FinanceiroCotistaDetalhe() {
                         <TableRow>
                           <TableHead>Cotista</TableHead>
                           <TableHead className="text-right">% Cota</TableHead>
-                          <TableHead className="text-right">
-                            Crédito (pagou)
-                          </TableHead>
-                          <TableHead className="text-right">
-                            Débito (deve)
-                          </TableHead>
+                          <TableHead className="text-right">Já pagou</TableHead>
+                          <TableHead className="text-right">Deve (rateio)</TableHead>
                           <TableHead className="text-right">Saldo</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -731,7 +714,7 @@ export default function FinanceiroCotistaDetalhe() {
                                   variant="secondary"
                                   className="ml-2 text-[10px]"
                                 >
-                                  Você
+                                  Em análise
                                 </Badge>
                               )}
                             </TableCell>
@@ -751,7 +734,8 @@ export default function FinanceiroCotistaDetalhe() {
                                   : "text-destructive"
                               }`}
                             >
-                              {formatBRL(b.saldo)}
+                              {b.saldo >= 0 ? "+" : "−"}
+                              {formatBRL(Math.abs(b.saldo))}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -762,9 +746,9 @@ export default function FinanceiroCotistaDetalhe() {
               </Card>
 
               <p className="text-xs text-muted-foreground italic">
-                * O débito é calculado proporcionalmente ao percentual de cota
-                sobre cada despesa da aeronave. O crédito considera as despesas
-                pagas diretamente pelo cotista (origem "Direto").
+                * "Devido" = % de cota × despesas da aeronave. "Já pagou" = despesas
+                quitadas diretamente do bolso pelo cotista. Saldo positivo: a Share
+                deve reembolsar o cotista. Negativo: o cotista deve à Share.
               </p>
             </TabsContent>
 
@@ -774,10 +758,20 @@ export default function FinanceiroCotistaDetalhe() {
             </TabsContent>
           </div>
         </Tabs>
+
+        {/* Drill-down dos cards do topo */}
+        <DrillDownModal
+          tipo={drillCard}
+          onClose={() => setDrillCard(null)}
+          despesas={despesasDaAeronave}
+          abastecimentos={abastecimentosDaAeronave}
+          aeronaveLabel={aeronaveInfo?.matricula || "—"}
+        />
       </div>
     </Layout>
   );
 }
+
 
 // Componente de Estatística Refatorado para AA++
 function StatCard({
@@ -786,17 +780,24 @@ function StatCard({
   value,
   sub,
   highlight,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub?: string;
   highlight?: "success" | "destructive";
+  onClick?: () => void;
 }) {
+  const Component: any = onClick ? "button" : "div";
   return (
-    <div className="group relative p-6 rounded-3xl bg-gradient-to-b from-card/60 to-card/20 backdrop-blur-md border border-border/40 hover:border-primary/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden">
+    <Component
+      onClick={onClick}
+      className={`group relative p-6 rounded-3xl bg-gradient-to-b from-card/60 to-card/20 backdrop-blur-md border border-border/40 hover:border-primary/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden text-left w-full ${
+        onClick ? "cursor-pointer" : ""
+      }`}
+    >
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
           <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/80">
@@ -818,7 +819,321 @@ function StatCard({
           {value}
         </p>
         {sub && <p className="text-sm text-muted-foreground/70 font-medium">{sub}</p>}
+        {onClick && (
+          <p className="text-[10px] uppercase tracking-wider text-primary/70 mt-2 font-medium">
+            Clique para detalhar →
+          </p>
+        )}
       </div>
+    </Component>
+  );
+}
+
+
+// ============== Tabela detalhada de lançamentos ==============
+function DespesasTable({
+  despesas,
+  filtro,
+  filtroOrigem,
+}: {
+  despesas: DespesaUnificada[];
+  filtro: string;
+  filtroOrigem: "todos" | "conciliacao" | "direto";
+}) {
+  const fmtBRL = (n: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
+  const fmtDate = (s?: string | null) =>
+    s ? new Date(s).toLocaleDateString("pt-BR") : "—";
+
+  const lista = useMemo(() => {
+    const q = filtro.trim().toLowerCase();
+    return [...despesas]
+      .filter((d) => filtroOrigem === "todos" || d.origem === filtroOrigem)
+      .filter((d) => {
+        if (!q) return true;
+        return (
+          d.descricao?.toLowerCase().includes(q) ||
+          (d.fornecedor || "").toLowerCase().includes(q) ||
+          (d.numero_doc || "").toLowerCase().includes(q) ||
+          (d.numero_nf || "").toLowerCase().includes(q) ||
+          (d.numero_boleto || "").toLowerCase().includes(q) ||
+          (d.pago_por || "").toLowerCase().includes(q) ||
+          (d.categoria || "").toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime());
+  }, [despesas, filtro, filtroOrigem]);
+
+  if (lista.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-6 text-center">
+        Nenhum lançamento encontrado com os filtros atuais.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Vencimento</TableHead>
+            <TableHead>Pago em</TableHead>
+            <TableHead>Doc / NF</TableHead>
+            <TableHead>Descrição</TableHead>
+            <TableHead>Categoria</TableHead>
+            <TableHead>Fornecedor</TableHead>
+            <TableHead>Pago por</TableHead>
+            <TableHead>Forma</TableHead>
+            <TableHead>Origem</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+            <TableHead className="text-center">Anexos</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {lista.map((d) => {
+            const anexos = [
+              { url: d.comprovante_url, label: "Comprovante" },
+              { url: d.recibo_url, label: "Recibo" },
+              { url: d.nf_url, label: "NF" },
+              { url: d.boleto_url, label: "Boleto" },
+            ].filter((a) => !!a.url);
+
+            return (
+              <TableRow key={d.id}>
+                <TableCell className="text-xs">{fmtDate(d.data_vencimento)}</TableCell>
+                <TableCell className="text-xs">{fmtDate(d.data_pagamento)}</TableCell>
+                <TableCell className="text-xs font-mono">
+                  {d.numero_nf || d.numero_doc || d.numero_boleto || d.numero_recibo || "—"}
+                </TableCell>
+                <TableCell className="text-sm max-w-[260px]">
+                  <span className="block truncate" title={d.descricao}>
+                    {d.descricao}
+                  </span>
+                  {d.observacoes && (
+                    <span className="block text-[10px] text-muted-foreground/70 truncate" title={d.observacoes}>
+                      {d.observacoes}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">{d.categoria || "—"}</TableCell>
+                <TableCell className="text-xs">{d.fornecedor || "—"}</TableCell>
+                <TableCell className="text-xs">
+                  <Badge
+                    variant="outline"
+                    className={
+                      d.pago_por_tipo === "EMPRESA"
+                        ? "border-blue-500/40 text-blue-400"
+                        : d.pago_por_tipo === "CLIENTE"
+                        ? "border-amber-500/40 text-amber-400"
+                        : d.pago_por_tipo === "SOCIO"
+                        ? "border-purple-500/40 text-purple-400"
+                        : "border-border text-muted-foreground"
+                    }
+                  >
+                    {d.pago_por}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-xs">{d.forma_pagamento || "—"}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className={
+                      d.origem === "conciliacao"
+                        ? "border-blue-500/40 text-blue-400"
+                        : "border-amber-500/40 text-amber-400"
+                    }
+                  >
+                    {d.origem === "conciliacao" ? "Share pagou" : "Direto"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm font-semibold">
+                  {fmtBRL(d.valor_total)}
+                </TableCell>
+                <TableCell className="text-center">
+                  {anexos.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  ) : (
+                    <div className="flex justify-center gap-1">
+                      {anexos.map((a) => (
+                        <a
+                          key={a.label}
+                          href={a.url!}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={a.label}
+                          className="p-1 rounded hover:bg-primary/10 text-primary"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    {d.status || "—"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      <p className="text-xs text-muted-foreground mt-3">
+        {lista.length} lançamento(s) · Total: {fmtBRL(lista.reduce((a, d) => a + d.valor_total, 0))}
+      </p>
     </div>
+  );
+}
+
+// ============== Drill-down modal dos cards ==============
+function DrillDownModal({
+  tipo,
+  onClose,
+  despesas,
+  abastecimentos,
+  aeronaveLabel,
+}: {
+  tipo: null | "total" | "share" | "direto" | "abast";
+  onClose: () => void;
+  despesas: DespesaUnificada[];
+  abastecimentos: any[];
+  aeronaveLabel: string;
+}) {
+  const fmtBRL = (n: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
+  const fmtDate = (s?: string | null) =>
+    s ? new Date(s).toLocaleDateString("pt-BR") : "—";
+
+  if (!tipo) return null;
+
+  const titulo =
+    tipo === "total"
+      ? "Composição: Total de despesas"
+      : tipo === "share"
+      ? "Composição: Pago pela Share Brasil"
+      : tipo === "direto"
+      ? "Composição: Pago diretamente pelo cliente/sócio"
+      : "Composição: Abastecimentos";
+
+  const explicacao =
+    tipo === "total"
+      ? "Soma de TODAS as despesas vinculadas a esta aeronave (independente de quem pagou)."
+      : tipo === "share"
+      ? "Despesas que a Share Brasil quitou do caixa da empresa. Geram crédito a reembolsar pelo cliente."
+      : tipo === "direto"
+      ? "Despesas pagas direto do bolso do cliente ou do sócio (sem passar pelo caixa da Share)."
+      : "Abastecimentos lançados separadamente do fluxo de despesas administrativas.";
+
+  let listaDespesas: DespesaUnificada[] = [];
+  if (tipo === "total") listaDespesas = despesas;
+  else if (tipo === "share") listaDespesas = despesas.filter((d) => d.origem === "conciliacao");
+  else if (tipo === "direto") listaDespesas = despesas.filter((d) => d.origem === "direto");
+
+  const total =
+    tipo === "abast"
+      ? abastecimentos.reduce((a, x) => a + (x.valor_total || 0), 0)
+      : listaDespesas.reduce((a, d) => a + d.valor_total, 0);
+
+  // Agrupar por categoria
+  const porCategoria = new Map<string, number>();
+  listaDespesas.forEach((d) => {
+    const k = d.categoria || "Sem categoria";
+    porCategoria.set(k, (porCategoria.get(k) || 0) + d.valor_total);
+  });
+
+  return (
+    <Dialog open={!!tipo} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span>{titulo}</span>
+            <span className="text-xl font-mono text-primary">{fmtBRL(total)}</span>
+          </DialogTitle>
+          <DialogDescription>
+            {explicacao} Aeronave: <strong>{aeronaveLabel}</strong>.
+          </DialogDescription>
+        </DialogHeader>
+
+        {tipo !== "abast" && porCategoria.size > 0 && (
+          <div className="mb-4">
+            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+              Por categoria
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {Array.from(porCategoria.entries())
+                .sort((a, b) => b[1] - a[1])
+                .map(([cat, val]) => (
+                  <Badge key={cat} variant="outline" className="text-xs py-1 px-3">
+                    {cat}: <span className="ml-1 font-mono font-semibold">{fmtBRL(val)}</span>
+                  </Badge>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {tipo !== "abast" ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Doc</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Fornecedor</TableHead>
+                <TableHead>Pago por</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {listaDespesas
+                .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime())
+                .map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="text-xs">{fmtDate(d.data)}</TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {d.numero_nf || d.numero_doc || "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">{d.descricao}</TableCell>
+                    <TableCell className="text-xs">{d.fornecedor || "—"}</TableCell>
+                    <TableCell className="text-xs">{d.pago_por}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {fmtBRL(d.valor_total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Local</TableHead>
+                <TableHead>Abastecedor</TableHead>
+                <TableHead className="text-right">Litros</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {abastecimentos.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="text-xs">{fmtDate(a.data)}</TableCell>
+                  <TableCell className="text-sm">{a.trecho || a.local || "—"}</TableCell>
+                  <TableCell className="text-xs">{a.abastecedor || "—"}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">
+                    {Number(a.litros).toLocaleString("pt-BR")}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    {fmtBRL(a.valor_total)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

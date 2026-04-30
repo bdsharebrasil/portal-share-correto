@@ -309,8 +309,62 @@ export function formatDateExtended(dateString: string): string {
 // ============================================================================
 
 /**
- * Gera número único de recibo
+ * Gera número sequencial de recibo (NOVO - com incremento)
+ * Formato: REC-[PREFIXO][NÚMEROS]/[ANO]
+ * Exemplo: REC-NOG001/26, REC-NOG002/26, etc
+ */
+export async function generateSequentialReceiptNumber(
+  clientName: string,
+  supabase: any
+): Promise<string> {
+  const today = new Date();
+  const year = String(today.getFullYear()).slice(-2);
+
+  if (!clientName || !clientName.trim()) {
+    // Se não houver cliente, usar fallback com data + random
+    const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    return `REC-${randomNumbers}/${year}`;
+  }
+
+  // Extrair 3 primeiras letras do cliente e garantir uppercase
+  const prefix = clientName
+    .substring(0, 3)
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .padEnd(3, "X");
+
+  // Buscar todos os recibos com este prefixo no ano atual
+  const { data: existingReceipts, error } = await supabase
+    .from("recibos")
+    .select("numero_recibo")
+    .like("numero_recibo", `REC-${prefix}%/${year}`)
+    .order("numero_recibo", { ascending: false });
+
+  if (error) {
+    console.error("Erro ao buscar recibos existentes:", error);
+    // Fallback em caso de erro
+    const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    return `REC-${prefix}${randomNumbers}/${year}`;
+  }
+
+  // Extrair o próximo número
+  let nextNumber = 1;
+  if (existingReceipts && existingReceipts.length > 0) {
+    const lastReceipt = existingReceipts[0];
+    const match = lastReceipt.numero_recibo.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
+    if (match && match[1]) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+
+  const numeroFormatado = String(nextNumber).padStart(3, "0");
+  return `REC-${prefix}${numeroFormatado}/${year}`;
+}
+
+/**
+ * Gera número único de recibo (ANTIGO - com random)
  * Formato: REC-[PREFIXO]-[NÚMEROS]/[ANO]
+ * @deprecated Use generateSequentialReceiptNumber em vez desta função
  */
 export function generateReceiptNumber(clientName?: string): string {
   const today = new Date();
