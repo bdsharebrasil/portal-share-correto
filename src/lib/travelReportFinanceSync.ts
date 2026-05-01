@@ -165,13 +165,18 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
 
   for (const t of tripulantesParaReembolsar) {
     const descricaoBase = `Reembolso RV ${params.numeroRelatorio} — ${t.label} (${t.nome})`;
+    // Chave de origem (idempotência): mesma para contas_apagar e movimentacoes
+    // — diferenciamos os 2 tripulantes por sub-namespace no reference_type.
+    const cpReferenceType = `travel_report_crew_${t.label === "TRIPULANTE 1" ? 1 : 2}`;
+    const movReferenceType = `travel_report_reembolso_${t.label === "TRIPULANTE 1" ? 1 : 2}`;
 
     // 2a) contas_apagar (Share Brasil deve ao tripulante)
     try {
       const { data: existingCp } = await (supabase as any)
         .from("contas_apagar")
         .select("id")
-        .eq("descricao", descricaoBase)
+        .eq("reference_type", cpReferenceType)
+        .eq("reference_id", params.reportId)
         .maybeSingle();
 
       let contasApagarId: string | null = existingCp?.id ?? null;
@@ -189,6 +194,8 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
           aeronave_registro: params.matriculaAeronave || null,
           aeronave_id: params.aeronaveId || null,
           observacoes: `Gerado automaticamente pelo Relatório de Viagem ${params.numeroRelatorio}`,
+          reference_type: cpReferenceType,
+          reference_id: params.reportId,
           criado_por: params.userId || null,
         };
         const { data: cpInserted, error: cpErr } = await (supabase as any)
@@ -206,7 +213,8 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
         const { data: existingMov } = await (supabase as any)
           .from("movimentacoes")
           .select("id")
-          .eq("descricao", descricaoBase)
+          .eq("reference_type", movReferenceType)
+          .eq("reference_id", params.reportId)
           .maybeSingle();
 
         if (!existingMov) {
@@ -226,6 +234,8 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
             reembolso_quitado: false,
             categoria_id: categoriaMovId,
             contas_apagar_id: contasApagarId,
+            reference_type: movReferenceType,
+            reference_id: params.reportId,
             criado_por: params.userId || null,
           };
           const { error: movErr } = await (supabase as any)
