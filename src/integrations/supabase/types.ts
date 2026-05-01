@@ -1704,6 +1704,8 @@ export type Database = {
           observacoes: string | null
           possui_boleto: boolean | null
           possui_nf: boolean | null
+          reference_id: string | null
+          reference_type: string | null
           socios_cliente_id: string | null
           status: string
           valor: number
@@ -1744,6 +1746,8 @@ export type Database = {
           observacoes?: string | null
           possui_boleto?: boolean | null
           possui_nf?: boolean | null
+          reference_id?: string | null
+          reference_type?: string | null
           socios_cliente_id?: string | null
           status: string
           valor: number
@@ -1784,6 +1788,8 @@ export type Database = {
           observacoes?: string | null
           possui_boleto?: boolean | null
           possui_nf?: boolean | null
+          reference_id?: string | null
+          reference_type?: string | null
           socios_cliente_id?: string | null
           status?: string
           valor?: number
@@ -7133,6 +7139,8 @@ export type Database = {
           recibo_url: string | null
           reembolsavel: boolean
           reembolso_quitado: boolean
+          reference_id: string | null
+          reference_type: string | null
           socio_id: string | null
           status: string
           tipo: string
@@ -7177,6 +7185,8 @@ export type Database = {
           recibo_url?: string | null
           reembolsavel?: boolean
           reembolso_quitado?: boolean
+          reference_id?: string | null
+          reference_type?: string | null
           socio_id?: string | null
           status?: string
           tipo: string
@@ -7221,6 +7231,8 @@ export type Database = {
           recibo_url?: string | null
           reembolsavel?: boolean
           reembolso_quitado?: boolean
+          reference_id?: string | null
+          reference_type?: string | null
           socio_id?: string | null
           status?: string
           tipo?: string
