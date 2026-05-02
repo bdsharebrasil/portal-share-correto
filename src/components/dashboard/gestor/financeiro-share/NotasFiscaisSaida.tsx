@@ -1221,6 +1221,32 @@ export function NotasFiscaisSaida() {
         throw error;
       }
 
+      // Propaga para movimentacoes + contas_areceber
+      const today = new Date().toISOString().split("T")[0];
+      await supabase
+        .from("movimentacoes")
+        .update({
+          status: "pago",
+          data_pagamento: recebimentoData.data_recebimento || today,
+          banco_nome: recebimentoData.banco,
+          comprovante_url: recebimentoData.comprovante_url || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("reference_type", "nf_saida")
+        .eq("reference_id", pendingNotaRecebimento.notaId);
+
+      await supabase
+        .from("contas_areceber")
+        .update({
+          status: "recebido",
+          data_recebimento: recebimentoData.data_recebimento || today,
+          banco_recebimento: recebimentoData.banco,
+          comprovante_recebimento_url: recebimentoData.comprovante_url || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("reference_type", "nf_saida")
+        .eq("reference_id", pendingNotaRecebimento.notaId);
+
       toast({
         title: "Sucesso",
         description: "Nota Fiscal marcada como recebida com sucesso",
