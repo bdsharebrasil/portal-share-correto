@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { syncNFSaidaFinance, deleteNFSaidaFinanceMirror } from "@/lib/nfSaidaFinanceSync";
 
 // --- CONFIGURAÇÃO DO PDF (APENAS PARA RECIBOS) ---
 
