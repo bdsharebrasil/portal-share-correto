@@ -755,16 +755,16 @@ export function NotasFiscaisSaida() {
     const ano = new Date().getFullYear().toString().slice(-2);
 
     const { data: existingRecibos } = await supabase
-      .from("controle_bancario")
-      .select("numero_documento")
-      .like("numero_documento", `REC-${clienteLetras}%/${ano}`)
-      .eq("tipo_movimento", "entrada")
-      .order("numero_documento", { ascending: false });
+      .from("movimentacoes")
+      .select("numero_recibo")
+      .like("numero_recibo", `REC-${clienteLetras}%/${ano}`)
+      .eq("tipo", "receita")
+      .order("numero_recibo", { ascending: false });
 
     let numero = 1;
     if (existingRecibos && existingRecibos.length > 0) {
       const ultimoRecibo = existingRecibos[0];
-      const match = ultimoRecibo.numero_documento.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
+      const match = (ultimoRecibo.numero_recibo || "").match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
       if (match) {
         numero = parseInt(match[1]) + 1;
       }
