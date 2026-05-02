@@ -96,11 +96,13 @@ export function useCreateInvoice() {
         throw invoiceError;
       }
 
-      // Criar conta a receber automaticamente
+      // Criar conta a receber e movimentação automaticamente
       if (invoiceInsert && invoiceInsert.length > 0) {
         const invoiceId = invoiceInsert[0].id;
         const amount = parseFloat(invoiceData.value);
         const dueDate = invoiceData.dueDate || invoiceData.issueDate;
+        const dueDateStr = dueDate.toISOString().split('T')[0];
+        const issueDateStr = invoiceData.issueDate.toISOString().split('T')[0];
 
         const { error: receivableError } = await supabase
           .from("accounts_receivable")
@@ -108,13 +110,35 @@ export function useCreateInvoice() {
             {
               invoice_id: invoiceId,
               amount,
-              due_date: dueDate.toISOString().split('T')[0],
+              due_date: dueDateStr,
               status: "open",
             },
           ]);
 
         if (receivableError) {
           console.error("Error creating accounts receivable:", receivableError);
+        }
+
+        // Fase 3: lançamento canônico em movimentacoes (reference_type='invoice')
+        const { error: movError } = await supabase
+          .from("movimentacoes")
+          .insert([
+            {
+              descricao: `NF ${invoiceNumber} - ${invoiceData.clientName}`,
+              tipo: "receita",
+              valor: amount,
+              data_competencia: issueDateStr,
+              data_vencimento: dueDateStr,
+              status: "pendente",
+              numero_nf: invoiceNumber,
+              fornecedor_nome: invoiceData.clientName,
+              reference_type: "invoice",
+              reference_id: invoiceId,
+              criado_por: user.id,
+            },
+          ]);
+        if (movError) {
+          console.error("Error creating movimentacao:", movError);
         }
       }
 

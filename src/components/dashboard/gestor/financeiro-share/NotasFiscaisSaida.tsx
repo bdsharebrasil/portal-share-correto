@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { syncNFSaidaFinance, deleteNFSaidaFinanceMirror } from "@/lib/nfSaidaFinanceSync";
 
 // --- CONFIGURAÇÃO DO PDF (APENAS PARA RECIBOS) ---
 
@@ -488,6 +489,8 @@ export function NotasFiscaisSaida() {
         criado_por: currentUser.id,
       };
 
+      let nfId: string | null = null;
+
       if (editingNota) {
         const editingNotaId = String(editingNota.id).trim();
 
@@ -509,23 +512,55 @@ export function NotasFiscaisSaida() {
           .eq("id", editingNotaId);
 
         if (error) throw error;
+        nfId = editingNotaId;
 
         toast({
           title: "Sucesso",
           description: "Nota fiscal atualizada com sucesso",
         });
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("notas_fiscais_saida")
           .insert([notaData])
-          .select();
+          .select()
+          .single();
 
         if (error) throw error;
+        nfId = inserted?.id || null;
 
         toast({
           title: "Sucesso",
           description: "Nota fiscal criada com sucesso",
         });
+      }
+
+      // === Fase 3: sincroniza com movimentacoes + contas_areceber ===
+      if (nfId) {
+        try {
+          await syncNFSaidaFinance({
+            nfId,
+            numero: notaData.numero,
+            cliente_nome: notaData.cliente_nome,
+            cliente_cnpj: notaData.cliente_cnpj,
+            cliente_id: clientId,
+            aeronave_id: aircraftId,
+            categoria_id: categoriaId,
+            valor: notaData.valor,
+            descricao: notaData.descricao,
+            data_criacao: notaData.data_criacao,
+            data_vencimento: notaData.data_vencimento,
+            status: notaData.status,
+            nf_url: pdfUrl || null,
+            criado_por: currentUser.id,
+          });
+        } catch (syncErr: any) {
+          console.error("Erro ao sincronizar NF com movimentacoes:", syncErr);
+          toast({
+            title: "Aviso",
+            description: "NF salva, mas falhou sincronizar com fluxo financeiro: " + (syncErr?.message || ""),
+            variant: "destructive",
+          });
+        }
       }
 
       setOpenDialog(false);
@@ -565,6 +600,10 @@ export function NotasFiscaisSaida() {
         .eq("id", deleteUuid);
 
       if (error) throw error;
+
+      // Remove espelho em movimentacoes/contas_areceber
+      try { await deleteNFSaidaFinanceMirror(deleteUuid); } catch (e) { console.error("Falha ao remover espelho NF:", e); }
+
       toast({
         title: "Sucesso",
         description: "Nota fiscal deletada com sucesso",
@@ -755,16 +794,16 @@ export function NotasFiscaisSaida() {
     const ano = new Date().getFullYear().toString().slice(-2);
 
     const { data: existingRecibos } = await supabase
-      .from("controle_bancario")
-      .select("numero_documento")
-      .like("numero_documento", `REC-${clienteLetras}%/${ano}`)
-      .eq("tipo_movimento", "entrada")
-      .order("numero_documento", { ascending: false });
+      .from("movimentacoes")
+      .select("numero_recibo")
+      .like("numero_recibo", `REC-${clienteLetras}%/${ano}`)
+      .eq("tipo", "receita")
+      .order("numero_recibo", { ascending: false });
 
     let numero = 1;
     if (existingRecibos && existingRecibos.length > 0) {
       const ultimoRecibo = existingRecibos[0];
-      const match = ultimoRecibo.numero_documento.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
+      const match = (ultimoRecibo.numero_recibo || "").match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
       if (match) {
         numero = parseInt(match[1]) + 1;
       }
@@ -1181,6 +1220,32 @@ export function NotasFiscaisSaida() {
       if (error) {
         throw error;
       }
+
+      // Propaga para movimentacoes + contas_areceber
+      const today = new Date().toISOString().split("T")[0];
+      await supabase
+        .from("movimentacoes")
+        .update({
+          status: "pago",
+          data_pagamento: recebimentoData.data_recebimento || today,
+          banco_nome: recebimentoData.banco,
+          comprovante_url: recebimentoData.comprovante_url || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("reference_type", "nf_saida")
+        .eq("reference_id", pendingNotaRecebimento.notaId);
+
+      await supabase
+        .from("contas_areceber")
+        .update({
+          status: "recebido",
+          data_recebimento: recebimentoData.data_recebimento || today,
+          banco_recebimento: recebimentoData.banco,
+          comprovante_recebimento_url: recebimentoData.comprovante_url || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("reference_type", "nf_saida")
+        .eq("reference_id", pendingNotaRecebimento.notaId);
 
       toast({
         title: "Sucesso",
