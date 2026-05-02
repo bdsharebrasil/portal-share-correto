@@ -488,6 +488,8 @@ export function NotasFiscaisSaida() {
         criado_por: currentUser.id,
       };
 
+      let nfId: string | null = null;
+
       if (editingNota) {
         const editingNotaId = String(editingNota.id).trim();
 
@@ -509,23 +511,55 @@ export function NotasFiscaisSaida() {
           .eq("id", editingNotaId);
 
         if (error) throw error;
+        nfId = editingNotaId;
 
         toast({
           title: "Sucesso",
           description: "Nota fiscal atualizada com sucesso",
         });
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("notas_fiscais_saida")
           .insert([notaData])
-          .select();
+          .select()
+          .single();
 
         if (error) throw error;
+        nfId = inserted?.id || null;
 
         toast({
           title: "Sucesso",
           description: "Nota fiscal criada com sucesso",
         });
+      }
+
+      // === Fase 3: sincroniza com movimentacoes + contas_areceber ===
+      if (nfId) {
+        try {
+          await syncNFSaidaFinance({
+            nfId,
+            numero: notaData.numero,
+            cliente_nome: notaData.cliente_nome,
+            cliente_cnpj: notaData.cliente_cnpj,
+            cliente_id: clientId,
+            aeronave_id: aircraftId,
+            categoria_id: categoriaId,
+            valor: notaData.valor,
+            descricao: notaData.descricao,
+            data_criacao: notaData.data_criacao,
+            data_vencimento: notaData.data_vencimento,
+            status: notaData.status,
+            nf_url: pdfUrl || null,
+            criado_por: currentUser.id,
+          });
+        } catch (syncErr: any) {
+          console.error("Erro ao sincronizar NF com movimentacoes:", syncErr);
+          toast({
+            title: "Aviso",
+            description: "NF salva, mas falhou sincronizar com fluxo financeiro: " + (syncErr?.message || ""),
+            variant: "destructive",
+          });
+        }
       }
 
       setOpenDialog(false);
