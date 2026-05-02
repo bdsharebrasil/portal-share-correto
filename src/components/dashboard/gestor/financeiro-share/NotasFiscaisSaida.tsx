@@ -600,6 +600,10 @@ export function NotasFiscaisSaida() {
         .eq("id", deleteUuid);
 
       if (error) throw error;
+
+      // Remove espelho em movimentacoes/contas_areceber
+      try { await deleteNFSaidaFinanceMirror(deleteUuid); } catch (e) { console.error("Falha ao remover espelho NF:", e); }
+
       toast({
         title: "Sucesso",
         description: "Nota fiscal deletada com sucesso",
