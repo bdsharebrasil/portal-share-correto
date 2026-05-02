@@ -422,39 +422,43 @@ export default function EmissaoRecibo() {
           } else {
             console.log("✅ Conta a pagar criada:", contaData.id);
 
-            // ===== 2. Criar conciliacoes_bancarias =====
-            const brPayload: any = {
-              type: "cliente",
-              date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
-              description: brDescription,
-              amount: valorRecibo,
-              status: "pendente",
-              client_id: originalForm.clienteId,
+            // ===== 2. Criar movimentação de DESPESA (espelho do contas_apagar) =====
+            const dataEmissaoStr = originalForm.dataEmissao || new Date().toISOString().split("T")[0];
+            const movDespesaPayload: any = {
+              descricao: brDescription,
+              tipo: "despesa",
+              categoria_id: originalForm.reembolsoCategoriaId || null,
+              valor: isDECEAorINFRAERO
+                ? parseFloat(originalForm.valorTotalBoleto || String(valorRecibo))
+                : valorRecibo,
+              data_competencia: dataEmissaoStr,
+              data_vencimento: dataVencimento,
               aeronave_id: selectedAircraftId || null,
-              categoria_movimentacao_id: originalForm.reembolsoCategoriaId || null,
-              category: formData.categoriaNome || "Clientes - Despesas Reembolsáveis",
-              tipo_documento: isRateado ? "rateio" : "recibo",
-              prazo_pagamento: dataVencimento,
-              percentual: isRateado ? percentual : null,
-              afeta_caixa_empresa: true,
-              criado_por: currentUserId,
-              reference_id: contaData.id,
-              reference_type: "contas_apagar",
+              clientes_id: originalForm.clienteId,
+              status: "pendente",
+              fornecedor_nome: nomePagador,
+              numero_recibo: receiptData.numero_recibo,
+              numero_doc: isDecea
+                ? originalForm.numeroDocumentoDecea || null
+                : isInfraero
+                ? originalForm.numeroDocumentoInfraero || null
+                : null,
               boleto_url: boletoUrl,
               nf_url: notaFiscalUrl || deceeaUrl || infraeroUrl,
-              partner_name: nomePagador,
+              criado_por: currentUserId,
+              contas_apagar_id: contaData.id,
+              reference_type: "contas_apagar",
+              reference_id: contaData.id,
             };
 
-            const { data: brData, error: brError } = await supabase
-              .from("conciliacoes_bancarias")
-              .insert(brPayload)
-              .select("id")
-              .single();
+            const { error: movDespesaError } = await supabase
+              .from("movimentacoes")
+              .insert(movDespesaPayload);
 
-            if (brError) {
-              console.error("❌ Erro ao criar conciliacao bancaria:", brError);
+            if (movDespesaError) {
+              console.error("❌ Erro ao criar movimentação (despesa):", movDespesaError);
             } else {
-              console.log("✅ Conciliacao bancaria criada:", brData.id);
+              console.log("✅ Movimentação (despesa) criada");
             }
 
             // ===== 3. Criar contas_areceber =====
@@ -465,27 +469,58 @@ export default function EmissaoRecibo() {
               cliente_cnpj: clienteData?.cnpj || originalForm.pagadorDocumento || "",
               categoria: "Clientes - Despesas Reembolsáveis",
               valor: valorRecibo,
-              data_criacao: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
+              data_criacao: dataEmissaoStr,
               data_vencimento: dataVencimento,
               status: "pendente",
               descricao: brDescription,
               aeronave: aeronaveRegistro || null,
-              banco_conciliacao_id: brData?.id || null,
               criado_por: currentUserId,
               reference_id: receiptData.id,
-              reference_type: "receipt",
+              reference_type: "recibo",
               boleto_url: boletoUrl,
               nota_fiscal_url: notaFiscalUrl || deceeaUrl || infraeroUrl,
             };
 
-            const { error: crError } = await supabase
+            const { data: crData, error: crError } = await supabase
               .from("contas_areceber")
-              .insert(contaReceberPayload);
+              .insert(contaReceberPayload)
+              .select("id")
+              .single();
 
             if (crError) {
               console.error("❌ Erro ao criar conta a receber:", crError);
             } else {
-              console.log("✅ Conta a receber criada");
+              console.log("✅ Conta a receber criada:", crData.id);
+
+              // ===== 4. Criar movimentação de RECEITA (espelho do contas_areceber / recibo) =====
+              const movReceitaPayload: any = {
+                descricao: brDescription,
+                tipo: "receita",
+                categoria_id: originalForm.reembolsoCategoriaId || null,
+                valor: valorRecibo,
+                data_competencia: dataEmissaoStr,
+                data_vencimento: dataVencimento,
+                aeronave_id: selectedAircraftId || null,
+                clientes_id: originalForm.clienteId,
+                status: "pendente",
+                numero_recibo: receiptData.numero_recibo,
+                boleto_url: boletoUrl,
+                nf_url: notaFiscalUrl || deceeaUrl || infraeroUrl,
+                criado_por: currentUserId,
+                contas_areceber_id: crData.id,
+                reference_type: "recibo",
+                reference_id: receiptData.id,
+              };
+
+              const { error: movReceitaError } = await supabase
+                .from("movimentacoes")
+                .insert(movReceitaPayload);
+
+              if (movReceitaError) {
+                console.error("❌ Erro ao criar movimentação (receita):", movReceitaError);
+              } else {
+                console.log("✅ Movimentação (receita) criada");
+              }
             }
           }
 
