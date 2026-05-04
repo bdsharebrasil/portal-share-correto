@@ -57,7 +57,7 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
         let pagamentoDiretoQuery = (supabase as any)
           .from('despesas_cliente_direto')
           .select('id, valor, status, descricao')
-          .eq('cliente_id', clienteId)
+          .eq('clientes_id', clienteId)
           .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado', 'comprovante_recebido']);
 
         if (aircraftId) {

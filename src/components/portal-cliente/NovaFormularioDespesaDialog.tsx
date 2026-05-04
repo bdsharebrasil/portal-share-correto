@@ -257,7 +257,7 @@ export function NovaFormularioDespesaDialog({
       const { data: despesaData, error: despesaError } = await (supabase as any)
         .from('despesas_cliente_direto')
         .insert({
-          client_id: clientId,
+          clientes_id: clientId,
           client_name: clientName,
           aeronave_id: aircraftId || null,
           aeronave_registro: aircraftRegistration || null,

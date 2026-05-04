@@ -130,7 +130,7 @@ export function EnvioDespesaTab({
   const loadDespesas = async () => {
     try {
       setLoading(true);
-      let query = (supabase as any).from('despesas_cliente_direto').select('*').eq('cliente_id', clientId);
+      let query = (supabase as any).from('despesas_cliente_direto').select('*').eq('clientes_id', clientId);
 
       if (aircraftId) {
         query = query.eq('aircraft_id', aircraftId);

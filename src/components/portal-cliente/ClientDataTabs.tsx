@@ -1,11 +1,12 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash, CheckCircle2, DollarSign } from "lucide-react";
+import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash, CheckCircle2, DollarSign, Search, X } from "lucide-react";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
 import { FuelPaymentDialog } from "./FuelPaymentDialog";
@@ -36,7 +37,15 @@ interface TravelReportReconciliation {
   pdf_url?: string | null;
 }
 
-export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false, selectedPartner, selectedAbastecimentoId }: ClientDataTabsProps) {
+export function ClientDataTabs({
+  clientId,
+  clientName,
+  aircraftId,
+  aircraftRegistration,
+  isAdmin = false,
+  selectedPartner,
+  selectedAbastecimentoId,
+}: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [fuelPaymentDialogOpen, setFuelPaymentDialogOpen] = useState(false);
@@ -50,18 +59,21 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
   const [bankReconciliations, setBankReconciliations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<string>("all");
   const [activeClientId, setActiveClientId] = useState<string>(clientId);
   const [fornecedoresShare, setFornecedoresShare] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<string>(selectedAbastecimentoId ? 'fuel' : 'financeiro');
+  const [activeTab, setActiveTab] = useState<string>(selectedAbastecimentoId ? "fuel" : "financeiro");
 
   useEffect(() => {
     setActiveClientId(clientId);
   }, [clientId]);
 
-  // Mudar para aba de abastecimentos se selectedAbastecimentoId for definido
   useEffect(() => {
     if (selectedAbastecimentoId) {
-      setActiveTab('fuel');
+      setActiveTab("fuel");
     }
   }, [selectedAbastecimentoId]);
 
@@ -69,14 +81,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     const loadPartners = async () => {
       if (!aircraftId) return;
       try {
-        // ✅ FIX 1: order por quota_hours (campo correto da tabela aircraft_shareholders)
         const { data } = await supabase
-          .from('aircraft_shareholders')
-          .select('*, client:client_id(id, razao_social)')
-          .eq('aircraft_id', aircraftId)
-          .order('quota_hours', { ascending: false });
+          .from("aircraft_shareholders")
+          .select("*, client:client_id(id, razao_social)")
+          .eq("aircraft_id", aircraftId)
+          .order("quota_hours", { ascending: false });
 
-        // ✅ FIX 2: mapear quota_hours no lugar de percentual_sociedade (que não existe na tabela)
         const partnerList = (data || []).map((p: any) => ({
           client_id: p.cliente_id,
           company_name: p.client?.razao_social || p.client_name || p.nome_socio || p.cliente_id,
@@ -90,7 +100,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         setPartners(partnerList);
         setActiveClientId(clientId);
       } catch (error) {
-        console.error('Error loading partners:', error);
+        console.error("Error loading partners:", error);
       }
     };
 
@@ -103,17 +113,129 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     }
   }, [clientId, aircraftId, selectedPartner]);
 
+  const filterRecordBySearch = (record: any, fields: string[]) => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return fields.some((field) => String(record[field] || "").toLowerCase().includes(searchLower));
+  };
+
+  const filteredFiles = useMemo(() => {
+    return files.filter((record: any) =>
+      filterRecordBySearch(record, [record.nome_arquivo, record.descricao, record.tipo, record.criado_em])
+    );
+  }, [files, searchQuery]);
+
+  const filteredContracts = useMemo(() => {
+    return contracts.filter((record: any) =>
+      filterRecordBySearch(record, [record.nome_contrato, record.fornecedor_nome, record.tipo, record.criado_em])
+    );
+  }, [contracts, searchQuery]);
+
+  const filteredLogbookEntries = useMemo(() => {
+    return logbookEntries.filter((record: any) =>
+      filterRecordBySearch(record, [record.trecho, record.departure_aero?.name, record.arrival_aero?.name, record.socios_cliente_id])
+    );
+  }, [logbookEntries, searchQuery]);
+
+  const filteredFuelRecords = useMemo(() => {
+    return fuelRecords.filter((record: any) =>
+      filterRecordBySearch(record, [record.trecho, record.local, record.nf, record.observacao, record.nome_socio])
+    );
+  }, [fuelRecords, searchQuery]);
+
+  const filteredCtmTracking = useMemo(() => {
+    return ctmTracking.filter((record: any) =>
+      filterRecordBySearch(record, [record.descricao, record.status, record.origem, record.observacao])
+    );
+  }, [ctmTracking, searchQuery]);
+
+  const filteredTravelReports = useMemo(() => {
+    return travelReports.filter((record: any) =>
+      filterRecordBySearch(record, [record.descricao, record.nome_socio, record.status, record.documento])
+    );
+  }, [travelReports, searchQuery]);
+
+  const filteredBankReconciliations = useMemo(() => {
+    return bankReconciliations
+      .filter((record: any) => {
+        const matches =
+          !searchQuery ||
+          [record.descricao, record.categoria, record.status, record.nome_socio].some((value) =>
+            String(value || "").toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        const categoryMatches = filterCategory === "all" || record.categoria === filterCategory;
+        const monthMatches =
+          filterMonth === "all" ||
+          (() => {
+            if (!record.data) return true;
+            const date = new Date(record.data);
+            return date.toLocaleString("pt-BR", { month: "2-digit" }) === filterMonth;
+          })();
+        const yearMatches =
+          filterYear === "all" ||
+          (() => {
+            if (!record.data) return true;
+            const date = new Date(record.data);
+            return String(date.getFullYear()) === filterYear;
+          })();
+        return matches && categoryMatches && monthMatches && yearMatches;
+      })
+      .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime());
+  }, [bankReconciliations, searchQuery, filterCategory, filterMonth, filterYear]);
+
+  const months = useMemo(() => {
+    const monthSet = new Set<string>();
+    bankReconciliations.forEach((record: any) => {
+      if (record.data) {
+        const date = new Date(record.data);
+        monthSet.add(date.toLocaleString("pt-BR", { month: "2-digit" }));
+      }
+    });
+    return Array.from(monthSet).sort();
+  }, [bankReconciliations]);
+
+  const years = useMemo(() => {
+    const yearSet = new Set<string>();
+    bankReconciliations.forEach((record: any) => {
+      if (record.data) {
+        yearSet.add(String(new Date(record.data).getFullYear()));
+      }
+    });
+    return Array.from(yearSet).sort((a, b) => Number(b) - Number(a));
+  }, [bankReconciliations]);
+
+  const categories = useMemo(() => {
+    const categorySet = new Set<string>();
+    bankReconciliations.forEach((record: any) => {
+      if (record.categoria) categorySet.add(record.categoria);
+    });
+    return Array.from(categorySet).sort();
+  }, [bankReconciliations]);
+
+  const groupedBankReconciliations = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    filteredBankReconciliations.forEach((record: any) => {
+      const date = record.data ? new Date(record.data) : new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const groupKey = `${year}-${month}`;
+      if (!groups[groupKey]) groups[groupKey] = [];
+      groups[groupKey].push(record);
+    });
+    return Object.fromEntries(Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0])));
+  }, [filteredBankReconciliations]);
+
   useEffect(() => {
     const loadFornecedoresShare = async () => {
       try {
         const { data, error } = await supabase
-          .from('fornecedores_favoritos')
-          .select('nome_completo')
-          .eq('categoria', 'share');
+          .from("fornecedores_favoritos")
+          .select("nome_completo")
+          .eq("categoria", "share");
         if (error) throw error;
         setFornecedoresShare(data || []);
       } catch (err) {
-        console.error('Erro ao buscar fornecedores favoritos:', err);
+        console.error("Erro ao buscar fornecedores favoritos:", err);
       }
     };
     loadFornecedoresShare();
@@ -123,7 +245,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     try {
       setLoading(true);
 
-      const normalizedPartnerName = selectedPartner?.nome?.trim() || '';
+      const normalizedPartnerName = selectedPartner?.nome?.trim() || "";
       const clientIds = [forClientId];
 
       if (partners.length > 1) {
@@ -138,37 +260,35 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       let filesData = null;
       try {
         const result = await (supabase as any)
-          .from('arquivos_portal_cliente')
-          .select('*')
-          .eq('cliente_id', forClientId)
-          .order('criado_em', { ascending: false });
+          .from("arquivos_portal_cliente")
+          .select("*")
+          .eq("cliente_id", forClientId)
+          .order("criado_em", { ascending: false });
         filesData = result.data;
-        if (result.error) console.warn('Erro ao carregar arquivos:', result.error);
+        if (result.error) console.warn("Erro ao carregar arquivos:", result.error);
       } catch (err) {
-        console.error('Erro crítico ao carregar arquivos:', err);
+        console.error("Erro crítico ao carregar arquivos:", err);
       }
 
       // Load contracts
       let contractsData = null;
       try {
         const result = await (supabase as any)
-          .from('contratos_cliente')
-          .select('*')
-          .eq('cliente_id', forClientId)
-          .order('criado_em', { ascending: false });
+          .from("contratos_cliente")
+          .select("*")
+          .eq("cliente_id", forClientId)
+          .order("criado_em", { ascending: false });
         contractsData = result.data;
-        if (result.error) console.warn('Erro ao carregar contratos:', result.error);
+        if (result.error) console.warn("Erro ao carregar contratos:", result.error);
       } catch (err) {
-        console.error('Erro crítico ao carregar contratos:', err);
+        console.error("Erro crítico ao carregar contratos:", err);
       }
 
       // Load logbook entries
-      // ✅ FIX: partner_name não existe na tabela — removido do select.
-      // O filtro por sócio usa socios_cliente_id (FK existente no schema).
       let logbookData = null;
       try {
         let query = supabase
-          .from('lancamentos_diario_bordo')
+          .from("lancamentos_diario_bordo")
           .select(`
             id,
             data_registro,
@@ -180,22 +300,20 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             trecho,
             socios_cliente_id
           `)
-          .eq('aeronave_id', aircraftId)
-          .eq('clientes_id', forClientId)
-          .order('data_registro', { ascending: false })
+          .eq("aeronave_id", aircraftId)
+          .eq("clientes_id", forClientId)
+          .order("data_registro", { ascending: false })
           .limit(100);
 
-        // Se sócio selecionado tiver id, filtra por socios_cliente_id
         if (selectedPartner?.id) {
-          query = query.eq('socios_cliente_id', selectedPartner.id);
+          query = query.eq("socios_cliente_id", selectedPartner.id);
         }
 
         const { data: allLogbookData, error } = await query;
-
-        if (error) console.warn('Erro ao carregar logbook:', error);
+        if (error) console.warn("Erro ao carregar logbook:", error);
         logbookData = allLogbookData || [];
       } catch (err) {
-        console.error('Erro crítico ao carregar logbook:', err);
+        console.error("Erro crítico ao carregar logbook:", err);
       }
 
       // Load aerodromes
@@ -210,11 +328,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         if (aerodromeCodes.size > 0) {
           try {
             const codesArray = Array.from(aerodromeCodes);
-            // ✅ FIX: coluna correta é 'designativo', não 'code'
             const result = await supabase
-              .from('aerodromes')
-              .select('designativo, nome')
-              .in('designativo', codesArray);
+              .from("aerodromes")
+              .select("designativo, nome")
+              .in("designativo", codesArray);
             const aerodromes = (result.data || []).map((a: any) => ({ ...a, name: a.nome }));
             if (aerodromes && aerodromes.length > 0) {
               aerodromes.forEach((aero: any) => {
@@ -222,10 +339,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               });
             }
           } catch (err) {
-            console.error('Erro crítico ao buscar aerodromes:', err);
+            console.error("Erro crítico ao buscar aerodromes:", err);
           }
 
-          // Fallback: aeródromos não encontrados usam o próprio código como nome
           Array.from(aerodromeCodes).forEach((code: string) => {
             if (!aerodromeMap[code]) {
               aerodromeMap[code] = { code, name: code };
@@ -236,10 +352,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
       const enrichedLogbookData = (logbookData || []).map((entry: any) => {
         const departure = entry.departure_aerodrome
-          ? (aerodromeMap[entry.departure_aerodrome] || { code: entry.departure_aerodrome, name: entry.departure_aerodrome })
+          ? aerodromeMap[entry.departure_aerodrome] || { code: entry.departure_aerodrome, name: entry.departure_aerodrome }
           : null;
         const arrival = entry.arrival_aerodrome
-          ? (aerodromeMap[entry.arrival_aerodrome] || { code: entry.arrival_aerodrome, name: entry.arrival_aerodrome })
+          ? aerodromeMap[entry.arrival_aerodrome] || { code: entry.arrival_aerodrome, name: entry.arrival_aerodrome }
           : null;
         return { ...entry, departure_aero: departure, arrival_aero: arrival };
       });
@@ -248,74 +364,69 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       let fuelData = null;
       try {
         const { data: allFuelData, error } = await supabase
-          .from('abastecimentos')
-          .select('*')
-          .eq('aeronave_id', aircraftId)
-          .eq('clientes_id', forClientId)
-          .order('data', { ascending: false })
+          .from("abastecimentos")
+          .select("*")
+          .eq("aeronave_id", aircraftId)
+          .eq("clientes_id", forClientId)
+          .order("data", { ascending: false })
           .limit(50);
 
-        if (error) console.warn('Erro ao carregar abastecimentos:', error);
+        if (error) console.warn("Erro ao carregar abastecimentos:", error);
 
         if (selectedPartner && normalizedPartnerName && allFuelData) {
           fuelData = allFuelData.filter((record: any) => {
             if (!record.nome_socio) return false;
-            const recordPartnerName = record.nome_socio
-              .replace(/^\[|\]$/g, '')
-              .trim()
-              .toUpperCase();
+            const recordPartnerName = record.nome_socio.replace(/^\[|\]$/g, "").trim().toUpperCase();
             return recordPartnerName === normalizedPartnerName.toUpperCase();
           });
         } else {
           fuelData = allFuelData;
         }
       } catch (err) {
-        console.error('Erro crítico ao carregar abastecimentos:', err);
+        console.error("Erro crítico ao carregar abastecimentos:", err);
       }
 
       // Load CTM tracking
       let ctmData = null;
       try {
         const result = await (supabase as any)
-          .from('ctm_tracking')
-          .select('*')
-          .eq('aeronave_id', aircraftId)
-          .eq('cliente_id', forClientId)
-          .order('created_at', { ascending: false });
+          .from("ctm_tracking")
+          .select("*")
+          .eq("aeronave_id", aircraftId)
+          .eq("cliente_id", forClientId)
+          .order("created_at", { ascending: false });
         ctmData = result.data;
-        if (result.error) console.warn('Erro ao carregar CTM:', result.error);
+        if (result.error) console.warn("Erro ao carregar CTM:", result.error);
       } catch (err) {
-        console.error('Erro crítico ao carregar CTM:', err);
+        console.error("Erro crítico ao carregar CTM:", err);
       }
 
-      // Carregar Relatórios de Viagem via bank_reconciliations
+      // Load Travel Reports
       let reportsData: TravelReportReconciliation[] = [];
       try {
         const { data: reconData, error } = await supabase
-          .from('conciliacoes_bancarias')
-          .select('id, descricao, valor, status, data, prazo_pagamento, referencia_id, documento, nome_socio')
-          .eq('clientes_id', forClientId)
-          .eq('aeronave_id', aircraftId)
-          .eq('categoria', 'RELATORIO DE DESPESA DE VIAGENS')
-          .order('data', { ascending: false })
+          .from("conciliacoes_bancarias")
+          .select("id, descricao, valor, status, data, prazo_pagamento, referencia_id, documento, nome_socio")
+          .eq("clientes_id", forClientId)
+          .eq("aeronave_id", aircraftId)
+          .eq("categoria", "RELATORIO DE DESPESA DE VIAGENS")
+          .order("data", { ascending: false })
           .limit(20);
 
-        if (error) console.warn('Erro ao carregar relatórios de viagem:', error);
+        if (error) console.warn("Erro ao carregar relatórios de viagem:", error);
 
         if (reconData && reconData.length > 0) {
-          const referenceIds = reconData
-            .map((r: any) => r.referencia_id)
-            .filter(Boolean) as string[];
+          const referenceIds = reconData.map((r: any) => r.referencia_id).filter(Boolean) as string[];
 
           let pdfMap: Record<string, string | null> = {};
 
           if (referenceIds.length > 0) {
             const { data: pdfData, error: pdfError } = await supabase
-              .from('travel_expense_reports')
-              .select('id, url_pdf')
-              .in('id', referenceIds);
+              .from("travel_expense_reports")
+              .select("id, url_pdf")
+              .in("id", referenceIds);
 
-            if (pdfError) console.warn('Erro ao buscar url_pdf dos relatórios:', pdfError);
+            if (pdfError) console.warn("Erro ao buscar url_pdf dos relatórios:", pdfError);
 
             (pdfData || []).forEach((row: any) => {
               pdfMap[row.id] = row.url_pdf || null;
@@ -328,23 +439,23 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           }));
         }
       } catch (err) {
-        console.error('Erro crítico ao carregar relatórios de viagem:', err);
+        console.error("Erro crítico ao carregar relatórios de viagem:", err);
       }
 
-      // Load bank reconciliations (filtrando por aeronave_id para mostrar apenas dados do avião selecionado)
+      // Load bank reconciliations
       let bankReconData = null;
       try {
         const result = await supabase
-          .from('conciliacoes_bancarias')
-          .select('*')
-          .eq('clientes_id', forClientId)
-          .eq('aeronave_id', aircraftId)
-          .order('data', { ascending: false })
+          .from("conciliacoes_bancarias")
+          .select("*")
+          .eq("clientes_id", forClientId)
+          .eq("aeronave_id", aircraftId)
+          .order("data", { ascending: false })
           .limit(100);
         bankReconData = result.data;
-        if (result.error) console.warn('Erro ao carregar dados financeiros:', result.error);
+        if (result.error) console.warn("Erro ao carregar dados financeiros:", result.error);
       } catch (err) {
-        console.error('Erro crítico ao carregar dados financeiros:', err);
+        console.error("Erro crítico ao carregar dados financeiros:", err);
       }
 
       setFiles(filesData || []);
@@ -355,7 +466,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       setTravelReports(reportsData);
       setBankReconciliations(bankReconData || []);
     } catch (error) {
-      console.error('Error loading client data:', error);
+      console.error("Error loading client data:", error);
       setFiles([]);
       setContracts([]);
       setLogbookEntries([]);
@@ -367,74 +478,145 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       if (error instanceof Error) {
         toast.error(`Erro ao carregar dados: ${error.message}`);
       } else {
-        toast.error('Erro desconhecido ao carregar dados do cliente');
+        toast.error("Erro desconhecido ao carregar dados do cliente");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadFile = async (filePath: string, bucket: string = 'client-documents') => {
+  const downloadFile = async (filePath: string, bucket: string = "client-documents") => {
     try {
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .download(filePath);
-
+      const { data, error } = await supabase.storage.from(bucket).download(filePath);
       if (error) throw error;
 
       const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = filePath.split('/').pop() || 'download';
+      a.download = filePath.split("/").pop() || "download";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error downloading file:', error);
-      toast.error('Erro ao baixar arquivo');
+      console.error("Error downloading file:", error);
+      toast.error("Erro ao baixar arquivo");
     }
   };
 
   const deleteContract = async (contractId: string, filePath: string) => {
     try {
-      const { error: storageError } = await supabase.storage
-        .from('client-documents')
-        .remove([filePath]);
-
+      const { error: storageError } = await supabase.storage.from("client-documents").remove([filePath]);
       if (storageError) throw storageError;
 
       const { error: dbError } = await (supabase as any)
-        .from('contratos_cliente')
+        .from("contratos_cliente")
         .delete()
-        .eq('id', contractId);
-
+        .eq("id", contractId);
       if (dbError) throw dbError;
 
-      setContracts(prev => prev.filter(c => c.id !== contractId));
-      toast.success('Contrato removido com sucesso');
+      setContracts((prev) => prev.filter((c) => c.id !== contractId));
+      toast.success("Contrato removido com sucesso");
     } catch (error) {
-      console.error('Error deleting contract:', error);
-      toast.error('Erro ao remover contrato');
+      console.error("Error deleting contract:", error);
+      toast.error("Erro ao remover contrato");
+    }
+  };
+
+  const formatDate = (dateStr: string | undefined | null): string => {
+    if (!dateStr) return "—";
+    try {
+      const [y, m, d] = dateStr.split("T")[0].split("-");
+      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString("pt-BR");
+    } catch {
+      return dateStr;
     }
   };
 
   return (
     <>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
-          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-          <TabsTrigger value="contracts">Contratos</TabsTrigger>
-          <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
-          <TabsTrigger value="fuel">Abastecimentos</TabsTrigger>
-          <TabsTrigger value="ctm">CTM</TabsTrigger>
-          <TabsTrigger value="travel-reports">Relatórios de Viagem</TabsTrigger>
-          <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
-        </TabsList>
+        <div className="space-y-3">
+          <div className="overflow-x-auto">
+            <TabsList className="flex flex-nowrap gap-2 min-w-max">
+              <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+              <TabsTrigger value="contracts">Contratos</TabsTrigger>
+              <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
+              <TabsTrigger value="fuel">Abastecimentos</TabsTrigger>
+              <TabsTrigger value="ctm">CTM</TabsTrigger>
+              <TabsTrigger value="travel-reports">Relatórios de Viagem</TabsTrigger>
+              <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full max-w-xl">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar no portal do cliente..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="pl-10 pr-10 h-10"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center justify-end">
+              {activeTab === "financeiro" && (
+                <>
+                  <select
+                    value={filterCategory}
+                    onChange={(event) => setFilterCategory(event.target.value)}
+                    className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="all">Todas as categorias</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterMonth}
+                    onChange={(event) => setFilterMonth(event.target.value)}
+                    className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="all">Todos os meses</option>
+                    {months.map((month) => (
+                      <option key={month} value={month}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterYear}
+                    onChange={(event) => setFilterYear(event.target.value)}
+                    className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="all">Todos os anos</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* ── Financeiro ──────────────────────────────────────────────────────── */}
         <TabsContent value="financeiro" className="space-y-4">
-          {/* Card com informações do avião selecionado */}
           {aircraftRegistration && (
             <Card className="border border-blue-500/20 bg-blue-500/5 backdrop-blur-sm">
               <CardContent className="pt-6">
@@ -444,16 +626,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground mb-0.5">Dados financeiros da aeronave:</p>
-                    <p className="text-lg font-semibold text-blue-400">
-                      {aircraftRegistration}
-                    </p>
+                    <p className="text-lg font-semibold text-blue-400">{aircraftRegistration}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Seção de Movimentações */}
           <Card className="bg-gradient-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
@@ -465,100 +644,130 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {bankReconciliations.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhuma movimentação encontrada para esta aeronave</p>
+              {filteredBankReconciliations.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhuma movimentação encontrada para esta aeronave
+                </p>
               ) : (
-                <div className="space-y-3">
-                  {bankReconciliations.map((record: any) => {
-                    const statusColorMap: any = {
-                      'enviado': 'bg-blue-500/10 border-blue-500/30 text-blue-300',
-                      'pendente': 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300',
-                      'pago': 'bg-green-500/10 border-green-500/30 text-green-300',
-                      'recebido': 'bg-green-500/10 border-green-500/30 text-green-300',
-                      'cancelado': 'bg-red-500/10 border-red-500/30 text-red-300',
-                    };
-                    const statusColor = statusColorMap[record.status?.toLowerCase()] || 'bg-gray-500/10 border-gray-500/30 text-gray-300';
-
-                    const categoryEmoji: any = {
-                      'ADM SHARE': '📋',
-                      'COMBUSTÍVEL': '⛽',
-                      'MANUTENÇÃO': '🔧',
-                      'HOTEL': '🏨',
-                      'ALIMENTAÇÃO': '🍽️',
-                      'TRANSPORTE': '🚗',
-                    };
-                    const emoji = Object.keys(categoryEmoji).find(key => record.categoria?.includes(key))
-                      ? categoryEmoji[Object.keys(categoryEmoji).find(key => record.categoria?.includes(key))!]
-                      : '💳';
+                <div className="space-y-6">
+                  {Object.entries(groupedBankReconciliations).map(([groupKey, records]) => {
+                    const [year, month] = groupKey.split("-");
+                    const groupLabel = new Date(Number(year), Number(month) - 1, 1).toLocaleString("pt-BR", {
+                      month: "long",
+                      year: "numeric",
+                    });
 
                     return (
-                      <div
-                        key={record.id}
-                        className="p-4 rounded-lg border border-border/50 bg-gradient-to-r from-slate-900/40 to-slate-800/40 hover:border-border hover:bg-slate-900/60 transition-all duration-300 backdrop-blur-sm"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-blue-500/20 border border-primary/30 flex items-center justify-center text-xl">
-                            {emoji}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-foreground truncate">
-                                {record.descricao}
-                              </h3>
-                              <Badge className={`shrink-0 border ${statusColor} capitalize text-xs`}>
-                                {record.status}
-                              </Badge>
+                      <div key={groupKey} className="space-y-4">
+                        <div className="rounded-2xl border border-border/50 bg-slate-950/80 p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm uppercase tracking-[0.16em] text-muted-foreground">
+                                {groupLabel}
+                              </p>
+                              <p className="text-sm text-foreground/80">
+                                {records.length} lançamento{records.length !== 1 ? "s" : ""}
+                              </p>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div>
-                                <p className="text-xs text-muted-foreground mb-0.5">Data</p>
-                                <p className="text-foreground font-medium">
-                                  {(() => {
-                                    if (!record.data) return '';
-                                    try {
-                                      const [year, month, day] = record.data.split('T')[0].split('-');
-                                      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('pt-BR');
-                                    } catch {
-                                      return record.data;
-                                    }
-                                  })()}
-                                </p>
-                              </div>
-
-                              <div>
-                                <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
-                                <p className="text-foreground font-medium text-sm">
-                                  {record.categoria || '—'}
-                                </p>
-                              </div>
-
-                              {record.prazo_pagamento && (
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-0.5">Prazo Pagamento</p>
-                                  <p className="text-foreground font-medium">
-                                    {(() => {
-                                      if (!record.prazo_pagamento) return '';
-                                      try {
-                                        const [year, month, day] = record.prazo_pagamento.split('T')[0].split('-');
-                                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('pt-BR');
-                                      } catch {
-                                        return record.prazo_pagamento;
-                                      }
-                                    })()}
-                                  </p>
-                                </div>
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              {filterCategory !== "all" && <span>Categoria: {filterCategory}</span>}
+                              {filterMonth !== "all" && (
+                                <span>
+                                  Mês: {month}/{year}
+                                </span>
                               )}
+                              {filterYear !== "all" && <span>Ano: {filterYear}</span>}
                             </div>
                           </div>
+                        </div>
 
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-xs text-muted-foreground mb-1">Valor</p>
-                            <p className="text-lg font-bold text-emerald-400">
-                              R$ {Number(record.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </p>
-                          </div>
+                        <div className="space-y-3">
+                          {records.map((record: any) => {
+                            const statusColorMap: any = {
+                              enviado: "bg-blue-500/10 border-blue-500/30 text-blue-300",
+                              pendente: "bg-yellow-500/10 border-yellow-500/30 text-yellow-300",
+                              pago: "bg-green-500/10 border-green-500/30 text-green-300",
+                              recebido: "bg-green-500/10 border-green-500/30 text-green-300",
+                              cancelado: "bg-red-500/10 border-red-500/30 text-red-300",
+                            };
+                            const statusColor =
+                              statusColorMap[record.status?.toLowerCase()] ||
+                              "bg-gray-500/10 border-gray-500/30 text-gray-300";
+
+                            const categoryEmoji: any = {
+                              "ADM SHARE": "📋",
+                              COMBUSTÍVEL: "⛽",
+                              MANUTENÇÃO: "🔧",
+                              HOTEL: "🏨",
+                              ALIMENTAÇÃO: "🍽️",
+                              TRANSPORTE: "🚗",
+                            };
+                            const categoryKey = Object.keys(categoryEmoji).find((key) =>
+                              record.categoria?.includes(key)
+                            );
+                            const emoji = categoryKey ? categoryEmoji[categoryKey] : "💳";
+
+                            return (
+                              <div
+                                key={record.id}
+                                className="p-4 rounded-lg border border-border/50 bg-gradient-to-r from-slate-900/40 to-slate-800/40 hover:border-border hover:bg-slate-900/60 transition-all duration-300 backdrop-blur-sm"
+                              >
+                                <div className="flex items-start gap-4">
+                                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-blue-500/20 border border-primary/30 flex items-center justify-center text-xl">
+                                    {emoji}
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h3 className="font-semibold text-foreground truncate">
+                                        {record.descricao}
+                                      </h3>
+                                      <Badge
+                                        className={`shrink-0 border ${statusColor} capitalize text-xs`}
+                                      >
+                                        {record.status}
+                                      </Badge>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-0.5">Data</p>
+                                        <p className="text-foreground font-medium">
+                                          {formatDate(record.data)}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
+                                        <p className="text-foreground font-medium text-sm">
+                                          {record.categoria || "—"}
+                                        </p>
+                                      </div>
+                                      {record.prazo_pagamento && (
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-0.5">
+                                            Prazo Pagamento
+                                          </p>
+                                          <p className="text-foreground font-medium">
+                                            {formatDate(record.prazo_pagamento)}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-xs text-muted-foreground mb-1">Valor</p>
+                                    <p className="text-lg font-bold text-emerald-400">
+                                      R${" "}
+                                      {Number(record.valor).toLocaleString("pt-BR", {
+                                        minimumFractionDigits: 2,
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -568,11 +777,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             </CardContent>
           </Card>
 
-          {/* Seção de Recibos de Reembolso */}
-          <FinancialHistoryTab
-            clientId={clientId}
-            aircraftId={aircraftId}
-          />
+          <FinancialHistoryTab clientId={clientId} aircraftId={aircraftId} />
         </TabsContent>
 
         {/* ── Contratos ───────────────────────────────────────────────────────── */}
@@ -593,23 +798,34 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                 Enviar Contrato
               </Button>
 
-              {contracts.length === 0 ? (
+              {filteredContracts.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum contrato encontrado</p>
               ) : (
                 <div className="space-y-2">
-                  {contracts.map((contract) => (
-                    <div key={contract.id} className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center">
+                  {filteredContracts.map((contract) => (
+                    <div
+                      key={contract.id}
+                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
+                    >
                       <div className="flex-1">
                         <p className="font-medium text-foreground">{contract.nome_arquivo}</p>
                         <p className="text-sm text-muted-foreground">
-                          Enviado em: {new Date(contract.criado_em).toLocaleDateString('pt-BR')}
+                          Enviado em: {new Date(contract.criado_em).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => downloadFile(contract.caminho_arquivo)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadFile(contract.caminho_arquivo)}
+                        >
                           <Download className="h-4 w-4" /> Baixar
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => deleteContract(contract.id, contract.caminho_arquivo)}>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteContract(contract.id, contract.caminho_arquivo)}
+                        >
                           <Trash className="h-4 w-4" /> Remover
                         </Button>
                       </div>
@@ -634,28 +850,47 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {logbookEntries.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum registro de voo encontrado</p>
+              {filteredLogbookEntries.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhum registro de voo encontrado
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/10">
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trecho</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tempo de Voo</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Distância</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Combustível</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Data
+                        </th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Trecho
+                        </th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Tempo de Voo
+                        </th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Distância
+                        </th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Combustível
+                        </th>
                         {partners.length > 1 && (
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócio</th>
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Sócio
+                          </th>
                         )}
                       </tr>
                     </thead>
                     <tbody>
-                      {logbookEntries.map((entry: any) => (
-                        <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      {filteredLogbookEntries.map((entry: any) => (
+                        <tr
+                          key={entry.id}
+                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                        >
                           <td className="py-4 px-4 text-foreground">
-                            {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('pt-BR') : '—'}
+                            {entry.data_registro
+                              ? new Date(entry.data_registro).toLocaleDateString("pt-BR")
+                              : "—"}
                           </td>
                           <td className="py-4 px-4 text-foreground">
                             {entry.trecho ? (
@@ -666,28 +901,35 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                   {entry.departure_aero.code} x {entry.arrival_aero.code}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {entry.departure_aero.nome} → {entry.arrival_aero.nome}
+                                  {entry.departure_aero.name} → {entry.arrival_aero.name}
                                 </div>
                               </div>
-                            ) : '—'}
+                            ) : (
+                              "—"
+                            )}
                           </td>
                           <td className="py-4 px-4 text-foreground font-medium">
-                            {entry.total_time ? `${parseFloat(entry.total_time).toFixed(2)}h` : '—'}
+                            {entry.tempo_total ? `${parseFloat(entry.tempo_total).toFixed(2)}h` : "—"}
                           </td>
                           <td className="py-4 px-4 text-foreground">
-                            {entry.distance_nm ? `${parseFloat(entry.distance_nm).toFixed(1)} NM` : '—'}
+                            {entry.distance_nm
+                              ? `${parseFloat(entry.distance_nm).toFixed(1)} NM`
+                              : "—"}
                           </td>
                           <td className="py-4 px-4 text-foreground">
-                            {entry.fuel_added ? `${parseFloat(entry.fuel_added).toFixed(1)}L` : '—'}
+                            {entry.fuel_added
+                              ? `${parseFloat(entry.fuel_added).toFixed(1)}L`
+                              : "—"}
                           </td>
                           {partners.length > 1 && (
                             <td className="py-4 px-4 text-foreground">
-                              {/* partner_name não existe na tabela — exibe indicador se voo tem sócio vinculado */}
-                              {entry.socio_cliente_id_id ? (
+                              {entry.socios_cliente_id ? (
                                 <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
                                   Sócio
                                 </span>
-                              ) : '—'}
+                              ) : (
+                                "—"
+                              )}
                             </td>
                           )}
                         </tr>
@@ -703,8 +945,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         {/* ── Abastecimentos ──────────────────────────────────────────────────── */}
         <TabsContent value="fuel" className="space-y-4">
           {(() => {
-            const pendingFuel = fuelRecords.filter((r: any) => r.status_pagamento === 'pendente');
-            const totalPending = pendingFuel.reduce((sum: number, r: any) => sum + (Number(r.valor_total) || 0), 0);
+            const pendingFuel = fuelRecords.filter((r: any) => r.status_pagamento === "pendente");
+            const totalPending = pendingFuel.reduce(
+              (sum: number, r: any) => sum + (Number(r.valor_total) || 0),
+              0
+            );
 
             return (
               <>
@@ -713,12 +958,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                     <CardContent className="pt-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-muted-foreground mb-1">Saldo Devedor de Combustível</p>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Saldo Devedor de Combustível
+                          </p>
                           <p className="text-3xl font-bold text-yellow-400">
                             R$ {totalPending.toFixed(2)}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {pendingFuel.length} abastecimento{pendingFuel.length !== 1 ? 's' : ''} pendente{pendingFuel.length !== 1 ? 's' : ''}
+                            {pendingFuel.length} abastecimento
+                            {pendingFuel.length !== 1 ? "s" : ""} pendente
+                            {pendingFuel.length !== 1 ? "s" : ""}
                           </p>
                         </div>
                         <div className="text-right">
@@ -743,26 +992,39 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {fuelRecords.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-8">Nenhum registro de abastecimento encontrado</p>
+                    {filteredFuelRecords.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">
+                        Nenhum registro de abastecimento encontrado
+                      </p>
                     ) : (
                       <div className="space-y-2">
-                        {fuelRecords.map((record) => (
-                          <div key={record.id} className={`p-4 rounded-lg border ${selectedAbastecimentoId === record.id ? 'bg-blue-500/20 border-blue-500 border-l-4 border-l-blue-500' : 'bg-muted/50 border-border'}`}>
+                        {filteredFuelRecords.map((record) => (
+                          <div
+                            key={record.id}
+                            className={`p-4 rounded-lg border ${
+                              selectedAbastecimentoId === record.id
+                                ? "bg-blue-500/20 border-blue-500 border-l-4 border-l-blue-500"
+                                : "bg-muted/50 border-border"
+                            }`}
+                          >
                             <div className="flex justify-between items-start mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <p className="font-medium text-foreground">
-                                    {record.aeronave?.registration || 'N/A'} - {record.local}
+                                    {record.aeronave?.registration || "N/A"} - {record.local}
                                   </p>
                                   {record.nome_socio && (
-                                    <Badge variant="outline" className="bg-blue-500/20 text-blue-300 text-xs">
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-blue-500/20 text-blue-300 text-xs"
+                                    >
                                       {record.nome_socio}
                                     </Badge>
                                   )}
                                 </div>
                                 <p className="text-sm text-muted-foreground">
-                                  Data: {new Date(record.data + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                  Data:{" "}
+                                  {new Date(record.data + "T00:00:00").toLocaleDateString("pt-BR")}
                                 </p>
                               </div>
                             </div>
@@ -770,28 +1032,36 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-t border-border/50 text-sm">
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Litros</p>
-                                <p className="font-medium text-foreground">{record.litros || '—'}</p>
+                                <p className="font-medium text-foreground">{record.litros || "—"}</p>
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Valor Unitário</p>
-                                <p className="font-medium text-foreground">R$ {record.valor_unitario || '—'}</p>
+                                <p className="font-medium text-foreground">
+                                  R$ {record.valor_unitario || "—"}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
-                                <p className="font-medium text-green-400">R$ {record.valor_total || '—'}</p>
+                                <p className="font-medium text-green-400">
+                                  R$ {record.valor_total || "—"}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground mb-1">Status</p>
-                                <Badge className={
-                                  record.status_pagamento === 'pago'
-                                    ? 'bg-green-500/20 text-green-300'
-                                    : record.status_pagamento === 'pendente'
-                                    ? 'bg-yellow-500/20 text-yellow-300'
-                                    : 'bg-gray-500/20 text-gray-300'
-                                }>
-                                  {record.status_pagamento === 'pago' ? 'Pago'
-                                    : record.status_pagamento === 'pendente' ? 'Pendente'
-                                    : record.status_pagamento || 'N/A'}
+                                <Badge
+                                  className={
+                                    record.status_pagamento === "pago"
+                                      ? "bg-green-500/20 text-green-300"
+                                      : record.status_pagamento === "pendente"
+                                      ? "bg-yellow-500/20 text-yellow-300"
+                                      : "bg-gray-500/20 text-gray-300"
+                                  }
+                                >
+                                  {record.status_pagamento === "pago"
+                                    ? "Pago"
+                                    : record.status_pagamento === "pendente"
+                                    ? "Pendente"
+                                    : record.status_pagamento || "N/A"}
                                 </Badge>
                               </div>
                             </div>
@@ -804,11 +1074,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             )}
 
                             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
-                              <p className="text-xs text-muted-foreground">Abastecedor: {record.abastecedor || 'N/A'}</p>
-                              <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Abastecedor: {record.abastecedor || "N/A"}
+                              </p>
+                              <p className="text-xs text-muted-foreground ml-auto">
+                                Comanda: {record.comanda || "N/A"}
+                              </p>
                             </div>
 
-                            {record.status_pagamento === 'pendente' && (
+                            {record.status_pagamento === "pendente" && (
                               <Button
                                 onClick={() => {
                                   setSelectedFuelRecord(record);
@@ -822,9 +1096,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               </Button>
                             )}
 
-                            {record.status_pagamento === 'pago' && record.comprovante_url && (
+                            {record.status_pagamento === "pago" && record.comprovante_url && (
                               <Button
-                                onClick={() => window.open(record.comprovante_url, '_blank')}
+                                onClick={() => window.open(record.comprovante_url, "_blank")}
                                 size="sm"
                                 variant="outline"
                                 className="w-full mt-3 gap-2"
@@ -857,10 +1131,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {ctmTracking.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum item de CTM registrado</p>
+              {filteredCtmTracking.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhum item de CTM registrado
+                </p>
               ) : (
-                ctmTracking.map((item) => (
+                filteredCtmTracking.map((item) => (
                   <div key={item.id} className="p-4 bg-muted/50 rounded-lg border border-border">
                     <div className="flex justify-between items-start">
                       <div>
@@ -891,16 +1167,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {travelReports.length === 0 ? (
+              {filteredTravelReports.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum relatório disponível</p>
               ) : (
-                travelReports.map((report) => {
+                filteredTravelReports.map((report) => {
                   const isPago =
-                    report.status?.toLowerCase() === 'pago' ||
-                    report.status?.toLowerCase() === 'recebido' ||
-                    report.status?.toLowerCase() === 'conferido';
+                    report.status?.toLowerCase() === "pago" ||
+                    report.status?.toLowerCase() === "recebido" ||
+                    report.status?.toLowerCase() === "conferido";
 
-                  const isEnviado = report.status?.toLowerCase() === 'enviado';
+                  const isEnviado = report.status?.toLowerCase() === "enviado";
 
                   return (
                     <div key={report.id} className="p-4 bg-muted/50 rounded-lg border border-border">
@@ -915,26 +1191,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 variant="outline"
                                 className={
                                   isPago
-                                    ? 'bg-green-500/20 text-green-300'
-                                    : 'bg-yellow-500/20 text-yellow-300'
+                                    ? "bg-green-500/20 text-green-300"
+                                    : "bg-yellow-500/20 text-yellow-300"
                                 }
                               >
-                                {isPago ? 'Conferido' : 'Pendente'}
+                                {isPago ? "Conferido" : "Pendente"}
                               </Badge>
                             </div>
 
                             <p className="text-sm text-muted-foreground">
-                              Emitido em:{' '}
-                              {report.data
-                                ? (() => {
-                                    try {
-                                      const [y, m, d] = report.data.split('T')[0].split('-');
-                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
-                                    } catch {
-                                      return report.data;
-                                    }
-                                  })()
-                                : '—'}
+                              Emitido em: {formatDate(report.data)}
                             </p>
 
                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -942,7 +1208,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             </p>
 
                             <p className="text-sm font-semibold text-green-400 mt-1">
-                              Valor: R$ {Number(report.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              Valor: R${" "}
+                              {Number(report.valor).toLocaleString("pt-BR", {
+                                minimumFractionDigits: 2,
+                              })}
                             </p>
                           </div>
 
@@ -950,14 +1219,19 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => window.open(report.pdf_url!, '_blank')}
+                              onClick={() => window.open(report.pdf_url!, "_blank")}
                               className="gap-2 shrink-0"
                             >
                               <Eye className="h-4 w-4" />
                               Ver PDF
                             </Button>
                           ) : (
-                            <Button size="sm" variant="outline" disabled className="gap-2 shrink-0 opacity-50">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled
+                              className="gap-2 shrink-0 opacity-50"
+                            >
                               <Eye className="h-4 w-4" />
                               PDF indisponível
                             </Button>
@@ -968,31 +1242,21 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Prazo de Pagamento</p>
                             <p className="text-sm text-foreground">
-                              {report.prazo_pagamento
-                                ? (() => {
-                                    try {
-                                      const [y, m, d] = report.prazo_pagamento.split('T')[0].split('-');
-                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
-                                    } catch {
-                                      return report.prazo_pagamento;
-                                    }
-                                  })()
-                                : 'Não definido'}
+                              {report.prazo_pagamento ? formatDate(report.prazo_pagamento) : "Não definido"}
                             </p>
                           </div>
-
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Status</p>
                             <Badge
                               className={
                                 isPago
-                                  ? 'bg-green-500/20 text-green-300'
+                                  ? "bg-green-500/20 text-green-300"
                                   : isEnviado
-                                  ? 'bg-blue-500/20 text-blue-300'
-                                  : 'bg-yellow-500/20 text-yellow-300'
+                                  ? "bg-blue-500/20 text-blue-300"
+                                  : "bg-yellow-500/20 text-yellow-300"
                               }
                             >
-                              {isPago ? 'Conferido' : isEnviado ? 'Enviado' : 'Pendente'}
+                              {isPago ? "Conferido" : isEnviado ? "Enviado" : "Pendente"}
                             </Badge>
                           </div>
                         </div>
