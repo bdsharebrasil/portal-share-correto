@@ -240,29 +240,29 @@ export function FinanceiroDashboard() {
   const status = getTimeStatus();
 
   return (
-    <main className="flex-1 p-4 md:p-6 space-y-6 overflow-auto">
+    <main className="flex-1 p-3 md:p-4 lg:p-6 space-y-4 md:space-y-6 overflow-auto">
       {/* Hero Header */}
-      <div className="relative rounded-2xl overflow-hidden border border-white/[0.05] shadow-lg h-36 md:h-44">
+      <div className="relative rounded-xl md:rounded-2xl overflow-hidden border border-white/[0.05] shadow-lg h-28 md:h-36 lg:h-44">
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 mix-blend-overlay"
           style={{ backgroundImage: `url(${aviationHero})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6">
-          <div className="relative z-10 flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 rounded-md bg-primary/10 border border-primary/20">
-                <Plane className="h-3 w-3 text-primary" />
+        <div className="absolute bottom-0 left-0 right-0 p-3 md:p-6">
+          <div className="relative z-10 flex flex-col gap-1">
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="p-1 md:p-1.5 rounded-md bg-primary/10 border border-primary/20">
+                <Plane className="h-2.5 md:h-3 w-2.5 md:w-3 text-primary" />
               </div>
               <span className="text-xs font-semibold text-primary uppercase tracking-wider drop-shadow-md">
                 Dashboard Financeiro
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+            <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">
               Bom {currentTime.getHours() < 12 ? 'dia' : currentTime.getHours() < 18 ? 'tarde' : 'noite'}!
             </h1>
-            <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+            <p className="text-xs md:text-sm text-muted-foreground max-w-md leading-relaxed hidden sm:block">
               Gerencie suas finanças, registre o ponto e acompanhe suas tarefas diárias.
             </p>
           </div>
@@ -271,43 +271,33 @@ export function FinanceiroDashboard() {
 
       {/* Discordâncias Alert - Glass/Neon Style */}
       {!discordancesLoading && reportDiscordances.length > 0 && (
-        <div className="rounded-2xl bg-white/[0.02] border border-red-500/20 p-5 backdrop-blur-md shadow-[0_0_15px_rgba(239,68,68,0.05)]">
-          <div className="flex items-start gap-4">
-            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 mt-1 shadow-[0_0_10px_rgba(239,68,68,0.15)]">
-              <AlertTriangle className="h-5 w-5 text-red-400" />
+        <div className="rounded-xl md:rounded-2xl bg-white/[0.02] border border-red-500/20 p-3 md:p-5 backdrop-blur-md shadow-[0_0_15px_rgba(239,68,68,0.05)]">
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-red-500/10 border border-red-500/20 mt-0.5 shadow-[0_0_10px_rgba(239,68,68,0.15)] flex-shrink-0">
+              <AlertTriangle className="h-4 md:h-5 w-4 md:w-5 text-red-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-red-400 mb-2">Relatórios com Discordâncias</h3>
-              <p className="text-sm text-muted-foreground mb-4">Existem {reportDiscordances.length} relatório(s) de viagem que precisam de ajuste:</p>
+              <h3 className="font-semibold text-red-400 mb-1 md:mb-2 text-sm md:text-base">Relatórios com Discordâncias</h3>
+              <p className="text-xs md:text-sm text-muted-foreground mb-3">Existem {reportDiscordances.length} relatório(s) de viagem que precisam de ajuste:</p>
 
-              <div className="space-y-3">
-                {reportDiscordances.map(report => (
+              <div className="space-y-2">
+                {reportDiscordances.slice(0, 2).map(report => (
                   <div
                     key={report.id}
-                    className="p-4 bg-white/[0.02] border border-red-500/10 rounded-xl hover:border-red-500/40 hover:bg-white/[0.04] transition-all cursor-pointer group"
+                    className="p-3 bg-white/[0.02] border border-red-500/10 rounded-lg md:rounded-xl hover:border-red-500/40 hover:bg-white/[0.04] transition-all cursor-pointer group"
                     onClick={() => navigate('/financeiro/relatorio-viagem')}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground text-sm group-hover:text-red-400 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground text-xs md:text-sm group-hover:text-red-400 transition-colors truncate">
                           {report.numero_relatorio}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{report.cliente?.razao_social}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{report.cliente?.razao_social}</p>
                       </div>
-                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20">
+                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20 flex-shrink-0">
                         Devolvido
                       </Badge>
                     </div>
-                    {report.crew_approval_notes && (
-                      <p className="text-xs text-red-400/80 mt-2 bg-red-500/5 p-2 rounded-lg border border-red-500/10">
-                        📝 {report.crew_approval_notes}
-                      </p>
-                    )}
-                    {report.client_approval_notes && (
-                      <p className="text-xs text-red-400/80 mt-2 bg-red-500/5 p-2 rounded-lg border border-red-500/10">
-                        📝 Cliente: {report.client_approval_notes}
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
@@ -315,11 +305,11 @@ export function FinanceiroDashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-4 text-red-400 border-red-500/20 hover:bg-red-500/10 hover:text-red-300"
+                className="mt-3 text-xs md:text-sm text-red-400 border-red-500/20 hover:bg-red-500/10 hover:text-red-300"
                 onClick={() => navigate('/financeiro/relatorio-viagem')}
               >
-                Ver todos os relatórios
-                <ArrowUpRight className="h-4 w-4 ml-2" />
+                Ver todos
+                <ArrowUpRight className="h-3 md:h-4 w-3 md:w-4 ml-1" />
               </Button>
             </div>
           </div>
@@ -327,17 +317,17 @@ export function FinanceiroDashboard() {
       )}
 
       {/* Bento Grid Layout */}
-      <div className="grid grid-cols-12 gap-4 auto-rows-min">
+      <div className="grid grid-cols-12 gap-2 md:gap-4 auto-rows-min">
 
         {/* Quick Tools Row */}
         {quickTools.map(tool => (
           <button
             key={tool.label}
             onClick={() => tool.action ? tool.action() : tool.route && navigate(tool.route)}
-            className={`col-span-6 sm:col-span-4 lg:col-span-2 xl:col-span-2 flex flex-col items-center justify-center gap-4 p-5 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.05] transition-all duration-300 group min-h-[120px] ${tool.hoverGlow}`}
+            className={`col-span-6 sm:col-span-4 lg:col-span-2 xl:col-span-2 flex flex-col items-center justify-center gap-2 md:gap-4 p-3 md:p-5 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-xl md:rounded-2xl border border-white/[0.05] transition-all duration-300 group min-h-[100px] md:min-h-[120px] ${tool.hoverGlow}`}
           >
-            <div className={`p-3.5 rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg}`}>
-              <tool.icon className={`h-6 w-6 ${tool.iconColor}`} strokeWidth={1.5} />
+            <div className={`p-2 md:p-3.5 rounded-lg md:rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg}`}>
+              <tool.icon className={`h-5 md:h-6 w-5 md:w-6 ${tool.iconColor}`} strokeWidth={1.5} />
             </div>
             <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors text-center leading-tight">
               {tool.label}

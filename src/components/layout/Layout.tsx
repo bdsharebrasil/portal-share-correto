@@ -7,19 +7,19 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({
   children
 }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   return <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
     <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
 
     <div className="flex pt-16">
-      <Sidebar isOpen={sidebarOpen} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Canvas surface - elevated content container */}
-      <main className="flex-1 ml-20 p-6 custom-scrollbar overflow-x-auto overflow-y-auto transition-all duration-300">
+      <main className="flex-1 w-full md:ml-20 p-4 md:p-6 custom-scrollbar overflow-x-auto overflow-y-auto transition-all duration-300">
         <div className="min-h-full flex flex-col">
           {/* Content wrapped in elevated canvas surface - dark contrast */}
           <div className="bg-gradient-to-br from-slate-800/80 via-slate-850/75 to-slate-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 overflow-x-auto overflow-y-auto">
-            <div className="p-8 min-w-full">
+            <div className="p-4 md:p-8 min-w-full">
               {children}
             </div>
           </div>

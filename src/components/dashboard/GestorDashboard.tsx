@@ -163,31 +163,31 @@ export function GestorDashboard() {
 
   return (
     <>
-      <main className="flex-1 p-6 space-y-8">
+      <main className="flex-1 p-3 md:p-4 lg:p-6 space-y-4 md:space-y-8">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group w-fit"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-sm font-medium">Voltar</span>
+          <span className="text-xs md:text-sm font-medium">Voltar</span>
         </button>
 
         {/* Hero */}
-        <div className="relative rounded-2xl overflow-hidden border border-white/[0.05] shadow-lg">
+        <div className="relative rounded-xl md:rounded-2xl overflow-hidden border border-white/[0.05] shadow-lg">
           <div
-            className="h-44 bg-cover bg-center bg-no-repeat relative"
+            className="h-28 md:h-36 lg:h-44 bg-cover bg-center bg-no-repeat relative"
             style={{ backgroundImage: `url(${aviationHero})` }}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/20" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
-            <div className="relative h-full flex items-center px-8">
+            <div className="relative h-full flex items-center px-4 md:px-8">
               <div>
-                <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-2 drop-shadow-md">
+                <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-1 md:mb-2 drop-shadow-md">
                   Dashboard do Gestor
                 </p>
-                <h1 className="text-3xl font-bold text-foreground tracking-tight">Visão Gerencial</h1>
-                <p className="text-sm text-muted-foreground mt-2 max-w-md leading-relaxed">
+                <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">Visão Gerencial</h1>
+                <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2 max-w-md leading-relaxed hidden sm:block">
                   Acompanhe em tempo real a sua equipe, o status da frota e gerencie as aprovações pendentes.
                 </p>
               </div>
@@ -196,62 +196,62 @@ export function GestorDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
           <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground/80">Tripulantes Ativos</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">
+            <CardContent className="pt-3 md:pt-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-medium text-muted-foreground/80">Tripulantes Ativos</p>
+                  <p className="text-2xl md:text-3xl font-bold text-foreground mt-1">
                     {tripulantes.filter((t: any) => t.status === 'ativo').length}
                   </p>
                 </div>
-                <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.1)]">
-                  <Users className="h-6 w-6 text-primary" />
+                <div className="p-2 md:p-3.5 rounded-lg md:rounded-xl bg-primary/10 border border-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.1)] flex-shrink-0">
+                  <Users className="h-5 md:h-6 w-5 md:w-6 text-primary" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground/80">Aeronaves</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{aircraft.length}</p>
+            <CardContent className="pt-3 md:pt-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-medium text-muted-foreground/80">Aeronaves</p>
+                  <p className="text-2xl md:text-3xl font-bold text-foreground mt-1">{aircraft.length}</p>
                 </div>
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                  <Plane className="h-6 w-6 text-emerald-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground/80">Aprovações</p>
-                  <p className="text-3xl font-bold text-amber-400 mt-1">{pendingApprovals.length}</p>
-                </div>
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                  <Clock className="h-6 w-6 text-amber-400" />
+                <div className="p-2 md:p-3.5 rounded-lg md:rounded-xl bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] flex-shrink-0">
+                  <Plane className="h-5 md:h-6 w-5 md:w-6 text-emerald-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground/80">Em Manutenção</p>
-                  <p className="text-3xl font-bold text-red-400 mt-1">
+            <CardContent className="pt-3 md:pt-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-medium text-muted-foreground/80">Aprovações</p>
+                  <p className="text-2xl md:text-3xl font-bold text-amber-400 mt-1">{pendingApprovals.length}</p>
+                </div>
+                <div className="p-2 md:p-3.5 rounded-lg md:rounded-xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)] flex-shrink-0">
+                  <Clock className="h-5 md:h-6 w-5 md:w-6 text-amber-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
+            <CardContent className="pt-3 md:pt-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-medium text-muted-foreground/80">Em Manutenção</p>
+                  <p className="text-2xl md:text-3xl font-bold text-red-400 mt-1">
                     {aircraft.filter((a: any) => a.status === 'manutencao').length}
                   </p>
                 </div>
-                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
-                  <AlertTriangle className="h-6 w-6 text-red-400" />
+                <div className="p-2 md:p-3.5 rounded-lg md:rounded-xl bg-red-500/10 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] flex-shrink-0">
+                  <AlertTriangle className="h-5 md:h-6 w-5 md:w-6 text-red-400" />
                 </div>
               </div>
             </CardContent>
@@ -260,33 +260,33 @@ export function GestorDashboard() {
 
         {/* Quick Tools */}
         <div>
-          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+          <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
             Ferramentas de Gestão
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {[grid1Tools, grid2Tools, grid3Tools].map((gridTools, index) => (
               gridTools.length > 0 && (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                   {gridTools.map((tool) => (
                     <button
                       key={tool.label}
                       onClick={() => navigate(tool.route)}
-                      className={`flex items-center gap-4 p-5 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.05] transition-all duration-300 group ${tool.hoverGlow}`}
+                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-5 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-lg md:rounded-2xl border border-white/[0.05] transition-all duration-300 group ${tool.hoverGlow}`}
                     >
-                      <div className={`p-3.5 rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg}`}>
-                        <tool.icon className={`h-6 w-6 ${tool.iconColor}`} strokeWidth={1.5} />
+                      <div className={`p-2 md:p-3.5 rounded-lg md:rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg} flex-shrink-0`}>
+                        <tool.icon className={`h-5 md:h-6 w-5 md:w-6 ${tool.iconColor}`} strokeWidth={1.5} />
                       </div>
 
-                      <div className="flex flex-col items-start text-left">
-                        <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                      <div className="flex flex-col items-start text-left min-w-0">
+                        <span className="text-xs md:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                           {tool.label}
                         </span>
-                        <span className="text-xs text-muted-foreground mt-0.5">
+                        <span className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
                           Acessar módulo
                         </span>
                       </div>
 
-                      <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                      <ArrowRight className="h-3 md:h-4 w-3 md:w-4 ml-auto text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 flex-shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -297,15 +297,15 @@ export function GestorDashboard() {
 
         {/* Pending Approvals */}
         <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05]">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <div className="p-2 bg-amber-500/10 rounded-lg">
-                <Clock className="h-4 w-4 text-amber-400" />
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 md:pb-4 gap-2">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <div className="p-1.5 md:p-2 bg-amber-500/10 rounded-lg">
+                <Clock className="h-3.5 md:h-4 w-3.5 md:w-4 text-amber-400" />
               </div>
               Aprovações Pendentes
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/gestor/aprovacoes-orcamentos")} className="hover:bg-white/[0.05]">
-              Ver todas <ArrowRight className="ml-2 h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => navigate("/gestor/aprovacoes-orcamentos")} className="hover:bg-white/[0.05] text-xs md:text-sm">
+              Ver todas <ArrowRight className="ml-1 md:ml-2 h-3 md:h-4 w-3 md:w-4" />
             </Button>
           </CardHeader>
           <CardContent>
