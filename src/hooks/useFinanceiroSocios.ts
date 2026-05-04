@@ -1213,6 +1213,17 @@ export function useDeleteTransaction() {
         if (error) throw error;
       }
 
+      // Limpar espelhos em movimentacoes (Fase 4)
+      const refTypesToClean: PartnerRefType[] =
+        data.transactionType === "abastecimento" || data.referenceType === "abastecimento"
+          ? ["partner_fuel"]
+          : data.transactionType === "expense" || data.referenceType === "partner_expense"
+            ? ["partner_expense"]
+            : ["partner_deposit", "partner_payment", "partner_bank_interest"];
+      for (const rt of refTypesToClean) {
+        await deletePartnerMovimentacaoMirror(rt, data.id);
+      }
+
       return data.clientId;
     },
     onSuccess: (clientId) => {
