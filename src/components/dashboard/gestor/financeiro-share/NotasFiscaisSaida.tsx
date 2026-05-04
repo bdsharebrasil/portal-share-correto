@@ -2002,7 +2002,6 @@ export function NotasFiscaisSaida() {
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Status</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
@@ -2022,7 +2021,6 @@ export function NotasFiscaisSaida() {
                           <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
                             R$ {parseFloat(recibo.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">Recibo</TableCell>
                           <TableCell className="px-4 py-3">
                             <Select
                               value={recibo.status || "enviado"}
