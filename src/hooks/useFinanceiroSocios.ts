@@ -796,7 +796,7 @@ export function usePayExpense() {
 
       const balanceAfter = balanceBefore - data.amount;
 
-      const { error: txErr } = await supabase
+      const { data: txInserted, error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
           clientes_id: data.clientId,
@@ -813,8 +813,28 @@ export function usePayExpense() {
           status: "pago",
           subtipo: "payment",
           prazo: "extra",
-        });
+        })
+        .select("id")
+        .single();
       if (txErr) throw txErr;
+
+      // Espelho em movimentacoes (Fase 4)
+      if (txInserted?.id) {
+        await syncPartnerToMovimentacoes({
+          refType: "partner_payment",
+          refId: txInserted.id,
+          tipo: "despesa",
+          descricao: `Pagamento de despesa (${data.partnerName})`,
+          valor: data.amount,
+          data_competencia: data.paymentDate,
+          data_pagamento: data.paymentDate,
+          status: "pago",
+          clientes_id: data.clientId,
+          fornecedor_nome: data.partnerName,
+          observacoes: `partner_expense_id=${data.expenseId}`,
+          criado_por: null,
+        });
+      }
 
       const { error: updErr } = await supabase
         .from("partner_accounts")
