@@ -579,16 +579,16 @@ export default function PainelAgendamentos() {
 
   return (
     <Layout>
-      <main className="flex-1 p-6 space-y-6">
+      <main className="flex-1 p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Painel de Agendamentos</h1>
-            <p className="text-muted-foreground">Gerencie solicitações, calendário e status da frota</p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Painel de Agendamentos</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Gerencie solicitações, calendário e status da frota</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Select value={selectedAircraftId || "all"} onValueChange={(v) => setSelectedAircraftId(v === "all" ? null : v)}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filtrar aeronave" />
               </SelectTrigger>
               <SelectContent>
@@ -602,57 +602,57 @@ export default function PainelAgendamentos() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
           <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-8 w-8 text-yellow-500" />
-                <div>
-                  <p className="text-2xl font-bold">{pendingCount}</p>
+            <CardContent className="pt-3 md:pt-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <AlertCircle className="h-6 md:h-8 w-6 md:w-8 text-yellow-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold">{pendingCount}</p>
                   <p className="text-xs text-muted-foreground">Pendentes</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
-                <div>
-                  <p className="text-2xl font-bold">{confirmedCount}</p>
+            <CardContent className="pt-3 md:pt-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <CheckCircle2 className="h-6 md:h-8 w-6 md:w-8 text-green-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold">{confirmedCount}</p>
                   <p className="text-xs text-muted-foreground">Confirmados</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Plane className="h-8 w-8 text-blue-500" />
-                <div>
-                  <p className="text-2xl font-bold">{liveStatuses?.filter(s => s.status_atual === "em_voo").length || 0}</p>
+          <Card className="hidden sm:block">
+            <CardContent className="pt-3 md:pt-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <Plane className="h-6 md:h-8 w-6 md:w-8 text-blue-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold">{liveStatuses?.filter(s => s.status_atual === "em_voo").length || 0}</p>
                   <p className="text-xs text-muted-foreground">Em Voo</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Lock className="h-8 w-8 text-red-500" />
-                <div>
-                  <p className="text-2xl font-bold">{blockedDates?.length || 0}</p>
+          <Card className="hidden md:block">
+            <CardContent className="pt-3 md:pt-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <Lock className="h-6 md:h-8 w-6 md:w-8 text-red-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold">{blockedDates?.length || 0}</p>
                   <p className="text-xs text-muted-foreground">Datas Bloqueadas</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <Wrench className="h-8 w-8 text-orange-500" />
-                <div>
-                  <p className="text-2xl font-bold">{maintenances?.length || 0}</p>
+          <Card className="hidden md:block">
+            <CardContent className="pt-3 md:pt-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <Wrench className="h-6 md:h-8 w-6 md:w-8 text-orange-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-lg md:text-2xl font-bold">{maintenances?.length || 0}</p>
                   <p className="text-xs text-muted-foreground">Manutenções</p>
                 </div>
               </div>
@@ -661,21 +661,21 @@ export default function PainelAgendamentos() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
-            <TabsTrigger value="solicitacoes" className="gap-2">
-              <AlertCircle className="h-4 w-4" /> Solicitações
+          <TabsList className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 w-full">
+            <TabsTrigger value="solicitacoes" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+              <AlertCircle className="h-3 sm:h-4 w-3 sm:w-4" /> <span className="hidden sm:inline">Solicitações</span>
             </TabsTrigger>
-            <TabsTrigger value="calendario" className="gap-2">
-              <CalendarIcon className="h-4 w-4" /> Calendário
+            <TabsTrigger value="calendario" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+              <CalendarIcon className="h-3 sm:h-4 w-3 sm:w-4" /> <span className="hidden sm:inline">Calendário</span>
             </TabsTrigger>
-            <TabsTrigger value="frota" className="gap-2">
-              <Plane className="h-4 w-4" /> Status Frota
+            <TabsTrigger value="frota" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+              <Plane className="h-3 sm:h-4 w-3 sm:w-4" /> <span className="hidden md:inline">Status Frota</span>
             </TabsTrigger>
-            <TabsTrigger value="escala" className="gap-2">
-              <UserCheck className="h-4 w-4" /> Escala
+            <TabsTrigger value="escala" className="gap-1 sm:gap-2 text-xs sm:text-sm col-span-1 hidden sm:flex">
+              <UserCheck className="h-3 sm:h-4 w-3 sm:w-4" /> <span className="hidden md:inline">Escala</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="gap-2">
-              <Settings className="h-4 w-4" /> Configurações
+            <TabsTrigger value="config" className="gap-1 sm:gap-2 text-xs sm:text-sm hidden md:flex">
+              <Settings className="h-3 sm:h-4 w-3 sm:w-4" /> Configurações
             </TabsTrigger>
           </TabsList>
 

@@ -27,15 +27,15 @@ export function MainContent() {
 
   // Operações view (default)
   return (
-    <main className="flex-1 p-6 space-y-6">
+    <main className="flex-1 p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Hero Section */}
       <DashboardHero />
 
-      {/* Bento Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-max">
+      {/* Bento Grid Layout - Responsivo para mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 auto-rows-max">
         {/* Operations Tools - Full Width */}
         <div className="md:col-span-2 lg:col-span-4">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Ferramentas de Operações</h3>
+          <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Ferramentas de Operações</h3>
           <OperationsTools />
         </div>
 

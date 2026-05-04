@@ -8,15 +8,20 @@ const Tabs = TabsPrimitive.Root;
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>>(
-  ({ className, ...props }, ref) =>
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn("flex items-center justify-start rounded-none bg-transparent p-0 border-none px-[7px] my-[6px] py-[8px] gap-[16px] border-stone-950 border shadow-lg text-secondary-foreground",
-
-    className
-    )}
-    {...props} />
-
+  ({ className, ...props }, ref) => {
+    // Verifica se o className contém "grid" para aplicar lógica especial
+    const isGridLayout = className?.toString().includes("grid");
+    return (
+      <TabsPrimitive.List
+        ref={ref}
+        className={cn(
+          "rounded-none bg-transparent p-0 border-none my-[6px] py-[8px] border-stone-950 border shadow-lg text-secondary-foreground",
+          isGridLayout ? "grid" : "flex items-center justify-start px-2 sm:px-[7px] gap-2 sm:gap-[16px] overflow-x-auto overflow-y-hidden custom-scrollbar",
+          className
+        )}
+        {...props} />
+    );
+  }
 );
 TabsList.displayName = TabsPrimitive.List.displayName;
 
@@ -26,7 +31,7 @@ const TabsTrigger = React.forwardRef<
   ({ className, ...props }, ref) =>
   <TabsPrimitive.Trigger
     ref={ref}
-    className={cn("inline-flex items-center justify-center whitespace-nowrap px-4 py-2.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border rounded-3xl bg-sky-950 hover:bg-sky-800 border-sidebar",
+    className={cn("inline-flex items-center justify-center whitespace-nowrap px-2 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border rounded-3xl bg-sky-950 hover:bg-sky-800 border-sidebar",
 
     className
     )}
