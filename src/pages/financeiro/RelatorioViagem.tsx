@@ -117,7 +117,7 @@ export default function RelatorioViagem() {
   const navigationState = (location.state as any) || {};
 
   const [activeTab, setActiveTab] = useState<'criar' | 'historico' | 'relatorios'>('relatorios');
-  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [draftSearchQuery, setDraftSearchQuery] = useState('');
   const [reports, setReports] = useState<TravelReport[]>([]);
   const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -177,6 +177,17 @@ export default function RelatorioViagem() {
     () => reports.filter(r => r.status === 'Rascunho'),
     [reports],
   );
+  const filteredDraftReports = useMemo(() => {
+    const searchLower = draftSearchQuery.toLowerCase();
+    return reportsWithoutClient.filter((report) =>
+      report.numero_relatorio.toLowerCase().includes(searchLower) ||
+      report.matricula_aeronave.toLowerCase().includes(searchLower) ||
+      report.data_inicio.includes(draftSearchQuery) ||
+      report.data_fim.includes(draftSearchQuery) ||
+      report.total_valor.toString().includes(draftSearchQuery) ||
+      report.status.toLowerCase().includes(searchLower),
+    );
+  }, [reportsWithoutClient, draftSearchQuery]);
 
   // -------------------------------------------------------------------------
   // Data loading
@@ -1078,14 +1089,21 @@ export default function RelatorioViagem() {
                 {activeTab === 'historico' && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Rascunhos</h3>
-                    {reportsWithoutClient.length === 0 ? (
+                    <div className="flex justify-center mb-6">
+                      <SearchInput
+                        value={draftSearchQuery}
+                        onChange={setDraftSearchQuery}
+                        placeholder="Buscar rascunhos por número, data ou valor..."
+                      />
+                    </div>
+                    {filteredDraftReports.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                        <p className="text-muted-foreground font-medium">Nenhum rascunho</p>
-                        <p className="text-muted-foreground text-sm">Crie um novo relatório para começar</p>
+                        <p className="text-muted-foreground font-medium">Nenhum rascunho encontrado</p>
+                        <p className="text-muted-foreground text-sm">Tente outro termo de busca</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">{reportsWithoutClient.map(renderReportCard)}</div>
+                      <div className="space-y-3">{filteredDraftReports.map(renderReportCard)}</div>
                     )}
                   </div>
                 )}
@@ -1094,9 +1112,6 @@ export default function RelatorioViagem() {
                 {activeTab === 'relatorios' && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Pastas de Clientes</h3>
-                    <div className="flex justify-center mb-6">
-                      <SearchInput value={clientSearchQuery} onChange={setClientSearchQuery} placeholder="Buscar cliente..." />
-                    </div>
                     {reportsWithClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-3" />
@@ -1115,7 +1130,6 @@ export default function RelatorioViagem() {
                           total_amount: r.total_valor,
                           status: r.status,
                         }))}
-                        initialClientSearchQuery={clientSearchQuery}
                         onView={handleViewPDF}
                         onEdit={editReport}
                         onDelete={deleteReport}
