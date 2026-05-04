@@ -1305,26 +1305,32 @@ export function useUpdateTransaction() {
           .eq("id", data.id);
         if (error) throw error;
 
-        if (data.referenceType && data.referenceId) {
-          const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(normStatus || undefined);
-          if (reconcStatus) {
-            const bankUpdate: any = {
-              status: reconcStatus,
-              updated_at: new Date().toISOString(),
-            };
-            if (reconcStatus === "reembolsado") {
-              bankUpdate.data_reembolso = data.paymentDate || new Date().toISOString().split("T")[0];
-            }
-            const { error: reconError } = await supabase
-              .from("conciliacoes_bancarias")
-              .update(bankUpdate)
-              .eq("tipo_referencia", data.referenceType)
-              .eq("referencia_id", data.referenceId);
-            if (reconError) {
-              console.warn("Falha ao sincronizar status em conciliacoes_bancarias:", reconError.message);
-            }
-          }
-        }
+        // Atualiza espelho em movimentacoes (Fase 4)
+        const isPaid =
+          (normStatus || "").toUpperCase() === "PAID" ||
+          (normStatus || "").toUpperCase() === "PAGO" ||
+          (normStatus || "").toUpperCase() === "REEMBOLSADO";
+        await syncPartnerToMovimentacoes({
+          refType: "partner_expense",
+          refId: data.id,
+          tipo: "despesa",
+          descricao: data.description,
+          valor: data.amount,
+          data_competencia: data.dueDate || data.paymentDate,
+          data_vencimento: data.dueDate || data.paymentDate,
+          data_pagamento: isPaid ? data.paymentDate : null,
+          status: isPaid ? "pago" : "pendente",
+          clientes_id: data.clientId,
+          aeronave_id: data.aircraftId || null,
+          banco_nome: normBankName,
+          forma_pagamento: normPaymentMethod,
+          fornecedor_nome: normSupplierName,
+          numero_nf: data.invoiceNumber || null,
+          nf_url: data.invoiceUrl || null,
+          observacoes: data.notes || null,
+          reembolsavel: !!data.assignedPartnerCpf,
+          criado_por: null,
+        });
       } else if (data.transactionType === "abastecimento") {
         const { data: fuelRecord, error: fuelFetchError } = await supabase
           .from("abastecimentos")
