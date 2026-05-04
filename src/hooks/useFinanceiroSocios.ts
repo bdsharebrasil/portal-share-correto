@@ -1016,33 +1016,44 @@ export function useCreateExpense(showToast = true) {
           if (installmentsError) throw installmentsError;
         }
       } else {
-        const { error } = await supabase.from("partner_expenses").insert({
-          ...baseExpenseFields,
-          observacoes: data.notes || null,
-          quantidade_parcelas: 1,
-          numero_parcela: 1,
-        });
+        const { data: createdExp, error } = await supabase
+          .from("partner_expenses")
+          .insert({
+            ...baseExpenseFields,
+            observacoes: data.notes || null,
+            quantidade_parcelas: 1,
+            numero_parcela: 1,
+          })
+          .select("id")
+          .single();
         if (error) throw error;
-      }
 
-      if (data.referenceType && data.referenceId) {
-        const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.status || undefined);
-        if (reconcStatus) {
-          const bankUpdate: any = {
-            status: reconcStatus,
-            updated_at: new Date().toISOString(),
-          };
-          if (reconcStatus === "reembolsado") {
-            bankUpdate.data_reembolso = data.dueDate || new Date().toISOString().split("T")[0];
-          }
-          const { error: reconError } = await supabase
-            .from("conciliacoes_bancarias")
-            .update(bankUpdate)
-            .eq("tipo_referencia", data.referenceType)
-            .eq("referencia_id", data.referenceId);
-          if (reconError) {
-            console.warn("Falha ao sincronizar status em conciliacoes_bancarias:", reconError.message);
-          }
+        // Espelho em movimentacoes (Fase 4)
+        if (createdExp?.id) {
+          const isPaid = (data.status || "").toLowerCase() === "paid" || (data.status || "").toLowerCase() === "pago";
+          await syncPartnerToMovimentacoes({
+            refType: "partner_expense",
+            refId: createdExp.id,
+            tipo: "despesa",
+            descricao: data.description,
+            valor: data.totalAmount,
+            data_competencia: data.dueDate || new Date().toISOString().split("T")[0],
+            data_vencimento: data.dueDate || null,
+            data_pagamento: isPaid ? (data.dueDate || new Date().toISOString().split("T")[0]) : null,
+            status: isPaid ? "pago" : "pendente",
+            clientes_id: data.clientId,
+            aeronave_id: data.aircraftId || null,
+            banco_nome: normalizedBankName,
+            forma_pagamento: normalizedPaymentMethod,
+            fornecedor_nome: normalizedSupplierName,
+            numero_doc: data.doc || null,
+            numero_nf: data.invoiceNumber || null,
+            nf_url: data.invoiceUrl || null,
+            boleto_url: data.boletoUrl || null,
+            observacoes: data.notes || null,
+            reembolsavel: !!data.assignedPartnerCpf,
+            criado_por: null,
+          });
         }
       }
 
