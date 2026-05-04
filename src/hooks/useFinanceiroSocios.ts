@@ -2,6 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import {
+  syncPartnerToMovimentacoes,
+  deletePartnerMovimentacaoMirror,
+  type PartnerRefType,
+} from "@/lib/partnerFinanceSync";
 
 // --- TIPOS ---
 // partner_accounts schema: id, clientes_id, socio_cpf, socio_nome, saldo_atual,
@@ -689,7 +694,7 @@ export function useAddDeposit(showToast = true) {
         balanceAfter = data.amount;
       }
 
-      const { error: txErr } = await supabase
+      const { data: txInserted, error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
           clientes_id: data.clientId,
@@ -712,14 +717,39 @@ export function useAddDeposit(showToast = true) {
           observacoes: data.notes || null,
           criado_por: data.createdBy || null,
           prazo: (data.prazo || "extra").toLowerCase() as "mensal" | "extra",
-        });
+        })
+        .select("id")
+        .single();
       if (txErr) throw txErr;
+
+      // Espelho em movimentacoes (Fase 4)
+      if (txInserted?.id) {
+        await syncPartnerToMovimentacoes({
+          refType: "partner_deposit",
+          refId: txInserted.id,
+          tipo: "receita",
+          descricao: data.description,
+          valor: data.amount,
+          data_competencia: data.paymentDate,
+          data_pagamento: data.paymentDate,
+          status: "pago",
+          clientes_id: data.clientId,
+          banco_nome: data.bankName?.toUpperCase() || null,
+          forma_pagamento: data.paymentMethod?.toUpperCase() || null,
+          fornecedor_nome: data.partnerName,
+          numero_doc: data.documento || null,
+          comprovante_url: data.receiptUrl || null,
+          observacoes: data.notes || null,
+          criado_por: data.createdBy || null,
+        });
+      }
 
       return data.clientId;
     },
     onSuccess: (clientId) => {
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
       if (showToast) toast.success("Depósito registrado com sucesso!");
     },
     onError: (err: any) => {
@@ -766,7 +796,7 @@ export function usePayExpense() {
 
       const balanceAfter = balanceBefore - data.amount;
 
-      const { error: txErr } = await supabase
+      const { data: txInserted, error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
           clientes_id: data.clientId,
@@ -783,8 +813,28 @@ export function usePayExpense() {
           status: "pago",
           subtipo: "payment",
           prazo: "extra",
-        });
+        })
+        .select("id")
+        .single();
       if (txErr) throw txErr;
+
+      // Espelho em movimentacoes (Fase 4)
+      if (txInserted?.id) {
+        await syncPartnerToMovimentacoes({
+          refType: "partner_payment",
+          refId: txInserted.id,
+          tipo: "despesa",
+          descricao: `Pagamento de despesa (${data.partnerName})`,
+          valor: data.amount,
+          data_competencia: data.paymentDate,
+          data_pagamento: data.paymentDate,
+          status: "pago",
+          clientes_id: data.clientId,
+          fornecedor_nome: data.partnerName,
+          observacoes: `partner_expense_id=${data.expenseId}`,
+          criado_por: null,
+        });
+      }
 
       const { error: updErr } = await supabase
         .from("partner_accounts")
@@ -966,33 +1016,44 @@ export function useCreateExpense(showToast = true) {
           if (installmentsError) throw installmentsError;
         }
       } else {
-        const { error } = await supabase.from("partner_expenses").insert({
-          ...baseExpenseFields,
-          observacoes: data.notes || null,
-          quantidade_parcelas: 1,
-          numero_parcela: 1,
-        });
+        const { data: createdExp, error } = await supabase
+          .from("partner_expenses")
+          .insert({
+            ...baseExpenseFields,
+            observacoes: data.notes || null,
+            quantidade_parcelas: 1,
+            numero_parcela: 1,
+          })
+          .select("id")
+          .single();
         if (error) throw error;
-      }
 
-      if (data.referenceType && data.referenceId) {
-        const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(data.status || undefined);
-        if (reconcStatus) {
-          const bankUpdate: any = {
-            status: reconcStatus,
-            updated_at: new Date().toISOString(),
-          };
-          if (reconcStatus === "reembolsado") {
-            bankUpdate.data_reembolso = data.dueDate || new Date().toISOString().split("T")[0];
-          }
-          const { error: reconError } = await supabase
-            .from("conciliacoes_bancarias")
-            .update(bankUpdate)
-            .eq("tipo_referencia", data.referenceType)
-            .eq("referencia_id", data.referenceId);
-          if (reconError) {
-            console.warn("Falha ao sincronizar status em conciliacoes_bancarias:", reconError.message);
-          }
+        // Espelho em movimentacoes (Fase 4)
+        if (createdExp?.id) {
+          const isPaid = (data.status || "").toLowerCase() === "paid" || (data.status || "").toLowerCase() === "pago";
+          await syncPartnerToMovimentacoes({
+            refType: "partner_expense",
+            refId: createdExp.id,
+            tipo: "despesa",
+            descricao: data.description,
+            valor: data.totalAmount,
+            data_competencia: data.dueDate || new Date().toISOString().split("T")[0],
+            data_vencimento: data.dueDate || null,
+            data_pagamento: isPaid ? (data.dueDate || new Date().toISOString().split("T")[0]) : null,
+            status: isPaid ? "pago" : "pendente",
+            clientes_id: data.clientId,
+            aeronave_id: data.aircraftId || null,
+            banco_nome: normalizedBankName,
+            forma_pagamento: normalizedPaymentMethod,
+            fornecedor_nome: normalizedSupplierName,
+            numero_doc: data.doc || null,
+            numero_nf: data.invoiceNumber || null,
+            nf_url: data.invoiceUrl || null,
+            boleto_url: data.boletoUrl || null,
+            observacoes: data.notes || null,
+            reembolsavel: !!data.assignedPartnerCpf,
+            criado_por: null,
+          });
         }
       }
 
@@ -1023,23 +1084,46 @@ export function useAddBankInterest() {
       bankName: string;
       paymentDate: string;
     }) => {
-      const { error } = await supabase.from("partner_transactions").insert({
-        clientes_id: data.clientId,
-        socio_cpf: "00000000000",
-        socio_nome: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
-        tipo: "deposit",
-        valor: parseFloat(data.amount.toFixed(2)),
-        saldo_antes: 0,
-        saldo_depois: 0,
-        descricao: data.description,
-        data_pagamento: data.paymentDate,
-        banco_nome: data.bankName?.toUpperCase() || null,
-        subtipo: "interest",
-        metodo_pagamento: "outros",
-        status: "recebido",
-        prazo: "extra",
-      });
+      const { data: txInserted, error } = await supabase
+        .from("partner_transactions")
+        .insert({
+          clientes_id: data.clientId,
+          socio_cpf: "00000000000",
+          socio_nome: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
+          tipo: "deposit",
+          valor: parseFloat(data.amount.toFixed(2)),
+          saldo_antes: 0,
+          saldo_depois: 0,
+          descricao: data.description,
+          data_pagamento: data.paymentDate,
+          banco_nome: data.bankName?.toUpperCase() || null,
+          subtipo: "interest",
+          metodo_pagamento: "outros",
+          status: "recebido",
+          prazo: "extra",
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      // Espelho em movimentacoes (Fase 4)
+      if (txInserted?.id) {
+        await syncPartnerToMovimentacoes({
+          refType: "partner_bank_interest",
+          refId: txInserted.id,
+          tipo: "receita",
+          descricao: data.description,
+          valor: data.amount,
+          data_competencia: data.paymentDate,
+          data_pagamento: data.paymentDate,
+          status: "pago",
+          clientes_id: data.clientId,
+          banco_nome: data.bankName?.toUpperCase() || null,
+          forma_pagamento: "outros",
+          fornecedor_nome: data.bankName,
+          criado_por: null,
+        });
+      }
       return data.clientId;
     },
     onSuccess: (clientId) => {
@@ -1129,6 +1213,17 @@ export function useDeleteTransaction() {
         if (error) throw error;
       }
 
+      // Limpar espelhos em movimentacoes (Fase 4)
+      const refTypesToClean: PartnerRefType[] =
+        data.transactionType === "abastecimento" || data.referenceType === "abastecimento"
+          ? ["partner_fuel"]
+          : data.transactionType === "expense" || data.referenceType === "partner_expense"
+            ? ["partner_expense"]
+            : ["partner_deposit", "partner_payment", "partner_bank_interest"];
+      for (const rt of refTypesToClean) {
+        await deletePartnerMovimentacaoMirror(rt, data.id);
+      }
+
       return data.clientId;
     },
     onSuccess: (clientId) => {
@@ -1210,26 +1305,32 @@ export function useUpdateTransaction() {
           .eq("id", data.id);
         if (error) throw error;
 
-        if (data.referenceType && data.referenceId) {
-          const reconcStatus = mapPartnerExpenseStatusToBankReconciliationStatus(normStatus || undefined);
-          if (reconcStatus) {
-            const bankUpdate: any = {
-              status: reconcStatus,
-              updated_at: new Date().toISOString(),
-            };
-            if (reconcStatus === "reembolsado") {
-              bankUpdate.data_reembolso = data.paymentDate || new Date().toISOString().split("T")[0];
-            }
-            const { error: reconError } = await supabase
-              .from("conciliacoes_bancarias")
-              .update(bankUpdate)
-              .eq("tipo_referencia", data.referenceType)
-              .eq("referencia_id", data.referenceId);
-            if (reconError) {
-              console.warn("Falha ao sincronizar status em conciliacoes_bancarias:", reconError.message);
-            }
-          }
-        }
+        // Atualiza espelho em movimentacoes (Fase 4)
+        const isPaid =
+          (normStatus || "").toUpperCase() === "PAID" ||
+          (normStatus || "").toUpperCase() === "PAGO" ||
+          (normStatus || "").toUpperCase() === "REEMBOLSADO";
+        await syncPartnerToMovimentacoes({
+          refType: "partner_expense",
+          refId: data.id,
+          tipo: "despesa",
+          descricao: data.description,
+          valor: data.amount,
+          data_competencia: data.dueDate || data.paymentDate,
+          data_vencimento: data.dueDate || data.paymentDate,
+          data_pagamento: isPaid ? data.paymentDate : null,
+          status: isPaid ? "pago" : "pendente",
+          clientes_id: data.clientId,
+          aeronave_id: data.aircraftId || null,
+          banco_nome: normBankName,
+          forma_pagamento: normPaymentMethod,
+          fornecedor_nome: normSupplierName,
+          numero_nf: data.invoiceNumber || null,
+          nf_url: data.invoiceUrl || null,
+          observacoes: data.notes || null,
+          reembolsavel: !!data.assignedPartnerCpf,
+          criado_por: null,
+        });
       } else if (data.transactionType === "abastecimento") {
         const { data: fuelRecord, error: fuelFetchError } = await supabase
           .from("abastecimentos")
