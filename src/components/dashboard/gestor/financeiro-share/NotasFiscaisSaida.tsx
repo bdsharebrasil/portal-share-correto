@@ -2000,7 +2000,6 @@ export function NotasFiscaisSaida() {
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Número</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Cliente</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Data de Criação</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
@@ -2016,9 +2015,6 @@ export function NotasFiscaisSaida() {
                           <TableCell className="text-foreground px-4 py-3">{recibo.clientes?.razao_social || "-"}</TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                             {recibo.aircraft?.matricula || "-"}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {formatDateSafe(recibo.criado_em)}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                             {formatDateSafe(recibo.data_vencimento)}
