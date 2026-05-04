@@ -694,7 +694,7 @@ export function useAddDeposit(showToast = true) {
         balanceAfter = data.amount;
       }
 
-      const { error: txErr } = await supabase
+      const { data: txInserted, error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
           clientes_id: data.clientId,
@@ -717,14 +717,39 @@ export function useAddDeposit(showToast = true) {
           observacoes: data.notes || null,
           criado_por: data.createdBy || null,
           prazo: (data.prazo || "extra").toLowerCase() as "mensal" | "extra",
-        });
+        })
+        .select("id")
+        .single();
       if (txErr) throw txErr;
+
+      // Espelho em movimentacoes (Fase 4)
+      if (txInserted?.id) {
+        await syncPartnerToMovimentacoes({
+          refType: "partner_deposit",
+          refId: txInserted.id,
+          tipo: "receita",
+          descricao: data.description,
+          valor: data.amount,
+          data_competencia: data.paymentDate,
+          data_pagamento: data.paymentDate,
+          status: "pago",
+          clientes_id: data.clientId,
+          banco_nome: data.bankName?.toUpperCase() || null,
+          forma_pagamento: data.paymentMethod?.toUpperCase() || null,
+          fornecedor_nome: data.partnerName,
+          numero_doc: data.documento || null,
+          comprovante_url: data.receiptUrl || null,
+          observacoes: data.notes || null,
+          criado_por: data.createdBy || null,
+        });
+      }
 
       return data.clientId;
     },
     onSuccess: (clientId) => {
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
       if (showToast) toast.success("Depósito registrado com sucesso!");
     },
     onError: (err: any) => {
