@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PastasRelatorios } from '@/components/RelatorioDespesaViagem/PastasRelatorios';
+import { SearchInput } from '@/components/RelatorioDespesaViagem/SearchInput';
 
 
 // ---------------------------------------------------------------------------
@@ -116,6 +117,7 @@ export default function RelatorioViagem() {
   const navigationState = (location.state as any) || {};
 
   const [activeTab, setActiveTab] = useState<'criar' | 'historico' | 'relatorios'>('relatorios');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [reports, setReports] = useState<TravelReport[]>([]);
   const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -1092,6 +1094,9 @@ export default function RelatorioViagem() {
                 {activeTab === 'relatorios' && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Pastas de Clientes</h3>
+                    <div className="flex justify-center mb-6">
+                      <SearchInput value={clientSearchQuery} onChange={setClientSearchQuery} placeholder="Buscar cliente..." />
+                    </div>
                     {reportsWithClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-3" />
@@ -1110,6 +1115,7 @@ export default function RelatorioViagem() {
                           total_amount: r.total_valor,
                           status: r.status,
                         }))}
+                        initialClientSearchQuery={clientSearchQuery}
                         onView={handleViewPDF}
                         onEdit={editReport}
                         onDelete={deleteReport}

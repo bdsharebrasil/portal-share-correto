@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Folder, FileText, Send, Eye, Edit, CheckCheck, Clock, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AircraftFolderButton } from './AircraftFolderButton';
@@ -21,6 +21,7 @@ interface PastasRelatoriosProps {
   onEdit: (id: string) => void;
   onDelete: (id: string | undefined) => void;
   onSend: (report: PastaReportItem, type: 'conferencia' | 'cliente') => void | Promise<void>;
+  initialClientSearchQuery?: string;
 }
 
 // ─── Status config ─────────────────────────────────────────────────────────────
@@ -364,11 +365,16 @@ const FLOW = [
   { s: 'Enviado', desc: 'Aguarda pagamento' },
 ];
 
-export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend }: PastasRelatoriosProps) {
+export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend, initialClientSearchQuery = '' }: PastasRelatoriosProps) {
   const [openAircraft, setOpenAircraft] = useState<Record<string, boolean>>({});
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState(initialClientSearchQuery);
+
+  // Sincronizar a busca de cliente quando a prop mudar
+  useEffect(() => {
+    setClientSearchQuery(initialClientSearchQuery);
+  }, [initialClientSearchQuery]);
 
   // Estrutura: cliente -> matrícula -> relatórios
   const tree = useMemo(() => {
