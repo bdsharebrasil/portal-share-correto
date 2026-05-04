@@ -23,7 +23,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { syncNFSaidaFinance, deleteNFSaidaFinanceMirror } from "@/lib/nfSaidaFinanceSync";
-import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
+import { generateSequentialReceiptNumber, parseLocalDate } from "@/lib/receiptUtils";
+import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 
 // --- CONFIGURAÇÃO DO PDF (APENAS PARA RECIBOS) ---
 
@@ -1999,10 +2000,8 @@ export function NotasFiscaisSaida() {
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Número</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Cliente</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Data de Criação</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Status</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
@@ -2017,15 +2016,11 @@ export function NotasFiscaisSaida() {
                             {recibo.aircraft?.matricula || "-"}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {formatDateSafe(recibo.criado_em)}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                             {formatDateSafe(recibo.data_vencimento)}
                           </TableCell>
                           <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
                             R$ {parseFloat(recibo.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">Recibo</TableCell>
                           <TableCell className="px-4 py-3">
                             <Select
                               value={recibo.status || "enviado"}
@@ -2132,12 +2127,76 @@ export function NotasFiscaisSaida() {
                 </div>
                 <div>
                   <Label className="text-foreground mb-2 block">Data de Vencimento</Label>
-                  <Input
-                    type="data"
-                    value={reciboEditData.max_payment_date}
-                    onChange={(e) => setReciboEditData({ ...reciboEditData, max_payment_date: e.target.value })}
-                    className="bg-background border-border"
-                  />
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      value={
+                        reciboEditData.max_payment_date
+                          ? format(
+                              parseLocalDate(reciboEditData.max_payment_date),
+                              "dd/MM/yyyy"
+                            )
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const raw = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 8);
+                        if (raw.length === 8) {
+                          const [dd, mm, yyyy] = [
+                            raw.slice(0, 2),
+                            raw.slice(2, 4),
+                            raw.slice(4, 8),
+                          ];
+                          setReciboEditData({
+                            ...reciboEditData,
+                            max_payment_date: `${yyyy}-${mm}-${dd}`,
+                          });
+                        } else if (raw.length === 0) {
+                          setReciboEditData({
+                            ...reciboEditData,
+                            max_payment_date: "",
+                          });
+                        }
+                      }}
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
+                      className="pr-10 bg-background border-border"
+                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <CalendarIcon className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        className="w-auto p-0 border-0 z-[9999]"
+                      >
+                        <DatePickerCalendar
+                          value={
+                            reciboEditData.max_payment_date
+                              ? new Date(
+                                  reciboEditData.max_payment_date + "T00:00:00"
+                                )
+                              : undefined
+                          }
+                          onChange={(date) => {
+                            const dateString = date
+                              ? format(date, "yyyy-MM-dd")
+                              : "";
+                            setReciboEditData({
+                              ...reciboEditData,
+                              max_payment_date: dateString,
+                            });
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               </div>
               <div>
