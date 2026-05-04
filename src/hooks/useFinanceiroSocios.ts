@@ -1084,23 +1084,46 @@ export function useAddBankInterest() {
       bankName: string;
       paymentDate: string;
     }) => {
-      const { error } = await supabase.from("partner_transactions").insert({
-        clientes_id: data.clientId,
-        socio_cpf: "00000000000",
-        socio_nome: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
-        tipo: "deposit",
-        valor: parseFloat(data.amount.toFixed(2)),
-        saldo_antes: 0,
-        saldo_depois: 0,
-        descricao: data.description,
-        data_pagamento: data.paymentDate,
-        banco_nome: data.bankName?.toUpperCase() || null,
-        subtipo: "interest",
-        metodo_pagamento: "outros",
-        status: "recebido",
-        prazo: "extra",
-      });
+      const { data: txInserted, error } = await supabase
+        .from("partner_transactions")
+        .insert({
+          clientes_id: data.clientId,
+          socio_cpf: "00000000000",
+          socio_nome: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
+          tipo: "deposit",
+          valor: parseFloat(data.amount.toFixed(2)),
+          saldo_antes: 0,
+          saldo_depois: 0,
+          descricao: data.description,
+          data_pagamento: data.paymentDate,
+          banco_nome: data.bankName?.toUpperCase() || null,
+          subtipo: "interest",
+          metodo_pagamento: "outros",
+          status: "recebido",
+          prazo: "extra",
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      // Espelho em movimentacoes (Fase 4)
+      if (txInserted?.id) {
+        await syncPartnerToMovimentacoes({
+          refType: "partner_bank_interest",
+          refId: txInserted.id,
+          tipo: "receita",
+          descricao: data.description,
+          valor: data.amount,
+          data_competencia: data.paymentDate,
+          data_pagamento: data.paymentDate,
+          status: "pago",
+          clientes_id: data.clientId,
+          banco_nome: data.bankName?.toUpperCase() || null,
+          forma_pagamento: "outros",
+          fornecedor_nome: data.bankName,
+          criado_por: null,
+        });
+      }
       return data.clientId;
     },
     onSuccess: (clientId) => {
