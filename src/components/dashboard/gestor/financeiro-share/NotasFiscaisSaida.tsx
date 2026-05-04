@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { syncNFSaidaFinance, deleteNFSaidaFinanceMirror } from "@/lib/nfSaidaFinanceSync";
+import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
 
 // --- CONFIGURAÇÃO DO PDF (APENAS PARA RECIBOS) ---
 
@@ -789,29 +790,6 @@ export function NotasFiscaisSaida() {
     }
   };
 
-  const generateReciboNumber = async (clienteNome: string) => {
-    const clienteLetras = clienteNome.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X');
-    const ano = new Date().getFullYear().toString().slice(-2);
-
-    const { data: existingRecibos } = await supabase
-      .from("movimentacoes")
-      .select("numero_recibo")
-      .like("numero_recibo", `REC-${clienteLetras}%/${ano}`)
-      .eq("tipo", "receita")
-      .order("numero_recibo", { ascending: false });
-
-    let numero = 1;
-    if (existingRecibos && existingRecibos.length > 0) {
-      const ultimoRecibo = existingRecibos[0];
-      const match = (ultimoRecibo.numero_recibo || "").match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
-      if (match) {
-        numero = parseInt(match[1]) + 1;
-      }
-    }
-
-    const numeroFormatado = numero.toString().padStart(3, "0");
-    return `REC-${clienteLetras}${numeroFormatado}/${ano}`;
-  };
 
   const handleGenerarRecibo = async () => {
     if (!reciboData.cliente_nome || !reciboData.valor || !reciboData.data_vencimento) {
@@ -830,7 +808,7 @@ export function NotasFiscaisSaida() {
     try {
       setIsGeneratingRecibo(true);
 
-      const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
+      const numeroRecibo = await generateSequentialReceiptNumber(reciboData.cliente_nome, supabase);
 
       const dadosParaPDF = {
         numero_recibo: numeroRecibo,

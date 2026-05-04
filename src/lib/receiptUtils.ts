@@ -312,6 +312,9 @@ export function formatDateExtended(dateString: string): string {
  * Gera número sequencial de recibo (NOVO - com incremento)
  * Formato: REC-[PREFIXO][NÚMEROS]/[ANO]
  * Exemplo: REC-NOG001/26, REC-NOG002/26, etc
+ *
+ * Consulta a tabela "movimentacoes" como fonte de verdade única
+ * para evitar inconsistências entre fluxos diferentes.
  */
 export async function generateSequentialReceiptNumber(
   clientName: string,
@@ -334,10 +337,13 @@ export async function generateSequentialReceiptNumber(
     .padEnd(3, "X");
 
   // Buscar todos os recibos com este prefixo no ano atual
+  // FONTE DE VERDADE ÚNICA: tabela "movimentacoes"
   const { data: existingReceipts, error } = await supabase
-    .from("recibos")
+    .from("movimentacoes")
     .select("numero_recibo")
     .like("numero_recibo", `REC-${prefix}%/${year}`)
+    .eq("tipo", "receita")
+    .not("numero_recibo", "is", null)
     .order("numero_recibo", { ascending: false });
 
   if (error) {
