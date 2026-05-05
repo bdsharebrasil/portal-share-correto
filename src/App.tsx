@@ -187,35 +187,35 @@ const App = () => {
                           <Route path="/flight-map-view" element={renderProtected(<FlightMapView />)} />
                           <Route path="/financeiro/conciliacao" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
                                 <ConciliacaoBancaria />
                               </RoleProtected>
                             )
                           } />
                           <Route path="/financeiro/config" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
                                 <ConfigEmpresa />
                               </RoleProtected>
                             )
                           } />
                           <Route path="/financeiro/recibo" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
                                 <EmissaoRecibo />
                               </RoleProtected>
                             )
                           } />
                           <Route path="/financeiro/viagem" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
                                 <RelatorioViagem />
                               </RoleProtected>
                             )
                           } />
                           <Route path="/financeiro/relatorio-viagem" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
                                 <RelatorioViagem />
                               </RoleProtected>
                             )
@@ -223,14 +223,14 @@ const App = () => {
                           <Route path="/aprovar-relatorio/:token" element={<AprovarRelatorioViagem />} />
                           <Route path="/financeiro/relatorios-cliente/:clientId" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
                                 <RelatoriosClienteDetalhes />
                               </RoleProtected>
                             )
                           } />
                           <Route path="/financeiro/compras" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
                                 <SolicitacaoCompras />
                               </RoleProtected>
                             )
