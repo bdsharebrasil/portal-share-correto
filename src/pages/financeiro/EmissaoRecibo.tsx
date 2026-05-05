@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { FileText, Clock, Star } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { ReciboDocument } from "@/lib/reciboGenerator";
+import { syncClientExpenseMirror } from "@/lib/clientExpenseMirrorSync";
 
 interface Cliente {
   id: string;
