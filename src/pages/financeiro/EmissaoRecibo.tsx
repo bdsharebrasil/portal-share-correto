@@ -522,6 +522,30 @@ export default function EmissaoRecibo() {
               } else {
                 console.log("✅ Movimentação (receita) criada");
               }
+
+              // ===== 5. Espelho de despesa para o cliente/aeronave (ADM SHARE BRASIL) =====
+              if (originalForm.clienteId && selectedAircraftId) {
+                try {
+                  await syncClientExpenseMirror({
+                    origin: "recibo",
+                    originId: receiptData.id,
+                    cliente_id: originalForm.clienteId,
+                    aeronave_id: selectedAircraftId,
+                    valor: valorRecibo,
+                    data_competencia: dataEmissaoStr,
+                    data_vencimento: dataVencimento,
+                    numero_doc: receiptData.numero_recibo,
+                    descricao_origem: brDescription,
+                    status_origem: "pendente",
+                    nf_url: notaFiscalUrl || deceeaUrl || infraeroUrl,
+                    boleto_url: boletoUrl,
+                    criado_por: currentUserId,
+                  });
+                  console.log("✅ Espelho ADM SHARE (despesa cliente) criado");
+                } catch (mirrorErr) {
+                  console.error("❌ Erro ao criar espelho ADM SHARE:", mirrorErr);
+                }
+              }
             }
           }
 
