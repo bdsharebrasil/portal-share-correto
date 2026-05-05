@@ -123,6 +123,32 @@ export default function Documentos() {
 
   const loadFolderContents = useCallback(async (folderId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Verificar se a pasta é restrita e se o usuário tem permissão
+      const { data: folderData, error: folderError } = await supabase
+        .from("pastas_documentos")
+        .select("restrita")
+        .eq("id", folderId)
+        .maybeSingle();
+
+      if (folderError || !folderData) return;
+
+      if (folderData.restrita) {
+        const { data: permission, error: permError } = await supabase
+          .from("permissoes_pasta_documentos")
+          .select("id")
+          .eq("pasta_id", folderId)
+          .eq("usuario_id", user.id)
+          .maybeSingle();
+
+        if (permError || !permission) {
+          // Usuário não tem permissão, não carregar conteúdo
+          return;
+        }
+      }
+
       const { data: subfolders, error: subfoldersError } = await supabase
         .from("pastas_documentos")
         .select("id, nome")
@@ -167,6 +193,12 @@ export default function Documentos() {
 
   const loadDocuments = useCallback(async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Usuário não autenticado");
+        return;
+      }
+
       // Buscar pastas
       let foldersQuery = supabase.from("pastas_documentos").select("*");
       if (currentFolder === null) {
@@ -178,6 +210,35 @@ export default function Documentos() {
       if (foldersError) {
         toast.error("Erro ao carregar pastas");
         return;
+      }
+
+      // Filtrar pastas restritas: mostrar apenas se usuário tem permissão
+      let filteredFolders = folders || [];
+      if (filteredFolders.length > 0) {
+        const restrictedFolderIds = filteredFolders
+          .filter((f) => f.restrita)
+          .map((f) => f.id);
+
+        if (restrictedFolderIds.length > 0) {
+          const { data: permissions, error: permError } = await supabase
+            .from("permissoes_pasta_documentos")
+            .select("pasta_id")
+            .eq("usuario_id", user.id)
+            .in("pasta_id", restrictedFolderIds);
+
+          if (permError) {
+            console.error("Erro ao verificar permissões:", permError);
+          }
+
+          const userPermittedFolderIds = new Set(
+            (permissions || []).map((p) => p.pasta_id)
+          );
+
+          filteredFolders = filteredFolders.filter((folder) => {
+            if (!folder.restrita) return true; // Pastas públicas sempre aparecem
+            return userPermittedFolderIds.has(folder.id); // Pastas restritas só se tem permissão
+          });
+        }
       }
 
       // Buscar documentos
@@ -193,7 +254,7 @@ export default function Documentos() {
         return;
       }
 
-      const folderItems: DocumentItem[] = (folders || []).map((f) => ({
+      const folderItems: DocumentItem[] = filteredFolders.map((f) => ({
         ...f,
         type: "folder" as const,
       }));
@@ -204,7 +265,7 @@ export default function Documentos() {
 
       setItems([...folderItems, ...docItems]);
 
-      (folders || []).forEach((folder) => {
+      filteredFolders.forEach((folder) => {
         loadFolderContents(folder.id);
       });
     } catch (error) {
@@ -324,7 +385,34 @@ export default function Documentos() {
     loadDocuments();
   };
 
-  const handleOpenFolder = (folder: DocumentFolder) => {
+  const handleOpenFolder = async (folder: DocumentFolder) => {
+    // Validar permissão para pastas restritas
+    if (folder.restrita) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Usuário não autenticado");
+        return;
+      }
+
+      const { data: permission, error } = await supabase
+        .from("permissoes_pasta_documentos")
+        .select("id")
+        .eq("pasta_id", folder.id)
+        .eq("usuario_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erro ao verificar permissão:", error);
+        toast.error("Erro ao verificar permissão");
+        return;
+      }
+
+      if (!permission) {
+        toast.error("Você não tem permissão para acessar esta pasta");
+        return;
+      }
+    }
+
     setCurrentFolder(folder.id);
     setFolderPath((prev) => [...prev, folder]);
   };
