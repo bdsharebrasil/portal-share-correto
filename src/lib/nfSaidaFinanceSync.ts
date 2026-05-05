@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { syncClientExpenseMirror, deleteClientExpenseMirror } from "@/lib/clientExpenseMirrorSync";
 
 export interface NFSaidaSyncInput {
   nfId: string;
@@ -110,6 +111,28 @@ export async function syncNFSaidaFinance(input: NFSaidaSyncInput) {
     if (error) throw error;
   }
 
+  // Espelho de despesa do cliente (ADM SHARE BRASIL) — só quando há cliente+aeronave
+  if (input.cliente_id && input.aeronave_id) {
+    try {
+      await syncClientExpenseMirror({
+        origin: "nf_saida",
+        originId: input.nfId,
+        cliente_id: input.cliente_id,
+        aeronave_id: input.aeronave_id,
+        valor: input.valor,
+        data_competencia: input.data_criacao,
+        data_vencimento: input.data_vencimento,
+        numero_doc: input.numero,
+        descricao_origem: input.descricao,
+        status_origem: input.status,
+        nf_url: input.nf_url,
+        criado_por: input.criado_por,
+      });
+    } catch (e) {
+      console.error("[nfSaidaFinanceSync] erro no espelho ADM SHARE:", e);
+    }
+  }
+
   return { movimentacaoId };
 }
 
@@ -124,4 +147,5 @@ export async function deleteNFSaidaFinanceMirror(nfId: string) {
     .delete()
     .eq("reference_type", REF_TYPE)
     .eq("reference_id", nfId);
+  await deleteClientExpenseMirror("nf_saida", nfId);
 }
