@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { syncClientExpenseMirror, deleteClientExpenseMirror } from "@/lib/clientExpenseMirrorSync";
 
 export interface NFSaidaSyncInput {
   nfId: string;
