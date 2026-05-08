@@ -240,7 +240,7 @@ export function LancamentoFormInline({
   const [anexos, setAnexos] = useState<AnexoItem[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // Categorias para combobox
+  // Categorias para combobox - EXCLUIR categorias para Financeiro Share Brasil
   const { data: categorias } = useQuery({
     queryKey: ["categorias-mov-cotista"],
     queryFn: async () => {
@@ -249,6 +249,7 @@ export function LancamentoFormInline({
         .select("id, nome, tipo, grupo_categoria")
         .eq("tipo", "despesa")
         .eq("ativo", true)
+        .not("grupo_categoria", "in", '("FOLHA DE PAGAMENTO","DESPESAS EMPRESA","DESPESAS PARTICULARES","BANCO","TED")')
         .order("nome");
       return (data ?? []) as Array<{ id: string; nome: string; grupo_categoria: string | null }>;
     },
@@ -512,19 +513,18 @@ export function LancamentoFormInline({
         ? rateios.find((r) => r.socio_id === pagador)
         : null;
 
-      const fornecedor =
-        pagador === "EMPRESA" ? fornecedorNome.trim() || "EMPRESA" :
-        pagador === "CLIENTE" ? clienteNome :
-        pagadorSocio?.socio_nome ?? null;
-
-      const fluxo =
-        pagador === "EMPRESA" ? "empresa" :
-        pagador === "CLIENTE" ? "cliente" : "direto";
-
+      // pago_por = quem pagou (cliente, empresa ou sócio)
       const pagoPor =
         pagador === "EMPRESA" ? "EMPRESA" :
         pagador === "CLIENTE" ? clienteNome :
         pagadorSocio?.socio_nome ?? null;
+
+      // fornecedor_nome = fornecedor da despesa (mantém o que o usuário digitou, não é bloqueado pelo cliente)
+      const fornecedor = fornecedorNome.trim() || "EMPRESA";
+
+      const fluxo =
+        pagador === "EMPRESA" ? "empresa" :
+        pagador === "CLIENTE" ? "cliente" : "direto";
 
       const anexoUrls = getAnexoUrls();
       const catId = await ensureCategoria();
@@ -717,7 +717,7 @@ export function LancamentoFormInline({
             />
           </Field>
 
-          <Field label="Categoria contábil">
+          <Field label="Categoria">
             <SearchableCombobox
               items={categoriaOptions}
               value={categoriaId}
