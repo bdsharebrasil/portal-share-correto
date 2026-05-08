@@ -10,7 +10,7 @@ import {
   Plane,
   Users,
 } from "lucide-react";
-import { LancamentoDialog } from "./LancamentosTab";
+import { LancamentoFormInline } from "./LancamentoFormInline";
 
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", {
