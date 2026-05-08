@@ -165,7 +165,7 @@ export default function FinanceiroCotistaDetalhe() {
         {/* Navegação Topo */}
         <div className="flex flex-col gap-2">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/financeiro/financeiro-cotistas")}
             className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 w-fit"
           >
             <div className="p-1.5 rounded-lg bg-background/50 border border-border/40 group-hover:border-border transition-colors">
