@@ -405,26 +405,13 @@ export default function FinanceiroCotistaDetalhe() {
               </Card>
             </TabsContent>
 
-            {/* Lançamentos - Redirecionar para página dedicada */}
+            {/* Lançamentos - Componente inline */}
             <TabsContent value="lancamentos" className="mt-4">
-              <div className="flex flex-col items-center justify-center py-16 text-center space-y-6">
-                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-10 w-10 text-primary" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-foreground">Gerenciar Lançamentos</h3>
-                  <p className="text-muted-foreground max-w-md">
-                    Acesse a página dedicada para criar, editar e gerenciar lançamentos financeiros desta aeronave.
-                  </p>
-                </div>
-                <button
-                  onClick={() => navigate(`/financeiro/lancamento/${clienteId}/${aeronaveAtual}`)}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-colors shadow-lg hover:shadow-xl"
-                >
-                  <FileText className="h-4 w-4" />
-                  Ir para Lançamentos
-                </button>
-              </div>
+              <LancamentosTab
+                clienteId={clienteId}
+                aeronaveId={aeronaveAtual}
+                clienteNome={cliente.razao_social || ""}
+              />
             </TabsContent>
 
             {/* Financeiro */}
@@ -981,7 +968,7 @@ function DespesasTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm font-semibold">
-                  {fmtBRL(d.valor_total)}
+                  {fmtBRL(d.valor_rateado)}
                 </TableCell>
                 <TableCell className="text-center">
                   {anexos.length === 0 ? (
