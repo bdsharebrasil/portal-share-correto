@@ -215,18 +215,15 @@ export default function LancamentoForm() {
           </div>
         </div>
 
-        {/* Formulário */}
-        <LancamentoDialog
-          open={true}
-          onOpenChange={(open) => {
-            if (!open) {
-              navigate(`/financeiro/financeiro-cotistas/${clienteId}`);
-            }
-          }}
+        {/* Formulário inline (não-Dialog) */}
+        <LancamentoFormInline
           clienteId={clienteId!}
-          aeronaveId={aeronaveId}
+          clienteNome={cliente.razao_social ?? ""}
+          aeronaveId={aeronaveId ?? null}
+          aeronaveRegistro={aeronave?.matricula ?? null}
           socios={socios ?? []}
           editing={lancamentoEditando}
+          onCancel={() => navigate(`/financeiro/financeiro-cotistas/${clienteId}`)}
           onSaved={() => {
             navigate(`/financeiro/financeiro-cotistas/${clienteId}`);
           }}
