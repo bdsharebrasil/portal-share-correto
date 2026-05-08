@@ -99,6 +99,12 @@ interface LancamentoFormInlineProps {
   onCancel: () => void;
 }
 
+interface AeronaveOption {
+  id: string;
+  label: string;
+  matricula: string;
+}
+
 /* ---------- Hybrid Date Field (mask + calendar popover) ---------- */
 function DateField({
   value,
@@ -239,6 +245,35 @@ export function LancamentoFormInline({
   const [rateios, setRateios] = useState<RateioInput[]>([]);
   const [anexos, setAnexos] = useState<AnexoItem[]>([]);
   const [saving, setSaving] = useState(false);
+  const [aeronaveSelected, setAeronaveSelected] = useState<string>(aeronaveId ?? "");
+
+  // Aeronaves do cliente (cotistas_aeronave)
+  const { data: clienteAeronaves = [] } = useQuery({
+    queryKey: ["cliente-aeronaves", clienteId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cotistas_aeronave")
+        .select("id_aeronave, aeronave!id_aeronave(id, matricula, modelo)")
+        .eq("id_clientes", clienteId);
+      return (data ?? []) as Array<{
+        id_aeronave: string;
+        aeronave: { id: string; matricula: string; modelo: string } | null;
+      }>;
+    },
+  });
+
+  // Todas as aeronaves (para empréstimo)
+  const { data: todasAeronaves = [] } = useQuery({
+    queryKey: ["todas-aeronaves"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("aeronave")
+        .select("id, matricula, modelo")
+        .eq("ativo", true)
+        .order("matricula");
+      return (data ?? []) as Array<{ id: string; matricula: string; modelo: string }>;
+    },
+  });
 
   // Categorias para combobox - EXCLUIR categorias para Financeiro Share Brasil
   const { data: categorias } = useQuery({
@@ -538,7 +573,7 @@ export function LancamentoFormInline({
         data_vencimento: dataVencimento || dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         clientes_id: clienteId,
-        aeronave_id: aeronaveId,
+        aeronave_id: aeronaveSelected || aeronaveId,
         fornecedor_nome: fornecedor,
         forma_pagamento: formaPgto || null,
         numero_doc: numeroDoc || null,
@@ -587,14 +622,15 @@ export function LancamentoFormInline({
       }
 
       // Inserir rateio_despesas
+      const aeroSelecionada = clienteAeronaves.find((a) => a.id_aeronave === aeronaveSelected)?.aeronave;
       const rateioRows = rateios.map((r) => ({
         despesa_id: movId,
         fonte_despesa: "movimentacoes",
         tipo_rateio: grupo,
         cliente_id: clienteId,
         clientes_nome: clienteNome,
-        aeronave_id: aeronaveId,
-        aeronave_registro: aeronaveRegistro,
+        aeronave_id: aeronaveSelected || aeronaveId,
+        aeronave_registro: aeroSelecionada?.matricula || aeronaveRegistro,
         socio_id: r.socio_id,
         socios_nome: r.socio_nome,
         percentual_sociedade: r.percentual,
@@ -809,12 +845,32 @@ export function LancamentoFormInline({
             />
           </Field>
 
-          <Field label="Aeronave">
-            <Input
-              value={aeronaveRegistro ?? "—"}
-              disabled
-              className="h-11 rounded-xl bg-muted/30"
-            />
+          <Field label="Aeronave" required>
+            {clienteAeronaves.length === 0 ? (
+              <div className="text-sm text-muted-foreground p-3 rounded-xl bg-muted/20 border border-border/40">
+                Nenhuma aeronave cadastrada para este cotista.
+              </div>
+            ) : (
+              <SearchableCombobox
+                items={[
+                  ...clienteAeronaves.map((a) => ({
+                    id: a.id_aeronave,
+                    label: `${a.aeronave?.matricula || "?"} — ${a.aeronave?.modelo || ""}`,
+                  })),
+                  { id: "__separator__", label: "" },
+                  ...todasAeronaves
+                    .filter((t) => !clienteAeronaves.some((c) => c.id_aeronave === t.id))
+                    .map((a) => ({
+                      id: a.id,
+                      label: `${a.matricula} (emprestada) — ${a.modelo}`,
+                    })),
+                ]}
+                value={aeronaveSelected}
+                onChange={setAeronaveSelected}
+                placeholder="Selecione a aeronave..."
+                searchPlaceholder="Buscar por matrícula ou modelo..."
+              />
+            )}
           </Field>
         </div>
       </Section>
@@ -1016,7 +1072,7 @@ export function LancamentoFormInline({
         </Button>
         <Button
           onClick={handleSave}
-          disabled={saving || !pctOk || pagoExcede || algumNeg || !aeronaveId}
+          disabled={saving || !pctOk || pagoExcede || algumNeg || !aeronaveSelected}
           className="gap-2 min-w-[200px]"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
