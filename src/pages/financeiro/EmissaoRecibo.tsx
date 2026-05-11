@@ -226,7 +226,11 @@ export default function EmissaoRecibo() {
       if (!valorNumerico || valorNumerico <= 0) throw new Error("Valor deve ser maior que zero");
       if (!(formData.servicoDescricao || "").trim()) throw new Error("Descrição do serviço é obrigatória");
 
-      const receiptNumber = await generateSequentialReceiptNumber(nomePagador, supabase);
+      const receiptNumber = await generateSequentialReceiptNumber(
+        nomePagador,
+        supabase,
+        originalForm.clienteId?.trim() || null
+      );
 
       // ===================== UPLOAD DE ARQUIVOS =====================
       let boletoUrl: string | null = null;
