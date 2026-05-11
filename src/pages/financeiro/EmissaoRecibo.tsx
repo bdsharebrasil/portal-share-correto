@@ -152,7 +152,13 @@ export default function EmissaoRecibo() {
 
   const loadCompanySettings = async () => {
     try {
-      const { data } = await supabase.from("company_settings").select("*").limit(1).single();
+      // FIX: tabela correta é "configuracao_empresa"
+      const { data } = await supabase
+        .from("configuracao_empresa" as any)
+        .select("*")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (data) setCompanySettings(data);
     } catch (err) {
       console.error("Erro ao carregar dados da empresa:", err);
