@@ -318,51 +318,73 @@ export function formatDateExtended(dateString: string): string {
  */
 export async function generateSequentialReceiptNumber(
   clientName: string,
-  supabase: any
+  supabase: any,
+  clienteId?: string | null
 ): Promise<string> {
   const today = new Date();
   const year = String(today.getFullYear()).slice(-2);
 
-  if (!clientName || !clientName.trim()) {
-    // Se não houver cliente, usar fallback com data + random
-    const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
-    return `REC-${randomNumbers}/${year}`;
-  }
+  // 1) Tentar reutilizar prefixo a partir do último recibo do MESMO cliente
+  let prefix: string | null = null;
+  if (clienteId) {
+    const { data: clienteReceipts } = await supabase
+      .from("recibos")
+      .select("numero_recibo, criado_em")
+      .eq("cliente_id", clienteId)
+      .not("numero_recibo", "is", null)
+      .order("criado_em", { ascending: false })
+      .limit(50);
 
-  // Extrair 3 primeiras letras do cliente e garantir uppercase
-  const prefix = clientName
-    .substring(0, 3)
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "")
-    .padEnd(3, "X");
-
-  // Buscar todos os recibos com este prefixo no ano atual
-  // FONTE DE VERDADE ÚNICA: tabela "movimentacoes"
-  const { data: existingReceipts, error } = await supabase
-    .from("movimentacoes")
-    .select("numero_recibo")
-    .like("numero_recibo", `REC-${prefix}%/${year}`)
-    .eq("tipo", "receita")
-    .not("numero_recibo", "is", null)
-    .order("numero_recibo", { ascending: false });
-
-  if (error) {
-    console.error("Erro ao buscar recibos existentes:", error);
-    // Fallback em caso de erro
-    const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
-    return `REC-${prefix}${randomNumbers}/${year}`;
-  }
-
-  // Extrair o próximo número
-  let nextNumber = 1;
-  if (existingReceipts && existingReceipts.length > 0) {
-    const lastReceipt = existingReceipts[0];
-    const match = lastReceipt.numero_recibo.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
-    if (match && match[1]) {
-      nextNumber = parseInt(match[1]) + 1;
+    if (clienteReceipts && clienteReceipts.length > 0) {
+      // Procura o primeiro número que casa o padrão REC-XXX...
+      for (const r of clienteReceipts) {
+        const m = r.numero_recibo?.match(/^REC-([A-Z0-9 ]{1,4})[\s-]?\d+\/\d{2}$/i);
+        if (m && m[1]) {
+          // Limpa espaços/hífens do prefixo herdado
+          const cleaned = m[1].toUpperCase().replace(/[^A-Z0-9]/g, "");
+          if (cleaned.length >= 2) {
+            prefix = cleaned.padEnd(3, "X").substring(0, 3);
+            break;
+          }
+        }
+      }
     }
   }
 
+  // 2) Fallback: derivar do nome do cliente (limpando antes de cortar)
+  if (!prefix) {
+    if (!clientName || !clientName.trim()) {
+      const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+      return `REC-${randomNumbers}/${year}`;
+    }
+    const onlyLetters = clientName
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Z]/g, "");
+    prefix = (onlyLetters.substring(0, 3) || "XXX").padEnd(3, "X");
+  }
+
+  // 3) Buscar maior número existente para este prefixo no ano (em recibos)
+  // Inclui formatos antigos com hífen/espaço: REC-GA -001/26, REC-GAS001/26, etc.
+  const { data: existing } = await supabase
+    .from("recibos")
+    .select("numero_recibo")
+    .ilike("numero_recibo", `REC-${prefix.substring(0, 2)}%/${year}`)
+    .not("numero_recibo", "is", null);
+
+  let maxNumber = 0;
+  if (existing && existing.length > 0) {
+    for (const r of existing) {
+      const m = r.numero_recibo?.match(/REC-[A-Z0-9 \-]+?(\d{3,})\/\d{2}$/i);
+      if (m && m[1]) {
+        const n = parseInt(m[1], 10);
+        if (n > maxNumber) maxNumber = n;
+      }
+    }
+  }
+
+  const nextNumber = maxNumber + 1;
   const numeroFormatado = String(nextNumber).padStart(3, "0");
   return `REC-${prefix}${numeroFormatado}/${year}`;
 }
