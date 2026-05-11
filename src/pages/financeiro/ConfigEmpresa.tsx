@@ -59,7 +59,7 @@ export default function ConfigEmpresa() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from("company_settings")
+        .from("configuracao_empresa" as any)
         .select("*")
         .order("criado_em", { ascending: false })
         .limit(1);
