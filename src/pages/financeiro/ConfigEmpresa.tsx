@@ -176,7 +176,7 @@ export default function ConfigEmpresa() {
 
       // Se há novo arquivo, fazer upload
       if (selectedLogoFile) {
-        const fileExt = selectedLogoFile.nome.split(".").pop()?.toLowerCase() || "png";
+        const fileExt = selectedLogoFile.name.split(".").pop()?.toLowerCase() || "png";
         const fileName = `logo-company-${Date.now()}.${fileExt}`;
         const filePath = `company-logos/${fileName}`;
 
@@ -184,7 +184,7 @@ export default function ConfigEmpresa() {
           .from("company-logos")
           .upload(filePath, selectedLogoFile, {
             upsert: false,
-            contentType: selectedLogoFile.tipo,
+            contentType: selectedLogoFile.type,
           });
 
         if (uploadError) throw new Error(`Upload: ${uploadError.message}`);
@@ -215,19 +215,19 @@ export default function ConfigEmpresa() {
 
       if (companyData.id) {
         const { error } = await supabase
-          .from("company_settings")
+          .from("configuracao_empresa" as any)
           .update(payload)
           .eq("id", companyData.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
-          .from("company_settings")
+          .from("configuracao_empresa" as any)
           .insert(payload)
           .select("id")
           .single();
         if (error) throw error;
         if (data) {
-          setCompanyData((prev) => ({ ...prev, id: data.id }));
+          setCompanyData((prev) => ({ ...prev, id: (data as any).id }));
         }
       }
 
