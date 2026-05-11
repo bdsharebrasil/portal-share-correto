@@ -251,13 +251,13 @@ export async function generateReportNumber(
   // Filtra pelo prefixo do cliente
   let query = supabase
     .from('travel_expense_reports')
-    .select('report_number')
-    .ilike('report_number', `REL-${clientInitials}-%`);
+    .select('numero_relatorio')
+    .ilike('numero_relatorio', `REL-${clientInitials}-%`);
 
   // Se houver matrícula, filtra adicionalmente pelo sufixo para garantir
   // numeração independente por aeronave
   if (reg) {
-    query = query.ilike('report_number', `%${reg}`);
+    query = query.ilike('numero_relatorio', `%${reg}`);
   }
 
   const { data: existingReports, error } = await query;
@@ -265,7 +265,7 @@ export async function generateReportNumber(
   let nextNumber = 1;
   if (!error && existingReports && existingReports.length > 0) {
     const maxFound = existingReports.reduce((max, row: any) => {
-      const m = row.report_number?.match(/REL-[A-Z]{3}-(\d+)/);
+      const m = row.numero_relatorio?.match(/REL-[A-Z]{3}-(\d+)/);
       const n = m && m[1] ? parseInt(m[1], 10) : 0;
       return n > max ? n : max;
     }, 0);
