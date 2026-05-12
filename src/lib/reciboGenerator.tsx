@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 10,
     marginBottom: 10,
-    gap: 20,
+    gap: 12,
   },
   infoColumn: {
     flex: 1,
@@ -375,7 +375,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             </View>
 
             {/* Pagador */}
-            <View style={{ ...styles.infoColumn, flex: 1.5 }}>
+            <View style={{ ...styles.infoColumn, flex: 1.2 }}>
               <Text style={styles.infoLabel}>PAGADOR</Text>
               <Text style={styles.infoValueBold}>{data.payer_name || '—'}</Text>
               <Text style={styles.infoValue}>
@@ -503,7 +503,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             )}
           </View>
 
-          <View style={{ ...styles.infoColumn, flex: 1.5 }}>
+          <View style={{ ...styles.infoColumn, flex: 1.2 }}>
             <Text style={styles.infoLabel}>Pagador</Text>
             <Text style={styles.infoValueBold}>{data.payer_name || '—'}</Text>
             <Text style={styles.infoValue}>

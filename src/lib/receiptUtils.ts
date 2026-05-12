@@ -313,7 +313,7 @@ export function formatDateExtended(dateString: string): string {
  * Formato: REC-[PREFIXO][NÚMEROS]/[ANO]
  * Exemplo: REC-NOG001/26, REC-NOG002/26, etc
  *
- * Consulta a tabela "movimentacoes" como fonte de verdade única
+ * Consulta a tabela "recibos" como fonte de verdade única
  * para evitar inconsistências entre fluxos diferentes.
  */
 export async function generateSequentialReceiptNumber(
@@ -339,16 +339,19 @@ export async function generateSequentialReceiptNumber(
     if (clienteReceipts && clienteReceipts.length > 0) {
       const candidates = clienteReceipts
         .map((r: any) => {
+          // Match format: REC-[PREFIX][NUMBERS]/YY or REC-[PREFIX]-[NUMBERS]/YY
           const m = r.numero_recibo?.match(/^REC-([A-Z0-9][A-Z0-9\s-]*?)(\d{3,})\/\d{2}$/i);
           if (!m?.[1]) return null;
           const rawPrefix = m[1].toUpperCase();
+          // Remove spaces and hyphens to get clean prefix for query
           const cleaned = rawPrefix.replace(/[^A-Z0-9]/g, "");
+          // Only consider prefixes with at least 2 letters
           return cleaned.length >= 2 ? { rawPrefix, cleaned } : null;
         })
         .filter(Boolean);
 
+      // Prefer existing prefix without X padding, otherwise use first found
       const preferred =
-        candidates.find((c: any) => /[\s-]/.test(c.rawPrefix)) ||
         candidates.find((c: any) => !c.cleaned.endsWith("X")) ||
         candidates[0];
 
@@ -359,7 +362,7 @@ export async function generateSequentialReceiptNumber(
     }
   }
 
-  // 2) Fallback: derivar do nome do cliente (limpando antes de cortar)
+  // 2) Fallback: derive from client name, using only first 2 letters (NO padding with X)
   if (!prefix) {
     if (!clientName || !clientName.trim()) {
       const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
@@ -370,12 +373,18 @@ export async function generateSequentialReceiptNumber(
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^A-Z]/g, "");
-    prefix = (onlyLetters.substring(0, 3) || "XXX").padEnd(3, "X");
+    // Take only first 2 letters, do NOT pad with X
+    prefix = onlyLetters.substring(0, 2);
+    if (prefix.length < 2) {
+      // If less than 2 letters, use random numbers instead
+      const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+      return `REC-${randomNumbers}/${year}`;
+    }
     displayPrefix = prefix;
   }
 
-  // 3) Buscar maior número existente para este prefixo no ano (em recibos)
-  // Inclui formatos antigos com hífen/espaço: REC-GA -001/26, REC-GAS001/26, etc.
+  // 3) Search for existing receipts with this prefix in current year
+  // This handles both clean format (REC-GA123/26) and old format with spacing (REC-GA -001/26)
   const { data: existing } = await supabase
     .from("recibos")
     .select("numero_recibo")
