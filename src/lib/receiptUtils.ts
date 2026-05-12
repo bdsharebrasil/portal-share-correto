@@ -337,18 +337,24 @@ export async function generateSequentialReceiptNumber(
       .limit(50);
 
     if (clienteReceipts && clienteReceipts.length > 0) {
-      // Procura o primeiro número que casa o padrão REC-XXX...
-      for (const r of clienteReceipts) {
-        const m = r.numero_recibo?.match(/^REC-([A-Z0-9][A-Z0-9\s-]*?)(\d{3,})\/\d{2}$/i);
-        if (m && m[1]) {
+      const candidates = clienteReceipts
+        .map((r: any) => {
+          const m = r.numero_recibo?.match(/^REC-([A-Z0-9][A-Z0-9\s-]*?)(\d{3,})\/\d{2}$/i);
+          if (!m?.[1]) return null;
           const rawPrefix = m[1].toUpperCase();
           const cleaned = rawPrefix.replace(/[^A-Z0-9]/g, "");
-          if (cleaned.length >= 2) {
-            prefix = cleaned;
-            displayPrefix = rawPrefix;
-            break;
-          }
-        }
+          return cleaned.length >= 2 ? { rawPrefix, cleaned } : null;
+        })
+        .filter(Boolean);
+
+      const preferred =
+        candidates.find((c: any) => /[\s-]/.test(c.rawPrefix)) ||
+        candidates.find((c: any) => !c.cleaned.endsWith("X")) ||
+        candidates[0];
+
+      if (preferred) {
+        prefix = preferred.cleaned;
+        displayPrefix = preferred.rawPrefix;
       }
     }
   }
