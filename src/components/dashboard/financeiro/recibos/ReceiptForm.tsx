@@ -405,24 +405,6 @@ export function ReceiptForm({
     );
   };
 
-  // ─── Upload helper ────────────────────────────────────────────────────────
-  const uploadFile = async (
-    file: File,
-    path: string
-  ): Promise<string | null> => {
-    const { data, error } = await supabase.storage
-      .from("recibos-anexos")
-      .upload(path, file, { upsert: true });
-    if (error) {
-      console.error("Upload error:", error.message);
-      return null;
-    }
-    const { data: publicData } = supabase.storage
-      .from("recibos-anexos")
-      .getPublicUrl(data.path);
-    return publicData.publicUrl;
-  };
-
   // ─── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,37 +422,6 @@ export function ReceiptForm({
           variant: "destructive",
         });
         return;
-      }
-
-      const hoje = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      const numeroRecibo = `REC-${hoje}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      let urlBoleto: string | null = null;
-      let urlNf: string | null = null;
-
-      if (isReembolso) {
-        if (isDECEAorINFRAERO) {
-          const file = isDecea ? formData.decealFile : formData.infraeroFile;
-          if (file) {
-            urlNf = await uploadFile(
-              file,
-              `${user.id}/${numeroRecibo}-demonstrativo`
-            );
-          }
-        } else {
-          if (formData.reembolsoBoletoFile) {
-            urlBoleto = await uploadFile(
-              formData.reembolsoBoletoFile,
-              `${user.id}/${numeroRecibo}-boleto`
-            );
-          }
-          if (formData.reembolsoNotaFiscalFile) {
-            urlNf = await uploadFile(
-              formData.reembolsoNotaFiscalFile,
-              `${user.id}/${numeroRecibo}-nf`
-            );
-          }
-        }
       }
 
       let socioNome: string | null = null;
@@ -496,68 +447,15 @@ export function ReceiptForm({
           ? formData.dataVencimentoBoleto
           : null);
 
-      const payload = {
-        numero_recibo: numeroRecibo,
-        usuario_id: user.id,
-
-        nome_pagador: formData.pagadorNome,
-        documento_pagador: formData.pagadorDocumento || null,
-        endereco_pagador: formData.pagadorEndereco || null,
-        cidade_pagador: formData.pagadorCidade || null,
-        uf_pagador: formData.pagadorUF || null,
-
-        valor: parseFloat(String(formData.valor).replace(",", ".")) || 0,
-        valor_total: formData.reembolsoRateado
-          ? parseFloat(String(formData.reembolsoValorTotal).replace(",", ".")) || null
-          : null,
-        percentual: formData.reembolsoRateado
-          ? parseFloat(formData.reembolsoPorcentagem) || null
-          : null,
-        compartilhado: formData.reembolsoRateado,
-
-        descricao_servico: formData.servicoDescricao,
-        tipo_recibo: formData.receiptType,
-        forma_pagamento: formData.formaPagamento || null,
-
-        nome_categoria: isReembolso ? (categoriaNome || null) : null,
-        numero_documento: numeroDocumento,
-
-        data_emissao: formData.dataEmissao,
-        data_max_pagamento: dataMaxPagamento || null,
-
-        cliente_id: formData.clienteId || null,
-        aeronave_id: formData.aircraftId || null,
-        socios_cliente: socioNome,
-
-        url_boleto: urlBoleto,
-        url_nf: urlNf,
-        url_pdf: null,
-
-        status: "pendente",
-      };
-
-      const { data: inserted, error } = await supabase
-        .from("recibos")
-        .insert([payload])
-        .select()
-        .single();
-
-      if (error) {
-        toast({
-          title: "Erro ao salvar recibo",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
       onSubmit({
         ...formData,
-        insertedRecibo: inserted,
         selectedPartnerId,
         categoriaNome,
         isDecea,
         isInfraero,
+        numeroDocumento,
+        dataMaxPagamento,
+        socioNome,
         originalFormData: formData,
       });
     } finally {

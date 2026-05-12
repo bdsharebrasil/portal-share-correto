@@ -326,6 +326,7 @@ export async function generateSequentialReceiptNumber(
 
   // 1) Tentar reutilizar prefixo a partir do último recibo do MESMO cliente
   let prefix: string | null = null;
+  let displayPrefix: string | null = null;
   if (clienteId) {
     const { data: clienteReceipts } = await supabase
       .from("recibos")
@@ -336,17 +337,24 @@ export async function generateSequentialReceiptNumber(
       .limit(50);
 
     if (clienteReceipts && clienteReceipts.length > 0) {
-      // Procura o primeiro número que casa o padrão REC-XXX...
-      for (const r of clienteReceipts) {
-        const m = r.numero_recibo?.match(/^REC-([A-Z0-9 ]{1,4})[\s-]?\d+\/\d{2}$/i);
-        if (m && m[1]) {
-          // Limpa espaços/hífens do prefixo herdado
-          const cleaned = m[1].toUpperCase().replace(/[^A-Z0-9]/g, "");
-          if (cleaned.length >= 2) {
-            prefix = cleaned.padEnd(3, "X").substring(0, 3);
-            break;
-          }
-        }
+      const candidates = clienteReceipts
+        .map((r: any) => {
+          const m = r.numero_recibo?.match(/^REC-([A-Z0-9][A-Z0-9\s-]*?)(\d{3,})\/\d{2}$/i);
+          if (!m?.[1]) return null;
+          const rawPrefix = m[1].toUpperCase();
+          const cleaned = rawPrefix.replace(/[^A-Z0-9]/g, "");
+          return cleaned.length >= 2 ? { rawPrefix, cleaned } : null;
+        })
+        .filter(Boolean);
+
+      const preferred =
+        candidates.find((c: any) => /[\s-]/.test(c.rawPrefix)) ||
+        candidates.find((c: any) => !c.cleaned.endsWith("X")) ||
+        candidates[0];
+
+      if (preferred) {
+        prefix = preferred.cleaned;
+        displayPrefix = preferred.rawPrefix;
       }
     }
   }
@@ -363,6 +371,7 @@ export async function generateSequentialReceiptNumber(
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^A-Z]/g, "");
     prefix = (onlyLetters.substring(0, 3) || "XXX").padEnd(3, "X");
+    displayPrefix = prefix;
   }
 
   // 3) Buscar maior número existente para este prefixo no ano (em recibos)
@@ -386,7 +395,7 @@ export async function generateSequentialReceiptNumber(
 
   const nextNumber = maxNumber + 1;
   const numeroFormatado = String(nextNumber).padStart(3, "0");
-  return `REC-${prefix}${numeroFormatado}/${year}`;
+  return `REC-${displayPrefix || prefix}${numeroFormatado}/${year}`;
 }
 
 /**
