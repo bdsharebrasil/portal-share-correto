@@ -751,6 +751,11 @@ export default function Clientes() {
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/40 px-[6px] rounded-md font-semibold">✓ ativo</Badge>
                         <Badge variant="outline" className="font-mono text-xs shadow-xl bg-slate-800/50 border-slate-600 rounded-lg text-slate-300">{viewingCliente.cnpj}</Badge>
+                        {viewingCliente.codigo_cliente && (
+                          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/40 px-[6px] rounded-md font-semibold font-mono text-xs">
+                            {viewingCliente.codigo_cliente}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -815,7 +820,14 @@ export default function Clientes() {
                       {viewingCliente.partners.map((partner, idx) => (
                         <div key={idx} className="p-3 bg-muted/50 rounded-lg border border-border">
                           <p className="text-sm font-medium text-foreground">{partner.nome}</p>
-                          <p className="text-xs text-muted-foreground font-mono mt-1">CPF: {partner.cpf}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <p className="text-xs text-muted-foreground font-mono">CPF: {partner.cpf}</p>
+                            {partner.codigo_cliente && (
+                              <span className="text-xs font-mono bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">
+                                {partner.codigo_cliente}
+                              </span>
+                            )}
+                          </div>
                           {partner.percentual_participacao && <p className="text-xs text-cyan-400 font-semibold mt-1">Participação: {partner.percentual_participacao}%</p>}
                         </div>
                       ))}
