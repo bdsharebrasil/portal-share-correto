@@ -210,22 +210,20 @@ export function getCrewTotalsWithNames(report: TravelReportWithTotals, expenses:
  * Gera o próximo número de relatório de viagem para um cliente + aeronave.
  *
  * Formato: `REL-XXX-001/26 PT-OPC`
- *  - XXX  = iniciais do cliente (até 3 letras, preenchidas com X)
- *  - 001  = sequência POR aeronave dentro do mesmo cliente (cada matrícula
- *           tem sua própria contagem começando em 1)
+ *  - XXX  = código_cliente (fixo da tabela clientes ou socios_cliente)
+ *  - 001  = sequência POR cliente (mantém continuidade)
  *  - 26   = ano com 2 dígitos
  *  - PT-OPC = matrícula da aeronave (sufixo)
  *
  * Exemplo:
- *  GASP + PT-OPC → REL-GAS-001/26 PT-OPC
- *  GASP + PR-MDL → REL-GAS-001/26 PR-MDL  (contagem reinicia)
- *  GASP + PR-MDL → REL-GAS-002/26 PR-MDL
+ *  DEJ (cliente com sócio) → REL-DEJ-001/26 PT-OPC
+ *  DEJ (mesmo cliente) → REL-DEJ-002/26 PT-OPC (continua a sequência)
  *
- * @param clientName Nome do cliente (gera as iniciais).
+ * @param clientCode Código do cliente (codigo_cliente de clientes ou socios_cliente).
  * @param aircraftRegistration Matrícula da aeronave (sufixo + filtro).
  */
 export async function generateReportNumber(
-  clientName: string,
+  clientCode: string,
   aircraftRegistration?: string,
 ): Promise<string> {
   const year = new Date().getFullYear();
@@ -233,32 +231,17 @@ export async function generateReportNumber(
   const reg = (aircraftRegistration ?? '').trim().toUpperCase();
   const suffix = reg ? ` ${reg}` : '';
 
-  if (!clientName || clientName.trim() === '') {
+  if (!clientCode || clientCode.trim() === '') {
     return `REL-XXX-001/${yearShort}${suffix}`;
   }
 
-  const getClientInitials = (name: string): string => {
-    const words = name.trim().split(/\s+/);
-    return words
-      .map(w => w.charAt(0).toUpperCase())
-      .join('')
-      .substring(0, 3)
-      .padEnd(3, 'X');
-  };
+  const code = clientCode.trim().toUpperCase().substring(0, 3).padEnd(3, 'X');
 
-  const clientInitials = getClientInitials(clientName);
-
-  // Filtra pelo prefixo do cliente
+  // Filtra pelo código do cliente (sem depender de matrícula)
   let query = supabase
     .from('travel_expense_reports')
     .select('numero_relatorio')
-    .ilike('numero_relatorio', `REL-${clientInitials}-%`);
-
-  // Se houver matrícula, filtra adicionalmente pelo sufixo para garantir
-  // numeração independente por aeronave
-  if (reg) {
-    query = query.ilike('numero_relatorio', `%${reg}`);
-  }
+    .ilike('numero_relatorio', `REL-${code}-%`);
 
   const { data: existingReports, error } = await query;
 
@@ -272,5 +255,5 @@ export async function generateReportNumber(
     nextNumber = maxFound + 1;
   }
 
-  return `REL-${clientInitials}-${String(nextNumber).padStart(3, '0')}/${yearShort}${suffix}`;
+  return `REL-${code}-${String(nextNumber).padStart(3, '0')}/${yearShort}${suffix}`;
 }

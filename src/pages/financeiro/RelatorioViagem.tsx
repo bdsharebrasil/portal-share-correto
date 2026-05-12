@@ -452,7 +452,29 @@ export default function RelatorioViagem() {
 
       let reportNumber = reportData.numero_relatorio;
       if (!isUpdate) {
-        reportNumber = await generateReportNumber(reportData.client, reportData.matricula_aeronave);
+        let clientCode = '';
+        
+        // Se tem sócio cliente, busca codigo_cliente da tabela socios_cliente
+        if (reportData.socios_cliente_id) {
+          const { data: partner } = await supabase
+            .from('socios_cliente')
+            .select('codigo_cliente')
+            .eq('id', reportData.socios_cliente_id)
+            .single();
+          clientCode = partner?.codigo_cliente || '';
+        }
+        
+        // Se não conseguiu do sócio, busca da tabela clientes
+        if (!clientCode) {
+          const { data: client } = await supabase
+            .from('clientes')
+            .select('codigo_cliente')
+            .eq('id', reportData.clientes_id)
+            .single();
+          clientCode = client?.codigo_cliente || '';
+        }
+        
+        reportNumber = await generateReportNumber(clientCode, reportData.matricula_aeronave);
       }
 
       const { data: { user } } = await supabase.auth.getUser();

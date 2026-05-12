@@ -48,7 +48,8 @@ interface Cliente {
   documents?: ClientDocument[];
   status?: string | null;
   tem_socio?: boolean;
-  partners?: Array<{nome: string; cpf: string; percentual_participacao: number}>;
+  codigo_cliente?: string | null;
+  partners?: Array<{nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string}>;
 }
 
 interface AeronaveOpcao {
@@ -98,6 +99,7 @@ interface FormData {
   contato_financeiro: string;
   observacoes: string;
   status: string;
+  codigo_cliente?: string | null;
 }
 
 const emptyFormData: FormData = {
@@ -112,7 +114,8 @@ const emptyFormData: FormData = {
   email: "",
   contato_financeiro: "",
   observacoes: "",
-  status: "ativo"
+  status: "ativo",
+  codigo_cliente: null
 };
 
 export default function Clientes() {
@@ -147,7 +150,7 @@ export default function Clientes() {
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
   const [loadingAircraft, setLoadingAircraft] = useState(false);
   const [hasPartner, setHasPartner] = useState(false);
-  const [partners, setPartners] = useState<Array<{nome: string; cpf: string; percentual_participacao: number}>>([]);
+  const [partners, setPartners] = useState<Array<{nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string}>>([]);
 
   useEffect(() => {
     loadClientes();
@@ -169,7 +172,7 @@ export default function Clientes() {
       const clientIds = rows.map(r => r.id).filter(Boolean);
 
       let clientAircraftMap: Record<string, AeronavePropriedade[]> = {};
-      let clientPartnersMap: Record<string, Array<{nome: string; cpf: string; percentual_participacao: number}>> = {};
+      let clientPartnersMap: Record<string, Array<{nome: string; cpf: string; percentual_participacao: number; codigo_cliente?: string}>> = {};
 
       if (clientIds.length > 0) {
         const { data: clientAircraftData, error: caError } = await supabase
@@ -191,7 +194,7 @@ export default function Clientes() {
 
         const { data: clientPartnersData, error: cpError } = await supabase
           .from("socios_cliente")
-          .select("cliente_id, nome, cpf, percentual_participacao")
+          .select("cliente_id, nome, cpf, percentual_participacao, codigo_cliente")
           .in("cliente_id", clientIds);
 
         if (!cpError && Array.isArray(clientPartnersData)) {
@@ -200,7 +203,8 @@ export default function Clientes() {
             clientPartnersMap[cp.cliente_id].push({
               nome: cp.nome,
               cpf: cp.cpf,
-              percentual_participacao: cp.percentual_participacao || 0
+              percentual_participacao: cp.percentual_participacao || 0,
+              codigo_cliente: cp.codigo_cliente || null
             });
           });
         }
@@ -261,7 +265,8 @@ export default function Clientes() {
         email: cliente.email || "",
         contato_financeiro: cliente.contato_financeiro || "",
         observacoes: cliente.observacoes || "",
-        status: (cliente.status as string) || "ativo"
+        status: (cliente.status as string) || "ativo",
+        codigo_cliente: cliente.codigo_cliente || null
       });
       setAircraftOwnerships(cliente.aeronave_ownerships || []);
       setLogoPreview(cliente.url_logo || null);
@@ -323,7 +328,7 @@ export default function Clientes() {
     return 'text-yellow-400';
   };
 
-  const addPartner = () => setPartners([...partners, {nome: "", cpf: "", percentual_participacao: 0}]);
+  const addPartner = () => setPartners([...partners, {nome: "", cpf: "", percentual_participacao: 0, codigo_cliente: ""}]);
   const removePartner = (index: number) => setPartners(partners.filter((_, i) => i !== index));
   const updatePartner = (index: number, field: string, value: any) => {
     const updated = [...partners];
@@ -449,7 +454,8 @@ export default function Clientes() {
         status: normalizeStatus(formData.status),
         url_logo: logoUrl,
         documentos: [...existingDocs, ...newDocs],
-        tem_socio: hasPartner
+        tem_socio: hasPartner,
+        codigo_cliente: formData.codigo_cliente || null
       };
 
       let clientId = editingCliente?.id;
@@ -489,8 +495,9 @@ export default function Clientes() {
           cliente_id: clientId,
           nome: p.nome,
           cpf: p.cpf.replace(/\D/g, ''),
-          percentual_participacao: p.percentual_participacao
-        }));
+          percentual_participacao: p.percentual_participacao,
+          codigo_cliente: p.codigo_cliente || null
+        })) as any;
         const { error: partnersError } = await supabase.from("socios_cliente").insert(partnersData);
         if (partnersError) {
           toast({ title: "Aviso", description: `Erro ao salvar sócios: ${partnersError.message}`, variant: "destructive" });
@@ -909,6 +916,10 @@ export default function Clientes() {
                     <Input id="cnpj" value={formData.cnpj} onChange={e => setFormData({...formData, cnpj: e.target.value})} placeholder="00.000.000/0000-00" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
                   </div>
                   <div>
+                    <Label htmlFor="codigo_cliente" className="text-slate-300 font-semibold mb-2 block">Código Cliente</Label>
+                    <Input id="codigo_cliente" value={formData.codigo_cliente || ''} onChange={e => setFormData({...formData, codigo_cliente: e.target.value.toUpperCase().slice(0, 3) || null})} placeholder="Ex: GAS" maxLength={3} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500 uppercase" />
+                  </div>
+                  <div>
                     <Label htmlFor="inscricao_estadual" className="text-slate-300 font-semibold mb-2 block">Inscrição Estadual</Label>
                     <Input id="inscricao_estadual" value={formData.inscricao_estadual} onChange={e => setFormData({...formData, inscricao_estadual: e.target.value})} placeholder="000.000.000.000" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
                   </div>
@@ -1116,7 +1127,7 @@ export default function Clientes() {
                           {partners.map((partner, index) => (
                             <div key={index} className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
                               <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 grid grid-cols-3 gap-3">
+                                <div className="flex-1 grid grid-cols-4 gap-3">
                                   <div>
                                     <Label className="text-slate-300 mb-2 block text-xs">Nome</Label>
                                     <Input value={partner.nome} onChange={e => updatePartner(index, 'nome', e.target.value)} placeholder="Nome do sócio" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
@@ -1128,6 +1139,10 @@ export default function Clientes() {
                                   <div>
                                     <Label className="text-slate-300 mb-2 block text-xs">% Participação</Label>
                                     <Input type="number" step="0.01" min="0" max="100" value={partner.percentual_participacao} onChange={e => updatePartner(index, 'percentual_participacao', parseFloat(e.target.value) || 0)} placeholder="0.00" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                                  </div>
+                                  <div>
+                                    <Label className="text-slate-300 mb-2 block text-xs">Código</Label>
+                                    <Input value={partner.codigo_cliente || ''} onChange={e => updatePartner(index, 'codigo_cliente', e.target.value.toUpperCase().slice(0, 3) || null)} placeholder="Ex: DEJ" maxLength={3} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500 uppercase" />
                                   </div>
                                 </div>
                                 <Button type="button" variant="destructive" size="sm" onClick={() => removePartner(index)} className="h-9 w-9 p-0 mt-7 flex-shrink-0" title="Remover sócio">
