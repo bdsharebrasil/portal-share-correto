@@ -1,12 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
-import { Document, Page } from "react-pdf";
+import { Document, Page, pdfjs } from "react-pdf";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, AlertTriangle } from "lucide-react";
 import { usePDFWorker } from "@/hooks/use-pdf-worker";
 import { validateAndCheckPDF } from "@/lib/pdfUrlValidator";
 import { pdfLogger } from "@/lib/pdfLogger";
+import PdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+
+pdfjs.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 interface DocumentViewerProps {
   url: string;
@@ -146,22 +149,27 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
       );
     }
 
-    // Se houver erro ao carregar o PDF, mostrar mensagem
+    // Se o PDF.js falhar (principalmente worker), usar o viewer nativo do navegador
     if (error) {
       return (
-        <div className="border rounded-lg overflow-auto bg-muted/30 flex items-center justify-center p-8" style={{ minHeight: "70vh" }}>
-          <div className="text-destructive text-center max-w-lg">
-            <p className="font-semibold text-lg mb-2">Erro ao Carregar PDF</p>
-            <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <p className="text-xs text-muted-foreground mb-6">
-              Arquivo: <code className="bg-muted px-2 py-1 rounded">{fileName}</code>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <p className="text-sm text-muted-foreground">
+              Visualização alternativa carregada para <code className="bg-muted px-2 py-1 rounded">{fileName}</code>.
             </p>
             {onDownload && (
-              <p className="text-xs text-muted-foreground">
-                Você pode tentar fazer o download do arquivo para verificar se não está corrompido
-              </p>
+              <Button variant="outline" size="sm" onClick={onDownload}>
+                <Download className="h-4 w-4 mr-2" />
+                Baixar
+              </Button>
             )}
           </div>
+          <iframe
+            src={url}
+            title={fileName}
+            className="w-full rounded-lg border border-border bg-muted/30"
+            style={{ height: "70vh" }}
+          />
         </div>
       );
     }
