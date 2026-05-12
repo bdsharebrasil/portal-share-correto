@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/layout/Layout";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { ReceiptForm } from "@/components/dashboard/financeiro/recibos/ReceiptForm";
+import { ReceiptPreview } from "@/components/dashboard/financeiro/recibos/ReceiptPreview";
 import { DescriptionManager } from "@/components/dashboard/financeiro/recibos/DescriptionManager";
 import { generateSequentialReceiptNumber, GeneratedReceipt, ReceiptType } from "@/lib/receiptUtils";
 import { handleReceiptSubmit } from "@/services/receiptSubmitHandler";
@@ -113,6 +114,9 @@ export default function EmissaoRecibo() {
   const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
   const [viewPdfUrl, setViewPdfUrl] = useState<string | null>(null);
   const [companySettings, setCompanySettings] = useState<any>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [pendingReceiptData, setPendingReceiptData] = useState<any>(null);
 
   // ===================== INIT =====================
   useEffect(() => {
@@ -631,39 +635,24 @@ export default function EmissaoRecibo() {
           companySettings,
         });
 
-        const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
-        const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
-        const { error: uploadError } = await supabase.storage
-          .from("receipts")
-          .upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
-        if (uploadError) {
-          console.error("❌ Erro upload PDF:", uploadError);
-          throw uploadError;
-        }
-
-        const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
-        if (!urlData?.publicUrl) throw new Error("Falha ao obter URL pública do PDF");
-
-        // Atualizar sem filtro de usuario_id para evitar RLS bloqueando
-        const { error: updatePdfError } = await supabase
-          .from("recibos")
-          .update({ url_pdf: urlData.publicUrl })
-          .eq("id", receiptData.id);
-
-        if (updatePdfError) {
-          console.error("❌ Erro ao salvar URL do PDF:", updatePdfError);
-          throw new Error(`Falha ao salvar a URL do PDF: ${updatePdfError.message}`);
-        }
-
-        console.log("✅ PDF gerado e URL salva:", urlData.publicUrl);
-
-        await loadRecentReceipts(currentUserId);
-        toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso!` });
+        // Mostrar preview em vez de gerar PDF direto
+        setPreviewData(pdfData);
+        setPendingReceiptData({
+          receiptData,
+          receiptNumber,
+          receiptType: expectedReceiptType,
+          boletoUrl,
+          notaFiscalUrl,
+          originalForm,
+          companySettings,
+          currentUserId,
+        });
+        setIsPreviewOpen(true);
       } catch (pdfErr) {
-        console.error("❌ Erro ao gerar PDF:", pdfErr);
+        console.error("❌ Erro ao preparar preview:", pdfErr);
         toast({
           title: "⚠️ Aviso",
-          description: "Recibo criado, mas houve erro ao gerar PDF.",
+          description: "Erro ao preparar preview do recibo.",
           variant: "default",
         });
       }
@@ -690,6 +679,74 @@ export default function EmissaoRecibo() {
       toast({ title: "Erro ao abrir PDF", description: errorMsg, variant: "destructive" });
     } finally {
       setIsLoadingPdf(false);
+    }
+  };
+
+  // ===================== GERAR PDF APÓS CONFIRMAR PREVIEW =====================
+  const handleConfirmAndGeneratePdf = async () => {
+    if (!pendingReceiptData) return;
+    
+    try {
+      setIsGeneratingPdf(true);
+      const {
+        receiptData,
+        receiptNumber,
+        receiptType: expectedReceiptType,
+        boletoUrl,
+        notaFiscalUrl,
+        originalForm,
+        companySettings: settings,
+        currentUserId,
+      } = pendingReceiptData;
+
+      const pdfData = buildReceiptPdfData({
+        receiptData,
+        receiptType: expectedReceiptType,
+        boletoUrl,
+        notaFiscalUrl,
+        originalForm,
+        companySettings: settings,
+      });
+
+      const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
+      const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("receipts")
+        .upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+      if (uploadError) {
+        console.error("❌ Erro upload PDF:", uploadError);
+        throw uploadError;
+      }
+
+      const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
+      if (!urlData?.publicUrl) throw new Error("Falha ao obter URL pública do PDF");
+
+      // Atualizar sem filtro de usuario_id para evitar RLS bloqueando
+      const { error: updatePdfError } = await supabase
+        .from("recibos")
+        .update({ url_pdf: urlData.publicUrl })
+        .eq("id", receiptData.id);
+
+      if (updatePdfError) {
+        console.error("❌ Erro ao salvar URL do PDF:", updatePdfError);
+        throw new Error(`Falha ao salvar a URL do PDF: ${updatePdfError.message}`);
+      }
+
+      console.log("✅ PDF gerado e URL salva:", urlData.publicUrl);
+
+      await loadRecentReceipts(currentUserId);
+      setIsPreviewOpen(false);
+      setPendingReceiptData(null);
+      toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso!` });
+    } catch (pdfErr) {
+      console.error("❌ Erro ao gerar PDF:", pdfErr);
+      toast({
+        title: "⚠️ Aviso",
+        description: "Erro ao gerar PDF do recibo.",
+        variant: "default",
+      });
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -936,6 +993,17 @@ export default function EmissaoRecibo() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Receipt Preview Dialog */}
+      {previewData && (
+        <ReceiptPreview
+          open={isPreviewOpen}
+          onOpenChange={setIsPreviewOpen}
+          data={previewData}
+          onConfirm={handleConfirmAndGeneratePdf}
+          isGenerating={isGeneratingPdf}
+        />
+      )}
     </Layout>
   );
 }
