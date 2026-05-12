@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2, Edit, Phone, Mail, MapPin } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Phone, Mail, MapPin, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,6 +31,7 @@ export default function Contatos() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContato, setEditingContato] = useState<Contato | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [tableError, setTableError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -52,19 +53,31 @@ export default function Contatos() {
   const loadContatos = async () => {
     try {
       setLoading(true);
+      setTableError(null);
+
       const { data, error } = await supabase
         .from("contatos")
         .select("*")
         .order("nome");
-      if (error) throw error;
+
+      if (error) {
+        console.error("Erro ao carregar contatos:", error);
+        const errorMsg = error.message || "Erro ao carregar contatos";
+        setTableError(errorMsg);
+        throw new Error(errorMsg);
+      }
+
       setContatos(data || []);
     } catch (error) {
       console.error("Erro ao carregar contatos:", error);
+      const errorMsg = error instanceof Error ? error.message : "Erro desconhecido ao carregar contatos";
+      setTableError(errorMsg);
       toast({
-        title: "Erro",
-        description: "Erro ao carregar contatos",
+        title: "Erro ao carregar contatos",
+        description: errorMsg,
         variant: "destructive",
       });
+      setContatos([]);
     } finally {
       setLoading(false);
     }
@@ -208,6 +221,31 @@ export default function Contatos() {
             <p className="text-muted-foreground text-sm">Carregando contatos...</p>
           </div>
         </div>
+      ) : tableError ? (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="p-6 flex gap-4">
+            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="space-y-2 flex-1">
+              <p className="font-semibold text-destructive">Erro ao acessar tabela de contatos</p>
+              <p className="text-sm text-muted-foreground">{tableError}</p>
+              <div className="flex gap-2 mt-4">
+                <Button size="sm" onClick={loadContatos} variant="outline">
+                  Tentar novamente
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const error = new Error(tableError);
+                    console.error("Erro detalhado:", error);
+                  }}
+                  variant="outline"
+                >
+                  Ver detalhes no console
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       ) : filteredContatos.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
