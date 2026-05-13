@@ -161,6 +161,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
 
       let todosCotistas: any[] = [];
       let rateios: any[] = [];
+      let rateioDespesasComTodosCotistas: any[] = [];
       let abastecimentos: AbastecimentoItem[] = [];
       let relatorios: RelatorioViagemItem[] = [];
 
@@ -168,6 +169,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         const [
           { data: cotistasData },
           { data: rats },
+          { data: ratsAllClientes },
           { data: abast },
           { data: rels },
         ] = await Promise.all([
@@ -177,6 +179,12 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
               "id_aeronave, id_clientes, percentual_sociedade, cliente:clientes(id, razao_social, proprietario)"
             )
             .in("id_aeronave", aeronaveIds),
+          (supabase as any)
+            .from("rateio_despesas")
+            .select("*")
+            .in("aeronave_id", aeronaveIds)
+            .eq("cliente_id", clienteId!)
+            .order("data_vencimento", { ascending: false }),
           (supabase as any)
             .from("rateio_despesas")
             .select("*")
@@ -202,6 +210,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
 
         todosCotistas = cotistasData || [];
         rateios = rats || [];
+        rateioDespesasComTodosCotistas = ratsAllClientes || [];
         abastecimentos = (abast || []).map((a: any) => ({
           ...a,
           litros: Number(a.litros) || 0,
@@ -294,6 +303,44 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         })
         .sort((a, b) => new Date(b.data_vencimento || 0).getTime() - new Date(a.data_vencimento || 0).getTime());
 
+      // Agregar rateios por despesa para TODOS os cotistas (para aba Balanço)
+      const rateioPorDespesaMapTodos = new Map<string, any[]>();
+      rateioDespesasComTodosCotistas.forEach((r: any) => {
+        const chave = r.despesa_id || r.id;
+        if (!rateioPorDespesaMapTodos.has(chave)) {
+          rateioPorDespesaMapTodos.set(chave, []);
+        }
+        rateioPorDespesaMapTodos.get(chave)!.push(r);
+      });
+
+      const rateioDespesasComTodosCotistasDetalhado = Array.from(rateioPorDespesaMapTodos.entries())
+        .map(([despesaId, rateiosArray]) => {
+          const primeiro = rateiosArray[0];
+          return {
+            despesa_id: despesaId,
+            data_vencimento: primeiro.data_vencimento,
+            data_pagamento: primeiro.data_pagamento,
+            numero_nf: primeiro.numero_nf,
+            numero_doc: primeiro.numero_doc,
+            fornecedor_nome: primeiro.fornecedor_nome,
+            descricao_despesa: primeiro.descricao_despesa,
+            categoria_custo: primeiro.categoria_custo,
+            valor_total_despesa: Number(primeiro.valor_total_despesa) || 0,
+            pago_por: primeiro.pago_por,
+            status: primeiro.status,
+            rateios: rateiosArray.map((r: any) => ({
+              cliente_id: r.cliente_id,
+              clientes_nome: r.clientes_nome,
+              percentual_sociedade: Number(r.percentual_sociedade) || 0,
+              valor_rateado: Number(r.valor_rateado) || 0,
+              valor_pago_real: Number(r.valor_pago_real) || 0,
+              pago_diretamente: !!r.pago_diretamente,
+              status: r.status,
+            })),
+          };
+        })
+        .sort((a, b) => new Date(b.data_vencimento || 0).getTime() - new Date(a.data_vencimento || 0).getTime());
+
       return {
         cliente,
         aeronaves: minhasAeronaves || [],
@@ -302,6 +349,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         abastecimentos,
         relatorios,
         rateioDespesasDetalhado,
+        rateioDespesasComTodosCotistasDetalhado,
       };
     },
   });

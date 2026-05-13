@@ -70,6 +70,7 @@ export default function FinanceiroCotistaDetalhe() {
   const abastecimentos = data?.abastecimentos || [];
   const relatorios = data?.relatorios || [];
   const rateioDespesasDetalhado = data?.rateioDespesasDetalhado || [];
+  const rateioDespesasComTodosCotistasDetalhado = data?.rateioDespesasComTodosCotistasDetalhado || [];
 
   const aeronaveAtual =
     aeronaveSelecionada || (aeronaves[0] as any)?.id_aeronave || "";
@@ -111,13 +112,13 @@ export default function FinanceiroCotistaDetalhe() {
   const meuBalanco = balanco.find((b) => b.cotista_id === clienteId);
 
   const totaisAeronave = useMemo(() => {
-    const total = despesasDaAeronave.reduce((a, d) => a + d.valor_total, 0);
+    const total = despesasDaAeronave.reduce((a, d) => a + d.valor_rateado, 0);
     const conc = despesasDaAeronave
       .filter((d) => d.origem === "conciliacao")
-      .reduce((a, d) => a + d.valor_total, 0);
+      .reduce((a, d) => a + d.valor_rateado, 0);
     const direto = despesasDaAeronave
       .filter((d) => d.origem === "direto")
-      .reduce((a, d) => a + d.valor_total, 0);
+      .reduce((a, d) => a + d.valor_rateado, 0);
     const totalAbast = abastecimentosDaAeronave.reduce(
       (a, x) => a + x.valor_total,
       0
@@ -663,7 +664,7 @@ export default function FinanceiroCotistaDetalhe() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {rateioDespesasDetalhado.length === 0 ? (
+                  {rateioDespesasComTodosCotistasDetalhado.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-6 text-center">
                       Sem despesas para comparar.
                     </p>
@@ -689,7 +690,7 @@ export default function FinanceiroCotistaDetalhe() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {rateioDespesasDetalhado.map((despesa, idx) => (
+                          {rateioDespesasComTodosCotistasDetalhado.map((despesa, idx) => (
                             <TableRow key={`${despesa.despesa_id}-${idx}`} className="hover:bg-muted/50">
                               <TableCell className="text-xs font-mono whitespace-nowrap">
                                 {despesa.data_pagamento
@@ -1001,7 +1002,7 @@ function DespesasTable({
         </TableBody>
       </Table>
       <p className="text-xs text-muted-foreground mt-3">
-        {lista.length} lançamento(s) · Total: {fmtBRL(lista.reduce((a, d) => a + d.valor_total, 0))}
+        {lista.length} lançamento(s) · Total: {fmtBRL(lista.reduce((a, d) => a + d.valor_rateado, 0))}
       </p>
     </div>
   );
