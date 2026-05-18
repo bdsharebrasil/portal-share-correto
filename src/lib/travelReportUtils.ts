@@ -211,13 +211,14 @@ export function getCrewTotalsWithNames(report: TravelReportWithTotals, expenses:
  *
  * Formato: `REL-XXX-001/26 PT-OPC`
  *  - XXX  = código_cliente (fixo da tabela clientes ou socios_cliente)
- *  - 001  = sequência POR cliente (mantém continuidade)
+ *  - 001  = sequência POR cliente E por aeronave (mantém continuidade individual)
  *  - 26   = ano com 2 dígitos
- *  - PT-OPC = matrícula da aeronave (sufixo)
+ *  - PT-OPC = matrícula da aeronave (sufixo + filtro)
  *
  * Exemplo:
- *  DEJ (cliente com sócio) → REL-DEJ-001/26 PT-OPC
- *  DEJ (mesmo cliente) → REL-DEJ-002/26 PT-OPC (continua a sequência)
+ *  DEJ com PT-OPC → REL-DEJ-001/26 PT-OPC
+ *  DEJ com PT-OPC → REL-DEJ-002/26 PT-OPC (continua a sequência da aeronave)
+ *  DEJ com PT-XYZ → REL-DEJ-001/26 PT-XYZ (sequência separada para outra aeronave)
  *
  * @param clientCode Código do cliente (codigo_cliente de clientes ou socios_cliente).
  * @param aircraftRegistration Matrícula da aeronave (sufixo + filtro).
@@ -237,13 +238,15 @@ export async function generateReportNumber(
 
   const code = clientCode.trim().toUpperCase().substring(0, 3).padEnd(3, 'X');
 
-  // Filtra pelo código do cliente (sem depender de matrícula)
-  let query = supabase
+  // Filtra pelo código do cliente E pela matrícula da aeronave
+  const pattern = reg
+    ? `REL-${code}-% ${reg}`   // ex: "REL-EBL-% PT-OPC"
+    : `REL-${code}-%`;
+
+  const { data: existingReports, error } = await supabase
     .from('travel_expense_reports')
     .select('numero_relatorio')
-    .ilike('numero_relatorio', `REL-${code}-%`);
-
-  const { data: existingReports, error } = await query;
+    .ilike('numero_relatorio', pattern);
 
   let nextNumber = 1;
   if (!error && existingReports && existingReports.length > 0) {
