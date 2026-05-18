@@ -1114,7 +1114,8 @@ function LancamentoAcaoModal({
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("despesas").delete().eq("id", id);
+      await supabase.from("rateio_despesas").delete().eq("id", id);
+      const { error } = await supabase.from("movimentacoes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
