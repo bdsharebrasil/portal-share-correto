@@ -1,145 +1,363 @@
-import { Layout } from "@/components/layout/Layout";
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useState, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Layout } from '@/components/layout/Layout';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 import {
-  useFinanceiroCotistaDetalhe,
-  calcularBalanco,
-} from "@/hooks/useFinanceiroCotista";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  ArrowLeft, Plane, DollarSign, Fuel, Wrench, Building2, Users,
+  TrendingUp, TrendingDown, Scale, Receipt, Wallet, Search,
+  FileDown, Filter, ChevronDown, ChevronUp, BarChart3,
+  AlertCircle, CheckCircle2, Clock, Minus, ArrowUpRight, ArrowDownRight,
+  Mail, Phone, MapPin, Building, KeyRound, FileText
+} from 'lucide-react';
 import {
-  ArrowLeft,
-  Mail,
-  Phone,
-  MapPin,
-  Plane,
-  FileText,
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  Fuel,
-  Receipt,
-  Scale,
-  KeyRound,
-  Building,
-} from "lucide-react";
-import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
-import { LancamentosTab } from "./LancamentosTab";
-import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Search, Paperclip } from "lucide-react";
-import type { DespesaUnificada } from "@/hooks/useFinanceiroCotista";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area
+} from 'recharts';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-const formatBRL = (n: number) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(n || 0);
+// ─── Tipos ───────────────────────────────────────────────────────────────────
 
-const formatDate = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString("pt-BR") : "—";
+type TipoCusto = 'FIXO' | 'VARIÁVEL P/ VOO' | 'VARIÁVEL P/ HORA' | 'EXTRA';
+type PrazoCusto = 'CURTO PRAZO' | 'MÉDIO PRAZO' | 'LONGO PRAZO';
+type CategoriaCusto = 'COMBUSTÍVEIS' | 'HANGARAG./TAXAS' | 'MANUTENÇÃO' | 'TRIPULAÇÃO & ADM' | 'CUSTO TERCEIRO' | string;
+
+interface LancamentoBalanco {
+  id: string;
+  data: string;
+  doc?: string;
+  fornecedor?: string;
+  descricao: string;
+  categoria: CategoriaCusto;
+  tipo: TipoCusto;
+  prazo: PrazoCusto;
+  pago_por?: string;
+  valor_pago: number;
+  aeronave_id?: string;
+  rateios: Array<{
+    cliente_id: string;
+    nome_cotista: string;
+    percentual: number;
+    valor_rateado: number;
+    valor_pago_real: number;
+    pago_diretamente: boolean;
+  }>;
+  status?: string;
+  numero_nf?: string;
+  numero_doc?: string;
+  origem?: string;
+}
+
+interface CotistaInfo {
+  id: string;
+  nome: string;
+  percentual: number;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const fmtBRL = (n: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
+
+const fmtDate = (s?: string | null) =>
+  s ? format(parseISO(s), 'dd/MM/yyyy', { locale: ptBR }) : '—';
+
+const CATEGORIAS_ORDEM: CategoriaCusto[] = [
+  'COMBUSTÍVEIS', 'HANGARAG./TAXAS', 'MANUTENÇÃO', 'TRIPULAÇÃO & ADM', 'CUSTO TERCEIRO'
+];
+
+const TIPO_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  'FIXO': { label: 'FIXO', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30' },
+  'VARIÁVEL P/ VOO': { label: 'VAR. VOO', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' },
+  'VARIÁVEL P/ HORA': { label: 'VAR. HORA', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30' },
+  'EXTRA': { label: 'EXTRA', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/30' },
+};
+
+const PRAZO_CONFIG: Record<string, { color: string; bg: string }> = {
+  'CURTO PRAZO': { color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' },
+  'MÉDIO PRAZO': { color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30' },
+  'LONGO PRAZO': { color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30' },
+};
+
+const CATEGORIA_COLORS: Record<string, string> = {
+  'COMBUSTÍVEIS': '#f59e0b',
+  'HANGARAG./TAXAS': '#3b82f6',
+  'MANUTENÇÃO': '#ef4444',
+  'TRIPULAÇÃO & ADM': '#8b5cf6',
+  'CUSTO TERCEIRO': '#10b981',
+};
+
+function inferirTipo(periodicidade?: string, categoria?: string): TipoCusto {
+  const p = (periodicidade || '').toUpperCase();
+  const c = (categoria || '').toUpperCase();
+  if (p.includes('VARIÁVEL P/ VOO') || p.includes('VARIAVEL P/ VOO')) return 'VARIÁVEL P/ VOO';
+  if (p.includes('VARIÁVEL P/ HORA') || p.includes('VARIAVEL P/ HORA')) return 'VARIÁVEL P/ HORA';
+  if (p.includes('EXTRA')) return 'EXTRA';
+  if (c.includes('COMBUSTÍVEL') || c.includes('ABASTECIMENTO')) return 'VARIÁVEL P/ HORA';
+  if (p.includes('MENSAL') || c.includes('HANGAR') || c.includes('SEGURO') || c.includes('TRIPULAÇÃO') || c.includes('ADM')) return 'FIXO';
+  return 'FIXO';
+}
+
+function inferirPrazo(prazo?: string): PrazoCusto {
+  const p = (prazo || '').toUpperCase();
+  if (p.includes('LONGO')) return 'LONGO PRAZO';
+  if (p.includes('MÉDIO') || p.includes('MEDIO')) return 'MÉDIO PRAZO';
+  return 'CURTO PRAZO';
+}
+
+function inferirCategoria(cat?: string): CategoriaCusto {
+  const c = (cat || '').toUpperCase().replace(/_/g, ' ');
+  if (c.includes('COMBUSTÍVEL') || c.includes('ABASTECIMENTO') || c.includes('COMBUSTIVEIS')) return 'COMBUSTÍVEIS';
+  if (c.includes('HANGAR') || c.includes('TAXAS') || c.includes('RAMPA') || c.includes('INFRAERO') || c.includes('DECEA') || c.includes('ATENDIMENTO')) return 'HANGARAG./TAXAS';
+  if (c.includes('MANUTENÇÃO') || c.includes('MANUTENCAO') || c.includes('PEÇA') || c.includes('OFICINA') || c.includes('MÃO DE OBRA') || c.includes('MAO DE OBRA') || c.includes('REVISÃO')) return 'MANUTENÇÃO';
+  if (c.includes('TRIPULAÇÃO') || c.includes('TRIPULACAO') || c.includes('PILOTO') || c.includes('ADM') || c.includes('ADMINISTRAÇÃO')) return 'TRIPULAÇÃO & ADM';
+  if (c.includes('TERCEIRO')) return 'CUSTO TERCEIRO';
+  return c || 'OUTROS';
+}
+
+// ─── Hook principal de dados ──────────────────────────────────────────────────
+
+function useBalancoDetalhe(clienteId?: string, aeronaveId?: string) {
+  // Cliente
+  const { data: cliente } = useQuery({
+    queryKey: ['cliente', clienteId],
+    queryFn: async () => {
+      const { data } = await supabase.from('clientes').select('*').eq('id', clienteId!).single();
+      return data;
+    },
+    enabled: !!clienteId,
+  });
+
+  // Aeronaves do cliente
+  const { data: aeronaves = [] } = useQuery({
+    queryKey: ['aeronaves-cliente', clienteId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('cotistas_aeronave')
+        .select('id_aeronave, percentual_sociedade, aeronave:id_aeronave(id, matricula, modelo, fabricante)')
+        .eq('id_clientes', clienteId!);
+      return data || [];
+    },
+    enabled: !!clienteId,
+  });
+
+  // Cotistas da aeronave
+  const { data: cotistas = [] } = useQuery({
+    queryKey: ['cotistas-aeronave', aeronaveId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('cotistas_aeronave')
+        .select('id_clientes, percentual_sociedade, cliente:id_clientes(id, razao_social, proprietario)')
+        .eq('id_aeronave', aeronaveId!);
+      return (data || []).map((c: any) => ({
+        id: c.id_clientes,
+        nome: c.cliente?.razao_social || c.cliente?.proprietario || 'Cotista',
+        percentual: Number(c.percentual_sociedade) || 0,
+      })) as CotistaInfo[];
+    },
+    enabled: !!aeronaveId,
+  });
+
+  // Lançamentos do rateio (fonte principal: rateio_despesas)
+  const { data: rateioBruto = [], isLoading } = useQuery({
+    queryKey: ['rateio-despesas-balanco', clienteId, aeronaveId],
+    queryFn: async () => {
+      let q = (supabase as any)
+        .from('rateio_despesas')
+        .select('*')
+        .eq('clientes_id', clienteId!);
+      if (aeronaveId) q = q.eq('aeronave_id', aeronaveId);
+      const { data } = await q.order('data_envio', { ascending: false });
+      return data || [];
+    },
+    enabled: !!clienteId,
+  });
+
+  // Agrupa rateio_despesas por despesa_id para montar a estrutura com cotistas
+  const lancamentos: LancamentoBalanco[] = useMemo(() => {
+    const mapa = new Map<string, LancamentoBalanco>();
+    rateioBruto.forEach((r: any) => {
+      const key = r.despesa_id || r.id;
+      if (!mapa.has(key)) {
+        mapa.set(key, {
+          id: key,
+          data: r.data_pagamento || r.data_vencimento || r.data_envio,
+          doc: r.numero_nf || r.numero_doc || r.numero_boleto,
+          fornecedor: r.fornecedor_nome,
+          descricao: r.descricao_despesa || r.categoria_custo || '—',
+          categoria: inferirCategoria(r.categoria_custo || r.descricao_despesa),
+          tipo: inferirTipo(r.periodicidade, r.categoria_custo),
+          prazo: inferirPrazo(r.prazo),
+          pago_por: r.pago_por || 'Share Brasil',
+          valor_pago: Number(r.valor_total_despesa) || Number(r.valor_rateado_por_uso) || 0,
+          aeronave_id: r.aeronave_id,
+          rateios: [],
+          status: r.status,
+          origem: r.pago_diretamente ? 'direto' : 'conciliacao',
+        });
+      }
+      const lancamento = mapa.get(key)!;
+      // Evita duplicar cotista
+      if (!lancamento.rateios.find(x => x.cliente_id === r.clientes_id)) {
+        lancamento.rateios.push({
+          cliente_id: r.clientes_id,
+          nome_cotista: r.nome_socio || r.client_name || 'Cotista',
+          percentual: Number(r.percentual || r.percentual_voo || 0),
+          valor_rateado: Number(r.valor_rateado_por_uso) || 0,
+          valor_pago_real: Number(r.valor_pago_real) || 0,
+          pago_diretamente: !!r.pago_diretamente,
+        });
+      }
+    });
+    return Array.from(mapa.values());
+  }, [rateioBruto]);
+
+  return { cliente, aeronaves, cotistas, lancamentos, isLoading };
+}
+
+// ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function FinanceiroCotistaDetalhe() {
   const { clienteId } = useParams<{ clienteId: string }>();
   const navigate = useNavigate();
-  const { data, isLoading } = useFinanceiroCotistaDetalhe(clienteId);
-  const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
-  const [filtroFin, setFiltroFin] = useState("");
-  const [filtroOrigem, setFiltroOrigem] = useState<"todos" | "conciliacao" | "direto">("todos");
-  const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
 
-  const cliente = data?.cliente;
-  const aeronaves = data?.aeronaves || [];
-  const despesas = data?.despesas || [];
-  const cotistasPorAeronave = data?.cotistasPorAeronave || [];
-  const abastecimentos = data?.abastecimentos || [];
-  const relatorios = data?.relatorios || [];
-  const rateioDespesasDetalhado = data?.rateioDespesasDetalhado || [];
-  const rateioDespesasComTodosCotistasDetalhado = data?.rateioDespesasComTodosCotistasDetalhado || [];
+  const [aeronaveAtual, setAeronaveAtual] = useState('');
+  const [activeTab, setActiveTab] = useState('balanco');
+  const [filtroBusca, setFiltroBusca] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('todos');
+  const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [sortCol, setSortCol] = useState<string>('data');
+  const [sortAsc, setSortAsc] = useState(false);
 
-  const aeronaveAtual =
-    aeronaveSelecionada || (aeronaves[0] as any)?.id_aeronave || "";
-
-  const aeronaveInfo = (aeronaves as any[]).find(
-    (a) => a.id_aeronave === aeronaveAtual
-  )?.aeronave;
-
-  const cotistasDaAeronave = useMemo(
-    () =>
-      cotistasPorAeronave
-        .filter((c: any) => c.id_aeronave === aeronaveAtual)
-        .map((c: any) => ({
-          id: c.id_clientes,
-          nome:
-            c.cliente?.razao_social || c.cliente?.proprietario || "Cotista",
-          percentual: Number(c.percentual_sociedade) || 0,
-        })),
-    [cotistasPorAeronave, aeronaveAtual]
+  const { cliente, aeronaves, cotistas, lancamentos, isLoading } = useBalancoDetalhe(
+    clienteId,
+    aeronaveAtual || (aeronaves[0] as any)?.id_aeronave
   );
 
-  const despesasDaAeronave = useMemo(
-    () => despesas.filter((d) => d.aeronave_id === aeronaveAtual),
-    [despesas, aeronaveAtual]
-  );
-  const abastecimentosDaAeronave = useMemo(
-    () => abastecimentos.filter((a) => a.aeronave_id === aeronaveAtual),
-    [abastecimentos, aeronaveAtual]
-  );
-  const relatoriosDaAeronave = useMemo(
-    () => relatorios.filter((r) => r.aeronave_id === aeronaveAtual),
-    [relatorios, aeronaveAtual]
-  );
+  const aeronaveEfetiva = aeronaveAtual || (aeronaves[0] as any)?.id_aeronave || '';
+  const aeronaveInfo = (aeronaves as any[]).find(a => a.id_aeronave === aeronaveEfetiva)?.aeronave;
 
-  const balanco = useMemo(
-    () => calcularBalanco(despesasDaAeronave, cotistasDaAeronave),
-    [despesasDaAeronave, cotistasDaAeronave]
-  );
-  const meuBalanco = balanco.find((b) => b.cotista_id === clienteId);
+  // ── Lançamentos filtrados ────────────────────────────────────────────────────
+  const lancamentosFiltrados = useMemo(() => {
+    return lancamentos
+      .filter(l => {
+        if (filtroCategoria !== 'todos' && l.categoria !== filtroCategoria) return false;
+        if (filtroTipo !== 'todos' && l.tipo !== filtroTipo) return false;
+        if (filtroBusca) {
+          const q = filtroBusca.toLowerCase();
+          return (
+            l.descricao?.toLowerCase().includes(q) ||
+            l.fornecedor?.toLowerCase().includes(q) ||
+            l.doc?.toLowerCase().includes(q) ||
+            l.categoria?.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        let va: any = a[sortCol as keyof LancamentoBalanco];
+        let vb: any = b[sortCol as keyof LancamentoBalanco];
+        if (sortCol === 'data') { va = new Date(a.data || 0); vb = new Date(b.data || 0); }
+        if (sortCol === 'valor_pago') { va = a.valor_pago; vb = b.valor_pago; }
+        if (va < vb) return sortAsc ? -1 : 1;
+        if (va > vb) return sortAsc ? 1 : -1;
+        return 0;
+      });
+  }, [lancamentos, filtroCategoria, filtroTipo, filtroBusca, sortCol, sortAsc]);
 
-  const totaisAeronave = useMemo(() => {
-    const total = despesasDaAeronave.reduce((a, d) => a + d.valor_rateado, 0);
-    const conc = despesasDaAeronave
-      .filter((d) => d.origem === "conciliacao")
-      .reduce((a, d) => a + d.valor_rateado, 0);
-    const direto = despesasDaAeronave
-      .filter((d) => d.origem === "direto")
-      .reduce((a, d) => a + d.valor_rateado, 0);
-    const totalAbast = abastecimentosDaAeronave.reduce(
-      (a, x) => a + x.valor_total,
-      0
-    );
-    const totalLitros = abastecimentosDaAeronave.reduce(
-      (a, x) => a + x.litros,
-      0
-    );
-    return { total, conc, direto, totalAbast, totalLitros };
-  }, [despesasDaAeronave, abastecimentosDaAeronave]);
+  // ── Totais gerais ────────────────────────────────────────────────────────────
+  const totais = useMemo(() => {
+    const porCategoria: Record<string, Record<string, number>> = {};
+    const porCotista: Record<string, { nome: string; percentual: number; devido: number; pago: number }> = {};
+    let totalGeral = 0;
 
-  if (isLoading) {
+    lancamentos.forEach(l => {
+      totalGeral += l.valor_pago;
+
+      // por categoria × cotista
+      if (!porCategoria[l.categoria]) porCategoria[l.categoria] = {};
+      l.rateios.forEach(r => {
+        porCategoria[l.categoria][r.cliente_id] = (porCategoria[l.categoria][r.cliente_id] || 0) + r.valor_rateado;
+        if (!porCotista[r.cliente_id]) {
+          porCotista[r.cliente_id] = { nome: r.nome_cotista, percentual: r.percentual, devido: 0, pago: 0 };
+        }
+        porCotista[r.cliente_id].devido += r.valor_rateado;
+        porCotista[r.cliente_id].pago += r.valor_pago_real;
+      });
+    });
+
+    const porTipo = { FIXO: 0, 'VARIÁVEL P/ VOO': 0, 'VARIÁVEL P/ HORA': 0, EXTRA: 0 } as Record<string, number>;
+    lancamentos.forEach(l => { porTipo[l.tipo] = (porTipo[l.tipo] || 0) + l.valor_pago; });
+
+    return { totalGeral, porCategoria, porCotista, porTipo };
+  }, [lancamentos]);
+
+  // ── Dados para gráficos ──────────────────────────────────────────────────────
+  const pivotData = useMemo(() => {
+    return CATEGORIAS_ORDEM.filter(cat => totais.porCategoria[cat]).map(cat => {
+      const entry: any = { categoria: cat.replace(' & ', '/').substring(0, 15) };
+      Object.entries(totais.porCotista).forEach(([id, info]) => {
+        entry[info.nome] = totais.porCategoria[cat]?.[id] || 0;
+      });
+      return entry;
+    });
+  }, [totais]);
+
+  const pieData = CATEGORIAS_ORDEM
+    .filter(cat => totais.porCategoria[cat])
+    .map(cat => ({
+      name: cat,
+      value: Object.values(totais.porCategoria[cat] || {}).reduce((s, v) => s + v, 0),
+    }));
+
+  // ── Ordenação nas colunas ────────────────────────────────────────────────────
+  const toggleSort = (col: string) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  };
+
+  const SortIcon = ({ col }: { col: string }) =>
+    sortCol === col
+      ? (sortAsc ? <ChevronUp className="h-3 w-3 inline ml-0.5" /> : <ChevronDown className="h-3 w-3 inline ml-0.5" />)
+      : null;
+
+  // ── CSV Export ───────────────────────────────────────────────────────────────
+  const exportCSV = () => {
+    const cotistasCols = cotistas.map(c => c.nome);
+    const headers = ['Data', 'Doc', 'Fornecedor', 'Descrição', 'Categoria', 'Tipo', 'Prazo', 'Pago Por', 'Valor Total', ...cotistasCols.flatMap(n => [`${n} %`, `${n} Rateio`])];
+    const rows = lancamentosFiltrados.map(l => {
+      const base = [fmtDate(l.data), l.doc || '—', l.fornecedor || '—', l.descricao, l.categoria, l.tipo, l.prazo, l.pago_por || '—', l.valor_pago.toFixed(2)];
+      cotistas.forEach(c => {
+        const r = l.rateios.find(x => x.cliente_id === c.id);
+        base.push(r ? r.percentual.toFixed(4) + '%' : '0%');
+        base.push(r ? r.valor_rateado.toFixed(2) : '0.00');
+      });
+      return base;
+    });
+    const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `balanco_${cliente?.razao_social?.replace(/\s/g, '_')}_${aeronaveInfo?.matricula || 'todas'}.csv`;
+    a.click();
+  };
+
+  if (isLoading && !cliente) {
     return (
       <Layout>
-        <div className="animate-pulse space-y-6 max-w-7xl mx-auto">
-          <div className="h-4 w-32 bg-muted/50 rounded-full" />
-          <div className="h-48 bg-card/40 backdrop-blur-md rounded-2xl border border-border/40" />
-          <div className="grid grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-card/40 rounded-2xl border border-border/40" />
-            ))}
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-muted-foreground text-sm">Carregando balanço...</p>
           </div>
         </div>
       </Layout>
@@ -149,1023 +367,753 @@ export default function FinanceiroCotistaDetalhe() {
   if (!cliente) {
     return (
       <Layout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center">
-            <Building className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <p className="text-lg font-medium text-foreground tracking-tight">Cliente não encontrado</p>
-          <p className="text-sm text-muted-foreground">O cadastro pode ter sido removido ou o ID é inválido.</p>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+          <Building className="h-12 w-12 text-muted-foreground/50" />
+          <p className="text-lg font-medium">Cliente não encontrado</p>
         </div>
       </Layout>
     );
   }
 
+  const cotistasCols = cotistas.length > 0 ? cotistas : Object.values(totais.porCotista).map((c, i) => ({ id: String(i), nome: c.nome, percentual: c.percentual }));
+
   return (
     <Layout>
-      <div className="space-y-8 max-w-7xl mx-auto pb-12">
-        {/* Navegação Topo */}
-        <div className="flex flex-col gap-2">
+      <div className="space-y-6 max-w-[1600px] mx-auto pb-12 px-4 md:px-6">
+
+        {/* ── Navegação ── */}
+        <div className="flex flex-col gap-1">
           <button
-            onClick={() => navigate("/financeiro/financeiro-cotistas")}
-            className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all duration-300 w-fit"
+            onClick={() => navigate(-1)}
+            className="group flex items-center gap-2 text-muted-foreground hover:text-foreground transition-all w-fit"
           >
-            <div className="p-1.5 rounded-lg bg-background/50 border border-border/40 group-hover:border-border transition-colors">
+            <div className="p-1.5 rounded-lg bg-card border border-border/50 group-hover:border-primary/40 transition-colors">
               <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
             </div>
-            <span className="text-sm font-medium tracking-tight">Voltar para clientes</span>
+            <span className="text-sm font-medium">Voltar para clientes</span>
           </button>
-
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span
-              className="hover:text-primary cursor-pointer transition-colors"
-              onClick={() => navigate("/financeiro/financeiro-cotistas")}
-            >
-              Gestão Financeira
-            </span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pl-1">
+            <span>Gestão Financeira</span>
             <span>/</span>
             <span className="text-foreground font-medium">{cliente.razao_social}</span>
+            <span>/</span>
+            <span className="text-primary">Análise de Balanço</span>
           </div>
         </div>
 
-        {/* Hero Card Premium */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-card/80 to-card/30 backdrop-blur-xl border border-border/50 shadow-2xl">
-          {/* Efeito de brilho de fundo (Glow) */}
-          <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-96 h-96 bg-primary/10 rounded-full blur-3xl opacity-50 pointer-events-none" />
-          
-          <div className="p-8 md:p-10 relative z-10">
-            <div className="flex flex-col md:flex-row md:items-start gap-8">
-              
-              {/* Logo Premium */}
-              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-background to-muted/30 border border-border/50 shadow-inner flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-background/50">
-                {cliente.url_logo ? (
-                  <img
-                    src={cliente.url_logo}
-                    alt={cliente.razao_social}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-3xl font-bold bg-gradient-to-br from-primary to-primary/60 bg-clip-text text-transparent">
-                    {(cliente.razao_social || "—").slice(0, 2).toUpperCase()}
-                  </span>
-                )}
+        {/* ── Hero Card ── */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-card/90 to-card/50 border border-border/50 shadow-xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+          <div className="p-6 md:p-8 relative z-10">
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+              {/* Logo */}
+              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center shrink-0">
+                {cliente.url_logo
+                  ? <img src={cliente.url_logo} alt={cliente.razao_social} className="w-full h-full object-cover rounded-xl" />
+                  : <span className="text-xl font-bold text-primary">{(cliente.razao_social || '').slice(0, 2).toUpperCase()}</span>
+                }
               </div>
 
-              {/* Info Principal */}
-              <div className="flex-1 space-y-4">
+              {/* Info */}
+              <div className="flex-1 space-y-3">
                 <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-                      {cliente.razao_social}
-                    </h1>
-                    <Badge
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                        cliente.status === "ativo"
-                          ? "bg-success/10 text-success border-success/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]"
-                          : "bg-muted/50 text-muted-foreground border-border"
-                      }`}
-                    >
-                      {cliente.status || "—"}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{cliente.razao_social}</h1>
+                    <Badge className={`text-xs ${cliente.status === 'ativo' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground'}`}>
+                      {cliente.status || '—'}
                     </Badge>
                   </div>
-                  <p className="text-sm font-mono text-muted-foreground/80 tracking-widest">
-                    CNPJ {cliente.cnpj || "—"}
-                  </p>
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5">CNPJ {cliente.cnpj || '—'}</p>
                 </div>
-
-                {/* Contatos em Pills Glassmorphism */}
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2">
                   {cliente.telefone && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/40 border border-border/50 text-xs text-muted-foreground hover:text-foreground transition-colors backdrop-blur-md">
-                      <Phone className="h-3.5 w-3.5 text-primary/70" />
-                      {cliente.telefone}
-                    </div>
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/60 border border-border/50 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3 text-primary/60" />{cliente.telefone}
+                    </span>
                   )}
                   {cliente.email && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/40 border border-border/50 text-xs text-muted-foreground hover:text-foreground transition-colors backdrop-blur-md">
-                      <Mail className="h-3.5 w-3.5 text-primary/70" />
-                      {cliente.email.toLowerCase()}
-                    </div>
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/60 border border-border/50 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3 text-primary/60" />{cliente.email}
+                    </span>
                   )}
                   {(cliente.cidade || cliente.uf) && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/40 border border-border/50 text-xs text-muted-foreground hover:text-foreground transition-colors backdrop-blur-md">
-                      <MapPin className="h-3.5 w-3.5 text-primary/70" />
-                      {cliente.cidade}
-                      {cliente.uf && `, ${cliente.uf}`}
-                    </div>
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/60 border border-border/50 text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3 text-primary/60" />{cliente.cidade}{cliente.uf && `, ${cliente.uf}`}
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Métricas Hero */}
-              <div className="flex flex-row md:flex-col gap-6 md:pl-10 md:border-l border-border/40 min-w-[140px]">
+              {/* KPIs rápidos */}
+              <div className="flex flex-row md:flex-col gap-4 md:pl-8 md:border-l border-border/40 shrink-0">
                 <div>
-                  <p className="text-[10px] uppercase font-semibold tracking-[0.2em] text-muted-foreground/70 mb-1">
-                    Aeronaves
-                  </p>
-                  <p className="text-3xl font-light text-foreground">
-                    {aeronaves.length > 9 ? aeronaves.length : `0${aeronaves.length}`}
-                  </p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-semibold">Aeronaves</p>
+                  <p className="text-2xl font-light">{aeronaves.length}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-semibold tracking-[0.2em] text-muted-foreground/70 mb-1">
-                    Lançamentos
-                  </p>
-                  <p className="text-3xl font-light text-foreground">
-                    {despesasDaAeronave.length}
-                  </p>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-semibold">Lançamentos</p>
+                  <p className="text-2xl font-light">{lancamentos.length}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-semibold">Total</p>
+                  <p className="text-lg font-bold text-primary">{fmtBRL(totais.totalGeral)}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Toolbar de Filtro de Aeronave Ultra-Clean */}
+        {/* ── Seletor de Aeronave ── */}
         {aeronaves.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 rounded-2xl bg-card/30 backdrop-blur-sm border border-border/40">
-            <div className="flex items-center gap-3 px-3">
-              <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                <Plane className="h-4 w-4" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground tracking-tight">
-                Analisando aeronave:
-              </span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 rounded-xl bg-card/40 border border-border/40">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
+              <Plane className="h-4 w-4 text-primary" />
+              <span className="font-medium">Aeronave:</span>
             </div>
-            <div className="flex-1 max-w-sm">
-              <Select value={aeronaveAtual} onValueChange={setAeronaveSelecionada}>
-                <SelectTrigger className="w-full bg-background/50 border-border/50 rounded-xl h-11 transition-all focus:ring-primary/20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-border/50 backdrop-blur-xl bg-card/90">
-                  {(aeronaves as any[]).map((a) => (
-                    <SelectItem key={a.id_aeronave} value={a.id_aeronave} className="rounded-lg my-1">
-                      <span className="font-medium text-foreground">{a.aeronave?.matricula}</span>
-                      <span className="text-muted-foreground mx-2">—</span>
-                      <span className="text-muted-foreground">{a.aeronave?.modelo} ({a.percentual_sociedade}%)</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap gap-2 flex-1">
+              {(aeronaves as any[]).map(a => (
+                <button
+                  key={a.id_aeronave}
+                  onClick={() => setAeronaveAtual(a.id_aeronave)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${a.id_aeronave === aeronaveEfetiva
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-background/50 border-border/50 hover:border-primary/40 text-muted-foreground'
+                    }`}
+                >
+                  {a.aeronave?.matricula} — {a.aeronave?.modelo} ({a.percentual_sociedade}%)
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Navegação por Tabs Moderna */}
-        <Tabs defaultValue="visao" className="w-full">
-          <TabsList className="h-auto p-1 bg-card/40 backdrop-blur-md border border-border/40 rounded-2xl w-full flex flex-wrap justify-start gap-1">
-            <TabsTrigger value="visao" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all">Visão Geral</TabsTrigger>
-            <TabsTrigger value="lancamentos" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all font-semibold border-2 border-primary/20 data-[state=active]:border-primary">
-              <FileText className="h-4 w-4 mr-2" />
-              Lançamentos
-            </TabsTrigger>
-            <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Financeiro</TabsTrigger>
-            <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatórios</TabsTrigger>
-            <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Abastecimentos</TabsTrigger>
-            <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Balanço</TabsTrigger>
-            <TabsTrigger value="portal" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all ml-auto">
-              <KeyRound className="h-4 w-4 text-primary/70" />
-              <span>Acesso Portal</span>
-            </TabsTrigger>
+        {/* ── KPI Cards por Tipo ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {(['FIXO', 'VARIÁVEL P/ VOO', 'VARIÁVEL P/ HORA', 'EXTRA'] as TipoCusto[]).map(tipo => {
+            const cfg = TIPO_CONFIG[tipo];
+            const valor = totais.porTipo[tipo] || 0;
+            return (
+              <Card key={tipo}
+                className={`border ${cfg.bg} cursor-pointer transition-all hover:scale-[1.01] hover:shadow-md`}
+                onClick={() => setFiltroTipo(filtroTipo === tipo ? 'todos' : tipo)}
+              >
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`text-[10px] uppercase tracking-widest font-semibold ${cfg.color} mb-1`}>{cfg.label}</p>
+                      <p className="text-xl font-bold">{fmtBRL(valor)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {totais.totalGeral > 0 ? ((valor / totais.totalGeral) * 100).toFixed(1) : '0'}% do total
+                      </p>
+                    </div>
+                    {filtroTipo === tipo && (
+                      <Badge variant="outline" className="text-[10px]">✓</Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* ── Tabs principais ── */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="h-auto p-1 bg-card/60 border border-border/50 rounded-xl flex flex-wrap gap-1 w-full">
+            {[
+              { value: 'balanco', label: 'Balanço de Custos', icon: <BarChart3 className="h-4 w-4" /> },
+              { value: 'pivot', label: 'Resumo por Categoria', icon: <Scale className="h-4 w-4" /> },
+              { value: 'cotistas', label: 'Posição por Cotista', icon: <Users className="h-4 w-4" /> },
+            ].map(tab => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all text-sm"
+              >
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <div className="mt-8">
-            {/* Visão Geral */}
-            <TabsContent value="visao" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <StatCard
-                  icon={<Wallet className="h-5 w-5" />}
-                  label="Total despesas"
-                  value={formatBRL(totaisAeronave.total)}
-                  sub={`${despesasDaAeronave.length} lançamentos · ${aeronaveInfo?.matricula || "—"}`}
-                  onClick={() => setDrillCard("total")}
-                />
-                <StatCard
-                  icon={<Receipt className="h-5 w-5" />}
-                  label="Pago pela Share Brasil"
-                  value={formatBRL(totaisAeronave.conc)}
-                  sub="Quitado pela operadora (a reembolsar)"
-                  onClick={() => setDrillCard("share")}
-                />
-                <StatCard
-                  icon={<FileText className="h-5 w-5" />}
-                  label="Pago pelo cliente / sócio"
-                  value={formatBRL(totaisAeronave.direto)}
-                  sub="Despesas pagas direto do bolso"
-                  onClick={() => setDrillCard("direto")}
-                />
-                <StatCard
-                  icon={<Fuel className="h-5 w-5" />}
-                  label="Abastecimentos"
-                  value={formatBRL(totaisAeronave.totalAbast)}
-                  sub={`${totaisAeronave.totalLitros.toLocaleString("pt-BR")} L`}
-                  onClick={() => setDrillCard("abast")}
-                />
-              </div>
+          {/* ════════════════════════════════════════
+              TAB 1: BALANÇO DE CUSTOS (tabela principal)
+          ════════════════════════════════════════ */}
+          <TabsContent value="balanco" className="space-y-4">
 
-              <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Aeronaves do cliente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {aeronaves.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhuma aeronave vinculada.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(aeronaves as any[]).map((a) => (
-                        <button
-                          key={a.id_aeronave}
-                          onClick={() => setAeronaveSelecionada(a.id_aeronave)}
-                          className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left ${
-                            a.id_aeronave === aeronaveAtual
-                              ? "bg-primary/10 border-primary/40"
-                              : "bg-background/50 border-border/40 hover:border-primary/30"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Plane className="h-4 w-4 text-primary" />
-                            <div>
-                              <p className="font-medium text-sm">
-                                {a.aeronave?.matricula}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {a.aeronave?.modelo} · {a.aeronave?.fabricante}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">
-                            {a.percentual_sociedade}% de cota
-                          </Badge>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Lançamentos - Componente inline */}
-            <TabsContent value="lancamentos" className="mt-4">
-              <LancamentosTab
-                clienteId={clienteId}
-                aeronaveId={aeronaveAtual}
-                clienteNome={cliente.razao_social || ""}
-              />
-            </TabsContent>
-
-            {/* Financeiro */}
-            <TabsContent value="financeiro" className="space-y-4 mt-4">
-              <Card className="bg-card/60 border-border">
-                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <CardTitle className="text-base">
-                      Lançamentos detalhados — {aeronaveInfo?.matricula || "—"}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Visão analítica de cada despesa: pagador, fornecedor, documentos e anexos.
-                    </p>
+            {/* Filtros */}
+            <Card className="border border-border/50 bg-card/60 rounded-xl">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar fornecedor, descrição, doc..."
+                      value={filtroBusca}
+                      onChange={e => setFiltroBusca(e.target.value)}
+                      className="pl-9 bg-background/50"
+                    />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar descrição, fornecedor, doc..."
-                        value={filtroFin}
-                        onChange={(e) => setFiltroFin(e.target.value)}
-                        className="pl-8 w-64 h-9"
-                      />
-                    </div>
-                    <Select value={filtroOrigem} onValueChange={(v: any) => setFiltroOrigem(v)}>
-                      <SelectTrigger className="w-44 h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todas as origens</SelectItem>
-                        <SelectItem value="conciliacao">Pago pela Share</SelectItem>
-                        <SelectItem value="direto">Pago direto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <DespesasTable
-                    despesas={despesasDaAeronave}
-                    filtro={filtroFin}
-                    filtroOrigem={filtroOrigem}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-
-            {/* Relatórios de Viagem */}
-            <TabsContent value="viagem" className="mt-4">
-              <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Relatórios de viagem — {aeronaveInfo?.matricula || "—"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {relatoriosDaAeronave.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">
-                      Nenhum relatório encontrado para esta aeronave.
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nº</TableHead>
-                          <TableHead>Rota</TableHead>
-                          <TableHead>Período</TableHead>
-                          <TableHead className="text-right">Dias</TableHead>
-                          <TableHead className="text-right">
-                            Total Cliente
-                          </TableHead>
-                          <TableHead className="text-right">Total Geral</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {relatoriosDaAeronave.map((r) => (
-                          <TableRow
-                            key={r.id}
-                            className="cursor-pointer hover:bg-primary/5"
-                            onClick={() =>
-                              navigate(
-                                `/financeiro/relatorios-cliente/${clienteId}`
-                              )
-                            }
-                          >
-                            <TableCell className="font-mono text-xs">
-                              {r.numero_relatorio || "—"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {r.rota || "—"}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {formatDate(r.data_inicio)} →{" "}
-                              {formatDate(r.data_fim)}
-                            </TableCell>
-                            <TableCell className="text-right text-xs">
-                              {r.dias_count || 0}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
-                              {formatBRL(r.total_clientes)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
-                              {formatBRL(r.total_valor)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-[10px]">
-                                {r.status || "—"}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                    <SelectTrigger className="w-44 bg-background/50">
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todas categorias</SelectItem>
+                      {CATEGORIAS_ORDEM.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                    <SelectTrigger className="w-40 bg-background/50">
+                      <SelectValue placeholder="Tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os tipos</SelectItem>
+                      <SelectItem value="FIXO">FIXO</SelectItem>
+                      <SelectItem value="VARIÁVEL P/ VOO">VARIÁVEL P/ VOO</SelectItem>
+                      <SelectItem value="VARIÁVEL P/ HORA">VARIÁVEL P/ HORA</SelectItem>
+                      <SelectItem value="EXTRA">EXTRA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 shrink-0">
+                    <FileDown className="h-4 w-4" />
+                    CSV
+                  </Button>
+                  {(filtroCategoria !== 'todos' || filtroTipo !== 'todos' || filtroBusca) && (
+                    <Button variant="ghost" size="sm" onClick={() => { setFiltroBusca(''); setFiltroCategoria('todos'); setFiltroTipo('todos'); }} className="text-muted-foreground">
+                      Limpar filtros
+                    </Button>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Abastecimentos */}
-            <TabsContent value="abast" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                  icon={<Fuel className="h-5 w-5" />}
-                  label="Total gasto"
-                  value={formatBRL(totaisAeronave.totalAbast)}
-                  sub={`${abastecimentosDaAeronave.length} abastecimentos`}
-                />
-                <StatCard
-                  icon={<Fuel className="h-5 w-5" />}
-                  label="Litros"
-                  value={`${totaisAeronave.totalLitros.toLocaleString("pt-BR", {
-                    maximumFractionDigits: 1,
-                  })} L`}
-                  sub="Volume acumulado"
-                />
-                <StatCard
-                  icon={<Wallet className="h-5 w-5" />}
-                  label="Preço médio / L"
-                  value={formatBRL(
-                    totaisAeronave.totalLitros > 0
-                      ? totaisAeronave.totalAbast / totaisAeronave.totalLitros
-                      : 0
-                  )}
-                  sub="Média ponderada"
-                />
-              </div>
-
-              <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Abastecimentos — {aeronaveInfo?.matricula || "—"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {abastecimentosDaAeronave.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">
-                      Nenhum abastecimento encontrado para esta aeronave.
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Trecho / Local</TableHead>
-                          <TableHead>Abastecedor</TableHead>
-                          <TableHead className="text-right">Litros</TableHead>
-                          <TableHead className="text-right">R$/L</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                          <TableHead>Pgto</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {abastecimentosDaAeronave.slice(0, 100).map((a) => (
-                          <TableRow key={a.id}>
-                            <TableCell className="text-xs">
-                              {formatDate(a.data)}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {a.trecho || a.local || "—"}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {a.abastecedor || "—"}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs">
-                              {a.litros.toLocaleString("pt-BR")}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs">
-                              {formatBRL(a.valor_unitario)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
-                              {formatBRL(a.valor_total)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  a.status_pagamento === "pago"
-                                    ? "border-success/40 text-success text-[10px]"
-                                    : "border-amber-500/40 text-amber-400 text-[10px]"
-                                }
-                              >
-                                {a.status_pagamento || "—"}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Balanço */}
-            <TabsContent value="balanco" className="space-y-4 mt-4">
-              {meuBalanco && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <StatCard
-                    icon={<TrendingUp className="h-5 w-5 text-success" />}
-                    label="Já pago pelo cliente"
-                    value={formatBRL(meuBalanco.total_pago)}
-                    sub="Despesas quitadas direto pelo cliente/sócio"
-                  />
-                  <StatCard
-                    icon={<TrendingDown className="h-5 w-5 text-destructive" />}
-                    label="Devido pelo cliente"
-                    value={formatBRL(meuBalanco.total_devido)}
-                    sub={`Rateio sobre ${meuBalanco.percentual}% de cota`}
-                  />
-                  <StatCard
-                    icon={<Scale className="h-5 w-5" />}
-                    label="Saldo"
-                    value={formatBRL(Math.abs(meuBalanco.saldo))}
-                    sub={
-                      meuBalanco.saldo >= 0
-                        ? "Share deve ao cliente"
-                        : "Cliente deve à Share"
-                    }
-                    highlight={meuBalanco.saldo >= 0 ? "success" : "destructive"}
-                  />
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  {lancamentosFiltrados.length} lançamento(s) · Total filtrado: <strong>{fmtBRL(lancamentosFiltrados.reduce((s, l) => s + l.valor_pago, 0))}</strong>
+                </p>
+              </CardContent>
+            </Card>
 
-              <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Comparativo Detalhado entre Cotistas — {aeronaveInfo?.matricula || "—"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {rateioDespesasComTodosCotistasDetalhado.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">
-                      Sem despesas para comparar.
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto border rounded-lg">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs">Data</TableHead>
-                            <TableHead className="text-xs">Doc</TableHead>
-                            <TableHead className="text-xs">Fornecedor</TableHead>
-                            <TableHead className="text-xs">Descrição</TableHead>
-                            <TableHead className="text-xs">Categoria</TableHead>
-                            <TableHead className="text-right text-xs">Valor Total</TableHead>
-                            <TableHead className="text-xs">Quem Pagou</TableHead>
-                            <TableHead className="text-xs">Status</TableHead>
-                            {cotistasDaAeronave.map((cot) => (
-                              <TableHead key={cot.id} className="text-right text-xs">
-                                <div className="font-semibold">{cot.nome}</div>
-                                <div className="text-muted-foreground">{cot.percentual}%</div>
-                              </TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {rateioDespesasComTodosCotistasDetalhado.map((despesa, idx) => (
-                            <TableRow key={`${despesa.despesa_id}-${idx}`} className="hover:bg-muted/50">
-                              <TableCell className="text-xs font-mono whitespace-nowrap">
-                                {despesa.data_pagamento
-                                  ? formatDate(despesa.data_pagamento)
-                                  : despesa.data_vencimento
-                                  ? formatDate(despesa.data_vencimento)
-                                  : "—"}
+            {/* Tabela principal — replica estrutura do Excel */}
+            <Card className="border border-border/50 bg-card/60 rounded-xl">
+              <CardContent className="pt-0 p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border/60">
+                        {/* Colunas fixas */}
+                        <TableHead
+                          className="text-[10px] uppercase tracking-wider font-bold cursor-pointer select-none whitespace-nowrap px-3 py-3"
+                          onClick={() => toggleSort('data')}
+                        >
+                          DATA <SortIcon col="data" />
+                        </TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider font-bold px-3 py-3">DOC</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider font-bold px-3 py-3">FORNECEDOR</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider font-bold px-3 py-3 min-w-[160px]">DESCRIÇÃO</TableHead>
+                        {/* Qualificação de Custo */}
+                        <TableHead className="text-[10px] uppercase tracking-wider font-bold px-3 py-3 text-amber-400/80 border-l border-border/40">CATEGORIA</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider font-bold px-3 py-3 text-amber-400/80">TIPO</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider font-bold px-3 py-3 text-amber-400/80">PRAZO</TableHead>
+                        {/* Pagamento */}
+                        <TableHead className="text-[10px] uppercase tracking-wider font-bold px-3 py-3 text-blue-400/80 border-l border-border/40">PAGO POR</TableHead>
+                        <TableHead
+                          className="text-[10px] uppercase tracking-wider font-bold px-3 py-3 text-blue-400/80 text-right cursor-pointer select-none"
+                          onClick={() => toggleSort('valor_pago')}
+                        >
+                          VALOR PAGO <SortIcon col="valor_pago" />
+                        </TableHead>
+                        {/* Colunas dinâmicas por cotista — % e Rateio */}
+                        {cotistasCols.map(c => (
+                          <React.Fragment key={c.id}>
+                            <TableHead className="text-[10px] uppercase tracking-wider font-bold px-2 py-3 text-emerald-400/80 border-l border-border/40 text-center whitespace-nowrap">
+                              {c.nome}<br />
+                              <span className="text-[9px] font-normal text-muted-foreground">{c.percentual.toFixed(2)}%</span>
+                            </TableHead>
+                            <TableHead className="text-[10px] uppercase tracking-wider font-bold px-2 py-3 text-emerald-400/80 text-right whitespace-nowrap">
+                              RATEIO
+                            </TableHead>
+                          </React.Fragment>
+                        ))}
+                      </TableRow>
+                      {/* Sub-header de grupos */}
+                      <TableRow className="bg-muted/10 border-b border-border/30">
+                        <TableHead colSpan={4} className="text-[9px] text-muted-foreground/60 px-3 py-1"></TableHead>
+                        <TableHead colSpan={3} className="text-[9px] text-amber-400/60 font-semibold px-3 py-1 border-l border-border/40">
+                          QUALIFICAÇÃO DE CUSTO
+                        </TableHead>
+                        <TableHead colSpan={2} className="text-[9px] text-blue-400/60 font-semibold px-3 py-1 border-l border-border/40">
+                          PAGAMENTO
+                        </TableHead>
+                        {cotistasCols.map(c => (
+                          <TableHead key={c.id} colSpan={2} className="text-[9px] text-emerald-400/60 font-semibold px-2 py-1 border-l border-border/40 text-center">
+                            RATEIO — {c.nome}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={9 + cotistasCols.length * 2} className="text-center py-12">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                              <span className="text-sm text-muted-foreground">Carregando lançamentos...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : lancamentosFiltrados.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9 + cotistasCols.length * 2} className="text-center py-12 text-muted-foreground">
+                            Nenhum lançamento encontrado
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        lancamentosFiltrados.map((l, idx) => {
+                          const tipoCfg = TIPO_CONFIG[l.tipo] || TIPO_CONFIG['FIXO'];
+                          const prazoCfg = PRAZO_CONFIG[l.prazo] || PRAZO_CONFIG['CURTO PRAZO'];
+                          const catColor = CATEGORIA_COLORS[l.categoria] || '#94a3b8';
+
+                          return (
+                            <TableRow
+                              key={l.id}
+                              className={`border-b border-border/30 hover:bg-primary/5 transition-colors ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}
+                            >
+                              <TableCell className="text-xs font-mono px-3 py-2.5 whitespace-nowrap">
+                                {fmtDate(l.data)}
                               </TableCell>
-                              <TableCell className="text-xs font-mono">
-                                {despesa.numero_nf || despesa.numero_doc || "—"}
+                              <TableCell className="text-xs font-mono px-3 py-2.5 text-muted-foreground">
+                                {l.doc || '—'}
                               </TableCell>
-                              <TableCell className="text-xs max-w-[150px] truncate">
-                                {despesa.fornecedor_nome || "—"}
+                              <TableCell className="text-xs px-3 py-2.5 max-w-[140px]">
+                                <span className="truncate block" title={l.fornecedor}>{l.fornecedor || '—'}</span>
                               </TableCell>
-                              <TableCell className="text-xs max-w-[200px] truncate">
-                                {despesa.descricao_despesa || "—"}
+                              <TableCell className="text-xs px-3 py-2.5 max-w-[180px]">
+                                <span className="truncate block" title={l.descricao}>{l.descricao}</span>
                               </TableCell>
-                              <TableCell className="text-xs">
-                                {despesa.categoria_custo || "—"}
+
+                              {/* Qualificação */}
+                              <TableCell className="px-3 py-2.5 border-l border-border/20">
+                                <span
+                                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+                                  style={{ backgroundColor: catColor + '20', color: catColor, border: `1px solid ${catColor}40` }}
+                                >
+                                  {l.categoria}
+                                </span>
                               </TableCell>
-                              <TableCell className="text-right font-mono text-sm font-semibold">
-                                {formatBRL(despesa.valor_total_despesa)}
-                              </TableCell>
-                              <TableCell className="text-xs">
-                                {despesa.pago_por || "Share Brasil"}
-                              </TableCell>
-                              <TableCell className="text-xs">
-                                <Badge variant="outline" className="text-[10px] py-0">
-                                  {despesa.status || "pendente"}
+                              <TableCell className="px-3 py-2.5">
+                                <Badge className={`text-[10px] ${tipoCfg.bg} ${tipoCfg.color} border font-medium`}>
+                                  {tipoCfg.label}
                                 </Badge>
                               </TableCell>
-                              {cotistasDaAeronave.map((cot) => {
-                                const rateio = despesa.rateios.find(
-                                  (r) => r.cliente_id === cot.id
-                                );
-                                if (!rateio) {
-                                  return (
-                                    <TableCell key={cot.id} className="text-center text-xs">
-                                      —
-                                    </TableCell>
-                                  );
-                                }
+                              <TableCell className="px-3 py-2.5">
+                                <Badge variant="outline" className={`text-[10px] ${prazoCfg.bg} ${prazoCfg.color} border`}>
+                                  {l.prazo}
+                                </Badge>
+                              </TableCell>
+
+                              {/* Pagamento */}
+                              <TableCell className="text-xs px-3 py-2.5 border-l border-border/20 whitespace-nowrap">
+                                <span className={`font-medium ${l.origem === 'direto' ? 'text-amber-400' : 'text-blue-400'}`}>
+                                  {l.pago_por || '—'}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs font-mono font-semibold px-3 py-2.5 text-right whitespace-nowrap">
+                                {fmtBRL(l.valor_pago)}
+                              </TableCell>
+
+                              {/* Colunas dinâmicas por cotista */}
+                              {cotistasCols.map(c => {
+                                const r = l.rateios.find(x => x.cliente_id === c.id);
+                                const pct = r?.percentual || 0;
+                                const val = r?.valor_rateado || 0;
+                                const pago = r?.valor_pago_real || 0;
+
                                 return (
-                                  <TableCell
-                                    key={cot.id}
-                                    className={`text-right text-xs font-mono ${
-                                      rateio.valor_pago_real > 0
-                                        ? "text-success bg-success/5"
-                                        : rateio.pago_diretamente
-                                        ? "text-warning bg-warning/5"
-                                        : "text-destructive"
-                                    }`}
-                                  >
-                                    <div className="font-semibold">
-                                      {formatBRL(rateio.valor_rateado)}
-                                    </div>
-                                    {rateio.valor_pago_real > 0 && (
-                                      <div className="text-[10px] text-muted-foreground">
-                                        Pago: {formatBRL(rateio.valor_pago_real)}
-                                      </div>
-                                    )}
-                                  </TableCell>
+                                  <React.Fragment key={c.id}>
+                                    <TableCell className="text-[10px] px-2 py-2.5 text-center border-l border-border/20">
+                                      {pct > 0 ? (
+                                        <span className="font-mono text-muted-foreground">{pct.toFixed(4)}%</span>
+                                      ) : <span className="text-muted-foreground/30">—</span>}
+                                    </TableCell>
+                                    <TableCell className={`text-xs font-mono px-2 py-2.5 text-right ${val === 0 ? 'text-muted-foreground/30'
+                                        : pago >= val ? 'text-emerald-400'
+                                          : pago > 0 ? 'text-amber-400'
+                                            : 'text-foreground'
+                                      }`}>
+                                      {val > 0 ? (
+                                        <div>
+                                          <div className="font-semibold">{fmtBRL(val)}</div>
+                                          {pago > 0 && pago !== val && (
+                                            <div className="text-[9px] text-emerald-400/70">Pago: {fmtBRL(pago)}</div>
+                                          )}
+                                          {pago >= val && val > 0 && (
+                                            <div className="text-[9px] text-emerald-400/70 flex items-center gap-0.5 justify-end">
+                                              <CheckCircle2 className="h-2.5 w-2.5" />pago
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : '—'}
+                                    </TableCell>
+                                  </React.Fragment>
                                 );
                               })}
                             </TableRow>
+                          );
+                        })
+                      )}
+
+                      {/* Linha de Totais */}
+                      {lancamentosFiltrados.length > 0 && (
+                        <TableRow className="bg-primary/10 border-t-2 border-primary/30 font-bold">
+                          <TableCell colSpan={4} className="px-3 py-3 text-sm font-bold text-primary">
+                            TOTAL GERAL
+                          </TableCell>
+                          <TableCell className="border-l border-border/40 px-3 py-3" />
+                          <TableCell className="px-3 py-3" />
+                          <TableCell className="px-3 py-3" />
+                          <TableCell className="border-l border-border/40 px-3 py-3" />
+                          <TableCell className="text-right font-mono font-bold text-sm px-3 py-3 text-primary">
+                            {fmtBRL(lancamentosFiltrados.reduce((s, l) => s + l.valor_pago, 0))}
+                          </TableCell>
+                          {cotistasCols.map(c => {
+                            const totalRateado = lancamentosFiltrados.reduce((s, l) => {
+                              const r = l.rateios.find(x => x.cliente_id === c.id);
+                              return s + (r?.valor_rateado || 0);
+                            }, 0);
+                            return (
+                              <React.Fragment key={c.id}>
+                                <TableCell className="border-l border-border/40 px-2 py-3" />
+                                <TableCell className="text-right font-mono font-bold text-sm px-2 py-3 text-emerald-400">
+                                  {fmtBRL(totalRateado)}
+                                </TableCell>
+                              </React.Fragment>
+                            );
+                          })}
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ════════════════════════════════════════
+              TAB 2: RESUMO POR CATEGORIA (pivot)
+          ════════════════════════════════════════ */}
+          <TabsContent value="pivot" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+              {/* Pivot table — replica imagem 3 */}
+              <Card className="border border-border/50 bg-card/60 rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Soma de Valor Pago — por Categoria × Cotista
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="text-[10px] uppercase font-bold px-3 py-2.5">CATEGORIA</TableHead>
+                          {cotistasCols.map(c => (
+                            <TableHead key={c.id} className="text-[10px] uppercase font-bold px-3 py-2.5 text-right text-emerald-400/80">
+                              {c.nome}
+                            </TableHead>
                           ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                          <TableHead className="text-[10px] uppercase font-bold px-3 py-2.5 text-right text-primary">TOTAL</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {CATEGORIAS_ORDEM.filter(cat => totais.porCategoria[cat]).map(cat => {
+                          const catTotal = Object.values(totais.porCategoria[cat] || {}).reduce((s, v) => s + v, 0);
+                          const catColor = CATEGORIA_COLORS[cat] || '#94a3b8';
+                          return (
+                            <TableRow key={cat} className="hover:bg-primary/5 border-b border-border/30">
+                              <TableCell className="px-3 py-2.5">
+                                <span
+                                  className="text-xs font-semibold px-2 py-0.5 rounded"
+                                  style={{ color: catColor }}
+                                >
+                                  {cat}
+                                </span>
+                              </TableCell>
+                              {cotistasCols.map(c => (
+                                <TableCell key={c.id} className="text-right font-mono text-xs px-3 py-2.5">
+                                  {(totais.porCategoria[cat]?.[c.id] || 0) > 0
+                                    ? fmtBRL(totais.porCategoria[cat][c.id])
+                                    : <span className="text-muted-foreground/30">—</span>
+                                  }
+                                </TableCell>
+                              ))}
+                              <TableCell className="text-right font-mono font-bold text-xs px-3 py-2.5 text-primary">
+                                {fmtBRL(catTotal)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {/* Linha de totais */}
+                        <TableRow className="bg-primary/10 border-t-2 border-primary/30">
+                          <TableCell className="font-bold text-xs px-3 py-2.5 text-primary">TOTAL GERAL</TableCell>
+                          {cotistasCols.map(c => (
+                            <TableCell key={c.id} className="text-right font-mono font-bold text-xs px-3 py-2.5 text-emerald-400">
+                              {fmtBRL(Object.values(totais.porCategoria).reduce((s, cats) => s + (cats[c.id] || 0), 0))}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right font-mono font-bold text-sm px-3 py-2.5 text-primary">
+                            {fmtBRL(totais.totalGeral)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
 
-              <p className="text-xs text-muted-foreground italic mt-3">
-                * Cada coluna de cotista mostra o valor rateado conforme sua % de cota. "Valor rateado" = valor total × % de cota do
-                cotista. "Pago" = valor efetivamente quitado (se diferente do rateio). Cores: verde = pago, laranja = pago direto, vermelho = pendente.
-              </p>
-            </TabsContent>
+              {/* Gráfico de barras agrupado — replica imagem 3 */}
+              <Card className="border border-border/50 bg-card/60 rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Soma de Valor Pago — Gráfico
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={pivotData} margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis
+                        dataKey="categoria"
+                        tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                        angle={-20}
+                        textAnchor="end"
+                        height={50}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                        tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`}
+                      />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 11 }}
+                        formatter={(v: number) => fmtBRL(v)}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      {cotistasCols.map((c, i) => (
+                        <Bar
+                          key={c.id}
+                          dataKey={c.nome}
+                          fill={['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444'][i % 5]}
+                          radius={[3, 3, 0, 0]}
+                        />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
 
-            {/* Acesso ao Portal */}
-            <TabsContent value="portal" className="mt-4">
-              <GerenciarAcessoPortal clienteId={clienteId!} />
-            </TabsContent>
-          </div>
+            {/* Gráfico pizza por categoria */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border border-border/50 bg-card/60 rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Distribuição por Categoria
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry) => (
+                          <Cell key={entry.name} fill={CATEGORIA_COLORS[entry.name] || '#94a3b8'} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v: number) => fmtBRL(v)}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 11 }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Breakdown por tipo de custo */}
+              <Card className="border border-border/50 bg-card/60 rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Breakdown por Tipo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-2">
+                  {(['FIXO', 'VARIÁVEL P/ VOO', 'VARIÁVEL P/ HORA', 'EXTRA'] as TipoCusto[]).map(tipo => {
+                    const valor = totais.porTipo[tipo] || 0;
+                    const pct = totais.totalGeral > 0 ? (valor / totais.totalGeral) * 100 : 0;
+                    const cfg = TIPO_CONFIG[tipo];
+                    return (
+                      <div key={tipo} className="space-y-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className={`font-medium ${cfg.color}`}>{tipo}</span>
+                          <span className="font-mono font-semibold">{fmtBRL(valor)}</span>
+                        </div>
+                        <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: cfg.color.replace('text-', '').includes('amber') ? '#f59e0b'
+                                : cfg.color.includes('orange') ? '#f97316'
+                                  : cfg.color.includes('purple') ? '#8b5cf6'
+                                    : '#3b82f6'
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground text-right">{pct.toFixed(1)}%</p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ════════════════════════════════════════
+              TAB 3: POSIÇÃO POR COTISTA
+          ════════════════════════════════════════ */}
+          <TabsContent value="cotistas" className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(totais.porCotista).map(([id, info]) => {
+                const saldo = info.pago - info.devido;
+                return (
+                  <Card key={id} className="border border-border/50 bg-card/80 rounded-xl">
+                    <CardContent className="pt-5 pb-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-sm">{info.nome}</h3>
+                        {saldo > 0 ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs">
+                            <ArrowUpRight className="h-3 w-3 mr-1" />Crédito
+                          </Badge>
+                        ) : saldo < 0 ? (
+                          <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-xs">
+                            <ArrowDownRight className="h-3 w-3 mr-1" />Débito
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">
+                            <Minus className="h-3 w-3 mr-1" />Zerado
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                          <p className="text-[10px] text-red-400/70 uppercase tracking-wider">Deve</p>
+                          <p className="text-sm font-bold text-red-400 font-mono">{fmtBRL(info.devido)}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <p className="text-[10px] text-emerald-400/70 uppercase tracking-wider">Pagou</p>
+                          <p className="text-sm font-bold text-emerald-400 font-mono">{fmtBRL(info.pago)}</p>
+                        </div>
+                      </div>
+
+                      <Separator className="bg-border/40" />
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground font-medium">Saldo</span>
+                        <span className={`text-base font-bold font-mono ${saldo >= 0 ? 'text-emerald-400' : 'text-destructive'}`}>
+                          {saldo >= 0 ? '+' : ''}{fmtBRL(saldo)}
+                        </span>
+                      </div>
+
+                      {/* Breakdown por categoria para este cotista */}
+                      <div className="space-y-1.5">
+                        {CATEGORIAS_ORDEM.filter(cat => totais.porCategoria[cat]?.[id]).map(cat => (
+                          <div key={cat} className="flex justify-between items-center text-[10px]">
+                            <span className="text-muted-foreground" style={{ color: CATEGORIA_COLORS[cat] }}>
+                              {cat}
+                            </span>
+                            <span className="font-mono">{fmtBRL(totais.porCategoria[cat][id])}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Tabela comparativa entre cotistas */}
+            {Object.keys(totais.porCotista).length > 0 && (
+              <Card className="border border-border/50 bg-card/60 rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Scale className="h-4 w-4 text-primary" />
+                    Balanço Comparativo — Todos os Cotistas
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Categoria × cotista: quanto cada um deve e quanto pagou
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="text-[10px] uppercase font-bold px-3 py-2.5">CATEGORIA</TableHead>
+                          {Object.entries(totais.porCotista).map(([id, info]) => (
+                            <TableHead key={id} className="text-[10px] uppercase font-bold px-3 py-2.5 text-right text-emerald-400/80">
+                              {info.nome}
+                            </TableHead>
+                          ))}
+                          <TableHead className="text-[10px] uppercase font-bold px-3 py-2.5 text-right text-primary">TOTAL</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {CATEGORIAS_ORDEM.filter(cat => totais.porCategoria[cat]).map(cat => {
+                          const catTotal = Object.values(totais.porCategoria[cat]).reduce((s, v) => s + v, 0);
+                          return (
+                            <TableRow key={cat} className="border-b border-border/30 hover:bg-primary/5">
+                              <TableCell className="px-3 py-2.5 text-xs font-semibold" style={{ color: CATEGORIA_COLORS[cat] }}>
+                                {cat}
+                              </TableCell>
+                              {Object.keys(totais.porCotista).map(id => (
+                                <TableCell key={id} className="text-right font-mono text-xs px-3 py-2.5">
+                                  {totais.porCategoria[cat]?.[id]
+                                    ? fmtBRL(totais.porCategoria[cat][id])
+                                    : <span className="text-muted-foreground/30">—</span>
+                                  }
+                                </TableCell>
+                              ))}
+                              <TableCell className="text-right font-mono font-bold text-xs px-3 py-2.5 text-primary">
+                                {fmtBRL(catTotal)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow className="bg-primary/10 border-t-2 border-primary/30">
+                          <TableCell className="font-bold text-xs px-3 py-3 text-primary">TOTAL GERAL</TableCell>
+                          {Object.entries(totais.porCotista).map(([id, info]) => (
+                            <TableCell key={id} className="text-right font-mono font-bold text-sm px-3 py-3 text-emerald-400">
+                              {fmtBRL(info.devido)}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-right font-mono font-bold text-sm px-3 py-3 text-primary">
+                            {fmtBRL(totais.totalGeral)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
-
-        {/* Drill-down dos cards do topo - Visualização Inline */}
-        {drillCard && (
-          <DrillDownModal
-            tipo={drillCard}
-            onClose={() => setDrillCard(null)}
-            despesas={despesasDaAeronave}
-            abastecimentos={abastecimentosDaAeronave}
-            aeronaveLabel={aeronaveInfo?.matricula || "—"}
-          />
-        )}
       </div>
     </Layout>
-  );
-}
-
-
-// Componente de Estatística Refatorado para AA++
-function StatCard({
-  icon,
-  label,
-  value,
-  sub,
-  highlight,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-  highlight?: "success" | "destructive";
-  onClick?: () => void;
-}) {
-  const Component: any = onClick ? "button" : "div";
-  return (
-    <Component
-      onClick={onClick}
-      className={`group relative p-6 rounded-3xl bg-gradient-to-b from-card/60 to-card/20 backdrop-blur-md border border-border/40 hover:border-primary/30 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden text-left w-full ${
-        onClick ? "cursor-pointer" : ""
-      }`}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/80">
-            {label}
-          </span>
-          <div className="p-2.5 rounded-xl bg-background border border-border/50 text-foreground group-hover:scale-110 group-hover:text-primary transition-all duration-500 shadow-sm">
-            {icon}
-          </div>
-        </div>
-        <p
-          className={`text-3xl font-bold tracking-tight mb-1 ${
-            highlight === "success"
-              ? "text-success"
-              : highlight === "destructive"
-              ? "text-destructive"
-              : "text-foreground"
-          }`}
-        >
-          {value}
-        </p>
-        {sub && <p className="text-sm text-muted-foreground/70 font-medium">{sub}</p>}
-        {onClick && (
-          <p className="text-[10px] uppercase tracking-wider text-primary/70 mt-2 font-medium">
-            Clique para detalhar →
-          </p>
-        )}
-      </div>
-    </Component>
-  );
-}
-
-
-// ============== Tabela detalhada de lançamentos ==============
-function DespesasTable({
-  despesas,
-  filtro,
-  filtroOrigem,
-}: {
-  despesas: DespesaUnificada[];
-  filtro: string;
-  filtroOrigem: "todos" | "conciliacao" | "direto";
-}) {
-  const fmtBRL = (n: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
-  const fmtDate = (s?: string | null) =>
-    s ? new Date(s).toLocaleDateString("pt-BR") : "—";
-
-  const lista = useMemo(() => {
-    const q = filtro.trim().toLowerCase();
-    return [...despesas]
-      .filter((d) => filtroOrigem === "todos" || d.origem === filtroOrigem)
-      .filter((d) => {
-        if (!q) return true;
-        return (
-          d.descricao?.toLowerCase().includes(q) ||
-          (d.fornecedor || "").toLowerCase().includes(q) ||
-          (d.numero_doc || "").toLowerCase().includes(q) ||
-          (d.numero_nf || "").toLowerCase().includes(q) ||
-          (d.numero_boleto || "").toLowerCase().includes(q) ||
-          (d.pago_por || "").toLowerCase().includes(q) ||
-          (d.categoria || "").toLowerCase().includes(q)
-        );
-      })
-      .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime());
-  }, [despesas, filtro, filtroOrigem]);
-
-  if (lista.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-6 text-center">
-        Nenhum lançamento encontrado com os filtros atuais.
-      </p>
-    );
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Vencimento</TableHead>
-            <TableHead>Pago em</TableHead>
-            <TableHead>Doc / NF</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead>Fornecedor</TableHead>
-            <TableHead>Pago por</TableHead>
-            <TableHead>Forma</TableHead>
-            <TableHead>Origem</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
-            <TableHead className="text-center">Anexos</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {lista.map((d) => {
-            const anexos = [
-              { url: d.comprovante_url, label: "Comprovante" },
-              { url: d.recibo_url, label: "Recibo" },
-              { url: d.nf_url, label: "NF" },
-              { url: d.boleto_url, label: "Boleto" },
-            ].filter((a) => !!a.url);
-
-            return (
-              <TableRow key={d.id}>
-                <TableCell className="text-xs">{fmtDate(d.data_vencimento)}</TableCell>
-                <TableCell className="text-xs">{fmtDate(d.data_pagamento)}</TableCell>
-                <TableCell className="text-xs font-mono">
-                  {d.numero_nf || d.numero_doc || d.numero_boleto || d.numero_recibo || "—"}
-                </TableCell>
-                <TableCell className="text-sm max-w-[260px]">
-                  <span className="block truncate" title={d.descricao}>
-                    {d.descricao}
-                  </span>
-                  {d.observacoes && (
-                    <span className="block text-[10px] text-muted-foreground/70 truncate" title={d.observacoes}>
-                      {d.observacoes}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{d.categoria || "—"}</TableCell>
-                <TableCell className="text-xs">{d.fornecedor || "—"}</TableCell>
-                <TableCell className="text-xs">
-                  <Badge
-                    variant="outline"
-                    className={
-                      d.pago_por_tipo === "EMPRESA"
-                        ? "border-blue-500/40 text-blue-400"
-                        : d.pago_por_tipo === "CLIENTE"
-                        ? "border-amber-500/40 text-amber-400"
-                        : d.pago_por_tipo === "SOCIO"
-                        ? "border-purple-500/40 text-purple-400"
-                        : "border-border text-muted-foreground"
-                    }
-                  >
-                    {d.pago_por}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{d.forma_pagamento || "—"}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      d.origem === "conciliacao"
-                        ? "border-blue-500/40 text-blue-400"
-                        : "border-amber-500/40 text-amber-400"
-                    }
-                  >
-                    {d.origem === "conciliacao" ? "Share pagou" : "Direto"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm font-semibold">
-                  {fmtBRL(d.valor_rateado)}
-                </TableCell>
-                <TableCell className="text-center">
-                  {anexos.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  ) : (
-                    <div className="flex justify-center gap-1">
-                      {anexos.map((a) => (
-                        <a
-                          key={a.label}
-                          href={a.url!}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={a.label}
-                          className="p-1 rounded hover:bg-primary/10 text-primary"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {d.status || "—"}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-      <p className="text-xs text-muted-foreground mt-3">
-        {lista.length} lançamento(s) · Total: {fmtBRL(lista.reduce((a, d) => a + d.valor_rateado, 0))}
-      </p>
-    </div>
-  );
-}
-
-// ============== Drill-down modal dos cards ==============
-function DrillDownModal({
-  tipo,
-  onClose,
-  despesas,
-  abastecimentos,
-  aeronaveLabel,
-}: {
-  tipo: null | "total" | "share" | "direto" | "abast";
-  onClose: () => void;
-  despesas: DespesaUnificada[];
-  abastecimentos: any[];
-  aeronaveLabel: string;
-}) {
-  const fmtBRL = (n: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
-  const fmtDate = (s?: string | null) =>
-    s ? new Date(s).toLocaleDateString("pt-BR") : "—";
-
-  if (!tipo) return null;
-
-  const titulo =
-    tipo === "total"
-      ? "Composição: Total de despesas"
-      : tipo === "share"
-      ? "Composição: Pago pela Share Brasil"
-      : tipo === "direto"
-      ? "Composição: Pago diretamente pelo cliente/sócio"
-      : "Composição: Abastecimentos";
-
-  const explicacao =
-    tipo === "total"
-      ? "Soma de TODAS as despesas vinculadas a esta aeronave (independente de quem pagou)."
-      : tipo === "share"
-      ? "Despesas que a Share Brasil quitou do caixa da empresa. Geram crédito a reembolsar pelo cliente."
-      : tipo === "direto"
-      ? "Despesas pagas direto do bolso do cliente ou do sócio (sem passar pelo caixa da Share)."
-      : "Abastecimentos lançados separadamente do fluxo de despesas administrativas.";
-
-  let listaDespesas: DespesaUnificada[] = [];
-  if (tipo === "total") listaDespesas = despesas;
-  else if (tipo === "share") listaDespesas = despesas.filter((d) => d.origem === "conciliacao");
-  else if (tipo === "direto") listaDespesas = despesas.filter((d) => d.origem === "direto");
-
-  const total =
-    tipo === "abast"
-      ? abastecimentos.reduce((a, x) => a + (x.valor_total || 0), 0)
-      : listaDespesas.reduce((a, d) => a + d.valor_rateado, 0);
-
-  // Agrupar por categoria
-  const porCategoria = new Map<string, number>();
-  listaDespesas.forEach((d) => {
-    const k = d.categoria || "Sem categoria";
-    porCategoria.set(k, (porCategoria.get(k) || 0) + d.valor_rateado);
-  });
-
-  return (
-    <Card className="mt-6 border-primary/20 bg-muted/50">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-2xl">{titulo}</CardTitle>
-            <p className="text-base text-muted-foreground mt-2">
-              {explicacao} Aeronave: <strong>{aeronaveLabel}</strong>.
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground uppercase tracking-wider">Total</p>
-            <p className="text-3xl font-mono text-primary font-bold">{fmtBRL(total)}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="ml-4 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {tipo !== "abast" && porCategoria.size > 0 && (
-          <div className="mb-6">
-            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-3">
-              Por categoria
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {Array.from(porCategoria.entries())
-                .sort((a, b) => b[1] - a[1])
-                .map(([cat, val]) => (
-                  <Badge key={cat} variant="outline" className="text-sm py-2 px-4">
-                    {cat}: <span className="ml-1 font-mono font-semibold text-base">{fmtBRL(val)}</span>
-                  </Badge>
-                ))}
-            </div>
-          </div>
-        )}
-
-        <div className="overflow-x-auto border rounded-lg">
-          {tipo !== "abast" ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-base">Data</TableHead>
-                  <TableHead className="text-base">Doc</TableHead>
-                  <TableHead className="text-base">Descrição</TableHead>
-                  <TableHead className="text-base">Fornecedor</TableHead>
-                  <TableHead className="text-base">Pago por</TableHead>
-                  <TableHead className="text-right text-base">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {listaDespesas
-                  .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime())
-                  .map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell className="text-sm">{fmtDate(d.data)}</TableCell>
-                      <TableCell className="text-sm font-mono">
-                        {d.numero_nf || d.numero_doc || "—"}
-                      </TableCell>
-                      <TableCell className="text-base">{d.descricao}</TableCell>
-                      <TableCell className="text-sm">{d.fornecedor || "—"}</TableCell>
-                      <TableCell className="text-sm">{d.pago_por}</TableCell>
-                      <TableCell className="text-right font-mono text-base font-semibold">
-                        {fmtBRL(d.valor_rateado)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-base">Data</TableHead>
-                  <TableHead className="text-base">Local</TableHead>
-                  <TableHead className="text-base">Abastecedor</TableHead>
-                  <TableHead className="text-right text-base">Litros</TableHead>
-                  <TableHead className="text-right text-base">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {abastecimentos.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell className="text-sm">{fmtDate(a.data)}</TableCell>
-                    <TableCell className="text-base">{a.trecho || a.local || "—"}</TableCell>
-                    <TableCell className="text-sm">{a.abastecedor || "—"}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {Number(a.litros).toLocaleString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-base font-semibold">
-                      {fmtBRL(a.valor_total)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
