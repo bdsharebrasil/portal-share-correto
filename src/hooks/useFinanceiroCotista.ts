@@ -90,6 +90,21 @@ function rotularPagador(r: any): { rotulo: string; tipo: string | null } {
 }
 
 /**
+ * Gera chave composta para agrupar despesas que representam o mesmo gasto
+ * rateado entre cotistas (que podem ter despesa_ids diferentes).
+ */
+function chaveAgrupamentoDespesa(r: any): string {
+  return [
+    r.aeronave_id || "",
+    r.data_vencimento || "",
+    (r.descricao_despesa || "").trim().toUpperCase(),
+    String(Number(r.valor_total_despesa) || 0),
+    (r.categoria_custo || "").trim().toUpperCase(),
+    (r.fornecedor_nome || "").trim().toUpperCase(),
+  ].join("||");
+}
+
+/**
  * Lista clientes ATIVOS que são cotistas (em cotistas_aeronave).
  */
 export function useClientesCotistas() {
@@ -132,8 +147,9 @@ export function useClientesCotistas() {
 }
 
 /**
- * Detalhe completo de um cliente cotista. Agora lê DIRETAMENTE de rateio_despesas
- * (fonte única e rica) em vez de mesclar conciliacoes_bancarias + despesas_cliente_direto.
+ * Detalhe completo de um cliente cotista. Lê diretamente de rateio_despesas
+ * e agrupa despesas compartilhadas por chave composta (para exibir uma única
+ * linha por despesa com colunas para cada cotista).
  */
 export function useFinanceiroCotistaDetalhe(clienteId?: string) {
   return useQuery({
@@ -222,11 +238,47 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
           total_valor: Number(r.total_valor) || 0,
           total_clientes: Number(r.total_clientes) || 0,
         }));
+
+        // ─── Buscar número de documento das movimentações vinculadas ──────────────
+        // O rateio_despesas não armazena numero_nf/numero_doc diretamente;
+        // esses campos ficam na tabela movimentacoes referenciada pelo despesa_id.
+        const allDespesaIds = [
+          ...new Set([
+            ...(rats || []).map((r: any) => r.despesa_id).filter(Boolean),
+            ...(ratsAllClientes || []).map((r: any) => r.despesa_id).filter(Boolean),
+          ]),
+        ];
+
+        const movDocMap = new Map<string, any>();
+        if (allDespesaIds.length > 0) {
+          const { data: movDocs } = await supabase
+            .from("movimentacoes")
+            .select("id, numero_nf, numero_doc, numero_boleto, numero_recibo")
+            .in("id", allDespesaIds);
+          (movDocs || []).forEach((m: any) => movDocMap.set(m.id, m));
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
+        // Enriquecer rateios com dados do movDocMap
+        rateios = rateios.map((r: any) => ({
+          ...r,
+          numero_nf: r.numero_nf || movDocMap.get(r.despesa_id)?.numero_nf || null,
+          numero_doc: r.numero_doc || movDocMap.get(r.despesa_id)?.numero_doc || null,
+          numero_boleto: r.numero_boleto || movDocMap.get(r.despesa_id)?.numero_boleto || null,
+          numero_recibo: r.numero_recibo || movDocMap.get(r.despesa_id)?.numero_recibo || null,
+        }));
+
+        rateioDespesasComTodosCotistas = rateioDespesasComTodosCotistas.map((r: any) => ({
+          ...r,
+          numero_nf: r.numero_nf || movDocMap.get(r.despesa_id)?.numero_nf || null,
+          numero_doc: r.numero_doc || movDocMap.get(r.despesa_id)?.numero_doc || null,
+          numero_boleto: r.numero_boleto || movDocMap.get(r.despesa_id)?.numero_boleto || null,
+          numero_recibo: r.numero_recibo || movDocMap.get(r.despesa_id)?.numero_recibo || null,
+        }));
       }
 
       const despesas: DespesaUnificada[] = rateios.map((r: any) => {
         const { rotulo, tipo } = rotularPagador(r);
-        // Origem: pago direto pelo cliente/sócio = "direto", senão Share pagou = "conciliacao"
         const origem: "conciliacao" | "direto" =
           r.pago_diretamente || tipo === "CLIENTE" || tipo === "SOCIO"
             ? "direto"
@@ -265,13 +317,11 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         };
       });
 
-      // Agregar rateios por despesa (mostra todos os cotistas para cada despesa)
+      // ─── Agregar rateios do cliente (para aba Financeiro) ────────────────────
       const rateioPorDespesaMap = new Map<string, any[]>();
       rateios.forEach((r: any) => {
         const chave = r.despesa_id || r.id;
-        if (!rateioPorDespesaMap.has(chave)) {
-          rateioPorDespesaMap.set(chave, []);
-        }
+        if (!rateioPorDespesaMap.has(chave)) rateioPorDespesaMap.set(chave, []);
         rateioPorDespesaMap.get(chave)!.push(r);
       });
 
@@ -301,34 +351,71 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
             })),
           };
         })
-        .sort((a, b) => new Date(b.data_vencimento || 0).getTime() - new Date(a.data_vencimento || 0).getTime());
+        .sort(
+          (a, b) =>
+            new Date(b.data_vencimento || 0).getTime() -
+            new Date(a.data_vencimento || 0).getTime()
+        );
 
-      // Agregar rateios por despesa para TODOS os cotistas (para aba Balanço)
+      // ─── Agregar rateios de TODOS os cotistas (aba Balanço) ─────────────────
+      // Agrupa por chave composta para consolidar despesas que têm despesa_ids
+      // diferentes mas representam o mesmo gasto rateado entre cotistas.
       const rateioPorDespesaMapTodos = new Map<string, any[]>();
       rateioDespesasComTodosCotistas.forEach((r: any) => {
-        const chave = r.despesa_id || r.id;
+        const chave = chaveAgrupamentoDespesa(r);
         if (!rateioPorDespesaMapTodos.has(chave)) {
           rateioPorDespesaMapTodos.set(chave, []);
         }
         rateioPorDespesaMapTodos.get(chave)!.push(r);
       });
 
-      const rateioDespesasComTodosCotistasDetalhado = Array.from(rateioPorDespesaMapTodos.entries())
-        .map(([despesaId, rateiosArray]) => {
+      const rateioDespesasComTodosCotistasDetalhado = Array.from(
+        rateioPorDespesaMapTodos.entries()
+      )
+        .map(([, rateiosArray]) => {
           const primeiro = rateiosArray[0];
+
+          // Pegar numero_nf/numero_doc de qualquer rateio do grupo que tenha valor
+          const numero_nf =
+            rateiosArray.map((r: any) => r.numero_nf).find(Boolean) || null;
+          const numero_doc =
+            rateiosArray.map((r: any) => r.numero_doc).find(Boolean) || null;
+          const numero_boleto =
+            rateiosArray.map((r: any) => r.numero_boleto).find(Boolean) || null;
+          const numero_recibo =
+            rateiosArray.map((r: any) => r.numero_recibo).find(Boolean) || null;
+
+          // Deduplica por cliente_id (pode haver entradas duplicadas para o mesmo cotista)
+          const rateioPorClienteMap = new Map<string, any>();
+          rateiosArray.forEach((r: any) => {
+            const key = r.cliente_id || r.socio_id || r.id;
+            if (!rateioPorClienteMap.has(key)) {
+              rateioPorClienteMap.set(key, r);
+            } else {
+              // Se já existe, somar valores rateados (caso de duplicata real)
+              const existing = rateioPorClienteMap.get(key);
+              existing.valor_rateado =
+                Number(existing.valor_rateado) + Number(r.valor_rateado);
+              existing.valor_pago_real =
+                Number(existing.valor_pago_real) + Number(r.valor_pago_real);
+            }
+          });
+
           return {
-            despesa_id: despesaId,
+            despesa_id: primeiro.despesa_id || primeiro.id,
             data_vencimento: primeiro.data_vencimento,
             data_pagamento: primeiro.data_pagamento,
-            numero_nf: primeiro.numero_nf,
-            numero_doc: primeiro.numero_doc,
+            numero_nf,
+            numero_doc,
+            numero_boleto,
+            numero_recibo,
             fornecedor_nome: primeiro.fornecedor_nome,
             descricao_despesa: primeiro.descricao_despesa,
             categoria_custo: primeiro.categoria_custo,
             valor_total_despesa: Number(primeiro.valor_total_despesa) || 0,
             pago_por: primeiro.pago_por,
             status: primeiro.status,
-            rateios: rateiosArray.map((r: any) => ({
+            rateios: Array.from(rateioPorClienteMap.values()).map((r: any) => ({
               cliente_id: r.cliente_id,
               clientes_nome: r.clientes_nome,
               percentual_sociedade: Number(r.percentual_sociedade) || 0,
@@ -339,7 +426,11 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
             })),
           };
         })
-        .sort((a, b) => new Date(b.data_vencimento || 0).getTime() - new Date(a.data_vencimento || 0).getTime());
+        .sort(
+          (a, b) =>
+            new Date(b.data_vencimento || 0).getTime() -
+            new Date(a.data_vencimento || 0).getTime()
+        );
 
       return {
         cliente,
@@ -375,7 +466,6 @@ export function calcularBalanco(
     cotistas.forEach((c) => {
       const item = map.get(c.id)!;
       item.total_devido += d.valor_total * (c.percentual / 100);
-      // Crédito = pagou diretamente do bolso (CLIENTE ou SOCIO desse cotista)
       const pagouEsteCotista =
         (d.pago_por_tipo === "CLIENTE" && d.cliente_id === c.id) ||
         (d.pago_por_tipo === "SOCIO" && d.socio_id === c.id);
