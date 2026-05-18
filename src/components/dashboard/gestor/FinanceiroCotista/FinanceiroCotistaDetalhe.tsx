@@ -240,11 +240,11 @@ export default function FinanceiroCotistaDetalhe() {
 
   const { cliente, aeronaves, cotistas, lancamentos, isLoading } = useBalancoDetalhe(
     clienteId,
-    aeronaveAtual || (aeronaves[0] as any)?.id_aeronave
+    aeronaveAtual
   );
 
-  const aeronaveEfetiva = aeronaveAtual || (aeronaves[0] as any)?.id_aeronave || '';
-  const aeronaveInfo = (aeronaves as any[]).find(a => a.id_aeronave === aeronaveEfetiva)?.aeronave;
+  const aeronaveEfetiva = aeronaveAtual || ((aeronaves && aeronaves.length > 0) ? (aeronaves[0] as any)?.id_aeronave : '') || '';
+  const aeronaveInfo = (aeronaves && aeronaves.length > 0) ? (aeronaves as any[]).find(a => a.id_aeronave === aeronaveEfetiva)?.aeronave : undefined;
 
   // ── Lançamentos filtrados ────────────────────────────────────────────────────
   const lancamentosFiltrados = useMemo(() => {
