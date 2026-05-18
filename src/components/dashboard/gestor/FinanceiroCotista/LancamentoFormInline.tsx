@@ -549,10 +549,25 @@ export function LancamentoFormInline({
         : null;
 
       // pago_por = quem pagou (cliente, empresa ou sócio)
-      const pagoPor =
-        pagador === "EMPRESA" ? "EMPRESA" :
-        pagador === "CLIENTE" ? clienteNome :
-        pagadorSocio?.socio_nome ?? null;
+      // Agora usando ID do pagador ao invés de nome para melhor conciliação
+      let pagoPor: string;
+      let pagoPorTipo: string;
+      let pagoPorId: string | null = null;
+
+      if (pagador === "EMPRESA") {
+        pagoPor = "EMPRESA";
+        pagoPorTipo = "EMPRESA";
+        pagoPorId = null;
+      } else if (pagador === "CLIENTE") {
+        pagoPor = clienteId;
+        pagoPorTipo = "CLIENTE";
+        pagoPorId = clienteId;
+      } else {
+        // Sócio específico
+        pagoPor = pagadorSocio?.id ?? pagadorSocio?.socio_nome ?? "";
+        pagoPorTipo = "SOCIO";
+        pagoPorId = pagadorSocio?.id ?? null;
+      }
 
       // fornecedor_nome = fornecedor da despesa (mantém o que o usuário digitou, não é bloqueado pelo cliente)
       const fornecedor = fornecedorNome.trim() || "EMPRESA";
@@ -644,6 +659,8 @@ export function LancamentoFormInline({
         data_vencimento: dataVencimento || dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         pago_por: pagoPor,
+        pago_por_tipo: pagoPorTipo,
+        pago_por_id: pagoPorId,
         pago_diretamente: pagador !== "EMPRESA",
         fluxo,
         forma_pagamento: formaPgto || null,

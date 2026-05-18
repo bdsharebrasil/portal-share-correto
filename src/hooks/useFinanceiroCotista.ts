@@ -74,6 +74,14 @@ export interface RelatorioViagemItem {
 
 /** Traduz o código bruto de pago_por para um rótulo amigável de gestor. */
 function rotularPagador(r: any): { rotulo: string; tipo: string | null } {
+  // Preferir usar pago_por_tipo se disponível (novo formato com ID)
+  if (r.pago_por_tipo) {
+    if (r.pago_por_tipo === "EMPRESA") return { rotulo: "Share Brasil", tipo: "EMPRESA" };
+    if (r.pago_por_tipo === "CLIENTE") return { rotulo: r.clientes_nome || "Cliente", tipo: "CLIENTE" };
+    if (r.pago_por_tipo === "SOCIO") return { rotulo: r.socios_nome || "Sócio", tipo: "SOCIO" };
+  }
+
+  // Fallback para formato antigo (compatibilidade)
   const raw = (r.pago_por || "").toString().trim().toUpperCase();
   if (!raw) {
     if (r.pago_diretamente && r.clientes_nome) return { rotulo: r.clientes_nome, tipo: "CLIENTE" };
@@ -466,9 +474,18 @@ export function calcularBalanco(
     cotistas.forEach((c) => {
       const item = map.get(c.id)!;
       item.total_devido += d.valor_total * (c.percentual / 100);
-      const pagouEsteCotista =
-        (d.pago_por_tipo === "CLIENTE" && d.cliente_id === c.id) ||
-        (d.pago_por_tipo === "SOCIO" && d.socio_id === c.id);
+
+      // Usar IDs para determinar quem pagou (mais confiável que nome)
+      let pagouEsteCotista = false;
+      if (d.pago_por_tipo === "CLIENTE" && d.cliente_id === c.id) {
+        pagouEsteCotista = true;
+      } else if (d.pago_por_tipo === "SOCIO" && d.socio_id === c.id) {
+        pagouEsteCotista = true;
+      } else if (d.pago_por_tipo === "EMPRESA") {
+        // Se empresa pagou, ninguém é creditado (todos devem)
+        pagouEsteCotista = false;
+      }
+
       if (pagouEsteCotista) {
         item.total_pago += d.valor_total;
       }
