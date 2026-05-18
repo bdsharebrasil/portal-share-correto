@@ -213,12 +213,12 @@ export default function FinanceiroCotistas() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button
+                    <div
                       onClick={(e) => e.stopPropagation()}
-                      className="p-2 rounded-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 transition-all"
+                      className="p-2 rounded-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 transition-all cursor-pointer"
                     >
                       <Bell className="h-4 w-4 text-slate-400" />
-                    </button>
+                    </div>
                   </div>
                 </div>
 
@@ -243,27 +243,27 @@ export default function FinanceiroCotistas() {
                 {/* Botões das aeronaves */}
                 <div className="flex flex-col gap-2 pt-2">
                   {c.aeronaves.slice(0, 2).map((a: any) => (
-                    <button
+                    <div
                       key={a.id_aeronave}
                       onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left group/btn"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left group/btn cursor-pointer"
                     >
                       <Plane className="h-4 w-4 text-slate-300 shrink-0" />
                       <span className="text-sm font-medium text-slate-200">
                         {a.aeronave?.matricula || "—"} · {a.percentual_sociedade}%
                       </span>
-                    </button>
+                    </div>
                   ))}
                   {c.aeronaves.length > 2 && (
-                    <button
+                    <div
                       onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left cursor-pointer"
                     >
                       <Plane className="h-4 w-4 text-slate-300 shrink-0" />
                       <span className="text-sm font-medium text-slate-200">
                         +{c.aeronaves.length - 2} aeronave{c.aeronaves.length - 2 !== 1 ? "s" : ""}
                       </span>
-                    </button>
+                    </div>
                   )}
                 </div>
               </button>
