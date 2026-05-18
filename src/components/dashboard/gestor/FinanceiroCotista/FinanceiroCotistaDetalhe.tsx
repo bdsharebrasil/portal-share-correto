@@ -22,6 +22,8 @@ import {
   Scale,
   KeyRound,
   Building,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
@@ -35,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import type { DespesaUnificada } from "@/hooks/useFinanceiroCotista";
 import {
@@ -52,6 +55,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", {
@@ -70,6 +77,8 @@ export default function FinanceiroCotistaDetalhe() {
   const [filtroFin, setFiltroFin] = useState("");
   const [filtroOrigem, setFiltroOrigem] = useState<"todos" | "conciliacao" | "direto">("todos");
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
+  const [lancamentoSelecionado, setLancamentoSelecionado] = useState<DespesaUnificada | null>(null);
+  const [acaoModal, setAcaoModal] = useState<"editar" | "deletar" | null>(null);
 
   const cliente = data?.cliente;
   const aeronaves = data?.aeronaves || [];
@@ -473,6 +482,10 @@ export default function FinanceiroCotistaDetalhe() {
                     despesas={despesasDaAeronave}
                     filtro={filtroFin}
                     filtroOrigem={filtroOrigem}
+                    onLancamentoClick={(d) => {
+                      setLancamentoSelecionado(d);
+                      setAcaoModal(null);
+                    }}
                   />
                 </CardContent>
               </Card>
@@ -671,6 +684,30 @@ export default function FinanceiroCotistaDetalhe() {
           abastecimentos={abastecimentosDaAeronave}
           aeronaveLabel={aeronaveInfo?.matricula || "—"}
         />
+
+        {/* Modal de Ação (Editar/Deletar) */}
+        <LancamentoAcaoModal
+          lancamento={lancamentoSelecionado}
+          acao={acaoModal}
+          onAcao={(acao) => setAcaoModal(acao)}
+          onClose={() => {
+            setLancamentoSelecionado(null);
+            setAcaoModal(null);
+          }}
+          onVoltarEscolha={() => setAcaoModal(null)}
+          onEditarClick={() => {
+            if (lancamentoSelecionado) {
+              navigate(
+                `/financeiro/lancamento/${clienteId}/${aeronaveAtual}?editing=${lancamentoSelecionado.id}`
+              );
+              setLancamentoSelecionado(null);
+              setAcaoModal(null);
+            }
+          }}
+          onDeletarConfirm={() => {
+            // será implementado no componente
+          }}
+        />
       </div>
     </Layout>
   );
@@ -739,10 +776,12 @@ function DespesasTable({
   despesas,
   filtro,
   filtroOrigem,
+  onLancamentoClick,
 }: {
   despesas: DespesaUnificada[];
   filtro: string;
   filtroOrigem: "todos" | "conciliacao" | "direto";
+  onLancamentoClick?: (d: DespesaUnificada) => void;
 }) {
   const fmtBRL = (n: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -805,7 +844,11 @@ function DespesasTable({
             ].filter((a) => !!a.url);
 
             return (
-              <TableRow key={d.id}>
+              <TableRow
+                key={d.id}
+                className="cursor-pointer hover:bg-primary/5 transition-colors"
+                onClick={() => onLancamentoClick?.(d)}
+              >
                 <TableCell className="text-xs">{fmtDate(d.data_vencimento)}</TableCell>
                 <TableCell className="text-xs">{fmtDate(d.data_pagamento)}</TableCell>
                 <TableCell className="text-xs font-mono">
@@ -1037,6 +1080,196 @@ function DrillDownModal({
             </TableBody>
           </Table>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============== Modal de Edição/Exclusão de Lançamento ==============
+function LancamentoAcaoModal({
+  lancamento,
+  acao,
+  onAcao,
+  onClose,
+  onEditarClick,
+  onDeletarConfirm,
+  onVoltarEscolha,
+}: {
+  lancamento: DespesaUnificada | null;
+  acao: "editar" | "deletar" | null;
+  onAcao: (acao: "editar" | "deletar") => void;
+  onClose: () => void;
+  onEditarClick: () => void;
+  onDeletarConfirm: () => void;
+  onVoltarEscolha: () => void;
+}) {
+  const qc = useQueryClient();
+  const fmtBRL = (n: number) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(n || 0);
+  const fmtDate = (s?: string | null) =>
+    s ? new Date(s).toLocaleDateString("pt-BR") : "—";
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("despesas").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Lançamento excluído com sucesso");
+      qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao excluir: " + (error.message || "Erro desconhecido"));
+    },
+  });
+
+  if (!lancamento) return null;
+
+  const isOpen = !!lancamento;
+  const mostrandoEscolha = acao === null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {mostrandoEscolha
+              ? "O que deseja fazer?"
+              : acao === "editar"
+              ? "Editar lançamento"
+              : "Excluir lançamento"}
+          </DialogTitle>
+          {!mostrandoEscolha && (
+            <DialogDescription>
+              {lancamento.descricao} • {fmtBRL(lancamento.valor_total)}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {mostrandoEscolha ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Escolha a ação desejada para este lançamento:
+              </p>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => onAcao("editar")}
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-auto py-3"
+                >
+                  <Edit2 className="h-4 w-4" />
+                  <div className="text-left">
+                    <p className="font-semibold">Editar</p>
+                    <p className="text-xs text-muted-foreground">Modificar dados do lançamento</p>
+                  </div>
+                </Button>
+                <Button
+                  onClick={() => onAcao("deletar")}
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-auto py-3 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <div className="text-left">
+                    <p className="font-semibold">Excluir</p>
+                    <p className="text-xs text-muted-foreground">Remover este lançamento</p>
+                  </div>
+                </Button>
+              </div>
+            </>
+          ) : acao === "editar" ? (
+            <>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
+                    Descrição
+                  </p>
+                  <p className="font-medium">{lancamento.descricao}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
+                      Valor
+                    </p>
+                    <p className="font-mono font-semibold">{fmtBRL(lancamento.valor_total)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
+                      Data
+                    </p>
+                    <p className="font-mono">{fmtDate(lancamento.data)}</p>
+                  </div>
+                </div>
+                {lancamento.fornecedor && (
+                  <div>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
+                      Fornecedor
+                    </p>
+                    <p>{lancamento.fornecedor}</p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-sm text-destructive">
+                  Esta ação é irreversível. O lançamento será removido permanentemente do sistema.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          {acao === "editar" ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={onEditarClick} className="gap-2">
+                <Edit2 className="h-4 w-4" />
+                Abrir para editar
+              </Button>
+            </>
+          ) : acao === "deletar" ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={onVoltarEscolha}
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  deleteMutation.mutate(lancamento.id);
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Excluindo..." : "Confirmar exclusão"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={onClose}
+              >
+                Fechar
+              </Button>
+            </>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
