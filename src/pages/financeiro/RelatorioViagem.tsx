@@ -430,6 +430,10 @@ export default function RelatorioViagem() {
       toast.error('⚠️ Selecione uma aeronave');
       return;
     }
+    if (!reportData.matricula_aeronave?.trim()) {
+      toast.error('⚠️ Matrícula da aeronave não preenchida');
+      return;
+    }
     if (!reportData.tripulacao_id?.trim()) {
       toast.error('⚠️ Selecione um tripulante');
       return;
