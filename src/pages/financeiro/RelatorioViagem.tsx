@@ -811,14 +811,23 @@ export default function RelatorioViagem() {
             // Enviar notificação para o tripulante
             if (refreshed.tripulacao_id) {
               try {
-                const { error: notifError } = await supabase.from('notifications').insert({
-                  user_id: refreshed.tripulacao_id,
-                  title: 'Novo Relatório de Viagem para Aprovação',
-                  message: `O relatório nº ${refreshed.numero_relatorio} foi gerado e aguarda sua aprovação. Clique para revisar.`,
-                  type: 'info',
-                  read: false,
-                });
-                if (notifError) console.error('Erro ao enviar notificação:', notifError);
+                // Buscar user_id do membro da tripulação
+                const { data: crewMember } = await supabase
+                  .from('membros_tripulacao')
+                  .select('user_id')
+                  .eq('id', refreshed.tripulacao_id)
+                  .single();
+
+                if (crewMember?.user_id) {
+                  const { error: notifError } = await supabase.from('notifications').insert({
+                    user_id: crewMember.user_id,
+                    title: 'Novo Relatório de Viagem para Aprovação',
+                    message: `O relatório nº ${refreshed.numero_relatorio} foi gerado e aguarda sua aprovação. Clique para revisar.`,
+                    type: 'info',
+                    read: false,
+                  });
+                  if (notifError) console.error('Erro ao enviar notificação:', notifError);
+                }
               } catch (notifErr) {
                 console.error('Erro ao enviar notificação:', notifErr);
               }
