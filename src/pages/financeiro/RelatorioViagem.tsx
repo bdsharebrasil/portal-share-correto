@@ -79,6 +79,7 @@ type TravelReport = {
 
   // helper de exibição
   client?: string;
+  criado_por_display?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -198,7 +199,8 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome)
+        partner_id_rel:socios_cliente_id(nome),
+        created_by_user:criado_por(display_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -220,6 +222,7 @@ export default function RelatorioViagem() {
         client: clientName,
         expenses,
         status: normalizeStatus(r.status),
+        criado_por_display: r.created_by_user?.display_name || 'Usuário desconhecido',
       } as TravelReport;
     });
 
@@ -232,7 +235,8 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome)
+        partner_id_rel:socios_cliente_id(nome),
+        created_by_user:criado_por(display_name)
       `)
       .eq('id', reportId)
       .single();
@@ -255,6 +259,7 @@ export default function RelatorioViagem() {
       client: clientName,
       expenses: expenses as Expense[],
       status: normalizeStatus(r.status),
+      criado_por_display: r.created_by_user?.display_name || 'Usuário desconhecido',
     } as TravelReport;
   };
 
@@ -1164,6 +1169,10 @@ export default function RelatorioViagem() {
                           end_date: r.data_fim,
                           total_amount: r.total_valor,
                           status: r.status,
+                          clientes_id: r.clientes_id,
+                          criado_por: r.criado_por_display,
+                          numero_relatorio_modificado_por: r.criado_por_display,
+                          numero_relatorio_modificado_em: r.updated_at,
                         }))}
                         onView={handleViewPDF}
                         onEdit={editReport}
@@ -1200,6 +1209,26 @@ export default function RelatorioViagem() {
                             setSendReportTarget(fullReport);
                             setSendDueDate('');
                             setSendDialogOpen(true);
+                          }
+                        }}
+                        onEditReportNumber={async (reportId, newNumber) => {
+                          try {
+                            const { error } = await supabase
+                              .from('travel_expense_reports')
+                              .update({
+                                numero_relatorio: newNumber,
+                                updated_at: new Date().toISOString(),
+                              })
+                              .eq('id', reportId);
+
+                            if (error) throw error;
+
+                            toast.success('Número do relatório atualizado com sucesso!');
+                            // Recarregar os relatórios
+                            await loadReports();
+                          } catch (err) {
+                            console.error('Erro ao atualizar número:', err);
+                            toast.error('Erro ao atualizar número do relatório');
                           }
                         }}
                       />

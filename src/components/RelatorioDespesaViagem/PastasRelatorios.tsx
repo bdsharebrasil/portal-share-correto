@@ -1,8 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Folder, FileText, Send, Eye, Edit, CheckCheck, Clock, ArrowLeft } from 'lucide-react';
+import { Folder, FileText, Send, Eye, Edit, CheckCheck, Clock, ArrowLeft, Pen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AircraftFolderButton } from './AircraftFolderButton';
 import { SearchInput } from './SearchInput';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export interface PastaReportItem {
   id?: string;
@@ -13,6 +16,12 @@ export interface PastaReportItem {
   end_date: string;
   total_amount: number;
   status: 'Rascunho' | 'Finalizado' | 'Ag. Conferência' | 'Assinado' | 'Enviado';
+  clientes_id?: string;
+  numero_relatorio_modificado_por?: string | null;
+  numero_relatorio_modificado_em?: string | null;
+  criado_por?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface PastasRelatoriosProps {
@@ -21,6 +30,7 @@ interface PastasRelatoriosProps {
   onEdit: (id: string) => void;
   onDelete: (id: string | undefined) => void;
   onSend: (report: PastaReportItem, type: 'conferencia' | 'cliente') => void | Promise<void>;
+  onEditReportNumber?: (reportId: string, newNumber: string) => void | Promise<void>;
   initialClientSearchQuery?: string;
 }
 
@@ -212,10 +222,37 @@ function ActionButton({ children, onClick, gradient, title }: { children: React.
 }
 
 // ─── Report Card ───────────────────────────────────────────────────────────────
-function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: PastaReportItem; onSend: (rep: PastaReportItem, type: string) => void; onEdit: (id: string) => void; onView: (id: string) => void; onDelete: (id: string | undefined) => void }) {
+function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumber }: { report: PastaReportItem; onSend: (rep: PastaReportItem, type: string) => void; onEdit: (id: string) => void; onView: (id: string) => void; onDelete: (id: string | undefined) => void; onEditReportNumber?: (reportId: string, newNumber: string) => void | Promise<void> }) {
   const [h, setH] = useState(false);
+  const [editingNumber, setEditingNumber] = useState(false);
+  const [newNumber, setNewNumber] = useState(report.report_number);
+  const [isSaving, setIsSaving] = useState(false);
+
   const amount = `R$ ${report.total_amount.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
   const dateRange = `${formatDate(report.start_date)} a ${formatDate(report.end_date, true)}`;
+
+  const handleSaveNumber = async () => {
+    if (!newNumber.trim() || newNumber === report.report_number) {
+      setEditingNumber(false);
+      setNewNumber(report.report_number);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      if (onEditReportNumber) {
+        await onEditReportNumber(report.id!, newNumber);
+        setEditingNumber(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setNewNumber(report.report_number);
+    setEditingNumber(false);
+  };
 
   return (
     <div
@@ -238,21 +275,55 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: Past
           <FileText size={15} style={{ color: 'rgba(255,255,255,0.28)', marginTop: 2, flexShrink: 0 }} />
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p
-              style={{
-                margin: 0,
-                fontFamily: '"JetBrains Mono","Fira Code",monospace',
-                fontWeight: 700,
-                fontSize: 13,
-                letterSpacing: '0.03em',
-                color: 'rgba(255,255,255,0.9)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {report.report_number}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: '"JetBrains Mono","Fira Code",monospace',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  letterSpacing: '0.03em',
+                  color: 'rgba(255,255,255,0.9)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {report.report_number}
+              </p>
+
+              {report.status === 'Finalizado' && (
+                <button
+                  onClick={() => setEditingNumber(true)}
+                  title="Editar número do relatório"
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = '#818cf8';
+                    (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.28)';
+                    (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                  }}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all .15s',
+                    color: 'rgba(255,255,255,0.28)',
+                    background: 'transparent',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Pen size={13} />
+                </button>
+              )}
+            </div>
 
             <p
               style={{
@@ -279,6 +350,20 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: Past
             >
               {amount}
             </p>
+
+            {report.numero_relatorio_modificado_por && (
+              <p
+                style={{
+                  margin: '6px 0 0',
+                  fontSize: 9,
+                  color: 'rgba(255,255,255,0.25)',
+                  fontFamily: 'system-ui,sans-serif',
+                  fontStyle: 'italic',
+                }}
+              >
+                Número modificado por: {report.numero_relatorio_modificado_por}{report.numero_relatorio_modificado_em ? ` em ${formatDate(report.numero_relatorio_modificado_em, true)}` : ''}
+              </p>
+            )}
           </div>
         </div>
 
@@ -291,6 +376,38 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete }: { report: Past
           <DeleteButton onClick={() => onDelete(report.id)} />
         </div>
       </div>
+
+      {/* Modal para editar número */}
+      <Dialog open={editingNumber} onOpenChange={setEditingNumber}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Número do Relatório</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newNumber">Novo Número</Label>
+              <Input
+                id="newNumber"
+                value={newNumber}
+                onChange={(e) => setNewNumber(e.target.value)}
+                placeholder={report.report_number}
+                disabled={isSaving}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Você pode alterar o número mantendo o código do cliente e o ano.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveNumber} disabled={isSaving}>
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Botões ação (Enviar ao Cliente e Enviar para Tripulante) */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
@@ -365,7 +482,7 @@ const FLOW = [
   { s: 'Enviado', desc: 'Aguarda pagamento' },
 ];
 
-export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend, initialClientSearchQuery = '' }: PastasRelatoriosProps) {
+export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend, onEditReportNumber, initialClientSearchQuery = '' }: PastasRelatoriosProps) {
   const [openAircraft, setOpenAircraft] = useState<Record<string, boolean>>({});
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -516,6 +633,7 @@ export function PastasRelatorios({ reports, onView, onEdit, onDelete, onSend, in
                           onEdit={(id) => onEdit(id)}
                           onView={(id) => onView(id)}
                           onDelete={(id) => onDelete(id)}
+                          onEditReportNumber={onEditReportNumber}
                         />
                       ))}
                     </div>
