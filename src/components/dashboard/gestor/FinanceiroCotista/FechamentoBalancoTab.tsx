@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -317,11 +316,6 @@ export function FechamentoBalancoTab({
                     >
                       <TableCell className="font-medium">
                         {l.nome}
-                        {l.id === clienteEmFoco && (
-                          <Badge variant="secondary" className="ml-2 text-[10px]">
-                            Em análise
-                          </Badge>
-                        )}
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {l.percentual}%

@@ -301,12 +301,31 @@ export function LancamentoFormInline({
       setStatus((editing.status as any) === "pago" ? "pago" : "pendente");
       setObservacoes(editing.observacoes ?? "");
       setFornecedorNome(editing.fornecedor_nome ?? "");
+      setAeronaveSelected(editing.aeronave_id ?? aeronaveId ?? "");
+      setFormaPgto(editing.forma_pagamento ?? "");
+      setPeriodicidade(editing.periodicidade ?? "unica");
+      setDataVencimento(editing.data_vencimento ?? "");
+      setNumeroDoc(editing.numero_doc ?? "");
+      setNumeroNf(editing.numero_nf ?? "");
+      setNumeroBoleto(editing.numero_boleto ?? "");
+      setNumeroRecibo(editing.numero_recibo ?? "");
+
+      const initialAnexos: AnexoItem[] = [];
+      if (editing.comprovante_url)
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "comprovante", url: editing.comprovante_url, file: null, uploading: false });
+      if (editing.recibo_url)
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "recibo", url: editing.recibo_url, file: null, uploading: false });
+      if (editing.nf_url)
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "nf", url: editing.nf_url, file: null, uploading: false });
+      if (editing.boleto_url)
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "boleto", url: editing.boleto_url, file: null, uploading: false });
+      setAnexos(initialAnexos);
 
       (async () => {
         const { data: rs } = await (supabase as any)
           .from("rateio_despesas")
           .select(
-            "socio_id, socios_nome, percentual_sociedade, valor_pago_real, pago_por, fluxo, categoria_custo, comprovante_url, recibo_url, nf_url, boleto_url, numero_doc, numero_nf, numero_boleto, numero_recibo, forma_pagamento, periodicidade, data_vencimento"
+            "socio_id, socios_nome, percentual_sociedade, valor_pago_real, pago_por, fluxo, categoria_custo"
           )
           .eq("despesa_id", editing.id);
 
@@ -332,24 +351,6 @@ export function LancamentoFormInline({
           }
           if (first) {
             setCategoriaCusto(first.categoria_custo ?? "");
-            setNumeroDoc(first.numero_doc ?? "");
-            setNumeroNf(first.numero_nf ?? "");
-            setNumeroBoleto(first.numero_boleto ?? "");
-            setNumeroRecibo(first.numero_recibo ?? "");
-            setFormaPgto(first.forma_pagamento ?? "");
-            setPeriodicidade(first.periodicidade ?? "unica");
-            setDataVencimento(first.data_vencimento ?? "");
-
-            const initialAnexos: AnexoItem[] = [];
-            if (first.comprovante_url)
-              initialAnexos.push({ id: crypto.randomUUID(), tipo: "comprovante", url: first.comprovante_url, file: null, uploading: false });
-            if (first.recibo_url)
-              initialAnexos.push({ id: crypto.randomUUID(), tipo: "recibo", url: first.recibo_url, file: null, uploading: false });
-            if (first.nf_url)
-              initialAnexos.push({ id: crypto.randomUUID(), tipo: "nf", url: first.nf_url, file: null, uploading: false });
-            if (first.boleto_url)
-              initialAnexos.push({ id: crypto.randomUUID(), tipo: "boleto", url: first.boleto_url, file: null, uploading: false });
-            setAnexos(initialAnexos);
           }
         } else {
           seedFromSocios();

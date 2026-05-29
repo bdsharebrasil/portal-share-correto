@@ -100,9 +100,12 @@ export default function FinanceiroCotistaDetalhe() {
       cotistasPorAeronave
         .filter((c: any) => c.id_aeronave === aeronaveAtual)
         .map((c: any) => ({
-          id: c.id_clientes,
+          id: c.socios_id || c.id_clientes,
           nome:
-            c.cliente?.razao_social || c.cliente?.proprietario || "Cotista",
+            c.socio?.nome ||
+            c.cliente?.razao_social ||
+            c.cliente?.proprietario ||
+            "Cotista",
           percentual: Number(c.percentual_sociedade) || 0,
         })),
     [cotistasPorAeronave, aeronaveAtual]
