@@ -54,7 +54,7 @@ import { toast } from "sonner";
 import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
-import { exportTableToPDF, createFilenameWithTimestamp } from "@/components/utils/exportToPDF";
+import { exportTableToPDF, createFilenameWithTimestamp } from "@/utils/exportToPDF";
 import { ExportReportModal } from "@/components/dashboard/gestor/socios/reports/ExportReportModal";
 import { MonthlyPartnerReportPDF } from "@/components/dashboard/gestor/socios/reports/MonthlyPartnerReportPDF";
 import { useMonthlyPartnerReport } from "@/hooks/useMonthlyPartnerReport";

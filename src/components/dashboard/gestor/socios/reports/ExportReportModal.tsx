@@ -14,7 +14,7 @@ import { ptBR } from "date-fns/locale";
 import { useMultiMonthPartnerReport } from "@/hooks/useMultiMonthPartnerReport";
 import { MonthlyPartnerReportPDF, type ReportFilter } from "./MonthlyPartnerReportPDF";
 import { MultiMonthPartnerReportPDF } from "./MultiMonthPartnerReportPDF";
-import { generatePartnerMonthlyPDF } from "@/components/utils/generatePartnerReport";
+import { exportElementToPDF, createFilenameWithTimestamp } from "@/utils/exportToPDF";
 import { ReportFullPagePreview } from "./ReportFullPagePreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -80,10 +80,10 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
       setIsExporting(true);
       setShowPreview(true);
       await new Promise((r) => setTimeout(r, 1000));
-      await generatePartnerMonthlyPDF({
-        elementId: "partner-report-pdf-content",
-        clientName,
-        months: selectedMonths,
+      await exportElementToPDF("partner-report-pdf-content", {
+        filename: createFilenameWithTimestamp(`relatorio-${clientName}-${selectedMonths.join("-")}`),
+        title: `Relatório ${clientName} - ${selectedMonths.join(", ")}`,
+        includeTimestamp: true,
       });
       toast.success("PDF exportado com sucesso!");
     } catch (err) {
