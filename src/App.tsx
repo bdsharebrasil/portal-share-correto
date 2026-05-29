@@ -157,13 +157,7 @@ const App = () => {
                           <Route path="/" element={renderProtected(<HomeRedirect />)} />
                           <Route path="/operacoes" element={renderProtected(<DashboardOperacoes />)} />
                           <Route path="/financeiro" element={renderProtected(<DashboardFinanceiro />)} />
-                          <Route path="/relatorios" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm"]}>
-                                <Layout><RelatoriosFinanceiros /></Layout>
-                              </RoleProtected>
-                            )
-                          } />
+                          <Route path="/relatorios" element={renderProtected(<Layout><RelatoriosFinanceiros /></Layout>)} />
                           <Route path="/gestor" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
@@ -185,97 +179,23 @@ const App = () => {
                           <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
                           <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
                           <Route path="/flight-map-view" element={renderProtected(<FlightMapView />)} />
-                          <Route path="/financeiro/conciliacao" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
-                                <ConciliacaoBancaria />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/config" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
-                                <ConfigEmpresa />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/recibo" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
-                                <EmissaoRecibo />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/viagem" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
-                                <RelatorioViagem />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/relatorio-viagem" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
-                                <RelatorioViagem />
-                              </RoleProtected>
-                            )
-                          } />
+                          <Route path="/financeiro/conciliacao" element={renderProtected(<ConciliacaoBancaria />)} />
+                          <Route path="/financeiro/config" element={renderProtected(<ConfigEmpresa />)} />
+                          <Route path="/financeiro/recibo" element={renderProtected(<EmissaoRecibo />)} />
+                          <Route path="/financeiro/viagem" element={renderProtected(<RelatorioViagem />)} />
+                          <Route path="/financeiro/relatorio-viagem" element={renderProtected(<RelatorioViagem />)} />
                           <Route path="/aprovar-relatorio/:token" element={<AprovarRelatorioViagem />} />
-                          <Route path="/financeiro/relatorios-cliente/:clientId" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
-                                <RelatoriosClienteDetalhes />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/compras" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master", "financeiro", "rh", "adm", "operacoes"]}>
-                                <SolicitacaoCompras />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/controle-financeiro" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children={""}>
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/config-movimentacoes" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children={""}>
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/agendamento-contas" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <AgendamentoPagamentos />
-                              </RoleProtected>
-                            )
-                          } />
+                          <Route path="/financeiro/relatorios-cliente/:clientId" element={renderProtected(<RelatoriosClienteDetalhes />)} />
+                          <Route path="/financeiro/compras" element={renderProtected(<SolicitacaoCompras />)} />
+                          <Route path="/financeiro/controle-financeiro" element={renderProtected(<></>)} />
+                          <Route path="/financeiro/config-movimentacoes" element={renderProtected(<></>)} />
+                          <Route path="/financeiro/agendamento-contas" element={renderProtected(<AgendamentoPagamentos />)} />
                           <Route path="/financeiro/notas-fiscais" element={renderProtected(<Invoices />)} />
-                          <Route path="/financeiro/gestao-fiscal" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <GestaoFiscal />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/financeiro-share-brasil" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <GestaoFiscal />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/configuracoes-fiscais" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <ConfiguracoesFiscais />
-                              </RoleProtected>
-                            )
-                          } />
+                          <Route path="/ciclo-voo" element={renderProtected(<Invoices />)} />
+                          <Route path="/historico-ponto" element={renderProtected(<Invoices />)} />
+                          <Route path="/financeiro/gestao-fiscal" element={renderProtected(<GestaoFiscal />)} />
+                          <Route path="/financeiro/financeiro-share-brasil" element={renderProtected(<GestaoFiscal />)} />
+                          <Route path="/financeiro/configuracoes-fiscais" element={renderProtected(<ConfiguracoesFiscais />)} />
                           <Route path="/financeiro/master" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master"]}>
@@ -356,27 +276,9 @@ const App = () => {
                           <Route path="/portal-cliente/dashboard" element={renderProtected(<PortalClienteDashboard />)} />
                           <Route path="/tripulacao" element={renderProtected(<GestaoTripulacao />)} />
                           <Route path="/tripulacao/:id" element={renderProtected(<TripulanteDetalhes />)} />
-                          <Route path="/gerenciar-usuarios" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master"]}>
-                                <GerenciarUsuarios />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestao-salarios" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <GestaoSalarios />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/gestao-funcionarios" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <GestaoFuncionarios />
-                              </RoleProtected>
-                            )
-                          } />
+                          <Route path="/gerenciar-usuarios" element={renderProtected(<GerenciarUsuarios />)} />
+                          <Route path="/gestao-salarios" element={renderProtected(<GestaoSalarios />)} />
+                          <Route path="/gestao-funcionarios" element={renderProtected(<GestaoFuncionarios />)} />
                           <Route path="/abastecimento" element={renderProtected(<ControleAbastecimento />)} />
 
                           {/* Diário de Bordo */}

@@ -1,6 +1,6 @@
 import { useLoading } from "@/contexts/LoadingContext";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import FlightLottie from "@/assets/Flight.lottie";
+import FlightLottieUrl from "@/assets/Flight.lottie?url";
 
 export function GlobalLoader() {
   const { isLoading } = useLoading();
@@ -11,7 +11,7 @@ export function GlobalLoader() {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm">
       <div className="flex flex-col items-center gap-2">
         <DotLottieReact
-          src={FlightLottie}
+          src={FlightLottieUrl}
           loop
           autoplay
           style={{ width: 180, height: 180 }}
