@@ -96,31 +96,18 @@ export default function FinanceiroCotistaDetalhe() {
   )?.aeronave;
 
   const cotistasDaAeronave = useMemo(
-    () => {
-      const filtered = cotistasPorAeronave.filter(
-        (c: any) => c.id_aeronave === aeronaveAtual
-      );
-
-      // Se houver socios_id vinculados, usar dados dos sócios
-      // Senão, usar dados do cliente principal
-      const cotistas = filtered.flatMap((c: any) => {
-        if (c.socios_id && c.socio) {
-          return {
-            id: c.socios_id,
-            nome: c.socio?.nome || "Sócio",
-            percentual: Number(c.percentual_sociedade) || 0,
-          };
-        }
-        return {
-          id: c.id_clientes,
+    () =>
+      cotistasPorAeronave
+        .filter((c: any) => c.id_aeronave === aeronaveAtual)
+        .map((c: any) => ({
+          id: c.socios_id || c.id_clientes,
           nome:
-            c.cliente?.razao_social || c.cliente?.proprietario || "Cotista",
+            c.socio?.nome ||
+            c.cliente?.razao_social ||
+            c.cliente?.proprietario ||
+            "Cotista",
           percentual: Number(c.percentual_sociedade) || 0,
-        };
-      });
-
-      return cotistas;
-    },
+        })),
     [cotistasPorAeronave, aeronaveAtual]
   );
 
