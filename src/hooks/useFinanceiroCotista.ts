@@ -200,7 +200,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
           supabase
             .from("cotistas_aeronave")
             .select(
-              "id_aeronave, id_clientes, percentual_sociedade, cliente:clientes(id, razao_social, proprietario)"
+              "id_aeronave, id_clientes, socios_id, percentual_sociedade, cliente:clientes(id, razao_social, proprietario), socio:socios_cliente(id, nome)"
             )
             .in("id_aeronave", aeronaveIds),
           (supabase as any)
