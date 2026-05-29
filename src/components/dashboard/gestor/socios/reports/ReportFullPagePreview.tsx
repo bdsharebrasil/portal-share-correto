@@ -5,7 +5,7 @@ import { FileDown, X, Loader2, Filter } from "lucide-react";
 import { toast } from "sonner";
 import type { MonthlyReportData } from "@/hooks/useMonthlyPartnerReport";
 import { MonthlyPartnerReportPDF, type ReportFilter } from "./MonthlyPartnerReportPDF";
-import { generatePartnerMonthlyPDF } from "@/components/utils/generatePartnerReport";
+import { exportElementToPDF, createFilenameWithTimestamp } from "@/utils/exportToPDF";
 
 interface Props {
   data: MonthlyReportData;
@@ -37,10 +37,10 @@ export function ReportFullPagePreview({
     try {
       setIsExporting(true);
       await new Promise((r) => setTimeout(r, 500));
-      await generatePartnerMonthlyPDF({
-        elementId: "full-page-report-content",
-        clientName,
-        month,
+      await exportElementToPDF("full-page-report-content", {
+        filename: createFilenameWithTimestamp(`relatorio-${clientName}-${month}`),
+        title: `Relatório ${clientName} - ${month}`,
+        includeTimestamp: true,
       });
       toast.success("PDF exportado com sucesso!");
     } catch (err) {
