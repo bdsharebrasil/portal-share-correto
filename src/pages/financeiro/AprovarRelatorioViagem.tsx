@@ -222,13 +222,25 @@ export default function AprovarRelatorioViagem() {
 
             // Também notificar tripulante
             if (report.tripulacao_id) {
-              notificationsToCreate.push({
-                user_id: report.tripulacao_id,
-                title: '⚠️ Relatório Aguardando Revisão',
-                message: `O cliente identificou divergências no relatório nº ${report.numero_relatorio}. O documento será revisado.`,
-                type: 'warning',
-                read: false,
-              });
+              try {
+                const { data: crewMember } = await supabase
+                  .from('membros_tripulacao')
+                  .select('user_id')
+                  .eq('id', report.tripulacao_id)
+                  .single();
+
+                if (crewMember?.user_id) {
+                  notificationsToCreate.push({
+                    user_id: crewMember.user_id,
+                    title: '⚠️ Relatório Aguardando Revisão',
+                    message: `O cliente identificou divergências no relatório nº ${report.numero_relatorio}. O documento será revisado.`,
+                    type: 'warning',
+                    read: false,
+                  });
+                }
+              } catch (err) {
+                console.warn('Erro ao buscar tripulante para notificação:', err);
+              }
             }
           }
 
