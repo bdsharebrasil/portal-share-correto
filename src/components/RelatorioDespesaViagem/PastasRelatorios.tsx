@@ -7,6 +7,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+// Extrai o prefixo fixo (REL-XXX-) do número do relatório
+function extractPrefixFromNumber(reportNumber: string): string {
+  const match = reportNumber.match(/^REL-[A-Z]{3}-/);
+  return match ? match[0] : 'REL-XXX-';
+}
+
+// Extrai a parte editável (número, ano, aeronave) do número do relatório
+function extractEditablePartFromNumber(reportNumber: string): string {
+  return reportNumber.replace(/^REL-[A-Z]{3}-/, '');
+}
+
+// Prepara o número completo adicionando o prefixo à parte editável
+function prependPrefixToNumber(originalNumber: string, editablePart: string): string {
+  const prefix = extractPrefixFromNumber(originalNumber);
+  return prefix + editablePart;
+}
+
 export interface PastaReportItem {
   id?: string;
   report_number: string;
@@ -385,16 +402,21 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumb
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="newNumber">Novo Número</Label>
-              <Input
-                id="newNumber"
-                value={newNumber}
-                onChange={(e) => setNewNumber(e.target.value)}
-                placeholder={report.report_number}
-                disabled={isSaving}
-              />
+              <Label>Número do Relatório</Label>
+              <div className="flex gap-2">
+                <div className="flex-shrink-0 flex items-center px-3 py-2 bg-muted border border-input rounded-md text-sm font-mono text-muted-foreground">
+                  {extractPrefixFromNumber(report.report_number)}
+                </div>
+                <Input
+                  id="newNumber"
+                  value={extractEditablePartFromNumber(newNumber)}
+                  onChange={(e) => setNewNumber(prependPrefixToNumber(report.report_number, e.target.value))}
+                  placeholder={extractEditablePartFromNumber(report.report_number)}
+                  disabled={isSaving}
+                />
+              </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Você pode alterar o número mantendo o código do cliente e o ano.
+                O prefixo com código do cliente é fixo. Edite apenas o número e aeronave.
               </p>
             </div>
           </div>
