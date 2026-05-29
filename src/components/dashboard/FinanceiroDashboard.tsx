@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Receipt, MapPin, DollarSign, Play, Coffee, LogOut, Pause,
   ArrowUpRight, CalendarDays, FileText, CheckCircle2, Timer,
-  Plane, BookOpen, MessageSquare, Plus, AlertTriangle
+  Plane, BookOpen, MessageSquare, Plus, AlertTriangle, Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
