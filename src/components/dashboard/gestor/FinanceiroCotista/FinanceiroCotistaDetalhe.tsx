@@ -90,6 +90,7 @@ export default function FinanceiroCotistaDetalhe() {
   const cotistasPorAeronave = data?.cotistasPorAeronave || [];
   const abastecimentos = data?.abastecimentos || [];
   const relatorios = data?.relatorios || [];
+  const rateioDespesasComTodosCotistasDetalhado = data?.rateioDespesasComTodosCotistasDetalhado || [];
 
   const aeronaveAtual =
     aeronaveSelecionada || (aeronaves[0] as any)?.id_aeronave || "";
@@ -99,8 +100,9 @@ export default function FinanceiroCotistaDetalhe() {
   )?.aeronave;
 
   const cotistasDaAeronave = useMemo(
-    () =>
-      cotistasPorAeronave
+    () => {
+      // Primeiro, obter cotistas de cotistas_aeronave
+      const cotistasDeAeronave = cotistasPorAeronave
         .filter((c: any) => c.id_aeronave === aeronaveAtual)
         .map((c: any) => ({
           id: c.socios_id || c.id_clientes,
@@ -110,8 +112,34 @@ export default function FinanceiroCotistaDetalhe() {
             c.cliente?.proprietario ||
             "Cotista",
           percentual: Number(c.percentual_sociedade) || 0,
-        })),
-    [cotistasPorAeronave, aeronaveAtual]
+        }));
+
+      // Se não houver cotistas em cotistas_aeronave, extrair de rateio_despesas
+      if (cotistasDeAeronave.length === 0) {
+        const cotistasDoRateio = new Map<string, { id: string; nome: string; percentual: number }>();
+
+        rateioDespesasComTodosCotistasDetalhado.forEach((despesa: any) => {
+          despesa.rateios?.forEach((r: any) => {
+            // Usar socio_id se disponível (cotista/sócio), caso contrário usar cliente_id
+            const cotista_id = r.socio_id || r.cliente_id;
+            const cotista_nome = r.socios_nome || r.clientes_nome || "Cotista";
+
+            if (cotista_id && !cotistasDoRateio.has(cotista_id)) {
+              cotistasDoRateio.set(cotista_id, {
+                id: cotista_id,
+                nome: cotista_nome,
+                percentual: Number(r.percentual_sociedade) || 0,
+              });
+            }
+          });
+        });
+
+        return Array.from(cotistasDoRateio.values());
+      }
+
+      return cotistasDeAeronave;
+    },
+    [cotistasPorAeronave, aeronaveAtual, rateioDespesasComTodosCotistasDetalhado]
   );
 
   const despesasDaAeronave = useMemo(

@@ -355,6 +355,8 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
             rateios: rateiosArray.map((r: any) => ({
               cliente_id: r.cliente_id,
               clientes_nome: r.clientes_nome,
+              socio_id: r.socio_id,
+              socios_nome: r.socios_nome,
               percentual_sociedade: Number(r.percentual_sociedade) || 0,
               valor_rateado: Number(r.valor_rateado) || 0,
               valor_pago_real: Number(r.valor_pago_real) || 0,
@@ -430,6 +432,8 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
             rateios: Array.from(rateioPorClienteMap.values()).map((r: any) => ({
               cliente_id: r.cliente_id,
               clientes_nome: r.clientes_nome,
+              socio_id: r.socio_id,
+              socios_nome: r.socios_nome,
               percentual_sociedade: Number(r.percentual_sociedade) || 0,
               valor_rateado: Number(r.valor_rateado) || 0,
               valor_pago_real: Number(r.valor_pago_real) || 0,
