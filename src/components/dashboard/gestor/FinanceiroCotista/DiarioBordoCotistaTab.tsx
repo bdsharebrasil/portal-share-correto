@@ -100,8 +100,6 @@ type SocioRow = {
   codigo_cliente: string | null;
 };
 
-// ── view modes ────────────────────────────────────────────────────────────────
-
 type ViewMode =
   | { type: "consolidado" }
   | { type: "socio"; socioId: string }
@@ -157,13 +155,13 @@ function useDiarioBordo(clienteId: string | undefined, aeronaveId: string) {
 
 // ── componente principal ──────────────────────────────────────────────────────
 
-export function DiarioBordoTab({
+export function DiarioBordoCotistaTab({
   clienteId,
   aeronaveId,
   aeronaveMatricula,
   relatorios,
 }: {
-  clienteId: string | undefined;
+  clienteId: string;
   aeronaveId: string;
   aeronaveMatricula?: string;
   relatorios: RelRow[];
