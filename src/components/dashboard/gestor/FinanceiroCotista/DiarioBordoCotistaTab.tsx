@@ -1,7 +1,7 @@
 // DiarioBordoTab.tsx
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import {
   Plane, Fuel, FileText, Clock, TrendingUp, TrendingDown,
   Minus, MapPin, ChevronDown, ChevronUp, Calendar
