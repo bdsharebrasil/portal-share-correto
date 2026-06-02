@@ -147,7 +147,7 @@ function useDiarioBordo(clienteId: string | undefined, aeronaveId: string) {
         lancamentos: (lancRes.data ?? []) as LancRow[],
         abastecimentos: (abastRes.data ?? []) as AbastRow[],
         aerodromes: (aeroRes.data ?? []) as AerodromeRow[],
-        socios: (sociosRes.data ?? []) as SocioRow[],
+        socios: sociosRes.data ? (sociosRes.data as SocioRow[]) : [],
       };
     },
   });
@@ -259,7 +259,7 @@ export function DiarioBordoCotistaTab({
 
   // Resumo por sócio para o mês (usado no modo consolidado)
   const resumoPorSocio = useMemo(() => {
-    if (!mesSel || !data) return [];
+    if (!mesSel || !data || !data.socios) return [];
     const lancMes = (data.lancamentos).filter((l) => {
       const d = new Date(l.data_registro + "T00:00");
       return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
