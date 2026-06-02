@@ -57,6 +57,9 @@ export interface AbastecimentoItem {
   status_pagamento: string | null;
   abastecedor: string | null;
   aeronave_id: string | null;
+  id_clientes?: string | null;
+  clientes_nome?: string | null;
+  socio_nome?: string | null;
 }
 
 export interface RelatorioViagemItem {
@@ -221,10 +224,9 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
           supabase
             .from("abastecimentos")
             .select(
-              "id, data, trecho, local, litros, valor_unitario, valor_total, status_pagamento, abastecedor, aeronave_id"
+              "id, data, trecho, local, litros, valor_unitario, valor_total, status_pagamento, abastecedor, aeronave_id, id_clientes, socio_nome"
             )
             .in("aeronave_id", aeronaveIds)
-            .eq("id_clientes", clienteId!)
             .order("data", { ascending: false }),
           supabase
             .from("travel_expense_reports")
@@ -239,12 +241,24 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         todosCotistas = cotistasData || [];
         rateios = rats || [];
         rateioDespesasComTodosCotistas = ratsAllClientes || [];
-        abastecimentos = (abast || []).map((a: any) => ({
-          ...a,
-          litros: Number(a.litros) || 0,
-          valor_unitario: Number(a.valor_unitario) || 0,
-          valor_total: Number(a.valor_total) || 0,
-        }));
+        abastecimentos = (abast || []).map((a: any) => {
+          // Tentar encontrar o nome do cliente entre os cotistas da aeronave
+          let clientes_nome: string | null = null;
+          if (a.id_clientes) {
+            const cotista = todosCotistas.find((c: any) => c.id_clientes === a.id_clientes);
+            if (cotista && cotista.cliente) {
+              clientes_nome = cotista.cliente.razao_social || cotista.cliente.proprietario;
+            }
+          }
+
+          return {
+            ...a,
+            clientes_nome,
+            litros: Number(a.litros) || 0,
+            valor_unitario: Number(a.valor_unitario) || 0,
+            valor_total: Number(a.valor_total) || 0,
+          };
+        });
         relatorios = (rels || []).map((r: any) => ({
           ...r,
           total_valor: Number(r.total_valor) || 0,
