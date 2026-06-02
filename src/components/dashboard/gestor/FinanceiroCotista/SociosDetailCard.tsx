@@ -261,9 +261,9 @@ export function SociosDetailCard({ clienteId, clienteNome }: SociosDetailCardPro
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((transaction, idx) => (
-                    <TableRow 
-                      key={idx}
+                  {transactions.map((transaction) => (
+                    <TableRow
+                      key={transaction.id}
                       className="border-b border-border/30 hover:bg-muted/30 transition-colors"
                     >
                       <TableCell className="w-12">

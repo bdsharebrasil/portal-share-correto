@@ -173,7 +173,7 @@ export default function FinanceiroCotistas() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="bg-card/50 animate-pulse h-40" />
+              <Card key={`skeleton-${i}`} className="bg-card/50 animate-pulse h-40" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
