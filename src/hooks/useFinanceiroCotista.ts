@@ -182,7 +182,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         .maybeSingle();
       if (cErr) throw cErr;
 
-      const { data: minhasAeronaves, error: aErr } = await supabase
+      const { data: minhasAeronavesRaw, error: aErr } = await supabase
         .from("cotistas_aeronave")
         .select(
           "id_aeronave, percentual_sociedade, aeronave:aeronave(id, matricula, modelo, fabricante, ano)"
@@ -190,6 +190,13 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         .eq("id_clientes", clienteId!);
       if (aErr) throw aErr;
       // Missing error handling was here
+
+      // Deduplicate por id_aeronave (pode haver múltiplos sócios para a mesma aeronave)
+      const minhasAeronaves = Array.from(
+        new Map(
+          (minhasAeronavesRaw || []).map((a: any) => [a.id_aeronave, a])
+        ).values()
+      );
 
       const aeronaveIds = (minhasAeronaves || [])
         .map((a: any) => a.id_aeronave)

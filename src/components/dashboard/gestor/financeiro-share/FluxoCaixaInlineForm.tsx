@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -477,6 +476,12 @@ export function FluxoCaixaInlineForm({
       return;
     }
 
+    // Validação: se tipo_caixa = 'cliente', precisa ter cliente selecionado
+    if (formData.tipo_caixa === 'cliente' && !formData.cliente_id) {
+      toast.error("Selecione um cliente para a Caixa do Cliente");
+      return;
+    }
+
     try {
       const valor = parseFloat(formData.valor);
       if (isNaN(valor) || valor <= 0) {
@@ -833,6 +838,52 @@ export function FluxoCaixaInlineForm({
           </div>
         </div>
 
+        {/* Seletor de Cliente - Quando tipo_caixa = 'cliente' (e NÃO é reembolso) */}
+        {watch("tipo_caixa") === 'cliente' && !isReembolsavel && tipoMovimento !== "saida" && (
+          <Card className="p-4 bg-blue-950/30 border-blue-600/50 space-y-4">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40">
+                Caixa do Cliente
+              </Badge>
+              <p className="text-xs text-blue-300">Selecione o cliente para este lançamento</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1">Cliente *</Label>
+                <Select
+                  value={watch("cliente_id") || ""}
+                  onValueChange={(value) => {
+                    const cliente = clientes.find(c => c.id === value);
+                    if (cliente) handleClienteSelect(cliente);
+                  }}
+                >
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Selecione o cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.razao_social || c.proprietario}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {watch("cliente_id") && (
+                <div className="flex items-end">
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded px-3 py-2 w-full">
+                    <p className="text-xs text-blue-300 mb-0.5">Cliente selecionado:</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {clientes.find(c => c.id === watch("cliente_id"))?.razao_social ||
+                       clientes.find(c => c.id === watch("cliente_id"))?.proprietario}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Reembolso e Rateio - Apenas para despesas */}
         {tipoMovimento === "saida" && (
           <Card className="p-4 bg-muted/20 border-border/50 space-y-4">
@@ -853,6 +904,12 @@ export function FluxoCaixaInlineForm({
                 </Badge>
               )}
             </div>
+
+            {isReembolsavel && watch("tipo_caixa") === 'cliente' && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded p-2 text-xs text-blue-300 mb-4">
+                Lançamento registrado na <strong>Caixa do Cliente</strong>
+              </div>
+            )}
 
             {isReembolsavel && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
