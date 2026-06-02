@@ -128,8 +128,11 @@ export function TravelReportStatusManager({
             status_novo: targetStatus,
             data_mudanca: new Date().toISOString(),
             observacoes: `Status alterado de ${currentStatus} para ${targetStatus}`,
-          })
-          .catch(() => ({ error: null })); // Não quebra se tabela não existir
+          });
+
+        if (auditError) {
+          console.warn("Erro ao registrar auditoria (tabela pode não existir):", auditError);
+        }
       }
 
       toast.success(`✓ Status alterado para "${STATUS_INFO[targetStatus].label}"`);
