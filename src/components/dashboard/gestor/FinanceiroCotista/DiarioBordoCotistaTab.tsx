@@ -1,6 +1,7 @@
+// DiarioBordoTab.tsx
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import {
   Plane, Fuel, FileText, Clock, TrendingUp, TrendingDown,
   Minus, MapPin, ChevronDown, ChevronUp, Calendar
@@ -25,6 +26,7 @@ const monthNames = [
   "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
 ];
 
+// Haversine simples — retorna km
 function haversineKm(
   c1: string | null,
   c2: string | null,
@@ -51,7 +53,7 @@ function haversineKm(
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// ── tipos ─────────────────────────────────────────────────────────────────────
+// ── tipos mínimos ─────────────────────────────────────────────────────────────
 
 type LancRow = {
   id: string;
@@ -126,17 +128,20 @@ function useDiarioBordoCliente(clienteId: string | undefined, aeronaveId: string
 
 // ── componente principal ──────────────────────────────────────────────────────
 
-export function DiarioBordoCotistaTab({
+export function DiarioBordoTab({
   clienteId,
   aeronaveId,
+  aeronaveMatricula,
   relatorios,
 }: {
-  clienteId: string;
+  clienteId: string | undefined;
   aeronaveId: string;
+  aeronaveMatricula?: string;
   relatorios: RelRow[];
 }) {
   const { data, isLoading } = useDiarioBordoCliente(clienteId, aeronaveId);
 
+  // meses disponíveis
   const availableMeses = useMemo(() => {
     const set = new Map<string, { mes: number; ano: number }>();
     for (const l of data?.lancamentos ?? []) {
@@ -151,10 +156,12 @@ export function DiarioBordoCotistaTab({
 
   const [mesSel, setMesSel] = useState<{ mes: number; ano: number } | null>(null);
 
+  // inicializa com o mês mais recente
   useEffect(() => {
     if (availableMeses.length > 0 && !mesSel) setMesSel(availableMeses[0]);
   }, [availableMeses]);
 
+  // mapas auxiliares
   const abastByLanc = useMemo(() => {
     const m = new Map<string, AbastRow[]>();
     for (const a of data?.abastecimentos ?? []) {
@@ -172,6 +179,7 @@ export function DiarioBordoCotistaTab({
     return m;
   }, [data?.aerodromes]);
 
+  // lançamentos do mês selecionado
   const lancMes = useMemo(() => {
     if (!mesSel) return [];
     return (data?.lancamentos ?? []).filter((l) => {
@@ -180,6 +188,7 @@ export function DiarioBordoCotistaTab({
     });
   }, [data?.lancamentos, mesSel]);
 
+  // lançamentos do mês anterior (comparativo)
   const lancMesAnterior = useMemo(() => {
     if (!mesSel) return [];
     const ma = mesSel.mes === 1
@@ -191,6 +200,7 @@ export function DiarioBordoCotistaTab({
     });
   }, [data?.lancamentos, mesSel]);
 
+  // totais do mês atual
   const totais = useMemo(() => ({
     pousos: lancMes.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
     tVoo: lancMes.reduce((s, l) => s + Number(l.tempo_voo ?? 0), 0),
@@ -204,6 +214,16 @@ export function DiarioBordoCotistaTab({
     voos: lancMesAnterior.length,
   }), [lancMesAnterior]);
 
+  // relatório vinculado ao voo (por data dentro do período)
+  const relByDate = useMemo(() => {
+    const m = new Map<string, RelRow>();
+    for (const r of relatorios) {
+      if (!r.data_inicio || !r.data_fim) continue;
+      m.set(`${r.data_inicio}__${r.data_fim}`, r);
+    }
+    return m;
+  }, [relatorios]);
+
   function relParaVoo(l: LancRow): RelRow | null {
     for (const r of relatorios) {
       if (!r.data_inicio || !r.data_fim) continue;
@@ -212,6 +232,8 @@ export function DiarioBordoCotistaTab({
     }
     return null;
   }
+
+  // ── render ────────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -310,6 +332,9 @@ export function DiarioBordoCotistaTab({
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-foreground tracking-tight">
             Voos em {monthNames[mesSel.mes - 1]} {mesSel.ano}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              {aeronaveMatricula}
+            </span>
           </h3>
 
           {lancMes.length === 0 ? (
