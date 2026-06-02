@@ -1,12 +1,11 @@
 // DiarioBordoTab.tsx
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import {
   Plane, Fuel, FileText, Clock, TrendingUp, TrendingDown,
-  Minus, MapPin, ChevronDown, ChevronUp, Calendar
+  Minus, MapPin, ChevronDown, ChevronUp, Calendar, Users, User, LayoutGrid
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -26,7 +25,6 @@ const monthNames = [
   "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
 ];
 
-// Haversine simples — retorna km
 function haversineKm(
   c1: string | null,
   c2: string | null,
@@ -53,7 +51,7 @@ function haversineKm(
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// ── tipos mínimos ─────────────────────────────────────────────────────────────
+// ── tipos ─────────────────────────────────────────────────────────────────────
 
 type LancRow = {
   id: string;
@@ -66,6 +64,8 @@ type LancRow = {
   combustivel_adicionado: number | null;
   natureza_voo: string | null;
   trecho: string | null;
+  socios_id: string | null;       // ← campo chave
+  socios_nome: string | null;     // ← campo chave
 };
 
 type AbastRow = {
@@ -92,35 +92,64 @@ type AerodromeRow = {
   coordenadas: string | null;
 };
 
+type SocioRow = {
+  id: string;
+  nome: string;
+  cpf: string;
+  percentual_participacao: number | null;
+  codigo_cliente: string | null;
+};
+
+// ── view modes ────────────────────────────────────────────────────────────────
+
+type ViewMode =
+  | { type: "consolidado" }
+  | { type: "socio"; socioId: string }
+  | { type: "sem_socio" };
+
 // ── hook de dados ─────────────────────────────────────────────────────────────
 
-function useDiarioBordoCliente(clienteId: string | undefined, aeronaveId: string) {
+function useDiarioBordo(clienteId: string | undefined, aeronaveId: string) {
   return useQuery({
     queryKey: ["diario-bordo-cliente", clienteId, aeronaveId],
     enabled: !!clienteId && !!aeronaveId,
     staleTime: 60_000,
     queryFn: async () => {
-      const [lancRes, abastRes, aeroRes] = await Promise.all([
+      const [lancRes, abastRes, aeroRes, sociosRes] = await Promise.all([
         supabase
           .from("lancamentos_diario_bordo")
-          .select("id,data_registro,aerodromo_partida,aerodromo_chegada,tempo_voo,tempo_total,pousos_total,combustivel_adicionado,natureza_voo,trecho")
+          .select(`
+            id, data_registro, aerodromo_partida, aerodromo_chegada,
+            tempo_voo, tempo_total, pousos_total, combustivel_adicionado,
+            natureza_voo, trecho, socios_id, socios_nome
+          `)
           .eq("aeronave_id", aeronaveId)
           .eq("clientes_id", clienteId)
           .order("data_registro", { ascending: false }),
+
         supabase
           .from("abastecimentos")
           .select("id,logbook_entry_id,litros,valor_total,local,abastecedor,comanda")
           .eq("aeronave_id", aeronaveId)
           .not("logbook_entry_id", "is", null),
+
         supabase
           .from("aerodromes")
           .select("designativo,nome,coordenadas"),
+
+        // Busca sócios do cliente
+        supabase
+          .from("socios")
+          .select("id,nome,cpf,percentual_participacao,codigo_cliente")
+          .eq("cliente_id", clienteId)
+          .order("nome"),
       ]);
 
       return {
         lancamentos: (lancRes.data ?? []) as LancRow[],
         abastecimentos: (abastRes.data ?? []) as AbastRow[],
         aerodromes: (aeroRes.data ?? []) as AerodromeRow[],
+        socios: (sociosRes.data ?? []) as SocioRow[],
       };
     },
   });
@@ -139,9 +168,12 @@ export function DiarioBordoTab({
   aeronaveMatricula?: string;
   relatorios: RelRow[];
 }) {
-  const { data, isLoading } = useDiarioBordoCliente(clienteId, aeronaveId);
+  const { data, isLoading } = useDiarioBordo(clienteId, aeronaveId);
 
-  // meses disponíveis
+  const [mesSel, setMesSel] = useState<{ mes: number; ano: number } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: "consolidado" });
+
+  // Meses disponíveis (global, independente do modo)
   const availableMeses = useMemo(() => {
     const set = new Map<string, { mes: number; ano: number }>();
     for (const l of data?.lancamentos ?? []) {
@@ -154,14 +186,48 @@ export function DiarioBordoTab({
     );
   }, [data?.lancamentos]);
 
-  const [mesSel, setMesSel] = useState<{ mes: number; ano: number } | null>(null);
-
-  // inicializa com o mês mais recente
   useEffect(() => {
     if (availableMeses.length > 0 && !mesSel) setMesSel(availableMeses[0]);
   }, [availableMeses]);
 
-  // mapas auxiliares
+  // Verifica se o cliente tem sócios
+  const temSocios = (data?.socios ?? []).length > 0;
+
+  // Lançamentos filtrados pelo modo de visualização e mês
+  const lancFiltrados = useMemo(() => {
+    let base = data?.lancamentos ?? [];
+
+    if (viewMode.type === "socio") {
+      base = base.filter((l) => l.socios_id === viewMode.socioId);
+    } else if (viewMode.type === "sem_socio") {
+      base = base.filter((l) => !l.socios_id);
+    }
+    // "consolidado" = todos
+
+    if (!mesSel) return [];
+    return base.filter((l) => {
+      const d = new Date(l.data_registro + "T00:00");
+      return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
+    });
+  }, [data?.lancamentos, viewMode, mesSel]);
+
+  const lancMesAnterior = useMemo(() => {
+    if (!mesSel) return [];
+    const ma = mesSel.mes === 1
+      ? { mes: 12, ano: mesSel.ano - 1 }
+      : { mes: mesSel.mes - 1, ano: mesSel.ano };
+
+    let base = data?.lancamentos ?? [];
+    if (viewMode.type === "socio") base = base.filter((l) => l.socios_id === viewMode.socioId);
+    else if (viewMode.type === "sem_socio") base = base.filter((l) => !l.socios_id);
+
+    return base.filter((l) => {
+      const d = new Date(l.data_registro + "T00:00");
+      return d.getMonth() + 1 === ma.mes && d.getFullYear() === ma.ano;
+    });
+  }, [data?.lancamentos, viewMode, mesSel]);
+
+  // Mapas auxiliares
   const abastByLanc = useMemo(() => {
     const m = new Map<string, AbastRow[]>();
     for (const a of data?.abastecimentos ?? []) {
@@ -179,56 +245,52 @@ export function DiarioBordoTab({
     return m;
   }, [data?.aerodromes]);
 
-  // lançamentos do mês selecionado
-  const lancMes = useMemo(() => {
-    if (!mesSel) return [];
-    return (data?.lancamentos ?? []).filter((l) => {
-      const d = new Date(l.data_registro + "T00:00");
-      return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
-    });
-  }, [data?.lancamentos, mesSel]);
-
-  // lançamentos do mês anterior (comparativo)
-  const lancMesAnterior = useMemo(() => {
-    if (!mesSel) return [];
-    const ma = mesSel.mes === 1
-      ? { mes: 12, ano: mesSel.ano - 1 }
-      : { mes: mesSel.mes - 1, ano: mesSel.ano };
-    return (data?.lancamentos ?? []).filter((l) => {
-      const d = new Date(l.data_registro + "T00:00");
-      return d.getMonth() + 1 === ma.mes && d.getFullYear() === ma.ano;
-    });
-  }, [data?.lancamentos, mesSel]);
-
-  // totais do mês atual
+  // Totais do período selecionado
   const totais = useMemo(() => ({
-    pousos: lancMes.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
-    tVoo: lancMes.reduce((s, l) => s + Number(l.tempo_voo ?? 0), 0),
-    voos: lancMes.length,
-    abast: lancMes.reduce((s, l) => s + Number(l.combustivel_adicionado ?? 0), 0),
-  }), [lancMes]);
+    pousos: lancFiltrados.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
+    tVoo: lancFiltrados.reduce((s, l) => s + Number(l.tempo_voo ?? 0), 0),
+    voos: lancFiltrados.length,
+    abast: lancFiltrados.reduce((s, l) => s + Number(l.combustivel_adicionado ?? 0), 0),
+  }), [lancFiltrados]);
 
   const totaisAnt = useMemo(() => ({
-    pousos: lancMesAnterior.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
     tVoo: lancMesAnterior.reduce((s, l) => s + Number(l.tempo_voo ?? 0), 0),
+    pousos: lancMesAnterior.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
     voos: lancMesAnterior.length,
   }), [lancMesAnterior]);
 
-  // relatório vinculado ao voo (por data dentro do período)
-  const relByDate = useMemo(() => {
-    const m = new Map<string, RelRow>();
-    for (const r of relatorios) {
-      if (!r.data_inicio || !r.data_fim) continue;
-      m.set(`${r.data_inicio}__${r.data_fim}`, r);
-    }
-    return m;
-  }, [relatorios]);
+  // Resumo por sócio para o mês (usado no modo consolidado)
+  const resumoPorSocio = useMemo(() => {
+    if (!mesSel || !data) return [];
+    const lancMes = (data.lancamentos).filter((l) => {
+      const d = new Date(l.data_registro + "T00:00");
+      return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
+    });
+
+    return data.socios.map((s) => {
+      const voos = lancMes.filter((l) => l.socios_id === s.id);
+      return {
+        socio: s,
+        voos: voos.length,
+        tVoo: voos.reduce((acc, l) => acc + Number(l.tempo_voo ?? 0), 0),
+        pousos: voos.reduce((acc, l) => acc + Number(l.pousos_total ?? 0), 0),
+      };
+    });
+  }, [data, mesSel]);
+
+  const semSocioCount = useMemo(() => {
+    if (!mesSel || !data) return 0;
+    return data.lancamentos.filter((l) => {
+      if (l.socios_id) return false;
+      const d = new Date(l.data_registro + "T00:00");
+      return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
+    }).length;
+  }, [data, mesSel]);
 
   function relParaVoo(l: LancRow): RelRow | null {
     for (const r of relatorios) {
       if (!r.data_inicio || !r.data_fim) continue;
-      const d = l.data_registro;
-      if (d >= r.data_inicio && d <= r.data_fim) return r;
+      if (l.data_registro >= r.data_inicio && l.data_registro <= r.data_fim) return r;
     }
     return null;
   }
@@ -293,7 +355,84 @@ export function DiarioBordoTab({
         </div>
       </div>
 
-      {/* ── CARDS RESUMO ───────────────────────────────────────────────── */}
+      {/* ── SELETOR DE VISUALIZAÇÃO (apenas se tiver sócios) ───────────── */}
+      {temSocios && (
+        <div className="flex items-center gap-2 flex-wrap p-1 bg-muted/20 rounded-xl border border-border/40 w-fit">
+          {/* Consolidado */}
+          <ViewTabButton
+            active={viewMode.type === "consolidado"}
+            onClick={() => setViewMode({ type: "consolidado" })}
+            icon={<LayoutGrid className="h-3.5 w-3.5" />}
+            label="Consolidado"
+          />
+
+          {/* Um botão por sócio */}
+          {data?.socios.map((s) => (
+            <ViewTabButton
+              key={s.id}
+              active={viewMode.type === "socio" && viewMode.socioId === s.id}
+              onClick={() => setViewMode({ type: "socio", socioId: s.id })}
+              icon={<User className="h-3.5 w-3.5" />}
+              label={s.nome.split(" ")[0]} // Primeiro nome
+              badge={s.percentual_participacao ? `${s.percentual_participacao}%` : undefined}
+            />
+          ))}
+
+          {/* Sem atribuição (só aparece se existirem voos sem sócio) */}
+          {semSocioCount > 0 && (
+            <ViewTabButton
+              active={viewMode.type === "sem_socio"}
+              onClick={() => setViewMode({ type: "sem_socio" })}
+              icon={<Users className="h-3.5 w-3.5" />}
+              label="Sem atribuição"
+              badge={String(semSocioCount)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── BREAKDOWN POR SÓCIO (só no modo consolidado, com múltiplos sócios) */}
+      {viewMode.type === "consolidado" && temSocios && mesSel && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {resumoPorSocio.map(({ socio, voos, tVoo, pousos }) => (
+            <button
+              key={socio.id}
+              onClick={() => setViewMode({ type: "socio", socioId: socio.id })}
+              className="group text-left p-4 rounded-xl border border-border/40 bg-card/30 hover:border-primary/30 hover:bg-card/60 transition-all"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-3.5 w-3.5 text-primary/70" />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">{socio.nome}</span>
+                </div>
+                {socio.percentual_participacao && (
+                  <Badge variant="outline" className="text-[10px] border-border/50 text-muted-foreground">
+                    {socio.percentual_participacao}%
+                  </Badge>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Voos</p>
+                  <p className="text-sm font-bold text-foreground">{voos}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Horas</p>
+                  <p className="text-sm font-bold font-mono text-cyan-500">{decimalToHHMM(tVoo)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Pousos</p>
+                  <p className="text-sm font-bold text-foreground">{pousos}</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── CARDS RESUMO DO PERÍODO ────────────────────────────────────── */}
       {mesSel && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard
@@ -327,37 +466,78 @@ export function DiarioBordoTab({
         </div>
       )}
 
-      {/* ── LISTA DE VOOS ──────────────────────────────────────────────── */}
+      {/* ── TÍTULO COM CONTEXTO DO MODO ───────────────────────────────── */}
       {mesSel && (
-        <div className="space-y-2">
+        <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-foreground tracking-tight">
-            Voos em {monthNames[mesSel.mes - 1]} {mesSel.ano}
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              {aeronaveMatricula}
-            </span>
+            {viewMode.type === "consolidado" && "Todos os voos"}
+            {viewMode.type === "socio" && `Voos de ${data?.socios.find(s => s.id === viewMode.socioId)?.nome}`}
+            {viewMode.type === "sem_socio" && "Voos sem sócio atribuído"}
+            {" — "}
+            {monthNames[mesSel.mes - 1]} {mesSel.ano}
           </h3>
-
-          {lancMes.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              Nenhum voo registrado neste período.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {lancMes.map((l, idx) => (
-                <VooCard
-                  key={l.id}
-                  idx={idx + 1}
-                  lanc={l}
-                  abastecimentos={abastByLanc.get(l.id) ?? []}
-                  relatorio={relParaVoo(l)}
-                  aerodromesMap={aerodromesMap}
-                />
-              ))}
-            </div>
-          )}
+          <span className="text-xs font-normal text-muted-foreground font-mono">
+            {aeronaveMatricula}
+          </span>
         </div>
       )}
+
+      {/* ── LISTA DE VOOS ──────────────────────────────────────────────── */}
+      {mesSel && (
+        lancFiltrados.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Nenhum voo registrado neste período para esta visualização.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {lancFiltrados.map((l, idx) => (
+              <VooCard
+                key={l.id}
+                idx={idx + 1}
+                lanc={l}
+                abastecimentos={abastByLanc.get(l.id) ?? []}
+                relatorio={relParaVoo(l)}
+                aerodromesMap={aerodromesMap}
+                showSocio={viewMode.type === "consolidado" && temSocios}
+              />
+            ))}
+          </div>
+        )
+      )}
     </div>
+  );
+}
+
+// ── ViewTabButton ─────────────────────────────────────────────────────────────
+
+function ViewTabButton({
+  active, onClick, icon, label, badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  badge?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+        active
+          ? "bg-background text-foreground shadow-sm border border-border/60"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {icon}
+      {label}
+      {badge && (
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+          active ? "bg-primary/10 text-primary" : "bg-muted/50 text-muted-foreground"
+        }`}>
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -398,17 +578,9 @@ function SummaryCard({
           <div className={`flex items-center gap-1 text-[11px] font-medium ${
             isNeutral ? "text-muted-foreground" : isPositive ? "text-emerald-500" : "text-rose-500"
           }`}>
-            {isNeutral ? (
-              <Minus className="h-3 w-3" />
-            ) : isPositive ? (
-              <TrendingUp className="h-3 w-3" />
-            ) : (
-              <TrendingDown className="h-3 w-3" />
-            )}
+            {isNeutral ? <Minus className="h-3 w-3" /> : isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             <span>{deltaStr}</span>
-            {deltaLabel && (
-              <span className="text-muted-foreground/60 font-normal">{deltaLabel}</span>
-            )}
+            {deltaLabel && <span className="text-muted-foreground/60 font-normal">{deltaLabel}</span>}
           </div>
         )}
       </div>
@@ -419,13 +591,14 @@ function SummaryCard({
 // ── VooCard ───────────────────────────────────────────────────────────────────
 
 function VooCard({
-  idx, lanc, abastecimentos, relatorio, aerodromesMap,
+  idx, lanc, abastecimentos, relatorio, aerodromesMap, showSocio,
 }: {
   idx: number;
   lanc: LancRow;
   abastecimentos: AbastRow[];
   relatorio: RelRow | null;
-  aerodromesMap: Map<string, AerodromeRow>;
+  aerodromesMap: Map<string, { coordenadas: string | null }>;
+  showSocio: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -447,24 +620,18 @@ function VooCard({
 
   const temAbast = abastecimentos.length > 0;
   const totalAbastLitros = abastecimentos.reduce((s, a) => s + Number(a.litros ?? 0), 0);
-  const totalAbastValor = abastecimentos.reduce((s, a) => s + Number(a.valor_total ?? 0), 0);
 
   return (
     <div className="rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm overflow-hidden transition-all hover:border-border/70">
-      {/* linha resumo */}
       <button
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-muted/10 transition-colors"
       >
-        {/* número */}
         <span className="w-6 text-center text-[10px] font-mono text-muted-foreground/50 shrink-0">
           {idx}
         </span>
-
-        {/* data */}
         <span className="text-xs font-mono text-muted-foreground w-12 shrink-0">{data}</span>
 
-        {/* rota */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className="text-sm font-semibold text-foreground truncate">{trecho}</span>
           {distancia && (
@@ -474,8 +641,14 @@ function VooCard({
           )}
         </div>
 
-        {/* badges compactos */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Badge do sócio no modo consolidado */}
+          {showSocio && lanc.socios_nome && (
+            <Badge variant="outline" className="text-[10px] bg-blue-500/5 text-blue-500 border-blue-500/20 px-1.5">
+              <User className="h-2.5 w-2.5 mr-1" />
+              {lanc.socios_nome.split(" ")[0]}
+            </Badge>
+          )}
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <Clock className="h-3 w-3" />
             <span className="font-mono">{decimalToHHMM(Number(lanc.tempo_voo ?? 0))}</span>
@@ -503,7 +676,6 @@ function VooCard({
         </span>
       </button>
 
-      {/* expansão detalhes */}
       {expanded && (
         <div className="border-t border-border/30 px-4 py-3 bg-muted/10">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs">
@@ -514,8 +686,8 @@ function VooCard({
             <Detail label="Pousos" value={String(lanc.pousos_total ?? 0)} />
             <Detail label="Natureza" value={lanc.natureza_voo ?? "—"} />
             {distancia && <Detail label="Distância" value={`~${distancia} km`} />}
+            {lanc.socios_nome && <Detail label="Sócio" value={lanc.socios_nome} />}
 
-            {/* abastecimentos */}
             {abastecimentos.map((a, i) => (
               <div key={a.id} className="col-span-full">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">
@@ -537,7 +709,6 @@ function VooCard({
               </div>
             ))}
 
-            {/* relatório */}
             {relatorio && (
               <div className="col-span-full">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">
