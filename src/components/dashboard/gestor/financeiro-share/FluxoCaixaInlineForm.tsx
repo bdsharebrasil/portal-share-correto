@@ -838,8 +838,8 @@ export function FluxoCaixaInlineForm({
           </div>
         </div>
 
-        {/* Seletor de Cliente - Quando tipo_caixa = 'cliente' */}
-        {watch("tipo_caixa") === 'cliente' && (
+        {/* Seletor de Cliente - Quando tipo_caixa = 'cliente' (e NÃO é reembolso) */}
+        {watch("tipo_caixa") === 'cliente' && !isReembolsavel && tipoMovimento !== "saida" && (
           <Card className="p-4 bg-blue-950/30 border-blue-600/50 space-y-4">
             <div className="flex items-center gap-2">
               <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40">
@@ -904,6 +904,12 @@ export function FluxoCaixaInlineForm({
                 </Badge>
               )}
             </div>
+
+            {isReembolsavel && watch("tipo_caixa") === 'cliente' && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded p-2 text-xs text-blue-300 mb-4">
+                Lançamento registrado na <strong>Caixa do Cliente</strong>
+              </div>
+            )}
 
             {isReembolsavel && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
