@@ -46,10 +46,10 @@ export default function LancamentoForm() {
     enabled: !!aeronaveId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aeronaves")
+        .from("aeronave")
         .select("id, matricula, modelo, fabricante")
         .eq("id", aeronaveId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },

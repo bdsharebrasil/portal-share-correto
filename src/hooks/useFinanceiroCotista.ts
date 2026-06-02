@@ -56,10 +56,22 @@ export interface AbastecimentoItem {
   valor_total: number;
   status_pagamento: string | null;
   abastecedor: string | null;
+  abastecedor_id?: string | null;
   aeronave_id: string | null;
   id_clientes?: string | null;
   clientes_nome?: string | null;
   socio_nome?: string | null;
+  comanda?: string | null;
+  nota_url?: string | null;
+  boleto_url?: string | null;
+  comprovante_pagamento?: string | null;
+  data_pagamento?: string | null;
+  nf?: string | null;
+  forma_pagamento?: string | null;
+  prazo?: string | null;
+  banco?: string | null;
+  tipo_combustivel?: string | null;
+  descricao?: string | null;
 }
 
 export interface RelatorioViagemItem {
@@ -78,15 +90,7 @@ export interface RelatorioViagemItem {
 
 /** Traduz o código bruto de pago_por para um rótulo amigável de gestor. */
 function rotularPagador(r: any): { rotulo: string; tipo: string | null } {
-  // Preferir usar pago_por_tipo se disponível (novo formato com ID)
-  if (r.pago_por_tipo) {
-    if (r.pago_por_tipo === FinancePayorType.COMPANY) return { rotulo: "Share Brasil", tipo: FinancePayorType.COMPANY };
-    if (r.pago_por_tipo === FinancePayorType.CLIENT) return { rotulo: r.clientes_nome || "Cliente", tipo: FinancePayorType.CLIENT };
-    if (r.pago_por_tipo === FinancePayorType.PARTNER) return { rotulo: r.socios_nome || "Sócio", tipo: FinancePayorType.PARTNER };
-    if (r.pago_por_tipo === FinancePayorType.THIRD_PARTY) return { rotulo: r.pago_por || "Terceiro Custo", tipo: FinancePayorType.THIRD_PARTY };
-  }
-
-  // Fallback para formato antigo (compatibilidade)
+  // Usar campo pago_por para determinar o tipo
   const raw = (r.pago_por || "").toString().trim().toUpperCase();
   if (!raw) {
     if (r.pago_diretamente && r.clientes_nome) return { rotulo: r.clientes_nome, tipo: FinancePayorType.CLIENT };
@@ -185,6 +189,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         )
         .eq("id_clientes", clienteId!);
       if (aErr) throw aErr;
+      // Missing error handling was here
 
       const aeronaveIds = (minhasAeronaves || [])
         .map((a: any) => a.id_aeronave)
@@ -224,7 +229,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
           supabase
             .from("abastecimentos")
             .select(
-              "id, data, trecho, local, litros, valor_unitario, valor_total, status_pagamento, abastecedor, aeronave_id, id_clientes, socio_nome"
+              "id, data, trecho, local, litros, valor_unitario, valor_total, status_pagamento, abastecedor, abastecedor_id, aeronave_id, id_clientes, socio_nome, comanda, nota_url, boleto_url, comprovante_pagamento, data_pagamento, nf, forma_pagamento, prazo, banco, tipo_combustivel, descricao"
             )
             .in("aeronave_id", aeronaveIds)
             .order("data", { ascending: false }),
@@ -277,10 +282,11 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
 
         const movDocMap = new Map<string, any>();
         if (allDespesaIds.length > 0) {
-          const { data: movDocs } = await supabase
+          const { data: movDocs, error: movError } = await supabase
             .from("movimentacoes")
             .select("id, numero_nf, numero_doc, numero_boleto, numero_recibo")
             .in("id", allDespesaIds);
+          if (movError) console.warn("Erro ao buscar documentos de movimentações:", movError);
           (movDocs || []).forEach((m: any) => movDocMap.set(m.id, m));
         }
         // ─────────────────────────────────────────────────────────────────────────
