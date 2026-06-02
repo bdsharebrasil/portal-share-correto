@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Clock, User, MapPin, TrendingUp, Filter, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
 interface DiarioTabProps { aircraftId: string; registration: string; }

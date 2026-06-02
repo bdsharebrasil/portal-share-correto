@@ -88,7 +88,6 @@ if (input.pagador !== FinancePayorType.COMPANY) {
     pago_diretamente: false,
     reference_type: "rateio_reembolso",
     reference_id: input.movId,
-    tipo_caixa: "share",
     criado_por: input.criadoPor || null,
   };
 

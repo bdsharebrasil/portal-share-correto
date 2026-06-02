@@ -1,137 +1,130 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FinanceCaixaType } from "@/lib/financeConstants";
 
-export interface SócioCusto {
+export interface CustoSocio {
   socio_id: string;
   socio_nome: string;
-  total_aportado: number;
   total_devido: number;
+  total_aportado: number;
   saldo: number;
 }
 
-export interface RelatorioCustosHolding {
-  cliente_id: string;
-  cliente_nome: string;
-  aeronave_registro: string;
-  saldo_caixa_holding: number;
-  total_despesas_pagas: number;
-  total_aportes_socios: number;
-  custos_por_socio: SócioCusto[];
-  movimentacoes_caixa: any[];
+export interface MovimentacaoCaixa {
+  id: string;
+  data_competencia: string;
+  descricao: string;
+  valor: number;
+  tipo: string; // receita | despesa
+  categorias_movimentacao?: { nome: string } | null;
 }
 
-export function useRelatorioCustosModelo2(clienteId: string, aeronaveId?: string, dataInicio?: string, dataFim?: string) {
-  return useQuery({
+export interface RelatorioCustosModelo2Data {
+  saldo_caixa_holding: number;
+  total_aportes_socios: number;
+  total_despesas_pagas: number;
+  custos_por_socio: CustoSocio[];
+  movimentacoes_caixa: MovimentacaoCaixa[];
+}
+
+export function useRelatorioCustosModelo2(
+  clienteId: string | undefined,
+  aeronaveId?: string,
+  dataInicio?: string,
+  dataFim?: string,
+) {
+  return useQuery<RelatorioCustosModelo2Data | null>({
     queryKey: ["relatorio-custos-modelo2", clienteId, aeronaveId, dataInicio, dataFim],
     enabled: !!clienteId,
-    queryFn: async (): Promise<RelatorioCustosHolding> => {
-      const db = supabase as any;
-
-      // 1. Buscar dados do cliente (Holding)
-      const { data: cliente } = await db
-        .from("clientes")
-        .select("id, razao_social")
-        .eq("id", clienteId)
-        .single();
-
-      // 2. Buscar sócios da holding
-      const { data: socios } = await db
+    queryFn: async () => {
+      // Sócios do cliente
+      const { data: socios } = await supabase
         .from("socios")
         .select("id, nome")
-        .eq("cliente_id", clienteId)
-        .eq("ativo", true);
+        .eq("cliente_id", clienteId as string);
 
-      // 3. Buscar aeronave vinculada à holding
-      let aeronaveRegistro = "N/A";
-      if (aeronaveId) {
-        const { data: aeronave } = await db
-          .from("aeronaves")
-          .select("prefixo")
-          .eq("id", aeronaveId)
-          .single();
-        aeronaveRegistro = aeronave?.prefixo || "N/A";
+      // Movimentações do caixa "cliente"
+      let mq = supabase
+        .from("movimentacoes")
+        .select(
+          "id, data_competencia, descricao, valor, tipo, tipo_caixa, categoria_id, clientes_id, socio_id, aeronave_id, status",
+        )
+        .eq("clientes_id", clienteId as string)
+        .eq("tipo_caixa", "cliente");
+      if (aeronaveId) mq = mq.eq("aeronave_id", aeronaveId);
+      if (dataInicio) mq = mq.gte("data_competencia", dataInicio);
+      if (dataFim) mq = mq.lte("data_competencia", dataFim);
+      const { data: movs, error } = await mq.order("data_competencia", {
+        ascending: false,
+      });
+      if (error) throw error;
+      const list = (movs as any[]) || [];
+
+      // Categorias para join
+      const catIds = Array.from(
+        new Set(list.map((r) => r.categoria_id).filter(Boolean)),
+      );
+      const catMap: Record<string, string> = {};
+      if (catIds.length) {
+        const { data: cats } = await supabase
+          .from("categorias_movimentacao")
+          .select("id, nome")
+          .in("id", catIds as string[]);
+        (cats || []).forEach((c: any) => (catMap[c.id] = c.nome));
       }
 
-      // 4. Buscar movimentações do CAIXA DO CLIENTE (tipo_caixa = 'cliente')
-      let query = db
-        .from("movimentacoes")
-        .select(`
-          id,
-          descricao,
-          valor,
-          data_competencia,
-          tipo,
-          status,
-          tipo_caixa,
-          socios_id,
-          categorias_movimentacao(nome)
-        `)
-        .eq("clientes_id", clienteId)
-        .eq("tipo_caixa", FinanceCaixaType.CLIENTE);
+      let totalAportes = 0;
+      let totalDespesas = 0;
+      const aportePorSocio: Record<string, number> = {};
 
-      if (aeronaveId) query = query.eq("aeronave_id", aeronaveId);
-      if (dataInicio) query = query.gte("data_competencia", dataInicio);
-      if (dataFim) query = query.lte("data_competencia", dataFim);
+      for (const m of list) {
+        const v = Number(m.valor) || 0;
+        const tipo = (m.tipo || "").toLowerCase();
+        if (tipo === "receita" || tipo === "entrada") {
+          totalAportes += v;
+          if (m.socio_id) {
+            aportePorSocio[m.socio_id] =
+              (aportePorSocio[m.socio_id] || 0) + v;
+          }
+        } else {
+          totalDespesas += v;
+        }
+      }
 
-      const { data: movimentacoes } = await query;
+      const sociosList = (socios as any[]) || [];
+      const n = sociosList.length || 1;
+      const devidoPorSocio = totalDespesas / n;
 
-      // 5. Processar lógica de caixa e sócios
-      let totalDespesasPagas = 0;
-      let totalAportesSocios = 0;
-      const custosPorSocio: Record<string, SócioCusto> = {};
-
-      (socios || []).forEach(s => {
-        custosPorSocio[s.id] = {
+      const custos_por_socio: CustoSocio[] = sociosList.map((s) => {
+        const total_aportado = aportePorSocio[s.id] || 0;
+        return {
           socio_id: s.id,
           socio_nome: s.nome,
-          total_aportado: 0,
-          total_devido: 0,
-          saldo: 0
+          total_devido: devidoPorSocio,
+          total_aportado,
+          saldo: total_aportado - devidoPorSocio,
         };
       });
 
-      (movimentacoes || []).forEach(mov => {
-        const valor = Number(mov.valor) || 0;
-        
-        if (mov.tipo === "despesa") {
-          totalDespesasPagas += valor;
-          
-          // No Modelo 2, as despesas são divididas igualmente entre os sócios ativos
-          const numSocios = socios?.length || 1;
-          const valorPorSocio = valor / numSocios;
-          
-          (socios || []).forEach(s => {
-            if (custosPorSocio[s.id]) {
-              custosPorSocio[s.id].total_devido += valorPorSocio;
-            }
-          });
-        } else if (mov.tipo === "receita") {
-          // No Modelo 2, receitas no caixa do cliente geralmente são aportes dos sócios
-          totalAportesSocios += valor;
-          
-          if (mov.socios_id && custosPorSocio[mov.socios_id]) {
-            custosPorSocio[mov.socios_id].total_aportado += valor;
-          }
-        }
-      });
-
-      // Calcular saldos finais por sócio
-      const listaCustos = Object.values(custosPorSocio).map(s => ({
-        ...s,
-        saldo: s.total_aportado - s.total_devido
+      const movimentacoes_caixa: MovimentacaoCaixa[] = list.map((m) => ({
+        id: m.id,
+        data_competencia: m.data_competencia,
+        descricao: m.descricao,
+        valor: Number(m.valor) || 0,
+        tipo: (m.tipo || "").toLowerCase() === "receita" || (m.tipo || "").toLowerCase() === "entrada"
+          ? "receita"
+          : "despesa",
+        categorias_movimentacao: m.categoria_id
+          ? { nome: catMap[m.categoria_id] || "Geral" }
+          : { nome: "Geral" },
       }));
 
       return {
-        cliente_id: clienteId,
-        cliente_nome: cliente?.razao_social || "Holding",
-        aeronave_registro: aeronaveRegistro,
-        saldo_caixa_holding: totalAportesSocios - totalDespesasPagas,
-        total_despesas_pagas: totalDespesasPagas,
-        total_aportes_socios: totalAportesSocios,
-        custos_por_socio: listaCustos,
-        movimentacoes_caixa: movimentacoes || []
+        saldo_caixa_holding: totalAportes - totalDespesas,
+        total_aportes_socios: totalAportes,
+        total_despesas_pagas: totalDespesas,
+        custos_por_socio,
+        movimentacoes_caixa,
       };
-    }
+    },
   });
 }

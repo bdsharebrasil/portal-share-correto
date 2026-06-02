@@ -29,7 +29,7 @@ export function RelatorioFinanceiro() {
     setIsLoading(true);
     try {
       const [movRes, agendRes] = await Promise.all([
-        supabase.from("movimentacoes").select("*").order("data", { ascending: true }),
+        supabase.from("controle_bancario").select("*").order("data", { ascending: true }),
         supabase.from("agendamento_pagamentos").select("*").order("data_agendamento", { ascending: true })
       ]);
 

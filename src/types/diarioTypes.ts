@@ -133,7 +133,7 @@ export interface FlightEntry {
   // Campos de tripulação
   origem_pic?: string;
   origem_sic?: string;
-  socios_cliente_id?: string;
+  socios_id?: string;
   // Campos adicionais
   celula_tvoo?: number | null;
   consumo_combustivel_voo?: number;

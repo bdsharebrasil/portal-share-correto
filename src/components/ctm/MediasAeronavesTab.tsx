@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, Clock, TrendingUp, Calendar } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
 interface MediasAeronavesTabProps { aircraftId: string; registration: string; }

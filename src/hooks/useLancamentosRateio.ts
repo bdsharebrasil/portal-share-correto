@@ -52,7 +52,7 @@ export function useLancamentosRateio(lancamentoId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lancamentos_rateio"] });
-      queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["controle_bancario"] });
     },
   });
 

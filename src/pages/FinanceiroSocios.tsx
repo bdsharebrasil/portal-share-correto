@@ -14,13 +14,13 @@ import { PartnerCards } from "@/components/dashboard/gestor/socios/PartnerCards"
 import { TransactionsTable } from "@/components/dashboard/gestor/socios/TransactionsTable"
 import { DepositForm } from "@/components/dashboard/gestor/socios/DepositForm"
 import { ExpenseForm } from "@/components/dashboard/gestor/socios/ExpenseForm"
+import { RelatorioCustosModelo2 } from "@/components/financeiro/RelatorioCustosModelo2"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Hooks
 import { useSocioAccounts, useSocioTransactions } from "@/hooks/useFinanceiroSocios"
 import { useClientesComSocios } from "@/hooks/useSocioBalanco"
 import { useClientPartners } from "@/hooks/useClientPartners"
-import { RelatorioCustosModelo2 } from "@/components/dashboard/gestor/FinanceiroCotista/RelatorioCustosModelo2"
 
 export default function FinanceiroSocios() {
   const navigate = useNavigate()

@@ -29,13 +29,13 @@ import { SearchInput } from '@/components/RelatorioDespesaViagem/SearchInput';
 // ---------------------------------------------------------------------------
 // Tipo — espelha exatamente as colunas de travel_expense_reports
 // ---------------------------------------------------------------------------
-export type TravelReport = {
+type TravelReport = {
   id?: string;
   numero_relatorio: string;
 
   // FKs
   clientes_id: string;
-  socios_cliente_id?: string | null;
+  socios_id?: string | null;
   aeronave_id: string;
   matricula_aeronave: string;         // coluna real: matricula_aeronave
   tripulacao_id: string;              // FK → tripulacao.id (crew 1)
@@ -199,7 +199,7 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome),
+        partner_id_rel:socios_id(nome),
         created_by_user:criado_por(display_name)
       `)
       .order('created_at', { ascending: false });
@@ -213,7 +213,7 @@ export default function RelatorioViagem() {
         catch { return []; }
       })();
 
-      const clientName = r.socios_cliente_id && r.partner_id_rel?.nome
+      const clientName = r.socios_id && r.partner_id_rel?.nome
         ? r.partner_id_rel.nome
         : r.clientes_id_rel?.razao_social || '';
 
@@ -235,7 +235,7 @@ export default function RelatorioViagem() {
       .select(`
         *,
         clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_cliente_id(nome),
+        partner_id_rel:socios_id(nome),
         created_by_user:criado_por(display_name)
       `)
       .eq('id', reportId)
@@ -250,7 +250,7 @@ export default function RelatorioViagem() {
       catch { return []; }
     })();
 
-    const clientName = r.socios_cliente_id && r.partner_id_rel?.nome
+    const clientName = r.socios_id && r.partner_id_rel?.nome
       ? r.partner_id_rel.nome
       : r.clientes_id_rel?.razao_social || '';
 
@@ -280,7 +280,7 @@ export default function RelatorioViagem() {
     const newReport: TravelReport = {
       numero_relatorio: `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`,
       clientes_id: '',
-      socios_cliente_id: null,
+      socios_id: null,
       aeronave_id: '',
       matricula_aeronave: '',
       tripulacao_id: '',
@@ -463,12 +463,12 @@ export default function RelatorioViagem() {
       if (!isUpdate) {
         let clientCode = '';
         
-        // Se tem sócio cliente, busca codigo_cliente da tabela socios_cliente
-        if (reportData.socios_cliente_id) {
+        // Se tem sócio cliente, busca codigo_cliente da tabela socios
+        if (reportData.socios_id) {
           const { data: partner } = await supabase
             .from('socios')
             .select('codigo_cliente')
-            .eq('id', reportData.socios_cliente_id)
+            .eq('id', reportData.socios_id)
             .single();
           clientCode = partner?.codigo_cliente || '';
         }
@@ -492,7 +492,7 @@ export default function RelatorioViagem() {
       const payload: any = {
         numero_relatorio: reportNumber,
         clientes_id: reportData.clientes_id,
-        socios_cliente_id: reportData.socios_cliente_id || null,
+        socios_id: reportData.socios_id || null,
         aeronave_id: reportData.aeronave_id,
         matricula_aeronave: reportData.matricula_aeronave || null,
         tripulacao_id: reportData.tripulacao_id,
@@ -617,7 +617,7 @@ export default function RelatorioViagem() {
             reconcToInsert.push({
               tipo: 'cliente',
               clientes_id: reportData.clientes_id,
-              socio_cliente_id: reportData.socios_cliente_id || null,
+              socio_id: reportData.socios_id || null,
               aeronave_id: reportData.aeronave_id || null,
               valor: totalClientOwes,
               status: 'pendente',
@@ -1295,13 +1295,13 @@ export default function RelatorioViagem() {
           const partner = clientPartners.find(p => p.nome === partnerName);
           if (partner) {
             setCurrentReport(prev => prev
-              ? { ...prev, socios_cliente_id: partner.id, client: partner.nome }
+              ? { ...prev, socios_id: partner.id, client: partner.nome }
               : null,
             );
             if (currentReport && !isEditing) {
               draftStorage.saveDraft({
                 ...currentReport,
-                socios_cliente_id: partner.id,
+                socios_id: partner.id,
                 client: partner.nome,
               } as unknown as TravelReportDraft);
             }

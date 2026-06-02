@@ -79,7 +79,6 @@ export interface PartnerSyncInput {
   reembolsavel?: boolean;
   pago_diretamente?: boolean;
   categoria_nome?: string;
-  tipo_caixa?: "share" | "cliente";
   criado_por?: string | null;
 }
 
@@ -135,7 +134,6 @@ export async function syncPartnerToMovimentacoes(input: PartnerSyncInput): Promi
     observacoes: input.observacoes || null,
     reembolsavel: input.reembolsavel ?? false,
     pago_diretamente: input.pago_diretamente ?? false,
-    tipo_caixa: input.tipo_caixa || "share",
     reference_type: input.refType,
     reference_id: input.refId,
     criado_por: input.criado_por || null,

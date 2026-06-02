@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
@@ -179,6 +179,7 @@ export function FluxoCaixaInlineForm({
     defaultValues: {
       data: getTodayDateString(),
       tipo_movimento: "saida",
+      tipo_caixa: "share",
       categoria: "",
       descricao: "",
       valor: "",
@@ -357,6 +358,7 @@ export function FluxoCaixaInlineForm({
     if (movimentacao) {
       setValue("data", movimentacao.data);
       setValue("tipo_movimento", movimentacao.tipo_movimento);
+      setValue("tipo_caixa", movimentacao.tipo_caixa || "share");
       setValue("categoria", movimentacao.categoria);
       setValue("descricao", movimentacao.descricao);
       setValue("valor", movimentacao.valor.toString());
@@ -501,6 +503,7 @@ export function FluxoCaixaInlineForm({
         data: formData.data,
         data_vencimento: formData.data_vencimento || null,
         tipo_movimento: formData.tipo_movimento,
+        tipo_caixa: formData.tipo_caixa || 'share',
         categoria_id: categoriaId,
         descricao: formData.descricao,
         valor,
@@ -511,7 +514,7 @@ export function FluxoCaixaInlineForm({
         aeronave_id: aeronaveObj?.id || null,
         aeronave_registro: formData.aeronave || null,
         cliente_id: formData.cliente_id || null,
-        socios_cliente_id: formData.socio_cliente_id_id || null,
+        socios_id: formData.socio_cliente_id_id || null,
         clientes_nome: isReembolsavel ? formData.client_name : null,
         colaborador_id: formData.colaborador_id || null,
         fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
@@ -567,7 +570,7 @@ export function FluxoCaixaInlineForm({
           }
 
           // Invalidar cache para recarregar os dados
-          await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+          await queryClient.invalidateQueries({ queryKey: ["controle_bancario"] });
           toast.success("Reembolso recebido! Entrada criada no fluxo de caixa.");
           onSuccess();
           return;
@@ -575,7 +578,7 @@ export function FluxoCaixaInlineForm({
 
         // Atualização normal
         const { error } = await supabase
-          .from("movimentacoes")
+          .from("controle_bancario")
           .update(data)
           .eq("id", movimentacao.id);
 
@@ -587,7 +590,7 @@ export function FluxoCaixaInlineForm({
         toast.success("Movimentação atualizada com sucesso!");
       } else {
         const { data: inserted, error } = await supabase
-          .from("movimentacoes")
+          .from("controle_bancario")
           .insert([{
             ...data,
             criado_por: user.id
@@ -643,7 +646,7 @@ export function FluxoCaixaInlineForm({
           const { data: existingRecon } = await supabase
             .from('conciliacoes_bancarias')
             .select('id')
-            .eq('reference_type', 'movimentacoes')
+            .eq('reference_type', 'controle_bancario')
             .eq('reference_id', lancamentoId)
             .maybeSingle();
 
@@ -662,7 +665,7 @@ export function FluxoCaixaInlineForm({
                 amount: valor,
                 date: formData.data,
                 status: 'pendente',
-                reference_type: 'movimentacoes',
+                reference_type: 'controle_bancario',
                 reference_id: lancamentoId,
                 criado_por: user.id,
                 forma_pagamento: 'empresa_paga',
@@ -794,6 +797,21 @@ export function FluxoCaixaInlineForm({
               <SelectContent align="start">
                 <SelectItem value="saida">Despesa</SelectItem>
                 <SelectItem value="entrada">Receita</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="tipo_caixa" className="text-sm font-semibold text-foreground mb-2">
+              Caixa
+            </Label>
+            <Select value={watch("tipo_caixa") || "share"} onValueChange={(value) => setValue("tipo_caixa", value)}>
+              <SelectTrigger className="h-10 w-full bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="share">Share Brasil</SelectItem>
+                <SelectItem value="cliente">Caixa Cliente</SelectItem>
               </SelectContent>
             </Select>
           </div>

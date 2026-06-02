@@ -105,9 +105,8 @@ export function FechamentoBalancoTab({
     enabled: !!aeronaveId,
     queryKey: ["fechamento-balanco", aeronaveId, mes, ano],
     queryFn: async () => {
-      const sb = supabase as any;
       const [{ data: despesas }, { data: voos }] = await Promise.all([
-        sb
+        (supabase as any)
           .from("rateio_despesas")
           .select(
             "id, descricao_despesa, fornecedor_nome, categoria_custo, periodicidade, valor_total_despesa, pago_por, data_pagamento, data_vencimento, cliente_id, clientes_nome, socio_id, socios_nome"
@@ -116,9 +115,9 @@ export function FechamentoBalancoTab({
           .or(
             `and(data_pagamento.gte.${inicio},data_pagamento.lte.${fim}),and(data_pagamento.is.null,data_vencimento.gte.${inicio},data_vencimento.lte.${fim})`
           ),
-        sb
+        supabase
           .from("lancamentos_diario_bordo")
-          .select("id, clientes_id, socios_cliente_id, tempo_total, data_registro")
+          .select("id, clientes_id, socios_id, tempo_total, data_registro")
           .eq("aeronave_id", aeronaveId)
           .gte("data_registro", inicio)
           .lte("data_registro", fim),
@@ -134,12 +133,12 @@ export function FechamentoBalancoTab({
   const despesas = data?.despesas || [];
   const voos = data?.voos || [];
 
-  // Horas voadas por cotista (clientes_id ou socios_cliente_id)
+  // Horas voadas por cotista (clientes_id ou socios_id)
   const horasPorCotista = useMemo(() => {
     const map = new Map<string, number>();
     cotistas.forEach((c) => map.set(c.id, 0));
     voos.forEach((v) => {
-      const cid = v.clientes_id || v.socios_cliente_id;
+      const cid = v.clientes_id || v.socios_id;
       if (!cid) return;
       if (!map.has(cid)) return;
       map.set(cid, (map.get(cid) || 0) + (Number(v.tempo_total) || 0));

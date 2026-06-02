@@ -25,12 +25,13 @@ import {
   Edit2,
   Trash2,
 } from "lucide-react";
-import { GerenciarAcessoPortal } from "@/components/dashboard/gestor/FinanceiroCotista/balanco-socio/GerenciarAcessoPortal";
-import { LancamentosTab } from "@/components/dashboard/gestor/FinanceiroCotista/LancamentosTab";
-import { FechamentoBalancoTab } from "@/lib/FechamentoBalancoTab";
-import { DetalhamentoCotistaTab } from "@/components/dashboard/gestor/FinanceiroCotista/DetalhamentoCotistaTab";
-import { MatrizFinanceiraMensal } from "@/components/dashboard/gestor/FinanceiroCotista/MatrizFinanceiraMensal";
-import { RelatorioCustosModelo1 } from "@/components/dashboard/gestor/FinanceiroCotista/RelatorioCustosModelo1";
+import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
+import { LancamentosTab } from "./LancamentosTab";
+import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
+import { DetalhamentoCotistaTab } from "./DetalhamentoCotistaTab";
+import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
+import { RateioCotistas } from "./RateioCotistas";
+import { RelatorioCustosModelo1 } from "@/components/financeiro/RelatorioCustosModelo1";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Paperclip } from "lucide-react";
@@ -442,6 +443,11 @@ export default function FinanceiroCotistaDetalhe() {
               </Card>
             </TabsContent>
 
+            {/* Relatório de Custos Modelo 1 */}
+            <TabsContent value="custos-modelo1" className="mt-4">
+              <RelatorioCustosModelo1 aeronaveId={aeronaveAtual} />
+            </TabsContent>
+
             {/* Detalhamento Mensal */}
             <TabsContent value="detalhamento" className="mt-4">
               {meuBalanco ? (
@@ -458,11 +464,6 @@ export default function FinanceiroCotistaDetalhe() {
                   <p>Nenhum dado disponível para este cotista nesta aeronave</p>
                 </div>
               )}
-            </TabsContent>
-
-            {/* Relatório de Custos Modelo 1 */}
-            <TabsContent value="custos-modelo1" className="mt-4">
-              <RelatorioCustosModelo1 aeronaveId={aeronaveAtual} />
             </TabsContent>
 
             {/* Relatórios de Viagem */}
@@ -743,57 +744,6 @@ function StatCard({
   );
 }
 
-
-function RateioCotistas({
-  aeronaveId,
-  matricula,
-  cotistas,
-}: {
-  aeronaveId: string;
-  matricula?: string;
-  cotistas: { id: string; nome: string; percentual: number }[];
-}) {
-  return (
-    <Card className="bg-card/60 border-border">
-      <CardHeader>
-        <CardTitle className="text-base">
-          Rateio de cotistas — {matricula || "—"}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground mt-1">
-          Participação dos sócios na aeronave selecionada.
-        </p>
-      </CardHeader>
-      <CardContent>
-        {cotistas.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">
-            Nenhum cotista encontrado para esta aeronave.
-          </p>
-        ) : (
-          <div className="grid gap-3">
-            {cotistas.map((cotista) => (
-              <div
-                key={cotista.id}
-                className="rounded-3xl border border-border/70 bg-background/70 p-4"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-foreground">{cotista.nome}</p>
-                    <p className="text-xs text-muted-foreground">
-                      ID {cotista.id}
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold text-foreground">
-                    {cotista.percentual.toFixed(2)}%
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 // ============== Tabela detalhada de lançamentos ==============
 function DespesasTable({

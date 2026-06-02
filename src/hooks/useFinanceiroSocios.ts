@@ -11,7 +11,7 @@ import {
 // --- TIPOS ---
 // partner_accounts schema: id, clientes_id, socio_cpf, socio_nome, saldo_atual,
 //   total_depositado, total_gasto, criado_em, atualizado_em, nome_banco,
-//   juros_totais_ganhos, socios_cliente_id
+//   juros_totais_ganhos, socios_id
 
 type PartnerAccountRow = {
   id: string;
@@ -25,7 +25,7 @@ type PartnerAccountRow = {
   atualizado_em: string | null;
   nome_banco: string | null;
   juros_totais_ganhos: number | null;
-  socios_cliente_id: string | null;
+  socios_id: string | null;
 };
 
 type PartnerTransactionRow = Database["public"]["Tables"]["partner_transactions"]["Row"];
@@ -134,7 +134,7 @@ function normalizePartnerAccount(account: PartnerAccountRow): PartnerAccount {
     ...account,
     // Aliases
     client_id: account.clientes_id,         // clientes_id → client_id
-    client_partner_id: account.socios_cliente_id,
+    client_partner_id: account.socios_id,
     partner_cpf: account.socio_cpf,
     partner_name: partnerName,
     nome_socio: partnerName,
@@ -274,9 +274,9 @@ export function useSocioTransactions(
     queryFn: async () => {
       if (!clientId) return [];
 
-      // 1. Buscar socios_cliente
+      // 1. Buscar socios
       const { data: clientPartners, error: cpError } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .select("id, nome, cpf, percentual_participacao")
         .eq("cliente_id", clientId);
 
@@ -328,7 +328,7 @@ export function useSocioTransactions(
       if (travelReportIds.length > 0) {
         const { data: reports, error: rError } = await supabase
           .from("travel_expense_reports")
-          .select("id, numero_relatorio, socios_cliente_id")
+          .select("id, numero_relatorio, socios_id")
           .in("id", travelReportIds as string[]);
 
         if (rError) console.warn("Erro ao carregar relatórios de viagem:", rError);
@@ -363,8 +363,8 @@ export function useSocioTransactions(
             const reportTag = `Relatório de Viagem: ${linkedReport.numero_relatorio}`;
             notesWithReport = notesWithReport ? `${notesWithReport}\n${reportTag}` : reportTag;
 
-            if (linkedReport.socios_cliente_id) {
-              const partnerFromReport = partnersMap.get(linkedReport.socios_cliente_id);
+            if (linkedReport.socios_id) {
+              const partnerFromReport = partnersMap.get(linkedReport.socios_id);
               if (partnerFromReport) {
                 Object.assign(exp, {
                   _resolved_partner_name: partnerFromReport.nome,
@@ -549,7 +549,7 @@ export function useSocioExpenses(
       const expenses = (data || []) as PartnerExpense[];
 
       const { data: clientPartners } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .select("id, nome, cpf, percentual_participacao")
         .eq("cliente_id", clientId);
 
@@ -574,7 +574,7 @@ export function useSocioExpenses(
       if (travelReportIds.length > 0) {
         const { data: reports } = await supabase
           .from("travel_expense_reports")
-          .select("id, numero_relatorio, socios_cliente_id")
+          .select("id, numero_relatorio, socios_id")
           .in("id", travelReportIds as string[]);
 
         (reports || []).forEach((r: any) => travelReportsMap.set(r.id, r));
@@ -641,7 +641,7 @@ export function useAddDeposit(showToast = true) {
         let clientPartnerId = data.clientPartnerId;
         if (!clientPartnerId) {
           const { data: partnerData, error: pErr } = await supabase
-            .from("socios_cliente")
+            .from("socios")
             .select("id")
             .eq("cliente_id", data.clientId)
             .eq("cpf", data.partnerCpf)
@@ -653,9 +653,9 @@ export function useAddDeposit(showToast = true) {
         // partner_accounts usa clientes_id (não cliente_id)
         const { data: account, error: accErr } = await supabase
           .from("partner_accounts")
-          .select("id, saldo_atual, total_depositado, socios_cliente_id")
+          .select("id, saldo_atual, total_depositado, socios_id")
           .eq("clientes_id", data.clientId)
-          .eq("socios_cliente_id", clientPartnerId)
+          .eq("socios_id", clientPartnerId)
           .maybeSingle();
         if (accErr) throw accErr;
 
@@ -679,7 +679,7 @@ export function useAddDeposit(showToast = true) {
             .from("partner_accounts")
             .insert({
               clientes_id: data.clientId,
-              socios_cliente_id: clientPartnerId,
+              socios_id: clientPartnerId,
               socio_cpf: data.partnerCpf,
               socio_nome: data.partnerName,
               saldo_atual: balanceAfter,

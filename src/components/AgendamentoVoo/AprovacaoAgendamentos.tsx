@@ -49,7 +49,6 @@ interface BookingRequest {
   client_id: string;
   aeronave_id: string;
   aircraft?: any;
-  aeronave?: { modelo: string; matricula: string };
   origin: string;
   destination: string;
   scheduled_date: string;
@@ -60,7 +59,6 @@ interface BookingRequest {
   notes?: string;
   rejection_reason?: string;
   created_at: string;
-  criado_em: string;
   user?: any;
 }
 

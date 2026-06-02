@@ -54,10 +54,10 @@ export function VacationApprovalDialog({
               </p>
             </div>
 
-            {request.reason && (
+            {request.motivo && (
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Motivo:</p>
-                <p className="text-sm bg-muted p-3 rounded-lg">{request.reason}</p>
+                <p className="text-sm bg-muted p-3 rounded-lg">{request.motivo}</p>
               </div>
             )}
           </div>

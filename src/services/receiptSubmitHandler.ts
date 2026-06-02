@@ -502,7 +502,7 @@ export async function insertReceiptToBankReconciliations(
       comprovante_url: data.recibo_url || null,
       nf_url: data.nf_url || null,
       partner_name: data.client_name || null,
-      reference_type: "movimentacoes",
+      reference_type: "controle_bancario",
       reference_id: data.numero_documento || null,
     };
 

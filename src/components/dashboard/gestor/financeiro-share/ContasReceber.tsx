@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -190,7 +190,7 @@ export function ContasReceber() {
   const loadContas = async () => {
     setIsLoading(true);
     try {
-      const { data: despesasReembolso, error: fluxoError } = await (supabase as any).from("movimentacoes").select(`
+      const { data: despesasReembolso, error: fluxoError } = await (supabase as any).from("controle_bancario").select(`
         id, data, data_vencimento, descricao, valor, status,
         aeronave_registro, numero_documento, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url, clientes_nome,
         fornecedores_favoritos_id, colaborador_id
@@ -354,7 +354,7 @@ export function ContasReceber() {
 
       for (const conta of contasVencidas) {
         if ((conta as any).isFromFluxoCaixa) {
-          await supabase.from("movimentacoes").update({ status: "inadimplente" }).eq("id", (conta as any).fluxoCaixaId || conta.id);
+          await supabase.from("controle_bancario").update({ status: "inadimplente" }).eq("id", (conta as any).fluxoCaixaId || conta.id);
         } else {
           await supabase.from("contas_areceber").update({ status: "inadimplente" }).eq("id", conta.id);
         }
@@ -584,7 +584,7 @@ export function ContasReceber() {
 
     try {
       if (conta?.isFromFluxoCaixa && conta?.fluxoCaixaId) {
-        const { error } = await supabase.from("movimentacoes").update({ status: newStatus, data_atualizacao: new Date().toISOString() }).eq("id", conta.fluxoCaixaId);
+        const { error } = await supabase.from("controle_bancario").update({ status: newStatus, data_atualizacao: new Date().toISOString() }).eq("id", conta.fluxoCaixaId);
 
         if (error) {
           toast.error(`Erro ao atualizar: ${error.message}`);
@@ -647,7 +647,7 @@ export function ContasReceber() {
 
       // For accounts from fluxo_caixa, update controle_bancario directly
       if (contasReceberData.isFromFluxoCaixa && contasReceberData.fluxoCaixaId) {
-        const { error: updateError } = await supabase.from("movimentacoes").update({
+        const { error: updateError } = await supabase.from("controle_bancario").update({
           status: "recebido",
           conta_banco: nomeBanco,
           metodo_pagamento: metodo_pagamento || null,

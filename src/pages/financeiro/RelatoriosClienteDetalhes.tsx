@@ -98,7 +98,7 @@ export default function RelatoriosClienteDetalhes() {
         .select(`
           *,
           clientes_id_rel:clientes_id(razao_social),
-          partner_id_rel:socios_cliente_id(nome)
+          partner_id_rel:socios_id(nome)
         `)
         .eq('clientes_id', clientId)
         .in('status', ['Finalizado', 'Enviado'])
@@ -121,7 +121,7 @@ export default function RelatoriosClienteDetalhes() {
           }
         })();
 
-        const clientName = r.socios_cliente_id && r.partner_id_rel?.nome
+        const clientName = r.socios_id && r.partner_id_rel?.nome
           ? r.partner_id_rel.nome
           : r.clientes_id_rel?.razao_social || '';
 

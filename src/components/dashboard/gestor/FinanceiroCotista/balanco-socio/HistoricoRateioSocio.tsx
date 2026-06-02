@@ -22,7 +22,7 @@ import { AlertCircle, Download, Filter, TrendingUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-interface HistoricoRateioConsolidadoProps {
+interface HistoricoRateioSocioProps {
   clienteId: string;
   socioId?: string;
   aeronaveId?: string;
@@ -41,12 +41,12 @@ const CATEGORIA_GRUPOS = [
   'Manutenção',
 ];
 
-export function HistoricoRateioConsolidado({
+export function HistoricoRateioSocio({
   clienteId,
   socioId,
   aeronaveId,
   periodo,
-}: HistoricoRateioConsolidadoProps) {
+}: HistoricoRateioSocioProps) {
   const [filtroCategoria, setFiltroCategoria] = useState<string>('');
   const [filtroReembolsos, setFiltroReembolsos] = useState<string>('todos');
 

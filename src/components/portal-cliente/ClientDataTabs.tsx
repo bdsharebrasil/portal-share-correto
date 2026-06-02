@@ -133,7 +133,7 @@ export function ClientDataTabs({
 
   const filteredLogbookEntries = useMemo(() => {
     return logbookEntries.filter((record: any) =>
-      filterRecordBySearch(record, [record.trecho, record.departure_aero?.name, record.arrival_aero?.name, record.socios_cliente_id])
+      filterRecordBySearch(record, [record.trecho, record.departure_aero?.name, record.arrival_aero?.name, record.socios_id])
     );
   }, [logbookEntries, searchQuery]);
 
@@ -298,7 +298,7 @@ export function ClientDataTabs({
             departure_aerodrome,
             arrival_aerodrome,
             trecho,
-            socios_cliente_id
+            socios_id
           `)
           .eq("aeronave_id", aircraftId)
           .eq("clientes_id", forClientId)
@@ -306,7 +306,7 @@ export function ClientDataTabs({
           .limit(100);
 
         if (selectedPartner?.id) {
-          query = query.eq("socios_cliente_id", selectedPartner.id);
+          query = query.eq("socios_id", selectedPartner.id);
         }
 
         const { data: allLogbookData, error } = await query;
@@ -923,7 +923,7 @@ export function ClientDataTabs({
                           </td>
                           {partners.length > 1 && (
                             <td className="py-4 px-4 text-foreground">
-                              {entry.socios_cliente_id ? (
+                              {entry.socios_id ? (
                                 <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
                                   Sócio
                                 </span>

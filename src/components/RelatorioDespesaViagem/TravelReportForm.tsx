@@ -64,7 +64,7 @@ export interface TravelReport {
 
   // FKs
   clientes_id: string;
-  socios_cliente_id?: string | null;
+  socios_id?: string | null;
   aeronave_id: string;
   matricula_aeronave: string;       // coluna: matricula_aeronave
   tripulacao_id: string;            // FK → tripulacao.id (crew 1)
@@ -118,7 +118,7 @@ interface TravelReportFormProps {
 const emptyReport = (): TravelReport => ({
   numero_relatorio: "R-0001",
   clientes_id: "",
-  socios_cliente_id: null,
+  socios_id: null,
   aeronave_id: "",
   matricula_aeronave: "",
   tripulacao_id: "",
@@ -444,7 +444,7 @@ export function TravelReportForm({
                     ...prev,
                     clientes_id: id,
                     client: label,
-                    socios_cliente_id: null,
+                    socios_id: null,
                   }));
                   fetchPartnersForClient(id);
                 }}
@@ -457,13 +457,13 @@ export function TravelReportForm({
                 <div className="mt-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Sócio</Label>
                   <ControlledSelect
-                    value={current.socios_cliente_id || ""}
+                    value={current.socios_id || ""}
                     onValueChange={(val) => {
                       const sel = partners.find((p) => p.id === val);
                       if (sel) {
                         setCurrent((prev) => ({
                           ...prev,
-                          socios_cliente_id: sel.id ?? null,
+                          socios_id: sel.id ?? null,
                           client: sel.nome,
                         }));
                       }
@@ -481,7 +481,7 @@ export function TravelReportForm({
               {current.clientes_id && (
                 <p className="text-xs text-green-600">✓ Cliente selecionado</p>
               )}
-              {current.socios_cliente_id && (
+              {current.socios_id && (
                 <p className="text-xs text-amber-500">
                   👤 Sócio:{" "}
                   <span className="font-semibold">{current.client}</span>

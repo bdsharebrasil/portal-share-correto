@@ -30,15 +30,15 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Download, FileText, DollarSign, Clock } from 'lucide-react';
 
-interface HistoricoRateioConsolidadoProps {
+interface HistoricoRateioClienteProps {
   clienteId?: string;
   showClienteFilter?: boolean;
 }
 
-export function HistoricoRateioConsolidado({
+export function HistoricoRateioCliente({
   clienteId,
   showClienteFilter = false,
-}: HistoricoRateioConsolidadoProps) {
+}: HistoricoRateioClienteProps) {
   const [selectedClienteId, setSelectedClienteId] = useState(clienteId);
   const [dataInicio, setDataInicio] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');

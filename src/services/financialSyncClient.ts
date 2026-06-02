@@ -140,7 +140,7 @@ export async function syncSalaryPaymentToFinancial(
       };
 
       const { data, error } = await (supabase as any)
-        .from('movimentacoes')
+        .from('controle_bancario')
         .insert(entry)
         .select('id')
         .single();
@@ -296,7 +296,7 @@ export async function syncBankReconciliationToFinancial(
       };
 
       const { data: newEntry, error: insertError } = await (supabase as any)
-        .from('movimentacoes')
+        .from('controle_bancario')
         .insert(entry)
         .select('id')
         .single();
@@ -363,7 +363,7 @@ export async function deleteReconciliationFromFinancial(reconciliationId: string
 
     if (reconciliation?.controle_bancario_id) {
       await (supabase as any)
-        .from('movimentacoes')
+        .from('controle_bancario')
         .delete()
         .eq('id', reconciliation.controle_bancario_id);
     }

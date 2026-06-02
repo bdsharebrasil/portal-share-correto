@@ -78,8 +78,8 @@ export function useLogbookEntryValidation(
       });
     }
 
-    // Validação: socios_cliente_id requer que socios_nome esteja preenchido
-    if (entry.socios_cliente_id && !entry.socios_nome) {
+    // Validação: socios_id requer que socios_nome esteja preenchido
+    if (entry.socios_id && !entry.socios_nome) {
       errors.push({
         field: 'socios_nome',
         message: 'Nome do sócio é obrigatório quando sócio é selecionado',
@@ -89,7 +89,7 @@ export function useLogbookEntryValidation(
 
     // Validação: campos de CPF (se implementado para sócios)
     // Nota: O schema não força validação de CPF em lancamentos_diario_bordo,
-    // mas é importante validar em socios_cliente
+    // mas é importante validar em socios
 
     // Validação: confirmado_por requer confirmado = true
     if (!entry.confirmado && entry.confirmado_por) {

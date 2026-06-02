@@ -13,7 +13,7 @@ import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { BalancoVisaoGeral } from '@/components/dashboard/gestor/FinanceiroCotista/balanco-socio/BalancoVisaoGeral';
-import { HistoricoRateioConsolidado } from '@/components/dashboard/gestor/FinanceiroCotista/balanco-socio/HistoricoRateioConsolidado';
+import { HistoricoRateioCliente } from '@/components/dashboard/gestor/FinanceiroCotista/balanco-cliente/HistoricoRateioCliente';
 import { PendenciasFinanceiras } from '@/components/dashboard/gestor/FinanceiroCotista/balanco-socio/PendenciasFinanceiras';
 import { BalancoAeronave } from '@/components/dashboard/gestor/FinanceiroCotista/balanco-socio/BalancoAeronave';
 import { RelatoriosExportacao } from '@/components/dashboard/gestor/FinanceiroCotista/balanco-socio/RelatoriosExportacao';
@@ -374,7 +374,7 @@ function BalancoClienteContent() {
 
         <TabsContent value="despesas" className="space-y-6">
           {clienteId && aeronaveId ? (
-            <HistoricoRateioConsolidado
+            <HistoricoRateioCliente
               clienteId={clienteId}
               socioId={socioId}
               aeronaveId={aeronaveId || undefined}

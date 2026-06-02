@@ -2,21 +2,14 @@ import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useMatrizFinanceira, type CategoriaGrupo, type MatrizFinanceiraData, type MatrizFinanceiraRow } from "@/hooks/useMatrizFinanceira";
+import {
+  useMatrizFinanceira,
+  type CategoriaGrupo,
+} from "@/hooks/useMatrizFinanceira";
 
 const MESES = [
-  "Jan",
-  "Fev",
-  "Mar",
-  "Abr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Set",
-  "Out",
-  "Nov",
-  "Dez",
+  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
 
 const GRUPOS: CategoriaGrupo[] = [
@@ -54,7 +47,7 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
   }));
 
   const linhasPorGrupo = useMemo(() => {
-    const m: Record<CategoriaGrupo, MatrizFinanceiraRow[]> = {
+    const m: Record<CategoriaGrupo, typeof data extends infer T ? any[] : any[]> = {
       "CUSTOS FIXOS": [],
       "PESSOAL & TRIPULAÇÃO": [],
       "MANUTENÇÃO": [],
@@ -63,14 +56,6 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
     for (const l of data?.linhas || []) m[l.grupo].push(l);
     return m;
   }, [data]);
-
-  if (!aeronaveId) {
-    return (
-      <Card className="p-6 bg-card/60">
-        <div className="text-sm text-muted-foreground">Selecione uma aeronave para visualizar a Matriz Financeira Mensal.</div>
-      </Card>
-    );
-  }
 
   if (isLoading) {
     return (

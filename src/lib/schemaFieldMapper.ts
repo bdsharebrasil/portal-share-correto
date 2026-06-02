@@ -43,7 +43,7 @@ export const lancamentoDiarioBordoFieldMap = {
   'diario_mes': 'logbookMonthId',
   'aeronave_id': 'aircraftId',
   'clientes_id': 'clientId',
-  'socios_cliente_id': 'partnerClientId',
+  'socios_id': 'partnerClientId',
   
   // Datas e horários
   'data_registro': 'entryDate',

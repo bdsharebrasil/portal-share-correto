@@ -36,7 +36,7 @@ export function StatsGrid() {
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
       const { data, error } = await supabase
-        .from("movimentacoes")
+        .from("controle_bancario")
         .select("valor")
         .eq("tipo_movimento", "entrada")
         .gte("data", firstDay)
@@ -55,7 +55,7 @@ export function StatsGrid() {
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
       const { data, error } = await supabase
-        .from("movimentacoes")
+        .from("controle_bancario")
         .select("valor")
         .eq("tipo_movimento", "saida")
         .gte("data", firstDay)

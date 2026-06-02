@@ -15,14 +15,6 @@ export const FinanceMovementGroup = {
   REEMBOLSOS: "REEMBOLSOS" as const,
 };
 
-export const FinanceCaixaType = {
-  SHARE: "share" as const,
-  CLIENTE: "cliente" as const,
-};
-
-export type FinanceCaixaType = typeof FinanceCaixaType[keyof typeof FinanceCaixaType];
-
-
 export const FinanceCategoryName = {
   PARTNER_DEPOSIT: "Depósito de Sócio" as const,
   PARTNER_INTEREST: "Rendimento Bancário" as const,

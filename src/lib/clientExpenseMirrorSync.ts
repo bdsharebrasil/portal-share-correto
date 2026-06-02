@@ -91,7 +91,6 @@ export async function syncClientExpenseMirror(input: ClientExpenseMirrorInput) {
     boleto_url: input.boleto_url ?? null,
     reference_type: refType,
     reference_id: input.originId,
-    tipo_caixa: "cliente",
     criado_por: input.criado_por ?? null,
   };
 

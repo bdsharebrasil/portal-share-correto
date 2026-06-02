@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ const initialFormState = {
   data_agendamento: format(new Date(), "yyyy-MM-dd"),
   observacoes: "",
   cliente_id: null as string | null,
-  socios_cliente_id: null as string | null,
+  socios_id: null as string | null,
   fornecedor_favorito_id: null as string | null,
   aeronave_registro: "",
   empresa: "",

@@ -81,7 +81,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
       }
 
       if (categoriaId) {
-        await (supabase.from("movimentacoes") as any).insert([{
+        await (supabase.from("controle_bancario") as any).insert([{
           data: dataPagamento,
           tipo_movimento: "saida",
           categoria_id: categoriaId,

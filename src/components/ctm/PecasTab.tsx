@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Package, Plus, X, Save, Loader2, Search } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

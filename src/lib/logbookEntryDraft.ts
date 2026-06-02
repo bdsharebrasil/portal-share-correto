@@ -9,7 +9,7 @@ export interface LancamentoDiarioBordoDraftData {
   diario_mes: string;
   aeronave_id: string;
   clientes_id: string | null;
-  socios_cliente_id: string | null;
+  socios_id: string | null;
   parceiro_tomador_emprestimo_id: string | null;
   cliente_tomador_emprestimo_id: string | null;
 

@@ -239,7 +239,7 @@ function ActionButton({ children, onClick, gradient, title }: { children: React.
 }
 
 // ─── Report Card ───────────────────────────────────────────────────────────────
-function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumber }: { report: PastaReportItem; onSend: (rep: PastaReportItem, type: 'cliente' | 'conferencia') => void; onEdit: (id: string) => void; onView: (id: string) => void; onDelete: (id: string | undefined) => void; onEditReportNumber?: (reportId: string, newNumber: string) => void | Promise<void> }) {
+function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumber }: { report: PastaReportItem; onSend: (rep: PastaReportItem, type: string) => void; onEdit: (id: string) => void; onView: (id: string) => void; onDelete: (id: string | undefined) => void; onEditReportNumber?: (reportId: string, newNumber: string) => void | Promise<void> }) {
   const [h, setH] = useState(false);
   const [editingNumber, setEditingNumber] = useState(false);
   const [newNumber, setNewNumber] = useState(report.report_number);

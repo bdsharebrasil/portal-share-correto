@@ -526,7 +526,7 @@ export function LancamentoFormInline({
         clientes_id: clienteId,
         socio_cpf: socioCpf,
         socio_nome: socioNome,
-        socios_cliente_id: socioId,
+        socios_id: socioId,
         total_depositado: totalDep,
         total_gasto: totalGasto,
         saldo_atual: saldo,
