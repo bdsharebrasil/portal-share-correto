@@ -28,6 +28,7 @@ import {
 import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
 import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
+import { HistoricoCreditsTab } from "./HistoricoCreditsTab";
 import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
 import { useMemo, useState } from "react";
@@ -368,6 +369,10 @@ export default function FinanceiroCotistaDetalhe() {
             <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatórios</TabsTrigger>
             <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Abastecimentos</TabsTrigger>
             <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Fechamento de Balanço</TabsTrigger>
+            <TabsTrigger value="creditos" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+              <Wallet className="h-4 w-4 text-primary/70" />
+              Histórico de Créditos
+            </TabsTrigger>
             <TabsTrigger value="portal" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all ml-auto">
               <KeyRound className="h-4 w-4 text-primary/70" />
               <span>Acesso Portal</span>
@@ -640,6 +645,14 @@ export default function FinanceiroCotistaDetalhe() {
                 aeronaveLabel={aeronaveInfo?.matricula}
                 cotistas={cotistasDaAeronave}
                 clienteEmFoco={clienteId}
+              />
+            </TabsContent>
+
+            {/* Histórico de Créditos */}
+            <TabsContent value="creditos" className="mt-4">
+              <HistoricoCreditsTab
+                clienteId={clienteId}
+                aeronaveId={aeronaveAtual}
               />
             </TabsContent>
 
