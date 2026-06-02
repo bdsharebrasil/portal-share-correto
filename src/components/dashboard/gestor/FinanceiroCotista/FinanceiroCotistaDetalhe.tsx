@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
+import { RelatorioCompletoTab } from "./RelatorioCompletoTab";
 import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
 import { DetalhamentoCotistaTab } from "./DetalhamentoCotistaTab";
 import { useMemo, useState } from "react";
