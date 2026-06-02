@@ -33,6 +33,7 @@ import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { LancamentosFinanceiroTab } from "./LancamentosFinanceiroTab";
+import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { useMemo, useState } from "react";
 import {
   Dialog,
@@ -364,6 +365,10 @@ export default function FinanceiroCotistaDetalhe() {
               <FileText className="h-4 w-4 mr-2" />
               Lançamentos
             </TabsTrigger>
+            <TabsTrigger value="diario" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all border-2 border-transparent data-[state=active]:border-cyan-500/20">
+              <Plane className="h-4 w-4 mr-2 text-cyan-500" />
+              Diário de Bordo
+            </TabsTrigger>
             <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Financeiro</TabsTrigger>
             <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatórios</TabsTrigger>
             <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Abastecimentos</TabsTrigger>
@@ -420,6 +425,15 @@ export default function FinanceiroCotistaDetalhe() {
                   Ir para Lançamentos
                 </button>
               </div>
+            </TabsContent>
+
+            {/* Diário de Bordo */}
+            <TabsContent value="diario" className="mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <DiarioBordoCotistaTab
+                clienteId={clienteId!}
+                aeronaveId={aeronaveAtual}
+                relatorios={relatoriosDaAeronave}
+              />
             </TabsContent>
 
             {/* Financeiro */}
