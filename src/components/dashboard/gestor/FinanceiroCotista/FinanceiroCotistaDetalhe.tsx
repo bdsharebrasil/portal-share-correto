@@ -24,6 +24,7 @@ import {
   Building,
   Edit2,
   Trash2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
