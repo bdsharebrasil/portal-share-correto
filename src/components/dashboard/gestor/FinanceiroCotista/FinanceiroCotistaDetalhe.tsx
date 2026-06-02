@@ -28,10 +28,8 @@ import {
 import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
 import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
-import { DetalhamentoCotistaTab } from "./DetalhamentoCotistaTab";
 import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
-import { RelatorioCustosModelo1 } from "@/components/financeiro/RelatorioCustosModelo1";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Paperclip } from "lucide-react";
@@ -159,7 +157,6 @@ export default function FinanceiroCotistaDetalhe() {
     () => calcularBalanco(despesasDaAeronave, cotistasDaAeronave),
     [despesasDaAeronave, cotistasDaAeronave]
   );
-  const meuBalanco = balanco.find((b) => b.cotista_id === clienteId);
 
   const totaisAeronave = useMemo(() => {
     const total = despesasDaAeronave.reduce((a, d) => a + d.valor_total, 0);
@@ -368,8 +365,6 @@ export default function FinanceiroCotistaDetalhe() {
               Lançamentos
             </TabsTrigger>
             <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Financeiro</TabsTrigger>
-            <TabsTrigger value="custos-modelo1" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatório de Custos</TabsTrigger>
-            <TabsTrigger value="detalhamento" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Detalhamento Mensal</TabsTrigger>
             <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatórios</TabsTrigger>
             <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Abastecimentos</TabsTrigger>
             <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Fechamento de Balanço</TabsTrigger>
@@ -469,29 +464,6 @@ export default function FinanceiroCotistaDetalhe() {
                   />
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            {/* Relatório de Custos Modelo 1 */}
-            <TabsContent value="custos-modelo1" className="mt-4">
-              <RelatorioCustosModelo1 aeronaveId={aeronaveAtual} />
-            </TabsContent>
-
-            {/* Detalhamento Mensal */}
-            <TabsContent value="detalhamento" className="mt-4">
-              {meuBalanco ? (
-                <DetalhamentoCotistaTab
-                  clienteId={clienteId!}
-                  clienteNome={cliente?.razao_social || "—"}
-                  cotistaNome={meuBalanco.cotista_nome}
-                  cotistaPct={meuBalanco.percentual}
-                  aeronaveId={aeronaveAtual}
-                  aeronaveLabel={aeronaveInfo?.matricula || "—"}
-                />
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <p>Nenhum dado disponível para este cotista nesta aeronave</p>
-                </div>
-              )}
             </TabsContent>
 
             {/* Relatórios de Viagem */}
