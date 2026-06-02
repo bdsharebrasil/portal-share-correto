@@ -55,6 +55,8 @@ const MESES = [
   "Dezembro",
 ];
 
+type PeriodoTipo = "mensal" | "acumulado-ano" | "customizado";
+
 interface Cotista {
   id: string;
   nome: string;
@@ -89,27 +91,44 @@ export function FechamentoBalancoTab({
   clienteEmFoco,
 }: Props) {
   const hoje = new Date();
+  const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>("mensal");
   const [mes, setMes] = useState<number>(hoje.getMonth() + 1);
   const [ano, setAno] = useState<number>(hoje.getFullYear());
+  const [dataInicio, setDataInicio] = useState<string>(
+    `${ano}-${String(mes).padStart(2, "0")}-01`
+  );
+  const [dataFim, setDataFim] = useState<string>(
+    new Date(ano, mes, 0).toISOString().slice(0, 10)
+  );
 
-  const inicio = useMemo(
-    () => new Date(ano, mes - 1, 1).toISOString().slice(0, 10),
-    [ano, mes]
-  );
-  const fim = useMemo(
-    () => new Date(ano, mes, 0).toISOString().slice(0, 10),
-    [ano, mes]
-  );
+  const { inicio, fim } = useMemo(() => {
+    let start: string;
+    let end: string;
+
+    if (periodoTipo === "mensal") {
+      start = new Date(ano, mes - 1, 1).toISOString().slice(0, 10);
+      end = new Date(ano, mes, 0).toISOString().slice(0, 10);
+    } else if (periodoTipo === "acumulado-ano") {
+      start = `${ano}-01-01`;
+      end = `${ano}-12-31`;
+    } else {
+      // customizado
+      start = dataInicio;
+      end = dataFim;
+    }
+
+    return { inicio: start, fim: end };
+  }, [periodoTipo, mes, ano, dataInicio, dataFim]);
 
   const { data, isLoading } = useQuery({
     enabled: !!aeronaveId,
-    queryKey: ["fechamento-balanco", aeronaveId, mes, ano],
+    queryKey: ["fechamento-balanco", aeronaveId, periodoTipo, mes, ano, dataInicio, dataFim],
     queryFn: async () => {
       const [{ data: despesas }, { data: voos }] = await Promise.all([
         (supabase as any)
           .from("rateio_despesas")
           .select(
-            "id, descricao_despesa, fornecedor_nome, categoria_custo, periodicidade, valor_total_despesa, pago_por, data_pagamento, data_vencimento, cliente_id, clientes_nome, socio_id, socios_nome"
+            "id, descricao_despesa, fornecedor_nome, categoria_custo, periodicidade, valor_total_despesa, pago_por, pago_por_tipo, data_pagamento, data_vencimento, cliente_id, clientes_nome, socio_id, socios_nome"
           )
           .eq("aeronave_id", aeronaveId)
           .or(
@@ -215,38 +234,98 @@ export function FechamentoBalancoTab({
     <div className="space-y-6">
       {/* Filtros */}
       <Card className="bg-card/60 border-border">
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-          <div className="flex items-center gap-2 px-2 text-sm font-medium text-muted-foreground">
-            <Calculator className="h-4 w-4 text-primary" />
-            Período de fechamento:
+        <CardContent className="p-4 space-y-4">
+          {/* Tipo de período */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <div className="flex items-center gap-2 px-2 text-sm font-medium text-muted-foreground">
+              <Calculator className="h-4 w-4 text-primary" />
+              Tipo de período:
+            </div>
+            <Select value={periodoTipo} onValueChange={(v) => setPeriodoTipo(v as PeriodoTipo)}>
+              <SelectTrigger className="w-56 h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mensal">Mensal</SelectItem>
+                <SelectItem value="acumulado-ano">Acumulado (Ano-a-Data)</SelectItem>
+                <SelectItem value="customizado">Período Customizado</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="ml-auto text-xs text-muted-foreground">
+              Aeronave: <span className="font-mono font-medium text-foreground">{aeronaveLabel || "—"}</span>
+            </div>
           </div>
-          <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-            <SelectTrigger className="w-44 h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MESES.map((m, i) => (
-                <SelectItem key={i} value={String(i + 1)}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-            <SelectTrigger className="w-32 h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {anos.map((a) => (
-                <SelectItem key={a} value={String(a)}>
-                  {a}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="ml-auto text-xs text-muted-foreground">
-            Aeronave: <span className="font-mono font-medium text-foreground">{aeronaveLabel || "—"}</span>
-          </div>
+
+          {/* Opções específicas por tipo */}
+          {periodoTipo === "mensal" && (
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <span className="text-xs text-muted-foreground px-2">Selecione mês e ano:</span>
+              <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
+                <SelectTrigger className="w-44 h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MESES.map((m, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
+                <SelectTrigger className="w-32 h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {anos.map((a) => (
+                    <SelectItem key={a} value={String(a)}>
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {periodoTipo === "acumulado-ano" && (
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <span className="text-xs text-muted-foreground px-2">Ano-a-data:</span>
+              <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
+                <SelectTrigger className="w-40 h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {anos.map((a) => (
+                    <SelectItem key={a} value={String(a)}>
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground">
+                ({inicio} a {fim})
+              </span>
+            </div>
+          )}
+
+          {periodoTipo === "customizado" && (
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <span className="text-xs text-muted-foreground px-2">De:</span>
+              <input
+                type="date"
+                value={dataInicio}
+                onChange={(e) => setDataInicio(e.target.value)}
+                className="px-3 py-2 rounded-md border border-input bg-background text-sm h-10 max-w-xs"
+              />
+              <span className="text-xs text-muted-foreground px-2">Até:</span>
+              <input
+                type="date"
+                value={dataFim}
+                onChange={(e) => setDataFim(e.target.value)}
+                className="px-3 py-2 rounded-md border border-input bg-background text-sm h-10 max-w-xs"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -282,7 +361,7 @@ export function FechamentoBalancoTab({
       <Card className="bg-card/60 border-border">
         <CardHeader>
           <CardTitle className="text-base">
-            Acerto de Contas — {MESES[mes - 1]}/{ano}
+            Acerto de Contas — {periodoTipo === "mensal" ? `${MESES[mes - 1]}/${ano}` : periodoTipo === "acumulado-ano" ? `Acumulado ${ano}` : `${inicio} a ${fim}`}
           </CardTitle>
         </CardHeader>
         <CardContent>
