@@ -24,9 +24,11 @@ import {
   Building,
   Edit2,
   Trash2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
+import { RelatorioCompletoTab } from "./RelatorioCompletoTab";
 import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
 import { DetalhamentoCotistaTab } from "./DetalhamentoCotistaTab";
 import { useMemo, useState } from "react";
@@ -338,6 +340,10 @@ export default function FinanceiroCotistaDetalhe() {
             </TabsTrigger>
             <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Financeiro</TabsTrigger>
             <TabsTrigger value="detalhamento" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Detalhamento Mensal</TabsTrigger>
+            <TabsTrigger value="relatorio-completo" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all font-semibold">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Relatório Completo
+            </TabsTrigger>
             <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatórios</TabsTrigger>
             <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Abastecimentos</TabsTrigger>
             <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Fechamento de Balanço</TabsTrigger>
@@ -513,6 +519,16 @@ export default function FinanceiroCotistaDetalhe() {
                 </div>
               )}
             </TabsContent>
+
+            {/* Relatório Completo (formato planilha PDF) */}
+            <TabsContent value="relatorio-completo" className="mt-4">
+              <RelatorioCompletoTab
+                clienteId={clienteId!}
+                aeronaveId={aeronaveAtual}
+                aeronaveLabel={aeronaveInfo?.matricula}
+              />
+            </TabsContent>
+
 
             {/* Relatórios de Viagem */}
             <TabsContent value="viagem" className="mt-4">
