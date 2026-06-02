@@ -520,6 +520,16 @@ export default function FinanceiroCotistaDetalhe() {
               )}
             </TabsContent>
 
+            {/* Relatório Completo (formato planilha PDF) */}
+            <TabsContent value="relatorio-completo" className="mt-4">
+              <RelatorioCompletoTab
+                clienteId={clienteId!}
+                aeronaveId={aeronaveAtual}
+                aeronaveLabel={aeronaveInfo?.matricula}
+              />
+            </TabsContent>
+
+
             {/* Relatórios de Viagem */}
             <TabsContent value="viagem" className="mt-4">
               <Card className="bg-card/60 border-border">
