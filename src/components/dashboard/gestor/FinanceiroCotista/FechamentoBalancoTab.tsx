@@ -128,7 +128,7 @@ export function FechamentoBalancoTab({
         (supabase as any)
           .from("rateio_despesas")
           .select(
-            "id, descricao_despesa, fornecedor_nome, categoria_custo, periodicidade, valor_total_despesa, pago_por, pago_por_tipo, data_pagamento, data_vencimento, cliente_id, clientes_nome, socio_id, socios_nome"
+            "id, descricao_despesa, fornecedor_nome, categoria_custo, periodicidade, valor_total_despesa, pago_por, pago_diretamente, data_pagamento, data_vencimento, cliente_id, clientes_nome, socio_id, socios_nome, valor_pago_real, percentual_sociedade"
           )
           .eq("aeronave_id", aeronaveId)
           .or(
@@ -183,26 +183,42 @@ export function FechamentoBalancoTab({
 
   const custoMedioHora = horasTotais > 0 ? custoVariavel / horasTotais : 0;
 
-  // Crédito: somatório por nome de pago_por que bate com nome do cotista
+  // Crédito: identifica quem pagou diretamente (pago_diretamente=true OU cliente/sócio vinculado)
   const creditoPorCotista = useMemo(() => {
     const map = new Map<string, number>();
     cotistas.forEach((c) => map.set(c.id, 0));
     despesas.forEach((d) => {
-      const val = Number(d.valor_total_despesa) || 0;
-      const pagoNorm = norm(d.pago_por);
-      if (!pagoNorm || pagoNorm === "empresa" || pagoNorm === "share" || pagoNorm === "share brasil") return;
-      // 1) match direto por id (cliente_id / socio_id na linha)
-      const matchId =
-        cotistas.find((c) => c.id === d.cliente_id) ||
-        cotistas.find((c) => c.id === d.socio_id);
-      // 2) match por nome
-      const matchNome =
-        cotistas.find((c) => norm(c.nome) === pagoNorm) ||
-        cotistas.find(
-          (c) => pagoNorm.includes(norm(c.nome)) && norm(c.nome).length > 3
-        );
-      const alvo = matchId || matchNome;
-      if (alvo) map.set(alvo.id, (map.get(alvo.id) || 0) + val);
+      // Valor que foi pago: use valor_pago_real se disponível, senão valor_total_despesa
+      const valPago = Number(d.valor_pago_real || d.valor_total_despesa) || 0;
+
+      // Determinar quem pagou:
+      // 1) Se tem cliente_id (é o cliente que pagou), dar crédito ao cliente
+      if (d.cliente_id) {
+        const cotista = cotistas.find((c) => c.id === d.cliente_id);
+        if (cotista) {
+          map.set(cotista.id, (map.get(cotista.id) || 0) + valPago);
+          return;
+        }
+      }
+
+      // 2) Se tem socio_id (é o sócio que pagou), dar crédito ao sócio
+      if (d.socio_id) {
+        const cotista = cotistas.find((c) => c.id === d.socio_id);
+        if (cotista) {
+          map.set(cotista.id, (map.get(cotista.id) || 0) + valPago);
+          return;
+        }
+      }
+
+      // 3) Se pago_diretamente = true, tentar fazer match por nome de pago_por
+      if (d.pago_diretamente && d.pago_por) {
+        const pagoNorm = norm(d.pago_por);
+        const matchNome = cotistas.find((c) => norm(c.nome) === pagoNorm);
+        if (matchNome) {
+          map.set(matchNome.id, (map.get(matchNome.id) || 0) + valPago);
+          return;
+        }
+      }
     });
     return map;
   }, [despesas, cotistas]);

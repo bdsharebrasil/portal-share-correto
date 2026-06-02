@@ -31,9 +31,9 @@ import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
 import { HistoricoCreditsTab } from "./HistoricoCreditsTab";
 import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
+import { AbastecimentosTab } from "./AbastecimentosTab";
+import { LancamentosFinanceiroTab } from "./LancamentosFinanceiroTab";
 import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Search, Paperclip } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -50,14 +50,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -77,8 +69,7 @@ export default function FinanceiroCotistaDetalhe() {
   const navigate = useNavigate();
   const { data, isLoading } = useFinanceiroCotistaDetalhe(clienteId);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
-  const [filtroFin, setFiltroFin] = useState("");
-  const [filtroOrigem, setFiltroOrigem] = useState<"todos" | "conciliacao" | "direto">("todos");
+  const [socioSelecionado, setSocioSelecionado] = useState<string | undefined>();
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<DespesaUnificada | null>(null);
   const [acaoModal, setAcaoModal] = useState<"editar" | "deletar" | null>(null);
@@ -425,50 +416,15 @@ export default function FinanceiroCotistaDetalhe() {
 
             {/* Financeiro */}
             <TabsContent value="financeiro" className="space-y-4 mt-4">
-              <Card className="bg-card/60 border-border">
-                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <CardTitle className="text-base">
-                      Lançamentos detalhados — {aeronaveInfo?.matricula || "—"}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Visão analítica de cada despesa: pagador, fornecedor, documentos e anexos.
-                    </p>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar descrição, fornecedor, doc..."
-                        value={filtroFin}
-                        onChange={(e) => setFiltroFin(e.target.value)}
-                        className="pl-8 w-64 h-9"
-                      />
-                    </div>
-                    <Select value={filtroOrigem} onValueChange={(v: any) => setFiltroOrigem(v)}>
-                      <SelectTrigger className="w-44 h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todas as origens</SelectItem>
-                        <SelectItem value="conciliacao">Pago pela Share</SelectItem>
-                        <SelectItem value="direto">Pago direto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <DespesasTable
-                    despesas={despesasDaAeronave}
-                    filtro={filtroFin}
-                    filtroOrigem={filtroOrigem}
-                    onLancamentoClick={(d) => {
-                      setLancamentoSelecionado(d);
-                      setAcaoModal(null);
-                    }}
-                  />
-                </CardContent>
-              </Card>
+              <LancamentosFinanceiroTab
+                despesas={despesasDaAeronave}
+                cotistas={cotistasDaAeronave}
+                aeronaveLabel={aeronaveInfo?.matricula}
+                onLancamentoClick={(d) => {
+                  setLancamentoSelecionado(d);
+                  setAcaoModal(null);
+                }}
+              />
             </TabsContent>
 
             {/* Relatórios de Viagem */}
@@ -545,97 +501,11 @@ export default function FinanceiroCotistaDetalhe() {
 
             {/* Abastecimentos */}
             <TabsContent value="abast" className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                  icon={<Fuel className="h-5 w-5" />}
-                  label="Total gasto"
-                  value={formatBRL(totaisAeronave.totalAbast)}
-                  sub={`${abastecimentosDaAeronave.length} abastecimentos`}
-                />
-                <StatCard
-                  icon={<Fuel className="h-5 w-5" />}
-                  label="Litros"
-                  value={`${totaisAeronave.totalLitros.toLocaleString("pt-BR", {
-                    maximumFractionDigits: 1,
-                  })} L`}
-                  sub="Volume acumulado"
-                />
-                <StatCard
-                  icon={<Wallet className="h-5 w-5" />}
-                  label="Preço médio / L"
-                  value={formatBRL(
-                    totaisAeronave.totalLitros > 0
-                      ? totaisAeronave.totalAbast / totaisAeronave.totalLitros
-                      : 0
-                  )}
-                  sub="Média ponderada"
-                />
-              </div>
-
-              <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Abastecimentos — {aeronaveInfo?.matricula || "—"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {abastecimentosDaAeronave.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">
-                      Nenhum abastecimento encontrado para esta aeronave.
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Trecho / Local</TableHead>
-                          <TableHead>Abastecedor</TableHead>
-                          <TableHead className="text-right">Litros</TableHead>
-                          <TableHead className="text-right">R$/L</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                          <TableHead>Pgto</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {abastecimentosDaAeronave.slice(0, 100).map((a) => (
-                          <TableRow key={a.id}>
-                            <TableCell className="text-xs">
-                              {formatDate(a.data)}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {a.trecho || a.local || "—"}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {a.abastecedor || "—"}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs">
-                              {a.litros.toLocaleString("pt-BR")}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs">
-                              {formatBRL(a.valor_unitario)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
-                              {formatBRL(a.valor_total)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  a.status_pagamento === "pago"
-                                    ? "border-success/40 text-success text-[10px]"
-                                    : "border-amber-500/40 text-amber-400 text-[10px]"
-                                }
-                              >
-                                {a.status_pagamento || "—"}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              <AbastecimentosTab
+                abastecimentos={abastecimentosDaAeronave}
+                cotistas={cotistasDaAeronave}
+                aeronaveLabel={aeronaveInfo?.matricula}
+              />
             </TabsContent>
 
             {/* Fechamento de Balanço */}
@@ -652,7 +522,10 @@ export default function FinanceiroCotistaDetalhe() {
             <TabsContent value="creditos" className="mt-4">
               <HistoricoCreditsTab
                 clienteId={clienteId}
+                socioId={socioSelecionado}
                 aeronaveId={aeronaveAtual}
+                onSocioChange={setSocioSelecionado}
+                cotistas={cotistasDaAeronave}
               />
             </TabsContent>
 
@@ -758,169 +631,6 @@ function StatCard({
 }
 
 
-// ============== Tabela detalhada de lançamentos ==============
-function DespesasTable({
-  despesas,
-  filtro,
-  filtroOrigem,
-  onLancamentoClick,
-}: {
-  despesas: DespesaUnificada[];
-  filtro: string;
-  filtroOrigem: "todos" | "conciliacao" | "direto";
-  onLancamentoClick?: (d: DespesaUnificada) => void;
-}) {
-  const fmtBRL = (n: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
-  const fmtDate = (s?: string | null) =>
-    s ? new Date(s).toLocaleDateString("pt-BR") : "—";
-
-  const lista = useMemo(() => {
-    const q = filtro.trim().toLowerCase();
-    return [...despesas]
-      .filter((d) => filtroOrigem === "todos" || d.origem === filtroOrigem)
-      .filter((d) => {
-        if (!q) return true;
-        return (
-          d.descricao?.toLowerCase().includes(q) ||
-          (d.fornecedor || "").toLowerCase().includes(q) ||
-          (d.numero_doc || "").toLowerCase().includes(q) ||
-          (d.numero_nf || "").toLowerCase().includes(q) ||
-          (d.numero_boleto || "").toLowerCase().includes(q) ||
-          (d.pago_por || "").toLowerCase().includes(q) ||
-          (d.categoria || "").toLowerCase().includes(q)
-        );
-      })
-      .sort((a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime());
-  }, [despesas, filtro, filtroOrigem]);
-
-  if (lista.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-6 text-center">
-        Nenhum lançamento encontrado com os filtros atuais.
-      </p>
-    );
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Vencimento</TableHead>
-            <TableHead>Pago em</TableHead>
-            <TableHead>Doc / NF</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Categoria</TableHead>
-            <TableHead>Fornecedor</TableHead>
-            <TableHead>Pago por</TableHead>
-            <TableHead>Forma</TableHead>
-            <TableHead>Origem</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
-            <TableHead className="text-center">Anexos</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {lista.map((d) => {
-            const anexos = [
-              { url: d.comprovante_url, label: "Comprovante" },
-              { url: d.recibo_url, label: "Recibo" },
-              { url: d.nf_url, label: "NF" },
-              { url: d.boleto_url, label: "Boleto" },
-            ].filter((a) => !!a.url);
-
-            return (
-              <TableRow
-                key={d.id}
-                className="cursor-pointer hover:bg-primary/5 transition-colors"
-                onClick={() => onLancamentoClick?.(d)}
-              >
-                <TableCell className="text-xs">{fmtDate(d.data_vencimento)}</TableCell>
-                <TableCell className="text-xs">{fmtDate(d.data_pagamento)}</TableCell>
-                <TableCell className="text-xs font-mono">
-                  {d.numero_nf || d.numero_doc || d.numero_boleto || d.numero_recibo || "—"}
-                </TableCell>
-                <TableCell className="text-sm max-w-[260px]">
-                  <span className="block truncate" title={d.descricao}>
-                    {d.descricao}
-                  </span>
-                  {d.observacoes && (
-                    <span className="block text-[10px] text-muted-foreground/70 truncate" title={d.observacoes}>
-                      {d.observacoes}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{d.categoria || "—"}</TableCell>
-                <TableCell className="text-xs">{d.fornecedor || "—"}</TableCell>
-                <TableCell className="text-xs">
-                  <Badge
-                    variant="outline"
-                    className={
-                      d.pago_por_tipo === "EMPRESA"
-                        ? "border-blue-500/40 text-blue-400"
-                        : d.pago_por_tipo === "CLIENTE"
-                        ? "border-amber-500/40 text-amber-400"
-                        : d.pago_por_tipo === "SOCIO"
-                        ? "border-purple-500/40 text-purple-400"
-                        : "border-border text-muted-foreground"
-                    }
-                  >
-                    {d.pago_por}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{d.forma_pagamento || "—"}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      d.origem === "conciliacao"
-                        ? "border-blue-500/40 text-blue-400"
-                        : "border-amber-500/40 text-amber-400"
-                    }
-                  >
-                    {d.origem === "conciliacao" ? "Share pagou" : "Direto"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-mono text-sm font-semibold">
-                  {fmtBRL(d.valor_total)}
-                </TableCell>
-                <TableCell className="text-center">
-                  {anexos.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  ) : (
-                    <div className="flex justify-center gap-1">
-                      {anexos.map((a) => (
-                        <a
-                          key={a.label}
-                          href={a.url!}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={a.label}
-                          className="p-1 rounded hover:bg-primary/10 text-primary"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {d.status || "—"}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-      <p className="text-xs text-muted-foreground mt-3">
-        {lista.length} lançamento(s) · Total: {fmtBRL(lista.reduce((a, d) => a + d.valor_total, 0))}
-      </p>
-    </div>
-  );
-}
 
 // ============== Drill-down modal dos cards ==============
 function DrillDownModal({
