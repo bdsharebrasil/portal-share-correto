@@ -77,6 +77,7 @@ export default function FinanceiroCotistaDetalhe() {
   const navigate = useNavigate();
   const { data, isLoading } = useFinanceiroCotistaDetalhe(clienteId);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
+  const [socioSelecionado, setSocioSelecionado] = useState<string | undefined>();
   const [filtroFin, setFiltroFin] = useState("");
   const [filtroOrigem, setFiltroOrigem] = useState<"todos" | "conciliacao" | "direto">("todos");
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
@@ -652,7 +653,10 @@ export default function FinanceiroCotistaDetalhe() {
             <TabsContent value="creditos" className="mt-4">
               <HistoricoCreditsTab
                 clienteId={clienteId}
+                socioId={socioSelecionado}
                 aeronaveId={aeronaveAtual}
+                onSocioChange={setSocioSelecionado}
+                cotistas={cotistasDaAeronave}
               />
             </TabsContent>
 

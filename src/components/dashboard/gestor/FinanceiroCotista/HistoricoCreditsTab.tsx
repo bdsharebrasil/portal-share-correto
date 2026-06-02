@@ -27,12 +27,20 @@ const formatData = (data: string) => {
   return d.toLocaleDateString("pt-BR");
 };
 
+interface Cotista {
+  id: string;
+  nome: string;
+  percentual: number;
+}
+
 interface HistoricoCreditsTabProps {
   clienteId?: string;
   socioId?: string;
   aeronaveId?: string;
   dataInicio?: string;
   dataFim?: string;
+  cotistas?: Cotista[];
+  onSocioChange?: (socioId: string | undefined) => void;
 }
 
 export function HistoricoCreditsTab({
@@ -41,6 +49,8 @@ export function HistoricoCreditsTab({
   aeronaveId,
   dataInicio,
   dataFim,
+  cotistas = [],
+  onSocioChange,
 }: HistoricoCreditsTabProps) {
   const { data: historico, isLoading } = useHistoricoCreditosCotista({
     clienteId,
@@ -52,13 +62,29 @@ export function HistoricoCreditsTab({
 
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  if (!historico) {
+  const temMultiplosCotistas = cotistas.length > 1;
+
+  if (!historico && !socioId) {
     return (
-      <Card>
-        <CardContent className="py-6">
-          <p className="text-sm text-muted-foreground text-center">
-            Selecione um cotista para visualizar histórico
-          </p>
+      <Card className="bg-card/60 border-border">
+        <CardContent className="py-8 px-6">
+          <div className="flex flex-col items-center gap-3">
+            {temMultiplosCotistas ? (
+              <>
+                <FileText className="h-6 w-6 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground text-center">
+                  Selecione um sócio/cotista para visualizar seu histórico de créditos
+                </p>
+              </>
+            ) : (
+              <>
+                <FileText className="h-6 w-6 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground text-center">
+                  Nenhum histórico disponível para este cotista
+                </p>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -66,6 +92,30 @@ export function HistoricoCreditsTab({
 
   return (
     <div className="space-y-6">
+      {/* Seletor de Sócio/Cotista - se houver múltiplos */}
+      {temMultiplosCotistas && (
+        <Card className="bg-card/60 border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-medium text-muted-foreground">
+                Selecione o sócio/cotista:
+              </label>
+              <select
+                value={socioId || ""}
+                onChange={(e) => onSocioChange?.(e.target.value || undefined)}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm flex-1 max-w-xs"
+              >
+                <option value="">— Todos os sócios —</option>
+                {cotistas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} ({c.percentual}%)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Resumo de Créditos */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-md p-5 shadow-lg">
