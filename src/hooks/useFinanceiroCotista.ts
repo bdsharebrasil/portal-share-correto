@@ -185,6 +185,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         )
         .eq("id_clientes", clienteId!);
       if (aErr) throw aErr;
+      // Missing error handling was here
 
       const aeronaveIds = (minhasAeronaves || [])
         .map((a: any) => a.id_aeronave)
@@ -277,10 +278,11 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
 
         const movDocMap = new Map<string, any>();
         if (allDespesaIds.length > 0) {
-          const { data: movDocs } = await supabase
+          const { data: movDocs, error: movError } = await supabase
             .from("movimentacoes")
             .select("id, numero_nf, numero_doc, numero_boleto, numero_recibo")
             .in("id", allDespesaIds);
+          if (movError) console.warn("Erro ao buscar documentos de movimentações:", movError);
           (movDocs || []).forEach((m: any) => movDocMap.set(m.id, m));
         }
         // ─────────────────────────────────────────────────────────────────────────
