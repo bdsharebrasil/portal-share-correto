@@ -163,12 +163,12 @@ export function AbastecimentosTab({
             </Select>
 
             {temMultiplosCotistas && (
-              <Select value={cotistaFiltro || ""} onValueChange={(v) => setCotistaFiltro(v || undefined)}>
+              <Select value={cotistaFiltro || "todos"} onValueChange={(v) => setCotistaFiltro(v === "todos" ? undefined : v)}>
                 <SelectTrigger className="w-52 h-10">
                   <SelectValue placeholder="Todos os sócios/clientes" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os sócios/clientes</SelectItem>
+                  <SelectItem value="todos">Todos os sócios/clientes</SelectItem>
                   {cotistas.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.nome} ({c.percentual}%)
