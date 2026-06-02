@@ -42,7 +42,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
         .from('lancamentos_diario_bordo')
         .select('tempo_total')
         .eq('clientes_id', clienteId)
-        .eq('socios_cliente_id', socioId)
+        .eq('socios_id', socioId)
         .gte('data_registro', periodo.inicio)
         .lte('data_registro', periodo.fim);
 
@@ -50,7 +50,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
         .from('lancamentos_diario_bordo')
         .select('tempo_total')
         .eq('clientes_id', clienteId)
-        .is('socios_cliente_id', null)
+        .is('socios_id', null)
         .gte('data_registro', periodo.inicio)
         .lte('data_registro', periodo.fim);
 
@@ -87,7 +87,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       if (socioId) {
         let qLog = supabase
           .from('lancamentos_diario_bordo')
-          .select('id, data_registro, tempo_total, aerodromo_partida, aerodromo_chegada, trecho, socios_nome, aeronave_id, socios_cliente_id, divisao_igual')
+          .select('id, data_registro, tempo_total, aerodromo_partida, aerodromo_chegada, trecho, socios_nome, aeronave_id, socios_id, divisao_igual')
           .eq('clientes_id', clienteId)
           .gte('data_registro', periodo.inicio)
           .lte('data_registro', periodo.fim)
@@ -99,16 +99,16 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
 
         const { data: allEntries } = await qLog;
 
-        // Filtrar: voos do sócio (socios_cliente_id = socioId) OU voos compartilhados (socios_cliente_id = NULL)
+        // Filtrar: voos do sócio (socios_id = socioId) OU voos compartilhados (socios_id = NULL)
         const filtered = (allEntries || []).filter((e: any) =>
-          e.socios_cliente_id === socioId || e.socios_cliente_id === null
+          e.socios_id === socioId || e.socios_id === null
         );
 
         // Adicionar informação de tipo (próprio vs compartilhado)
         return filtered.map((e: any) => ({
           ...e,
-          _isSocioOwned: e.socios_cliente_id === socioId,
-          _isShared: e.socios_cliente_id === null
+          _isSocioOwned: e.socios_id === socioId,
+          _isShared: e.socios_id === null
         }));
       }
 

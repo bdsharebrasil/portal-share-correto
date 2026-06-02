@@ -41,7 +41,7 @@ export function InlineTransactionForm({ onClose }: InlineTransactionFormProps) {
 
     setSaving(true);
     try {
-      const { error } = await (supabase.from("movimentacoes") as any).insert({
+      const { error } = await (supabase.from("controle_bancario") as any).insert({
         descricao: form.descricao,
         valor: parseFloat(form.valor),
         tipo: form.tipo,
@@ -54,7 +54,7 @@ export function InlineTransactionForm({ onClose }: InlineTransactionFormProps) {
       if (error) throw error;
 
       toast.success("Movimentação criada com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["controle_bancario"] });
       onClose();
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);

@@ -216,7 +216,7 @@ export function NotasFiscaisEntrada() {
 
         // Se status mudou para "paga" durante a edição
         if (notaData.status === "paga" && editingNota.status !== "paga" && user) {
-          await fromUntyped("movimentacoes").insert({
+          await fromUntyped("controle_bancario").insert({
             descricao: `NF Entrada ${notaData.numero} - ${notaData.fornecedor_nome}`,
             valor: notaData.valor,
             data: new Date().toISOString().split("T")[0],
@@ -243,7 +243,7 @@ export function NotasFiscaisEntrada() {
 
         // Se criada já com status "paga"
         if (notaData.status === "paga" && user && insertedNota) {
-          await fromUntyped("movimentacoes").insert({
+          await fromUntyped("controle_bancario").insert({
             descricao: `NF Entrada ${notaData.numero} - ${notaData.fornecedor_nome}`,
             valor: notaData.valor,
             data: new Date().toISOString().split("T")[0],
@@ -369,7 +369,7 @@ export function NotasFiscaisEntrada() {
       if (newStatus === "paga") {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { error: fluxoError } = await fromUntyped("movimentacoes")
+          const { error: fluxoError } = await fromUntyped("controle_bancario")
             .insert({
               descricao: `NF Entrada ${nota.numero} - ${nota.fornecedor_nome}`,
               valor: nota.valor,

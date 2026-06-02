@@ -210,7 +210,7 @@ export function getCrewTotalsWithNames(report: TravelReportWithTotals, expenses:
  * Gera o próximo número de relatório de viagem para um cliente + aeronave.
  *
  * Formato: `REL-XXX-001/26 PT-OPC`
- *  - XXX  = código_cliente (fixo da tabela clientes ou socios_cliente)
+ *  - XXX  = código_cliente (fixo da tabela clientes ou socios)
  *  - 001  = sequência POR cliente E por aeronave (mantém continuidade individual)
  *  - 26   = ano com 2 dígitos
  *  - PT-OPC = matrícula da aeronave (sufixo + filtro)
@@ -220,7 +220,7 @@ export function getCrewTotalsWithNames(report: TravelReportWithTotals, expenses:
  *  DEJ com PT-OPC → REL-DEJ-002/26 PT-OPC (continua a sequência da aeronave)
  *  DEJ com PT-XYZ → REL-DEJ-001/26 PT-XYZ (sequência separada para outra aeronave)
  *
- * @param clientCode Código do cliente (codigo_cliente de clientes ou socios_cliente).
+ * @param clientCode Código do cliente (codigo_cliente de clientes ou socios).
  * @param aircraftRegistration Matrícula da aeronave (sufixo + filtro).
  */
 export async function generateReportNumber(

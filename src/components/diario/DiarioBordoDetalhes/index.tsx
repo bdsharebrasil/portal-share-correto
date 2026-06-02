@@ -75,7 +75,7 @@ type Lanc = {
   natureza_voo: string | null;
   tarifa_diaria: string | null;
   clientes_id: string | null;
-  socios_cliente_id: string | null;
+  socios_id: string | null;
   socios_nome: string | null;
   emprestimo: boolean | null;
   cliente_tomador_emprestimo_id: string | null;
@@ -389,8 +389,8 @@ function DiarioBordoDetalhes() {
     if (naturezasRateio.some((n) => nat.toLowerCase() === n.toLowerCase())) {
       return nat.toUpperCase();
     }
-    if (l.socios_cliente_id) {
-      const s = socios.find((x) => x.id === l.socios_cliente_id);
+    if (l.socios_id) {
+      const s = socios.find((x) => x.id === l.socios_id);
       const nomeSocio = s?.nome ?? l.socios_nome;
       if (nomeSocio) return nomeSocio;
       return "Sócio";
@@ -471,10 +471,10 @@ function DiarioBordoDetalhes() {
       let clienteNome = "";
 
       if (lancamento) {
-        if (lancamento.socios_cliente_id) {
-          const socio = socios.find(s => s.id === lancamento.socios_cliente_id);
-          clienteId = lancamento.socios_cliente_id;
-          clienteNome = socio?.nome || lancamento.socios_nome || `Sócio (${lancamento.socios_cliente_id})`;
+        if (lancamento.socios_id) {
+          const socio = socios.find(s => s.id === lancamento.socios_id);
+          clienteId = lancamento.socios_id;
+          clienteNome = socio?.nome || lancamento.socios_nome || `Sócio (${lancamento.socios_id})`;
         } else if (lancamento.clientes_id) {
           const cliente = clientes.find(c => c.id === lancamento.clientes_id);
           clienteId = lancamento.clientes_id;
@@ -733,7 +733,7 @@ function DiarioBordoDetalhes() {
             const naturezasRateio = ["TR - Traslado", "CQ - Cheque", "VOO_TESTE", "NR - Não Remunerado"];
             let label: string;
             if (naturezasRateio.some((n) => nat.toLowerCase() === n.toLowerCase())) label = nat.toUpperCase();
-            else if (l.socios_cliente_id) { const s = sociosData.find((x) => x.id === l.socios_cliente_id); label = s?.nome ?? l.socios_nome ?? "Sócio"; }
+            else if (l.socios_id) { const s = sociosData.find((x) => x.id === l.socios_id); label = s?.nome ?? l.socios_nome ?? "Sócio"; }
             else if (l.clientes_id) { const c = clientesData.find((x) => x.id === l.clientes_id); label = c?.razao_social ?? c?.proprietario ?? "Cliente"; }
             else label = nat || "—";
             const cur = mapCotista.get(label) ?? { label, horas: 0 };
@@ -1750,7 +1750,7 @@ function NovoVooInline({
         pic_canac: picId || null, sic_canac: sicId || null,
         sic_name: sicNome || sicTrip?.nome_completo || null,
         natureza_voo: natureza, tarifa_diaria: temDiaria ? String(qtdDiarias) : null,
-        clientes_id: clienteId || null, socios_cliente_id: socioId || null, socios_nome: socioNome,
+        clientes_id: clienteId || null, socios_id: socioId || null, socios_nome: socioNome,
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
         ocorrencias: obs || null, consumo_combustivel_voo: consumoCombustivelVoo || null,
@@ -1935,7 +1935,7 @@ function EditarVooInline({
   const [sicId, setSicId] = useState(lanc.sic_canac ?? "");
   const [sicNome, setSicNome] = useState(lanc.sic_name ?? "");
   const [clienteId, setClienteId] = useState(lanc.clientes_id ?? "");
-  const [socioId, setSocioId] = useState(lanc.socios_cliente_id ?? "");
+  const [socioId, setSocioId] = useState(lanc.socios_id ?? "");
   const [emprestimo, setEmprestimo] = useState(lanc.emprestimo ?? false);
   const [clienteTomadorId, setClienteTomadorId] = useState(lanc.cliente_tomador_emprestimo_id ?? "");
   const [socioTomadorId, setSocioTomadorId] = useState(lanc.socio_tomador_emprestimo_id ?? "");
@@ -1971,7 +1971,7 @@ function EditarVooInline({
         combustivel_adicionado: abast, celula, celula_tvoo: celulaTvoo,
         pic_canac: picId || null, sic_canac: sicId || null, sic_name: sicNome || null,
         natureza_voo: natureza, tarifa_diaria: temDiaria ? String(qtdDiarias) : null,
-        clientes_id: clienteId || null, socios_cliente_id: socioId || null, socios_nome: socioNome,
+        clientes_id: clienteId || null, socios_id: socioId || null, socios_nome: socioNome,
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
         // TODO: origem_pic e origem_sic deixados como null para evitar constraint de tabela inexistente (crew_members)

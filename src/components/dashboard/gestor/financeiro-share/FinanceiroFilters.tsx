@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, SlidersHorizontal, CalendarDays } from 'lucide-react';
@@ -21,6 +20,7 @@ export interface FinanceiroFilterState {
   dateRange: DateRange | undefined;
   amountRange: [number, number];
   source: string;
+  caixaType: string;
 }
 
 interface FinanceiroFiltersProps {
@@ -44,6 +44,12 @@ const SOURCE_OPTIONS = [
   { value: 'all', label: 'Entrada e Saída' },
   { value: 'entrada', label: 'Entrada' },
   { value: 'saída', label: 'Saída' },
+];
+
+const TIPO_CAIXA_OPTIONS = [
+  { value: 'all', label: 'Todos' },
+  { value: 'share', label: 'Share Brasil' },
+  { value: 'cliente', label: 'Caixa Cliente' },
 ];
 
 export const FinanceiroFilters = ({
@@ -77,6 +83,7 @@ export const FinanceiroFilters = ({
     filters.dateRange?.from,
     filters.amountRange[0] > 0 || filters.amountRange[1] < maxAmount,
     filters.source !== 'all',
+    filters.caixaType !== 'all',
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -87,6 +94,7 @@ export const FinanceiroFilters = ({
       dateRange: undefined,
       amountRange: [0, maxAmount],
       source: 'all',
+      caixaType: 'all',
     });
   };
 
@@ -96,6 +104,7 @@ export const FinanceiroFilters = ({
     if (key === 'dateRange') updated.dateRange = undefined;
     if (key === 'amountRange') updated.amountRange = [0, maxAmount];
     if (key === 'source') updated.source = 'all';
+    if (key === 'caixaType') updated.caixaType = 'all';
     onFiltersChange(updated);
   };
 
@@ -114,6 +123,23 @@ export const FinanceiroFilters = ({
           </SelectTrigger>
           <SelectContent>
             {SOURCE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
+          Caixa
+        </label>
+        <Select value={filters.caixaType} onValueChange={(v) => onFiltersChange({ ...filters, caixaType: v })}>
+          <SelectTrigger className="bg-card/50 border-border/50">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIPO_CAIXA_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -184,7 +210,6 @@ export const FinanceiroFilters = ({
 
   return (
     <div className="space-y-3">
-      {/* Search bar + Filter button */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -242,7 +267,6 @@ export const FinanceiroFilters = ({
         )}
       </div>
 
-      {/* Active filter chips + result count */}
       <div className="flex items-center gap-2 flex-wrap">
         <motion.span
           key={resultCount}
@@ -258,11 +282,19 @@ export const FinanceiroFilters = ({
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
-                className="gap-1 cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeFilter('source')}
+                className="bg-slate-600 text-slate-100"
               >
-                Tipo: {SOURCE_OPTIONS.find((o) => o.value === filters.source)?.label}
-                <X className="h-3 w-3" />
+                Tipo: {SOURCE_OPTIONS.find((opt) => opt.value === filters.source)?.label || 'Personalizado'}
+              </Badge>
+            </motion.div>
+          )}
+          {filters.caixaType !== 'all' && (
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+              <Badge
+                variant="secondary"
+                className="bg-slate-600 text-slate-100"
+              >
+                Caixa: {TIPO_CAIXA_OPTIONS.find((opt) => opt.value === filters.caixaType)?.label || 'Personalizado'}
               </Badge>
             </motion.div>
           )}
@@ -270,44 +302,31 @@ export const FinanceiroFilters = ({
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
                 variant="secondary"
-                className="gap-1 cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeFilter('status')}
+                className="bg-slate-600 text-slate-100"
               >
-                Status: {STATUS_OPTIONS.find((o) => o.value === filters.status)?.label}
-                <X className="h-3 w-3" />
+                Status: {STATUS_OPTIONS.find((opt) => opt.value === filters.status)?.label || 'Personalizado'}
               </Badge>
             </motion.div>
           )}
           {filters.dateRange?.from && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-              <Badge
-                variant="secondary"
-                className="gap-1 cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeFilter('dateRange')}
-              >
-                Período: {format(filters.dateRange.from, 'dd/MM', { locale: ptBR })} —{' '}
-                {filters.dateRange.to ? format(filters.dateRange.to, 'dd/MM', { locale: ptBR }) : '...'}
-                <X className="h-3 w-3" />
+              <Badge variant="secondary" className="bg-slate-600 text-slate-100">
+                Período selecionado
               </Badge>
             </motion.div>
           )}
           {(filters.amountRange[0] > 0 || filters.amountRange[1] < maxAmount) && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-              <Badge
-                variant="secondary"
-                className="gap-1 cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeFilter('amountRange')}
-              >
-                Valor: {formatCurrency(filters.amountRange[0])} — {formatCurrency(filters.amountRange[1])}
-                <X className="h-3 w-3" />
+              <Badge variant="secondary" className="bg-slate-600 text-slate-100">
+                Valor filtrado
               </Badge>
             </motion.div>
           )}
         </AnimatePresence>
 
         {activeFilterCount > 0 && (
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={clearAllFilters}>
-            Limpar todos
+          <Button variant="ghost" size="sm" onClick={clearAllFilters} className="ml-auto text-xs text-foreground/70">
+            Limpar filtros
           </Button>
         )}
       </div>

@@ -190,7 +190,7 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
           categoria: "Reembolso Tripulação",
           categoria_id: categoriaMovId,
           cliente_id: params.clientesId || null,
-          socios_cliente_id: null, // Será preenchido conforme necessário
+          socios_id: null, // Será preenchido conforme necessário
           aeronave_registro: params.matriculaAeronave || null,
           aeronave_id: params.aeronaveId || null,
           observacoes: `Gerado automaticamente pelo Relatório de Viagem ${params.numeroRelatorio}`,
@@ -236,7 +236,6 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
             contas_apagar_id: contasApagarId,
             reference_type: movReferenceType,
             reference_id: params.reportId,
-            tipo_caixa: "share",
             criado_por: params.userId || null,
           };
           const { error: movErr } = await (supabase as any)

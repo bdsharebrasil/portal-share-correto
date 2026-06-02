@@ -65,10 +65,10 @@ interface BankReconciliation {
   aeronave_id: string | null;
   prazo_pagamento: string | null;
   criado_por?: string;
-  socio_cliente_id: string | null;
+  socios_id: string | null;
   nome_socio: string | null;
   clientes: { razao_social: string } | null;
-  socios_cliente: { nome: string; cpf?: string } | null;
+  socios: { nome: string; cpf?: string } | null;
   aircraft: { matricula: string } | null;
   forma_pagamento?: string | null;
   saldo_pendente?: number | null;
@@ -153,7 +153,7 @@ export function ConciliacaoClientes() {
         .select(`
           *,
           clientes:clientes_id (razao_social),
-          socios:socio_cliente_id (nome, cpf),
+          socios:socios_id (nome, cpf),
           aircraft:aeronave_id (matricula)
         `)
         .eq('tipo', 'cliente' as any)
@@ -399,11 +399,11 @@ export function ConciliacaoClientes() {
                           <TableCell className="px-4 py-4">
                             <div className="flex flex-col gap-1 items-start">
                               <span className="font-medium text-foreground whitespace-normal break-words leading-tight">
-                                {item.socio_cliente_id && item.socios_cliente?.nome
-                                  ? item.socios_cliente.nome
+                                {item.socios_id && item.socios?.nome
+                                  ? item.socios.nome
                                   : item.clientes?.razao_social || '-'}
                               </span>
-                              {item.socio_cliente_id && item.socios_cliente?.nome && (
+                              {item.socios_id && item.socios?.nome && (
                                 <Badge variant="secondary" className="w-fit text-[10px] h-5 px-1.5 rounded-md">
                                   Sócio
                                 </Badge>
@@ -673,7 +673,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
         status: data.status,
         clientes_id: parentReconciliation.clientes_id,
         aeronave_id: parentReconciliation.aeronave_id,
-        socio_cliente_id: parentReconciliation.socio_cliente_id,
+        socios_id: parentReconciliation.socios_id,
         criado_por: user.id,
       }] as any)
         .select()
@@ -681,16 +681,16 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
 
       if (error) throw error;
 
-      if ((parentReconciliation.clientes_id || parentReconciliation.socio_cliente_id) && inserted) {
+      if ((parentReconciliation.clientes_id || parentReconciliation.socios_id) && inserted) {
         try {
           let clienteNome = "Cliente";
           let clienteCnpj = "";
 
-          if (parentReconciliation.socio_cliente_id) {
+          if (parentReconciliation.socios_id) {
             const { data: partnerData } = await supabase
               .from("socios")
               .select("nome, cpf")
-              .eq("id", parentReconciliation.socio_cliente_id)
+              .eq("id", parentReconciliation.socios_id)
               .single();
             if (partnerData) {
               clienteNome = partnerData.nome || "Cliente";

@@ -19,7 +19,7 @@ type Lanc = {
   consumo_combustivel_total: number | string | null;
   natureza_voo: string | null;
   clientes_id: string | null;
-  socios_cliente_id: string | null;
+  socios_id: string | null;
   socios_nome: string | null;
   trecho: string | null;
 };

@@ -17,7 +17,7 @@ export type Cliente = Tables<"clientes"> & {
 };
 
 // Sugestão: usar a tipagem gerada pelo Supabase em vez de uma interface manual
-export type ClientPartner = Tables<"socios_cliente">;
+export type ClientPartner = Tables<"socios">;
 
 const clientesQueryKey = ["clientes"];
 

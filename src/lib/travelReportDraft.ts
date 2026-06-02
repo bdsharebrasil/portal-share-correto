@@ -9,7 +9,7 @@ export interface TravelReportDraft {
 
   // Relations
   clientes_id: string;
-  socios_cliente_id?: string | null;   // was client_partner
+  socios_id?: string | null;   // was client_partner
   aeronave_id: string;
   matricula_aeronave: string;          // was aircraft_registration
 

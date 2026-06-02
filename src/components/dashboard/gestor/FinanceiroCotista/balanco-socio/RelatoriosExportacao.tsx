@@ -109,7 +109,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           .from('lancamentos_diario_bordo')
           .select('data_registro, tempo_total, aeronave_id')
           .eq('clientes_id', clienteId)
-          .eq('socios_cliente_id', socioId)
+          .eq('socios_id', socioId)
           .gte('data_registro', periodo.inicio)
           .lte('data_registro', periodo.fim);
 
@@ -122,7 +122,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
           .from('lancamentos_diario_bordo')
           .select('data_registro, tempo_total, aeronave_id')
           .eq('clientes_id', clienteId)
-          .is('socios_cliente_id', null)
+          .is('socios_id', null)
           .gte('data_registro', periodo.inicio)
           .lte('data_registro', periodo.fim);
 

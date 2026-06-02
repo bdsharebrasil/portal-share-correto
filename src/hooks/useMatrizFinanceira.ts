@@ -35,9 +35,11 @@ const GRUPOS: CategoriaGrupo[] = [
 // Mapeia uma despesa para grupo + subcategoria normalizada.
 function classificar(
   categoria: string | null,
+  periodicidade: string | null,
   descricao: string | null,
 ): { grupo: CategoriaGrupo; sub: string } | null {
   const cat = (categoria || "").trim().toUpperCase();
+  const per = (periodicidade || "").trim().toUpperCase();
   const desc = (descricao || "").trim().toUpperCase();
 
   // 2) Pessoal & Tripulação
@@ -60,9 +62,8 @@ function classificar(
     return { grupo: "MANUTENÇÃO", sub };
   }
 
-  // 1) Custos fixos (Aqui poderíamos usar uma coluna de periodicidade se existisse em movimentacoes)
-  // Por enquanto, baseamos em palavras-chave ou categorias conhecidas como fixas
-  if (cat.includes("HANGAR") || cat.includes("SEGURO") || cat.includes("FISTEL") || cat.includes("ASSINATURA")) {
+  // 1) Custos fixos
+  if (per === "FIXO" || per === "MENSAL") {
     let sub = "Hangaragem";
     if (cat.includes("SEGURO") || desc.includes("SEGURO")) sub = "Seguro Casco";
     else if (desc.includes("SOFT") || desc.includes("ATUALIZ"))
@@ -95,44 +96,46 @@ export function useMatrizFinanceira(
       const inicio = `${ano}-01-01`;
       const fim = `${ano}-12-31`;
 
-      const [movimentacoesRes, voosRes] = await Promise.all([
+      const [despesasRes, voosRes] = await Promise.all([
         supabase
-          .from("movimentacoes")
-          .select(`
-            id, 
-            descricao, 
-            valor, 
-            data_competencia, 
-            tipo, 
-            tipo_caixa,
-            categorias_movimentacao(nome)
-          `)
-          .eq("aeronave_id", aeronaveId as string)
-          .eq("tipo", "despesa")
-          .eq("tipo_caixa", "share")
-          .gte("data_competencia", inicio)
-          .lte("data_competencia", fim),
+          .from("rateio_despesas")
+          .select(
+            "id, categoria_custo, periodicidade, valor_total_despesa, data_pagamento, data_vencimento, descricao_despesa, aeronave_id, cliente_id, socio_id, fluxo",
+          )
+          .eq("aeronave_id", aeronaveId as string),
         supabase
           .from("lancamentos_diario_bordo")
           .select(
-            "clientes_id, socios_cliente_id, tempo_total, data_registro, aeronave_id",
+            "clientes_id, socios_id, tempo_total, data_registro, aeronave_id",
           )
           .eq("aeronave_id", aeronaveId as string)
           .gte("data_registro", inicio)
           .lte("data_registro", fim),
       ]);
 
-      const movimentacoes = (movimentacoesRes.data as any[]) || [];
+      const despesas = (despesasRes.data as any[]) || [];
       const voos = (voosRes.data as any[]) || [];
 
+      // Agrupar despesas únicas (uma linha = 1 despesa real, não rateios)
+      const vistos = new Set<string>();
       const linhasMap = new Map<string, MatrizLinha>();
 
-      for (const m of movimentacoes) {
-        const dt = new Date(m.data_competencia);
-        
+      for (const d of despesas) {
+        // Despreza linhas duplicadas por rateio (mesma despesa em vários cotistas)
+        const chaveDespesa = `${d.data_vencimento || ""}|${d.descricao_despesa || ""}|${d.valor_total_despesa || 0}|${d.categoria_custo || ""}`;
+        if (vistos.has(chaveDespesa)) continue;
+        vistos.add(chaveDespesa);
+
+        const dataRef = d.data_pagamento || d.data_vencimento;
+        if (!dataRef) continue;
+        const dt = new Date(dataRef);
+        if (dt.getFullYear() !== ano) continue;
+        if ((d.tipo_movimento || "").toUpperCase() === "ENTRADA") continue;
+
         const cls = classificar(
-          m.categorias_movimentacao?.nome || null,
-          m.descricao,
+          d.categoria_custo,
+          d.periodicidade,
+          d.descricao_despesa,
         );
         if (!cls) continue;
 
@@ -147,7 +150,7 @@ export function useMatrizFinanceira(
           };
           linhasMap.set(key, linha);
         }
-        const v = Number(m.valor) || 0;
+        const v = Number(d.valor_total_despesa) || 0;
         linha.meses[dt.getMonth()] += v;
         linha.totalYTD += v;
       }
@@ -180,7 +183,7 @@ export function useMatrizFinanceira(
       const horasMesTotais = Array(12).fill(0);
       let horasTotais = 0;
       for (const v of voos) {
-        const id = v.socios_cliente_id || v.clientes_id;
+        const id = v.socios_id || v.clientes_id;
         if (!id) continue;
         const t = parseTempo(v.tempo_total);
         if (!t) continue;

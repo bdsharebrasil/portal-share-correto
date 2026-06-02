@@ -209,7 +209,7 @@ export function QuadroMensalTab() {
     queryKey: ["quadro-mensal", mesKey],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("movimentacoes")
+        .from("controle_bancario")
         .select("*")
         .gte("data", format(startDate, "yyyy-MM-dd"))
         .lte("data", format(endDate, "yyyy-MM-dd"))
@@ -225,7 +225,7 @@ export function QuadroMensalTab() {
       const start = startOfMonth(subMonths(startDate, 1));
       const end = endOfMonth(start);
       const { data, error } = await supabase
-        .from("movimentacoes")
+        .from("controle_bancario")
         .select("*")
         .gte("data", format(start, "yyyy-MM-dd"))
         .lte("data", format(end, "yyyy-MM-dd"));
@@ -388,7 +388,7 @@ export function QuadroMensalTab() {
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("movimentacoes").delete().eq("id", id);
+      const { error } = await supabase.from("controle_bancario").delete().eq("id", id);
       if (error) {
         toast.error(`Erro ao deletar: ${error.message}`);
         return;

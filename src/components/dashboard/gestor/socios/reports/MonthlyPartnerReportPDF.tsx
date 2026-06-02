@@ -54,7 +54,7 @@ function assignTravelReportsToPartner(travelReports: TravelReportEntry[], partne
 }
 
 function assignBankControlExpensesToPartner(expenses: BankControlEntry[], partnerId: string): BankControlEntry[] {
-  return expenses.filter((e) => e.socios_cliente_id === partnerId);
+  return expenses.filter((e) => e.socios_id === partnerId);
 }
 
 export function MonthlyPartnerReportPDF({ 

@@ -12,10 +12,10 @@ interface InadimplenciaItem {
 
 export function useInadimplencia() {
   const { data: transacoes, isLoading, error } = useQuery({
-    queryKey: ["movimentacoes"],
+    queryKey: ["controle_bancario"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("movimentacoes")
+        .from("controle_bancario")
         .select(`
           id,
           data,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 interface RastreamentoTabProps { aircraftId: string; }
 

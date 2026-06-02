@@ -31,7 +31,7 @@ export async function syncAgendamentoPagamentoToControle(
 
     // Verifica se já existe um registro no controle bancário para este agendamento
     const { data: existingRecord, error: checkError } = await supabase
-      .from("movimentacoes")
+      .from("controle_bancario")
       .select("id")
       .ilike("numero_documento", `%${agendamento.id}%`)
       .single();
@@ -100,7 +100,7 @@ export async function syncAgendamentoPagamentoToControle(
 
     // Insere o registro no controle bancário
     const { data, error } = await supabase
-      .from("movimentacoes")
+      .from("controle_bancario")
       .insert([controleBancarioData] as any);
 
     if (error) {
@@ -124,7 +124,7 @@ export async function removeAgendamentoPagamentoFromControle(
 ): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from("movimentacoes")
+      .from("controle_bancario")
       .delete()
       .ilike("numero_documento", `%${agendamentoId}%`);
 

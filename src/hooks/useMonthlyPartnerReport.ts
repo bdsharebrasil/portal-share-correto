@@ -98,7 +98,7 @@ export interface TravelReportEntry {
   total_sharebrasil: number | null;
   total_crew1: number | null;
   total_crew2: number | null;
-  socios_cliente_id: string | null;
+  socios_id: string | null;
   crew_member_name: string | null;
   crew_member_name2: string | null;
   crew_member_id: string | null;
@@ -124,7 +124,7 @@ export interface BankControlEntry {
   conta_banco: string | null;
   numero_documento: string | null;
   status: string | null;
-  socios_cliente_id: string | null;
+  socios_id: string | null;
   aeronave_id: string | null;
   aeronave_registro: string | null;
   categoria_id: string;
@@ -227,7 +227,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
         supabase
           .from("travel_expense_reports")
-          .select('id, numero_relatorio, data_inicio, data_fim, rota, dias_count, status, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, socios_cliente_id, nome_tripulante, nome_tripulante_2, crew_member_id, crew_member_id2, aeronave_matricula, observacoes, url_pdf')
+          .select('id, numero_relatorio, data_inicio, data_fim, rota, dias_count, status, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, socios_id, nome_tripulante, nome_tripulante_2, crew_member_id, crew_member_id2, aeronave_matricula, observacoes, url_pdf')
           .eq("clientes_id", clientId)
           .gte("data_inicio", startDate)
           .lte("data_inicio", endDate)
@@ -235,12 +235,12 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
         // Despesas do controle_bancario relacionadas a aeronaves e sócios
         supabase
-          .from("movimentacoes")
-          .select("id, data, tipo_movimento, descricao, valor, conta_banco, numero_documento, status, socios_cliente_id, aeronave_id, aeronave_registro, categoria_id, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url")
+          .from("controle_bancario")
+          .select("id, data, tipo_movimento, descricao, valor, conta_banco, numero_documento, status, socios_id, aeronave_id, aeronave_registro, categoria_id, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url")
           .eq("clientes_id", clientId)
           .gte("data", startDate)
           .lte("data", endDate)
-          .not("socios_cliente_id", "is", null)
+          .not("socios_id", "is", null)
           .order("data"),
       ]);
 

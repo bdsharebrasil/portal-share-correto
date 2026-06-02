@@ -48,7 +48,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { generateReportNumber } from "@/lib/travelReportUtils";
-import toast from "@/components/ui/modern-toast";
+import toast from "../../../ui/modern-toast";
 import { FileUploadField } from "./FileUploadField";
 
 // ─── Categorias ───────────────────────────────────────────────────────────────
@@ -312,7 +312,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             .from("travel_expense_reports")
             .select("id, numero_relatorio, status")
             .eq("clientes_id", clienteId)
-            .or(`socios_cliente_id.eq.${partnerId},socios_cliente_id.is.null`)
+            .or(`socios_id.eq.${partnerId},socios_id.is.null`)
             .in("status", ["Finalizado", "Rascunho", "Enviado"])
             .order("created_at", { ascending: false });
           if (error) { setExistingReports([]); } else { setExistingReports(data || []); }
@@ -321,7 +321,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             .from("travel_expense_reports")
             .select("id, numero_relatorio, status")
             .eq("clientes_id", clienteId)
-            .is("socios_cliente_id", null)
+            .is("socios_id", null)
             .in("status", ["Finalizado", "Rascunho", "Enviado"])
             .order("created_at", { ascending: false });
           if (error) { setExistingReports([]); } else { setExistingReports(data || []); }
@@ -402,7 +402,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             .from("travel_expense_reports")
             .insert({
               clientes_id: clienteId,
-              socios_cliente_id: assignedPartner?.id || null,
+              socios_id: assignedPartner?.id || null,
               numero_relatorio: reportNumber,
               data_inicio: today,
               data_fim: today,

@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FinancePayorType } from "@/lib/financeConstants";
 
 export interface CustoCotista {
   cliente_id: string;
@@ -11,135 +10,126 @@ export interface CustoCotista {
   saldo: number;
 }
 
-export interface RelatorioCustosAeronave {
-  aeronave_id: string;
+export interface DespesaDetalhada {
+  id: string;
+  data_competencia: string;
+  descricao: string;
+  valor: number;
+  status: string;
+  categorias_movimentacao?: { nome: string } | null;
+}
+
+export interface RelatorioCustosModelo1Data {
   aeronave_registro: string;
   total_despesas: number;
   total_terceiro_custo: number;
   custos_por_cotista: CustoCotista[];
-  despesas_detalhadas: any[];
+  despesas_detalhadas: DespesaDetalhada[];
 }
 
-export function useRelatorioCustosModelo1(aeronaveId: string, dataInicio?: string, dataFim?: string) {
-  return useQuery({
+export function useRelatorioCustosModelo1(
+  aeronaveId: string | undefined,
+  dataInicio?: string,
+  dataFim?: string,
+) {
+  return useQuery<RelatorioCustosModelo1Data | null>({
     queryKey: ["relatorio-custos-modelo1", aeronaveId, dataInicio, dataFim],
     enabled: !!aeronaveId,
-    queryFn: async (): Promise<RelatorioCustosAeronave> => {
-      // 1. Buscar dados da aeronave
-      const { data: aeronave } = await supabase
-        .from("aeronaves")
-        .select("id, prefixo")
-        .eq("id", aeronaveId)
-        .single();
+    queryFn: async () => {
+      let q = supabase
+        .from("rateio_despesas")
+        .select(
+          "id, despesa_id, cliente_id, clientes_nome, aeronave_registro, categoria_custo, categoria_id, descricao_despesa, valor_total_despesa, valor_rateado, valor_pago_real, percentual_sociedade, data_pagamento, data_vencimento, status, tipo_rateio, fluxo",
+        )
+        .eq("aeronave_id", aeronaveId as string);
+      if (dataInicio) q = q.gte("data_vencimento", dataInicio);
+      if (dataFim) q = q.lte("data_vencimento", dataFim);
 
-      // 2. Buscar cotistas da aeronave
-      const { data: cotistas } = await supabase
-        .from("cotas_aeronave")
-        .select("cliente_id, percentual_padrao, cliente:clientes(razao_social)")
-        .eq("aeronave_id", aeronaveId)
-        .eq("ativo", true);
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      const list = (rows as any[]) || [];
 
-      // 3. Buscar movimentações (despesas) da aeronave
-      let query = supabase
-        .from("movimentacoes")
-        .select(`
-          id,
-          descricao,
-          valor,
-          data_competencia,
-          tipo,
-          status,
-          pago_por_tipo,
-          clientes_id,
-          categoria_id,
-          categorias_movimentacao(nome)
-        `)
-        .eq("aeronave_id", aeronaveId)
-        .eq("tipo", "despesa");
+      // categorias for join
+      const categoriaIds = Array.from(
+        new Set(list.map((r) => r.categoria_id).filter(Boolean)),
+      );
+      const categoriasMap: Record<string, string> = {};
+      if (categoriaIds.length) {
+        const { data: cats } = await supabase
+          .from("categorias_movimentacao")
+          .select("id, nome")
+          .in("id", categoriaIds as string[]);
+        (cats || []).forEach((c: any) => (categoriasMap[c.id] = c.nome));
+      }
 
-      if (dataInicio) query = query.gte("data_competencia", dataInicio);
-      if (dataFim) query = query.lte("data_competencia", dataFim);
+      // Agregar por cotista
+      const porCotista = new Map<string, CustoCotista>();
+      let totalTerceiro = 0;
+      let totalDespesasRateaveis = 0;
+      const despesasVistas = new Map<string, any>();
 
-      const { data: movimentacoes } = await query;
+      for (const r of list) {
+        const isTerceiro =
+          (r.tipo_rateio || "").toUpperCase() === "TERCEIRO_CUSTO" ||
+          (r.fluxo || "").toUpperCase() === "TERCEIRO_CUSTO";
 
-      // 4. Buscar rateios específicos para estas movimentações
-      const movIds = (movimentacoes || []).map(m => m.id);
-      const { data: rateios } = await supabase
-        .from("linhas_rateio")
-        .select("*")
-        .in("despesa_id", movIds);
+        const valRateado = Number(r.valor_rateado) || 0;
+        const valPago = Number(r.valor_pago_real) || 0;
 
-      // 5. Processar lógica de custos
-      const custosPorCotista: Record<string, CustoCotista> = {};
-      (cotistas || []).forEach(c => {
-        custosPorCotista[c.cliente_id] = {
-          cliente_id: c.cliente_id,
-          cliente_nome: c.cliente?.razao_social || "Desconhecido",
-          percentual_rateio: Number(c.percentual_padrao) || 0,
-          valor_devido: 0,
-          valor_pago: 0,
-          saldo: 0
-        };
-      });
-
-      let totalDespesas = 0;
-      let totalTerceiroCusto = 0;
-
-      (movimentacoes || []).forEach(mov => {
-        const valorTotal = Number(mov.valor) || 0;
-        const isTerceiroCusto = mov.pago_por_tipo === FinancePayorType.THIRD_PARTY || 
-                               mov.categorias_movimentacao?.nome?.toUpperCase() === "TERCEIRO CUSTO";
-
-        if (isTerceiroCusto) {
-          totalTerceiroCusto += valorTotal;
-          // Terceiro custo não entra no rateio dos cotistas
-          return;
+        if (isTerceiro) {
+          totalTerceiro += valRateado;
+        } else if (r.cliente_id) {
+          const existing = porCotista.get(r.cliente_id) || {
+            cliente_id: r.cliente_id,
+            cliente_nome: r.clientes_nome || "—",
+            percentual_rateio: 0,
+            valor_devido: 0,
+            valor_pago: 0,
+            saldo: 0,
+          };
+          existing.cliente_nome = r.clientes_nome || existing.cliente_nome;
+          existing.percentual_rateio = Math.max(
+            existing.percentual_rateio,
+            Number(r.percentual_sociedade) || 0,
+          );
+          existing.valor_devido += valRateado;
+          existing.valor_pago += valPago;
+          existing.saldo = existing.valor_pago - existing.valor_devido;
+          porCotista.set(r.cliente_id, existing);
         }
 
-        totalDespesas += valorTotal;
-
-        // Verificar se há rateio específico
-        const rateiosMov = (rateios || []).filter(r => r.despesa_id === mov.id);
-        
-        if (rateiosMov.length > 0) {
-          // Usar rateio específico da despesa
-          rateiosMov.forEach(r => {
-            if (custosPorCotista[r.entidade_id]) {
-              custosPorCotista[r.entidade_id].valor_devido += Number(r.valor_rateado) || 0;
-              // Se o caixa de origem for o do próprio cotista, ele já pagou
-              if (r.origem_caixa === "cliente" || r.origem_caixa === "socio") {
-                custosPorCotista[r.entidade_id].valor_pago += Number(r.valor_rateado) || 0;
-              }
-            }
+        // Despesas únicas (uma por despesa_id)
+        const key = r.despesa_id || r.id;
+        if (!despesasVistas.has(key)) {
+          despesasVistas.set(key, {
+            id: key,
+            data_competencia: r.data_pagamento || r.data_vencimento || "",
+            descricao: r.descricao_despesa || r.categoria_custo || "—",
+            valor: Number(r.valor_total_despesa) || 0,
+            status: r.status || "pendente",
+            categorias_movimentacao: r.categoria_id
+              ? { nome: categoriasMap[r.categoria_id] || r.categoria_custo || "Geral" }
+              : { nome: r.categoria_custo || "Geral" },
           });
-        } else {
-          // Usar rateio padrão da aeronave
-          (cotistas || []).forEach(c => {
-            const valorRateado = valorTotal * (Number(c.percentual_padrao) / 100);
-            custosPorCotista[c.cliente_id].valor_devido += valorRateado;
-            
-            // Lógica de pagamento: se a despesa foi paga por um cliente específico
-            if (mov.clientes_id === c.cliente_id && mov.pago_por_tipo === FinancePayorType.CLIENT) {
-              custosPorCotista[c.cliente_id].valor_pago += valorTotal;
-            }
-          });
+          if (!isTerceiro) {
+            totalDespesasRateaveis += Number(r.valor_total_despesa) || 0;
+          }
         }
-      });
+      }
 
-      // Calcular saldos finais
-      const listaCustos = Object.values(custosPorCotista).map(c => ({
-        ...c,
-        saldo: c.valor_pago - c.valor_devido
-      }));
+      const aeronave_registro = list[0]?.aeronave_registro || "—";
 
       return {
-        aeronave_id: aeronaveId,
-        aeronave_registro: aeronave?.prefixo || "N/A",
-        total_despesas: totalDespesas,
-        total_terceiro_custo: totalTerceiroCusto,
-        custos_por_cotista: listaCustos,
-        despesas_detalhadas: movimentacoes || []
+        aeronave_registro,
+        total_despesas: totalDespesasRateaveis,
+        total_terceiro_custo: totalTerceiro,
+        custos_por_cotista: Array.from(porCotista.values()).sort((a, b) =>
+          a.cliente_nome.localeCompare(b.cliente_nome),
+        ),
+        despesas_detalhadas: Array.from(despesasVistas.values()).sort((a, b) =>
+          (b.data_competencia || "").localeCompare(a.data_competencia || ""),
+        ),
       };
-    }
+    },
   });
 }

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -237,7 +237,7 @@ export function PrestadoresServicoTab() {
     try {
       // Register payment in controle_bancario
       const { data: lancamento, error: lancamentoError } = await supabase
-        .from("movimentacoes")
+        .from("controle_bancario")
         .insert({
           descricao: `Pagamento NF ${nota.numero_nota} - Prestador PJ`,
           tipo_movimento: "saida",
