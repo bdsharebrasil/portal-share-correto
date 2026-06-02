@@ -388,7 +388,7 @@ export async function generateSequentialReceiptNumber(
   const { data: existing } = await supabase
     .from("recibos")
     .select("numero_recibo")
-    .ilike("numero_recibo", `REC-${prefix.substring(0, 2)}%/${year}`)
+    .ilike("numero_recibo", `REC-${prefix}%/${year}`)
     .not("numero_recibo", "is", null);
 
   let maxNumber = 0;
