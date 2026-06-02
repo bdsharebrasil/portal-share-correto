@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { BookOpen, Image, Plus, Upload, ChevronRight, X, Loader2, Save } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 

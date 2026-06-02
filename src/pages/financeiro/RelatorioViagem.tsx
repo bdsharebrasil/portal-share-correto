@@ -29,7 +29,7 @@ import { SearchInput } from '@/components/RelatorioDespesaViagem/SearchInput';
 // ---------------------------------------------------------------------------
 // Tipo — espelha exatamente as colunas de travel_expense_reports
 // ---------------------------------------------------------------------------
-type TravelReport = {
+export type TravelReport = {
   id?: string;
   numero_relatorio: string;
 
