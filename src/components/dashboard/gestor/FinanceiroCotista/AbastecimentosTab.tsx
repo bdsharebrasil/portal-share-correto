@@ -101,8 +101,8 @@ export function AbastecimentosTab({
       // Filtro de cotista (cliente/sócio)
       if (cotistaFiltro) {
         const pertenceAoCotista =
-          a.id_clientes === cotistaFiltro || 
-          cotistas.some((c) => c.id === cotistaFiltro && c.nome === a.clientes_nome);
+          a.id_clientes === cotistaFiltro ||
+          cotistas.some((c) => c.id === cotistaFiltro && (c.nome === a.clientes_nome || c.nome === a.socio_nome));
         if (!pertenceAoCotista) return false;
       }
 
