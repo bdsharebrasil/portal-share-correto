@@ -21,7 +21,7 @@ export function useClientPartners(clientId: string | null) {
       if (!clientId) return [];
 
       const { data, error } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .select("*")
         .eq("cliente_id", clientId)
         .order("nome");
@@ -45,7 +45,7 @@ export function useAllClientPartners() {
     queryKey: ["all-client-partners"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .select("*")
         .order("nome");
 

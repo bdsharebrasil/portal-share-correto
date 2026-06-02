@@ -24,13 +24,13 @@ import {
   Building,
   Edit2,
   Trash2,
-  FileSpreadsheet,
 } from "lucide-react";
-import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
-import { LancamentosTab } from "./LancamentosTab";
-import { RelatorioCompletoTab } from "./RelatorioCompletoTab";
-import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
-import { DetalhamentoCotistaTab } from "./DetalhamentoCotistaTab";
+import { GerenciarAcessoPortal } from "@/components/dashboard/gestor/FinanceiroCotista/balanco-socio/GerenciarAcessoPortal";
+import { LancamentosTab } from "@/components/dashboard/gestor/FinanceiroCotista/LancamentosTab";
+import { FechamentoBalancoTab } from "@/lib/FechamentoBalancoTab";
+import { DetalhamentoCotistaTab } from "@/components/dashboard/gestor/FinanceiroCotista/DetalhamentoCotistaTab";
+import { MatrizFinanceiraMensal } from "@/components/dashboard/gestor/FinanceiroCotista/MatrizFinanceiraMensal";
+import { RelatorioCustosModelo1 } from "@/components/dashboard/gestor/FinanceiroCotista/RelatorioCustosModelo1";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Paperclip } from "lucide-react";
@@ -339,11 +339,8 @@ export default function FinanceiroCotistaDetalhe() {
               Lançamentos
             </TabsTrigger>
             <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Financeiro</TabsTrigger>
+            <TabsTrigger value="custos-modelo1" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatório de Custos</TabsTrigger>
             <TabsTrigger value="detalhamento" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Detalhamento Mensal</TabsTrigger>
-            <TabsTrigger value="relatorio-completo" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all font-semibold">
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Relatório Completo
-            </TabsTrigger>
             <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Relatórios</TabsTrigger>
             <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Abastecimentos</TabsTrigger>
             <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Fechamento de Balanço</TabsTrigger>
@@ -355,81 +352,24 @@ export default function FinanceiroCotistaDetalhe() {
 
           <div className="mt-8">
             {/* Visão Geral */}
-            <TabsContent value="visao" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <StatCard
-                  icon={<Wallet className="h-5 w-5" />}
-                  label="Total despesas"
-                  value={formatBRL(totaisAeronave.total)}
-                  sub={`${despesasDaAeronave.length} lançamentos · ${aeronaveInfo?.matricula || "—"}`}
-                  onClick={() => setDrillCard("total")}
-                />
-                <StatCard
-                  icon={<Receipt className="h-5 w-5" />}
-                  label="Pago pela Share Brasil"
-                  value={formatBRL(totaisAeronave.conc)}
-                  sub="Quitado pela operadora (a reembolsar)"
-                  onClick={() => setDrillCard("share")}
-                />
-                <StatCard
-                  icon={<FileText className="h-5 w-5" />}
-                  label="Pago pelo cliente / sócio"
-                  value={formatBRL(totaisAeronave.direto)}
-                  sub="Despesas pagas direto do bolso"
-                  onClick={() => setDrillCard("direto")}
-                />
-                <StatCard
-                  icon={<Fuel className="h-5 w-5" />}
-                  label="Abastecimentos"
-                  value={formatBRL(totaisAeronave.totalAbast)}
-                  sub={`${totaisAeronave.totalLitros.toLocaleString("pt-BR")} L`}
-                  onClick={() => setDrillCard("abast")}
-                />
-              </div>
-
-              <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Aeronaves do cliente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {aeronaves.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhuma aeronave vinculada.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(aeronaves as any[]).map((a) => (
-                        <button
-                          key={a.id_aeronave}
-                          onClick={() => setAeronaveSelecionada(a.id_aeronave)}
-                          className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all text-left ${
-                            a.id_aeronave === aeronaveAtual
-                              ? "bg-primary/10 border-primary/40"
-                              : "bg-background/50 border-border/40 hover:border-primary/30"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Plane className="h-4 w-4 text-primary" />
-                            <div>
-                              <p className="font-medium text-sm">
-                                {a.aeronave?.matricula}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {a.aeronave?.modelo} · {a.aeronave?.fabricante}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">
-                            {a.percentual_sociedade}% de cota
-                          </Badge>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            <TabsContent value="visao" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {aeronaveAtual ? (
+                <>
+                  <MatrizFinanceiraMensal
+                    aeronaveId={aeronaveAtual}
+                    matricula={aeronaveInfo?.matricula}
+                  />
+                  <RateioCotistas
+                    aeronaveId={aeronaveAtual}
+                    matricula={aeronaveInfo?.matricula}
+                    cotistas={cotistasDaAeronave}
+                  />
+                </>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  Selecione uma aeronave para visualizar a matriz financeira.
+                </div>
+              )}
             </TabsContent>
 
             {/* Lançamentos - Redirecionar para página dedicada */}
@@ -520,15 +460,10 @@ export default function FinanceiroCotistaDetalhe() {
               )}
             </TabsContent>
 
-            {/* Relatório Completo (formato planilha PDF) */}
-            <TabsContent value="relatorio-completo" className="mt-4">
-              <RelatorioCompletoTab
-                clienteId={clienteId!}
-                aeronaveId={aeronaveAtual}
-                aeronaveLabel={aeronaveInfo?.matricula}
-              />
+            {/* Relatório de Custos Modelo 1 */}
+            <TabsContent value="custos-modelo1" className="mt-4">
+              <RelatorioCustosModelo1 aeronaveId={aeronaveAtual} />
             </TabsContent>
-
 
             {/* Relatórios de Viagem */}
             <TabsContent value="viagem" className="mt-4">
@@ -808,6 +743,57 @@ function StatCard({
   );
 }
 
+
+function RateioCotistas({
+  aeronaveId,
+  matricula,
+  cotistas,
+}: {
+  aeronaveId: string;
+  matricula?: string;
+  cotistas: { id: string; nome: string; percentual: number }[];
+}) {
+  return (
+    <Card className="bg-card/60 border-border">
+      <CardHeader>
+        <CardTitle className="text-base">
+          Rateio de cotistas — {matricula || "—"}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Participação dos sócios na aeronave selecionada.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {cotistas.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">
+            Nenhum cotista encontrado para esta aeronave.
+          </p>
+        ) : (
+          <div className="grid gap-3">
+            {cotistas.map((cotista) => (
+              <div
+                key={cotista.id}
+                className="rounded-3xl border border-border/70 bg-background/70 p-4"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-foreground">{cotista.nome}</p>
+                    <p className="text-xs text-muted-foreground">
+                      ID {cotista.id}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">
+                    {cotista.percentual.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // ============== Tabela detalhada de lançamentos ==============
 function DespesasTable({

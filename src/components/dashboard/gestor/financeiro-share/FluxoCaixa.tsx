@@ -401,7 +401,7 @@ export function FluxoCaixa() {
   // ── Delete ───────────────────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("controle_bancario").delete().eq("id", id);
+      const { error } = await supabase.from("movimentacoes").delete().eq("id", id);
       if (error) { toast.error(`Erro ao deletar: ${error.message}`); return; }
       toast.success("Movimentação deletada com sucesso!");
       setDeleteConfirmId(null);
@@ -414,7 +414,7 @@ export function FluxoCaixa() {
   const handleDeleteMultiple = async () => {
     if (selectedIds.size === 0) return;
     try {
-      const { error } = await supabase.from("controle_bancario").delete().in("id", Array.from(selectedIds));
+      const { error } = await supabase.from("movimentacoes").delete().in("id", Array.from(selectedIds));
       if (error) { toast.error(`Erro ao deletar: ${error.message}`); return; }
       toast.success(`${selectedIds.size} movimentação(ões) deletada(s) com sucesso!`);
       setSelectedIds(new Set());

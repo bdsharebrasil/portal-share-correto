@@ -43,6 +43,7 @@ export async function syncNFSaidaFinance(input: NFSaidaSyncInput) {
     fornecedor_nome: input.cliente_nome,
     reference_type: REF_TYPE,
     reference_id: input.nfId,
+    tipo_caixa: "share",
     criado_por: input.criado_por || null,
   };
 

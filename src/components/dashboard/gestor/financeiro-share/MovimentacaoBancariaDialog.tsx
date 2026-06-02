@@ -83,13 +83,13 @@ export function MovimentacaoBancariaDialog({
 
       if (movimentacao?.id) {
         const { error } = await (supabase
-          .from("controle_bancario") as any)
+          .from("movimentacoes") as any)
           .update(payload)
           .eq("id", movimentacao.id);
         if (error) throw error;
         toast.success("Movimentação atualizada com sucesso!");
       } else {
-        const { error } = await (supabase.from("controle_bancario") as any).insert(payload);
+        const { error } = await (supabase.from("movimentacoes") as any).insert(payload);
         if (error) throw error;
         toast.success("Movimentação criada com sucesso!");
       }

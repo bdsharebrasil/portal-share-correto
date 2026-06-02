@@ -1,7 +1,7 @@
 // hooks/useAISWeb.ts
 import { useState, useCallback, useRef } from 'react'
-import { apiClient } from '../lib/api-client'
-import { generateFlightBriefing, generateBriefingSummary, type FlightPlanResponse } from '../services/flightBriefing'
+import { apiClient } from '@/lib/api-client'
+import { generateFlightBriefing, generateBriefingSummary, type FlightPlanResponse } from '@/services/flightBriefing'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

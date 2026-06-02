@@ -172,7 +172,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
       const [partnersRes, flightsRes, fuelsRes, expensesRes, sharedExpensesRes, clientRes, travelRes, bankControlRes] = await Promise.all([
         supabase
-          .from("socios_cliente")
+          .from("socios")
           .select("id, nome, cpf, percentual_participacao")
           .eq("cliente_id", clientId)
           .order("nome"),
@@ -235,7 +235,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
         // Despesas do controle_bancario relacionadas a aeronaves e sócios
         supabase
-          .from("controle_bancario")
+          .from("movimentacoes")
           .select("id, data, tipo_movimento, descricao, valor, conta_banco, numero_documento, status, socios_cliente_id, aeronave_id, aeronave_registro, categoria_id, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url")
           .eq("clientes_id", clientId)
           .gte("data", startDate)

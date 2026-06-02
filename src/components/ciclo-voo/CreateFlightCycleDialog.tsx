@@ -73,7 +73,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       }
 
       const { data } = await supabase
-        .from('socios_cliente')
+        .from('socios')
         .select('id, nome')
         .eq('cliente_id', formData.client_id)
         .order('nome');

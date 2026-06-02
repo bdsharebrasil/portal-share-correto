@@ -64,7 +64,7 @@ export function RelatoriosExportacao({ clienteId, socioId, aeronaveId, periodo }
     queryKey: ['socio-info', socioId],
     queryFn: async () => {
       if (!socioId) return null;
-      const { data, error } = await supabase.from('socios_cliente').select('*').eq('id', socioId).single();
+      const { data, error } = await supabase.from('socios').select('*').eq('id', socioId).single();
       if (error) throw error;
       return data;
     },

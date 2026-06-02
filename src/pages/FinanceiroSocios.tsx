@@ -14,11 +14,13 @@ import { PartnerCards } from "@/components/dashboard/gestor/socios/PartnerCards"
 import { TransactionsTable } from "@/components/dashboard/gestor/socios/TransactionsTable"
 import { DepositForm } from "@/components/dashboard/gestor/socios/DepositForm"
 import { ExpenseForm } from "@/components/dashboard/gestor/socios/ExpenseForm"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Hooks
 import { useSocioAccounts, useSocioTransactions } from "@/hooks/useFinanceiroSocios"
 import { useClientesComSocios } from "@/hooks/useSocioBalanco"
 import { useClientPartners } from "@/hooks/useClientPartners"
+import { RelatorioCustosModelo2 } from "@/components/dashboard/gestor/FinanceiroCotista/RelatorioCustosModelo2"
 
 export default function FinanceiroSocios() {
   const navigate = useNavigate()
@@ -196,22 +198,35 @@ export default function FinanceiroSocios() {
           </Button>
         </div>
 
-        {/* Cards de Resumo dos Sócios */}
-        <PartnerCards
-          accounts={accounts}
-          transactions={transactions}
-          clienteId={clienteSelecionado}
-        />
+        <Tabs defaultValue="balanco" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+            <TabsTrigger value="balanco">Balanço e Sócios</TabsTrigger>
+            <TabsTrigger value="relatorio-custos">Relatório de Custos (Modelo 2)</TabsTrigger>
+          </TabsList>
 
-        {/* Transações Recentes */}
-        {!loadingTransactions && transactions.length > 0 && (
-          <TransactionsTable
-            transactions={transactions}
-            limit={5}
-            clienteId={clienteSelecionado}
-            clienteName={selectedClientData?.razao_social || selectedClientData?.proprietario || "Cliente"}
-          />
-        )}
+          <TabsContent value="balanco" className="space-y-8 mt-6">
+            {/* Cards de Resumo dos Sócios */}
+            <PartnerCards
+              accounts={accounts}
+              transactions={transactions}
+              clienteId={clienteSelecionado}
+            />
+
+            {/* Transações Recentes */}
+            {!loadingTransactions && transactions.length > 0 && (
+              <TransactionsTable
+                transactions={transactions}
+                limit={5}
+                clienteId={clienteSelecionado}
+                clienteName={selectedClientData?.razao_social || selectedClientData?.proprietario || "Cliente"}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="relatorio-custos" className="mt-6">
+            <RelatorioCustosModelo2 clienteId={clienteSelecionado!} />
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   )

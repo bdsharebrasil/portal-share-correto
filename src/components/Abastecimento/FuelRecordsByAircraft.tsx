@@ -525,7 +525,7 @@ export function FuelRecordsByAircraft({
   const getClientPartnersFromDB = async (clientId: string): Promise<Partner[]> => {
     try {
       const { data, error } = await (supabase as any)
-        .from("socios_cliente")
+        .from("socios")
         .select("id, nome, cpf, percentual_participacao")
         .eq("cliente_id", clientId)
         .order("nome");

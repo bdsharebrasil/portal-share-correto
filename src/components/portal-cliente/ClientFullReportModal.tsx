@@ -121,7 +121,7 @@ export function ClientFullReportModal({
 
       // Load financial data from controle_bancario
       const { data: financialData } = await supabase
-        .from('controle_bancario')
+        .from('movimentacoes')
         .select('*')
         .eq('cliente_id', clientId)
         .eq('aeronave_id', aircraftId);

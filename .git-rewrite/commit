@@ -1,0 +1,8 @@
+tree ebb954fcbb4d47d5d939daefeb2dd86272422cd7
+parent ef79845b4bf3ddc138d74c0f6fccfb46ab190f19
+author Builder.io <builder-bot@builder.io> 1768913812 +0000
+committer Builder.io <builder-bot@builder.io> 1768913812 +0000
+
+Corrigir nome da coluna de status para status_pagamento no endpoint /fuel
+
+cgen-c3e722ae71c54127963eacc5fb575364

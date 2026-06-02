@@ -466,7 +466,7 @@ export default function RelatorioViagem() {
         // Se tem sócio cliente, busca codigo_cliente da tabela socios_cliente
         if (reportData.socios_cliente_id) {
           const { data: partner } = await supabase
-            .from('socios_cliente')
+            .from('socios')
             .select('codigo_cliente')
             .eq('id', reportData.socios_cliente_id)
             .single();

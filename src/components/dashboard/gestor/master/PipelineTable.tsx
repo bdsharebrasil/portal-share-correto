@@ -21,7 +21,7 @@ export function PipelineTable() {
     queryKey: ["pipeline-recente"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .select("id, descricao, valor, status, data, tipo_movimento")
         .order("data", { ascending: false })
         .limit(8);

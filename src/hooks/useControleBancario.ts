@@ -3,10 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 export function useControleBancario() {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["controle_bancario"],
+    queryKey: ["movimentacoes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .select(`
           *,
           categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria),

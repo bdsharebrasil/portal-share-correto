@@ -153,7 +153,7 @@ export function ConciliacaoClientes() {
         .select(`
           *,
           clientes:clientes_id (razao_social),
-          socios_cliente:socio_cliente_id (nome, cpf),
+          socios:socio_cliente_id (nome, cpf),
           aircraft:aeronave_id (matricula)
         `)
         .eq('tipo', 'cliente' as any)
@@ -688,7 +688,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
 
           if (parentReconciliation.socio_cliente_id) {
             const { data: partnerData } = await supabase
-              .from("socios_cliente")
+              .from("socios")
               .select("nome, cpf")
               .eq("id", parentReconciliation.socio_cliente_id)
               .single();

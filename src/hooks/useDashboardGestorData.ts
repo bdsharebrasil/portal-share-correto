@@ -52,7 +52,7 @@ export function useDashboardGestorData(currentDate: Date) {
     queryKey: ["dashboard-gestor-transacoes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .select(`
           *,
           categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria)

@@ -389,7 +389,7 @@ export function ReceiptForm({
 
   const loadClientPartners = async (clientId: string) => {
     const { data } = await supabase
-      .from("socios_cliente")
+      .from("socios")
       .select("id, nome, cpf, percentual_participacao")
       .eq("cliente_id", clientId)
       .order("nome");

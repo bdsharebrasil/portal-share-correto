@@ -237,7 +237,7 @@ export function PrestadoresServicoTab() {
     try {
       // Register payment in controle_bancario
       const { data: lancamento, error: lancamentoError } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .insert({
           descricao: `Pagamento NF ${nota.numero_nota} - Prestador PJ`,
           tipo_movimento: "saida",

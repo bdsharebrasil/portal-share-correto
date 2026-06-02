@@ -187,8 +187,6 @@ const App = () => {
                           <Route path="/aprovar-relatorio/:token" element={<AprovarRelatorioViagem />} />
                           <Route path="/financeiro/relatorios-cliente/:clientId" element={renderProtected(<RelatoriosClienteDetalhes />)} />
                           <Route path="/financeiro/compras" element={renderProtected(<SolicitacaoCompras />)} />
-                          <Route path="/financeiro/controle-financeiro" element={renderProtected(<></>)} />
-                          <Route path="/financeiro/config-movimentacoes" element={renderProtected(<></>)} />
                           <Route path="/financeiro/agendamento-contas" element={renderProtected(<AgendamentoPagamentos />)} />
                           <Route path="/financeiro/notas-fiscais" element={renderProtected(<Invoices />)} />
                           <Route path="/ciclo-voo" element={renderProtected(<Invoices />)} />
