@@ -45,6 +45,7 @@ interface VacationRequest {
   remarks: string | null;
   approver_id: string | null;
   created_at: string;
+  criado_em: string;
   updated_at: string | null;
   user_name?: string;
   user_avatar?: string;
@@ -105,7 +106,7 @@ export function VacationManagement() {
   }, [allRequests, userProfiles]);
 
   // Filter requests
-  const pendingRequests = enrichedRequests.filter(r => r.statuscao === "pending");
+  const pendingRequests = enrichedRequests.filter(r => r.status === "pending");
   const approvedRequests = enrichedRequests.filter(r => r.status === "approved");
   const rejectedRequests = enrichedRequests.filter(r => r.status === "rejected");
 

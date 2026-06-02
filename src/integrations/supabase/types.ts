@@ -114,6 +114,48 @@ export interface Database {
         }
         Relationships: []
       }
+      vacation_requests: {
+        Row: {
+          id: string
+          user_id: string
+          start_date: string
+          end_date: string
+          days: number
+          status: "pending" | "approved" | "rejected"
+          remarks: string | null
+          approver_id: string | null
+          created_at: string
+          criado_em: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          start_date: string
+          end_date: string
+          days: number
+          status?: "pending" | "approved" | "rejected"
+          remarks?: string | null
+          approver_id?: string | null
+          created_at?: string
+          criado_em?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          start_date?: string
+          end_date?: string
+          days?: number
+          status?: "pending" | "approved" | "rejected"
+          remarks?: string | null
+          approver_id?: string | null
+          created_at?: string
+          criado_em?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {}
     Functions: {}
