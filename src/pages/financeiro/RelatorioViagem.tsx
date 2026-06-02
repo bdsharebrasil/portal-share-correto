@@ -196,33 +196,55 @@ export default function RelatorioViagem() {
   const loadReports = async () => {
     const { data, error } = await supabase
       .from('travel_expense_reports')
-      .select(`
-        *,
-        clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_id(nome),
-        created_by_user:criado_por(display_name)
-      `)
+      .select(`*`)
       .order('created_at', { ascending: false });
 
     if (error) { toast.error('❌ Erro ao carregar relatórios'); return; }
 
+    // Buscar nomes dos clientes separadamente
+    const clientIds = new Set((data || []).map(r => r.clientes_id).filter(Boolean));
+    const socioIds = new Set((data || []).map(r => r.socios_id).filter(Boolean));
+
+    let clientMap: Record<string, string> = {};
+    let socioMap: Record<string, string> = {};
+
+    if (clientIds.size > 0) {
+      const { data: clients } = await supabase
+        .from('clientes')
+        .select('id, razao_social')
+        .in('id', Array.from(clientIds));
+
+      if (clients) {
+        clientMap = Object.fromEntries(clients.map(c => [c.id, c.razao_social]));
+      }
+    }
+
+    if (socioIds.size > 0) {
+      const { data: socios } = await supabase
+        .from('socios')
+        .select('id, nome')
+        .in('id', Array.from(socioIds));
+
+      if (socios) {
+        socioMap = Object.fromEntries(socios.map(s => [s.id, s.nome]));
+      }
+    }
+
     const mapped = (data || []).map((r: any) => {
-      // FIX: coluna no banco é `despesas`, não `expenses`
       const expenses = (() => {
         try { return typeof r.despesas === 'string' ? JSON.parse(r.despesas) : r.despesas || []; }
         catch { return []; }
       })();
 
-      const clientName = r.socios_id && r.partner_id_rel?.nome
-        ? r.partner_id_rel.nome
-        : r.clientes_id_rel?.razao_social || '';
+      const clientName = r.socios_id && socioMap[r.socios_id]
+        ? socioMap[r.socios_id]
+        : clientMap[r.clientes_id] || '';
 
       return {
         ...r,
         client: clientName,
         expenses,
         status: normalizeStatus(r.status),
-        criado_por_display: r.created_by_user?.display_name || 'Usuário desconhecido',
       } as TravelReport;
     });
 
@@ -232,34 +254,41 @@ export default function RelatorioViagem() {
   const loadReportDetails = async (reportId: string): Promise<TravelReport> => {
     const { data, error } = await supabase
       .from('travel_expense_reports')
-      .select(`
-        *,
-        clientes_id_rel:clientes_id(razao_social),
-        partner_id_rel:socios_id(nome),
-        created_by_user:criado_por(display_name)
-      `)
+      .select(`*`)
       .eq('id', reportId)
       .single();
 
     if (error || !data) throw error;
     const r = data as any;
 
-    // FIX: coluna no banco é `despesas`
     const expenses = (() => {
       try { return typeof r.despesas === 'string' ? JSON.parse(r.despesas) : r.despesas || []; }
       catch { return []; }
     })();
 
-    const clientName = r.socios_id && r.partner_id_rel?.nome
-      ? r.partner_id_rel.nome
-      : r.clientes_id_rel?.razao_social || '';
+    let clientName = '';
+
+    if (r.socios_id) {
+      const { data: socio } = await supabase
+        .from('socios')
+        .select('nome')
+        .eq('id', r.socios_id)
+        .single();
+      if (socio) clientName = socio.nome;
+    } else if (r.clientes_id) {
+      const { data: cliente } = await supabase
+        .from('clientes')
+        .select('razao_social')
+        .eq('id', r.clientes_id)
+        .single();
+      if (cliente) clientName = cliente.razao_social;
+    }
 
     return {
       ...r,
       client: clientName,
       expenses: expenses as Expense[],
       status: normalizeStatus(r.status),
-      criado_por_display: r.created_by_user?.display_name || 'Usuário desconhecido',
     } as TravelReport;
   };
 
@@ -1170,8 +1199,8 @@ export default function RelatorioViagem() {
                           total_amount: r.total_valor,
                           status: r.status,
                           clientes_id: r.clientes_id,
-                          criado_por: r.criado_por_display,
-                          numero_relatorio_modificado_por: r.criado_por_display,
+                          criado_por: r.criado_por,
+                          numero_relatorio_modificado_por: r.criado_por,
                           numero_relatorio_modificado_em: r.updated_at,
                         }))}
                         onView={handleViewPDF}
