@@ -245,7 +245,7 @@ function DiarioBordoDetalhes() {
         .gte("data_registro", anoIni).lte("data_registro", anoFim)
         .order("data_registro", { ascending: true }),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
-      (supabase as any).from("socios_cliente").select("id,nome,cliente_id").order("nome"),
+      (supabase as any).from("socios").select("id,nome,cliente_id").order("nome"),
       supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
       supabase.from("abastecimentos").select("id,data,local,litros,valor_total,valor_unitario,tipo_combustivel,logbook_entry_id,comanda,abastecedor,nf,tipo_faturamento")
         .eq("aeronave_id", aircraftId)
@@ -693,7 +693,7 @@ function DiarioBordoDetalhes() {
             supabase.from("lancamentos_diario_bordo").select("*").eq("aeronave_id", aircraftId)
               .gte("data_registro", ini).lte("data_registro", fim).order("data_registro", { ascending: true }),
             supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
-            (supabase as any).from("socios_cliente").select("id,nome,cliente_id").order("nome"),
+            (supabase as any).from("socios").select("id,nome,cliente_id").order("nome"),
             supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
           ]);
 

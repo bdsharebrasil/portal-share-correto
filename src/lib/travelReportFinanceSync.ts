@@ -236,6 +236,7 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
             contas_apagar_id: contasApagarId,
             reference_type: movReferenceType,
             reference_id: params.reportId,
+            tipo_caixa: "share",
             criado_por: params.userId || null,
           };
           const { error: movErr } = await (supabase as any)

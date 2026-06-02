@@ -4,8 +4,8 @@ import {
   Calculator, ShieldCheck, PieChart, UserPlus, Search, Filter
 } from 'lucide-react';
 import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
-import { Layout } from '../../components/layout/Layout';
-import { supabase } from '../../integrations/supabase/client';
+import { Layout } from '@/components/layout/Layout';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface AeronaveEmprestimo {

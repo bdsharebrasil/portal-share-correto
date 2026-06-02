@@ -48,7 +48,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { generateReportNumber } from "@/lib/travelReportUtils";
-import toast from "../../../ui/modern-toast";
+import toast from "@/components/ui/modern-toast";
 import { FileUploadField } from "./FileUploadField";
 
 // ─── Categorias ───────────────────────────────────────────────────────────────

@@ -40,7 +40,7 @@ export function PartnerSelector({
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('socios_cliente')
+        .from('socios')
         .select('id, nome, cpf, percentual_participacao')
         .eq('cliente_id', clientId)
         .order('criado_em');

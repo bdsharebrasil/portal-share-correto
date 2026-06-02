@@ -10,7 +10,7 @@ import { Upload, FileText, Trash2, Download, Loader2, Eye, Edit2 } from "lucide-
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DocumentViewer } from "../DocumentViewer";
+import { DocumentViewer } from "@/components/DocumentViewer";
 
 interface UserDocument {
   id: string;

@@ -246,7 +246,7 @@ export function TravelReportForm({
   const fetchPartnersForClient = async (clientId: string) => {
     try {
       const { data, error } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .select("id, nome, cpf")
         .eq("cliente_id", clientId)
         .order("nome");

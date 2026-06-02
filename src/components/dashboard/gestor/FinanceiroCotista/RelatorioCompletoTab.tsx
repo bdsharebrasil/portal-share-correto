@@ -58,7 +58,7 @@ export function RelatorioCompletoTab({ clienteId, aeronaveId, aeronaveLabel }: P
     queryKey: ["socios-cliente-relatorio", clienteId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from("socios_cliente")
+        .from("socios")
         .select("id, nome, percentual_participacao")
         .eq("cliente_id", clienteId)
         .order("nome");

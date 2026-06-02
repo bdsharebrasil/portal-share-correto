@@ -11,6 +11,7 @@
  *  - 'partner_fuel'           → abastecimento do cliente/sócio (despesa)
  */
 import { supabase } from "@/integrations/supabase/client";
+import { FinanceCategoryName, FinanceMovementGroup } from "@/lib/financeConstants";
 
 export type PartnerRefType =
   | "partner_deposit"
@@ -78,6 +79,7 @@ export interface PartnerSyncInput {
   reembolsavel?: boolean;
   pago_diretamente?: boolean;
   categoria_nome?: string;
+  tipo_caixa?: "share" | "cliente";
   criado_por?: string | null;
 }
 
@@ -89,19 +91,19 @@ export async function syncPartnerToMovimentacoes(input: PartnerSyncInput): Promi
   const categoriaNome =
     input.categoria_nome ||
     (input.refType === "partner_deposit"
-      ? "Depósito de Sócio"
+      ? FinanceCategoryName.PARTNER_DEPOSIT
       : input.refType === "partner_bank_interest"
-        ? "Rendimento Bancário"
+        ? FinanceCategoryName.PARTNER_INTEREST
         : input.refType === "partner_payment"
-          ? "Pagamento de Despesa Sócio"
+          ? FinanceCategoryName.PARTNER_PAYMENT
           : input.refType === "partner_fuel"
-            ? "Abastecimento"
+            ? FinanceCategoryName.PARTNER_FUEL
             : "Despesa de Sócio");
 
   const categoriaId = await ensureCategoriaMovimentacao(
     categoriaNome,
     input.tipo,
-    "VARIAVEL",
+    FinanceMovementGroup.VARIAVEL,
     input.criado_por
   );
 
@@ -133,6 +135,7 @@ export async function syncPartnerToMovimentacoes(input: PartnerSyncInput): Promi
     observacoes: input.observacoes || null,
     reembolsavel: input.reembolsavel ?? false,
     pago_diretamente: input.pago_diretamente ?? false,
+    tipo_caixa: input.tipo_caixa || "share",
     reference_type: input.refType,
     reference_id: input.refId,
     criado_por: input.criado_por || null,

@@ -104,7 +104,7 @@ export function VacationConfigManager() {
     queryKey: ["vacation_payments", selectedYear],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .select("*")
         .ilike("descricao", "%férias%")
         .gte("data", `${selectedYear}-01-01`)

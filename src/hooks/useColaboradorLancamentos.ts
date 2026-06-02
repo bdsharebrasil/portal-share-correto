@@ -20,7 +20,7 @@ export function useColaboradorLancamentos(colaboradorId: string | null) {
       if (!colaboradorId) return [];
 
       const { data, error } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .select(`
           id,
           data,

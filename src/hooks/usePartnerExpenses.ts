@@ -74,7 +74,7 @@ export function usePartnerExpenses({ clientId, aircraftId, startDate, endDate }:
 
       // 2. Fetch partners from socios_cliente table
       const { data: partnersData, error: partnersError } = await supabase
-        .from('socios_cliente')
+        .from('socios')
         .select('id, nome, cpf, percentual_participacao')
         .eq('cliente_id', clientId)
         .order('criado_em');
@@ -205,7 +205,7 @@ export function useAllClientsWithPartners() {
 
       // Fetch clients that have partners
       const { data: partnersData, error: partnersError } = await supabase
-        .from('socios_cliente')
+        .from('socios')
         .select('cliente_id');
 
       if (partnersError) {

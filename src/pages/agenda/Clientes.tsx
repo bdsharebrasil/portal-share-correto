@@ -193,7 +193,7 @@ export default function Clientes() {
         }
 
         const { data: clientPartnersData, error: cpError } = await supabase
-          .from("socios_cliente")
+          .from("socios")
           .select("cliente_id, nome, cpf, percentual_participacao, codigo_cliente")
           .in("cliente_id", clientIds);
 
@@ -490,7 +490,7 @@ export default function Clientes() {
 
       // Save partners
       if (clientId && hasPartner && partners.length > 0) {
-        await supabase.from("socios_cliente").delete().eq("cliente_id", clientId);
+        await supabase.from("socios").delete().eq("cliente_id", clientId);
         const partnersData = partners.map(p => ({
           cliente_id: clientId,
           nome: p.nome,
@@ -498,12 +498,12 @@ export default function Clientes() {
           percentual_participacao: p.percentual_participacao,
           codigo_cliente: p.codigo_cliente || null
         })) as any;
-        const { error: partnersError } = await supabase.from("socios_cliente").insert(partnersData);
+        const { error: partnersError } = await supabase.from("socios").insert(partnersData);
         if (partnersError) {
           toast({ title: "Aviso", description: `Erro ao salvar sócios: ${partnersError.message}`, variant: "destructive" });
         }
       } else if (clientId && !hasPartner) {
-        await supabase.from("socios_cliente").delete().eq("cliente_id", clientId);
+        await supabase.from("socios").delete().eq("cliente_id", clientId);
       }
 
       // Save aircraft relationships

@@ -25,7 +25,7 @@ export default function FinanceiroCotistas() {
   const carregarClientesComSocios = async () => {
     try {
       const { data, error } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .select("cliente_id");
 
       if (error) throw error;

@@ -80,7 +80,7 @@ export default function LancamentoForm() {
     enabled: !!clienteId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .select("id, nome, cpf, percentual_participacao")
         .eq("cliente_id", clienteId)
         .order("nome");

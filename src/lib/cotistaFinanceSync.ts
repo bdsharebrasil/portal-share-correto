@@ -8,8 +8,9 @@
  *                           gerado quando o pagador é a EMPRESA (Share)
  */
 import { supabase } from "@/integrations/supabase/client";
+import { FinancePayorType, FinanceCategoryName } from "@/lib/financeConstants";
 
-export type CotistaPagador = "EMPRESA" | "CLIENTE" | string; // string = socio_id
+export type CotistaPagador = typeof FinancePayorType[keyof typeof FinancePayorType] | string;
 
 export interface CotistaSyncInput {
   movId: string;
@@ -30,7 +31,7 @@ export interface CotistaSyncInput {
  */
 async function ensureCategoriaReembolso(criadoPor?: string | null): Promise<string | null> {
   try {
-    const nome = "REEMBOLSO RATEIO COTISTA";
+    const nome = FinanceCategoryName.REEMBOLSO_RATEIO;
     const { data: existing } = await (supabase as any)
       .from("categorias_movimentacao")
       .select("id")
@@ -63,7 +64,7 @@ async function ensureCategoriaReembolso(criadoPor?: string | null): Promise<stri
  */
 export async function syncCotistaReembolsoMirror(input: CotistaSyncInput): Promise<string | null> {
   // Só faz sentido espelhar reembolso quando a empresa pagou (ou pagará)
-  if (input.pagador !== "EMPRESA") {
+if (input.pagador !== FinancePayorType.COMPANY) {
     await deleteCotistaReembolsoMirror(input.movId);
     return null;
   }
@@ -87,6 +88,7 @@ export async function syncCotistaReembolsoMirror(input: CotistaSyncInput): Promi
     pago_diretamente: false,
     reference_type: "rateio_reembolso",
     reference_id: input.movId,
+    tipo_caixa: "share",
     criado_por: input.criadoPor || null,
   };
 

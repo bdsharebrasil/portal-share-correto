@@ -15,7 +15,7 @@ export function useAtividadesRecentes() {
     queryKey: ["atividades-recentes"],
     queryFn: async (): Promise<Atividade[]> => {
       const { data, error } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .select("id, descricao, valor, status, tipo_movimento, data")
         .order("data", { ascending: false })
         .limit(10);

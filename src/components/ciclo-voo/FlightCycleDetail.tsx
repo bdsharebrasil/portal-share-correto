@@ -98,7 +98,7 @@ export function FlightCycleDetail({
       }
 
       const { data } = await supabase
-        .from('socios_cliente')
+        .from('socios')
         .select('id, nome')
         .eq('cliente_id', editData.client_id)
         .order('nome');

@@ -34,7 +34,7 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
       const endDate = endOfMonth(startDate);
 
       const { data, error } = await supabase
-        .from("controle_bancario")
+        .from("movimentacoes")
         .select("*")
         .gte("data", format(startDate, "yyyy-MM-dd"))
         .lte("data", format(endDate, "yyyy-MM-dd"));

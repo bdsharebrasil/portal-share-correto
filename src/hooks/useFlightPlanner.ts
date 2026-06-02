@@ -1,6 +1,6 @@
 // useFlightPlanner.ts
 import { useState, useRef, useCallback } from 'react';
-import {  apiClient } from '../lib/api-client';
+import {  apiClient } from '@/lib/api-client';
 import { set, get } from 'idb-keyval';
 
 interface FlightPoint {

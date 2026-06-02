@@ -359,7 +359,7 @@ export default function RelatorioTransacoesSocios() {
     }
     try {
       const { error } = await supabase
-        .from("socios_cliente")
+        .from("socios")
         .update({
           nome: editForm.nome.trim(),
           cpf: editForm.cpf.replace(/\D/g, ""),

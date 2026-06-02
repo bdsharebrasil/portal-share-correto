@@ -314,7 +314,7 @@ export async function createFluxoCaixaEntry(
 
     // Verificar se já existe entrada com esta referência
     const { data: existingEntry } = await (supabase
-      .from('controle_bancario') as any)
+      .from('movimentacoes') as any)
       .select('id')
       .eq('referencia', referencia)
       .maybeSingle();
@@ -362,7 +362,7 @@ export async function createFluxoCaixaEntry(
     const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.valor ?? 0);
 
     const { error } = await supabase
-      .from('controle_bancario')
+      .from('movimentacoes')
       .insert({
         data: new Date().toISOString().split('T')[0],
         data_vencimento: reconciliation.prazo_pagamento || null,
@@ -614,7 +614,7 @@ export async function marcarDespesaComoRecebida(
 
     // 1. Buscar dados da despesa original
     const { data: despesa, error: fetchError } = await (supabase
-      .from('controle_bancario') as any)
+      .from('movimentacoes') as any)
       .select('*')
       .eq('id', despesaId)
       .single();
@@ -645,7 +645,7 @@ export async function marcarDespesaComoRecebida(
 
     // 2. Atualizar o registro original
     const { error: updateError } = await supabase
-      .from('controle_bancario')
+      .from('movimentacoes')
       .update({
         reembolso_recebido: true,
         data_reembolso: dataRecebimento,
@@ -662,7 +662,7 @@ export async function marcarDespesaComoRecebida(
 
     // 3. Verificar se já existe entrada de reembolso vinculada
     const { data: existingEntry } = await (supabase
-      .from('controle_bancario') as any)
+      .from('movimentacoes') as any)
       .select('id')
       .eq('despesa_original_id', despesaId)
       .eq('tipo_movimento', 'entrada')
@@ -677,7 +677,7 @@ export async function marcarDespesaComoRecebida(
     const descricaoEntrada = `[REEMBOLSO] ${despesa.descricao || 'Reembolso recebido'}`;
 
     const { data: novaEntrada, error: insertError } = await supabase
-      .from('controle_bancario')
+      .from('movimentacoes')
       .insert({
         data: dataRecebimento,
         data_vencimento: null,
@@ -713,7 +713,7 @@ export async function marcarDespesaComoRecebida(
 
     // 5. Atualizar a despesa original com o ID do lançamento de reembolso
     await supabase
-      .from('controle_bancario')
+      .from('movimentacoes')
       .update({ lancamento_reembolso_id: novaEntrada?.id })
       .eq('id', despesaId);
 

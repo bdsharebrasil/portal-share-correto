@@ -46,7 +46,7 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
   };
 
   const loadPartners = async (clientId: string) => {
-    const { data } = await supabase.from("socios_cliente").select("id, nome, cpf").eq("cliente_id", clientId);
+    const { data } = await supabase.from("socios").select("id, nome, cpf").eq("cliente_id", clientId);
     setPartners(data || []);
   };
 

@@ -56,7 +56,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
       let partnersMap: Record<string, string> = {};
       if (partnerIds.length > 0) {
         const { data: partners } = await supabase
-          .from('socios_cliente')
+          .from('socios')
           .select('id, nome')
           .in('id', partnerIds);
         if (partners) {
@@ -78,7 +78,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
     queryKey: ['client-partners', clienteId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('socios_cliente')
+        .from('socios')
         .select('id, nome')
         .eq('cliente_id', clienteId)
         .order('nome');
