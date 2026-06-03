@@ -34,6 +34,7 @@ import { RateioCotistas } from "./RateioCotistas";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { LancamentosFinanceiroTab } from "./LancamentosFinanceiroTab";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
+import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
 import { useMemo, useState } from "react";
 import {
   Dialog,
