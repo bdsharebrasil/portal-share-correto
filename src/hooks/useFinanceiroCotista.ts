@@ -86,6 +86,8 @@ export interface RelatorioViagemItem {
   status: string | null;
   aeronave_id: string | null;
   matricula_aeronave: string | null;
+  socios_id?: string | null;
+  nome_tripulante?: string | null;
 }
 
 /** Traduz o código bruto de pago_por para um rótulo amigável de gestor. */
