@@ -7,11 +7,23 @@ export type CategoriaGrupo =
   | "MANUTENÇÃO"
   | "CUSTOS VARIÁVEIS";
 
+export interface MatrizLancamento {
+  id: string;
+  data: string;
+  descricao: string;
+  categoria: string | null;
+  fornecedor: string | null;
+  documento: string | null;
+  valor: number;
+  mes: number;
+}
+
 export interface MatrizLinha {
   grupo: CategoriaGrupo;
   subcategoria: string;
   meses: number[]; // length 12
   totalYTD: number;
+  lancamentos: MatrizLancamento[];
 }
 
 export interface MatrizFinanceiraData {
