@@ -45,6 +45,12 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
     "MANUTENÇÃO": true,
     "CUSTOS VARIÁVEIS": true,
   }));
+  const [subExpandido, setSubExpandido] = useState<Record<string, boolean>>({});
+
+  const fmtBRLFull = (n: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
+  const fmtData = (s: string) =>
+    new Date(s + (s.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR");
 
   const linhasPorGrupo = useMemo(() => {
     const m: Record<CategoriaGrupo, typeof data extends infer T ? any[] : any[]> = {
@@ -149,31 +155,84 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
                     </td>
                   </tr>
                   {aberto &&
-                    linhas.map((l) => (
-                      <tr
-                        key={`${grupo}-${l.subcategoria}`}
-                        className="border-t border-border/20 hover:bg-muted/20"
-                      >
-                        <td className="px-3 py-1.5 pl-9 sticky left-0 bg-card z-10 text-muted-foreground">
-                          {l.subcategoria}
-                        </td>
-                        {l.meses.map((v: number, i: number) => (
-                          <td
-                            key={i}
-                            className={`text-right px-2 py-1.5 ${
-                              v === 0
-                                ? "text-muted-foreground/40"
-                                : "text-foreground/90"
-                            } ${i === mesAtual ? "bg-primary/5" : ""}`}
+                    linhas.map((l) => {
+                      const subKey = `${grupo}||${l.subcategoria}`;
+                      const subOpen = !!subExpandido[subKey];
+                      return (
+                        <React.Fragment key={subKey}>
+                          <tr
+                            className="border-t border-border/20 hover:bg-muted/20 cursor-pointer"
+                            onClick={() =>
+                              setSubExpandido((s) => ({ ...s, [subKey]: !s[subKey] }))
+                            }
                           >
-                            {fmt(v)}
-                          </td>
-                        ))}
-                        <td className="text-right px-3 py-1.5 font-medium bg-muted/30">
-                          {fmt(l.totalYTD)}
-                        </td>
-                      </tr>
-                    ))}
+                            <td className="px-3 py-1.5 pl-9 sticky left-0 bg-card z-10 text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                {subOpen ? (
+                                  <ChevronDown className="h-3 w-3" />
+                                ) : (
+                                  <ChevronRight className="h-3 w-3" />
+                                )}
+                                {l.subcategoria}
+                              </div>
+                            </td>
+                            {l.meses.map((v: number, i: number) => (
+                              <td
+                                key={i}
+                                className={`text-right px-2 py-1.5 ${
+                                  v === 0
+                                    ? "text-muted-foreground/40"
+                                    : "text-foreground/90"
+                                } ${i === mesAtual ? "bg-primary/5" : ""}`}
+                              >
+                                {fmt(v)}
+                              </td>
+                            ))}
+                            <td className="text-right px-3 py-1.5 font-medium bg-muted/30">
+                              {fmt(l.totalYTD)}
+                            </td>
+                          </tr>
+                          {subOpen && (l.lancamentos?.length ?? 0) > 0 && (
+                            <tr className="bg-muted/10">
+                              <td colSpan={14} className="px-0 py-0">
+                                <div className="px-9 py-3 border-t border-border/30">
+                                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-2 font-semibold">
+                                    Lançamentos · {l.subcategoria}
+                                  </div>
+                                  <div className="space-y-1">
+                                    {l.lancamentos
+                                      .slice()
+                                      .sort((a, b) => (a.data < b.data ? 1 : -1))
+                                      .map((lan) => (
+                                        <div
+                                          key={lan.id}
+                                          className="grid grid-cols-12 gap-2 items-center text-[11px] py-1.5 px-2 rounded-md hover:bg-card/50"
+                                        >
+                                          <span className="col-span-2 text-muted-foreground font-mono">
+                                            {fmtData(lan.data)}
+                                          </span>
+                                          <span className="col-span-2 text-muted-foreground font-mono">
+                                            {lan.documento || "—"}
+                                          </span>
+                                          <span className="col-span-3 text-foreground/90 truncate" title={lan.descricao}>
+                                            {lan.descricao}
+                                          </span>
+                                          <span className="col-span-3 text-muted-foreground truncate" title={lan.fornecedor || ""}>
+                                            {lan.fornecedor || "—"}
+                                          </span>
+                                          <span className="col-span-2 text-right font-mono font-semibold text-foreground">
+                                            {fmtBRLFull(lan.valor)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                 </React.Fragment>
               );
             })}

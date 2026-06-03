@@ -7,11 +7,23 @@ export type CategoriaGrupo =
   | "MANUTENÇÃO"
   | "CUSTOS VARIÁVEIS";
 
+export interface MatrizLancamento {
+  id: string;
+  data: string;
+  descricao: string;
+  categoria: string | null;
+  fornecedor: string | null;
+  documento: string | null;
+  valor: number;
+  mes: number;
+}
+
 export interface MatrizLinha {
   grupo: CategoriaGrupo;
   subcategoria: string;
   meses: number[]; // length 12
   totalYTD: number;
+  lancamentos: MatrizLancamento[];
 }
 
 export interface MatrizFinanceiraData {
@@ -100,7 +112,7 @@ export function useMatrizFinanceira(
         supabase
           .from("rateio_despesas")
           .select(
-            "id, categoria_custo, periodicidade, valor_total_despesa, data_pagamento, data_vencimento, descricao_despesa, aeronave_id, cliente_id, socio_id, fluxo",
+            "id, despesa_id, categoria_custo, periodicidade, valor_total_despesa, data_pagamento, data_vencimento, descricao_despesa, aeronave_id, cliente_id, socio_id, fluxo, fornecedor_nome, numero_doc, numero_nf",
           )
           .eq("aeronave_id", aeronaveId as string),
         supabase
@@ -130,7 +142,7 @@ export function useMatrizFinanceira(
         if (!dataRef) continue;
         const dt = new Date(dataRef);
         if (dt.getFullYear() !== ano) continue;
-        if ((d.tipo_movimento || "").toUpperCase() === "ENTRADA") continue;
+        if ((d.fluxo || "").toUpperCase() === "ENTRADA") continue;
 
         const cls = classificar(
           d.categoria_custo,
@@ -147,13 +159,31 @@ export function useMatrizFinanceira(
             subcategoria: cls.sub,
             meses: Array(12).fill(0),
             totalYTD: 0,
+            lancamentos: [],
           };
           linhasMap.set(key, linha);
         }
         const v = Number(d.valor_total_despesa) || 0;
         linha.meses[dt.getMonth()] += v;
         linha.totalYTD += v;
+        linha.lancamentos.push({
+          id: d.id,
+          data: dataRef,
+          descricao: d.descricao_despesa || "—",
+          categoria: d.categoria_custo,
+          fornecedor: d.fornecedor_nome || null,
+          documento: d.numero_nf || d.numero_doc || null,
+          valor: v,
+          mes: dt.getMonth(),
+        });
       }
+
+      const linhas = Array.from(linhasMap.values()).sort((a, b) => {
+        const ga = GRUPOS.indexOf(a.grupo);
+        const gb = GRUPOS.indexOf(b.grupo);
+        if (ga !== gb) return ga - gb;
+        return a.subcategoria.localeCompare(b.subcategoria);
+      });
 
       const linhas = Array.from(linhasMap.values()).sort((a, b) => {
         const ga = GRUPOS.indexOf(a.grupo);

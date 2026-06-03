@@ -581,7 +581,7 @@ export type Database = {
           hash_senha: string
           id: string
           login: string
-          socios_id: string | null
+          socios_cliente_id: string | null
           ultimo_login: string | null
         }
         Insert: {
@@ -592,7 +592,7 @@ export type Database = {
           hash_senha: string
           id?: string
           login: string
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           ultimo_login?: string | null
         }
         Update: {
@@ -603,7 +603,7 @@ export type Database = {
           hash_senha?: string
           id?: string
           login?: string
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           ultimo_login?: string | null
         }
         Relationships: []
@@ -1482,7 +1482,7 @@ export type Database = {
           possui_nf: boolean | null
           reference_id: string | null
           reference_type: string | null
-          socios_id: string | null
+          socios_cliente_id: string | null
           status: string
           valor: number
           vencimento_boleto: string | null
@@ -1524,7 +1524,7 @@ export type Database = {
           possui_nf?: boolean | null
           reference_id?: string | null
           reference_type?: string | null
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           status: string
           valor: number
           vencimento_boleto?: string | null
@@ -1566,7 +1566,7 @@ export type Database = {
           possui_nf?: boolean | null
           reference_id?: string | null
           reference_type?: string | null
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           status?: string
           valor?: number
           vencimento_boleto?: string | null
@@ -1692,8 +1692,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "contas_apagar_socios_id_fkey"
-            columns: ["socios_id"]
+            foreignKeyName: "contas_apagar_socios_cliente_id_fkey"
+            columns: ["socios_cliente_id"]
             isOneToOne: false
             referencedRelation: "socios"
             referencedColumns: ["id"]
@@ -2164,7 +2164,7 @@ export type Database = {
           reembolso_recebido: boolean | null
           reference_id: string | null
           reference_type: string | null
-          socios_id: string | null
+          socios_cliente_id: string | null
           status: string | null
           tem_rateio: boolean | null
           tipo_caixa: string | null
@@ -2210,7 +2210,7 @@ export type Database = {
           reembolso_recebido?: boolean | null
           reference_id?: string | null
           reference_type?: string | null
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           status?: string | null
           tem_rateio?: boolean | null
           tipo_caixa?: string | null
@@ -2256,7 +2256,7 @@ export type Database = {
           reembolso_recebido?: boolean | null
           reference_id?: string | null
           reference_type?: string | null
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           status?: string | null
           tem_rateio?: boolean | null
           tipo_caixa?: string | null
@@ -2385,8 +2385,8 @@ export type Database = {
             referencedColumns: ["lancamento_caixa_id"]
           },
           {
-            foreignKeyName: "controle_bancario_socios_id_fkey"
-            columns: ["socios_id"]
+            foreignKeyName: "controle_bancario_socios_cliente_id_fkey"
+            columns: ["socios_cliente_id"]
             isOneToOne: false
             referencedRelation: "socios"
             referencedColumns: ["id"]
@@ -3017,6 +3017,110 @@ export type Database = {
           },
           {
             foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
+      }
+      ctm_ordem_acompanhamento_servico: {
+        Row: {
+          aeronave_id: string
+          created_at: string
+          data_entrada: string | null
+          data_saida: string | null
+          id: string
+          mecanico_responsavel: string | null
+          numero: string | null
+          objetivo: string | null
+          observacoes: string | null
+          oficina_nome: string | null
+          periodo: string | null
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          status: string | null
+          status_aprovacao: string | null
+          tipo_manutencao: string | null
+          tipo_rateio: string | null
+          total_geral: number | null
+          total_mao_obra: number | null
+          total_pecas: number | null
+          total_valor_os: number | null
+          updated_at: string
+        }
+        Insert: {
+          aeronave_id: string
+          created_at?: string
+          data_entrada?: string | null
+          data_saida?: string | null
+          id?: string
+          mecanico_responsavel?: string | null
+          numero?: string | null
+          objetivo?: string | null
+          observacoes?: string | null
+          oficina_nome?: string | null
+          periodo?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status?: string | null
+          status_aprovacao?: string | null
+          tipo_manutencao?: string | null
+          tipo_rateio?: string | null
+          total_geral?: number | null
+          total_mao_obra?: number | null
+          total_pecas?: number | null
+          total_valor_os?: number | null
+          updated_at?: string
+        }
+        Update: {
+          aeronave_id?: string
+          created_at?: string
+          data_entrada?: string | null
+          data_saida?: string | null
+          id?: string
+          mecanico_responsavel?: string | null
+          numero?: string | null
+          objetivo?: string | null
+          observacoes?: string | null
+          oficina_nome?: string | null
+          periodo?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status?: string | null
+          status_aprovacao?: string | null
+          tipo_manutencao?: string | null
+          tipo_rateio?: string | null
+          total_geral?: number | null
+          total_mao_obra?: number | null
+          total_pecas?: number | null
+          total_valor_os?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
@@ -5794,6 +5898,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lancamentos_diario_bordo_socios_id_fkey"
+            columns: ["socios_id"]
+            isOneToOne: false
+            referencedRelation: "socios"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "logbook_entries_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
@@ -5869,13 +5980,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_socios_id_fkey"
-            columns: ["socios_id"]
-            isOneToOne: false
-            referencedRelation: "socios"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -6823,7 +6927,7 @@ export type Database = {
           saldo_atual: number | null
           socio_cpf: string
           socio_nome: string
-          socios_id: string | null
+          socios_cliente_id: string | null
           total_depositado: number | null
           total_gasto: number | null
         }
@@ -6837,7 +6941,7 @@ export type Database = {
           saldo_atual?: number | null
           socio_cpf: string
           socio_nome: string
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           total_depositado?: number | null
           total_gasto?: number | null
         }
@@ -6851,7 +6955,7 @@ export type Database = {
           saldo_atual?: number | null
           socio_cpf?: string
           socio_nome?: string
-          socios_id?: string | null
+          socios_cliente_id?: string | null
           total_depositado?: number | null
           total_gasto?: number | null
         }
@@ -6878,8 +6982,8 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "partner_accounts_socios_id_fkey"
-            columns: ["socios_id"]
+            foreignKeyName: "partner_accounts_socios_cliente_id_fkey"
+            columns: ["socios_cliente_id"]
             isOneToOne: false
             referencedRelation: "socios"
             referencedColumns: ["id"]
@@ -8116,7 +8220,7 @@ export type Database = {
           numero_documento: string | null
           numero_recibo: string
           percentual: number | null
-          socios_id: string | null
+          socios_cliente: string | null
           status: string | null
           tipo_recibo: string | null
           uf_pagador: string | null
@@ -8146,7 +8250,7 @@ export type Database = {
           numero_documento?: string | null
           numero_recibo: string
           percentual?: number | null
-          socios_id?: string | null
+          socios_cliente?: string | null
           status?: string | null
           tipo_recibo?: string | null
           uf_pagador?: string | null
@@ -8176,7 +8280,7 @@ export type Database = {
           numero_documento?: string | null
           numero_recibo?: string
           percentual?: number | null
-          socios_id?: string | null
+          socios_cliente?: string | null
           status?: string | null
           tipo_recibo?: string | null
           uf_pagador?: string | null
