@@ -45,6 +45,12 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
     "MANUTENÇÃO": true,
     "CUSTOS VARIÁVEIS": true,
   }));
+  const [subExpandido, setSubExpandido] = useState<Record<string, boolean>>({});
+
+  const fmtBRLFull = (n: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
+  const fmtData = (s: string) =>
+    new Date(s + (s.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR");
 
   const linhasPorGrupo = useMemo(() => {
     const m: Record<CategoriaGrupo, typeof data extends infer T ? any[] : any[]> = {
