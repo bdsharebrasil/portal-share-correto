@@ -366,19 +366,19 @@ export default function FinanceiroCotistaDetalhe() {
               <FileText className="h-4 w-4 mr-2" />
               Lançamentos
             </TabsTrigger>
-            <TabsTrigger value="diario" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all border-2 border-transparent data-[state=active]:border-cyan-500/20">
+            <TabsTrigger value="diario" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all border-2 border-transparent data-[state=active]:border-cyan-500/20">
               <Plane className="h-4 w-4 mr-2 text-cyan-500" />
               Diário de Bordo
             </TabsTrigger>
-            <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Financeiro</TabsTrigger>
+            <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Financeiro</TabsTrigger>
             <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Relatórios Viagem</TabsTrigger>
-            <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Abastecimentos</TabsTrigger>
-            <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Fechamento de Balanço</TabsTrigger>
-            <TabsTrigger value="creditos" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+            <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Abastecimentos</TabsTrigger>
+            <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Fechamento de Balanço</TabsTrigger>
+            <TabsTrigger value="creditos" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">
               <Wallet className="h-4 w-4 text-primary/70" />
               Histórico de Créditos
             </TabsTrigger>
-            <TabsTrigger value="portal" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all ml-auto">
+            <TabsTrigger value="portal" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all ml-auto">
               <KeyRound className="h-4 w-4 text-primary/70" />
               <span>Acesso Portal</span>
             </TabsTrigger>
