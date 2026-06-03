@@ -451,74 +451,12 @@ export default function FinanceiroCotistaDetalhe() {
 
             {/* Relatórios de Viagem */}
             <TabsContent value="viagem" className="mt-4">
-              <Card className="bg-card/60 border-border">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Relatórios de viagem — {aeronaveInfo?.matricula || "—"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {relatoriosDaAeronave.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-6 text-center">
-                      Nenhum relatório encontrado para esta aeronave.
-                    </p>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nº</TableHead>
-                          <TableHead>Rota</TableHead>
-                          <TableHead>Período</TableHead>
-                          <TableHead className="text-right">Dias</TableHead>
-                          <TableHead className="text-right">
-                            Total Cliente
-                          </TableHead>
-                          <TableHead className="text-right">Total Geral</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {relatoriosDaAeronave.map((r) => (
-                          <TableRow
-                            key={r.id}
-                            className="cursor-pointer hover:bg-primary/5"
-                            onClick={() =>
-                              navigate(
-                                `/financeiro/relatorios-cliente/${clienteId}`
-                              )
-                            }
-                          >
-                            <TableCell className="font-mono text-xs">
-                              {r.numero_relatorio || "—"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {r.rota || "—"}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {formatDate(r.data_inicio)} →{" "}
-                              {formatDate(r.data_fim)}
-                            </TableCell>
-                            <TableCell className="text-right text-xs">
-                              {r.dias_count || 0}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
-                              {formatBRL(r.total_clientes)}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-sm">
-                              {formatBRL(r.total_valor)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-[10px]">
-                                {r.status || "—"}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
+              <RelatoriosViagemTab
+                relatorios={relatoriosDaAeronave}
+                cotistas={cotistasDaAeronave}
+                aeronaveLabel={aeronaveInfo?.matricula}
+                onOpen={() => navigate(`/financeiro/relatorios-cliente/${clienteId}`)}
+              />
             </TabsContent>
 
             {/* Abastecimentos */}
