@@ -159,13 +159,31 @@ export function useMatrizFinanceira(
             subcategoria: cls.sub,
             meses: Array(12).fill(0),
             totalYTD: 0,
+            lancamentos: [],
           };
           linhasMap.set(key, linha);
         }
         const v = Number(d.valor_total_despesa) || 0;
         linha.meses[dt.getMonth()] += v;
         linha.totalYTD += v;
+        linha.lancamentos.push({
+          id: d.id,
+          data: dataRef,
+          descricao: d.descricao_despesa || "—",
+          categoria: d.categoria_custo,
+          fornecedor: d.fornecedor_nome || null,
+          documento: d.numero_nf || d.numero_doc || null,
+          valor: v,
+          mes: dt.getMonth(),
+        });
       }
+
+      const linhas = Array.from(linhasMap.values()).sort((a, b) => {
+        const ga = GRUPOS.indexOf(a.grupo);
+        const gb = GRUPOS.indexOf(b.grupo);
+        if (ga !== gb) return ga - gb;
+        return a.subcategoria.localeCompare(b.subcategoria);
+      });
 
       const linhas = Array.from(linhasMap.values()).sort((a, b) => {
         const ga = GRUPOS.indexOf(a.grupo);
