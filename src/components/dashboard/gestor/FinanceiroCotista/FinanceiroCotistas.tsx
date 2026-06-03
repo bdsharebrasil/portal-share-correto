@@ -8,8 +8,6 @@ import { ArrowLeft, Plane, Users, ChevronRight, Search, X, Bell } from "lucide-r
 import { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { SociosDetailCard } from "./SociosDetailCard";
-
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
@@ -19,7 +17,6 @@ export default function FinanceiroCotistas() {
   const [search, setSearch] = useState("");
   const [aba, setAba] = useState<"cotistas" | "sociedade">("cotistas");
   const [clientesComSocios, setClientesComSocios] = useState<Set<string>>(new Set());
-  const [clienteSelecionado, setClienteSelecionado] = useState<any>(null);
 
   // Carregar clientes que têm sócios
   const carregarClientesComSocios = async () => {
@@ -48,7 +45,11 @@ export default function FinanceiroCotistas() {
     let resultado = clientes;
 
     // Filtrar pela aba selecionada
-    if (aba === "sociedade") {
+    if (aba === "cotistas") {
+      // Na aba Cotistas: mostrar clientes que NÃO têm sócios
+      resultado = resultado.filter((c: any) => !clientesComSocios.has(c.id));
+    } else if (aba === "sociedade") {
+      // Na aba Sociedade: mostrar clientes que TÊM sócios
       resultado = resultado.filter((c: any) => clientesComSocios.has(c.id));
     }
 
@@ -62,55 +63,6 @@ export default function FinanceiroCotistas() {
     );
   }, [clientes, search, aba, clientesComSocios]);
 
-  // Quando está visualizando sócios, mostra o card de detalhes
-  if (clienteSelecionado && aba === "sociedade") {
-    return (
-      <Layout>
-        <div className="space-y-6">
-          <button
-            onClick={() => setClienteSelecionado(null)}
-            className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group w-fit"
-          >
-            <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm">Voltar</span>
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center overflow-hidden">
-              {clienteSelecionado.url_logo ? (
-                <img
-                  src={clienteSelecionado.url_logo}
-                  alt={clienteSelecionado.razao_social}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Users className="h-7 w-7 text-primary" />
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-primary font-medium uppercase tracking-widest">
-                Sociedade de Cotistas
-              </p>
-              <h1 className="text-3xl font-bold text-foreground">
-                {clienteSelecionado.razao_social || "Cliente"}
-              </h1>
-              {clienteSelecionado.cnpj && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  CNPJ: {clienteSelecionado.cnpj}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Card de Sócios */}
-          <SociosDetailCard 
-            clienteId={clienteSelecionado.id}
-            clienteNome={clienteSelecionado.razao_social || "Cliente"}
-          />
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
@@ -189,13 +141,7 @@ export default function FinanceiroCotistas() {
             {filtered.map((c: any) => (
               <button
                 key={c.id}
-                onClick={() => {
-                  if (aba === "sociedade") {
-                    setClienteSelecionado(c);
-                  } else {
-                    navigate(`/financeiro/financeiro-cotistas/${c.id}`);
-                  }
-                }}
+                onClick={() => navigate(`/financeiro/financeiro-cotistas/${c.id}`)}
                 className="text-left bg-gradient-to-b from-slate-800 to-slate-900 backdrop-blur-sm rounded-2xl border border-slate-700 hover:border-primary/50 hover:from-slate-700 hover:to-slate-800 transition-all duration-200 group p-6 flex flex-col gap-4 relative overflow-hidden"
               >
                 {/* Header com logo, título e ícones */}
