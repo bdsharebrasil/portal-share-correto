@@ -1,0 +1,251 @@
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { FileText, Search } from "lucide-react";
+
+const formatBRL = (n: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
+const formatDate = (s?: string | null) =>
+  s ? new Date(s).toLocaleDateString("pt-BR") : "—";
+
+// Paleta translucida — pills coloridas por sócio
+const PALETA = [
+  { bg: "bg-amber-500/15", text: "text-amber-300", border: "border-amber-500/40" },
+  { bg: "bg-emerald-500/15", text: "text-emerald-300", border: "border-emerald-500/40" },
+  { bg: "bg-sky-500/15", text: "text-sky-300", border: "border-sky-500/40" },
+  { bg: "bg-violet-500/15", text: "text-violet-300", border: "border-violet-500/40" },
+  { bg: "bg-rose-500/15", text: "text-rose-300", border: "border-rose-500/40" },
+  { bg: "bg-cyan-500/15", text: "text-cyan-300", border: "border-cyan-500/40" },
+  { bg: "bg-orange-500/15", text: "text-orange-300", border: "border-orange-500/40" },
+  { bg: "bg-fuchsia-500/15", text: "text-fuchsia-300", border: "border-fuchsia-500/40" },
+];
+
+function pickColor(idx: number) {
+  return PALETA[idx % PALETA.length];
+}
+
+function shortNome(nome: string) {
+  if (!nome) return "—";
+  const limpo = nome.replace(/\(.*?\)/g, "").trim();
+  const primeira = limpo.split(/\s+/)[0] || limpo;
+  return primeira.slice(0, 3).toUpperCase();
+}
+
+interface Cotista {
+  id: string;
+  nome: string;
+  percentual: number;
+}
+
+interface Relatorio {
+  id: string;
+  numero_relatorio?: string | null;
+  rota?: string | null;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  dias_count?: number | null;
+  total_valor?: number;
+  total_clientes?: number;
+  status?: string | null;
+  socios_id?: string | null;
+  nome_tripulante?: string | null;
+}
+
+interface Props {
+  relatorios: Relatorio[];
+  cotistas: Cotista[];
+  aeronaveLabel?: string;
+  onOpen?: (r: Relatorio) => void;
+}
+
+export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel, onOpen }: Props) {
+  const [busca, setBusca] = useState("");
+  const [filtroSocio, setFiltroSocio] = useState<string>("todos");
+  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+
+  // Mapa socio_id → { nome, cor }
+  const socioMap = useMemo(() => {
+    const m = new Map<string, { nome: string; cor: typeof PALETA[0] }>();
+    cotistas.forEach((c, idx) => {
+      m.set(c.id, { nome: c.nome, cor: pickColor(idx) });
+    });
+    return m;
+  }, [cotistas]);
+
+  const statusDisponiveis = useMemo(() => {
+    const s = new Set<string>();
+    relatorios.forEach((r) => r.status && s.add(r.status));
+    return Array.from(s);
+  }, [relatorios]);
+
+  const relatoriosFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return relatorios.filter((r) => {
+      if (filtroSocio !== "todos" && r.socios_id !== filtroSocio) return false;
+      if (filtroStatus !== "todos" && (r.status || "") !== filtroStatus) return false;
+      if (q) {
+        return (
+          (r.numero_relatorio || "").toLowerCase().includes(q) ||
+          (r.rota || "").toLowerCase().includes(q) ||
+          (r.nome_tripulante || "").toLowerCase().includes(q) ||
+          (r.status || "").toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [relatorios, busca, filtroSocio, filtroStatus]);
+
+  return (
+    <Card className="bg-card/60 border-border">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            Relatórios de Viagem
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            {aeronaveLabel ? `${aeronaveLabel} · ` : ""}
+            {relatoriosFiltrados.length} de {relatorios.length} relatório(s)
+          </p>
+        </div>
+
+        {/* Legenda de cores por sócio */}
+        {cotistas.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {cotistas.map((c, idx) => {
+              const cor = pickColor(idx);
+              return (
+                <Badge
+                  key={c.id}
+                  variant="outline"
+                  className={`text-[10px] ${cor.bg} ${cor.text} ${cor.border}`}
+                >
+                  {shortNome(c.nome)} · {c.nome}
+                </Badge>
+              );
+            })}
+          </div>
+        )}
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Filtros */}
+        <div className="flex flex-wrap gap-2.5">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por número, rota, tripulante..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9 h-10 bg-background/60 border-border/50 rounded-xl"
+            />
+          </div>
+
+          <Select value={filtroSocio} onValueChange={setFiltroSocio}>
+            <SelectTrigger className="w-52 h-10 bg-background/60 border-border/50 rounded-xl">
+              <SelectValue placeholder="Sócio" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os sócios</SelectItem>
+              {cotistas.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <SelectTrigger className="w-44 h-10 bg-background/60 border-border/50 rounded-xl">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os status</SelectItem>
+              {statusDisponiveis.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {relatoriosFiltrados.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Nenhum relatório encontrado.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nº</TableHead>
+                  <TableHead>Rota</TableHead>
+                  <TableHead>Tripulante</TableHead>
+                  <TableHead>Período</TableHead>
+                  <TableHead className="text-right">Dias</TableHead>
+                  <TableHead className="text-right">Total Cliente</TableHead>
+                  <TableHead className="text-right">Total Geral</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {relatoriosFiltrados.map((r) => {
+                  const info = r.socios_id ? socioMap.get(r.socios_id) : null;
+                  const cor = info?.cor || PALETA[PALETA.length - 1];
+                  return (
+                    <TableRow
+                      key={r.id}
+                      className="cursor-pointer hover:bg-primary/5"
+                      onClick={() => onOpen?.(r)}
+                    >
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border ${cor.bg} ${cor.text} ${cor.border}`}
+                          title={info?.nome || "Sem sócio"}
+                        >
+                          {r.numero_relatorio || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">{r.rota || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {r.nome_tripulante || "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {formatDate(r.data_inicio)} → {formatDate(r.data_fim)}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">{r.dias_count || 0}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatBRL(r.total_clientes || 0)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {formatBRL(r.total_valor || 0)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {r.status || "—"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
