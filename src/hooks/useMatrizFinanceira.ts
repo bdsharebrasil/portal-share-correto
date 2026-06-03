@@ -130,7 +130,7 @@ export function useMatrizFinanceira(
         if (!dataRef) continue;
         const dt = new Date(dataRef);
         if (dt.getFullYear() !== ano) continue;
-        if ((d.tipo_movimento || "").toUpperCase() === "ENTRADA") continue;
+        if ((d.fluxo || "").toUpperCase() === "ENTRADA") continue;
 
         const cls = classificar(
           d.categoria_custo,
