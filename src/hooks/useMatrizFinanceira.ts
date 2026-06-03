@@ -100,7 +100,7 @@ export function useMatrizFinanceira(
         supabase
           .from("rateio_despesas")
           .select(
-            "id, categoria_custo, periodicidade, valor_total_despesa, data_pagamento, data_vencimento, descricao_despesa, aeronave_id, cliente_id, socio_id, fluxo",
+            "id, despesa_id, categoria_custo, periodicidade, valor_total_despesa, data_pagamento, data_vencimento, descricao_despesa, aeronave_id, cliente_id, socio_id, fluxo, fornecedor_nome, numero_doc, numero_nf",
           )
           .eq("aeronave_id", aeronaveId as string),
         supabase
