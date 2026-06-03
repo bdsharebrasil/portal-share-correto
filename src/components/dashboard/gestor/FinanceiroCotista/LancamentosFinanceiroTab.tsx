@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -7,17 +6,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Paperclip, FileText } from "lucide-react";
+import {
+  Search,
+  Paperclip,
+  FileText,
+  Calendar,
+  Fuel,
+  Wrench,
+  Shield,
+  Receipt,
+  Plane,
+  Eye,
+} from "lucide-react";
 
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", {
@@ -25,22 +27,19 @@ const formatBRL = (n: number) =>
     currency: "BRL",
   }).format(n || 0);
 
-const formatDate = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString("pt-BR") : "—";
+const formatDateLong = (s?: string | null) => {
+  if (!s) return "—";
+  const d = new Date(s);
+  return d.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
 const MESES = [
-  "Janeiro",
-  "Fevereiro",
-  "Março",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
 interface DespesaUnificada {
@@ -89,6 +88,22 @@ interface LancamentosFinanceiroTabProps {
   onLancamentoClick?: (d: DespesaUnificada) => void;
 }
 
+// Mapeia categoria → ícone + cor temática (semantic tokens)
+function getCategoriaStyle(categoria: string | null, descricao: string) {
+  const t = `${categoria || ""} ${descricao || ""}`.toUpperCase();
+  if (t.includes("COMBUST") || t.includes("ABASTEC"))
+    return { icon: Fuel, color: "text-amber-400", bg: "bg-amber-500/10", ring: "ring-amber-500/20" };
+  if (t.includes("MANUTEN") || t.includes("REVIS"))
+    return { icon: Wrench, color: "text-cyan-400", bg: "bg-cyan-500/10", ring: "ring-cyan-500/20" };
+  if (t.includes("SEGURO"))
+    return { icon: Shield, color: "text-emerald-400", bg: "bg-emerald-500/10", ring: "ring-emerald-500/20" };
+  if (t.includes("HANGAR"))
+    return { icon: Plane, color: "text-violet-400", bg: "bg-violet-500/10", ring: "ring-violet-500/20" };
+  if (t.includes("DEPÓSITO") || t.includes("DEPOSITO") || t.includes("APORTE"))
+    return { icon: Receipt, color: "text-success", bg: "bg-success/10", ring: "ring-success/20" };
+  return { icon: Receipt, color: "text-primary", bg: "bg-primary/10", ring: "ring-primary/20" };
+}
+
 export function LancamentosFinanceiroTab({
   despesas,
   cotistas,
@@ -96,19 +111,24 @@ export function LancamentosFinanceiroTab({
   onLancamentoClick,
 }: LancamentosFinanceiroTabProps) {
   const hoje = new Date();
-  const [mesSelecionado, setMesSelecionado] = useState<number>(
-    hoje.getMonth() + 1
-  );
-  const [anoSelecionado, setAnoSelecionado] = useState<number>(
-    hoje.getFullYear()
-  );
+  const [mesSelecionado, setMesSelecionado] = useState<number>(hoje.getMonth() + 1);
+  const [anoSelecionado, setAnoSelecionado] = useState<number>(hoje.getFullYear());
   const [cotistaFiltro, setCotistaFiltro] = useState<string | undefined>();
   const [filtroTexto, setFiltroTexto] = useState("");
   const [filtroOrigem, setFiltroOrigem] = useState<"todos" | "conciliacao" | "direto">("todos");
+  const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
 
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
-  // Filtrar por mês, ano, cotista, texto e origem
+  // Categorias únicas presentes nos lançamentos
+  const categoriasDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    despesas.forEach((d) => {
+      if (d.categoria) set.add(d.categoria);
+    });
+    return Array.from(set).sort();
+  }, [despesas]);
+
   const despesasFiltradas = useMemo(() => {
     const q = filtroTexto.trim().toLowerCase();
 
@@ -119,20 +139,16 @@ export function LancamentosFinanceiroTab({
       const mes = data.getMonth() + 1;
       const ano = data.getFullYear();
 
-      // Filtro de mês e ano
       if (mes !== mesSelecionado || ano !== anoSelecionado) return false;
-
-      // Filtro de origem
       if (filtroOrigem !== "todos" && d.origem !== filtroOrigem) return false;
+      if (filtroCategoria !== "todas" && (d.categoria || "") !== filtroCategoria) return false;
 
-      // Filtro de cotista (cliente/sócio)
       if (cotistaFiltro) {
         const pertenceAoCotista =
           d.cliente_id === cotistaFiltro || d.socio_id === cotistaFiltro;
         if (!pertenceAoCotista) return false;
       }
 
-      // Filtro de texto
       if (q) {
         return (
           d.descricao?.toLowerCase().includes(q) ||
@@ -149,245 +165,291 @@ export function LancamentosFinanceiroTab({
 
       return true;
     });
-  }, [despesas, mesSelecionado, anoSelecionado, cotistaFiltro, filtroTexto, filtroOrigem]);
+  }, [despesas, mesSelecionado, anoSelecionado, cotistaFiltro, filtroTexto, filtroOrigem, filtroCategoria]);
 
-  // Calcular totais filtrados
-  const totaisFiltrados = useMemo(() => {
-    return despesasFiltradas.reduce((a, d) => a + d.valor_total, 0);
-  }, [despesasFiltradas]);
+  const totaisFiltrados = useMemo(
+    () => despesasFiltradas.reduce((a, d) => a + d.valor_total, 0),
+    [despesasFiltradas]
+  );
 
   const temMultiplosCotistas = cotistas.length > 1;
 
   return (
-    <div className="space-y-4">
-      {/* Filtros */}
-      <Card className="bg-card/60 border-border">
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Lançamentos detalhados
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              {MESES[mesSelecionado - 1]}/{anoSelecionado} — {aeronaveLabel || "—"}
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Linha de filtros principais */}
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-            <Select value={String(mesSelecionado)} onValueChange={(v) => setMesSelecionado(Number(v))}>
-              <SelectTrigger className="w-44 h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MESES.map((m, i) => (
-                  <SelectItem key={i} value={String(i + 1)}>
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={String(anoSelecionado)} onValueChange={(v) => setAnoSelecionado(Number(v))}>
-              <SelectTrigger className="w-32 h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {anos.map((a) => (
-                  <SelectItem key={a} value={String(a)}>
-                    {a}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {temMultiplosCotistas && (
-              <Select value={cotistaFiltro || "todos"} onValueChange={(v) => setCotistaFiltro(v === "todos" ? undefined : v)}>
-                <SelectTrigger className="w-52 h-10">
-                  <SelectValue placeholder="Todos os sócios/clientes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os sócios/clientes</SelectItem>
-                  {cotistas.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome} ({c.percentual}%)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            <Select value={filtroOrigem} onValueChange={(v: any) => setFiltroOrigem(v)}>
-              <SelectTrigger className="w-44 h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas as origens</SelectItem>
-                <SelectItem value="conciliacao">Pago pela Share</SelectItem>
-                <SelectItem value="direto">Pago direto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Linha de busca */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar descrição, fornecedor, doc..."
-              value={filtroTexto}
-              onChange={(e) => setFiltroTexto(e.target.value)}
-              className="pl-8 w-full h-9"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabela de Lançamentos */}
-      <Card className="bg-card/60 border-border">
-        <CardContent className="pt-6">
-          {despesasFiltradas.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-6 text-center">
-              Nenhum lançamento encontrado com os filtros atuais.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Pago em</TableHead>
-                    <TableHead>Doc / NF</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    {temMultiplosCotistas && <TableHead>Cliente / Sócio</TableHead>}
-                    <TableHead>Pago por</TableHead>
-                    <TableHead>Forma</TableHead>
-                    <TableHead>Origem</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-center">Anexos</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {despesasFiltradas.map((d) => {
-                    const anexos = [
-                      { url: d.comprovante_url, label: "Comprovante" },
-                      { url: d.recibo_url, label: "Recibo" },
-                      { url: d.nf_url, label: "NF" },
-                      { url: d.boleto_url, label: "Boleto" },
-                    ].filter((a) => !!a.url);
-
-                    return (
-                      <TableRow
-                        key={d.id}
-                        className="cursor-pointer hover:bg-primary/5 transition-colors"
-                        onClick={() => onLancamentoClick?.(d)}
-                      >
-                        <TableCell className="text-xs">
-                          {formatDate(d.data_vencimento)}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {formatDate(d.data_pagamento)}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono">
-                          {d.numero_nf || d.numero_doc || d.numero_boleto || d.numero_recibo || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm max-w-[260px]">
-                          <span className="block truncate" title={d.descricao}>
-                            {d.descricao}
-                          </span>
-                          {d.observacoes && (
-                            <span className="block text-[10px] text-muted-foreground/70 truncate" title={d.observacoes}>
-                              {d.observacoes}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {d.categoria || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">{d.fornecedor || "—"}</TableCell>
-                        {temMultiplosCotistas && (
-                          <TableCell className="text-xs">
-                            <Badge variant="outline" className="text-[10px]">
-                              {d.cliente_nome || d.socio_nome || "—"}
-                            </Badge>
-                          </TableCell>
-                        )}
-                        <TableCell className="text-xs">
-                          <Badge
-                            variant="outline"
-                            className={
-                              d.pago_por_tipo === "EMPRESA"
-                                ? "border-blue-500/40 text-blue-400"
-                                : d.pago_por_tipo === "CLIENTE"
-                                ? "border-amber-500/40 text-amber-400"
-                                : d.pago_por_tipo === "SOCIO"
-                                ? "border-purple-500/40 text-purple-400"
-                                : "border-border text-muted-foreground"
-                            }
-                          >
-                            {d.pago_por}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {d.forma_pagamento || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              d.origem === "conciliacao"
-                                ? "border-blue-500/40 text-blue-400"
-                                : "border-amber-500/40 text-amber-400"
-                            }
-                          >
-                            {d.origem === "conciliacao" ? "Share pagou" : "Direto"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm font-semibold">
-                          {formatBRL(d.valor_total)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {anexos.length === 0 ? (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          ) : (
-                            <div className="flex justify-center gap-1">
-                              {anexos.map((a) => (
-                                <a
-                                  key={a.label}
-                                  href={a.url!}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title={a.label}
-                                  className="p-1 rounded hover:bg-primary/10 text-primary"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Paperclip className="h-3.5 w-3.5" />
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-[10px] capitalize">
-                            {d.status || "—"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-
-              <p className="text-xs text-muted-foreground mt-3">
-                {despesasFiltradas.length} lançamento(s) · Total: {formatBRL(totaisFiltrados)}
+    <div className="space-y-5">
+      {/* Header + Filtros */}
+      <div className="rounded-2xl bg-card/40 backdrop-blur-md border border-border/40 p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">Lançamentos detalhados</h2>
+              <p className="text-xs text-muted-foreground">
+                {MESES[mesSelecionado - 1]}/{anoSelecionado}
+                {aeronaveLabel ? ` · ${aeronaveLabel}` : ""}
               </p>
             </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+              Total filtrado
+            </p>
+            <p className="text-xl font-bold font-mono text-foreground">
+              {formatBRL(totaisFiltrados)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{despesasFiltradas.length} lançamento(s)</p>
+          </div>
+        </div>
+
+        {/* Linha 1 - filtros */}
+        <div className="flex flex-wrap gap-2.5">
+          <Select value={String(mesSelecionado)} onValueChange={(v) => setMesSelecionado(Number(v))}>
+            <SelectTrigger className="w-40 h-10 bg-background/60 border-border/50 rounded-xl">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground mr-1.5" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MESES.map((m, i) => (
+                <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={String(anoSelecionado)} onValueChange={(v) => setAnoSelecionado(Number(v))}>
+            <SelectTrigger className="w-28 h-10 bg-background/60 border-border/50 rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {anos.map((a) => (
+                <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <SelectTrigger className="w-56 h-10 bg-background/60 border-border/50 rounded-xl">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as categorias</SelectItem>
+              {categoriasDisponiveis.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {temMultiplosCotistas && (
+            <Select
+              value={cotistaFiltro || "todos"}
+              onValueChange={(v) => setCotistaFiltro(v === "todos" ? undefined : v)}
+            >
+              <SelectTrigger className="w-56 h-10 bg-background/60 border-border/50 rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os sócios/clientes</SelectItem>
+                {cotistas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome} ({c.percentual}%)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-        </CardContent>
-      </Card>
+
+          <Select value={filtroOrigem} onValueChange={(v: any) => setFiltroOrigem(v)}>
+            <SelectTrigger className="w-44 h-10 bg-background/60 border-border/50 rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas as origens</SelectItem>
+              <SelectItem value="conciliacao">Pago pela Share</SelectItem>
+              <SelectItem value="direto">Pago direto</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por categoria, descrição, fornecedor, documento..."
+              value={filtroTexto}
+              onChange={(e) => setFiltroTexto(e.target.value)}
+              className="pl-9 h-10 bg-background/60 border-border/50 rounded-xl"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de cards modernos */}
+      {despesasFiltradas.length === 0 ? (
+        <div className="rounded-2xl bg-card/30 border border-border/40 py-16 text-center">
+          <p className="text-sm text-muted-foreground">
+            Nenhum lançamento encontrado com os filtros atuais.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {despesasFiltradas.map((d) => {
+            const style = getCategoriaStyle(d.categoria, d.descricao);
+            const Icon = style.icon;
+            const docNumero =
+              d.numero_nf || d.numero_doc || d.numero_boleto || d.numero_recibo;
+            const anexos = [
+              { url: d.comprovante_url, label: "Comprovante" },
+              { url: d.recibo_url, label: "Recibo" },
+              { url: d.nf_url, label: "NF" },
+              { url: d.boleto_url, label: "Boleto" },
+            ].filter((a) => !!a.url);
+
+            const pagoBadge =
+              d.origem === "conciliacao"
+                ? { label: "Share Brasil", cls: "border-primary/40 text-primary bg-primary/10" }
+                : d.pago_por_tipo === "CLIENTE"
+                ? { label: "Cliente", cls: "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" }
+                : d.pago_por_tipo === "SOCIO"
+                ? { label: "Sócio", cls: "border-violet-500/40 text-violet-400 bg-violet-500/10" }
+                : { label: d.pago_por || "—", cls: "border-border text-muted-foreground bg-muted/30" };
+
+            const statusBadge =
+              (d.status || "").toLowerCase() === "pago"
+                ? { label: "✓ Pago", cls: "border-success/40 text-success bg-success/10" }
+                : (d.status || "").toLowerCase() === "pendente"
+                ? { label: "Pendente", cls: "border-amber-500/40 text-amber-400 bg-amber-500/10" }
+                : { label: d.status || "—", cls: "border-border text-muted-foreground bg-muted/30" };
+
+            return (
+              <button
+                key={d.id}
+                onClick={() => onLancamentoClick?.(d)}
+                className="w-full text-left group rounded-2xl bg-card/60 backdrop-blur-md border border-border/40 hover:border-primary/40 hover:shadow-[0_6px_24px_rgb(0,0,0,0.18)] transition-all duration-300 p-5"
+              >
+                <div className="flex items-start gap-4">
+                  {/* Ícone categoria */}
+                  <div className={`shrink-0 w-12 h-12 rounded-xl ${style.bg} ${style.color} ring-1 ${style.ring} flex items-center justify-center`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+
+                  {/* Conteúdo principal */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-foreground truncate">
+                          {d.descricao}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDateLong(d.data_pagamento || d.data_vencimento || d.data)}
+                          </span>
+                          {d.fornecedor && (
+                            <span className="text-foreground/70">{d.fornecedor}</span>
+                          )}
+                          {docNumero && (
+                            <span className="font-mono text-[11px] text-muted-foreground/80">
+                              {docNumero}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="text-2xl font-bold font-mono text-foreground tracking-tight">
+                          {formatBRL(d.valor_total)}
+                        </p>
+                        <Badge variant="outline" className={`text-[10px] mt-1 ${pagoBadge.cls}`}>
+                          {pagoBadge.label}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Pills inferiores */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className={`text-[10px] ${style.bg} ${style.color} border-border/30`}>
+                          {d.categoria || "Sem categoria"}
+                        </Badge>
+                        <Badge variant="outline" className={`text-[10px] ${statusBadge.cls}`}>
+                          {statusBadge.label}
+                        </Badge>
+                        {d.forma_pagamento && (
+                          <Badge variant="outline" className="text-[10px] border-border/40 text-muted-foreground">
+                            {d.forma_pagamento}
+                          </Badge>
+                        )}
+                        {temMultiplosCotistas && (d.cliente_nome || d.socio_nome) && (
+                          <Badge variant="outline" className="text-[10px] border-border/40 text-muted-foreground">
+                            {d.cliente_nome || d.socio_nome}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {anexos.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            {anexos.map((a) => (
+                              <a
+                                key={a.label}
+                                href={a.url!}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={a.label}
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 rounded-lg bg-background/60 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <Paperclip className="h-3.5 w-3.5" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground group-hover:text-primary transition-colors">
+                          <Eye className="h-3.5 w-3.5" />
+                          Ver detalhes
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Detalhes secundários (estilo "CATEGORIA | DOCUMENTO | TIPO | STATUS") */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border/30">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                          Categoria
+                        </p>
+                        <p className="text-sm text-foreground/90 mt-0.5 truncate">
+                          {d.categoria || "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                          Documento
+                        </p>
+                        <p className="text-sm text-foreground/90 mt-0.5 font-mono truncate">
+                          {docNumero || "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                          Origem
+                        </p>
+                        <p className="text-sm text-foreground/90 mt-0.5">
+                          {d.origem === "conciliacao" ? "Share pagou" : "Pago direto"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                          Status
+                        </p>
+                        <p className="text-sm text-foreground/90 mt-0.5 capitalize">
+                          {d.status || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
