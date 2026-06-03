@@ -185,13 +185,6 @@ export function useMatrizFinanceira(
         return a.subcategoria.localeCompare(b.subcategoria);
       });
 
-      const linhas = Array.from(linhasMap.values()).sort((a, b) => {
-        const ga = GRUPOS.indexOf(a.grupo);
-        const gb = GRUPOS.indexOf(b.grupo);
-        if (ga !== gb) return ga - gb;
-        return a.subcategoria.localeCompare(b.subcategoria);
-      });
-
       const totaisMes = Array(12).fill(0);
       const totaisGrupoMes: Record<CategoriaGrupo, number[]> = {
         "CUSTOS FIXOS": Array(12).fill(0),
