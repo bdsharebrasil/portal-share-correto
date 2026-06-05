@@ -476,6 +476,9 @@ export default function FinanceiroCotistaDetalhe() {
                 aeronaveLabel={aeronaveInfo?.matricula}
                 cotistas={cotistasDaAeronave}
                 clienteEmFoco={clienteId}
+                clienteId={clienteId}
+                abastecimentos={abastecimentosDaAeronave}
+                relatorios={relatoriosDaAeronave}
               />
             </TabsContent>
 
