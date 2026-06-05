@@ -155,7 +155,7 @@ export function FechamentoBalancoTab({
   const rateios = data?.rateios || [];
   const voos = data?.voos || [];
 
-  // Agrupa rateios por despesa
+  // Agrupa rateios por despesa (mantém cada rateio para cálculo detalhado)
   const despesasAgrupadas = useMemo(() => {
     const m = new Map<string, { despesa: any; rateios: any[] }>();
     rateios.forEach((r) => {
@@ -170,11 +170,33 @@ export function FechamentoBalancoTab({
     });
   }, [rateios]);
 
-  // Despesas únicas para totais
+  // Despesas únicas (primeira instância de cada grupo) para totais
   const despesasUnicas = useMemo(
     () => despesasAgrupadas.map((g) => g.despesa),
     [despesasAgrupadas]
   );
+
+  // Calcular TODOS os rateios de cada cotista (não apenas pela despesa pai)
+  const creditoPorCotistaDetalhado = useMemo(() => {
+    const map = new Map<string, number>();
+    cotistas.forEach((c) => map.set(c.id, 0));
+
+    // Iterar sobre TODOS os rateios (não apenas despesas únicas)
+    rateios.forEach((r) => {
+      if ((r.fluxo || "").toUpperCase() === "ENTRADA") return;
+
+      const cid = r.cliente_id || r.socio_id;
+      if (!cid || !map.has(cid)) return;
+
+      // Usar valor_pago_real se disponível, senão valor_rateado
+      const valPago = Number(r.valor_pago_real || r.valor_rateado || 0);
+      if (valPago > 0) {
+        map.set(cid, (map.get(cid) || 0) + valPago);
+      }
+    });
+
+    return map;
+  }, [rateios, cotistas]);
 
   // Horas voadas por cotista
   const horasPorCotista = useMemo(() => {
@@ -207,43 +229,33 @@ export function FechamentoBalancoTab({
 
   const custoMedioHora = horasTotais > 0 ? custoVariavel / horasTotais : 0;
 
-  const creditoPorCotista = useMemo(() => {
-    const map = new Map<string, number>();
-    cotistas.forEach((c) => map.set(c.id, 0));
-    despesasUnicas.forEach((d) => {
-      if ((d.fluxo || "").toUpperCase() === "ENTRADA") {
-        // Entrada conta como crédito de quem depositou
-      }
-      const valPago = Number(d.valor_pago_real || d.valor_total_despesa) || 0;
-      if (d.cliente_id) {
-        const c = cotistas.find((x) => x.id === d.cliente_id);
-        if (c) { map.set(c.id, (map.get(c.id) || 0) + valPago); return; }
-      }
-      if (d.socio_id) {
-        const c = cotistas.find((x) => x.id === d.socio_id);
-        if (c) { map.set(c.id, (map.get(c.id) || 0) + valPago); return; }
-      }
-      if (d.pago_diretamente && d.pago_por) {
-        const pagoNorm = norm(d.pago_por);
-        const m2 = cotistas.find((c) => norm(c.nome) === pagoNorm);
-        if (m2) { map.set(m2.id, (map.get(m2.id) || 0) + valPago); return; }
-      }
-    });
-    return map;
-  }, [despesasUnicas, cotistas]);
 
   const linhas = useMemo(() => {
     return cotistas.map((c) => {
       const horas = horasPorCotista.get(c.id) || 0;
+
+      // Calcular parcela fixa: percentual do cotista sobre o total de custos fixos
       const parcelaFixa = custoFixo * (c.percentual / 100);
+
+      // Calcular parcela variável: proporcional às horas voadas
       const parcelaVariavel =
         horasTotais > 0 ? custoVariavel * (horas / horasTotais) : 0;
+
       const custoDevido = parcelaFixa + parcelaVariavel;
-      const credito = creditoPorCotista.get(c.id) || 0;
+      const credito = creditoPorCotistaDetalhado.get(c.id) || 0;
       const saldo = credito - custoDevido;
-      return { ...c, horas, parcelaFixa, parcelaVariavel, custoDevido, credito, saldo };
+
+      return {
+        ...c,
+        horas,
+        parcelaFixa,
+        parcelaVariavel,
+        custoDevido,
+        credito,
+        saldo
+      };
     });
-  }, [cotistas, custoFixo, custoVariavel, horasTotais, horasPorCotista, creditoPorCotista]);
+  }, [cotistas, custoFixo, custoVariavel, horasTotais, horasPorCotista, creditoPorCotistaDetalhado]);
 
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
@@ -524,11 +536,20 @@ function LancamentosDetalhadosView({
                   const doc = d.numero_nf || d.numero_doc || d.numero_recibo || d.numero_boleto || "—";
                   const valor = Number(d.valor_total_despesa) || 0;
                   const fluxoUp = (d.fluxo || "").toUpperCase();
-                  // mapa cotista->rateio
+                  // mapa cotista->rateio consolidado (soma se múltiplos registros)
                   const ratioByCotista = new Map<string, any>();
                   rateios.forEach((r) => {
                     const cid = r.cliente_id || r.socio_id;
-                    if (cid) ratioByCotista.set(cid, r);
+                    if (!cid) return;
+                    if (!ratioByCotista.has(cid)) {
+                      ratioByCotista.set(cid, { ...r });
+                    } else {
+                      const existing = ratioByCotista.get(cid)!;
+                      existing.valor_rateado = (Number(existing.valor_rateado) || 0) + (Number(r.valor_rateado) || 0);
+                      existing.valor_pago_real = (Number(existing.valor_pago_real) || 0) + (Number(r.valor_pago_real) || 0);
+                      existing.percentual_sociedade = Number(r.percentual_sociedade) || Number(existing.percentual_sociedade) || 0;
+                      existing.percentual_uso = Number(r.percentual_uso) || Number(existing.percentual_uso) || null;
+                    }
                   });
                   return (
                     <tr key={idx} className="hover:bg-muted/30">
