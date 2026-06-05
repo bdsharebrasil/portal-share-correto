@@ -428,19 +428,23 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
           const numero_recibo =
             rateiosArray.map((r: any) => r.numero_recibo).find(Boolean) || null;
 
-          // Deduplica por cliente_id (pode haver entradas duplicadas para o mesmo cotista)
+          // Deduplica por cliente_id + socio_id (pode haver entradas para o mesmo cotista)
           const rateioPorClienteMap = new Map<string, any>();
           rateiosArray.forEach((r: any) => {
-            const key = r.cliente_id || r.socio_id || r.id;
+            const key = `${r.cliente_id || ""}|${r.socio_id || ""}`;
             if (!rateioPorClienteMap.has(key)) {
               rateioPorClienteMap.set(key, r);
             } else {
-              // Se já existe, somar valores rateados (caso de duplicata real)
+              // Se já existe, somar valores rateados (caso de múltiplas linhas para o mesmo cotista)
               const existing = rateioPorClienteMap.get(key);
               existing.valor_rateado =
                 Number(existing.valor_rateado) + Number(r.valor_rateado);
               existing.valor_pago_real =
                 Number(existing.valor_pago_real) + Number(r.valor_pago_real);
+              // Manter percentual (usar o primeiro que tenha valor ou o último)
+              if (!existing.percentual_sociedade && r.percentual_sociedade) {
+                existing.percentual_sociedade = r.percentual_sociedade;
+              }
             }
           });
 
