@@ -256,7 +256,7 @@ export function useSocioBalanco(
       let query = supabase
         .from("conciliacoes_bancarias")
         .select("id, valor, status, saldo_pendente, valor_reembolsado, data")
-        .eq("id_clientes", clienteId)
+        .eq("clientes_id", clienteId)
         .gte("data", periodo.inicio)
         .lte("data", periodo.fim);
 

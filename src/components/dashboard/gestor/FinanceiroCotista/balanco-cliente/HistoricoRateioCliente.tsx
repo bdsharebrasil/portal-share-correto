@@ -69,16 +69,16 @@ export function HistoricoRateioCliente({
         .select(`
           *,
           categorias_movimentacao:categoria_movimentacao_id (id, nome, grupo_categoria),
-          aircraft:aeronave_id (id, registration, model)
+          aircraft:aeronave_id (id, matricula, modelo)
         `)
         .eq('clientes_id', selectedClienteId)
-        .order('date', { ascending: false });
+        .order('data', { ascending: false });
 
       if (dataInicio) {
-        query = query.gte('date', dataInicio);
+        query = query.gte('data', dataInicio);
       }
       if (dataFim) {
-        query = query.lte('date', dataFim);
+        query = query.lte('data', dataFim);
       }
 
       const { data, error } = await query;
@@ -87,7 +87,7 @@ export function HistoricoRateioCliente({
       return (data || []).map((item: any) => ({
         id: item.id,
         data_competencia: item.data,
-        aeronave_registro: item.aeronave?.matricula || 'N/A',
+        aeronave_registro: item.aircraft?.matricula || 'N/A',
         categoria_nome: item.categorias_movimentacao?.nome || item.categoria || 'Sem categoria',
         categoria_grupo: item.categorias_movimentacao?.grupo_categoria || 'Outros',
         descricao: item.descricao,

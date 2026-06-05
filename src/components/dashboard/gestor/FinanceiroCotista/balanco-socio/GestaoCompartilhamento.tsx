@@ -63,7 +63,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
           id: ac.cliente_id,
           name: client?.razao_social || "Unknown",
           cpf: client?.cnpj || "",
-          percentual_sociedade: parseFloat(ac.percentual_participacao || "0"),
+          percentual_sociedade: parseFloat(ac.percentual_sociedade || "0"),
         };
       });
     },
@@ -172,7 +172,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
   // Calculate balances
   const partnerBalances: Record<string, { totalPago: number; totalDevido: number }> = {};
   partners.forEach(p => {
-    partnerBalances[p.nome] = { totalPago: 0, totalDevido: 0 };
+    partnerBalances[p.name] = { totalPago: 0, totalDevido: 0 };
   });
 
   groupedDespesas.forEach(group => {
@@ -190,7 +190,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
   });
 
   const summaryArray = partners.map(p => {
-    const bal = partnerBalances[p.nome];
+    const bal = partnerBalances[p.name];
     const saldo = bal.totalPago - bal.totalDevido;
     return { ...p, totalPago: bal.totalPago, totalDevido: bal.totalDevido, saldo };
   });
@@ -229,7 +229,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         "DATA", "DOC", "FORNECEDOR", "DESCRIÇÃO",
         "CATEGORIA", "TIPO", "PRAZO",
         "FLUXO", "PAGO POR", "VALOR PAGO",
-        ...partners.flatMap(p => [`${p.nome} %`, `${p.nome} R$`])
+        ...partners.flatMap(p => [`${p.name} %`, `${p.name} R$`])
       ]
     ];
 
@@ -254,7 +254,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
         pagoPor,
         fmt(group.valor_total),
         ...partners.flatMap(p => {
-          const rateio = group.rateios.find((r: any) => (r.nome_socio || r.client_name) === p.nome);
+          const rateio = group.rateios.find((r: any) => (r.nome_socio || r.client_name) === p.name);
           const pct = rateio ? (rateio.percentual || 0) : 0;
           const valorRateado = rateio
             ? (rateio.pago_diretamente ? group.valor_total : (rateio.valor_rateado || 0))
@@ -268,7 +268,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
     body.push([
       "TOTAL", "", "", "", "", "", "", "", "",
       fmt(groupedDespesas.reduce((sum, g) => sum + g.valor_total, 0)),
-      ...partners.flatMap(p => ["", fmt(partnerBalances[p.nome].totalPago)])
+      ...partners.flatMap(p => ["", fmt(partnerBalances[p.name].totalPago)])
     ]);
 
     autoTable(doc, {
@@ -338,7 +338,7 @@ export function GestaoCompartilhamento({ clienteId, aeronaveId, periodo }: Props
                     <TableHead className="text-[10px] font-bold min-w-[100px] border-r border-border/50">VALOR PAGO</TableHead>
                     {partners.map(p => (
                       <TableHead key={`pct-${p.id}`} className="text-[10px] font-bold text-center min-w-[80px]">
-                        {p.nome.split(" ")[0].toUpperCase()}
+                        {p.name.split(" ")[0].toUpperCase()}
                       </TableHead>
                     ))}
                     {partners.length > 0 && (

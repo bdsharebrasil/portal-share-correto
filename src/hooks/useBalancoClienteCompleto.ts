@@ -48,7 +48,7 @@ export function useBalancoClienteCompleto(
           .from("lancamentos_diario_bordo")
           .select("total_time")
           .eq("client_id", clienteId)
-          .is("client_partner_id", null)
+          .is("socios_id", null)
           .gte("entry_date", periodo.inicio)
           .lte("entry_date", periodo.fim);
 
@@ -112,7 +112,7 @@ export function useBalancoClienteCompleto(
       let horasQuery = supabase
         .from("horas_mensais_consolidadas")
         .select("horas_voadas, aeronave_registro, ano, mes")
-        .eq("cliente_id", clienteId);
+        .eq("client_id", clienteId);
 
       if (aeronaveId) {
         horasQuery = horasQuery.eq("aeronave_id", aeronaveId);

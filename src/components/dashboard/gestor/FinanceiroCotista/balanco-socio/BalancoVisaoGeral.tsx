@@ -40,27 +40,27 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
 
       const qOwned = supabase
         .from('lancamentos_diario_bordo')
-        .select('tempo_total')
-        .eq('clientes_id', clienteId)
+        .select('total_time')
+        .eq('client_id', clienteId)
         .eq('socios_id', socioId)
-        .gte('data_registro', periodo.inicio)
-        .lte('data_registro', periodo.fim);
+        .gte('entry_date', periodo.inicio)
+        .lte('entry_date', periodo.fim);
 
       const qShared = supabase
         .from('lancamentos_diario_bordo')
-        .select('tempo_total')
-        .eq('clientes_id', clienteId)
+        .select('total_time')
+        .eq('client_id', clienteId)
         .is('socios_id', null)
-        .gte('data_registro', periodo.inicio)
-        .lte('data_registro', periodo.fim);
+        .gte('entry_date', periodo.inicio)
+        .lte('entry_date', periodo.fim);
 
       const [ownedResult, sharedResult] = await Promise.all([
         qOwned,
         qShared
       ]);
 
-      const horasOwned = (ownedResult.data || []).reduce((s: number, e: any) => s + (e.tempo_total || 0), 0);
-      const horasShared = (sharedResult.data || []).reduce((s: number, e: any) => s + (e.tempo_total || 0), 0);
+      const horasOwned = (ownedResult.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
+      const horasShared = (sharedResult.data || []).reduce((s: number, e: any) => s + (e.total_time || 0), 0);
 
       return { horasOwned, horasShared };
     },
@@ -87,11 +87,11 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       if (socioId) {
         let qLog = supabase
           .from('lancamentos_diario_bordo')
-          .select('id, data_registro, tempo_total, aerodromo_partida, aerodromo_chegada, trecho, socios_nome, aeronave_id, socios_id, divisao_igual')
-          .eq('clientes_id', clienteId)
-          .gte('data_registro', periodo.inicio)
-          .lte('data_registro', periodo.fim)
-          .order('data_registro', { ascending: false });
+          .select('id, entry_date, total_time, departure_airport, arrival_airport, flight_segment, partner_name, aircraft_id, socios_id, is_equal_division')
+          .eq('client_id', clienteId)
+          .gte('entry_date', periodo.inicio)
+          .lte('entry_date', periodo.fim)
+          .order('entry_date', { ascending: false });
 
         if (aeronaveId) {
           qLog = qLog.eq('aeronave_id', aeronaveId);
@@ -151,11 +151,11 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
       // Fallback para lancamentos_diario_bordo se não houver dados consolidados
       let qLog = supabase
         .from('lancamentos_diario_bordo')
-        .select('id, data_registro, tempo_total, aerodromo_partida, aerodromo_chegada, trecho, socios_nome, aeronave_id')
-        .eq('clientes_id', clienteId)
-        .gte('data_registro', periodo.inicio)
-        .lte('data_registro', periodo.fim)
-        .order('data_registro', { ascending: false });
+        .select('id, entry_date, total_time, departure_airport, arrival_airport, flight_segment, partner_name, aircraft_id')
+        .eq('client_id', clienteId)
+        .gte('entry_date', periodo.inicio)
+        .lte('entry_date', periodo.fim)
+        .order('entry_date', { ascending: false });
 
       if (aeronaveId) {
         qLog = qLog.eq('aeronave_id', aeronaveId);
@@ -629,29 +629,29 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo, onN
                       {socioSelecionado && <TableHead>Tipo</TableHead>}
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {horasDetalhe.length === 0 ? (
-                      <TableRow><TableCell colSpan={socioSelecionado ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro encontrado</TableCell></TableRow>
-                    ) : horasDetalhe.map((h: any) => (
-                      <TableRow key={h.id} className={h._isShared ? 'opacity-75' : ''}>
-                        <TableCell>{format(new Date(h.entry_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                        <TableCell>{h.trecho || '-'}</TableCell>
-                        <TableCell>{h.aerodromo_partida || '-'}</TableCell>
-                        <TableCell>{h.aerodromo_chegada || '-'}</TableCell>
-                        <TableCell className="text-right font-medium">{formatarHoras(h.total_time || 0)}</TableCell>
-                        {socioSelecionado && (
-                          <TableCell>
-                            <span className={`text-xs px-2 py-1 rounded ${h._isSocioOwned
-                                ? 'bg-cyan-500/20 text-cyan-400'
-                                : 'bg-amber-500/20 text-amber-400'
-                              }`}>
-                              {h._isSocioOwned ? 'Próprio' : 'Compartilhado'}
-                            </span>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                      <TableBody>
+                        {horasDetalhe.length === 0 ? (
+                          <TableRow><TableCell colSpan={socioSelecionado ? 6 : 5} className="text-center text-muted-foreground py-8">Nenhum registro encontrado</TableCell></TableRow>
+                        ) : horasDetalhe.map((h: any) => (
+                          <TableRow key={h.id} className={h._isShared ? 'opacity-75' : ''}>
+                            <TableCell>{format(new Date(h.entry_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                            <TableCell>{h.flight_segment || '-'}</TableCell>
+                            <TableCell>{h.departure_airport || '-'}</TableCell>
+                            <TableCell>{h.arrival_airport || '-'}</TableCell>
+                            <TableCell className="text-right font-medium">{formatarHoras(h.total_time || 0)}</TableCell>
+                            {socioSelecionado && (
+                              <TableCell>
+                                <span className={`text-xs px-2 py-1 rounded ${h._isSocioOwned
+                                    ? 'bg-cyan-500/20 text-cyan-400'
+                                    : 'bg-amber-500/20 text-amber-400'
+                                  }`}>
+                                  {h._isSocioOwned ? 'Próprio' : 'Compartilhado'}
+                                </span>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
                 </Table>
               </div>
 

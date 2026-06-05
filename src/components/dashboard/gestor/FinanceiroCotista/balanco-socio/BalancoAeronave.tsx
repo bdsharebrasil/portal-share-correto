@@ -94,16 +94,16 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
           .from('lancamentos_diario_bordo')
           .select(`
             id,
-            clientes_id,
+            client_id,
             aeronave_id,
-            data_registro,
-            tempo_total,
+            entry_date,
+            total_time,
             aircraft:aeronave_id(matricula)
           `)
-          .eq('clientes_id', clienteId)
-          .gte('data_registro', periodo.inicio)
-          .lte('data_registro', periodo.fim)
-          .order('data_registro', { ascending: false });
+          .eq('client_id', clienteId)
+          .gte('entry_date', periodo.inicio)
+          .lte('entry_date', periodo.fim)
+          .order('entry_date', { ascending: false });
 
         if (aeronaveId) {
           fallbackQuery = fallbackQuery.eq('aeronave_id', aeronaveId);
@@ -122,8 +122,8 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
         if (fallbackEntries && fallbackEntries.length > 0) {
           const horasAgrupadas: Record<string, HorasDataItem> = {};
 
-          fallbackEntries.forEach((entry) => {
-            const data = new Date(entry.data_registro);
+          fallbackEntries.forEach((entry: any) => {
+            const data = new Date(entry.entry_date);
             const ano = data.getFullYear();
             const mes = data.getMonth() + 1;
             const key = `${entry.aeronave_id}-${ano}-${mes}`;
@@ -131,7 +131,7 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
             if (!horasAgrupadas[key]) {
               horasAgrupadas[key] = {
                 id: `${entry.aeronave_id}-${ano}-${mes}`,
-                clientes_id: entry.clientes_id,
+                cliente_id: entry.client_id,
                 aeronave_id: entry.aeronave_id,
                 aeronave_registro: entry.aircraft?.matricula || 'N/A',
                 ano,
@@ -148,19 +148,19 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
               };
             }
 
-            horasAgrupadas[key].horas_voadas = (horasAgrupadas[key].horas_voadas || 0) + (entry.tempo_total || 0);
+            horasAgrupadas[key].horas_voadas = (horasAgrupadas[key].horas_voadas || 0) + (entry.total_time || 0);
           });
 
           // Calcular totais de aeronave por mês
           Object.values(horasAgrupadas).forEach((hora) => {
             const totalAeronave = fallbackEntries
-              .filter((e) => {
-                const d = new Date(e.data_registro);
+              .filter((e: any) => {
+                const d = new Date(e.entry_date);
                 return d.getFullYear() === hora.ano &&
                        (d.getMonth() + 1) === hora.mes &&
                        e.aeronave_id === hora.aeronave_id;
               })
-              .reduce((sum, e) => sum + (e.tempo_total || 0), 0);
+              .reduce((sum, e: any) => sum + (e.total_time || 0), 0);
 
             hora.horas_totais_aeronave = totalAeronave;
             hora.percentual_uso = totalAeronave > 0 ? ((hora.horas_voadas || 0) / totalAeronave) * 100 : 0;

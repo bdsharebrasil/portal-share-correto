@@ -33,7 +33,7 @@ function BalancoClienteContent() {
   const [socioId, setSocioId] = useState<string | undefined>(undefined);
   const [aeronaveId, setAeronaveId] = useState('');
   const [periodo, setPeriodo] = useState({
-    inicio: format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'),
+    inicio: format(startOfMonth(subMonths(new Date(), 5)), 'yyyy-MM-dd'),
     fim: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   });
 
