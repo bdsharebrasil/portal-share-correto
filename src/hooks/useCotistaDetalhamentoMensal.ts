@@ -81,13 +81,13 @@ export function useCotistaDetalhamentoMensal(
       const { data: lancamentosBordo } = await supabase
         .from("lancamentos_diario_bordo")
         .select(
-          "id, data, tempo_voo, horas_diurnas, horas_noturnas, tempo_ifr, descricao"
+          "id, entry_date, total_time, hours_day, hours_night, ifr_time, description"
         )
-        .eq("clientes_id", clienteId)
-        .eq("aeronave_id", aeronaveId)
-        .gte("data", mesInicio)
-        .lt("data", mesFim)
-        .order("data");
+        .eq("client_id", clienteId)
+        .eq("id_aeronave", aeronaveId)
+        .gte("entry_date", mesInicio)
+        .lt("entry_date", mesFim)
+        .order("entry_date");
 
       // Agrupar despesas por tipo
       const despesasFixas: DespesaFixaVariavel[] = [];
@@ -119,12 +119,12 @@ export function useCotistaDetalhamentoMensal(
       // Processar lançamentos de bordo
       const lancamentos: LancamentoDiarioBordo[] = (lancamentosBordo || []).map((l: any) => ({
         id: l.id,
-        data: l.data,
-        horas_voo: Number(l.tempo_voo) || 0,
-        horas_diurnas: Number(l.horas_diurnas) || 0,
-        horas_noturnas: Number(l.horas_noturnas) || 0,
-        horas_ifr: Number(l.tempo_ifr) || 0,
-        descricao: l.descricao,
+        data: l.entry_date,
+        horas_voo: Number(l.total_time) || 0,
+        horas_diurnas: Number(l.hours_day) || 0,
+        horas_noturnas: Number(l.hours_night) || 0,
+        horas_ifr: Number(l.ifr_time) || 0,
+        descricao: l.description,
       }));
 
       const horasVoadasTotal = lancamentos.reduce((s, l) => s + l.horas_voo, 0);

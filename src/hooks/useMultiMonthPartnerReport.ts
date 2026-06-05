@@ -21,7 +21,7 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
   const startDate = `${year}-${mon}-01`;
   const endDate = new Date(parseInt(year), parseInt(mon), 0).toISOString().slice(0, 10);
 
-  const [partnersRes, flightsRes, fuelsRes, expensesRes, sharedExpensesRes, clientRes, travelRes, bankControlRes] = await Promise.all([
+  const [partnersRes, flightsRes, fuelsRes, expensesRes, sharedExpensesRes, clientRes, travelRes, bankControlRes, rateioRes] = await Promise.all([
     supabase
       .from("socios")
       .select("id, nome, cpf, percentual_participacao")
@@ -90,6 +90,13 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
       .lte("data", endDate)
       .not("socios_id", "is", null)
       .order("data"),
+    supabase
+      .from("rateio_despesas")
+      .select("*")
+      .eq("cliente_id", clientId)
+      .gte("data_vencimento", startDate)
+      .lte("data_vencimento", endDate)
+      .order("data_vencimento"),
   ]);
 
   const { data: clientAircraftData } = await supabase
@@ -157,6 +164,7 @@ async function fetchMonthlyReportData(clientId: string, month: string): Promise<
     expenses: (expensesRes.data || []) as ExpenseEntry[],
     sharedExpenses: (sharedExpensesRes.data || []) as ExpenseEntry[],
     bankControlExpenses: (bankControlRes.data || []) as BankControlEntry[],
+    rateioDespesas: rateioRes.data || [],
     travelReports: (travelRes.data || []) as TravelReportEntry[],
     aircraft,
     clientName: clientRes.data?.razao_social || clientRes.data?.proprietario || "",

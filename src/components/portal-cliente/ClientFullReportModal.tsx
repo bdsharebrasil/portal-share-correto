@@ -123,15 +123,15 @@ export function ClientFullReportModal({
       const { data: financialData } = await supabase
         .from('controle_bancario')
         .select('*')
-        .eq('cliente_id', clientId)
+        .eq('clientes_id', clientId)
         .eq('aeronave_id', aircraftId);
 
       // Load logbook entries
       const { data: logbookData } = await supabase
         .from('lancamentos_diario_bordo')
         .select('*')
-        .eq('aeronave_id', aircraftId)
-        .order('data_registro', { ascending: false });
+        .eq('id_aeronave', aircraftId)
+        .order('entry_date', { ascending: false });
 
       // Load fuel records
       const { data: fuelData } = await supabase
@@ -149,11 +149,11 @@ export function ClientFullReportModal({
 
       // Load rateio data
       const { data: rateioData } = await (supabase as any)
-        .from('lancamentos_rateio')
+        .from('rateio_despesas')
         .select('*')
         .eq('cliente_id', clientId)
-        .eq('aircraft_id', aircraftId)
-        .order('data_lancamento', { ascending: false });
+        .eq('aeronave_id', aircraftId)
+        .order('data_vencimento', { ascending: false });
 
       // Calculate financial totals
       const receitas = (financialData || [])
@@ -173,8 +173,8 @@ export function ClientFullReportModal({
         .reduce((sum, f) => sum + (f.valor || 0), 0);
 
       // Calculate flight activity
-      const totalHours = (logbookData || []).reduce((sum, e) => sum + (e.tempo_total || 0), 0);
-      const totalLandings = (logbookData || []).reduce((sum, e) => sum + (e.pousos_total || 0), 0);
+      const totalHours = (logbookData || []).reduce((sum, e) => sum + (e.total_time || 0), 0);
+      const totalLandings = (logbookData || []).reduce((sum, e) => sum + (e.pousos || 0), 0);
       const destinations = [...new Set((logbookData || []).map(e => e.arrival_aerodrome).filter(Boolean))].slice(0, 10);
 
       // Calculate fuel totals
@@ -245,11 +245,11 @@ export function ClientFullReportModal({
           ultimaTroca: c.last_change_date || c.data_ultima_troca || ''
         })),
         rateioData: (rateioData || []).slice(0, 10).map((r: any) => ({
-          data: r.data_lancamento,
-          descricao: r.descricao,
-          valorTotal: r.valor_total || 0,
-          valorCliente: r.valor_cliente || 0,
-          percentual: r.percentual_cliente || sharePercentage
+          data: r.data_vencimento,
+          descricao: r.descricao_despesa,
+          valorTotal: r.valor_total_despesa || 0,
+          valorCliente: r.valor_rateado || 0,
+          percentual: r.percentual_sociedade || sharePercentage
         })),
         monthlyData
       });

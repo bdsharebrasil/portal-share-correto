@@ -77,11 +77,11 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
   const pctPaid = expenses.length > 0 ? (paidExp / expenses.length) * 100 : 0;
   const pctHours = totalFlightHours > 0 ? (totalHours / totalFlightHours) * 100 : 0;
 
-  // Group expenses by category (prioriza category sobre expense_type)
+  // Group expenses by category
   const expByCategory: Record<string, number> = {};
   expenses.forEach(e => {
-    const cat = getCategoryPriority(e.categoria, e.expense_type);
-    expByCategory[cat] = (expByCategory[cat] || 0) + e.total_amount;
+    const cat = e.categoria_custo || "Outros";
+    expByCategory[cat] = (expByCategory[cat] || 0) + (e.valor_rateado || 0);
   });
 
   // Group bank control expenses by category
@@ -215,39 +215,39 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
             <table className="w-full text-[10px] border-collapse mb-3">
               <thead>
                 <tr className="bg-[#f8fafc]">
-                  {["Vencimento", "Descrição", "Categoria", "Nº Relatório", "Prazo", "Pagamento", "Banco", "Valor", "Status"].map(h => (
-                    <th key={h} className="px-2 py-2 text-left font-semibold text-[#1a1a2e] uppercase border-b-2 border-[#e2e8f0]">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((e, i) => (
-                  <tr key={e.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"}>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.data_vencimento ? fmtDate(e.data_vencimento) : "—"}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] max-w-[150px] truncate">{e.descricao}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{getCategoryPriority(e.categoria, e.expense_type)}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-blue-600">{e.referencia_id && travelReportMap[e.referencia_id] ? travelReportMap[e.referencia_id].numero_relatorio : "—"}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.prazo || "—"}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.payment_method || "—"}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.bank_name || "—"}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.total_amount)}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        (e.status === "pago" || e.status === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
-                      }`}>
-                        {e.status || "pendente"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-[#1a1a2e] text-white font-bold">
-                  <td className="px-2 py-2" colSpan={7}>TOTAL DESPESAS</td>
-                  <td className="px-2 py-2">{fmt(totalExpR)}</td>
-                  <td className="px-2 py-2" />
-                </tr>
-              </tfoot>
+	                  {["Vencimento", "Descrição", "Categoria", "DOC", "Prazo", "Pagamento", "Valor Total", "Valor Rateado", "Status"].map(h => (
+	                    <th key={h} className="px-2 py-2 text-left font-semibold text-[#1a1a2e] uppercase border-b-2 border-[#e2e8f0]">{h}</th>
+	                  ))}
+	                </tr>
+	              </thead>
+	              <tbody>
+	                {expenses.map((e, i) => (
+	                  <tr key={e.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"}>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.data_vencimento ? fmtDate(e.data_vencimento) : "—"}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] max-w-[150px] truncate">{e.descricao_despesa}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.categoria_custo}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-blue-600">{e.numero_doc || "—"}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.periodicidade || "—"}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.forma_pagamento || "—"}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{fmt(e.valor_total_despesa || 0)}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.valor_rateado || 0)}</td>
+	                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">
+	                      <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${
+	                        (e.status === "pago" || e.status === "paid") ? "bg-[#10b981]/20 text-[#10b981]" : "bg-[#f59e0b]/20 text-[#f59e0b]"
+	                      }`}>
+	                        {e.status || "pendente"}
+	                      </span>
+	                    </td>
+	                  </tr>
+	                ))}
+	              </tbody>
+	              <tfoot>
+	                <tr className="bg-[#1a1a2e] text-white font-bold">
+	                  <td className="px-2 py-2" colSpan={7}>TOTAL RATEADO</td>
+	                  <td className="px-2 py-2">{fmt(expenses.reduce((s, e) => s + (e.valor_rateado || 0), 0))}</td>
+	                  <td className="px-2 py-2" />
+	                </tr>
+	              </tfoot>
             </table>
 
             {/* Progress bar */}

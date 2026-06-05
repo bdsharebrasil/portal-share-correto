@@ -102,10 +102,10 @@ export function MonthlyPartnerReportPDF({
     return activePartners.map((p) => {
       const pFlights = assignFlightsToPartner(data.flights, p.id, data.partners);
       const pFuels = assignFuelsToPartner(data.fuels, p.nome);
-      const pExpenses = assignExpensesToPartner(data.expenses, p.nome, p.cpf);
-      const pBankControl = assignBankControlExpensesToPartner(data.bankControlExpenses, p.id);
-      const pTravelReports = assignTravelReportsToPartner(data.travelReports || [], p.id);
-
+      
+      // Nova lógica unificada usando rateio_despesas
+      const pRateio = (data.rateioDespesas || []).filter(r => r.socio_id === p.id);
+      
       const hours = pFlights.reduce((s, f) => {
         if (f.is_equal_split) return s + (f.total_time || 0) / data.partners.length;
         return s + (f.total_time || 0);
@@ -113,11 +113,22 @@ export function MonthlyPartnerReportPDF({
 
       const fuelTotal = pFuels.reduce((s, f) => s + (f.valor_total || 0), 0);
       const fuelLiters = pFuels.reduce((s, f) => s + f.litros, 0);
-      const expTotal = pExpenses.reduce((s, e) => s + e.total_amount, 0);
-      const bankControlTotal = pBankControl.reduce((s, e) => s + e.valor, 0);
-      const travelTotal = pTravelReports.reduce((s, r) => s + (r.total_amount || 0), 0);
+      
+      // Despesas fixas e variáveis unificadas do rateio_despesas
+      const expTotal = pRateio.reduce((s, r) => s + (r.valor_rateado || 0), 0);
 
-      return { partner: p, flights: pFlights, fuels: pFuels, expenses: pExpenses, bankControlExpenses: pBankControl, travelReports: pTravelReports, hours, fuelTotal, fuelLiters, expTotal, bankControlTotal, travelTotal };
+      return { 
+        partner: p, 
+        flights: pFlights, 
+        fuels: pFuels, 
+        rateio: pRateio,
+        hours, 
+        fuelTotal, 
+        fuelLiters, 
+        expTotal,
+        bankControlTotal: 0, // Agora incluído no rateio
+        travelTotal: 0 // Agora incluído no rateio
+      };
     });
   }, [activePartners, data]);
 
@@ -125,16 +136,16 @@ export function MonthlyPartnerReportPDF({
   const totalFlightHours = data.flights.reduce((s, f) => s + (f.total_time || 0), 0);
   const totalFuelLiters = data.fuels.reduce((s, f) => s + f.litros, 0);
   const totalFuelValue = data.fuels.reduce((s, f) => s + (f.valor_total || 0), 0);
-  const totalExpenses = data.expenses.reduce((s, e) => s + e.total_amount, 0);
-  const totalBankControl = data.bankControlExpenses.reduce((s, e) => s + e.valor, 0);
-  const totalTravelReports = (data.travelReports || []).reduce((s, r) => s + (r.total_amount || 0), 0);
+  const totalExpenses = (data.rateioDespesas || []).reduce((s, r) => s + (r.valor_rateado || 0), 0);
+  const totalBankControl = 0;
+  const totalTravelReports = 0;
   const totalSharedExpenses = (data.sharedExpenses || []).reduce((s, e) => s + e.total_amount, 0);
 
   // Averages
   const avgFuelPerLiter = totalFuelLiters > 0 ? totalFuelValue / totalFuelLiters : 0;
   const avgFuelPerHour = totalFlightHours > 0 ? totalFuelValue / totalFlightHours : 0;
-  const avgExpPerHour = totalFlightHours > 0 ? (totalExpenses + totalBankControl) / totalFlightHours : 0;
-  const costPerHour = totalFlightHours > 0 ? (totalFuelValue + totalExpenses + totalBankControl + totalTravelReports) / totalFlightHours : 0;
+  const avgExpPerHour = totalFlightHours > 0 ? (totalExpenses) / totalFlightHours : 0;
+  const costPerHour = totalFlightHours > 0 ? (totalFuelValue + totalExpenses) / totalFlightHours : 0;
   const hourlyRate = data.hourlyRate || 0;
 
   // Chart data
@@ -354,12 +365,12 @@ export function MonthlyPartnerReportPDF({
 
           {/* KPIs rápidos do sócio */}
           <div className="grid grid-cols-4 gap-3 mb-4" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
-            {[
-              { label: "Horas Voadas", value: `${pd.hours.toFixed(1)}h` },
-              { label: "Combustível", value: `${pd.fuelLiters.toFixed(0)}L`, sub: fmt(pd.fuelTotal) },
-              { label: "Despesas", value: fmt(pd.expTotal + pd.bankControlTotal + pd.travelTotal) },
-              { label: "Custo Total", value: fmt(pd.fuelTotal + pd.expTotal + pd.bankControlTotal + pd.travelTotal) },
-            ].map(k => (
+	            {[
+	              { label: "Horas Voadas", value: `${pd.hours.toFixed(1)}h` },
+	              { label: "Combustível", value: `${pd.fuelLiters.toFixed(0)}L`, sub: fmt(pd.fuelTotal) },
+	              { label: "Despesas", value: fmt(pd.expTotal) },
+	              { label: "Custo Total", value: fmt(pd.fuelTotal + pd.expTotal) },
+	            ].map(k => (
               <div key={k.label} className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{k.label}</p>
                 <p className="text-base font-black text-[#1a1a2e]">{k.value}</p>
@@ -370,12 +381,12 @@ export function MonthlyPartnerReportPDF({
 
           {/* Médias individuais do sócio */}
           <div className="grid grid-cols-4 gap-3 mb-6" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
-            {[
-              { label: "Média Combustível/L", value: pd.fuelLiters > 0 ? fmt(pd.fuelTotal / pd.fuelLiters) : "—" },
-              { label: "Combustível/Hora", value: pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—" },
-              { label: "Despesa/Hora", value: pd.hours > 0 ? fmt((pd.expTotal + pd.bankControlTotal + pd.travelTotal) / pd.hours) : "—" },
-              { label: "Custo Total/Hora", value: pd.hours > 0 ? fmt((pd.fuelTotal + pd.expTotal + pd.bankControlTotal + pd.travelTotal) / pd.hours) : "—" },
-            ].map(item => (
+	            {[
+	              { label: "Média Combustível/L", value: pd.fuelLiters > 0 ? fmt(pd.fuelTotal / pd.fuelLiters) : "—" },
+	              { label: "Combustível/Hora", value: pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—" },
+	              { label: "Despesa/Hora", value: pd.hours > 0 ? fmt((pd.expTotal) / pd.hours) : "—" },
+	              { label: "Custo Total/Hora", value: pd.hours > 0 ? fmt((pd.fuelTotal + pd.expTotal) / pd.hours) : "—" },
+	            ].map(item => (
               <div key={item.label} className="bg-blue-50 rounded-lg p-2 border border-blue-100 text-center">
                 <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-1">{item.label}</p>
                 <p className="text-sm font-black text-[#1a1a2e]">{item.value}</p>
@@ -383,18 +394,18 @@ export function MonthlyPartnerReportPDF({
             ))}
           </div>
           
-          <PartnerReportSection
-            partner={pd.partner}
-            index={i}
-            flights={shouldShowFlights && includeFlights ? pd.flights : []}
-            fuels={shouldShowFuels && includeFuels ? pd.fuels : []}
-            expenses={shouldShowExpenses && includeExpenses ? pd.expenses : []}
-            bankControlExpenses={shouldShowExpenses && includeExpenses ? pd.bankControlExpenses : []}
-            travelReports={shouldShowTravel ? pd.travelReports : []}
-            allPartners={data.partners}
-            month={month}
-            totalFlightHours={totalFlightHours}
-          />
+	          <PartnerReportSection
+	            partner={pd.partner}
+	            index={i}
+	            flights={shouldShowFlights && includeFlights ? pd.flights : []}
+	            fuels={shouldShowFuels && includeFuels ? pd.fuels : []}
+	            expenses={shouldShowExpenses && includeExpenses ? pd.rateio : []}
+	            bankControlExpenses={[]}
+	            travelReports={[]}
+	            allPartners={data.partners}
+	            month={month}
+	            totalFlightHours={totalFlightHours}
+	          />
           
           {/* Footer */}
           <div className="mt-8 pt-4 border-t border-gray-100 flex justify-between items-center text-[9px] text-gray-400 font-bold uppercase">

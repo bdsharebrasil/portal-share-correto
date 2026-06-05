@@ -40,7 +40,7 @@ export function HoursDonutChart({ data }: { data: PartnerHours[] }) {
       <h4 className="text-sm font-bold text-[#1a1a2e] mb-3 uppercase tracking-wider">Distribuição de Horas por Sócio</h4>
       <ResponsiveContainer width="100%" height={250}>
         <PieChart>
-          <Pie data={data} dataKey="hours" nameKey="nome" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}>
+          <Pie data={data} dataKey="hours" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}>
             {data.map((_, i) => <Cell key={i} fill={PARTNER_COLORS[i % PARTNER_COLORS.length]} />)}
           </Pie>
           <Tooltip formatter={(v: number) => `${v.toFixed(1)}h`} />
@@ -57,7 +57,7 @@ export function CostsBarChart({ data }: { data: PartnerCosts[] }) {
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={data} barGap={4}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="nome" tick={{ fontSize: 10 }} />
+          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
           <Tooltip formatter={(v: number) => formatCurrency(v)} />
           <Legend iconSize={10} wrapperStyle={{ fontSize: 10 }} />
@@ -104,7 +104,7 @@ export function FlightNatureChart({ data }: { data: FlightNature[] }) {
       <h4 className="text-sm font-bold text-[#1a1a2e] mb-3 uppercase tracking-wider">Natureza dos Voos</h4>
       <ResponsiveContainer width="100%" height={250}>
         <PieChart>
-          <Pie data={data.map(d => ({ ...d, label: NATURE_LABELS[d.nome] || d.nome }))} dataKey="value" nameKey="rotulo" cx="50%" cy="50%" outerRadius={85} label={({ label, value }) => `${label}: ${value}`}>
+          <Pie data={data.map(d => ({ ...d, label: NATURE_LABELS[d.name] || d.name }))} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={85} label={({ label, value }) => `${label}: ${value}`}>
             {data.map((_, i) => <Cell key={i} fill={NATURE_COLORS[i % NATURE_COLORS.length]} />)}
           </Pie>
           <Tooltip />
