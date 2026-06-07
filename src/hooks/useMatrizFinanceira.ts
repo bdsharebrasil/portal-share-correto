@@ -100,9 +100,10 @@ function classificar(
 export function useMatrizFinanceira(
   aeronaveId: string | undefined,
   ano: number,
+  categoriaFiltro?: string,
 ) {
   return useQuery<MatrizFinanceiraData>({
-    queryKey: ["matriz-financeira", aeronaveId, ano],
+    queryKey: ["matriz-financeira", aeronaveId, ano, categoriaFiltro],
     enabled: !!aeronaveId,
     queryFn: async () => {
       const inicio = `${ano}-01-01`;
@@ -150,6 +151,16 @@ export function useMatrizFinanceira(
           d.descricao_despesa,
         );
         if (!cls) continue;
+
+        // Apply category filter if provided
+        if (categoriaFiltro) {
+          const normalizedFilter = categoriaFiltro.trim().toUpperCase();
+          const categoriaMatch = (d.categoria_custo || "").trim().toUpperCase().includes(normalizedFilter);
+          const descricaoMatch = (d.descricao_despesa || "").trim().toUpperCase().includes(normalizedFilter);
+          const periodicidadeMatch = (d.periodicidade || "").trim().toUpperCase() === normalizedFilter;
+
+          if (!categoriaMatch && !descricaoMatch && !periodicidadeMatch) continue;
+        }
 
         const key = `${cls.grupo}||${cls.sub}`;
         let linha = linhasMap.get(key);
