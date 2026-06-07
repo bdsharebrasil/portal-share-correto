@@ -9250,47 +9250,6 @@ export type Database = {
           },
         ]
       }
-      travel_report_approval_log: {
-        Row: {
-          action: string
-          actor_id: string | null
-          actor_name: string | null
-          actor_type: string
-          created_at: string
-          id: string
-          notes: string | null
-          report_id: string
-        }
-        Insert: {
-          action: string
-          actor_id?: string | null
-          actor_name?: string | null
-          actor_type: string
-          created_at?: string
-          id?: string
-          notes?: string | null
-          report_id: string
-        }
-        Update: {
-          action?: string
-          actor_id?: string | null
-          actor_name?: string | null
-          actor_type?: string
-          created_at?: string
-          id?: string
-          notes?: string | null
-          report_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "travel_report_approval_log_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "travel_expense_reports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       travel_report_attachments: {
         Row: {
           caminho_arquivo: string
@@ -9329,6 +9288,47 @@ export type Database = {
           {
             foreignKeyName: "travel_report_attachments_travel_report_id_fkey"
             columns: ["travel_report_id"]
+            isOneToOne: false
+            referencedRelation: "travel_expense_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      travel_report_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_type: string
+          created_at: string
+          id: string
+          notes: string | null
+          report_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_type: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          report_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_type?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "travel_report_approval_log_report_id_fkey"
+            columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "travel_expense_reports"
             referencedColumns: ["id"]
