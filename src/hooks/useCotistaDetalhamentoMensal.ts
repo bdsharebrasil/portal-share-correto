@@ -84,7 +84,7 @@ export function useCotistaDetalhamentoMensal(
           "id, entry_date, total_time, hours_day, hours_night, ifr_time, description"
         )
         .eq("client_id", clienteId)
-        .eq("id_aeronave", aeronaveId)
+        .eq("aeronave_id", aeronaveId)
         .gte("entry_date", mesInicio)
         .lt("entry_date", mesFim)
         .order("entry_date");

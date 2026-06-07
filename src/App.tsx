@@ -67,14 +67,8 @@ import DashboardGestorPage from "./pages/DashboardGestorPage";
 import AprovacaoAgendamentos from "./components/AgendamentoVoo/AprovacaoAgendamentos";
 import PainelAgendamentos from "./pages/PainelAgendamentos";
 import CartoesCorporativos from "./pages/CartoesCorporativos";
-import BalancoCliente from "./components/dashboard/gestor/FinanceiroCotista/balanco-cliente/BalancoCliente";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
-import FinanceiroSocios from "./pages/FinanceiroSocios";
-import RelatorioTransacoesSocios from "./components/dashboard/gestor/socios/reports/RelatorioTransacoesSocios";
-import RelatoriosFinanceiros from "./components/dashboard/gestor/socios/reports/RelatoriosFinanceiros";
-import RelatorioMensal from "./components/dashboard/gestor/socios/reports/RelatorioMensal";
-import CentroLancamentoCustos from "./components/dashboard/gestor/FinanceiroCotista/balanco-socio/CentroLancamentoCustos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 
@@ -208,41 +202,7 @@ const App = () => {
                               </RoleProtected>
                             )
                           } />
-                          <Route path="/financeiro/balanco-cliente" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <BalancoCliente />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/financeiro-socios" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <FinanceiroSocios />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/relatorio-socios/:clienteId" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <RelatorioTransacoesSocios />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/relatorio-mensal/:clienteId" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <RelatorioMensal />
-                              </RoleProtected>
-                            )
-                          } />
-                          <Route path="/financeiro/centro-custos/:clienteId" element={
-                            renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <CentroLancamentoCustos />
-                              </RoleProtected>
-                            )
-                          } />
+
                           <Route path="/financeiro/financeiro-cotistas" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>

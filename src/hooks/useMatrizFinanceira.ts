@@ -118,11 +118,11 @@ export function useMatrizFinanceira(
         supabase
           .from("lancamentos_diario_bordo")
           .select(
-            "clientes_id, socios_id, tempo_total, data_registro, aeronave_id",
+            "client_id, socios_id, total_time, entry_date, aeronave_id",
           )
           .eq("aeronave_id", aeronaveId as string)
-          .gte("data_registro", inicio)
-          .lte("data_registro", fim),
+          .gte("entry_date", inicio)
+          .lte("entry_date", fim),
       ]);
 
       const despesas = (despesasRes.data as any[]) || [];
@@ -206,15 +206,15 @@ export function useMatrizFinanceira(
       const horasMesTotais = Array(12).fill(0);
       let horasTotais = 0;
       for (const v of voos) {
-        const id = v.socios_id || v.clientes_id;
+        const id = v.socios_id || v.client_id;
         if (!id) continue;
-        const t = parseTempo(v.tempo_total);
+        const t = parseTempo(v.total_time);
         if (!t) continue;
         horasPorCotista[id] = (horasPorCotista[id] || 0) + t;
         horasTotais += t;
         if (!horasMesPorCotista[id]) horasMesPorCotista[id] = Array(12).fill(0);
-        if (v.data_registro) {
-          const m = new Date(v.data_registro).getMonth();
+        if (v.entry_date) {
+          const m = new Date(v.entry_date).getMonth();
           horasMesPorCotista[id][m] += t;
           horasMesTotais[m] += t;
         }

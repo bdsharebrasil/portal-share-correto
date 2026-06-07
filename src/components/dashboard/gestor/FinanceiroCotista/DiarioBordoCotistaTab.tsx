@@ -55,17 +55,17 @@ function haversineKm(
 
 type LancRow = {
   id: string;
-  data_registro: string;
-  aerodromo_partida: string | null;
-  aerodromo_chegada: string | null;
-  tempo_voo: number | null;
-  tempo_total: number | null;
-  pousos_total: number | null;
-  combustivel_adicionado: number | null;
-  natureza_voo: string | null;
-  trecho: string | null;
-  socios_id: string | null;       // ← campo chave
-  socios_nome: string | null;     // ← campo chave
+  entry_date: string;
+  departure_airport: string | null;
+  arrival_airport: string | null;
+  flight_time: number | null;
+  total_time: number | null;
+  total_landings: number | null;
+  fuel_added: number | null;
+  flight_nature: string | null;
+  flight_segment: string | null;
+  socios_id: string | null;
+  partner_name: string | null;
 };
 
 type AbastRow = {
@@ -117,13 +117,13 @@ function useDiarioBordo(clienteId: string | undefined, aeronaveId: string) {
         supabase
           .from("lancamentos_diario_bordo")
           .select(`
-            id, data_registro, aerodromo_partida, aerodromo_chegada,
-            tempo_voo, tempo_total, pousos_total, combustivel_adicionado,
-            natureza_voo, trecho, socios_id, socios_nome
+            id, entry_date, departure_airport, arrival_airport,
+            flight_time, total_time, total_landings, fuel_added,
+            flight_nature, flight_segment, socios_id, partner_name
           `)
           .eq("aeronave_id", aeronaveId)
-          .eq("clientes_id", clienteId)
-          .order("data_registro", { ascending: false }),
+          .eq("client_id", clienteId)
+          .order("entry_date", { ascending: false }),
 
         supabase
           .from("abastecimentos")
@@ -175,7 +175,7 @@ export function DiarioBordoCotistaTab({
   const availableMeses = useMemo(() => {
     const set = new Map<string, { mes: number; ano: number }>();
     for (const l of data?.lancamentos ?? []) {
-      const d = new Date(l.data_registro + "T00:00");
+      const d = new Date(l.entry_date + "T00:00");
       const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (!set.has(key)) set.set(key, { mes: d.getMonth() + 1, ano: d.getFullYear() });
     }
@@ -204,7 +204,7 @@ export function DiarioBordoCotistaTab({
 
     if (!mesSel) return [];
     return base.filter((l) => {
-      const d = new Date(l.data_registro + "T00:00");
+      const d = new Date(l.entry_date + "T00:00");
       return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
     });
   }, [data?.lancamentos, viewMode, mesSel]);
@@ -220,7 +220,7 @@ export function DiarioBordoCotistaTab({
     else if (viewMode.type === "sem_socio") base = base.filter((l) => !l.socios_id);
 
     return base.filter((l) => {
-      const d = new Date(l.data_registro + "T00:00");
+      const d = new Date(l.entry_date + "T00:00");
       return d.getMonth() + 1 === ma.mes && d.getFullYear() === ma.ano;
     });
   }, [data?.lancamentos, viewMode, mesSel]);
@@ -245,15 +245,15 @@ export function DiarioBordoCotistaTab({
 
   // Totais do período selecionado
   const totais = useMemo(() => ({
-    pousos: lancFiltrados.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
-    tVoo: lancFiltrados.reduce((s, l) => s + Number(l.tempo_voo ?? 0), 0),
+    pousos: lancFiltrados.reduce((s, l) => s + Number(l.total_landings ?? 0), 0),
+    tVoo: lancFiltrados.reduce((s, l) => s + Number(l.flight_time ?? 0), 0),
     voos: lancFiltrados.length,
-    abast: lancFiltrados.reduce((s, l) => s + Number(l.combustivel_adicionado ?? 0), 0),
+    abast: lancFiltrados.reduce((s, l) => s + Number(l.fuel_added ?? 0), 0),
   }), [lancFiltrados]);
 
   const totaisAnt = useMemo(() => ({
-    tVoo: lancMesAnterior.reduce((s, l) => s + Number(l.tempo_voo ?? 0), 0),
-    pousos: lancMesAnterior.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
+    tVoo: lancMesAnterior.reduce((s, l) => s + Number(l.flight_time ?? 0), 0),
+    pousos: lancMesAnterior.reduce((s, l) => s + Number(l.total_landings ?? 0), 0),
     voos: lancMesAnterior.length,
   }), [lancMesAnterior]);
 
@@ -261,7 +261,7 @@ export function DiarioBordoCotistaTab({
   const resumoPorSocio = useMemo(() => {
     if (!mesSel || !data || !data.socios) return [];
     const lancMes = (data.lancamentos).filter((l) => {
-      const d = new Date(l.data_registro + "T00:00");
+      const d = new Date(l.entry_date + "T00:00");
       return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
     });
 
@@ -270,8 +270,8 @@ export function DiarioBordoCotistaTab({
       return {
         socio: s,
         voos: voos.length,
-        tVoo: voos.reduce((acc, l) => acc + Number(l.tempo_voo ?? 0), 0),
-        pousos: voos.reduce((acc, l) => acc + Number(l.pousos_total ?? 0), 0),
+        tVoo: voos.reduce((acc, l) => acc + Number(l.flight_time ?? 0), 0),
+        pousos: voos.reduce((acc, l) => acc + Number(l.total_landings ?? 0), 0),
       };
     });
   }, [data, mesSel]);
@@ -280,7 +280,7 @@ export function DiarioBordoCotistaTab({
     if (!mesSel || !data) return 0;
     return data.lancamentos.filter((l) => {
       if (l.socios_id) return false;
-      const d = new Date(l.data_registro + "T00:00");
+      const d = new Date(l.entry_date + "T00:00");
       return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
     }).length;
   }, [data, mesSel]);
@@ -288,7 +288,7 @@ export function DiarioBordoCotistaTab({
   function relParaVoo(l: LancRow): RelRow | null {
     for (const r of relatorios) {
       if (!r.data_inicio || !r.data_fim) continue;
-      if (l.data_registro >= r.data_inicio && l.data_registro <= r.data_fim) return r;
+      if (l.entry_date >= r.data_inicio && l.entry_date <= r.data_fim) return r;
     }
     return null;
   }

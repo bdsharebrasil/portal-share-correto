@@ -140,10 +140,10 @@ export function FechamentoBalancoTab({
           ),
         supabase
           .from("lancamentos_diario_bordo")
-          .select("id, clientes_id, socios_id, tempo_total, data_registro")
+          .select("id, client_id, socios_id, total_time, entry_date")
           .eq("aeronave_id", aeronaveId)
-          .gte("data_registro", inicio)
-          .lte("data_registro", fim),
+          .gte("entry_date", inicio)
+          .lte("entry_date", fim),
       ]);
       return {
         rateios: (rateios || []) as any[],
@@ -203,9 +203,9 @@ export function FechamentoBalancoTab({
     const map = new Map<string, number>();
     cotistas.forEach((c) => map.set(c.id, 0));
     voos.forEach((v) => {
-      const cid = v.clientes_id || v.socios_id;
+      const cid = v.client_id || v.socios_id;
       if (!cid || !map.has(cid)) return;
-      map.set(cid, (map.get(cid) || 0) + (Number(v.tempo_total) || 0));
+      map.set(cid, (map.get(cid) || 0) + (Number(v.total_time) || 0));
     });
     return map;
   }, [voos, cotistas]);

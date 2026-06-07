@@ -588,7 +588,7 @@ export function LancamentoFormInline({
         data_competencia: dataCompetencia,
         data_vencimento: dataVencimento || dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
-        clientes_id: clienteId,
+        client_id: clienteId,
         aeronave_id: aeronaveSelected || aeronaveId,
         fornecedor_nome: fornecedor,
         forma_pagamento: formaPgto || null,

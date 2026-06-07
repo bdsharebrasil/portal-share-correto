@@ -25,7 +25,7 @@ import {
   Edit2,
   Trash2,
 } from "lucide-react";
-import { GerenciarAcessoPortal } from "./balanco-socio/GerenciarAcessoPortal";
+import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
 import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
 import { HistoricoCreditsTab } from "./HistoricoCreditsTab";

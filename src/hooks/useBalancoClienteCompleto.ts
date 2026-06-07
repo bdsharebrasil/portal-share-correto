@@ -43,7 +43,7 @@ export function useBalancoClienteCompleto(
           qOwned = qOwned.eq("aeronave_id", aeronaveId);
         }
 
-        // Voos compartilhados (client_partner_id = NULL)
+        // Voos compartilhados (socios_id = NULL)
         let qShared = supabase
           .from("lancamentos_diario_bordo")
           .select("total_time")

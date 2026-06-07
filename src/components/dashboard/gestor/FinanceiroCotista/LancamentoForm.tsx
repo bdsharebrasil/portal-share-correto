@@ -65,7 +65,7 @@ export default function LancamentoForm() {
         .select(`
           id, descricao, tipo, grupo_custo, valor, data_competencia,
           data_pagamento, fornecedor_nome, status, observacoes,
-          aeronave_id, clientes_id
+          aeronave_id, client_id
         `)
         .eq("id", editingId)
         .single();
