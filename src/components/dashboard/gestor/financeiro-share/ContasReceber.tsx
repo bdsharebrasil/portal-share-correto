@@ -201,7 +201,7 @@ export function ContasReceber() {
       }
 
       const { data: bankRecData, error: bankRecError } = await (supabase as any).from("movimentacoes").select(`
-        id, criado_em as data, descricao, valor, status, clientes_id, aeronave_id,
+        id, data:criado_em, descricao, valor, status, clientes_id, aeronave_id,
         data_vencimento as prazo_pagamento, boleto_url, nf_url, comprovante_url, controle_bancario_id,
         clientes:clientes_id(razao_social),
         aeronave:aeronave_id(matricula)
@@ -303,7 +303,7 @@ export function ContasReceber() {
           let isFromBankRec = false;
 
           if (conta.banco_conciliacao_id) {
-            const { data: bancarioData } = await (supabase as any).from("movimentacoes").select("descricao, criado_em as data").eq("id", conta.banco_conciliacao_id).single();
+            const { data: bancarioData } = await (supabase as any).from("movimentacoes").select("descricao, data:criado_em").eq("id", conta.banco_conciliacao_id).single();
 
             if (bancarioData) {
               referencia = bancarioData.descricao || referencia;
@@ -353,11 +353,7 @@ export function ContasReceber() {
       });
 
       for (const conta of contasVencidas) {
-        if ((conta as any).isFromFluxoCaixa) {
-          await supabase.from("controle_bancario").update({ status: "inadimplente" }).eq("id", (conta as any).fluxoCaixaId || conta.id);
-        } else {
-          await supabase.from("contas_areceber").update({ status: "inadimplente" }).eq("id", conta.id);
-        }
+        // Mark overdue locally only; DB check constraints don't include "inadimplente"
         conta.status = "inadimplente";
       }
 
