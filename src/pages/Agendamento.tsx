@@ -427,14 +427,14 @@ export default function Agendamentos() {
                               if (!confirmed) return;
                               setDeletingId(schedule.id);
                               try {
-                                const { data: plans } = await supabase
-                                  .from("flight_plans")
+                                const { data: plans } = await (supabase as any)
+                                  .from("planos_voo")
                                   .select("id")
-                                  .eq("flight_schedule_id", schedule.id);
+                                  .eq("ciclo_voo_id", schedule.id);
                                 const planIds = (plans || []).map((p: any) => p.id);
                                 if (planIds.length) {
-                                  await supabase.from("flight_checklists").delete().in("flight_plan_id", planIds);
-                                  await supabase.from("flight_plans").delete().in("id", planIds);
+                                  await (supabase as any).from("checklists_voo").delete().in("plano_voo_id", planIds);
+                                  await (supabase as any).from("planos_voo").delete().in("id", planIds);
                                 }
                                 const { error } = await supabase.from("flight_schedules").delete().eq("id", schedule.id);
                                 if (error) throw error;
