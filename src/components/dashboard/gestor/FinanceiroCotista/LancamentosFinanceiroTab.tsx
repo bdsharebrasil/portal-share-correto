@@ -11,6 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -30,6 +37,8 @@ import {
   ArrowDown,
   CalendarDays,
   X,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 
 const formatBRL = (n: number) =>
@@ -84,6 +93,11 @@ interface DespesaUnificada {
   recibo_url: string | null;
   nf_url: string | null;
   boleto_url: string | null;
+  fluxo?: "entrada" | "saida";
+  tipo_rateio?: string | null;
+  percentual_uso?: number | null;
+  valor_pago_real?: number | null;
+  fornecedor_nome?: string | null;
 }
 
 interface Cotista {
@@ -132,6 +146,7 @@ export function LancamentosFinanceiroTab({
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [despesaSelecionada, setDespesaSelecionada] = useState<DespesaUnificada | null>(null);
 
   // Categorias únicas presentes nos lançamentos
   const categoriasDisponiveis = useMemo(() => {
@@ -416,13 +431,24 @@ export function LancamentosFinanceiroTab({
             return (
               <button
                 key={d.id}
-                onClick={() => onLancamentoClick?.(d)}
+                onClick={() => setDespesaSelecionada(d)}
                 className="w-full text-left group rounded-2xl bg-card/60 backdrop-blur-md border border-border/40 hover:border-primary/40 hover:shadow-[0_6px_24px_rgb(0,0,0,0.18)] transition-all duration-300 p-5"
               >
                 <div className="flex items-start gap-4">
-                  {/* Ícone categoria */}
-                  <div className={`shrink-0 w-12 h-12 rounded-xl ${style.bg} ${style.color} ring-1 ${style.ring} flex items-center justify-center`}>
-                    <Icon className="h-5 w-5" />
+                  {/* Ícone categoria + fluxo */}
+                  <div className="relative shrink-0">
+                    <div className={`w-12 h-12 rounded-xl ${style.bg} ${style.color} ring-1 ${style.ring} flex items-center justify-center`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    {d.fluxo && (
+                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-card ${d.fluxo === "entrada" ? "bg-success" : "bg-destructive"}`}>
+                        {d.fluxo === "entrada" ? (
+                          <TrendingUp className="h-3 w-3 text-white" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-white" />
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Conteúdo principal */}
@@ -452,7 +478,20 @@ export function LancamentosFinanceiroTab({
                         <p className="text-2xl font-bold font-mono text-foreground tracking-tight">
                           {formatBRL(d.valor_total)}
                         </p>
-                        <Badge variant="outline" className={`text-[10px] mt-1 ${pagoBadge.cls}`}>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {d.cliente_nome || d.socio_nome || "—"}
+                        </p>
+                        {d.socio_nome && d.cliente_nome && (
+                          <p className="text-xs text-muted-foreground/70">
+                            Sócio: {d.socio_nome}
+                          </p>
+                        )}
+                        {d.numero_doc && (
+                          <p className="text-[10px] text-muted-foreground/60 font-mono mt-1">
+                            Doc: {d.numero_doc}
+                          </p>
+                        )}
+                        <Badge variant="outline" className={`text-[10px] mt-2 ${pagoBadge.cls}`}>
                           {pagoBadge.label}
                         </Badge>
                       </div>
@@ -503,7 +542,7 @@ export function LancamentosFinanceiroTab({
                       </div>
                     </div>
 
-                    {/* Detalhes secundários (estilo "CATEGORIA | DOCUMENTO | TIPO | STATUS") */}
+                    {/* Detalhes secundários */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border/30">
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
@@ -515,18 +554,18 @@ export function LancamentosFinanceiroTab({
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-                          Documento
+                          Valor Total
                         </p>
-                        <p className="text-sm text-foreground/90 mt-0.5 font-mono truncate">
-                          {docNumero || "—"}
+                        <p className="text-sm text-foreground/90 mt-0.5 font-mono">
+                          {formatBRL(d.valor_total)}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-                          Origem
+                          Valor Rateado
                         </p>
-                        <p className="text-sm text-foreground/90 mt-0.5">
-                          {d.origem === "conciliacao" ? "Share pagou" : "Pago direto"}
+                        <p className="text-sm text-foreground/90 mt-0.5 font-mono">
+                          {formatBRL(d.valor_rateado)}
                         </p>
                       </div>
                       <div>
@@ -545,6 +584,172 @@ export function LancamentosFinanceiroTab({
           })}
         </div>
       )}
+
+      {/* Modal de Detalhes */}
+      <Dialog open={!!despesaSelecionada} onOpenChange={(open) => !open && setDespesaSelecionada(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {despesaSelecionada && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">{despesaSelecionada.descricao}</DialogTitle>
+                <DialogDescription>
+                  Detalhes completos do lançamento financeiro
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                {/* Seção de valores */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-lg bg-muted/30 p-4">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold mb-1">
+                      Valor Total
+                    </p>
+                    <p className="text-2xl font-bold font-mono text-foreground">
+                      {formatBRL(despesaSelecionada.valor_total)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/30 p-4">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold mb-1">
+                      Valor Rateado
+                    </p>
+                    <p className="text-2xl font-bold font-mono text-foreground">
+                      {formatBRL(despesaSelecionada.valor_rateado)}
+                    </p>
+                  </div>
+                  {despesaSelecionada.valor_pago_real && (
+                    <div className="rounded-lg bg-muted/30 p-4">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold mb-1">
+                        Valor Pago Real
+                      </p>
+                      <p className="text-2xl font-bold font-mono text-foreground">
+                        {formatBRL(despesaSelecionada.valor_pago_real)}
+                      </p>
+                    </div>
+                  )}
+                  {despesaSelecionada.percentual_uso && (
+                    <div className="rounded-lg bg-muted/30 p-4">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold mb-1">
+                        Percentual de Uso
+                      </p>
+                      <p className="text-2xl font-bold font-mono text-foreground">
+                        {despesaSelecionada.percentual_uso.toFixed(2)}%
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Datas */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Datas</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {despesaSelecionada.data_vencimento && (
+                      <div className="rounded-lg bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground mb-1">Vencimento</p>
+                        <p className="text-sm font-medium">
+                          {formatDateLong(despesaSelecionada.data_vencimento)}
+                        </p>
+                      </div>
+                    )}
+                    {despesaSelecionada.data_pagamento && (
+                      <div className="rounded-lg bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground mb-1">Pagamento</p>
+                        <p className="text-sm font-medium">
+                          {formatDateLong(despesaSelecionada.data_pagamento)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Informações do fornecedor e documento */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Fornecedor e Documentos</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {(despesaSelecionada.fornecedor_nome || despesaSelecionada.fornecedor) && (
+                      <div className="rounded-lg bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground mb-1">Fornecedor</p>
+                        <p className="text-sm font-medium truncate">
+                          {despesaSelecionada.fornecedor_nome || despesaSelecionada.fornecedor || "—"}
+                        </p>
+                      </div>
+                    )}
+                    {despesaSelecionada.numero_doc && (
+                      <div className="rounded-lg bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground mb-1">Documento</p>
+                        <p className="text-sm font-mono font-medium">
+                          {despesaSelecionada.numero_doc}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tipo de rateio */}
+                {despesaSelecionada.tipo_rateio && (
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Tipo de Rateio</p>
+                    <p className="text-sm font-medium">{despesaSelecionada.tipo_rateio}</p>
+                  </div>
+                )}
+
+                {/* Links de documentos */}
+                {(despesaSelecionada.comprovante_url || despesaSelecionada.nf_url || despesaSelecionada.boleto_url) && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-foreground">Documentos</p>
+                    <div className="flex flex-wrap gap-2">
+                      {despesaSelecionada.comprovante_url && (
+                        <a
+                          href={despesaSelecionada.comprovante_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-medium"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                          Comprovante
+                        </a>
+                      )}
+                      {despesaSelecionada.nf_url && (
+                        <a
+                          href={despesaSelecionada.nf_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-medium"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Nota Fiscal
+                        </a>
+                      )}
+                      {despesaSelecionada.boleto_url && (
+                        <a
+                          href={despesaSelecionada.boleto_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors text-sm font-medium"
+                        >
+                          <Receipt className="h-4 w-4" />
+                          Boleto
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Observações */}
+                {despesaSelecionada.observacoes && (
+                  <div className="rounded-lg bg-muted/30 p-4">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold mb-2">
+                      Observações
+                    </p>
+                    <p className="text-sm text-foreground/90 leading-relaxed">
+                      {despesaSelecionada.observacoes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
