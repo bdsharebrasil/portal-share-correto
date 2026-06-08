@@ -8,6 +8,13 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 import {
   Search,
   Paperclip,
@@ -19,6 +26,10 @@ import {
   Receipt,
   Plane,
   Eye,
+  ArrowUp,
+  ArrowDown,
+  CalendarDays,
+  X,
 } from "lucide-react";
 
 const formatBRL = (n: number) =>
