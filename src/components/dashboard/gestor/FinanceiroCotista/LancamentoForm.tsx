@@ -262,7 +262,7 @@ export default function LancamentoForm() {
           aeronaveId={aeronaveId ?? null}
           aeronaveRegistro={aeronave?.matricula ?? null}
           socios={socios ?? []}
-          editing={lancamentoEditando}
+          editing={editingFinal}
           onCancel={() => navigate(`/financeiro/financeiro-cotistas/${clienteId}`)}
           onSaved={() => {
             navigate(`/financeiro/financeiro-cotistas/${clienteId}`);
