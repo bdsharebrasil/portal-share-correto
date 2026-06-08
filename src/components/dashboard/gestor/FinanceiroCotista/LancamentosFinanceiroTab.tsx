@@ -132,6 +132,12 @@ export function LancamentosFinanceiroTab({
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
   // Categorias únicas presentes nos lançamentos
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
+
+  // Categorias únicas presentes nos lançamentos
   const categoriasDisponiveis = useMemo(() => {
     const set = new Set<string>();
     despesas.forEach((d) => {
@@ -143,7 +149,7 @@ export function LancamentosFinanceiroTab({
   const despesasFiltradas = useMemo(() => {
     const q = filtroTexto.trim().toLowerCase();
 
-    return despesas.filter((d) => {
+    const filtradas = despesas.filter((d) => {
       if (!d.data && !d.data_vencimento) return false;
 
       const data = new Date(d.data || d.data_vencimento || new Date());
@@ -151,6 +157,17 @@ export function LancamentosFinanceiroTab({
       const ano = data.getFullYear();
 
       if (mes !== mesSelecionado || ano !== anoSelecionado) return false;
+
+      // Filtro por intervalo de dias (calendário)
+      if (dateRange?.from) {
+        const from = new Date(dateRange.from);
+        from.setHours(0, 0, 0, 0);
+        const to = new Date(dateRange.to ?? dateRange.from);
+        to.setHours(23, 59, 59, 999);
+        const ref = new Date(data);
+        if (ref < from || ref > to) return false;
+      }
+
       if (filtroOrigem !== "todos" && d.origem !== filtroOrigem) return false;
       if (filtroCategoria !== "todas" && (d.categoria || "") !== filtroCategoria) return false;
 
@@ -176,7 +193,14 @@ export function LancamentosFinanceiroTab({
 
       return true;
     });
-  }, [despesas, mesSelecionado, anoSelecionado, cotistaFiltro, filtroTexto, filtroOrigem, filtroCategoria]);
+
+    // Ordenação por data
+    return [...filtradas].sort((a, b) => {
+      const da = new Date(a.data || a.data_vencimento || 0).getTime();
+      const db = new Date(b.data || b.data_vencimento || 0).getTime();
+      return sortOrder === "asc" ? da - db : db - da;
+    });
+  }, [despesas, mesSelecionado, anoSelecionado, cotistaFiltro, filtroTexto, filtroOrigem, filtroCategoria, sortOrder, dateRange]);
 
   const totaisFiltrados = useMemo(
     () => despesasFiltradas.reduce((a, d) => a + d.valor_total, 0),
