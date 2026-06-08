@@ -522,7 +522,8 @@ export default function FinanceiroCotistaDetalhe() {
           onEditarClick={() => {
             if (lancamentoSelecionado) {
               navigate(
-                `/financeiro/lancamento/${clienteId}/${aeronaveAtual}?editing=${lancamentoSelecionado.id}`
+                `/financeiro/lancamento/${clienteId}/${aeronaveAtual}?editing=${lancamentoSelecionado.id}`,
+                { state: { despesaPrefill: lancamentoSelecionado } }
               );
               setLancamentoSelecionado(null);
               setAcaoModal(null);

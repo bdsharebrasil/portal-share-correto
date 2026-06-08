@@ -8,6 +8,13 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 import {
   Search,
   Paperclip,
@@ -19,6 +26,10 @@ import {
   Receipt,
   Plane,
   Eye,
+  ArrowUp,
+  ArrowDown,
+  CalendarDays,
+  X,
 } from "lucide-react";
 
 const formatBRL = (n: number) =>
@@ -121,6 +132,12 @@ export function LancamentosFinanceiroTab({
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
   // Categorias únicas presentes nos lançamentos
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
+  const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
+
+  // Categorias únicas presentes nos lançamentos
   const categoriasDisponiveis = useMemo(() => {
     const set = new Set<string>();
     despesas.forEach((d) => {
@@ -132,7 +149,7 @@ export function LancamentosFinanceiroTab({
   const despesasFiltradas = useMemo(() => {
     const q = filtroTexto.trim().toLowerCase();
 
-    return despesas.filter((d) => {
+    const filtradas = despesas.filter((d) => {
       if (!d.data && !d.data_vencimento) return false;
 
       const data = new Date(d.data || d.data_vencimento || new Date());
@@ -140,6 +157,17 @@ export function LancamentosFinanceiroTab({
       const ano = data.getFullYear();
 
       if (mes !== mesSelecionado || ano !== anoSelecionado) return false;
+
+      // Filtro por intervalo de dias (calendário)
+      if (dateRange?.from) {
+        const from = new Date(dateRange.from);
+        from.setHours(0, 0, 0, 0);
+        const to = new Date(dateRange.to ?? dateRange.from);
+        to.setHours(23, 59, 59, 999);
+        const ref = new Date(data);
+        if (ref < from || ref > to) return false;
+      }
+
       if (filtroOrigem !== "todos" && d.origem !== filtroOrigem) return false;
       if (filtroCategoria !== "todas" && (d.categoria || "") !== filtroCategoria) return false;
 
@@ -165,7 +193,14 @@ export function LancamentosFinanceiroTab({
 
       return true;
     });
-  }, [despesas, mesSelecionado, anoSelecionado, cotistaFiltro, filtroTexto, filtroOrigem, filtroCategoria]);
+
+    // Ordenação por data
+    return [...filtradas].sort((a, b) => {
+      const da = new Date(a.data || a.data_vencimento || 0).getTime();
+      const db = new Date(b.data || b.data_vencimento || 0).getTime();
+      return sortOrder === "asc" ? da - db : db - da;
+    });
+  }, [despesas, mesSelecionado, anoSelecionado, cotistaFiltro, filtroTexto, filtroOrigem, filtroCategoria, sortOrder, dateRange]);
 
   const totaisFiltrados = useMemo(
     () => despesasFiltradas.reduce((a, d) => a + d.valor_total, 0),
@@ -268,6 +303,70 @@ export function LancamentosFinanceiroTab({
               <SelectItem value="direto">Pago direto</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Filtro por intervalo de dias via calendário */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "h-10 rounded-xl bg-background/60 border-border/50 gap-2 px-3 font-normal",
+                  !dateRange?.from && "text-muted-foreground"
+                )}
+              >
+                <CalendarDays className="h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "dd/MM", { locale: ptBR })} –{" "}
+                      {format(dateRange.to, "dd/MM", { locale: ptBR })}
+                    </>
+                  ) : (
+                    format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+                  )
+                ) : (
+                  <span>Filtrar dia(s)</span>
+                )}
+                {dateRange?.from && (
+                  <X
+                    className="h-3.5 w-3.5 ml-1 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDateRange(undefined);
+                    }}
+                  />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+              <CalendarPicker
+                mode="range"
+                selected={dateRange}
+                onSelect={setDateRange}
+                defaultMonth={new Date(anoSelecionado, mesSelecionado - 1, 1)}
+                numberOfMonths={1}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Ordenação asc/desc */}
+          <Button
+            variant="outline"
+            onClick={() => setSortOrder((s) => (s === "asc" ? "desc" : "asc"))}
+            className="h-10 rounded-xl bg-background/60 border-border/50 gap-2 px-3 font-normal"
+            title={sortOrder === "asc" ? "Mais antigos primeiro" : "Mais recentes primeiro"}
+          >
+            {sortOrder === "asc" ? (
+              <ArrowUp className="h-4 w-4" />
+            ) : (
+              <ArrowDown className="h-4 w-4" />
+            )}
+            <span className="text-xs">
+              {sortOrder === "asc" ? "Crescente" : "Decrescente"}
+            </span>
+          </Button>
 
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

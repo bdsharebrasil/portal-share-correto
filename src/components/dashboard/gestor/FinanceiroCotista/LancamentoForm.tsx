@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,8 @@ export default function LancamentoForm() {
   const { clienteId, aeronaveId } = useParams<{ clienteId: string; aeronaveId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const despesaPrefill = (location.state as any)?.despesaPrefill ?? null;
 
   const editingId = searchParams.get("editing");
 
@@ -55,12 +57,15 @@ export default function LancamentoForm() {
     },
   });
 
-  // Buscar dados do lançamento se estiver editando
+  // Buscar dados do lançamento se estiver editando (movimentações tradicionais).
+  // Quando o registro não existe em "movimentacoes" (ex: vindo da conciliação ou
+  // despesa direta), usamos o prefill passado via location.state para que o
+  // formulário abra com TODOS os dados existentes preenchidos.
   const { data: lancamentoEditando } = useQuery({
     queryKey: ["lancamento-edit", editingId],
     enabled: !!editingId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("movimentacoes")
         .select(`
           id, descricao, tipo, grupo_custo, valor, data_competencia,
@@ -68,11 +73,46 @@ export default function LancamentoForm() {
           aeronave_id, client_id
         `)
         .eq("id", editingId)
-        .single();
-      if (error) throw error;
-      return data;
+        .maybeSingle();
+      return data; // pode ser null → cairemos no prefill
     },
   });
+
+  // Monta o "editing" final mesclando o que veio do banco (se existir) com o prefill
+  const editingFinal = (() => {
+    if (!editingId) return null;
+    if (lancamentoEditando) return lancamentoEditando;
+    if (despesaPrefill) {
+      const p = despesaPrefill;
+      return {
+        id: p.id,
+        descricao: p.descricao ?? "",
+        tipo: "despesa",
+        grupo_custo: p.grupo_custo ?? "FIXO",
+        valor: p.valor_total ?? p.valor ?? 0,
+        data_competencia: p.data ?? p.data_vencimento ?? null,
+        data_pagamento: p.data_pagamento ?? null,
+        data_vencimento: p.data_vencimento ?? null,
+        fornecedor_nome: p.fornecedor ?? null,
+        status: p.status ?? "pendente",
+        observacoes: p.observacoes ?? "",
+        aeronave_id: p.aeronave_id ?? aeronaveId ?? null,
+        client_id: p.cliente_id ?? clienteId ?? null,
+        forma_pagamento: p.forma_pagamento ?? "",
+        periodicidade: "unica",
+        numero_doc: p.numero_doc ?? "",
+        numero_nf: p.numero_nf ?? "",
+        numero_boleto: p.numero_boleto ?? "",
+        numero_recibo: p.numero_recibo ?? "",
+        comprovante_url: p.comprovante_url ?? null,
+        recibo_url: p.recibo_url ?? null,
+        nf_url: p.nf_url ?? null,
+        boleto_url: p.boleto_url ?? null,
+      };
+    }
+    return null;
+  })();
+
 
   // Buscar sócios do cliente
   const { data: socios } = useQuery({
@@ -222,7 +262,7 @@ export default function LancamentoForm() {
           aeronaveId={aeronaveId ?? null}
           aeronaveRegistro={aeronave?.matricula ?? null}
           socios={socios ?? []}
-          editing={lancamentoEditando}
+          editing={editingFinal}
           onCancel={() => navigate(`/financeiro/financeiro-cotistas/${clienteId}`)}
           onSaved={() => {
             navigate(`/financeiro/financeiro-cotistas/${clienteId}`);
