@@ -130,12 +130,8 @@ export function LancamentosFinanceiroTab({
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
 
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
-
-  // Categorias únicas presentes nos lançamentos
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-
-  const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
   // Categorias únicas presentes nos lançamentos
   const categoriasDisponiveis = useMemo(() => {
