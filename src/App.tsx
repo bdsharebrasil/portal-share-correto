@@ -152,7 +152,7 @@ const App = () => {
                           <Route path="/" element={renderProtected(<HomeRedirect />)} />
                           <Route path="/operacoes" element={renderProtected(<DashboardOperacoes />)} />
                           <Route path="/financeiro" element={renderProtected(<DashboardFinanceiro />)} />
-                          <Route path="/relatorios" element={renderProtected(<Layout><RelatoriosFinanceiros /></Layout>)} />
+
                           <Route path="/gestor" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>

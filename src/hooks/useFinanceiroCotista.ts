@@ -153,16 +153,24 @@ export function useClientesCotistas() {
         .eq("status", "ativo");
       if (clientesError) throw clientesError;
 
-      return (clientes || []).map((c: any) => ({
-        ...c,
-        aeronaves: (vinculos || [])
-          .filter((v: any) => v.id_clientes === c.id)
-          .map((v: any) => ({
-            id_aeronave: v.id_aeronave,
-            percentual_sociedade: Number(v.percentual_sociedade) || 0,
-            aeronave: v.aeronave,
-          })),
-      }));
+      return (clientes || []).map((c: any) => {
+        const vinculosCliente = (vinculos || []).filter((v: any) => v.id_clientes === c.id);
+        // Deduplicate aeronaves by id_aeronave (same aircraft may have multiple partners)
+        const aeronavesMap = new Map<string, any>();
+        vinculosCliente.forEach((v: any) => {
+          if (!aeronavesMap.has(v.id_aeronave)) {
+            aeronavesMap.set(v.id_aeronave, {
+              id_aeronave: v.id_aeronave,
+              percentual_sociedade: Number(v.percentual_sociedade) || 0,
+              aeronave: v.aeronave,
+            });
+          }
+        });
+        return {
+          ...c,
+          aeronaves: Array.from(aeronavesMap.values()),
+        };
+      });
     },
   });
 }
