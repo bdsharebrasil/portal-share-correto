@@ -176,25 +176,39 @@ export function FechamentoBalancoTab({
     [despesasAgrupadas]
   );
 
-  // Calcular TODOS os rateios de cada cotista (não apenas pela despesa pai)
-  const creditoPorCotistaDetalhado = useMemo(() => {
+  // Calcular o que cada sócio PAGOU de fato (Crédito)
+  const creditoPorCotista = useMemo(() => {
     const map = new Map<string, number>();
     cotistas.forEach((c) => map.set(c.id, 0));
 
-    // Iterar sobre TODOS os rateios (não apenas despesas únicas)
     rateios.forEach((r) => {
       if ((r.fluxo || "").toUpperCase() === "ENTRADA") return;
-
       const cid = r.cliente_id || r.socio_id;
       if (!cid || !map.has(cid)) return;
 
-      // Usar valor_pago_real se disponível, senão valor_rateado
-      const valPago = Number(r.valor_pago_real || r.valor_rateado || 0);
+      // Crédito é o que ele pagou (valor_pago_real)
+      const valPago = Number(r.valor_pago_real || 0);
       if (valPago > 0) {
         map.set(cid, (map.get(cid) || 0) + valPago);
       }
     });
+    return map;
+  }, [rateios, cotistas]);
 
+  // Calcular o que cada sócio DEVE (Custo Devido) baseado no rateio de cada linha
+  const custoDevidoPorCotista = useMemo(() => {
+    const map = new Map<string, number>();
+    cotistas.forEach((c) => map.set(c.id, 0));
+
+    rateios.forEach((r) => {
+      if ((r.fluxo || "").toUpperCase() === "ENTRADA") return;
+      const cid = r.cliente_id || r.socio_id;
+      if (!cid || !map.has(cid)) return;
+
+      // Débito é o valor rateado para ele naquela despesa
+      const valRateado = Number(r.valor_rateado || 0);
+      map.set(cid, (map.get(cid) || 0) + valRateado);
+    });
     return map;
   }, [rateios, cotistas]);
 
@@ -215,35 +229,33 @@ export function FechamentoBalancoTab({
     [horasPorCotista]
   );
 
-  const { custoFixo, custoVariavel } = useMemo(() => {
+  const { custoFixo, custoVariavel, custoTotal } = useMemo(() => {
     let f = 0;
     let v = 0;
+    let total = 0;
     despesasUnicas.forEach((d) => {
       if ((d.fluxo || "").toUpperCase() === "ENTRADA") return;
       const val = Number(d.valor_total_despesa) || 0;
+      total += val;
       if (isFixo(d.periodicidade)) f += val;
       else v += val;
     });
-    return { custoFixo: f, custoVariavel: v };
+    return { custoFixo: f, custoVariavel: v, custoTotal: total };
   }, [despesasUnicas]);
 
   const custoMedioHora = horasTotais > 0 ? custoVariavel / horasTotais : 0;
 
-
   const linhas = useMemo(() => {
     return cotistas.map((c) => {
       const horas = horasPorCotista.get(c.id) || 0;
-
-      // Calcular parcela fixa: percentual do cotista sobre o total de custos fixos
-      const parcelaFixa = custoFixo * (c.percentual / 100);
-
-      // Calcular parcela variável: proporcional às horas voadas
-      const parcelaVariavel =
-        horasTotais > 0 ? custoVariavel * (horas / horasTotais) : 0;
-
-      const custoDevido = parcelaFixa + parcelaVariavel;
-      const credito = creditoPorCotistaDetalhado.get(c.id) || 0;
+      const custoDevido = custoDevidoPorCotista.get(c.id) || 0;
+      const credito = creditoPorCotista.get(c.id) || 0;
       const saldo = credito - custoDevido;
+
+      // Cálculo informativo de parcelas (para exibição)
+      // Nota: O custoDevido real vem da soma dos rateios, que já consideram as regras
+      const parcelaFixa = custoFixo > 0 ? (custoDevido * (custoFixo / (custoFixo + custoVariavel || 1))) : 0;
+      const parcelaVariavel = custoVariavel > 0 ? (custoDevido * (custoVariavel / (custoFixo + custoVariavel || 1))) : 0;
 
       return {
         ...c,
@@ -255,7 +267,7 @@ export function FechamentoBalancoTab({
         saldo
       };
     });
-  }, [cotistas, custoFixo, custoVariavel, horasTotais, horasPorCotista, creditoPorCotistaDetalhado]);
+  }, [cotistas, custoFixo, custoVariavel, horasPorCotista, custoDevidoPorCotista, creditoPorCotista]);
 
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
