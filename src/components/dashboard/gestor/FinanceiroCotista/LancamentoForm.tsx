@@ -22,6 +22,8 @@ export default function LancamentoForm() {
   const { clienteId, aeronaveId } = useParams<{ clienteId: string; aeronaveId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const despesaPrefill = (location.state as any)?.despesaPrefill ?? null;
 
   const editingId = searchParams.get("editing");
 
