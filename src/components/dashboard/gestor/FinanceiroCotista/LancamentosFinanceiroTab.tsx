@@ -648,7 +648,7 @@ export function LancamentosFinanceiroTab({
                             Pagamento {idx + 1}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
-                            <span>
+                            <span className="text-foreground/70 my-[5px] py-[3px]">
                               {pag.cliente_nome || pag.socio_nome || "—"}
                             </span>
                             <span>
@@ -660,7 +660,7 @@ export function LancamentosFinanceiroTab({
                           <p className="text-lg font-bold font-mono text-foreground">
                             {formatBRL(pag.valor_total)}
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
+                          <p className="text-[10px] text-muted-foreground mt-1 min-h-[23px]">
                             {pag.pago_por}
                           </p>
                         </div>
