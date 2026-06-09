@@ -16,7 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Fuel, Wallet } from "lucide-react";
+import { Fuel, Wallet, FileText, Download, Receipt, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", {
@@ -56,6 +57,11 @@ interface Abastecimento {
   id_clientes?: string | null;
   clientes_nome?: string | null;
   socio_nome?: string | null;
+  comanda?: string | null;
+  nota_url?: string | null;
+  boleto_url?: string | null;
+  comprovante_pagamento?: string | null;
+  nf?: string | null;
 }
 
 interface Cotista {
@@ -231,12 +237,14 @@ export function AbastecimentosTab({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Data</TableHead>
+                    <TableHead>Comanda / NF</TableHead>
                     <TableHead>Trecho / Local</TableHead>
                     <TableHead>Abastecedor</TableHead>
                     {temMultiplosCotistas && <TableHead>Cliente / Sócio</TableHead>}
                     <TableHead className="text-right">Litros</TableHead>
                     <TableHead className="text-right">R$/L</TableHead>
                     <TableHead className="text-right">Total</TableHead>
+                    <TableHead>Anexos</TableHead>
                     <TableHead>Pgto</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -246,6 +254,12 @@ export function AbastecimentosTab({
                       <TableCell className="text-xs font-medium">
                         {formatDate(a.data)}
                       </TableCell>
+                      <TableCell className="text-xs">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-primary">Cmd: {a.comanda || "—"}</span>
+                          <span className="text-muted-foreground">NF: {a.nf || "—"}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-sm">
                         {a.trecho || a.local || "—"}
                       </TableCell>
@@ -254,7 +268,7 @@ export function AbastecimentosTab({
                       </TableCell>
                       {temMultiplosCotistas && (
                         <TableCell className="text-xs">
-                          <Badge variant="outline" className="text-[10px]">
+                          <Badge variant="outline" className="text-[10px] bg-primary/5 border-primary/20">
                             {a.clientes_nome || a.socio_nome || "—"}
                           </Badge>
                         </TableCell>
@@ -267,6 +281,34 @@ export function AbastecimentosTab({
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm font-semibold">
                         {formatBRL(a.valor_total)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {a.nota_url && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                              <a href={a.nota_url} target="_blank" rel="noopener noreferrer" title="Ver Nota Fiscal">
+                                <Receipt className="h-3.5 w-3.5 text-blue-500" />
+                              </a>
+                            </Button>
+                          )}
+                          {a.boleto_url && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                              <a href={a.boleto_url} target="_blank" rel="noopener noreferrer" title="Ver Boleto">
+                                <FileText className="h-3.5 w-3.5 text-orange-500" />
+                              </a>
+                            </Button>
+                          )}
+                          {a.comprovante_pagamento && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                              <a href={a.comprovante_pagamento} target="_blank" rel="noopener noreferrer" title="Ver Comprovante">
+                                <ExternalLink className="h-3.5 w-3.5 text-green-500" />
+                              </a>
+                            </Button>
+                          )}
+                          {!a.nota_url && !a.boleto_url && !a.comprovante_pagamento && (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge
