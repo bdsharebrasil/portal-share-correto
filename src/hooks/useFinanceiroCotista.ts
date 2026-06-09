@@ -102,7 +102,7 @@ function rotularPagador(r: any): { rotulo: string; tipo: string | null } {
   if (raw === "EMPRESA" || raw === "SHARE" || raw === "SHARE BRASIL")
     return { rotulo: "Share Brasil", tipo: FinancePayorType.COMPANY };
   if (raw === "CLIENTE")
-    return { rotulo: r.clientes_nome || "Cliente", tipo: FinancePayorType.CLIENT };
+    return { rotulo: "CLIENTE", tipo: FinancePayorType.CLIENT };
   if (raw === "SOCIO" || raw === "SÓCIO")
     return { rotulo: r.socios_nome || "Sócio", tipo: FinancePayorType.PARTNER };
   if (raw.includes("TERCEIRO") || raw.includes("THIRD"))

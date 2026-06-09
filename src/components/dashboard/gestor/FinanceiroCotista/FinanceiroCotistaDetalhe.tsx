@@ -34,6 +34,7 @@ import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { LancamentosFinanceiroTab } from "./LancamentosFinanceiroTab";
+import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
 import { useMemo, useState } from "react";
@@ -440,22 +441,10 @@ export default function FinanceiroCotistaDetalhe() {
 
             {/* Financeiro */}
             <TabsContent value="financeiro" className="space-y-4 mt-4">
-              <LancamentosFinanceiroTab
+              <TabelaFinanceiraTab
                 despesas={despesasDaAeronave}
                 cotistas={cotistasDaAeronave}
                 aeronaveLabel={aeronaveInfo?.matricula}
-                onLancamentoClick={(d) => {
-                  setLancamentoSelecionado(d);
-                  setAcaoModal(null);
-                }}
-                onEditarLancamento={(d) => {
-                  setLancamentoSelecionado(d);
-                  setAcaoModal("editar");
-                }}
-                onDeletarLancamento={(d) => {
-                  setLancamentoSelecionado(d);
-                  setAcaoModal("deletar");
-                }}
               />
             </TabsContent>
 
