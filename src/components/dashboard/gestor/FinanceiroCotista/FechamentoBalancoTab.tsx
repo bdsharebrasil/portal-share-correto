@@ -32,7 +32,12 @@ import {
   Plane,
   Fuel,
   ArrowRight,
+  Download,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 
@@ -278,8 +283,114 @@ export function FechamentoBalancoTab({
       ? `Acumulado ${ano}`
       : `${inicio} a ${fim}`;
 
+  const exportarPDF = () => {
+    try {
+      const doc = new jsPDF("l", "mm", "a4");
+      const title = `Balanço de Sócios - ${aeronaveLabel || "Aeronave"}`;
+      const subtitle = `Período: ${periodoLabel}`;
+
+      doc.setFontSize(18);
+      doc.text(title, 14, 20);
+      doc.setFontSize(12);
+      doc.text(subtitle, 14, 28);
+
+      const tableData = linhas.map((l) => [
+        l.nome,
+        `${l.percentual}%`,
+        formatHHMM(l.horas),
+        formatBRL(l.parcelaFixa),
+        formatBRL(l.parcelaVariavel),
+        formatBRL(l.custoDevido),
+        formatBRL(l.credito),
+        formatBRL(l.saldo),
+      ]);
+
+      autoTable(doc, {
+        startY: 35,
+        head: [
+          [
+            "Cotista",
+            "% Cota",
+            "Horas",
+            "Parcela Fixa",
+            "Parcela Var.",
+            "Custo Devido",
+            "Crédito",
+            "Saldo Final",
+          ],
+        ],
+        body: tableData,
+        theme: "striped",
+        headStyles: { fillStyle: [41, 128, 185] },
+        foot: [
+          [
+            "TOTAL",
+            "100%",
+            formatHHMM(horasTotais),
+            formatBRL(custoFixo),
+            formatBRL(custoVariavel),
+            formatBRL(custoTotal),
+            formatBRL(Array.from(creditoPorCotista.values()).reduce((a, b) => a + b, 0)),
+            formatBRL(Array.from(linhas).reduce((a, b) => a + b.saldo, 0)),
+          ],
+        ],
+      });
+
+      // Adicionar Matriz de Equilíbrio de Contas
+      const credores = linhas.filter((l) => l.saldo > 0.005);
+      const devedores = linhas.filter((l) => l.saldo < -0.005);
+      const totalCredito = credores.reduce((a, c) => a + c.saldo, 0);
+
+      if (totalCredito > 0 && devedores.length > 0) {
+        doc.addPage();
+        doc.setFontSize(16);
+        doc.text("Matriz de Equilíbrio de Contas (Quem deve para quem)", 14, 20);
+        doc.setFontSize(10);
+        doc.text("Valores que cada devedor deve transferir para cada credor:", 14, 28);
+
+        const matrixData: any[][] = [];
+        linhas.forEach((credor) => {
+          if (credor.saldo <= 0) return;
+          const share = credor.saldo / totalCredito;
+          linhas.forEach((dev) => {
+            if (dev.saldo >= 0) return;
+            const valorTransferir = Math.abs(dev.saldo) * share;
+            if (valorTransferir > 0.01) {
+              matrixData.push([
+                dev.nome,
+                "deve pagar para",
+                credor.nome,
+                formatBRL(valorTransferir)
+              ]);
+            }
+          });
+        });
+
+        autoTable(doc, {
+          startY: 35,
+          head: [["Devedor", "Ação", "Credor", "Valor a Transferir"]],
+          body: matrixData,
+          theme: "grid",
+          headStyles: { fillStyle: [39, 174, 96] },
+        });
+      }
+
+      doc.save(`Balanco_Socios_${aeronaveLabel}_${periodoLabel.replace(/\//g, "-")}.pdf`);
+      toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold tracking-tight">Fechamento de Balanço</h2>
+        <Button onClick={exportarPDF} className="gap-2">
+          <Download className="h-4 w-4" /> Exportar Balanço PDF
+        </Button>
+      </div>
       {/* Filtros de período */}
       <Card className="bg-card/60 border-border">
         <CardContent className="p-4 space-y-4">
