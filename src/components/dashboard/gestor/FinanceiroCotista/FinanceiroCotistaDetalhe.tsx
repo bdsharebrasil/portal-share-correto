@@ -24,6 +24,7 @@ import {
   Building,
   Edit2,
   Trash2,
+  X,
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
@@ -83,6 +84,8 @@ export default function FinanceiroCotistaDetalhe() {
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<DespesaUnificada | null>(null);
   const [acaoModal, setAcaoModal] = useState<"editar" | "deletar" | null>(null);
+  const [editandoCliente, setEditandoCliente] = useState(false);
+  const [acaoCliente, setAcaoCliente] = useState<"editar" | "deletar" | null>(null);
 
   const cliente = data?.cliente;
   const aeronaves = data?.aeronaves || [];
@@ -275,6 +278,22 @@ export default function FinanceiroCotistaDetalhe() {
                     >
                       {cliente.status || "—"}
                     </Badge>
+                    <div className="flex gap-1 ml-auto">
+                      <button
+                        onClick={() => setAcaoCliente("editar")}
+                        title="Editar cliente"
+                        className="p-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setAcaoCliente("deletar")}
+                        title="Excluir cliente"
+                        className="p-2.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <p className="text-sm font-mono text-muted-foreground/80 tracking-widest">
                     CNPJ {cliente.cnpj || "—"}
@@ -533,6 +552,19 @@ export default function FinanceiroCotistaDetalhe() {
             // será implementado no componente
           }}
         />
+
+        {/* Modal de Edição/Exclusão do Cliente */}
+        <ClienteAcaoModal
+          cliente={cliente}
+          acao={acaoCliente}
+          onClose={() => setAcaoCliente(null)}
+          onEditarClick={() => setEditandoCliente(true)}
+          onDeletarConfirm={() => {
+            navigate("/financeiro/financeiro-cotistas");
+          }}
+          abrirEdicao={editandoCliente}
+          onFecharEdicao={() => setEditandoCliente(false)}
+        />
       </div>
     </Layout>
   );
@@ -744,6 +776,289 @@ function DrillDownModal({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ============== Modal de Edição/Exclusão do Cliente ==============
+function ClienteAcaoModal({
+  cliente,
+  acao,
+  onClose,
+  onEditarClick,
+  onDeletarConfirm,
+  abrirEdicao,
+  onFecharEdicao,
+}: {
+  cliente: any;
+  acao: "editar" | "deletar" | null;
+  onClose: () => void;
+  onEditarClick: () => void;
+  onDeletarConfirm: () => void;
+  abrirEdicao: boolean;
+  onFecharEdicao: () => void;
+}) {
+  const qc = useQueryClient();
+  const [formData, setFormData] = useState({
+    razao_social: cliente?.razao_social || "",
+    cnpj: cliente?.cnpj || "",
+    email: cliente?.email || "",
+    telefone: cliente?.telefone || "",
+    cidade: cliente?.cidade || "",
+    uf: cliente?.uf || "",
+    status: cliente?.status || "ativo",
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("id_clientes")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Cliente excluído com sucesso");
+      qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
+      onDeletarConfirm();
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao excluir: " + (error.message || "Erro desconhecido"));
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("id_clientes")
+        .update({
+          razao_social: formData.razao_social,
+          cnpj: formData.cnpj,
+          email: formData.email,
+          telefone: formData.telefone,
+          cidade: formData.cidade,
+          uf: formData.uf,
+          status: formData.status,
+        })
+        .eq("id", cliente.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Cliente atualizado com sucesso");
+      qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
+      onFecharEdicao();
+    },
+    onError: (error: any) => {
+      toast.error("Erro ao atualizar: " + (error.message || "Erro desconhecido"));
+    },
+  });
+
+  if (!cliente) return null;
+
+  const isOpen = !!acao || abrirEdicao;
+  const mostrandoEscolha = acao === null && !abrirEdicao;
+
+  return (
+    <>
+      {/* Modal de Escolha de Ação ou Confirmação */}
+      {acao && (
+        <Dialog open={!!acao} onOpenChange={(open) => !open && onClose()}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {acao === "editar"
+                  ? "Editar cliente"
+                  : "Excluir cliente"}
+              </DialogTitle>
+              {acao === "deletar" && (
+                <DialogDescription>
+                  {cliente.razao_social}
+                </DialogDescription>
+              )}
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {acao === "deletar" ? (
+                <>
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm text-destructive">
+                      Esta ação é irreversível. O cliente e todos os seus dados associados serão removidos permanentemente do sistema.
+                    </p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            <DialogFooter className="gap-2">
+              {acao === "editar" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={onClose}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button onClick={onEditarClick} className="gap-2">
+                    <Edit2 className="h-4 w-4" />
+                    Abrir edição
+                  </Button>
+                </>
+              ) : acao === "deletar" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={onClose}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      deleteMutation.mutate(cliente.id);
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? "Excluindo..." : "Confirmar exclusão"}
+                  </Button>
+                </>
+              ) : null}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal de Edição (dentro da página) */}
+      {abrirEdicao && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm">
+          <div className="bg-card border border-border/40 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-4 sm:fade-in sm:zoom-in-95 duration-300">
+            <div className="sticky top-0 bg-card border-b border-border/40 p-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-foreground">Editar Cliente</h2>
+              <button
+                onClick={onFecharEdicao}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">Razão Social</label>
+                <input
+                  type="text"
+                  value={formData.razao_social}
+                  onChange={(e) =>
+                    setFormData({ ...formData, razao_social: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 rounded-lg bg-background border border-border/50 text-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-colors"
+                  placeholder="Nome da empresa"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">CNPJ</label>
+                  <input
+                    type="text"
+                    value={formData.cnpj}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cnpj: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 rounded-lg bg-background border border-border/50 text-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-colors"
+                    placeholder="00.000.000/0000-00"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 rounded-lg bg-background border border-border/50 text-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-colors"
+                  >
+                    <option value="ativo">Ativo</option>
+                    <option value="inativo">Inativo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 rounded-lg bg-background border border-border/50 text-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-colors"
+                  placeholder="email@example.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">Telefone</label>
+                <input
+                  type="tel"
+                  value={formData.telefone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, telefone: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 rounded-lg bg-background border border-border/50 text-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-colors"
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">Cidade</label>
+                  <input
+                    type="text"
+                    value={formData.cidade}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cidade: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 rounded-lg bg-background border border-border/50 text-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-colors"
+                    placeholder="Cidade"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">UF</label>
+                  <input
+                    type="text"
+                    value={formData.uf}
+                    onChange={(e) =>
+                      setFormData({ ...formData, uf: e.target.value })
+                    }
+                    maxLength={2}
+                    className="w-full px-4 py-2.5 rounded-lg bg-background border border-border/50 text-foreground focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-colors"
+                    placeholder="SP"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-6 border-t border-border/40">
+                <Button
+                  variant="outline"
+                  onClick={onFecharEdicao}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => updateMutation.mutate()}
+                  disabled={updateMutation.isPending}
+                  className="flex-1"
+                >
+                  {updateMutation.isPending ? "Salvando..." : "Salvar alterações"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
