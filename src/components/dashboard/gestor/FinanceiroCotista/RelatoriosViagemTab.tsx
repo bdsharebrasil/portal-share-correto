@@ -12,6 +12,7 @@ import {
   Calendar,
   Eye,
   ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 
 const formatBRL = (n: number) =>
@@ -102,12 +103,85 @@ function getMesNome(mes: string): string {
   });
 }
 
+// Componente do Grid de Calendário
+function CalendarGrid({
+  date,
+  mesSelecionado,
+  onMesSelect,
+}: {
+  date: Date;
+  mesSelecionado: string | null;
+  onMesSelect: (mes: string | null) => void;
+}) {
+  const ano = date.getFullYear();
+  const mes = date.getMonth();
+
+  // Primeiro dia do mês
+  const primeiroDia = new Date(ano, mes, 1);
+  const diaSemana = primeiroDia.getDay(); // 0 = domingo
+
+  // Último dia do mês
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+
+  // Últimos dias do mês anterior
+  const diasMesAnterior = new Date(ano, mes, 0).getDate();
+
+  const dias: (number | null)[] = [];
+
+  // Adicionar dias do mês anterior
+  for (let i = diaSemana - 1; i >= 0; i--) {
+    dias.push(null); // Placeholder para dias do mês anterior
+  }
+
+  // Adicionar dias do mês atual
+  for (let i = 1; i <= ultimoDia; i++) {
+    dias.push(i);
+  }
+
+  // Completar com dias do próximo mês
+  while (dias.length % 7 !== 0) {
+    dias.push(null);
+  }
+
+  const mesKey = `${ano}-${String(mes + 1).padStart(2, "0")}`;
+  const isSelecionado = mesSelecionado === mesKey;
+
+  return (
+    <div className="grid grid-cols-7 gap-2">
+      {dias.map((dia, idx) => (
+        <div key={idx} className="aspect-square">
+          {dia === null ? (
+            <div className="w-full h-full text-center py-2 text-slate-500/30">
+              {/* Dias do mês anterior/próximo desabilitados */}
+            </div>
+          ) : (
+            <button
+              onClick={() => onMesSelect(isSelecionado ? null : mesKey)}
+              className={`w-full h-full rounded-lg text-sm font-medium transition-all ${
+                isSelecionado
+                  ? "bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 font-bold"
+                  : "text-slate-300 hover:bg-slate-700/50 border border-slate-700/30 hover:border-slate-600"
+              }`}
+            >
+              {dia}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Props) {
   const [termoBusca, setTermoBusca] = useState("");
   const [filtroSocio, setFiltroSocio] = useState<string>("todos");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [relatorioSelecionado, setRelatorioSelecionado] = useState<string | null>(null);
   const [expandidosPorMes, setExpandidosPorMes] = useState<Record<string, boolean>>({});
+
+  // Estado do calendário
+  const [mesCalendario, setMesCalendario] = useState(new Date());
+  const [mesFiltroSelecionado, setMesFiltroSelecionado] = useState<string | null>(null);
 
   const socioMap = useMemo(() => {
     const m = new Map<string, { nome: string; cor: typeof PALETA[0] }>();
@@ -130,6 +204,15 @@ export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Pro
     return relatorios.filter((r) => {
       if (filtroSocio !== "todos" && r.socios_id !== filtroSocio) return false;
       if (filtroStatus !== "todos" && (r.status || "") !== filtroStatus) return false;
+
+      // Filtro por mês do calendário
+      if (mesFiltroSelecionado) {
+        const dataInicio = r.data_inicio ? new Date(r.data_inicio) : null;
+        if (!dataInicio) return false;
+        const mesKey = `${dataInicio.getFullYear()}-${String(dataInicio.getMonth() + 1).padStart(2, "0")}`;
+        if (mesKey !== mesFiltroSelecionado) return false;
+      }
+
       if (q) {
         return (
           (r.numero_relatorio || "").toLowerCase().includes(q) ||
@@ -140,7 +223,7 @@ export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Pro
       }
       return true;
     });
-  }, [relatorios, termoBusca, filtroSocio, filtroStatus]);
+  }, [relatorios, termoBusca, filtroSocio, filtroStatus, mesFiltroSelecionado]);
 
   // Agrupar por mês (YYYY-MM)
   const relatoriosPorMes = useMemo(() => {
@@ -310,6 +393,59 @@ export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Pro
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none" />
             </div>
+          </div>
+        </div>
+
+        {/* Calendário para Filtro por Mês */}
+        <div className="bg-[#162534] rounded-2xl border border-slate-700/50 p-6 mb-6">
+          <div className="max-w-sm">
+            {/* Header do Calendário */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={() => setMesCalendario(new Date(mesCalendario.getFullYear(), mesCalendario.getMonth() - 1))}
+                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5 text-cyan-400" />
+              </button>
+              <h3 className="text-lg font-semibold text-white capitalize">
+                {new Date(mesCalendario.getFullYear(), mesCalendario.getMonth()).toLocaleDateString("pt-BR", {
+                  year: "numeric",
+                  month: "long",
+                })}
+              </h3>
+              <button
+                onClick={() => setMesCalendario(new Date(mesCalendario.getFullYear(), mesCalendario.getMonth() + 1))}
+                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+              >
+                <ChevronRight className="h-5 w-5 text-cyan-400" />
+              </button>
+            </div>
+
+            {/* Grid de Dias da Semana */}
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"].map((dia) => (
+                <div key={dia} className="text-center text-xs font-medium text-slate-400 py-2">
+                  {dia}
+                </div>
+              ))}
+            </div>
+
+            {/* Grid de Datas */}
+            <CalendarGrid
+              date={mesCalendario}
+              mesSelecionado={mesFiltroSelecionado}
+              onMesSelect={setMesFiltroSelecionado}
+            />
+
+            {/* Botão para Limpar Filtro */}
+            {mesFiltroSelecionado && (
+              <button
+                onClick={() => setMesFiltroSelecionado(null)}
+                className="mt-4 w-full px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                Limpar Filtro de Mês
+              </button>
+            )}
           </div>
         </div>
 
