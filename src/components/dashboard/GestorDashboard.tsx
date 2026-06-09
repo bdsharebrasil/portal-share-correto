@@ -108,6 +108,15 @@ export function GestorDashboard() {
 
   const allQuickTools = [
     {
+      icon: DollarSign,
+      label: "Simulador de Custos",
+      route: "/gestor/simulador-custos",
+      iconColor: "text-orange-400",
+      iconBg: "bg-orange-500/10",
+      hoverGlow: "hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(249,115,22,0.15)]",
+      grid: 1
+    },
+    {
       icon: FileText,
       label: "Financeiro Share Brasil",
       route: "/financeiro/financeiro-share-brasil",

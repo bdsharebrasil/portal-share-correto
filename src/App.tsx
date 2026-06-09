@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtected } from "@/components/auth/RoleProtected";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
@@ -72,6 +73,7 @@ import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
+import { CostSimulator } from "./components/dashboard/CostSimulator";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -160,9 +162,18 @@ const App = () => {
                               </RoleProtected>
                             )
                           } />
+                          <Route path="/gestor/simulador-custos" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <Layout>
+                                  <CostSimulator />
+                                </Layout>
+                              </RoleProtected>
+                            )
+                          } />
                           <Route path="/gestor/aprovacoes-orcamentos" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children={""}>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children="">
                               </RoleProtected>
                             )
                           } />
