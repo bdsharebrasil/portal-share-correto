@@ -256,7 +256,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
               "id, numero_relatorio, rota, data_inicio, data_fim, dias_count, total_valor, total_clientes, status, aeronave_id, matricula_aeronave, socios_id, nome_tripulante"
             )
             .in("aeronave_id", aeronaveIds)
-            .eq("client_id", clienteId!)
+            .eq("clientes_id", clienteId!)
             .order("data_inicio", { ascending: false }),
         ]);
 
