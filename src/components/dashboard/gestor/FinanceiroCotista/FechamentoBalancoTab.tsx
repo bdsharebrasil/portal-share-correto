@@ -33,7 +33,22 @@ import {
   Fuel,
   ArrowRight,
   Download,
+  PieChart as PieChartIcon,
+  BarChart as BarChartIcon,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+  Legend,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -553,6 +568,62 @@ export function FechamentoBalancoTab({
 
         {/* RESUMO */}
         <TabsContent value="resumo" className="mt-4 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 bg-card/60 border-border">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Crédito vs Custo Devido por Sócio</CardTitle>
+                <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="h-[300px] mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={linhas}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="nome" fontSize={10} axisLine={false} tickLine={false} />
+                    <YAxis fontSize={10} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${v/1000}k`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.8)', border: 'none', borderRadius: '8px' }}
+                      formatter={(value: number) => formatBRL(value)}
+                    />
+                    <Legend iconType="circle" />
+                    <Bar dataKey="credito" name="Crédito (Já Pago)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="custoDevido" name="Custo Devido" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/60 border-border">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Distribuição de Saldo</CardTitle>
+                <PieChartIcon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="h-[300px] mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={linhas.map(l => ({ name: l.nome, value: Math.abs(l.saldo) }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {linhas.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.saldo >= 0 ? "#10b981" : "#ef4444"} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.8)', border: 'none', borderRadius: '8px' }}
+                      formatter={(value: number) => formatBRL(value)}
+                    />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <KpiCard icon={<Layers className="h-5 w-5" />} label="Custo Fixo Total" value={formatBRL(custoFixo)} sub="Rateado por % de cota" />
             <KpiCard icon={<Gauge className="h-5 w-5" />} label="Custo Variável Total" value={formatBRL(custoVariavel)} sub="Rateado por horas voadas" />

@@ -378,9 +378,17 @@ export function LancamentoFormInline({
   // Aplicar regras automáticas conforme pagador
   useEffect(() => {
     if (pagador === "CLIENTE" && rateios.length > 0) {
-      // Rateio igualitário 100/N
-      const pct = +(100 / rateios.length).toFixed(4);
-      setRateios((rs) => rs.map((r) => ({ ...r, percentual: pct, valor_pago_real: 0 })));
+      // Rateio igualitário 33.33% fixo conforme solicitado (ou 100/N se não for 3)
+      // O usuário mencionou "constando os 33,33% de cota social"
+      const pct = rateios.length === 3 ? 33.3333 : +(100 / rateios.length).toFixed(4);
+      
+      setRateios((rs) => rs.map((r) => {
+        // Se for uma despesa única de quem voou (ex: abastecimento ou relatório de voo),
+        // entregamos 100% de uso financeiro apenas para quem voou.
+        // Como o form não sabe quem voou sem input, mantemos o valor_pago_real em 0 
+        // pois quem pagou foi o CLIENTE, mas o rateio social fica em 33,33%.
+        return { ...r, percentual: pct, valor_pago_real: 0 };
+      }));
     } else if (pagador === "EMPRESA") {
       setRateios((rs) => rs.map((r) => ({ ...r, valor_pago_real: 0 })));
     } else {

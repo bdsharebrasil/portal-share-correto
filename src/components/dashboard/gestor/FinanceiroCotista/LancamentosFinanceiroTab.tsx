@@ -535,8 +535,13 @@ export function LancamentosFinanceiroTab({
                             {d.cliente_nome || d.socio_nome || "—"}
                           </p>
                           {d.numero_doc && (
-                            <p className="text-[10px] text-muted-foreground/60 font-mono mt-1">
-                              Doc: {d.numero_doc}
+                            <p className="text-[10px] text-primary font-mono mt-1 font-bold">
+                              DOC: {d.numero_doc}
+                            </p>
+                          )}
+                          {d.percentual_uso > 0 && (
+                            <p className="text-[10px] text-cyan-500 font-medium mt-1">
+                              Uso: {d.percentual_uso}%
                             </p>
                           )}
                           <Badge variant="outline" className={`text-[10px] mt-2 ${pagoBadge.cls}`}>
@@ -680,8 +685,8 @@ export function LancamentosFinanceiroTab({
                             Pagamento {idx + 1}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
-                            <span>
-                              {pag.socio_nome || pag.cliente_nome || "—"}
+                            <span className="font-semibold text-foreground">
+                              {pag.pago_por_tipo === "CLIENTE" ? `Cliente: ${pag.cliente_nome || pag.pago_por}` : (pag.socio_nome || pag.cliente_nome || "—")}
                             </span>
                             <span>
                               {formatDateLong(pag.data_pagamento || pag.data_vencimento || pag.data)}
