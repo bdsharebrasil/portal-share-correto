@@ -105,6 +105,7 @@ export function FechamentoBalancoTab({
   const hoje = new Date();
   const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>("mensal");
   const [mes, setMes] = useState<number>(hoje.getMonth() + 1);
+  const [mesFim, setMesFim] = useState<number>(hoje.getMonth() + 1);
   const [ano, setAno] = useState<number>(hoje.getFullYear());
   const [dataInicio, setDataInicio] = useState<string>(
     `${ano}-${String(mes).padStart(2, "0")}-01`
@@ -118,7 +119,9 @@ export function FechamentoBalancoTab({
     let end: string;
     if (periodoTipo === "mensal") {
       start = new Date(ano, mes - 1, 1).toISOString().slice(0, 10);
-      end = new Date(ano, mes, 0).toISOString().slice(0, 10);
+      // Se mesFim for menor que mes (erro de seleção), ajustamos para ser igual ao mes
+      const realMesFim = Math.max(mes, mesFim);
+      end = new Date(ano, realMesFim, 0).toISOString().slice(0, 10);
     } else if (periodoTipo === "acumulado-ano") {
       start = `${ano}-01-01`;
       end = `${ano}-12-31`;
@@ -278,7 +281,9 @@ export function FechamentoBalancoTab({
 
   const periodoLabel =
     periodoTipo === "mensal"
-      ? `${MESES[mes - 1]}/${ano}`
+      ? mes === mesFim 
+        ? `${MESES[mes - 1]}/${ano}`
+        : `${MESES[mes - 1]} a ${MESES[mesFim - 1]} de ${ano}`
       : periodoTipo === "acumulado-ano"
       ? `Acumulado ${ano}`
       : `${inicio} a ${fim}`;
@@ -459,9 +464,18 @@ export function FechamentoBalancoTab({
             </Select>
 
             {periodoTipo === "mensal" && (
-              <>
+              <div className="flex items-center gap-2">
                 <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-                  <SelectTrigger className="w-40 h-10"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-36 h-10"><SelectValue placeholder="Início" /></SelectTrigger>
+                  <SelectContent>
+                    {MESES.map((m, i) => (
+                      <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground">até</span>
+                <Select value={String(mesFim)} onValueChange={(v) => setMesFim(Number(v))}>
+                  <SelectTrigger className="w-36 h-10"><SelectValue placeholder="Fim" /></SelectTrigger>
                   <SelectContent>
                     {MESES.map((m, i) => (
                       <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
@@ -474,7 +488,7 @@ export function FechamentoBalancoTab({
                     {anos.map((a) => <SelectItem key={a} value={String(a)}>{a}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </>
+              </div>
             )}
 
             {periodoTipo === "acumulado-ano" && (
