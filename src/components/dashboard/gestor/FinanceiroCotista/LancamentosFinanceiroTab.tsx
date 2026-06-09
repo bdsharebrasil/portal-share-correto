@@ -527,26 +527,29 @@ export function LancamentosFinanceiroTab({
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0">
+                        <div className="text-right shrink-0 flex flex-col items-end">
                           <p className="text-2xl font-bold font-mono text-foreground tracking-tight">
                             {formatBRL(grupo.valorTotal)}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {d.cliente_nome || d.socio_nome || "—"}
-                          </p>
-                          {d.numero_doc && (
-                            <p className="text-[10px] text-primary font-mono mt-1 font-bold">
-                              DOC: {d.numero_doc}
-                            </p>
-                          )}
-                          {d.percentual_uso > 0 && (
-                            <p className="text-[10px] text-cyan-500 font-medium mt-1">
-                              Uso: {d.percentual_uso}%
-                            </p>
-                          )}
-                          <Badge variant="outline" className={`text-[10px] mt-2 ${pagoBadge.cls}`}>
-                            {pagoBadge.label}
-                          </Badge>
+                          
+                          <div className="mt-1 flex flex-col items-end gap-0.5">
+                            <span className="text-sm font-bold text-foreground/90">
+                              {d.pago_por_tipo === "CLIENTE" ? "PAGADOR: CLIENTE" : (d.socio_nome || d.cliente_nome || "—")}
+                            </span>
+                            {d.numero_doc && (
+                              <span className="text-[11px] text-cyan-500 font-mono font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded">
+                                DOC: {d.numero_doc}
+                              </span>
+                            )}
+                            {d.percentual_uso > 0 && (
+                              <span className="text-[11px] text-amber-500 font-bold">
+                                USO FINANCEIRO: {d.percentual_uso}%
+                              </span>
+                            )}
+                            <Badge variant="outline" className={`text-[10px] mt-1.5 px-2 py-0 ${pagoBadge.cls}`}>
+                              {pagoBadge.label}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
 
@@ -685,21 +688,26 @@ export function LancamentosFinanceiroTab({
                             Pagamento {idx + 1}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
-                            <span className="font-semibold text-foreground">
-                              {pag.pago_por_tipo === "CLIENTE" ? `Cliente: ${pag.cliente_nome || pag.pago_por}` : (pag.socio_nome || pag.cliente_nome || "—")}
+                            <span className="font-bold text-foreground text-sm">
+                              {pag.socio_nome || pag.cliente_nome || "—"}
                             </span>
                             <span>
                               {formatDateLong(pag.data_pagamento || pag.data_vencimento || pag.data)}
                             </span>
                           </div>
                         </div>
-                        <div className="text-right shrink-0 ml-4">
+                        <div className="text-right shrink-0 ml-4 flex flex-col items-end">
                           <p className="text-lg font-bold font-mono text-foreground">
                             {formatBRL(pag.valor_total)}
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">
-                            {pag.pago_por}
-                          </p>
+                          <div className="flex flex-col items-end gap-0.5 mt-1">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                              Quota Social: {pag.percentual || 33.33}%
+                            </span>
+                            <span className="text-[10px] text-primary font-bold">
+                              {pag.pago_por}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}

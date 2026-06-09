@@ -647,11 +647,11 @@ export function FechamentoBalancoTab({
                       <TableHead>Cotista</TableHead>
                       <TableHead className="text-right">% Cota</TableHead>
                       <TableHead className="text-right">Horas Voadas</TableHead>
-                      <TableHead className="text-right">Parcela Fixa</TableHead>
-                      <TableHead className="text-right">Parcela Variável</TableHead>
-                      <TableHead className="text-right">Custo Devido</TableHead>
-                      <TableHead className="text-right">Crédito / Já Pago</TableHead>
-                      <TableHead className="text-right">Saldo Final</TableHead>
+                      <TableHead className="text-right">Quota Social (Fixo)</TableHead>
+                      <TableHead className="text-right">Uso Finan. (Var)</TableHead>
+                      <TableHead className="text-right">Total Devido</TableHead>
+                      <TableHead className="text-right">Já Pago (Crédito)</TableHead>
+                      <TableHead className="text-right">Diferença / Saldo</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
