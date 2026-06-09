@@ -14,6 +14,9 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -60,10 +63,10 @@ function getStatusLabel(status?: string | null) {
 function getStatusColor(status?: string | null) {
   const s = (status || "").toLowerCase();
   if (s === "pago" || s === "aprovado" || s === "finalizado")
-    return "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
-  if (s === "pendente") return "bg-amber-500/15 text-amber-300 border-amber-500/40";
-  if (s === "cancelado") return "bg-rose-500/15 text-rose-300 border-rose-500/40";
-  return "bg-slate-500/15 text-slate-300 border-slate-500/40";
+    return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+  if (s === "pendente") return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+  if (s === "cancelado") return "bg-rose-500/10 text-rose-400 border-rose-500/20";
+  return "bg-slate-500/10 text-slate-400 border-slate-500/20";
 }
 
 interface Cotista {
@@ -95,93 +98,35 @@ interface Props {
   onOpen?: (r: Relatorio) => void;
 }
 
-function getMesNome(mes: string): string {
-  const [ano, month] = mes.split("-");
-  return new Date(`${ano}-${month}-01`).toLocaleDateString("pt-BR", {
-    year: "numeric",
-    month: "long",
-  });
-}
-
-// Componente do Grid de Calendário
-function CalendarGrid({
-  date,
-  mesSelecionado,
-  onMesSelect,
-}: {
-  date: Date;
-  mesSelecionado: string | null;
-  onMesSelect: (mes: string | null) => void;
-}) {
-  const ano = date.getFullYear();
-  const mes = date.getMonth();
-
-  // Primeiro dia do mês
-  const primeiroDia = new Date(ano, mes, 1);
-  const diaSemana = primeiroDia.getDay(); // 0 = domingo
-
-  // Último dia do mês
-  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-
-  // Últimos dias do mês anterior
-  const diasMesAnterior = new Date(ano, mes, 0).getDate();
-
-  const dias: (number | null)[] = [];
-
-  // Adicionar dias do mês anterior
-  for (let i = diaSemana - 1; i >= 0; i--) {
-    dias.push(null); // Placeholder para dias do mês anterior
-  }
-
-  // Adicionar dias do mês atual
-  for (let i = 1; i <= ultimoDia; i++) {
-    dias.push(i);
-  }
-
-  // Completar com dias do próximo mês
-  while (dias.length % 7 !== 0) {
-    dias.push(null);
-  }
-
-  const mesKey = `${ano}-${String(mes + 1).padStart(2, "0")}`;
-  const isSelecionado = mesSelecionado === mesKey;
-
-  return (
-    <div className="grid grid-cols-7 gap-2">
-      {dias.map((dia, idx) => (
-        <div key={idx} className="aspect-square">
-          {dia === null ? (
-            <div className="w-full h-full text-center py-2 text-slate-500/30">
-              {/* Dias do mês anterior/próximo desabilitados */}
-            </div>
-          ) : (
-            <button
-              onClick={() => onMesSelect(isSelecionado ? null : mesKey)}
-              className={`w-full h-full rounded-lg text-sm font-medium transition-all ${
-                isSelecionado
-                  ? "bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 font-bold"
-                  : "text-slate-300 hover:bg-slate-700/50 border border-slate-700/30 hover:border-slate-600"
-              }`}
-            >
-              {dia}
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
 
 export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Props) {
+  const hoje = new Date();
   const [termoBusca, setTermoBusca] = useState("");
   const [filtroSocio, setFiltroSocio] = useState<string>("todos");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [relatorioSelecionado, setRelatorioSelecionado] = useState<string | null>(null);
-  const [expandidosPorMes, setExpandidosPorMes] = useState<Record<string, boolean>>({});
+  
+  // Controle de Navegação por Mês
+  const [mesAtivo, setMesAtivo] = useState(hoje.getMonth());
+  const [anoAtivo, setAnoAtivo] = useState(hoje.getFullYear());
 
-  // Estado do calendário
-  const [mesCalendario, setMesCalendario] = useState(new Date());
-  const [mesFiltroSelecionado, setMesFiltroSelecionado] = useState<string | null>(null);
+  const navegarMes = (direcao: number) => {
+    let novoMes = mesAtivo + direcao;
+    let novoAno = anoAtivo;
+    if (novoMes < 0) {
+      novoMes = 11;
+      novoAno--;
+    } else if (novoMes > 11) {
+      novoMes = 0;
+      novoAno++;
+    }
+    setMesAtivo(novoMes);
+    setAnoAtivo(novoAno);
+  };
 
   const socioMap = useMemo(() => {
     const m = new Map<string, { nome: string; cor: typeof PALETA[0] }>();
@@ -189,513 +134,236 @@ export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Pro
     return m;
   }, [cotistas]);
 
-  const statusDisponiveis = useMemo(() => {
-    const s = new Set<string>();
-    relatorios.forEach((r) => r.status && s.add(r.status));
-    return Array.from(s);
-  }, [relatorios]);
-
-  const totalGeral = relatorios.reduce((acc, r) => acc + (r.total_valor || 0), 0);
-  const totalClientes = relatorios.reduce((acc, r) => acc + (r.total_clientes || 0), 0);
-  const totalDias = relatorios.reduce((acc, r) => acc + (r.dias_count || 0), 0);
-
   const relatoriosFiltrados = useMemo(() => {
     const q = termoBusca.trim().toLowerCase();
     return relatorios.filter((r) => {
+      const dataInicio = r.data_inicio ? new Date(r.data_inicio) : null;
+      if (!dataInicio) return false;
+
+      // Filtro de Mês/Ano
+      if (dataInicio.getMonth() !== mesAtivo || dataInicio.getFullYear() !== anoAtivo) return false;
+
       if (filtroSocio !== "todos" && r.socios_id !== filtroSocio) return false;
       if (filtroStatus !== "todos" && (r.status || "") !== filtroStatus) return false;
-
-      // Filtro por mês do calendário
-      if (mesFiltroSelecionado) {
-        const dataInicio = r.data_inicio ? new Date(r.data_inicio) : null;
-        if (!dataInicio) return false;
-        const mesKey = `${dataInicio.getFullYear()}-${String(dataInicio.getMonth() + 1).padStart(2, "0")}`;
-        if (mesKey !== mesFiltroSelecionado) return false;
-      }
 
       if (q) {
         return (
           (r.numero_relatorio || "").toLowerCase().includes(q) ||
           (r.rota || "").toLowerCase().includes(q) ||
-          (r.nome_tripulante || "").toLowerCase().includes(q) ||
-          (r.status || "").toLowerCase().includes(q)
+          (r.nome_tripulante || "").toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [relatorios, termoBusca, filtroSocio, filtroStatus, mesFiltroSelecionado]);
+  }, [relatorios, termoBusca, filtroSocio, filtroStatus, mesAtivo, anoAtivo]);
 
-  // Agrupar por mês (YYYY-MM)
-  const relatoriosPorMes = useMemo(() => {
-    const meses = new Map<string, Relatorio[]>();
-    
-    relatoriosFiltrados.forEach((r) => {
-      const dataInicio = r.data_inicio ? new Date(r.data_inicio) : null;
-      if (!dataInicio) return;
-      
-      const mesKey = `${dataInicio.getFullYear()}-${String(dataInicio.getMonth() + 1).padStart(2, "0")}`;
-      if (!meses.has(mesKey)) {
-        meses.set(mesKey, []);
-      }
-      meses.get(mesKey)!.push(r);
-    });
-
-    // Ordenar meses decrescentes
-    return Array.from(meses.entries())
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([mes, rels]) => ({
-        mes,
-        relatorios: rels.sort((a, b) => 
-          new Date(b.data_inicio || 0).getTime() - new Date(a.data_inicio || 0).getTime()
-        ),
-      }));
+  const totais = useMemo(() => {
+    return relatoriosFiltrados.reduce((acc, r) => ({
+      valor: acc.valor + (r.total_valor || 0),
+      clientes: acc.clientes + (r.total_clientes || 0),
+      dias: acc.dias + (r.dias_count || 0),
+    }), { valor: 0, clientes: 0, dias: 0 });
   }, [relatoriosFiltrados]);
 
-  // Inicializar mês atual como expandido
-  useMemo(() => {
-    if (relatoriosPorMes.length > 0) {
-      const novoExpandido: Record<string, boolean> = {};
-      novoExpandido[relatoriosPorMes[0].mes] = true;
-      setExpandidosPorMes(novoExpandido);
-    }
-  }, [relatoriosPorMes]);
-
   return (
-    <div className="min-h-screen bg-[#0f1923] -m-4 rounded-xl overflow-hidden">
-      {/* Header Premium */}
-      <div className="bg-[#162534] border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-cyan-500/20 rounded-xl border border-cyan-500/30">
-              <FileText className="h-8 w-8 text-cyan-400" />
+    <div className="space-y-6">
+      {/* Filtros e Navegação Centralizada */}
+      <Card className="bg-card/40 border-border/40 backdrop-blur-sm overflow-hidden">
+        <CardContent className="p-0">
+          {/* Navegação de Mês */}
+          <div className="flex items-center justify-between p-4 border-b border-border/40 bg-muted/20">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navegarMes(-1)}
+                className="hover:bg-primary/10 hover:text-primary transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <div className="text-center min-w-[150px]">
+                <h3 className="text-lg font-bold tracking-tight text-foreground">
+                  {MESES[mesAtivo]} <span className="text-primary">{anoAtivo}</span>
+                </h3>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navegarMes(1)}
+                className="hover:bg-primary/10 hover:text-primary transition-colors"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">Relatórios de Viagem</h1>
-              <p className="text-slate-400 mt-1">
-                {aeronaveLabel ? `${aeronaveLabel} · ` : ""}
-                Acompanhamento detalhado de todas as viagens realizadas
-              </p>
+
+            <div className="flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-6 px-6 border-l border-border/40">
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total Viagens</p>
+                  <p className="text-lg font-bold text-foreground">{formatBRL(totais.valor)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total Dias</p>
+                  <p className="text-lg font-bold text-foreground">{totais.dias} dias</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Cards de Resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-[#1a2f42] rounded-2xl p-6 border border-slate-700/50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                  Relatórios
-                </span>
-                <FileText className="h-5 w-5 text-cyan-400" />
-              </div>
-              <p className="text-4xl font-bold mb-1 text-white">{relatorios.length}</p>
-              <p className="text-sm text-slate-400">Total registrado</p>
-            </div>
-
-            <div className="bg-[#1a2f42] rounded-2xl p-6 border border-slate-700/50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                  Valor Total
-                </span>
-                <TrendingUp className="h-5 w-5 text-cyan-400" />
-              </div>
-              <p className="text-3xl font-bold mb-1 text-white">{formatBRL(totalGeral)}</p>
-              <p className="text-sm text-slate-400">Custo total</p>
-            </div>
-
-            <div className="bg-[#1a2f42] rounded-2xl p-6 border border-slate-700/50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                  Clientes
-                </span>
-                <DollarSign className="h-5 w-5 text-cyan-400" />
-              </div>
-              <p className="text-3xl font-bold mb-1 text-white">{formatBRL(totalClientes)}</p>
-              <p className="text-sm text-slate-400">Valor repassado</p>
-            </div>
-
-            <div className="bg-[#1a2f42] rounded-2xl p-6 border border-slate-700/50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                  Dias
-                </span>
-                <Clock className="h-5 w-5 text-cyan-400" />
-              </div>
-              <p className="text-4xl font-bold mb-1 text-white">{totalDias}</p>
-              <p className="text-sm text-slate-400">Total em viagens</p>
-            </div>
-          </div>
-
-          {/* Legenda de Sócios */}
-          {cotistas.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-2">
-              {cotistas.map((c, idx) => {
-                const cor = pickColor(idx);
-                return (
-                  <span
-                    key={c.id}
-                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium border ${cor.bg} ${cor.text} ${cor.border}`}
-                  >
-                    {shortNome(c.nome)} · {c.nome}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Conteúdo Principal */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Filtros e Busca */}
-        <div className="bg-[#162534] rounded-2xl border border-slate-700/50 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+          {/* Barra de Filtros */}
+          <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 bg-muted/5">
+            <div className="md:col-span-2 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por número, rota ou tripulante..."
+                placeholder="Buscar por rota, número ou tripulante..."
                 value={termoBusca}
                 onChange={(e) => setTermoBusca(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-[#0f1923] border border-slate-700/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all text-white placeholder:text-slate-500"
+                className="w-full pl-10 pr-4 py-2 bg-background/50 border border-border/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               />
             </div>
-
-            <div className="relative min-w-[200px]">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+            
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <select
                 value={filtroSocio}
                 onChange={(e) => setFiltroSocio(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 bg-[#0f1923] border border-slate-700/50 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all cursor-pointer text-white"
+                className="w-full pl-10 pr-4 py-2 bg-background/50 border border-border/40 rounded-xl text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
               >
                 <option value="todos">Todos os sócios</option>
                 {cotistas.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.nome}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none" />
             </div>
 
-            <div className="relative min-w-[200px]">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <select
                 value={filtroStatus}
                 onChange={(e) => setFiltroStatus(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 bg-[#0f1923] border border-slate-700/50 rounded-xl appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all cursor-pointer text-white"
+                className="w-full pl-10 pr-4 py-2 bg-background/50 border border-border/40 rounded-xl text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
               >
                 <option value="todos">Todos os status</option>
-                {statusDisponiveis.map((s) => (
-                  <option key={s} value={s}>
-                    {getStatusLabel(s)}
-                  </option>
-                ))}
+                <option value="pendente">Pendente</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="pago">Pago</option>
+                <option value="finalizado">Finalizado</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none" />
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Calendário para Filtro por Mês */}
-        <div className="bg-[#162534] rounded-2xl border border-slate-700/50 p-6 mb-6">
-          <div className="max-w-sm">
-            {/* Header do Calendário */}
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => setMesCalendario(new Date(mesCalendario.getFullYear(), mesCalendario.getMonth() - 1))}
-                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-              >
-                <ChevronLeft className="h-5 w-5 text-cyan-400" />
-              </button>
-              <h3 className="text-lg font-semibold text-white capitalize">
-                {new Date(mesCalendario.getFullYear(), mesCalendario.getMonth()).toLocaleDateString("pt-BR", {
-                  year: "numeric",
-                  month: "long",
-                })}
-              </h3>
-              <button
-                onClick={() => setMesCalendario(new Date(mesCalendario.getFullYear(), mesCalendario.getMonth() + 1))}
-                className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-              >
-                <ChevronRight className="h-5 w-5 text-cyan-400" />
-              </button>
-            </div>
-
-            {/* Grid de Dias da Semana */}
-            <div className="grid grid-cols-7 gap-2 mb-2">
-              {["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"].map((dia) => (
-                <div key={dia} className="text-center text-xs font-medium text-slate-400 py-2">
-                  {dia}
-                </div>
-              ))}
-            </div>
-
-            {/* Grid de Datas */}
-            <CalendarGrid
-              date={mesCalendario}
-              mesSelecionado={mesFiltroSelecionado}
-              onMesSelect={setMesFiltroSelecionado}
-            />
-
-            {/* Botão para Limpar Filtro */}
-            {mesFiltroSelecionado && (
-              <button
-                onClick={() => setMesFiltroSelecionado(null)}
-                className="mt-4 w-full px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors"
-              >
-                Limpar Filtro de Mês
-              </button>
-            )}
+      {/* Lista de Relatórios */}
+      <div className="grid grid-cols-1 gap-4">
+        {relatoriosFiltrados.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-card/20 rounded-3xl border border-dashed border-border/40">
+            <FileText className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground font-medium">Nenhum relatório encontrado para este período.</p>
           </div>
-        </div>
+        ) : (
+          relatoriosFiltrados.map((r) => {
+            const info = r.socios_id ? socioMap.get(r.socios_id) : null;
+            const cor = info?.cor || PALETA[PALETA.length - 1];
+            const expandido = relatorioSelecionado === r.id;
 
-        {/* Lista de Relatórios agrupados por Mês */}
-        <div className="space-y-4">
-          {relatoriosFiltrados.length === 0 ? (
-            <div className="bg-[#162534] rounded-2xl border border-slate-700/50 p-12 text-center">
-              <FileText className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-white mb-2">
-                Nenhum relatório encontrado
-              </h3>
-              <p className="text-slate-400">
-                Tente ajustar os filtros ou realizar uma nova busca.
-              </p>
-            </div>
-          ) : (
-            relatoriosPorMes.map(({ mes, relatorios: relatoriosMes }) => {
-              const aberto = expandidosPorMes[mes];
-              const totalMes = relatoriosMes.reduce((a, r) => a + (r.total_valor || 0), 0);
-              const diasMes = relatoriosMes.reduce((a, r) => a + (r.dias_count || 0), 0);
-
-              return (
-                <div key={mes} className="space-y-2">
-                  {/* Header do Mês */}
-                  <div
-                    onClick={() =>
-                      setExpandidosPorMes((s) => ({ ...s, [mes]: !s[mes] }))
-                    }
-                    className="cursor-pointer bg-[#162534] rounded-2xl border border-slate-700/50 hover:border-cyan-500/50 transition-all p-5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div>
-                          {aberto ? (
-                            <ChevronDown className="h-5 w-5 text-cyan-400" />
-                          ) : (
-                            <ChevronRight className="h-5 w-5 text-cyan-400" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-white capitalize">
-                            {getMesNome(mes)}
-                          </h3>
-                          <p className="text-xs text-slate-400">
-                            {relatoriosMes.length} relatório{relatoriosMes.length !== 1 ? "s" : ""}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400 mb-0.5">Total</p>
-                          <p className="text-lg font-bold text-white">
-                            {formatBRL(totalMes)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400 mb-0.5">Dias</p>
-                          <p className="text-lg font-bold text-white">{diasMes}</p>
-                        </div>
+            return (
+              <div 
+                key={r.id}
+                className="group bg-card/40 border border-border/40 rounded-2xl overflow-hidden hover:border-primary/30 transition-all duration-300"
+              >
+                <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl border ${cor.bg} ${cor.text} ${cor.border} font-mono font-bold text-sm`}>
+                      {r.numero_relatorio || "—"}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground flex items-center gap-2">
+                        {r.rota || "Sem rota definida"}
+                        <Badge variant="outline" className={`${getStatusColor(r.status)} border-none text-[10px] uppercase px-2 py-0`}>
+                          {getStatusLabel(r.status)}
+                        </Badge>
+                      </h4>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(r.data_inicio)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {r.nome_tripulante || "Tripulante não informado"}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Relatórios do Mês */}
-                  {aberto && (
-                    <div className="space-y-3 pl-4 border-l-2 border-cyan-500/30">
-                      {relatoriosMes.map((relatorio) => {
-                        const info = relatorio.socios_id ? socioMap.get(relatorio.socios_id) : null;
-                        const cor = info?.cor || PALETA[PALETA.length - 1];
-                        const expandido = relatorioSelecionado === relatorio.id;
-
-                        return (
-                          <div
-                            key={relatorio.id}
-                            className="bg-[#162534] rounded-2xl border border-slate-700/50 hover:border-cyan-500/50 transition-all duration-300 overflow-hidden ml-2"
-                          >
-                            <div className="p-6">
-                              <div className="flex items-start justify-between gap-4 mb-4">
-                                <div className="flex items-center gap-3">
-                                  <span
-                                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-mono font-semibold border ${cor.bg} ${cor.text} ${cor.border}`}
-                                    title={info?.nome || "Sem sócio"}
-                                  >
-                                    {relatorio.numero_relatorio || "—"}
-                                  </span>
-                                  <span
-                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                                      relatorio.status
-                                    )}`}
-                                  >
-                                    {getStatusLabel(relatorio.status)}
-                                  </span>
-                                </div>
-
-                                <div className="text-right">
-                                  <p className="text-2xl font-bold text-white mb-0.5">
-                                    {formatBRL(relatorio.total_valor || 0)}
-                                  </p>
-                                  <p className="text-xs text-slate-400">
-                                    Cliente: {formatBRL(relatorio.total_clientes || 0)}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="space-y-3">
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-cyan-400 mt-0.5 shrink-0" />
-                                  <div className="flex-1">
-                                    <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
-                                      Rota
-                                    </p>
-                                    <p className="text-base font-medium text-white">
-                                      {relatorio.rota || "—"}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="flex items-start gap-2">
-                                    <Calendar className="h-4 w-4 text-cyan-400 mt-0.5" />
-                                    <div>
-                                      <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
-                                        Período
-                                      </p>
-                                      <p className="text-sm text-white">
-                                        {formatDate(relatorio.data_inicio)} → {formatDate(relatorio.data_fim)}
-                                      </p>
-                                      {!!relatorio.dias_count && (
-                                        <p className="text-xs text-slate-400 mt-0.5">
-                                          {relatorio.dias_count} dias
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-start gap-2">
-                                    <User className="h-4 w-4 text-cyan-400 mt-0.5" />
-                                    <div>
-                                      <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
-                                        Tripulante
-                                      </p>
-                                      <p className="text-sm text-white">
-                                        {relatorio.nome_tripulante || "—"}
-                                      </p>
-                                      {relatorio.aeronave && (
-                                        <p className="text-xs text-slate-400 mt-0.5">{relatorio.aeronave}</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="pt-3 border-t border-slate-700/50">
-                                  <button
-                                    onClick={() =>
-                                      setRelatorioSelecionado(expandido ? null : relatorio.id)
-                                    }
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/30 transition-colors"
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    {expandido ? "Ocultar detalhes" : "Ver detalhes"}
-                                  </button>
-                                </div>
-
-                                {expandido && (
-                                  <div className="pt-4 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <div className="bg-[#0f1923] rounded-xl p-4 space-y-3">
-                                      <div>
-                                        <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                          Observações
-                                        </p>
-                                        <p className="text-sm text-slate-300">
-                                          {relatorio.observacoes || "Sem observações"}
-                                        </p>
-                                      </div>
-                                      <div className="grid grid-cols-3 gap-4 pt-3 border-t border-slate-700/50">
-                                        <div>
-                                          <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                            Aeronave
-                                          </p>
-                                          <p className="text-sm font-medium text-white">
-                                            {relatorio.aeronave || aeronaveLabel || "—"}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                            Duração
-                                          </p>
-                                          <p className="text-sm font-medium text-white">
-                                            {relatorio.dias_count || 0} dias
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                            Status
-                                          </p>
-                                          <p className="text-sm font-medium text-white capitalize">
-                                            {getStatusLabel(relatorio.status)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                  <div className="flex items-center gap-8">
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Valor</p>
+                      <p className="text-lg font-bold text-foreground">{formatBRL(r.total_valor)}</p>
                     </div>
-                  )}
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Duração</p>
+                      <p className="text-lg font-bold text-foreground">{r.dias_count || 0} dias</p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => setRelatorioSelecionado(expandido ? null : r.id)}
+                      className={`rounded-full transition-transform duration-300 ${expandido ? "rotate-180 bg-primary/10 text-primary" : ""}`}
+                    >
+                      <ChevronDown className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
-              );
-            })
-          )}
-        </div>
 
-        {/* Rodapé com Resumo */}
-        {relatoriosFiltrados.length > 0 && (
-          <div className="mt-8 bg-[#162534] rounded-2xl border border-slate-700/50 p-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-slate-400">
-                <FileText className="h-5 w-5" />
-                <span className="text-sm">
-                  Exibindo{" "}
-                  <strong className="text-white font-semibold">
-                    {relatoriosFiltrados.length}
-                  </strong>{" "}
-                  de{" "}
-                  <strong className="text-white font-semibold">{relatorios.length}</strong>{" "}
-                  relatórios
-                </span>
+                {expandido && (
+                  <div className="px-5 pb-5 pt-2 border-t border-border/20 bg-muted/5 animate-in slide-in-from-top-2 duration-300">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Período Detalhado</p>
+                          <p className="text-sm font-medium">{formatDate(r.data_inicio)} até {formatDate(r.data_fim)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Sócio / Cotista</p>
+                          <p className="text-sm font-medium">{info?.nome || "Não vinculado"}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Tripulante Responsável</p>
+                          <p className="text-sm font-medium">{r.nome_tripulante || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Aeronave</p>
+                          <p className="text-sm font-medium font-mono">{r.aeronave || aeronaveLabel || "—"}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-background/40 p-4 rounded-xl border border-border/40">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Observações</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed italic">
+                          {r.observacoes || "Nenhuma observação registrada para este relatório."}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 flex justify-end gap-3">
+                      <Button variant="outline" size="sm" className="gap-2 text-xs rounded-lg">
+                        <Eye className="h-3.5 w-3.5" /> Abrir Relatório Completo
+                      </Button>
+                      <Button size="sm" className="gap-2 text-xs rounded-lg">
+                        <FileText className="h-3.5 w-3.5" /> Gerar PDF da Viagem
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <span className="text-xs text-slate-400 block mb-0.5">Total filtrado</span>
-                  <span className="text-xl font-bold text-white">
-                    {formatBRL(
-                      relatoriosFiltrados.reduce((acc, r) => acc + (r.total_valor || 0), 0)
-                    )}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-slate-400 block mb-0.5">Total dias</span>
-                  <span className="text-xl font-bold text-white">
-                    {relatoriosFiltrados.reduce((acc, r) => acc + (r.dias_count || 0), 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+            );
+          })
         )}
       </div>
     </div>
