@@ -24,6 +24,7 @@ import {
   Building,
   Edit2,
   Trash2,
+  X,
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
 import { LancamentosTab } from "./LancamentosTab";
@@ -447,6 +448,14 @@ export default function FinanceiroCotistaDetalhe() {
                   setLancamentoSelecionado(d);
                   setAcaoModal(null);
                 }}
+                onEditarLancamento={(d) => {
+                  setLancamentoSelecionado(d);
+                  setAcaoModal("editar");
+                }}
+                onDeletarLancamento={(d) => {
+                  setLancamentoSelecionado(d);
+                  setAcaoModal("deletar");
+                }}
               />
             </TabsContent>
 
@@ -533,6 +542,7 @@ export default function FinanceiroCotistaDetalhe() {
             // será implementado no componente
           }}
         />
+
       </div>
     </Layout>
   );
