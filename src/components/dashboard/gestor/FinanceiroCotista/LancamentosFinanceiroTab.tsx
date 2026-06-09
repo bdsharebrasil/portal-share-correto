@@ -39,6 +39,8 @@ import {
   TrendingDown,
   TrendingUp,
   ChevronDown,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 
 const formatBRL = (n: number) =>
@@ -111,6 +113,8 @@ interface LancamentosFinanceiroTabProps {
   cotistas: Cotista[];
   aeronaveLabel?: string;
   onLancamentoClick?: (d: DespesaUnificada) => void;
+  onEditarLancamento?: (d: DespesaUnificada) => void;
+  onDeletarLancamento?: (d: DespesaUnificada) => void;
 }
 
 // Mapeia categoria → ícone + cor temática (semantic tokens)
@@ -134,6 +138,8 @@ export function LancamentosFinanceiroTab({
   cotistas,
   aeronaveLabel,
   onLancamentoClick,
+  onEditarLancamento,
+  onDeletarLancamento,
 }: LancamentosFinanceiroTabProps) {
   const hoje = new Date();
   const [mesSelecionado, setMesSelecionado] = useState<number>(hoje.getMonth() + 1);
@@ -612,23 +618,49 @@ export function LancamentosFinanceiroTab({
                       </div>
                     </div>
 
-                    {/* Botão de expansão */}
-                    {podeExpandir && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleExpandido();
-                        }}
-                        className="shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors group-hover:bg-primary/10 rounded-lg"
-                      >
-                        <ChevronDown
-                          className={cn(
-                            "h-5 w-5 transition-transform duration-300",
-                            estaExpandido && "rotate-180"
-                          )}
-                        />
-                      </button>
-                    )}
+                    {/* Botões de Ação */}
+                    <div className="flex gap-1 shrink-0">
+                      {onEditarLancamento && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditarLancamento(d);
+                          }}
+                          title="Editar lançamento"
+                          className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors rounded-lg"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {onDeletarLancamento && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeletarLancamento(d);
+                          }}
+                          title="Deletar lançamento"
+                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded-lg"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      {podeExpandir && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpandido();
+                          }}
+                          className="p-2 text-muted-foreground hover:text-foreground transition-colors group-hover:bg-primary/10 rounded-lg"
+                        >
+                          <ChevronDown
+                            className={cn(
+                              "h-5 w-5 transition-transform duration-300",
+                              estaExpandido && "rotate-180"
+                            )}
+                          />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </button>
 
