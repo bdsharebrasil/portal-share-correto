@@ -285,10 +285,11 @@ export function FechamentoBalancoTab({
 
   const exportarPDF = () => {
     try {
-      const doc = new jsPDF("l", "mm", "a4");
+      const doc = new jsPDF("p", "mm", "a4");
       const title = `Balanço de Sócios - ${aeronaveLabel || "Aeronave"}`;
       const subtitle = `Período: ${periodoLabel}`;
 
+      // Página 1: Resumo Financeiro
       doc.setFontSize(18);
       doc.text(title, 14, 20);
       doc.setFontSize(12);
@@ -312,11 +313,11 @@ export function FechamentoBalancoTab({
             "Cotista",
             "% Cota",
             "Horas",
-            "Parcela Fixa",
-            "Parcela Var.",
-            "Custo Devido",
+            "Fixo",
+            "Var.",
+            "Devido",
             "Crédito",
-            "Saldo Final",
+            "Saldo",
           ],
         ],
         body: tableData,
@@ -336,7 +337,56 @@ export function FechamentoBalancoTab({
         ],
       });
 
-      // Adicionar Matriz de Equilíbrio de Contas
+      // Página 2: Diário de Bordo
+      if (voos.length > 0) {
+        doc.addPage();
+        doc.setFontSize(16);
+        doc.text("Diário de Bordo Detalhado", 14, 20);
+        
+        const voosData = voos
+          .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime())
+          .map((v) => {
+            const cotista = cotistas.find(c => c.id === (v.client_id || v.socios_id));
+            return [
+              formatDate(v.entry_date),
+              cotista?.nome || "—",
+              formatHHMM(Number(v.total_time) || 0)
+            ];
+          });
+
+        autoTable(doc, {
+          startY: 28,
+          head: [["Data", "Cotista / Usuário", "Tempo de Voo"]],
+          body: voosData,
+          theme: "grid",
+          headStyles: { fillStyle: [52, 73, 94] },
+        });
+      }
+
+      // Página 3: Lançamentos de Despesas
+      if (despesasUnicas.length > 0) {
+        doc.addPage();
+        doc.setFontSize(16);
+        doc.text("Detalhamento de Despesas e Rateio", 14, 20);
+
+        const despesasData = despesasUnicas.map((d) => [
+          formatDate(d.data_pagamento || d.data_vencimento),
+          d.fornecedor_nome || "—",
+          d.descricao_despesa || "—",
+          d.categoria_custo || "—",
+          formatBRL(Number(d.valor_total_despesa) || 0)
+        ]);
+
+        autoTable(doc, {
+          startY: 28,
+          head: [["Data", "Fornecedor", "Descrição", "Categoria", "Valor Total"]],
+          body: despesasData,
+          theme: "grid",
+          headStyles: { fillStyle: [127, 140, 141] },
+        });
+      }
+
+      // Página 4: Matriz de Equilíbrio
       const credores = linhas.filter((l) => l.saldo > 0.005);
       const devedores = linhas.filter((l) => l.saldo < -0.005);
       const totalCredito = credores.reduce((a, c) => a + c.saldo, 0);
@@ -344,9 +394,9 @@ export function FechamentoBalancoTab({
       if (totalCredito > 0 && devedores.length > 0) {
         doc.addPage();
         doc.setFontSize(16);
-        doc.text("Matriz de Equilíbrio de Contas (Quem deve para quem)", 14, 20);
+        doc.text("Equilíbrio de Contas (Acerto entre Sócios)", 14, 20);
         doc.setFontSize(10);
-        doc.text("Valores que cada devedor deve transferir para cada credor:", 14, 28);
+        doc.text("Transferências necessárias para equilibrar o balanço:", 14, 28);
 
         const matrixData: any[][] = [];
         linhas.forEach((credor) => {
@@ -358,7 +408,7 @@ export function FechamentoBalancoTab({
             if (valorTransferir > 0.01) {
               matrixData.push([
                 dev.nome,
-                "deve pagar para",
+                "DEVE PAGAR PARA",
                 credor.nome,
                 formatBRL(valorTransferir)
               ]);
@@ -368,7 +418,7 @@ export function FechamentoBalancoTab({
 
         autoTable(doc, {
           startY: 35,
-          head: [["Devedor", "Ação", "Credor", "Valor a Transferir"]],
+          head: [["Devedor", "Ação", "Credor", "Valor"]],
           body: matrixData,
           theme: "grid",
           headStyles: { fillStyle: [39, 174, 96] },
