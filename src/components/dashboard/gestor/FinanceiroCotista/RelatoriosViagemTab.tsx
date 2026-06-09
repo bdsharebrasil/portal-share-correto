@@ -11,6 +11,7 @@ import {
   MapPin,
   Calendar,
   Eye,
+  ChevronRight,
 } from "lucide-react";
 
 const formatBRL = (n: number) =>
@@ -19,7 +20,6 @@ const formatBRL = (n: number) =>
 const formatDate = (s?: string | null) =>
   s ? new Date(s).toLocaleDateString("pt-BR") : "—";
 
-// Paleta translucida — pills coloridas por sócio
 const PALETA = [
   { bg: "bg-amber-500/15", text: "text-amber-300", border: "border-amber-500/40" },
   { bg: "bg-emerald-500/15", text: "text-emerald-300", border: "border-emerald-500/40" },
@@ -94,11 +94,20 @@ interface Props {
   onOpen?: (r: Relatorio) => void;
 }
 
+function getMesNome(mes: string): string {
+  const [ano, month] = mes.split("-");
+  return new Date(`${ano}-${month}-01`).toLocaleDateString("pt-BR", {
+    year: "numeric",
+    month: "long",
+  });
+}
+
 export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Props) {
   const [termoBusca, setTermoBusca] = useState("");
   const [filtroSocio, setFiltroSocio] = useState<string>("todos");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [relatorioSelecionado, setRelatorioSelecionado] = useState<string | null>(null);
+  const [expandidosPorMes, setExpandidosPorMes] = useState<Record<string, boolean>>({});
 
   const socioMap = useMemo(() => {
     const m = new Map<string, { nome: string; cor: typeof PALETA[0] }>();
@@ -132,6 +141,41 @@ export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Pro
       return true;
     });
   }, [relatorios, termoBusca, filtroSocio, filtroStatus]);
+
+  // Agrupar por mês (YYYY-MM)
+  const relatoriosPorMes = useMemo(() => {
+    const meses = new Map<string, Relatorio[]>();
+    
+    relatoriosFiltrados.forEach((r) => {
+      const dataInicio = r.data_inicio ? new Date(r.data_inicio) : null;
+      if (!dataInicio) return;
+      
+      const mesKey = `${dataInicio.getFullYear()}-${String(dataInicio.getMonth() + 1).padStart(2, "0")}`;
+      if (!meses.has(mesKey)) {
+        meses.set(mesKey, []);
+      }
+      meses.get(mesKey)!.push(r);
+    });
+
+    // Ordenar meses decrescentes
+    return Array.from(meses.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([mes, rels]) => ({
+        mes,
+        relatorios: rels.sort((a, b) => 
+          new Date(b.data_inicio || 0).getTime() - new Date(a.data_inicio || 0).getTime()
+        ),
+      }));
+  }, [relatoriosFiltrados]);
+
+  // Inicializar mês atual como expandido
+  useMemo(() => {
+    if (relatoriosPorMes.length > 0) {
+      const novoExpandido: Record<string, boolean> = {};
+      novoExpandido[relatoriosPorMes[0].mes] = true;
+      setExpandidosPorMes(novoExpandido);
+    }
+  }, [relatoriosPorMes]);
 
   return (
     <div className="min-h-screen bg-[#0f1923] -m-4 rounded-xl overflow-hidden">
@@ -269,8 +313,8 @@ export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Pro
           </div>
         </div>
 
-        {/* Lista de Relatórios */}
-        <div className="space-y-3">
+        {/* Lista de Relatórios agrupados por Mês */}
+        <div className="space-y-4">
           {relatoriosFiltrados.length === 0 ? (
             <div className="bg-[#162534] rounded-2xl border border-slate-700/50 p-12 text-center">
               <FileText className="h-12 w-12 text-slate-600 mx-auto mb-4" />
@@ -282,145 +326,200 @@ export function RelatoriosViagemTab({ relatorios, cotistas, aeronaveLabel }: Pro
               </p>
             </div>
           ) : (
-            relatoriosFiltrados.map((relatorio) => {
-              const info = relatorio.socios_id ? socioMap.get(relatorio.socios_id) : null;
-              const cor = info?.cor || PALETA[PALETA.length - 1];
-              const expandido = relatorioSelecionado === relatorio.id;
+            relatoriosPorMes.map(({ mes, relatorios: relatoriosMes }) => {
+              const aberto = expandidosPorMes[mes];
+              const totalMes = relatoriosMes.reduce((a, r) => a + (r.total_valor || 0), 0);
+              const diasMes = relatoriosMes.reduce((a, r) => a + (r.dias_count || 0), 0);
 
               return (
-                <div
-                  key={relatorio.id}
-                  className="bg-[#162534] rounded-2xl border border-slate-700/50 hover:border-cyan-500/50 transition-all duration-300 overflow-hidden"
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between gap-4 mb-4">
+                <div key={mes} className="space-y-2">
+                  {/* Header do Mês */}
+                  <div
+                    onClick={() =>
+                      setExpandidosPorMes((s) => ({ ...s, [mes]: !s[mes] }))
+                    }
+                    className="cursor-pointer bg-[#162534] rounded-2xl border border-slate-700/50 hover:border-cyan-500/50 transition-all p-5"
+                  >
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span
-                          className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-mono font-semibold border ${cor.bg} ${cor.text} ${cor.border}`}
-                          title={info?.nome || "Sem sócio"}
-                        >
-                          {relatorio.numero_relatorio || "—"}
-                        </span>
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                            relatorio.status
-                          )}`}
-                        >
-                          {getStatusLabel(relatorio.status)}
-                        </span>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-white mb-0.5">
-                          {formatBRL(relatorio.total_valor || 0)}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          Cliente: {formatBRL(relatorio.total_clientes || 0)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-cyan-400 mt-0.5 shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
-                            Rota
-                          </p>
-                          <p className="text-base font-medium text-white">
-                            {relatorio.rota || "—"}
+                        <div>
+                          {aberto ? (
+                            <ChevronDown className="h-5 w-5 text-cyan-400" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-cyan-400" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white capitalize">
+                            {getMesNome(mes)}
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            {relatoriosMes.length} relatório{relatoriosMes.length !== 1 ? "s" : ""}
                           </p>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-start gap-2">
-                          <Calendar className="h-4 w-4 text-cyan-400 mt-0.5" />
-                          <div>
-                            <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
-                              Período
-                            </p>
-                            <p className="text-sm text-white">
-                              {formatDate(relatorio.data_inicio)} → {formatDate(relatorio.data_fim)}
-                            </p>
-                            {!!relatorio.dias_count && (
-                              <p className="text-xs text-slate-400 mt-0.5">
-                                {relatorio.dias_count} dias
-                              </p>
-                            )}
-                          </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400 mb-0.5">Total</p>
+                          <p className="text-lg font-bold text-white">
+                            {formatBRL(totalMes)}
+                          </p>
                         </div>
-
-                        <div className="flex items-start gap-2">
-                          <User className="h-4 w-4 text-cyan-400 mt-0.5" />
-                          <div>
-                            <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
-                              Tripulante
-                            </p>
-                            <p className="text-sm text-white">
-                              {relatorio.nome_tripulante || "—"}
-                            </p>
-                            {relatorio.aeronave && (
-                              <p className="text-xs text-slate-400 mt-0.5">{relatorio.aeronave}</p>
-                            )}
-                          </div>
+                        <div className="text-right">
+                          <p className="text-xs text-slate-400 mb-0.5">Dias</p>
+                          <p className="text-lg font-bold text-white">{diasMes}</p>
                         </div>
                       </div>
-
-                      <div className="pt-3 border-t border-slate-700/50">
-                        <button
-                          onClick={() =>
-                            setRelatorioSelecionado(expandido ? null : relatorio.id)
-                          }
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/30 transition-colors"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          {expandido ? "Ocultar detalhes" : "Ver detalhes"}
-                        </button>
-                      </div>
-
-                      {expandido && (
-                        <div className="pt-4 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="bg-[#0f1923] rounded-xl p-4 space-y-3">
-                            <div>
-                              <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                Observações
-                              </p>
-                              <p className="text-sm text-slate-300">
-                                {relatorio.observacoes || "Sem observações"}
-                              </p>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 pt-3 border-t border-slate-700/50">
-                              <div>
-                                <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                  Aeronave
-                                </p>
-                                <p className="text-sm font-medium text-white">
-                                  {relatorio.aeronave || aeronaveLabel || "—"}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                  Duração
-                                </p>
-                                <p className="text-sm font-medium text-white">
-                                  {relatorio.dias_count || 0} dias
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                  Status
-                                </p>
-                                <p className="text-sm font-medium text-white capitalize">
-                                  {getStatusLabel(relatorio.status)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
+
+                  {/* Relatórios do Mês */}
+                  {aberto && (
+                    <div className="space-y-3 pl-4 border-l-2 border-cyan-500/30">
+                      {relatoriosMes.map((relatorio) => {
+                        const info = relatorio.socios_id ? socioMap.get(relatorio.socios_id) : null;
+                        const cor = info?.cor || PALETA[PALETA.length - 1];
+                        const expandido = relatorioSelecionado === relatorio.id;
+
+                        return (
+                          <div
+                            key={relatorio.id}
+                            className="bg-[#162534] rounded-2xl border border-slate-700/50 hover:border-cyan-500/50 transition-all duration-300 overflow-hidden ml-2"
+                          >
+                            <div className="p-6">
+                              <div className="flex items-start justify-between gap-4 mb-4">
+                                <div className="flex items-center gap-3">
+                                  <span
+                                    className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-mono font-semibold border ${cor.bg} ${cor.text} ${cor.border}`}
+                                    title={info?.nome || "Sem sócio"}
+                                  >
+                                    {relatorio.numero_relatorio || "—"}
+                                  </span>
+                                  <span
+                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                                      relatorio.status
+                                    )}`}
+                                  >
+                                    {getStatusLabel(relatorio.status)}
+                                  </span>
+                                </div>
+
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold text-white mb-0.5">
+                                    {formatBRL(relatorio.total_valor || 0)}
+                                  </p>
+                                  <p className="text-xs text-slate-400">
+                                    Cliente: {formatBRL(relatorio.total_clientes || 0)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="flex items-start gap-2">
+                                  <MapPin className="h-4 w-4 text-cyan-400 mt-0.5 shrink-0" />
+                                  <div className="flex-1">
+                                    <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
+                                      Rota
+                                    </p>
+                                    <p className="text-base font-medium text-white">
+                                      {relatorio.rota || "—"}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="flex items-start gap-2">
+                                    <Calendar className="h-4 w-4 text-cyan-400 mt-0.5" />
+                                    <div>
+                                      <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
+                                        Período
+                                      </p>
+                                      <p className="text-sm text-white">
+                                        {formatDate(relatorio.data_inicio)} → {formatDate(relatorio.data_fim)}
+                                      </p>
+                                      {!!relatorio.dias_count && (
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                          {relatorio.dias_count} dias
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-start gap-2">
+                                    <User className="h-4 w-4 text-cyan-400 mt-0.5" />
+                                    <div>
+                                      <p className="text-xs uppercase tracking-wider text-slate-500 mb-0.5">
+                                        Tripulante
+                                      </p>
+                                      <p className="text-sm text-white">
+                                        {relatorio.nome_tripulante || "—"}
+                                      </p>
+                                      {relatorio.aeronave && (
+                                        <p className="text-xs text-slate-400 mt-0.5">{relatorio.aeronave}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="pt-3 border-t border-slate-700/50">
+                                  <button
+                                    onClick={() =>
+                                      setRelatorioSelecionado(expandido ? null : relatorio.id)
+                                    }
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/30 transition-colors"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                    {expandido ? "Ocultar detalhes" : "Ver detalhes"}
+                                  </button>
+                                </div>
+
+                                {expandido && (
+                                  <div className="pt-4 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="bg-[#0f1923] rounded-xl p-4 space-y-3">
+                                      <div>
+                                        <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+                                          Observações
+                                        </p>
+                                        <p className="text-sm text-slate-300">
+                                          {relatorio.observacoes || "Sem observações"}
+                                        </p>
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-4 pt-3 border-t border-slate-700/50">
+                                        <div>
+                                          <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+                                            Aeronave
+                                          </p>
+                                          <p className="text-sm font-medium text-white">
+                                            {relatorio.aeronave || aeronaveLabel || "—"}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+                                            Duração
+                                          </p>
+                                          <p className="text-sm font-medium text-white">
+                                            {relatorio.dias_count || 0} dias
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+                                            Status
+                                          </p>
+                                          <p className="text-sm font-medium text-white capitalize">
+                                            {getStatusLabel(relatorio.status)}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })

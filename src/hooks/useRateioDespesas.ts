@@ -53,10 +53,10 @@ async function calculatePercentualVoo(
   try {
     const { data, error } = await supabase
       .from("lancamentos_diario_bordo")
-      .select("client_id, total_time, is_loan, loan_recipient_client_id")
-      .eq("id_aeronave", aeronaveId)
-      .gte("entry_date", inicio)
-      .lte("entry_date", fim);
+      .select("clientes_id, tempo_total, is_loan, loan_recipient_client_id")
+      .eq("aeronave_id", aeronaveId)
+      .gte("data_registro", inicio)
+      .lte("data_registro", fim);
 
     if (error) throw error;
     if (!data || data.length === 0) return new Map();
@@ -66,8 +66,8 @@ async function calculatePercentualVoo(
     let totalHoras = 0;
 
     data.forEach((entry: any) => {
-      const clienteEfetivo = entry.is_loan ? entry.loan_recipient_client_id : entry.cliente_id;
-      const horas = entry.total_time || 0;
+      const clienteEfetivo = entry.is_loan ? entry.loan_recipient_client_id : entry.clientes_id;
+      const horas = entry.tempo_total || 0;
 
       if (clienteEfetivo) {
         horasPorCliente.set(clienteEfetivo, (horasPorCliente.get(clienteEfetivo) || 0) + horas);
