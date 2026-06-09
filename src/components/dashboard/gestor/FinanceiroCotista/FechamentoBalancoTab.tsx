@@ -210,6 +210,21 @@ export function FechamentoBalancoTab({
 
     rateios.forEach((r) => {
       if ((r.fluxo || "").toUpperCase() === "ENTRADA") return;
+      
+      // Lógica DGA: Se a descrição ou fornecedor contém "DGA", rateia por igual entre todos os cotistas
+      const isDGA = norm(r.descricao_despesa).includes("dga") || norm(r.fornecedor_nome).includes("dga");
+      
+      if (isDGA) {
+        const valorPorSocio = Number(r.valor_total_despesa || 0) / (cotistas.length || 1);
+        // Distribuímos o valor total por igual entre todos os cotistas da aeronave
+        cotistas.forEach(c => {
+          map.set(c.id, (map.get(c.id) || 0) + (valorPorSocio / cotistas.length)); // Dividimos pelo número de registros de rateio para não duplicar
+        });
+        // Como o rateio_despesas já tem uma linha por sócio, dividimos o valor total pelo número de sócios
+        // e aplicamos a cada linha. No final, a soma dará o valor total correto.
+        return;
+      }
+
       const cid = r.cliente_id || r.socio_id;
       if (!cid || !map.has(cid)) return;
 

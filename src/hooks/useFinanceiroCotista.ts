@@ -88,6 +88,7 @@ export interface RelatorioViagemItem {
   matricula_aeronave: string | null;
   socios_id?: string | null;
   nome_tripulante?: string | null;
+  observacoes?: string | null;
 }
 
 /** Traduz o código bruto de pago_por para um rótulo amigável de gestor. */
@@ -253,7 +254,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
           supabase
             .from("travel_expense_reports")
             .select(
-              "id, numero_relatorio, rota, data_inicio, data_fim, dias_count, total_valor, total_clientes, status, aeronave_id, matricula_aeronave, socios_id, nome_tripulante"
+              "id, numero_relatorio, rota, data_inicio, data_fim, dias_count, total_valor, total_clientes, status, aeronave_id, matricula_aeronave, socios_id, nome_tripulante, observacoes"
             )
             .in("aeronave_id", aeronaveIds)
             .eq("clientes_id", clienteId!)
