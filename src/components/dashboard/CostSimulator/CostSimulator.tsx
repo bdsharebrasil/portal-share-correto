@@ -1,28 +1,17 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/SearchableCombobox';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Plane, TrendingUp, Clock, DollarSign, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Plane, TrendingUp, Clock, DollarSign, AlertCircle, ArrowLeft, Save, Download, Plus, Trash2, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-/**
- * Simulador de Custos de Aeronaves - Integrado ao Portal Share Brasil
- * 
- * Busca dados do Supabase:
- * - Aerodromes para origem/destino
- * - Abastecimentos para calcular média de combustível
- * - Aeronaves disponíveis
- * 
- * Integra com APIs externas:
- * - DECEA (weather, NOTAM)
- * - Share Brasil (dados adicionais)
- */
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface CostData {
   shortTerm: number;
@@ -38,12 +27,13 @@ interface FormData {
   hoursPerYear: number;
   numberOfShares: number;
   originId: string;
+  originName: string;
   destinationId: string;
+  destinationName: string;
   flightTimeRoundTrip: number;
   journeyDays: number;
   monthlyFlights: number;
   
-  // Curto Prazo
   fuelCost: number;
   fuelPerHour: number;
   fuelHours: number;
@@ -54,7 +44,6 @@ interface FormData {
   hangarageOutside: number;
   hangarageOutsideDays: number;
   
-  // Médio Prazo
   fixedHangarage: number;
   crewSalary: number;
   navigationUpdates: number;
@@ -65,7 +54,6 @@ interface FormData {
   trainingExams: number;
   otherCosts: number;
   
-  // Longo Prazo
   engineOverhaul: number;
   propellerOverhaul: number;
   magnetoOverhaul: number;
@@ -74,13 +62,24 @@ interface FormData {
   sixYearMaintenance: number;
 }
 
+interface SavedSimulation {
+  id: string;
+  name: string;
+  description?: string;
+  formData: FormData;
+  costs: CostData;
+  createdAt: string;
+}
+
 const DEFAULT_FORM_DATA: FormData = {
   aircraftId: '',
   aircraftName: 'Selecione uma aeronave',
   hoursPerYear: 100,
   numberOfShares: 2,
   originId: '',
+  originName: '',
   destinationId: '',
+  destinationName: '',
   flightTimeRoundTrip: 4.5,
   journeyDays: 3,
   monthlyFlights: 1,
@@ -115,57 +114,51 @@ const DEFAULT_FORM_DATA: FormData = {
 
 export function CostSimulator() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM_DATA);
+  const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
 
-  // Buscar aerodromes do Supabase
+  // Buscar aerodromes
   const { data: aerodromes = [] } = useQuery({
-    queryKey: ['aerodromes'],
+    queryKey: ['aerodromes-all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('aerodromes')
         .select('id, icao, name, city')
-        .order('name');
-      
-      if (error) {
-        console.error('Erro ao buscar aerodromes:', error);
-        return [];
-      }
+        .order('icao');
       return data || [];
     },
   });
 
   // Buscar aeronaves
   const { data: aircraft = [] } = useQuery({
-    queryKey: ['aircraft-for-simulator'],
+    queryKey: ['aircraft-all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('aeronave')
         .select('id, matricula, modelo, fabricante')
         .eq('status', 'ativo')
         .order('matricula');
-      
-      if (error) {
-        console.error('Erro ao buscar aeronaves:', error);
-        return [];
-      }
       return data || [];
     },
   });
 
-  // Buscar média de combustível por hora
+  // Buscar média de combustível
   const { data: fuelAverage = 0 } = useQuery({
     queryKey: ['fuel-average', formData.aircraftId],
     queryFn: async () => {
       if (!formData.aircraftId) return 0;
       
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('abastecimentos')
         .select('litros, horas_voo')
         .eq('aeronave_id', formData.aircraftId)
         .not('horas_voo', 'is', null)
         .not('litros', 'is', null);
       
-      if (error || !data || data.length === 0) return 0;
+      if (!data || data.length === 0) return 0;
       
       const totalLitros = data.reduce((sum: number, item: any) => sum + (item.litros || 0), 0);
       const totalHoras = data.reduce((sum: number, item: any) => sum + (item.horas_voo || 0), 0);
@@ -175,7 +168,35 @@ export function CostSimulator() {
     enabled: !!formData.aircraftId,
   });
 
-  // Atualizar combustível quando aeronave muda
+  // Carregar simulações salvas
+  useEffect(() => {
+    if (user?.id) {
+      loadSavedSimulations();
+    }
+  }, [user?.id]);
+
+  const loadSavedSimulations = async () => {
+    try {
+      const { data } = await supabase
+        .from('cost_simulations')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+      
+      setSavedSimulations(data?.map(sim => ({
+        id: sim.id,
+        name: sim.name,
+        description: sim.description,
+        formData: sim.form_data,
+        costs: sim.costs,
+        createdAt: sim.created_at,
+      })) || []);
+    } catch (error) {
+      console.error('Erro ao carregar simulações:', error);
+    }
+  };
+
+  // Atualizar combustível
   useEffect(() => {
     if (fuelAverage > 0) {
       setFormData(prev => ({
@@ -232,38 +253,90 @@ export function CostSimulator() {
     }));
   };
 
-  const handleAircraftChange = (aircraftId: string) => {
-    const selectedAircraft = aircraft.find((a: any) => a.id === aircraftId);
+  const handleAircraftChange = (id: string, label: string) => {
     setFormData(prev => ({
       ...prev,
-      aircraftId,
-      aircraftName: selectedAircraft ? `${selectedAircraft.matricula} - ${selectedAircraft.modelo}` : 'Selecione uma aeronave',
+      aircraftId: id,
+      aircraftName: label,
     }));
   };
 
-  const chartData = [
-    {
-      name: 'Curto Prazo',
-      value: costs.shortTerm,
-      color: '#10B981',
-    },
-    {
-      name: 'Médio Prazo',
-      value: costs.mediumTerm,
-      color: '#F59E0B',
-    },
-    {
-      name: 'Longo Prazo',
-      value: costs.longTerm,
-      color: '#8B5CF6',
-    },
-  ];
+  const handleOriginChange = (id: string, label: string) => {
+    setFormData(prev => ({
+      ...prev,
+      originId: id,
+      originName: label,
+    }));
+  };
 
-  const timelineData = [
-    { period: '0-29 dias', cost: costs.shortTerm, fill: '#10B981' },
-    { period: '30 dias-1 ano', cost: costs.mediumTerm, fill: '#F59E0B' },
-    { period: '1-10 anos', cost: costs.longTerm, fill: '#8B5CF6' },
-  ];
+  const handleDestinationChange = (id: string, label: string) => {
+    setFormData(prev => ({
+      ...prev,
+      destinationId: id,
+      destinationName: label,
+    }));
+  };
+
+  // Preparar dados para combobox
+  const aerodromesCombobox = aerodromes.map((a: any) => ({
+    id: a.id,
+    label: `${a.icao} - ${a.name}`,
+  }));
+
+  const aircraftCombobox = aircraft.map((a: any) => ({
+    id: a.id,
+    label: `${a.matricula} - ${a.modelo}`,
+  }));
+
+  const saveSimulation = async (name: string, description?: string) => {
+    if (!user?.id) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('cost_simulations')
+        .insert({
+          user_id: user.id,
+          aircraft_id: formData.aircraftId || null,
+          name,
+          description,
+          form_data: formData,
+          costs,
+        });
+
+      if (error) throw error;
+      
+      toast.success('Simulação salva com sucesso!');
+      loadSavedSimulations();
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      toast.error('Erro ao salvar simulação');
+    }
+  };
+
+  const deleteSimulation = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('cost_simulations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast.success('Simulação deletada');
+      loadSavedSimulations();
+    } catch (error) {
+      console.error('Erro ao deletar:', error);
+      toast.error('Erro ao deletar simulação');
+    }
+  };
+
+  const loadSimulation = (sim: SavedSimulation) => {
+    setFormData(sim.formData);
+    toast.success('Simulação carregada');
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -273,172 +346,168 @@ export function CostSimulator() {
     }).format(value);
   };
 
+  const chartData = [
+    { name: 'Curto Prazo', value: costs.shortTerm, color: '#10B981' },
+    { name: 'Médio Prazo', value: costs.mediumTerm, color: '#F59E0B' },
+    { name: 'Longo Prazo', value: costs.longTerm, color: '#8B5CF6' },
+  ];
+
+  const timelineData = [
+    { period: '0-29 dias', cost: costs.shortTerm, fill: '#10B981' },
+    { period: '30 dias-1 ano', cost: costs.mediumTerm, fill: '#F59E0B' },
+    { period: '1-10 anos', cost: costs.longTerm, fill: '#8B5CF6' },
+  ];
+
   return (
-    <div className="flex-1 p-3 md:p-4 lg:p-6 space-y-4 md:space-y-8">
+    <div className="flex-1 p-2 md:p-4 lg:p-6 space-y-4 md:space-y-6 max-w-full overflow-x-hidden">
       {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group w-fit"
+        className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group w-fit text-xs md:text-sm"
       >
         <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-xs md:text-sm font-medium">Voltar</span>
+        <span className="font-medium">Voltar</span>
       </button>
 
       {/* Hero Section */}
-      <div className="relative rounded-xl md:rounded-2xl overflow-hidden border border-white/[0.05] shadow-lg bg-gradient-to-r from-primary/10 via-transparent to-transparent">
-        <div className="relative h-28 md:h-36 lg:h-44 flex items-center px-4 md:px-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/20 rounded-lg md:rounded-xl border border-primary/30">
-              <Plane className="w-6 md:w-8 h-6 md:h-8 text-primary" />
+      <div className="relative rounded-lg md:rounded-2xl overflow-hidden border border-white/[0.05] shadow-lg bg-gradient-to-r from-primary/10 via-transparent to-transparent">
+        <div className="relative h-20 md:h-32 lg:h-40 flex items-center px-3 md:px-6 lg:px-8">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-primary/20 rounded-lg md:rounded-xl border border-primary/30">
+              <Plane className="w-5 md:w-7 h-5 md:h-7 text-primary" />
             </div>
-            <div>
-              <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-1 md:mb-2">
+            <div className="min-w-0">
+              <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-0.5 md:mb-1">
                 Análise Financeira
               </p>
-              <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-foreground">Simulador de Custos</h1>
-              <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2 max-w-md hidden sm:block">
-                Calcule custos operacionais de suas aeronaves com dados em tempo real
+              <h1 className="text-base md:text-2xl lg:text-3xl font-bold text-foreground truncate">Simulador de Custos</h1>
+              <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1 hidden sm:block truncate">
+                Calcule custos operacionais com dados em tempo real
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Panel - Inputs */}
-        <div className="lg:col-span-1">
-          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] sticky top-6">
-            <CardHeader className="pb-3 md:pb-4">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+      {/* Main Content - Responsive Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 auto-rows-max lg:auto-rows-max">
+        {/* Left Panel - Inputs (Mobile: Full width, Desktop: 1/3) */}
+        <div className="lg:col-span-1 order-2 lg:order-1">
+          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] sticky top-4 md:top-6">
+            <CardHeader className="pb-2 md:pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base">
                 <Plane className="w-4 h-4 text-primary" />
                 Parâmetros
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 md:space-y-4 max-h-[70vh] overflow-y-auto">
               <Tabs defaultValue="basic" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-white/[0.02] border border-white/[0.05]">
-                  <TabsTrigger value="basic" className="text-xs">Básico</TabsTrigger>
-                  <TabsTrigger value="short" className="text-xs">Curto</TabsTrigger>
-                  <TabsTrigger value="medium" className="text-xs">Médio</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 bg-white/[0.02] border border-white/[0.05] text-xs md:text-sm h-8 md:h-10">
+                  <TabsTrigger value="basic">Básico</TabsTrigger>
+                  <TabsTrigger value="short">Curto</TabsTrigger>
+                  <TabsTrigger value="medium">Médio</TabsTrigger>
                 </TabsList>
 
                 {/* Basic Tab */}
-                <TabsContent value="basic" className="space-y-4 mt-4">
+                <TabsContent value="basic" className="space-y-3 mt-3">
                   <div>
                     <Label className="text-xs md:text-sm">Aeronave</Label>
-                    <Select value={formData.aircraftId} onValueChange={handleAircraftChange}>
-                      <SelectTrigger className="mt-1 bg-white/[0.02] border-white/[0.05]">
-                        <SelectValue placeholder="Selecione uma aeronave" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {aircraft.map((a: any) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.matricula} - {a.modelo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableCombobox
+                      items={aircraftCombobox}
+                      value={formData.aircraftId}
+                      onChange={handleAircraftChange}
+                      placeholder="Selecione aeronave"
+                      searchPlaceholder="Buscar matrícula..."
+                    />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs md:text-sm">Horas/Ano</Label>
+                      <Label className="text-xs">Horas/Ano</Label>
                       <Input
                         type="number"
                         value={formData.hoursPerYear}
                         onChange={(e) => handleInputChange('hoursPerYear', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs md:text-sm"
+                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs md:text-sm">Cotas</Label>
+                      <Label className="text-xs">Cotas</Label>
                       <Input
                         type="number"
                         value={formData.numberOfShares}
                         onChange={(e) => handleInputChange('numberOfShares', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs md:text-sm"
+                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                       />
                     </div>
                   </div>
 
                   <div>
                     <Label className="text-xs md:text-sm">Origem</Label>
-                    <Select value={formData.originId} onValueChange={(value) => handleInputChange('originId', value)}>
-                      <SelectTrigger className="mt-1 bg-white/[0.02] border-white/[0.05]">
-                        <SelectValue placeholder="Selecione origem" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {aerodromes.map((a: any) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.icao} - {a.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableCombobox
+                      items={aerodromesCombobox}
+                      value={formData.originId}
+                      onChange={handleOriginChange}
+                      placeholder="Selecione origem"
+                      searchPlaceholder="Buscar ICAO ou nome..."
+                    />
                   </div>
 
                   <div>
                     <Label className="text-xs md:text-sm">Destino</Label>
-                    <Select value={formData.destinationId} onValueChange={(value) => handleInputChange('destinationId', value)}>
-                      <SelectTrigger className="mt-1 bg-white/[0.02] border-white/[0.05]">
-                        <SelectValue placeholder="Selecione destino" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {aerodromes.map((a: any) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.icao} - {a.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableCombobox
+                      items={aerodromesCombobox}
+                      value={formData.destinationId}
+                      onChange={handleDestinationChange}
+                      placeholder="Selecione destino"
+                      searchPlaceholder="Buscar ICAO ou nome..."
+                    />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-xs md:text-sm">Tempo Voo (h)</Label>
+                      <Label className="text-xs">Tempo Voo (h)</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={formData.flightTimeRoundTrip}
                         onChange={(e) => handleInputChange('flightTimeRoundTrip', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs md:text-sm"
+                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs md:text-sm">Dias</Label>
+                      <Label className="text-xs">Dias</Label>
                       <Input
                         type="number"
                         value={formData.journeyDays}
                         onChange={(e) => handleInputChange('journeyDays', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs md:text-sm"
+                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label className="text-xs md:text-sm">Voos/Mês</Label>
+                    <Label className="text-xs">Voos/Mês</Label>
                     <Input
                       type="number"
                       value={formData.monthlyFlights}
                       onChange={(e) => handleInputChange('monthlyFlights', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs md:text-sm"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
                   </div>
                 </TabsContent>
 
                 {/* Short Term Tab */}
-                <TabsContent value="short" className="space-y-3 mt-4 max-h-96 overflow-y-auto">
+                <TabsContent value="short" className="space-y-2 mt-3">
                   <div>
-                    <Label className="text-xs">Combustível Total (R$)</Label>
+                    <Label className="text-xs">Combustível (R$)</Label>
                     <Input
                       type="number"
                       value={formData.fuelCost}
                       onChange={(e) => handleInputChange('fuelCost', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
                   </div>
-
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label className="text-xs">R$/Hora</Label>
@@ -447,7 +516,7 @@ export function CostSimulator() {
                         step="0.1"
                         value={formData.fuelPerHour}
                         onChange={(e) => handleInputChange('fuelPerHour', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                       />
                     </div>
                     <div>
@@ -456,212 +525,146 @@ export function CostSimulator() {
                         type="number"
                         value={formData.fuelHours}
                         onChange={(e) => handleInputChange('fuelHours', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                       />
                     </div>
                   </div>
-
                   <div>
                     <Label className="text-xs">Hotel/Alimentação (R$)</Label>
                     <Input
                       type="number"
                       value={formData.hotelMealCost}
                       onChange={(e) => handleInputChange('hotelMealCost', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
                   </div>
-
                   <div>
                     <Label className="text-xs">Taxas Pousos (R$)</Label>
                     <Input
                       type="number"
                       value={formData.landingTaxes}
                       onChange={(e) => handleInputChange('landingTaxes', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs">Hangaragem (R$)</Label>
-                      <Input
-                        type="number"
-                        value={formData.hangarageOutside}
-                        onChange={(e) => handleInputChange('hangarageOutside', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Dias</Label>
-                      <Input
-                        type="number"
-                        value={formData.hangarageOutsideDays}
-                        onChange={(e) => handleInputChange('hangarageOutsideDays', e.target.value)}
-                        className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
-                      />
-                    </div>
                   </div>
                 </TabsContent>
 
                 {/* Medium Term Tab */}
-                <TabsContent value="medium" className="space-y-3 mt-4 max-h-96 overflow-y-auto">
+                <TabsContent value="medium" className="space-y-2 mt-3">
                   <div>
                     <Label className="text-xs">Hangaragem Fixa (R$)</Label>
                     <Input
                       type="number"
                       value={formData.fixedHangarage}
                       onChange={(e) => handleInputChange('fixedHangarage', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
                   </div>
-
                   <div>
                     <Label className="text-xs">Salário Tripulação (R$)</Label>
                     <Input
                       type="number"
                       value={formData.crewSalary}
                       onChange={(e) => handleInputChange('crewSalary', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
                   </div>
-
                   <div>
                     <Label className="text-xs">Seguros (R$)</Label>
                     <Input
                       type="number"
                       value={formData.insurance}
                       onChange={(e) => handleInputChange('insurance', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
                   </div>
-
-                  <div>
-                    <Label className="text-xs">Manutenção Preventiva (R$)</Label>
-                    <Input
-                      type="number"
-                      value={formData.preventiveMaintenance}
-                      onChange={(e) => handleInputChange('preventiveMaintenance', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
-                    />
-                  </div>
-
                   <div>
                     <Label className="text-xs">Manutenção/Hora (R$)</Label>
                     <Input
                       type="number"
                       value={formData.maintenancePerHour}
                       onChange={(e) => handleInputChange('maintenancePerHour', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs">Treinamento/Exames (R$)</Label>
-                    <Input
-                      type="number"
-                      value={formData.trainingExams}
-                      onChange={(e) => handleInputChange('trainingExams', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs">Outros Custos (R$)</Label>
-                    <Input
-                      type="number"
-                      value={formData.otherCosts}
-                      onChange={(e) => handleInputChange('otherCosts', e.target.value)}
-                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs"
+                      className="mt-1 bg-white/[0.02] border-white/[0.05] text-xs h-8 md:h-10"
                     />
                   </div>
                 </TabsContent>
               </Tabs>
 
-              <Button
-                onClick={() => setFormData(DEFAULT_FORM_DATA)}
-                variant="outline"
-                className="w-full mt-4 border-white/[0.05] text-xs md:text-sm"
-              >
-                Resetar Valores
-              </Button>
+              <div className="flex flex-col gap-2 pt-2">
+                <Button
+                  onClick={() => setFormData(DEFAULT_FORM_DATA)}
+                  variant="outline"
+                  className="w-full border-white/[0.05] text-xs md:text-sm h-8 md:h-10"
+                >
+                  Resetar
+                </Button>
+                <Button
+                  onClick={() => {
+                    const name = prompt('Nome da simulação:');
+                    if (name) saveSimulation(name);
+                  }}
+                  className="w-full bg-primary/90 hover:bg-primary text-xs md:text-sm h-8 md:h-10"
+                >
+                  <Save className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                  Salvar
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Panel - Results */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Right Panel - Results (Mobile: Full width, Desktop: 2/3) */}
+        <div className="lg:col-span-2 space-y-4 md:space-y-6 order-1 lg:order-2">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3">
             <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] border-l-4 border-l-emerald-500/50">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs md:text-sm text-muted-foreground mb-1">Curto Prazo</p>
-                    <p className="text-2xl md:text-3xl font-bold text-emerald-400">{formatCurrency(costs.shortTerm)}</p>
-                    <p className="text-xs text-muted-foreground mt-2">Até 29 dias</p>
-                  </div>
-                  <Clock className="w-6 md:w-8 h-6 md:h-8 text-emerald-400 opacity-30" />
-                </div>
+              <CardContent className="pt-3 md:pt-4 p-3 md:p-4">
+                <p className="text-xs text-muted-foreground mb-1">Curto Prazo</p>
+                <p className="text-lg md:text-2xl font-bold text-emerald-400 truncate">{formatCurrency(costs.shortTerm)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Até 29 dias</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] border-l-4 border-l-amber-500/50">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs md:text-sm text-muted-foreground mb-1">Médio Prazo</p>
-                    <p className="text-2xl md:text-3xl font-bold text-amber-400">{formatCurrency(costs.mediumTerm)}</p>
-                    <p className="text-xs text-muted-foreground mt-2">30 dias a 1 ano</p>
-                  </div>
-                  <TrendingUp className="w-6 md:w-8 h-6 md:h-8 text-amber-400 opacity-30" />
-                </div>
+              <CardContent className="pt-3 md:pt-4 p-3 md:p-4">
+                <p className="text-xs text-muted-foreground mb-1">Médio Prazo</p>
+                <p className="text-lg md:text-2xl font-bold text-amber-400 truncate">{formatCurrency(costs.mediumTerm)}</p>
+                <p className="text-xs text-muted-foreground mt-1">30 dias-1 ano</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] border-l-4 border-l-purple-500/50">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs md:text-sm text-muted-foreground mb-1">Longo Prazo</p>
-                    <p className="text-2xl md:text-3xl font-bold text-purple-400">{formatCurrency(costs.longTerm)}</p>
-                    <p className="text-xs text-muted-foreground mt-2">Até 10 anos</p>
-                  </div>
-                  <AlertCircle className="w-6 md:w-8 h-6 md:h-8 text-purple-400 opacity-30" />
-                </div>
+              <CardContent className="pt-3 md:pt-4 p-3 md:p-4">
+                <p className="text-xs text-muted-foreground mb-1">Longo Prazo</p>
+                <p className="text-lg md:text-2xl font-bold text-purple-400 truncate">{formatCurrency(costs.longTerm)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Até 10 anos</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] border-l-4 border-l-primary/50">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs md:text-sm text-muted-foreground mb-1">Custo Total</p>
-                    <p className="text-2xl md:text-3xl font-bold text-primary">{formatCurrency(costs.total)}</p>
-                    <p className="text-xs text-muted-foreground mt-2">Por hora: {formatCurrency(costs.hourlyRate)}</p>
-                  </div>
-                  <DollarSign className="w-6 md:w-8 h-6 md:h-8 text-primary opacity-30" />
-                </div>
+              <CardContent className="pt-3 md:pt-4 p-3 md:p-4">
+                <p className="text-xs text-muted-foreground mb-1">Total</p>
+                <p className="text-lg md:text-2xl font-bold text-primary truncate">{formatCurrency(costs.total)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{formatCurrency(costs.hourlyRate)}/h</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Pie Chart */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base md:text-lg">Distribuição de Custos</CardTitle>
+              <CardHeader className="pb-2 md:pb-3">
+                <CardTitle className="text-sm md:text-base">Distribuição</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+              <CardContent className="h-64 md:h-72">
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={chartData}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
-                      outerRadius={100}
+                      innerRadius={40}
+                      outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -675,21 +678,17 @@ export function CostSimulator() {
               </CardContent>
             </Card>
 
-            {/* Bar Chart */}
             <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base md:text-lg">Custos por Período</CardTitle>
+              <CardHeader className="pb-2 md:pb-3">
+                <CardTitle className="text-sm md:text-base">Por Período</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+              <CardContent className="h-64 md:h-72">
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={timelineData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="period" stroke="rgba(255,255,255,0.5)" style={{ fontSize: '12px' }} />
-                    <YAxis stroke="rgba(255,255,255,0.5)" style={{ fontSize: '12px' }} />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(value as number)}
-                      contentStyle={{ backgroundColor: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                    />
+                    <XAxis dataKey="period" stroke="rgba(255,255,255,0.5)" style={{ fontSize: '11px' }} />
+                    <YAxis stroke="rgba(255,255,255,0.5)" style={{ fontSize: '11px' }} />
+                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
                     <Bar dataKey="cost" fill="#FF8C00" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -697,78 +696,44 @@ export function CostSimulator() {
             </Card>
           </div>
 
-          {/* Detailed Breakdown */}
-          <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base md:text-lg">Resumo Detalhado</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-3">
-                  <h4 className="text-emerald-400 font-semibold flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
-                    Curto Prazo
-                  </h4>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Combustível:</span>
-                      <span>{formatCurrency(formData.fuelCost)}</span>
+          {/* Saved Simulations */}
+          {savedSimulations.length > 0 && (
+            <Card className="bg-white/[0.02] backdrop-blur-md border-white/[0.05]">
+              <CardHeader className="pb-2 md:pb-3">
+                <CardTitle className="text-sm md:text-base">Simulações Salvas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {savedSimulations.map((sim) => (
+                    <div key={sim.id} className="flex items-center justify-between p-2 md:p-3 rounded-lg bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs md:text-sm font-medium text-foreground truncate">{sim.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(sim.costs.total)}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => loadSimulation(sim)}
+                          className="h-7 w-7 md:h-8 md:w-8 p-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteSimulation(sim.id)}
+                          className="h-7 w-7 md:h-8 md:w-8 p-0 text-red-400 hover:text-red-300"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Hotel/Alimentação:</span>
-                      <span>{formatCurrency(formData.hotelMealCost)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Taxas:</span>
-                      <span>{formatCurrency(formData.landingTaxes)}</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-amber-400 font-semibold flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 bg-amber-400 rounded-full"></div>
-                    Médio Prazo
-                  </h4>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Hangaragem Fixa:</span>
-                      <span>{formatCurrency(formData.fixedHangarage)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Salário:</span>
-                      <span>{formatCurrency(formData.crewSalary)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Seguros:</span>
-                      <span>{formatCurrency(formData.insurance)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-purple-400 font-semibold flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                    Longo Prazo
-                  </h4>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Revisão Motor:</span>
-                      <span>{formatCurrency(formData.engineOverhaul)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Revisão Hélices:</span>
-                      <span>{formatCurrency(formData.propellerOverhaul)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Manutenção 6 anos:</span>
-                      <span>{formatCurrency(formData.sixYearMaintenance)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

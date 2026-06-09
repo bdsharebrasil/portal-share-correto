@@ -166,10 +166,6 @@ export function GestorDashboard() {
 
   const quickTools = allQuickTools.filter(tool => !tool.restricted || isAdmin || isGestorMaster);
 
-  const grid1Tools = quickTools.filter(tool => tool.grid === 1);
-  const grid2Tools = quickTools.filter(tool => tool.grid === 2);
-  const grid3Tools = quickTools.filter(tool => tool.grid === 3);
-
   return (
     <>
       <main className="flex-1 p-3 md:p-4 lg:p-6 space-y-4 md:space-y-8">
@@ -272,34 +268,28 @@ export function GestorDashboard() {
           <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
             Ferramentas de Gestão
           </h3>
-          <div className="space-y-3 md:space-y-4">
-            {[grid1Tools, grid2Tools, grid3Tools].map((gridTools, index) => (
-              gridTools.length > 0 && (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
-                  {gridTools.map((tool) => (
-                    <button
-                      key={tool.label}
-                      onClick={() => navigate(tool.route)}
-                      className={`flex items-center gap-3 md:gap-4 p-3 md:p-5 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-lg md:rounded-2xl border border-white/[0.05] transition-all duration-300 group ${tool.hoverGlow}`}
-                    >
-                      <div className={`p-2 md:p-3.5 rounded-lg md:rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg} flex-shrink-0`}>
-                        <tool.icon className={`h-5 md:h-6 w-5 md:w-6 ${tool.iconColor}`} strokeWidth={1.5} />
-                      </div>
-
-                      <div className="flex flex-col items-start text-left min-w-0">
-                        <span className="text-xs md:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                          {tool.label}
-                        </span>
-                        <span className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
-                          Acessar módulo
-                        </span>
-                      </div>
-
-                      <ArrowRight className="h-3 md:h-4 w-3 md:w-4 ml-auto text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 flex-shrink-0" />
-                    </button>
-                  ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+            {quickTools.map((tool) => (
+              <button
+                key={tool.label}
+                onClick={() => navigate(tool.route)}
+                className={`flex items-center gap-3 md:gap-4 p-3 md:p-5 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-lg md:rounded-2xl border border-white/[0.05] transition-all duration-300 group ${tool.hoverGlow}`}
+              >
+                <div className={`p-2 md:p-3.5 rounded-lg md:rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg} flex-shrink-0`}>
+                  <tool.icon className={`h-5 md:h-6 w-5 md:w-6 ${tool.iconColor}`} strokeWidth={1.5} />
                 </div>
-              )
+
+                <div className="flex flex-col items-start text-left min-w-0">
+                  <span className="text-xs md:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                    {tool.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
+                    Acessar módulo
+                  </span>
+                </div>
+
+                <ArrowRight className="h-3 md:h-4 w-3 md:w-4 ml-auto text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 flex-shrink-0" />
+              </button>
             ))}
           </div>
         </div>
