@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   useFinanceiroCotistaDetalhe,
   calcularBalanco,
@@ -37,6 +37,7 @@ import { LancamentosFinanceiroTab } from "./LancamentosFinanceiroTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
+import { LancamentoFormInline } from "./LancamentoFormInline";
 import { useMemo, useState } from "react";
 import {
   Dialog,
@@ -79,6 +80,7 @@ const formatDate = (s?: string | null) =>
 export default function FinanceiroCotistaDetalhe() {
   const { clienteId } = useParams<{ clienteId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading } = useFinanceiroCotistaDetalhe(clienteId);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
   const [socioSelecionado, setSocioSelecionado] = useState<string | undefined>();
@@ -364,10 +366,7 @@ export default function FinanceiroCotistaDetalhe() {
         <Tabs defaultValue="visao" className="w-full">
           <TabsList className="h-auto p-1 bg-card/40 backdrop-blur-md border border-border/40 rounded-2xl w-full flex flex-wrap justify-start gap-1">
             <TabsTrigger value="visao" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all">Visão Geral</TabsTrigger>
-            <TabsTrigger value="lancamentos" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all font-semibold border-2 border-primary/20 data-[state=active]:border-primary">
-              <FileText className="h-4 w-4 mr-2" />
-              Lançamentos
-            </TabsTrigger>
+
             <TabsTrigger value="diario" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all border-2 border-transparent data-[state=active]:border-cyan-500/20">
               <Plane className="h-4 w-4 mr-2 text-cyan-500" />
               Diário de Bordo
@@ -408,27 +407,7 @@ export default function FinanceiroCotistaDetalhe() {
               )}
             </TabsContent>
 
-            {/* Lançamentos - Redirecionar para página dedicada */}
-            <TabsContent value="lancamentos" className="mt-4">
-              <div className="flex flex-col items-center justify-center py-16 text-center space-y-6">
-                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-10 w-10 text-primary" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-foreground">Gerenciar Lançamentos</h3>
-                  <p className="text-muted-foreground max-w-md">
-                    Acesse a página dedicada para criar, editar e gerenciar lançamentos financeiros desta aeronave.
-                  </p>
-                </div>
-                <button
-                  onClick={() => navigate(`/financeiro/lancamento/${clienteId}/${aeronaveAtual}`)}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-colors shadow-lg hover:shadow-xl"
-                >
-                  <FileText className="h-4 w-4" />
-                  Ir para Lançamentos
-                </button>
-              </div>
-            </TabsContent>
+
 
             {/* Diário de Bordo */}
             <TabsContent value="diario" className="mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -441,6 +420,16 @@ export default function FinanceiroCotistaDetalhe() {
 
             {/* Financeiro */}
             <TabsContent value="financeiro" className="space-y-4 mt-4">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Gestão Financeira</h3>
+                <Button
+                  onClick={() => setAcaoModal(null)}
+                  className="gap-2 rounded-xl"
+                >
+                  <FileText className="h-4 w-4" />
+                  Novo Lançamento
+                </Button>
+              </div>
               <TabelaFinanceiraTab
                 despesas={despesasDaAeronave}
                 cotistas={cotistasDaAeronave}
@@ -506,6 +495,34 @@ export default function FinanceiroCotistaDetalhe() {
           abastecimentos={abastecimentosDaAeronave}
           aeronaveLabel={aeronaveInfo?.matricula || "—"}
         />
+
+        {/* Modal de Novo Lançamento */}
+        <Dialog open={acaoModal === null && lancamentoSelecionado === null && Object.keys(location.state || {}).length === 0} onOpenChange={(open) => {
+          if (!open) setAcaoModal(null);
+        }}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Novo Lançamento</DialogTitle>
+              <DialogDescription>
+                Crie um novo lançamento financeiro para {cliente?.razao_social}
+              </DialogDescription>
+            </DialogHeader>
+            {aeronaveAtual && cliente && (
+              <LancamentoFormInline
+                clienteId={clienteId!}
+                clienteNome={cliente.razao_social || cliente.cnpj || "Cliente"}
+                aeronaveId={aeronaveAtual}
+                aeronaveRegistro={aeronaveInfo?.matricula || ""}
+                socios={cotistasDaAeronave}
+                editing={null}
+                onCancel={() => setAcaoModal(null)}
+                onSaved={() => {
+                  setAcaoModal(null);
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Modal de Ação (Editar/Deletar) */}
         <LancamentoAcaoModal
