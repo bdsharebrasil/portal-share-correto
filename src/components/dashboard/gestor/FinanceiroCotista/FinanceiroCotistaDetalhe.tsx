@@ -86,7 +86,7 @@ export default function FinanceiroCotistaDetalhe() {
   const [socioSelecionado, setSocioSelecionado] = useState<string | undefined>();
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<DespesaUnificada | null>(null);
-  const [acaoModal, setAcaoModal] = useState<"editar" | "deletar" | null>(null);
+  const [acaoModal, setAcaoModal] = useState<"editar" | "deletar" | "novo" | null>(null);
 
   const cliente = data?.cliente;
   const aeronaves = data?.aeronaves || [];
@@ -423,7 +423,7 @@ export default function FinanceiroCotistaDetalhe() {
               <div className="flex items-center justify-between gap-4 mb-4">
                 <h3 className="text-lg font-semibold text-foreground">Gestão Financeira</h3>
                 <Button
-                  onClick={() => setAcaoModal(null)}
+                  onClick={() => setAcaoModal("novo")}
                   className="gap-2 rounded-xl"
                 >
                   <FileText className="h-4 w-4" />
@@ -497,7 +497,7 @@ export default function FinanceiroCotistaDetalhe() {
         />
 
         {/* Modal de Novo Lançamento */}
-        <Dialog open={acaoModal === null && lancamentoSelecionado === null && Object.keys(location.state || {}).length === 0} onOpenChange={(open) => {
+        <Dialog open={acaoModal === "novo"} onOpenChange={(open) => {
           if (!open) setAcaoModal(null);
         }}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
