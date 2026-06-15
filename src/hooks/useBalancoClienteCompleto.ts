@@ -33,11 +33,11 @@ export function useBalancoClienteCompleto(
         // Voos do sócio
         let qOwned = supabase
           .from("lancamentos_diario_bordo")
-          .select("total_time")
-          .eq("client_id", clienteId)
+          .select("tempo_total")
+          .eq("clientes_id", clienteId)
           .eq("socios_id", socioId)
-          .gte("entry_date", periodo.inicio)
-          .lte("entry_date", periodo.fim);
+          .gte("data_registro", periodo.inicio)
+          .lte("data_registro", periodo.fim);
 
         if (aeronaveId) {
           qOwned = qOwned.eq("aeronave_id", aeronaveId);
@@ -46,11 +46,11 @@ export function useBalancoClienteCompleto(
         // Voos compartilhados (socios_id = NULL)
         let qShared = supabase
           .from("lancamentos_diario_bordo")
-          .select("total_time")
-          .eq("client_id", clienteId)
+          .select("tempo_total")
+          .eq("clientes_id", clienteId)
           .is("socios_id", null)
-          .gte("entry_date", periodo.inicio)
-          .lte("entry_date", periodo.fim);
+          .gte("data_registro", periodo.inicio)
+          .lte("data_registro", periodo.fim);
 
         if (aeronaveId) {
           qShared = qShared.eq("aeronave_id", aeronaveId);
@@ -62,12 +62,12 @@ export function useBalancoClienteCompleto(
         ]);
 
         const horasOwned = (ownedData || []).reduce(
-          (sum: number, e: any) => sum + (e.total_time || 0),
+          (sum: number, e: any) => sum + (e.tempo_total || 0),
           0
         );
 
         const horasShared = (sharedData || []).reduce(
-          (sum: number, e: any) => sum + (e.total_time || 0),
+          (sum: number, e: any) => sum + (e.tempo_total || 0),
           0
         );
 
@@ -112,7 +112,7 @@ export function useBalancoClienteCompleto(
       let horasQuery = supabase
         .from("horas_mensais_consolidadas")
         .select("horas_voadas, aeronave_registro, ano, mes")
-        .eq("client_id", clienteId);
+        .eq("clientes_id", clienteId);
 
       if (aeronaveId) {
         horasQuery = horasQuery.eq("aeronave_id", aeronaveId);
@@ -149,10 +149,10 @@ export function useBalancoClienteCompleto(
       if (horasVoadas === 0) {
         let logbookQuery = supabase
           .from("lancamentos_diario_bordo")
-          .select("total_time")
-          .eq("client_id", clienteId)
-          .gte("entry_date", periodo.inicio)
-          .lte("entry_date", periodo.fim);
+          .select("tempo_total")
+          .eq("clientes_id", clienteId)
+          .gte("data_registro", periodo.inicio)
+          .lte("data_registro", periodo.fim);
 
         if (aeronaveId) {
           logbookQuery = logbookQuery.eq("aeronave_id", aeronaveId);
@@ -160,7 +160,7 @@ export function useBalancoClienteCompleto(
 
         const { data: logbookData } = await logbookQuery;
         horasVoadas = (logbookData || []).reduce(
-          (sum: number, e: any) => sum + (e.total_time || 0),
+          (sum: number, e: any) => sum + (e.tempo_total || 0),
           0
         );
       }
