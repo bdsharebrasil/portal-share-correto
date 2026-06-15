@@ -33,7 +33,7 @@ export function FluxoSelecionModal({ open, onSelect }: FluxoSelecionModalProps) 
             <ArrowUpRight className="h-8 w-8 text-success" />
             <div>
               <div className="font-semibold">Entrada</div>
-              <div className="text-xs text-muted-foreground">Cotista pagou para o negócio</div>
+              
             </div>
           </Button>
 
@@ -45,7 +45,7 @@ export function FluxoSelecionModal({ open, onSelect }: FluxoSelecionModalProps) 
             <ArrowDownLeft className="h-8 w-8 text-destructive" />
             <div>
               <div className="font-semibold">Saída</div>
-              <div className="text-xs text-muted-foreground">Negócio pagou despesa do cotista</div>
+              
             </div>
           </Button>
         </div>

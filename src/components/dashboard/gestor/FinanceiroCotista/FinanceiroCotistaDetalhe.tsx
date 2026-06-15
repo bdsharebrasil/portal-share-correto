@@ -88,7 +88,7 @@ export default function FinanceiroCotistaDetalhe() {
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<DespesaUnificada | null>(null);
   const [acaoModal, setAcaoModal] = useState<"editar" | "deletar" | "novo" | null>(null);
-  const [fluxoSelecionado, setFluxoSelecionado] = useState<"entrada" | "saida" | null | "escolher">("escolher");
+  const [fluxoSelecionado, setFluxoSelecionado] = useState<"entrada" | "saida" | "escolher" | null>(null);
 
   const cliente = data?.cliente;
   const aeronaves = data?.aeronaves || [];
@@ -505,6 +505,9 @@ export default function FinanceiroCotistaDetalhe() {
             setFluxoSelecionado(fluxo);
             setAcaoModal("novo");
           }}
+          onClose={() => {
+            setFluxoSelecionado(null);
+          }}
         />
 
         {/* Modal de Novo Lançamento - SAÍDA */}
@@ -513,7 +516,7 @@ export default function FinanceiroCotistaDetalhe() {
           onOpenChange={(open) => {
             if (!open) {
               setAcaoModal(null);
-              setFluxoSelecionado("escolher");
+              setFluxoSelecionado(null);
             }
           }}
         >
@@ -534,11 +537,11 @@ export default function FinanceiroCotistaDetalhe() {
                 editing={null}
                 onCancel={() => {
                   setAcaoModal(null);
-                  setFluxoSelecionado("escolher");
+                  setFluxoSelecionado(null);
                 }}
                 onSaved={() => {
                   setAcaoModal(null);
-                  setFluxoSelecionado("escolher");
+                  setFluxoSelecionado(null);
                 }}
                 isModal={true}
               />
@@ -552,7 +555,7 @@ export default function FinanceiroCotistaDetalhe() {
           onOpenChange={(open) => {
             if (!open) {
               setAcaoModal(null);
-              setFluxoSelecionado("escolher");
+              setFluxoSelecionado(null);
             }
           }}
         >
