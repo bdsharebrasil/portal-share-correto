@@ -276,7 +276,6 @@ export function DiarioBordoCotistaTab({
                   <tr className="border-b border-border/40 bg-muted/40">
                     <th className="px-4 py-3 text-left font-semibold text-foreground/80">Data</th>
                     <th className="px-4 py-3 text-left font-semibold text-foreground/80">Trecho</th>
-                    <th className="px-4 py-3 text-left font-semibold text-foreground/80">Natureza</th>
                     <th className="px-4 py-3 text-left font-semibold text-foreground/80">Sócio</th>
                     <th className="px-4 py-3 text-right font-semibold text-foreground/80">Horas</th>
                     <th className="px-4 py-3 text-right font-semibold text-foreground/80">Pousos</th>
@@ -285,13 +284,11 @@ export function DiarioBordoCotistaTab({
                 <tbody className="divide-y divide-border/30">
                   {lancFiltrados.map((l) => {
                     const socio = data?.socios.find(s => s.id === l.socios_id);
-                    const natureza = l.natureza_voo || "—";
-                    const isTeste = natureza.toUpperCase().includes("TESTE") || natureza.toUpperCase().includes("TRANSLADO");
 
                     return (
                       <tr
                         key={l.id}
-                        className={`hover:bg-primary/5 transition-colors ${isTeste ? "bg-blue-500/5" : ""}`}
+                        className="hover:bg-primary/5 transition-colors"
                       >
                         <td className="px-4 py-3 font-medium whitespace-nowrap">
                           {l.data_registro ? new Date(l.data_registro + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
@@ -303,18 +300,6 @@ export function DiarioBordoCotistaTab({
                               {l.aerodromo_partida || "—"} → {l.aerodromo_chegada || "—"}
                             </span>
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              isTeste
-                                ? "border-blue-500/40 text-blue-400 bg-blue-500/10"
-                                : "border-border/50 text-muted-foreground"
-                            }`}
-                          >
-                            {natureza}
-                          </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground/80">
                           {socio?.nome || l.socios_nome || "—"}
