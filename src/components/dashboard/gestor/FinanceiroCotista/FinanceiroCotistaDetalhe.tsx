@@ -33,7 +33,6 @@ import { HistoricoCreditsTab } from "./HistoricoCreditsTab";
 import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
 import { AbastecimentosTab } from "./AbastecimentosTab";
-import { LancamentosFinanceiroTab } from "./LancamentosFinanceiroTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
