@@ -33,11 +33,10 @@ import { HistoricoCreditsTab } from "./HistoricoCreditsTab";
 import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
 import { AbastecimentosTab } from "./AbastecimentosTab";
-import { LancamentosFinanceiroTab } from "./LancamentosFinanceiroTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
-import { LancamentoFormInline } from "./LancamentoFormInline";
+import LancamentoForm from "./LancamentoForm";
 import { useMemo, useState } from "react";
 import {
   Dialog,
@@ -508,7 +507,7 @@ export default function FinanceiroCotistaDetalhe() {
               </DialogDescription>
             </DialogHeader>
             {aeronaveAtual && cliente && (
-              <LancamentoFormInline
+              <LancamentoForm
                 clienteId={clienteId!}
                 clienteNome={cliente.razao_social || cliente.cnpj || "Cliente"}
                 aeronaveId={aeronaveAtual}
@@ -519,6 +518,7 @@ export default function FinanceiroCotistaDetalhe() {
                 onSaved={() => {
                   setAcaoModal(null);
                 }}
+                isModal={true}
               />
             )}
           </DialogContent>
