@@ -25,17 +25,17 @@ const monthNames = [
 
 type LancRow = {
   id: string;
-  entry_date: string;
-  departure_airport: string | null;
-  arrival_airport: string | null;
-  flight_time: number | null;
-  total_time: number | null;
-  total_landings: number | null;
-  fuel_added: number | null;
-  flight_nature: string | null;
-  flight_segment: string | null;
+  data_registro: string;
+  aerodromo_partida: string | null;
+  aerodromo_chegada: string | null;
+  tempo_voo: number | null;
+  tempo_total: number | null;
+  pousos_total: number | null;
+  combustivel_adicionado: number | null;
+  natureza_voo: string | null;
+  trecho: string | null;
   socios_id: string | null;
-  partner_name: string | null;
+  socios_nome: string | null;
 };
 
 type AbastRow = {
@@ -82,13 +82,13 @@ function useDiarioBordo(clienteId: string | undefined, aeronaveId: string) {
         supabase
           .from("lancamentos_diario_bordo")
           .select(`
-            id, entry_date, departure_airport, arrival_airport,
-            flight_time, total_time, total_landings, fuel_added,
-            flight_nature, flight_segment, socios_id, partner_name
+            id, data_registro, aerodromo_partida, aerodromo_chegada,
+            tempo_voo, tempo_total, pousos_total, combustivel_adicionado,
+            natureza_voo, trecho, socios_id, socios_nome
           `)
           .eq("aeronave_id", aeronaveId)
-          .eq("client_id", clienteId)
-          .order("entry_date", { ascending: false }),
+          .eq("clientes_id", clienteId)
+          .order("data_registro", { ascending: false }),
 
         supabase
           .from("abastecimentos")
@@ -138,7 +138,7 @@ export function DiarioBordoCotistaTab({
   const availableMeses = useMemo(() => {
     const set = new Map<string, { mes: number; ano: number }>();
     for (const l of data?.lancamentos ?? []) {
-      const d = new Date(l.entry_date + "T00:00");
+      const d = new Date(l.data_registro + "T00:00");
       const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
       if (!set.has(key)) set.set(key, { mes: d.getMonth() + 1, ano: d.getFullYear() });
     }
@@ -155,17 +155,17 @@ export function DiarioBordoCotistaTab({
   const lancFiltrados = useMemo(() => {
     if (!mesSel) return [];
     return (data?.lancamentos ?? []).filter((l) => {
-      const d = new Date(l.entry_date + "T00:00");
+      const d = new Date(l.data_registro + "T00:00");
       return d.getMonth() + 1 === mesSel.mes && d.getFullYear() === mesSel.ano;
     });
   }, [data?.lancamentos, mesSel]);
 
   // Totais do período
   const totais = useMemo(() => ({
-    pousos: lancFiltrados.reduce((s, l) => s + Number(l.total_landings ?? 0), 0),
-    tVoo: lancFiltrados.reduce((s, l) => s + Number(l.flight_time ?? 0), 0),
+    pousos: lancFiltrados.reduce((s, l) => s + Number(l.pousos_total ?? 0), 0),
+    tVoo: lancFiltrados.reduce((s, l) => s + Number(l.tempo_voo ?? 0), 0),
     voos: lancFiltrados.length,
-    abast: lancFiltrados.reduce((s, l) => s + Number(l.fuel_added ?? 0), 0),
+    abast: lancFiltrados.reduce((s, l) => s + Number(l.combustivel_adicionado ?? 0), 0),
   }), [lancFiltrados]);
 
   // Índice do mês atual
@@ -285,7 +285,7 @@ export function DiarioBordoCotistaTab({
                 <tbody className="divide-y divide-border/30">
                   {lancFiltrados.map((l) => {
                     const socio = data?.socios.find(s => s.id === l.socios_id);
-                    const natureza = l.flight_nature || "—";
+                    const natureza = l.natureza_voo || "—";
                     const isTeste = natureza.toUpperCase().includes("TESTE") || natureza.toUpperCase().includes("TRANSLADO");
 
                     return (
@@ -294,13 +294,13 @@ export function DiarioBordoCotistaTab({
                         className={`hover:bg-primary/5 transition-colors ${isTeste ? "bg-blue-500/5" : ""}`}
                       >
                         <td className="px-4 py-3 font-medium whitespace-nowrap">
-                          {l.entry_date ? new Date(l.entry_date + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
+                          {l.data_registro ? new Date(l.data_registro + "T12:00:00").toLocaleDateString("pt-BR") : "—"}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <div className="flex items-center gap-1.5">
                             <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             <span className="font-mono text-xs">
-                              {l.departure_airport || "—"} → {l.arrival_airport || "—"}
+                              {l.aerodromo_partida || "—"} → {l.aerodromo_chegada || "—"}
                             </span>
                           </div>
                         </td>
@@ -317,13 +317,13 @@ export function DiarioBordoCotistaTab({
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground/80">
-                          {socio?.nome || l.partner_name || "—"}
+                          {socio?.nome || l.socios_nome || "—"}
                         </td>
                         <td className="px-4 py-3 text-right font-mono font-bold text-cyan-500">
-                          {decimalToHHMM(l.flight_time || 0)}
+                          {decimalToHHMM(l.tempo_voo || 0)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono">
-                          {l.total_landings || 0}
+                          {l.pousos_total || 0}
                         </td>
                       </tr>
                     );
