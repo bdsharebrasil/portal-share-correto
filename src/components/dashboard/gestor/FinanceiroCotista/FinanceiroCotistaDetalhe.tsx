@@ -37,6 +37,8 @@ import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
 import LancamentoForm from "./LancamentoForm";
+import EntradaForm from "./EntradaForm";
+import { FluxoSelecionModal } from "./FluxoSelecionModal";
 import { useMemo, useState } from "react";
 import {
   Dialog,
@@ -86,6 +88,7 @@ export default function FinanceiroCotistaDetalhe() {
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<DespesaUnificada | null>(null);
   const [acaoModal, setAcaoModal] = useState<"editar" | "deletar" | "novo" | null>(null);
+  const [fluxoSelecionado, setFluxoSelecionado] = useState<"entrada" | "saida" | "escolher" | null>(null);
 
   const cliente = data?.cliente;
   const aeronaves = data?.aeronaves || [];
@@ -422,7 +425,7 @@ export default function FinanceiroCotistaDetalhe() {
               <div className="flex items-center justify-between gap-4 mb-4">
                 <h3 className="text-lg font-semibold text-foreground">Gestão Financeira</h3>
                 <Button
-                  onClick={() => setAcaoModal("novo")}
+                  onClick={() => setFluxoSelecionado("escolher")}
                   className="gap-2 rounded-xl"
                 >
                   <FileText className="h-4 w-4" />
@@ -495,15 +498,33 @@ export default function FinanceiroCotistaDetalhe() {
           aeronaveLabel={aeronaveInfo?.matricula || "—"}
         />
 
-        {/* Modal de Novo Lançamento */}
-        <Dialog open={acaoModal === "novo"} onOpenChange={(open) => {
-          if (!open) setAcaoModal(null);
-        }}>
+        {/* Modal de Seleção de Fluxo */}
+        <FluxoSelecionModal
+          open={fluxoSelecionado === "escolher"}
+          onSelect={(fluxo) => {
+            setFluxoSelecionado(fluxo);
+            setAcaoModal("novo");
+          }}
+          onClose={() => {
+            setFluxoSelecionado(null);
+          }}
+        />
+
+        {/* Modal de Novo Lançamento - SAÍDA */}
+        <Dialog
+          open={acaoModal === "novo" && fluxoSelecionado === "saida"}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAcaoModal(null);
+              setFluxoSelecionado(null);
+            }
+          }}
+        >
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Novo Lançamento</DialogTitle>
+              <DialogTitle>Novo Lançamento - Saída</DialogTitle>
               <DialogDescription>
-                Crie um novo lançamento financeiro para {cliente?.razao_social}
+                Crie um novo lançamento de saída para {cliente?.razao_social}
               </DialogDescription>
             </DialogHeader>
             {aeronaveAtual && cliente && (
@@ -514,10 +535,42 @@ export default function FinanceiroCotistaDetalhe() {
                 aeronaveRegistro={aeronaveInfo?.matricula || ""}
                 socios={cotistasDaAeronave}
                 editing={null}
-                onCancel={() => setAcaoModal(null)}
+                onCancel={() => {
+                  setAcaoModal(null);
+                  setFluxoSelecionado(null);
+                }}
                 onSaved={() => {
                   setAcaoModal(null);
+                  setFluxoSelecionado(null);
                 }}
+                isModal={true}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal de Novo Lançamento - ENTRADA */}
+        <Dialog
+          open={acaoModal === "novo" && fluxoSelecionado === "entrada"}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAcaoModal(null);
+              setFluxoSelecionado(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Nova Entrada</DialogTitle>
+              <DialogDescription>
+                Registre uma entrada de caixa para {cliente?.razao_social}
+              </DialogDescription>
+            </DialogHeader>
+            {cliente && (
+              <EntradaForm
+                clienteId={clienteId!}
+                clienteNome={cliente.razao_social || cliente.cnpj || "Cliente"}
+                socios={cotistasDaAeronave}
                 isModal={true}
               />
             )}
