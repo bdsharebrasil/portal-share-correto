@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtected } from "@/components/auth/RoleProtected";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
