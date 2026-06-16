@@ -163,10 +163,10 @@ export function FechamentoBalancoTab({
           ),
         supabase
           .from("lancamentos_diario_bordo")
-          .select("id, client_id, socios_id, total_time, entry_date")
+          .select("id, clientes_id, socios_id, tempo_total, data_registro")
           .eq("aeronave_id", aeronaveId)
-          .gte("entry_date", inicio)
-          .lte("entry_date", fim),
+          .gte("data_registro", inicio)
+          .lte("data_registro", fim),
       ]);
       return {
         rateios: (rateios || []) as any[],
@@ -255,9 +255,9 @@ export function FechamentoBalancoTab({
     const map = new Map<string, number>();
     cotistas.forEach((c) => map.set(c.id, 0));
     voos.forEach((v) => {
-      const cid = v.client_id || v.socios_id;
+      const cid = v.clientes_id || v.socios_id;
       if (!cid || !map.has(cid)) return;
-      map.set(cid, (map.get(cid) || 0) + (Number(v.total_time) || 0));
+      map.set(cid, (map.get(cid) || 0) + (Number(v.tempo_total) || 0));
     });
     return map;
   }, [voos, cotistas]);
@@ -379,13 +379,13 @@ export function FechamentoBalancoTab({
         doc.text("Diário de Bordo Detalhado", 14, 20);
         
         const voosData = voos
-          .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime())
+          .sort((a, b) => new Date(a.data_registro).getTime() - new Date(b.data_registro).getTime())
           .map((v) => {
-            const cotista = cotistas.find(c => c.id === (v.client_id || v.socios_id));
+            const cotista = cotistas.find(c => c.id === (v.clientes_id || v.socios_id));
             return [
-              formatDate(v.entry_date),
+              formatDate(v.data_registro),
               cotista?.nome || "—",
-              formatHHMM(Number(v.total_time) || 0)
+              formatHHMM(Number(v.tempo_total) || 0)
             ];
           });
 
