@@ -9,8 +9,10 @@ import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
 import { ExpirationAlertsProvider } from "@/contexts/ExpirationAlertsContext";
 import { AnniversaryAlertsProvider } from "@/contexts/AnniversaryAlertsContext";
+import { UpdateCheckProvider } from "@/contexts/UpdateCheckContext";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { UpdateNotificationModal } from "@/components/UpdateNotificationModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Layout as Layout } from "@/components/layout/Layout";
 import { RouteChangeListener } from "@/components/RouteChangeListener";
@@ -142,11 +144,13 @@ const App = () => {
               <VencimentosSyncProvider>
                 <ExpirationAlertsProvider>
                   <AnniversaryAlertsProvider>
-                    <TooltipProvider>
-                      <Toaster />
-                      <GlobalLoader />
-                      <InstallPrompt />
-                      <HashRouter>
+                    <UpdateCheckProvider>
+                      <TooltipProvider>
+                        <Toaster />
+                        <GlobalLoader />
+                        <InstallPrompt />
+                        <UpdateNotificationModal />
+                        <HashRouter>
                         <RouteChangeListener />
                         <Routes>
                           <Route path="/login" element={<Login />} />
@@ -270,8 +274,9 @@ const App = () => {
                           <Route path="/ferias" element={renderProtected(<Ferias />)} />
                           <Route path="*" element={renderProtected(<NotFound />)} />
                         </Routes>
-                      </HashRouter>
-                    </TooltipProvider>
+                        </HashRouter>
+                      </TooltipProvider>
+                    </UpdateCheckProvider>
                   </AnniversaryAlertsProvider>
                 </ExpirationAlertsProvider>
               </VencimentosSyncProvider>
