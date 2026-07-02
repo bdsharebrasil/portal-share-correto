@@ -2403,6 +2403,7 @@ export type Database = {
       cotistas_aeronave: {
         Row: {
           atualizado_em: string | null
+          codigo_cliente: string | null
           criado_em: string | null
           id: string
           id_aeronave: string | null
@@ -2415,6 +2416,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string | null
+          codigo_cliente?: string | null
           criado_em?: string | null
           id?: string
           id_aeronave?: string | null
@@ -2427,6 +2429,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string | null
+          codigo_cliente?: string | null
           criado_em?: string | null
           id?: string
           id_aeronave?: string | null
@@ -4702,7 +4705,7 @@ export type Database = {
           },
         ]
       }
-      expense_categories: {
+      expense_conf: {
         Row: {
           icon: string | null
           id: string
@@ -4723,7 +4726,7 @@ export type Database = {
         }
         Relationships: []
       }
-      expense_config: {
+      expense_configu: {
         Row: {
           expense_type: string
           id: string
@@ -8004,7 +8007,7 @@ export type Database = {
             foreignKeyName: "rateio_despesas_categoria_custo_fkey"
             columns: ["categoria_custo"]
             isOneToOne: false
-            referencedRelation: "expense_config"
+            referencedRelation: "expense_configu"
             referencedColumns: ["expense_type"]
           },
           {
@@ -10188,7 +10191,7 @@ export type Database = {
             foreignKeyName: "rateio_despesas_categoria_custo_fkey"
             columns: ["categoria_custo"]
             isOneToOne: false
-            referencedRelation: "expense_config"
+            referencedRelation: "expense_configu"
             referencedColumns: ["expense_type"]
           },
           {
