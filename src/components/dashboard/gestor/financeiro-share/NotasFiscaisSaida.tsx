@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,8 +108,13 @@ const ReciboDocument = ({ data }: { data: any }) => (
       <View>
         <Text style={styles.sectionHeader}>DESCRIÇÃO DO SERVIÇO</Text>
         <Text style={{ fontSize: 10, lineHeight: 1.5 }}>
-          {data.descricao}
-          {data.aeronave_registro ? `\nReferente à aeronave: ${data.aeronave_registro}` : ''}
+          {data.descricao || "Prestação de serviços aeronáuticos"}
+        </Text>
+      </View>
+      <View style={{ marginTop: 10 }}>
+        <Text style={styles.sectionHeader}>REFERENTE A:</Text>
+        <Text style={{ fontSize: 10, lineHeight: 1.5 }}>
+          Aeronave: {data.aeronave_registro || "Não informado"}
         </Text>
       </View>
       <View style={styles.footer}>
@@ -248,6 +252,7 @@ export function NotasFiscaisSaida() {
     data_vencimento: new Date().toISOString().split("T")[0],
     descricao: "",
     categoriaRecibo: "",
+    numero_recibo: "",
   });
   const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
 
@@ -262,6 +267,7 @@ export function NotasFiscaisSaida() {
     max_payment_date: "",
     status: "pendente",
     category_name: "",
+    numero_recibo: "",
   });
 
   const [showPdfConfirmDialog, setShowPdfConfirmDialog] = useState(false);
@@ -815,11 +821,30 @@ export function NotasFiscaisSaida() {
         throw new Error("Cliente é obrigatório. Por favor, selecione um cliente válido.");
       }
 
-      const numeroRecibo = await generateSequentialReceiptNumber(
-        reciboData.cliente_nome,
-        supabase,
-        clientId
-      );
+      let numeroRecibo = reciboData.numero_recibo?.trim();
+
+      // Se número não foi editado, gerar automaticamente
+      if (!numeroRecibo) {
+        numeroRecibo = await generateSequentialReceiptNumber(
+          reciboData.cliente_nome,
+          supabase,
+          clientId
+        );
+      } else {
+        // Validar se número já existe
+        const { data: existingReceipt, error: checkError } = await supabase
+          .from("movimentacoes")
+          .select("numero_recibo")
+          .eq("numero_recibo", numeroRecibo)
+          .single();
+
+        if (existingReceipt) {
+          throw new Error(`Número do recibo "${numeroRecibo}" já existe no sistema. Por favor, escolha outro número.`);
+        }
+        if (checkError && checkError.code !== "PGRST116") {
+          throw checkError;
+        }
+      }
 
       const dadosParaPDF = {
         numero_recibo: numeroRecibo,
@@ -913,6 +938,7 @@ export function NotasFiscaisSaida() {
       data_vencimento: new Date().toISOString().split("T")[0],
       descricao: "",
       categoriaRecibo: "",
+      numero_recibo: "",
     });
   };
 
@@ -945,12 +971,45 @@ export function NotasFiscaisSaida() {
       max_payment_date: recibo.data_vencimento || "",
       status: recibo.status || "pendente",
       category_name: "Recibo",
+      numero_recibo: recibo.numero_recibo || "",
     });
     setShowReciboEditDialog(true);
   };
 
   const handleSaveReciboEdit = async () => {
     if (!editingRecibo) return;
+
+    const novoNumeroRecibo = reciboEditData.numero_recibo?.trim();
+
+    // Validar duplicidade apenas se número foi alterado
+    if (novoNumeroRecibo && novoNumeroRecibo !== editingRecibo.numero_recibo) {
+      try {
+        const { data: existingReceipt } = await supabase
+          .from("movimentacoes")
+          .select("numero_recibo")
+          .eq("numero_recibo", novoNumeroRecibo)
+          .neq("id", editingRecibo.id)
+          .single();
+
+        if (existingReceipt) {
+          toast({
+            title: "Erro",
+            description: `Número do recibo "${novoNumeroRecibo}" já existe no sistema. Por favor, escolha outro número.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (error: any) {
+        if (error.code !== "PGRST116") {
+          toast({
+            title: "Erro",
+            description: "Erro ao validar número do recibo",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
 
     setPendingReciboUpdate({
       id: editingRecibo.id,
@@ -959,6 +1018,7 @@ export function NotasFiscaisSaida() {
       prazo_pagamento: reciboEditData.max_payment_date || null,
       status: reciboEditData.status,
       category: reciboEditData.category_name,
+      numero_recibo: novoNumeroRecibo || editingRecibo.numero_recibo,
     });
 
     setShowPdfConfirmDialog(true);
@@ -974,7 +1034,7 @@ export function NotasFiscaisSaida() {
         setIsGeneratingPdfEdit(true);
 
         const dadosParaPDF = {
-          numero_recibo: editingRecibo.numero_recibo || editingRecibo.id.slice(0, 8),
+          numero_recibo: pendingReciboUpdate.numero_recibo || editingRecibo.numero_recibo || editingRecibo.id.slice(0, 8),
           cliente_nome: editingRecibo.clientes?.razao_social || "Não informado",
           cliente_cnpj: editingRecibo.clientes?.cnpj || "Não informado",
           descricao: pendingReciboUpdate.descricao,
@@ -1013,6 +1073,7 @@ export function NotasFiscaisSaida() {
           descricao: pendingReciboUpdate.descricao,
           data_vencimento: pendingReciboUpdate.prazo_pagamento,
           status: pendingReciboUpdate.status,
+          numero_recibo: pendingReciboUpdate.numero_recibo,
           recibo_url: nfUrl,
           atualizado_em: new Date().toISOString(),
         })
@@ -1753,6 +1814,17 @@ export function NotasFiscaisSaida() {
                   </div>
 
                   <div>
+                    <Label className="text-foreground font-medium mb-2 block">Número do Recibo</Label>
+                    <Input
+                      type="text"
+                      value={reciboData.numero_recibo}
+                      onChange={(e) => setReciboData({ ...reciboData, numero_recibo: e.target.value })}
+                      placeholder="Deixe vazio para gerar automaticamente (ex: REC-XXX000/AA)"
+                      className="bg-background border-border"
+                    />
+                  </div>
+
+                  <div>
                     <Label className="text-foreground font-medium mb-2 block">Categoria do Recibo *</Label>
                     <Select
                       value={reciboData.categoriaRecibo}
@@ -1791,6 +1863,7 @@ export function NotasFiscaisSaida() {
                           data_vencimento: new Date().toISOString().split("T")[0],
                           descricao: "",
                           categoriaRecibo: "",
+                          numero_recibo: "",
                         });
                       }}
                     >
@@ -2212,6 +2285,16 @@ export function NotasFiscaisSaida() {
                   onChange={(e) => setReciboEditData({ ...reciboEditData, service_description: e.target.value })}
                   className="bg-background border-border resize-none"
                   rows={3}
+                />
+              </div>
+              <div>
+                <Label className="text-foreground mb-2 block">Número do Recibo</Label>
+                <Input
+                  type="text"
+                  value={reciboEditData.numero_recibo}
+                  onChange={(e) => setReciboEditData({ ...reciboEditData, numero_recibo: e.target.value })}
+                  placeholder="Ex: REC-XXX000/AA"
+                  className="bg-background border-border"
                 />
               </div>
               <div>
