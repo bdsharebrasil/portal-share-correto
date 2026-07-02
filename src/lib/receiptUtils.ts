@@ -324,77 +324,71 @@ export async function generateSequentialReceiptNumber(
   const today = new Date();
   const year = String(today.getFullYear()).slice(-2);
 
-  // 1) Tentar reutilizar prefixo a partir do último recibo do MESMO cliente
+  // 1) Buscar o código oficial do cliente na tabela cotistas_aeronave
   let prefix: string | null = null;
-  let displayPrefix: string | null = null;
+
   if (clienteId) {
-    const { data: clienteReceipts } = await supabase
-      .from("recibos")
-      .select("numero_recibo, criado_em")
-      .eq("cliente_id", clienteId)
-      .not("numero_recibo", "is", null)
-      .order("criado_em", { ascending: false })
-      .limit(50);
+    const { data: cotistaData, error: cotistaError } = await supabase
+      .from("cotistas_aeronave")
+      .select("codigo_cliente")
+      .eq("id_clientes", clienteId)
+      .not("codigo_cliente", "is", null)
+      .limit(1)
+      .maybeSingle();
 
-    if (clienteReceipts && clienteReceipts.length > 0) {
-      const candidates = clienteReceipts
-        .map((r: any) => {
-          // Match format: REC-[PREFIX][NUMBERS]/YY or REC-[PREFIX]-[NUMBERS]/YY
-          const m = r.numero_recibo?.match(/^REC-([A-Z0-9][A-Z0-9\s-]*?)(\d{3,})\/\d{2}$/i);
-          if (!m?.[1]) return null;
-          const rawPrefix = m[1].toUpperCase();
-          // Remove spaces and hyphens to get clean prefix for query
-          const cleaned = rawPrefix.replace(/[^A-Z0-9]/g, "");
-          // Only consider prefixes with at least 2 letters
-          return cleaned.length >= 2 ? { rawPrefix, cleaned } : null;
-        })
-        .filter(Boolean);
+    if (cotistaError) {
+      console.error("Erro ao buscar codigo_cliente:", cotistaError);
+    }
 
-      // Prefer existing prefix without X padding, otherwise use first found
-      const preferred =
-        candidates.find((c: any) => !c.cleaned.endsWith("X")) ||
-        candidates[0];
-
-      if (preferred) {
-        prefix = preferred.cleaned;
-        displayPrefix = preferred.rawPrefix;
-      }
+    if (cotistaData?.codigo_cliente?.trim()) {
+      prefix = cotistaData.codigo_cliente.trim().toUpperCase();
     }
   }
 
-  // 2) Fallback: derive from client name, using only first 2 letters (NO padding with X)
+  // 2) Fallback: se o cliente não tiver codigo_cliente cadastrado,
+  // cai para a derivação antiga a partir do nome (evita quebrar o fluxo)
   if (!prefix) {
+    console.warn(
+      `Cliente ${clienteId || clientName} sem codigo_cliente em cotistas_aeronave. Usando fallback pelo nome.`
+    );
+
     if (!clientName || !clientName.trim()) {
       const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
       return `REC-${randomNumbers}/${year}`;
     }
+
     const onlyLetters = clientName
       .toUpperCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^A-Z]/g, "");
-    // Take only first 2 letters, do NOT pad with X
-    prefix = onlyLetters.substring(0, 2);
+
+    prefix = onlyLetters.substring(0, 3);
+
     if (prefix.length < 2) {
-      // If less than 2 letters, use random numbers instead
       const randomNumbers = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
       return `REC-${randomNumbers}/${year}`;
     }
-    displayPrefix = prefix;
   }
 
-  // 3) Search for existing receipts with this prefix in current year
-  // This handles both clean format (REC-GA123/26) and old format with spacing (REC-GA -001/26)
-  const { data: existing } = await supabase
-    .from("recibos")
+  // 3) Buscar o maior número já usado com esse prefixo, no ano atual,
+  // na tabela correta: movimentacoes
+  const { data: existing, error: existingError } = await supabase
+    .from("movimentacoes")
     .select("numero_recibo")
     .ilike("numero_recibo", `REC-${prefix}%/${year}`)
     .not("numero_recibo", "is", null);
 
+  if (existingError) {
+    console.error("Erro ao buscar recibos existentes:", existingError);
+  }
+
   let maxNumber = 0;
   if (existing && existing.length > 0) {
     for (const r of existing) {
-      const m = r.numero_recibo?.match(/REC-[A-Z0-9 \-]+?(\d{3,})\/\d{2}$/i);
+      const m = r.numero_recibo?.match(
+        new RegExp(`^REC-${prefix}(\\d{3,})/\\d{2}$`, "i")
+      );
       if (m && m[1]) {
         const n = parseInt(m[1], 10);
         if (n > maxNumber) maxNumber = n;
@@ -404,7 +398,7 @@ export async function generateSequentialReceiptNumber(
 
   const nextNumber = maxNumber + 1;
   const numeroFormatado = String(nextNumber).padStart(3, "0");
-  return `REC-${displayPrefix || prefix}${numeroFormatado}/${year}`;
+  return `REC-${prefix}${numeroFormatado}/${year}`;
 }
 
 /**
