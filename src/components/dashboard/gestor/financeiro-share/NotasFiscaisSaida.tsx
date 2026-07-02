@@ -853,11 +853,7 @@ export function NotasFiscaisSaida() {
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
 
-      // make sure we always have a client id selected from the combobox
-      const clientId = reciboData.cliente_id?.trim();
-      if (!clientId) {
-        throw new Error("Cliente é obrigatório. Por favor, selecione um cliente válido.");
-      }
+      // clientId já foi validado acima antes de gerar o número do recibo
 
       let aeronaveId = null;
       const { data: aeroData } = await supabase.from('aeronave').select("id").eq('matricula', reciboData.aeronave_registro).single();
