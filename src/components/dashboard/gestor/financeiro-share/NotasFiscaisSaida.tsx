@@ -809,7 +809,17 @@ export function NotasFiscaisSaida() {
     try {
       setIsGeneratingRecibo(true);
 
-      const numeroRecibo = await generateSequentialReceiptNumber(reciboData.cliente_nome, supabase);
+      // Validar cliente ANTES de gerar o número
+      const clientId = reciboData.cliente_id?.trim();
+      if (!clientId) {
+        throw new Error("Cliente é obrigatório. Por favor, selecione um cliente válido.");
+      }
+
+      const numeroRecibo = await generateSequentialReceiptNumber(
+        reciboData.cliente_nome,
+        supabase,
+        clientId
+      );
 
       const dadosParaPDF = {
         numero_recibo: numeroRecibo,
