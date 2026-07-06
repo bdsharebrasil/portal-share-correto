@@ -466,6 +466,52 @@ export function CostSimulator() {
                     />
                   </div>
 
+                  {/* Classificação do tipo da aeronave — define quais custos
+                      de longo prazo se aplicam (hélice, magneto, seção quente...) */}
+                  {selectedAircraft && (
+                    <div className="rounded-md border border-white/[0.05] bg-white/[0.02] p-2 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs flex items-center gap-1">
+                          <Settings2 className="w-3 h-3" />
+                          Tipo de motorização
+                        </Label>
+                        {tipoAeronave ? (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {TIPO_AERONAVE_LABELS[tipoAeronave]}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/40">
+                            Não classificada
+                          </Badge>
+                        )}
+                      </div>
+                      <Select
+                        value={tipoAeronave ?? sugerirTipoAeronave(selectedAircraft.modelo) ?? ''}
+                        onValueChange={(v) => saveTipoAeronave(v as TipoAeronave)}
+                        disabled={savingTipo}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white/[0.02] border-white/[0.05]">
+                          <SelectValue placeholder="Classificar aeronave..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_AERONAVE.map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs">
+                              {TIPO_AERONAVE_LABELS[t]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!tipoAeronave && (
+                        <p className="text-[10px] text-muted-foreground leading-snug">
+                          Sem classificação o cálculo soma todos os itens de longo prazo.
+                          Classifique 1x para ignorar automaticamente os que não se aplicam
+                          (ex.: hélice em jato, magneto em turbina).
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <Label className="text-xs">Horas/Ano</Label>
