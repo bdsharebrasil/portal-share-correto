@@ -144,17 +144,26 @@ export function CostSimulator() {
   });
 
   // Buscar aeronaves
-  const { data: aircraft = [] } = useQuery({
+  const { data: aircraft = [], refetch: refetchAircraft } = useQuery({
     queryKey: ['aircraft-all'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('aeronave')
-        .select('id, matricula, modelo, fabricante')
+        .select('id, matricula, modelo, fabricante, tipo_aeronave')
         .eq('status', 'ativo')
         .order('matricula');
       return data || [];
     },
   });
+
+  const selectedAircraft = useMemo(
+    () => (aircraft as any[]).find((a) => a.id === formData.aircraftId),
+    [aircraft, formData.aircraftId]
+  );
+
+  const tipoAeronave: TipoAeronave | null =
+    (selectedAircraft?.tipo_aeronave as TipoAeronave | undefined) ?? null;
+
 
   // Buscar média de combustível
   const { data: fuelAverage = 0 } = useQuery({
