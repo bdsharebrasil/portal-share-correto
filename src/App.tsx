@@ -60,7 +60,7 @@ import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
 import GestaoFiscal from "./components/dashboard/gestor/financeiro-share/Index";
-import RelatoriosFinanceiros from "./components/dashboard/gestor/socios/reports/RelatoriosFinanceiros";
+
 import ConfiguracoesFiscais from "./components/dashboard/gestor/financeiro-share/ConfiguracoesFiscais";
 import Master from "./components/dashboard/gestor/master/Master";
 import MasterColaboradores from "./components/dashboard/gestor/master/MasterColaboradores";
