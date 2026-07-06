@@ -227,19 +227,26 @@ export function CostSimulator() {
   }, [fuelAverage]);
 
   const costs = useMemo(() => {
-    const shortTerm = 
+    // Se a aeronave está classificada por tipo, ignora automaticamente
+    // os campos de longo prazo que não se aplicam (ex.: hélice em jato,
+    // magneto em turbina). Caso contrário mantém o cálculo original.
+    if (tipoAeronave) {
+      return calcularCustosPorTipo(formData as any, tipoAeronave);
+    }
+
+    const shortTerm =
       formData.fuelCost +
-      (formData.pilotDailyRate * formData.journeyDays) +
+      formData.pilotDailyRate * formData.journeyDays +
       formData.hotelMealCost +
       formData.landingTaxes +
-      (formData.hangarageOutside * formData.hangarageOutsideDays);
+      formData.hangarageOutside * formData.hangarageOutsideDays;
 
     const mediumTerm =
       formData.fixedHangarage +
       formData.crewSalary +
       formData.navigationUpdates +
       formData.preventiveMaintenance +
-      (formData.maintenancePerHour * formData.flightTimeRoundTrip * formData.monthlyFlights) +
+      formData.maintenancePerHour * formData.flightTimeRoundTrip * formData.monthlyFlights +
       formData.insurance +
       formData.radioTaxes +
       formData.trainingExams +
@@ -257,14 +264,32 @@ export function CostSimulator() {
     const totalCost = shortTerm + mediumTerm + longTerm;
     const hourlyRate = monthlyFlightHours > 0 ? totalCost / monthlyFlightHours : 0;
 
-    return {
-      shortTerm,
-      mediumTerm,
-      longTerm,
-      total: totalCost,
-      hourlyRate,
-    };
-  }, [formData]);
+    return { shortTerm, mediumTerm, longTerm, total: totalCost, hourlyRate };
+  }, [formData, tipoAeronave]);
+
+  // Mutation para classificar a aeronave (tipo_aeronave)
+  const queryClient = useQueryClient();
+  const [savingTipo, setSavingTipo] = useState(false);
+  const saveTipoAeronave = async (novoTipo: TipoAeronave) => {
+    if (!formData.aircraftId) return;
+    try {
+      setSavingTipo(true);
+      const { error } = await (supabase as any)
+        .from('aeronave')
+        .update({ tipo_aeronave: novoTipo })
+        .eq('id', formData.aircraftId);
+      if (error) throw error;
+      toast.success(`Aeronave classificada como ${TIPO_AERONAVE_LABELS[novoTipo]}`);
+      await refetchAircraft();
+      queryClient.invalidateQueries({ queryKey: ['aircraft-all'] });
+    } catch (e: any) {
+      console.error(e);
+      toast.error('Erro ao salvar classificação da aeronave');
+    } finally {
+      setSavingTipo(false);
+    }
+  };
+
 
   const handleInputChange = (field: keyof FormData, value: string | number) => {
     setFormData(prev => ({
