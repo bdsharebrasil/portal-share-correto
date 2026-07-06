@@ -846,12 +846,14 @@ export function NotasFiscaisSaida() {
         }
       }
 
+      const descricaoFinal = reciboData.descricao?.trim() || "Prestação de serviços aeronáuticos";
       const dadosParaPDF = {
         numero_recibo: numeroRecibo,
         valor: reciboData.valor,
         cliente_nome: reciboData.cliente_nome,
         cliente_cnpj: reciboData.cliente_cnpj,
-        descricao: reciboData.descricao || "Prestação de serviços aeronáuticos",
+        descricao: descricaoFinal,
+        service_description: descricaoFinal,
         aeronave_registro: reciboData.aeronave_registro,
         data_atual: new Date()
       };
