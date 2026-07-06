@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchableCombobox } from '@/components/ui/SearchableCombobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Plane, TrendingUp, Clock, DollarSign, AlertCircle, ArrowLeft, Save, Download, Plus, Trash2, Copy } from 'lucide-react';
+import { Plane, TrendingUp, Clock, DollarSign, AlertCircle, ArrowLeft, Save, Download, Plus, Trash2, Copy, Settings2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import {
+  TipoAeronave,
+  TIPOS_AERONAVE,
+  TIPO_AERONAVE_LABELS,
+  calcularCustosPorTipo,
+  sugerirTipoAeronave,
+  isCampoAplicavel,
+} from './aircraftCostProfiles';
+
 
 interface CostData {
   shortTerm: number;
