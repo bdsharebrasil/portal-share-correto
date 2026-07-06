@@ -322,6 +322,7 @@ export type Database = {
           numero_serie: string
           preco_hora: string | null
           status: string
+          tipo_aeronave: string | null
           url_imagem: string | null
           velocidade_cruzeiro: string | null
         }
@@ -340,6 +341,7 @@ export type Database = {
           numero_serie: string
           preco_hora?: string | null
           status?: string
+          tipo_aeronave?: string | null
           url_imagem?: string | null
           velocidade_cruzeiro?: string | null
         }
@@ -358,6 +360,7 @@ export type Database = {
           numero_serie?: string
           preco_hora?: string | null
           status?: string
+          tipo_aeronave?: string | null
           url_imagem?: string | null
           velocidade_cruzeiro?: string | null
         }

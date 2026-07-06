@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +7,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchableCombobox } from '@/components/ui/SearchableCombobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Plane, TrendingUp, Clock, DollarSign, AlertCircle, ArrowLeft, Save, Download, Plus, Trash2, Copy } from 'lucide-react';
+import { Plane, TrendingUp, Clock, DollarSign, AlertCircle, ArrowLeft, Save, Download, Plus, Trash2, Copy, Settings2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import {
+  TipoAeronave,
+  TIPOS_AERONAVE,
+  TIPO_AERONAVE_LABELS,
+  calcularCustosPorTipo,
+  sugerirTipoAeronave,
+  isCampoAplicavel,
+} from './aircraftCostProfiles';
+
 
 interface CostData {
   shortTerm: number;
@@ -133,17 +144,26 @@ export function CostSimulator() {
   });
 
   // Buscar aeronaves
-  const { data: aircraft = [] } = useQuery({
+  const { data: aircraft = [], refetch: refetchAircraft } = useQuery({
     queryKey: ['aircraft-all'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('aeronave')
-        .select('id, matricula, modelo, fabricante')
+        .select('id, matricula, modelo, fabricante, tipo_aeronave')
         .eq('status', 'ativo')
         .order('matricula');
       return data || [];
     },
   });
+
+  const selectedAircraft = useMemo(
+    () => (aircraft as any[]).find((a) => a.id === formData.aircraftId),
+    [aircraft, formData.aircraftId]
+  );
+
+  const tipoAeronave: TipoAeronave | null =
+    (selectedAircraft?.tipo_aeronave as TipoAeronave | undefined) ?? null;
+
 
   // Buscar média de combustível
   const { data: fuelAverage = 0 } = useQuery({
@@ -207,19 +227,26 @@ export function CostSimulator() {
   }, [fuelAverage]);
 
   const costs = useMemo(() => {
-    const shortTerm = 
+    // Se a aeronave está classificada por tipo, ignora automaticamente
+    // os campos de longo prazo que não se aplicam (ex.: hélice em jato,
+    // magneto em turbina). Caso contrário mantém o cálculo original.
+    if (tipoAeronave) {
+      return calcularCustosPorTipo(formData as any, tipoAeronave);
+    }
+
+    const shortTerm =
       formData.fuelCost +
-      (formData.pilotDailyRate * formData.journeyDays) +
+      formData.pilotDailyRate * formData.journeyDays +
       formData.hotelMealCost +
       formData.landingTaxes +
-      (formData.hangarageOutside * formData.hangarageOutsideDays);
+      formData.hangarageOutside * formData.hangarageOutsideDays;
 
     const mediumTerm =
       formData.fixedHangarage +
       formData.crewSalary +
       formData.navigationUpdates +
       formData.preventiveMaintenance +
-      (formData.maintenancePerHour * formData.flightTimeRoundTrip * formData.monthlyFlights) +
+      formData.maintenancePerHour * formData.flightTimeRoundTrip * formData.monthlyFlights +
       formData.insurance +
       formData.radioTaxes +
       formData.trainingExams +
@@ -237,14 +264,32 @@ export function CostSimulator() {
     const totalCost = shortTerm + mediumTerm + longTerm;
     const hourlyRate = monthlyFlightHours > 0 ? totalCost / monthlyFlightHours : 0;
 
-    return {
-      shortTerm,
-      mediumTerm,
-      longTerm,
-      total: totalCost,
-      hourlyRate,
-    };
-  }, [formData]);
+    return { shortTerm, mediumTerm, longTerm, total: totalCost, hourlyRate };
+  }, [formData, tipoAeronave]);
+
+  // Mutation para classificar a aeronave (tipo_aeronave)
+  const queryClient = useQueryClient();
+  const [savingTipo, setSavingTipo] = useState(false);
+  const saveTipoAeronave = async (novoTipo: TipoAeronave) => {
+    if (!formData.aircraftId) return;
+    try {
+      setSavingTipo(true);
+      const { error } = await (supabase as any)
+        .from('aeronave')
+        .update({ tipo_aeronave: novoTipo })
+        .eq('id', formData.aircraftId);
+      if (error) throw error;
+      toast.success(`Aeronave classificada como ${TIPO_AERONAVE_LABELS[novoTipo]}`);
+      await refetchAircraft();
+      queryClient.invalidateQueries({ queryKey: ['aircraft-all'] });
+    } catch (e: any) {
+      console.error(e);
+      toast.error('Erro ao salvar classificação da aeronave');
+    } finally {
+      setSavingTipo(false);
+    }
+  };
+
 
   const handleInputChange = (field: keyof FormData, value: string | number) => {
     setFormData(prev => ({
@@ -420,6 +465,52 @@ export function CostSimulator() {
                       searchPlaceholder="Buscar matrícula..."
                     />
                   </div>
+
+                  {/* Classificação do tipo da aeronave — define quais custos
+                      de longo prazo se aplicam (hélice, magneto, seção quente...) */}
+                  {selectedAircraft && (
+                    <div className="rounded-md border border-white/[0.05] bg-white/[0.02] p-2 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs flex items-center gap-1">
+                          <Settings2 className="w-3 h-3" />
+                          Tipo de motorização
+                        </Label>
+                        {tipoAeronave ? (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {TIPO_AERONAVE_LABELS[tipoAeronave]}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/40">
+                            Não classificada
+                          </Badge>
+                        )}
+                      </div>
+                      <Select
+                        value={tipoAeronave ?? sugerirTipoAeronave(selectedAircraft.modelo) ?? ''}
+                        onValueChange={(v) => saveTipoAeronave(v as TipoAeronave)}
+                        disabled={savingTipo}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white/[0.02] border-white/[0.05]">
+                          <SelectValue placeholder="Classificar aeronave..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_AERONAVE.map((t) => (
+                            <SelectItem key={t} value={t} className="text-xs">
+                              {TIPO_AERONAVE_LABELS[t]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!tipoAeronave && (
+                        <p className="text-[10px] text-muted-foreground leading-snug">
+                          Sem classificação o cálculo soma todos os itens de longo prazo.
+                          Classifique 1x para ignorar automaticamente os que não se aplicam
+                          (ex.: hélice em jato, magneto em turbina).
+                        </p>
+                      )}
+                    </div>
+                  )}
+
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
