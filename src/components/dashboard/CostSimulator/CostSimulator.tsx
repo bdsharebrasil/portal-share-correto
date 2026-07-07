@@ -135,10 +135,11 @@ export function CostSimulator() {
   const { data: aerodromes = [] } = useQuery({
     queryKey: ['aerodromes-all'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('aerodromes')
-        .select('id, icao, name, city')
-        .order('icao');
+        .select('id, designativo, nome')
+        .order('designativo');
+      if (error) console.error('Erro ao buscar aerodromes:', error);
       return data || [];
     },
   });
