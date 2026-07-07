@@ -135,10 +135,11 @@ export function CostSimulator() {
   const { data: aerodromes = [] } = useQuery({
     queryKey: ['aerodromes-all'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('aerodromes')
-        .select('id, icao, name, city')
-        .order('icao');
+        .select('id, designativo, nome')
+        .order('designativo');
+      if (error) console.error('Erro ao buscar aerodromes:', error);
       return data || [];
     },
   });
@@ -323,9 +324,9 @@ export function CostSimulator() {
   };
 
   // Preparar dados para combobox
-  const aerodromesCombobox = aerodromes.map((a: any) => ({
+  const aerodromesCombobox = (aerodromes as any[]).map((a: any) => ({
     id: a.id,
-    label: `${a.icao} - ${a.name}`,
+    label: `${a.designativo} - ${a.nome}`,
   }));
 
   const aircraftCombobox = aircraft.map((a: any) => ({
