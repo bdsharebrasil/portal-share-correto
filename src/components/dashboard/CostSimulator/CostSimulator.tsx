@@ -85,42 +85,42 @@ interface SavedSimulation {
 const DEFAULT_FORM_DATA: FormData = {
   aircraftId: '',
   aircraftName: 'Selecione uma aeronave',
-  hoursPerYear: 100,
-  numberOfShares: 2,
+  hoursPerYear: 0,
+  numberOfShares: 1,
   originId: '',
   originName: '',
   destinationId: '',
   destinationName: '',
-  flightTimeRoundTrip: 4.5,
-  journeyDays: 3,
-  monthlyFlights: 1,
-  
-  fuelCost: 12555,
-  fuelPerHour: 4.5,
-  fuelHours: 620,
+  flightTimeRoundTrip: 0,
+  journeyDays: 0,
+  monthlyFlights: 0,
+
+  fuelCost: 0,
+  fuelPerHour: 0,
+  fuelHours: 0,
   pilotDailyRate: 0,
-  hotelMealCost: 660,
-  hotelMealDays: 3,
-  landingTaxes: 1000,
-  hangarageOutside: 700,
-  hangarageOutsideDays: 3,
-  
-  fixedHangarage: 5400,
-  crewSalary: 16200,
-  navigationUpdates: 225,
-  preventiveMaintenance: 450,
-  maintenancePerHour: 700,
-  insurance: 2250,
-  radioTaxes: 9,
-  trainingExams: 4500,
-  otherCosts: 1350,
-  
-  engineOverhaul: 8325,
+  hotelMealCost: 0,
+  hotelMealDays: 0,
+  landingTaxes: 0,
+  hangarageOutside: 0,
+  hangarageOutsideDays: 0,
+
+  fixedHangarage: 0,
+  crewSalary: 0,
+  navigationUpdates: 0,
+  preventiveMaintenance: 0,
+  maintenancePerHour: 0,
+  insurance: 0,
+  radioTaxes: 0,
+  trainingExams: 0,
+  otherCosts: 0,
+
+  engineOverhaul: 0,
   propellerOverhaul: 0,
   magnetoOverhaul: 0,
   turboOverhaul: 0,
   alternatorOverhaul: 0,
-  sixYearMaintenance: 2000,
+  sixYearMaintenance: 0,
 };
 
 export function CostSimulator() {
@@ -150,7 +150,7 @@ export function CostSimulator() {
       const { data } = await (supabase as any)
         .from('aeronave')
         .select('id, matricula, modelo, fabricante, tipo_aeronave')
-        .eq('status', 'ativo')
+        .in('status', ['ativo', 'ativa'])
         .order('matricula');
       return data || [];
     },
