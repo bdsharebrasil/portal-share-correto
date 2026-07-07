@@ -324,9 +324,9 @@ export function CostSimulator() {
   };
 
   // Preparar dados para combobox
-  const aerodromesCombobox = aerodromes.map((a: any) => ({
+  const aerodromesCombobox = (aerodromes as any[]).map((a: any) => ({
     id: a.id,
-    label: `${a.icao} - ${a.name}`,
+    label: `${a.designativo} - ${a.nome}`,
   }));
 
   const aircraftCombobox = aircraft.map((a: any) => ({
