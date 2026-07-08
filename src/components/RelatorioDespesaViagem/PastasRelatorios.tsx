@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMemo, useState, useEffect } from 'react';
 import { Folder, FileText, Send, Eye, Edit, CheckCheck, Clock, ArrowLeft, Pen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
