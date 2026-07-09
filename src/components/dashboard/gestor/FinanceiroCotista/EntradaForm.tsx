@@ -27,8 +27,9 @@ import { useEffect, useState } from "react";
 type Socio = {
   id: string;
   nome: string;
-  cpf: string | null;
-  percentual_participacao: number | null;
+  cpf?: string | null;
+  percentual_participacao?: number | null;
+  percentual?: number;
 };
 
 const STATUS_OPTIONS = [
