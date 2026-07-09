@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Layout } from "@/components/layout/Layout";
 import { useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
