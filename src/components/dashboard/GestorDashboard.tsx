@@ -51,23 +51,9 @@ export function GestorDashboard() {
       // Buscar orçamentos OAS aguardando aprovação
       const { data: budgetsData } = await (supabase as any)
         .from("ctm_orcamentos")
-        .select('*, service_order:ctm_ordem_acompanhamento_servico(numero, aircraft:aeronave(matricula))')
+        .select('*, aircraft:aeronave(matricula)')
         .eq("status", "submitted")
         .order("submitted_at", { ascending: false });
-
-      // Buscar orçamentos CTM (ctm_budgets) pendentes de aprovação
-      const { data: ctmBudgetsData } = await (supabase as any)
-        .from("ctm_orcamentos")
-        .select('*, aircraft:aeronave(matricula)')
-        .in("status", ["submitted"])
-        .order("submitted_at", { ascending: false });
-
-      // Buscar ordens de serviço CTM pendentes de aprovação
-      const { data: ctmOrdersData } = await (supabase as any)
-        .from("ctm_ordem_acompanhamento_servico")
-        .select('*, aeronave(matricula)')
-        .eq("approval_status", "pending_approval")
-        .order("submitted_for_approval_at", { ascending: false });
 
       // Combinar e formatar os dados
       const flights = (flightData || []).map(f => ({
@@ -80,30 +66,12 @@ export function GestorDashboard() {
       const budgets = (budgetsData || []).map((b: any) => ({
         ...b,
         type: 'budget',
-        title: `Orçamento: ${b.descricao?.substring(0, 40) || ''} - OAS #${b.service_order?.numero || '?'} (${b.service_order?.aeronave?.matricula || 'N/A'})`,
+        title: `Orçamento: ${b.descricao?.substring(0, 40) || ''} (${b.aircraft?.matricula || 'N/A'})`,
         date: b.submitted_at || b.criado_em,
         total: b.valor_total,
       }));
 
-      const ctmOrders = (ctmOrdersData || []).map(o => ({
-        ...o,
-        type: 'ctm_order',
-        title: `OAS #${o.order_number} - ${(o.aeronave as any)?.matricula || 'N/A'}`,
-        date: o.updated_at || o.created_at,
-        description: o.description,
-        total: o.value
-      }));
-
-      const ctmBudgets = (ctmBudgetsData || []).map((b: any) => ({
-        ...b,
-        type: 'ctm_budget',
-        title: `Orçamento CTM: ${b.descricao?.substring(0, 40) || b.supplier_name || ''} (${b.aeronave?.matricula || 'N/A'})`,
-        date: b.submitted_at || b.criado_em,
-        total: b.total_value,
-        status: b.approval_status || b.status || 'submitted',
-      }));
-
-      return [...flights, ...budgets, ...ctmOrders, ...ctmBudgets];
+      return [...flights, ...budgets];
     },
   });
 
@@ -320,12 +288,8 @@ export function GestorDashboard() {
                   <div
                     key={`${item.type}-${item.id}`}
                     onClick={() => {
-                      if (item.type === 'ctm_order') {
-                        navigate(`/manutencao/ctm?serviceOrderId=${item.id}`);
-                      } else if (item.type === 'ctm_budget') {
+                      if (item.type === 'budget') {
                         navigate(`/manutencao/orcamentos?budgetId=${item.id}`);
-                      } else if (item.type === 'budget') {
-                        navigate(`/manutencao/orcamentos?oasBudgetId=${item.id}`);
                       }
                     }}
                     className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-primary/50 hover:bg-white/[0.04] transition-all cursor-pointer group"
@@ -336,35 +300,29 @@ export function GestorDashboard() {
                       </p>
                       <div className="flex items-center gap-3 mt-1.5">
                         <p className="text-xs text-muted-foreground">
-                          {item.type === 'flight'
-                            ? 'Voo Agendado'
-                            : item.type === 'ctm_order'
-                              ? 'Ordem de Serviço CTM'
-                              : 'Orçamento de Manutenção'
-                          }
-                        </p>
+                        {item.type === 'flight'
+                          ? 'Voo Agendado'
+                          : 'Orçamento de Manutenção'
+                        }
+                      </p>
                         <span className="text-muted-foreground/30 text-xs">•</span>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(item.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                         </p>
                       </div>
-                      {item.type === 'ctm_order' && item.total && (
+                      {item.total && (
                         <p className="text-sm font-semibold text-emerald-400 mt-2">
                           R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
                       )}
                     </div>
                     <Badge
-                      className={`ml-4 shrink-0 ${item.type === 'ctm_order'
-                          ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
-                          : item.type === 'ctm_budget'
-                            ? "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20"
-                            : item.type === 'budget'
-                              ? "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
-                              : "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20"
+                      className={`ml-4 shrink-0 ${item.type === 'budget'
+                          ? "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
+                          : "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20"
                         }`}
                     >
-                      {item.type === 'ctm_order' ? 'OAS' : item.type === 'ctm_budget' ? 'Orçamento CTM' : item.type === 'budget' ? 'Orçamento OAS' : 'Voo'}
+                      {item.type === 'budget' ? 'Orçamento' : 'Voo'}
                     </Badge>
                   </div>
                 ))}

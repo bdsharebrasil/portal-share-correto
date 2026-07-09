@@ -140,41 +140,6 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
         observacoes: `${formData.descricao || ''} | vencimento_tipo: ${formData.vencimentoTipo}${formData.vencimentoTipo === "horas" ? ` | vencimento_horas: ${formData.vencimentoHoras}` : ''}`,
       });
 
-      // 2. Create CTM service order for hour-based maintenance
-      if (formData.vencimentoTipo === "horas") {
-        try {
-          const aircraft = aircrafts.find(a => a.id === formData.aeronave_id);
-          const horasValue = parseFloat(formData.vencimentoHoras);
-          const osNumero = `MNT-${horasValue}H-${Date.now().toString().slice(-6)}`;
-
-          const today = new Date();
-          const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-          const serviceOrderData = {
-            aeronave_id: formData.aeronave_id,
-            numero: osNumero,
-            tipo_manutencao: formData.tipoManutencao,
-            oficina_nome: oficinaNome || null,
-            horas_celula: horasValue,
-            objetivo: formData.tipo,
-            observacoes: formData.descricao || `Manutenção de ${horasValue}h - ${formData.tipo}`,
-            status: "EM_ANDAMENTO",
-            data_entrada: todayString,
-          };
-
-          const { error: ctmError } = await supabase
-            .from("ctm_ordem_acompanhamento_servico")
-            .insert([serviceOrderData]);
-
-          if (ctmError) {
-            console.error("Erro ao criar O.S. no CTM:", ctmError);
-          } else {
-            console.log(`✅ O.S. ${osNumero} criada no CTM para ${aircraft?.matricula}`);
-          }
-        } catch (ctmErr) {
-          console.error("Erro ao registrar no CTM:", ctmErr);
-        }
-      }
 
       toast({
         title: "Sucesso",
