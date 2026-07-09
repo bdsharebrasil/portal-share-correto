@@ -81,10 +81,10 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
 
       await createFlightDocument({
         aeronave_id: formData.aeronave_id,
-        document_name: formData.name,
-        document_type: formData.document_type || undefined,
-        expiry_date: formData.expiry_date,
-        file_path: "placeholder",
+        nome: formData.name,
+        tipo_documento: formData.document_type || undefined,
+        data_validade: formData.expiry_date,
+        caminho_arquivo: "placeholder",
       });
 
       toast({
