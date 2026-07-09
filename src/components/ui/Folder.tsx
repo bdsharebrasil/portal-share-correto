@@ -10,7 +10,7 @@ export default function Folder({ name, itemCount }: FolderProps) {
     <div className="flex flex-col items-center gap-3 w-[200px]">
       <div className="relative w-full aspect-[4/3] flex items-center justify-center">
         <div className="absolute inset-0 opacity-20">
-          <Vector />
+          <FolderIcon className="w-full h-full text-[#5b7fc7]" />
         </div>
 
         <div className="relative z-10 flex flex-col items-center justify-center gap-2 w-full h-full p-6">

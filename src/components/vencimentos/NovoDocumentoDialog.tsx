@@ -23,7 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Aircraft {
   id: string;
-  registration: string;
+  registration?: string;
+  matricula?: string;
 }
 
 interface NovoDocumentoDialogProps {
@@ -52,7 +53,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
   const loadAircrafts = async () => {
     try {
       const list = await fetchAircrafts();
-      setAircrafts(list);
+      setAircrafts(list as unknown as Aircraft[]);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -68,7 +69,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
     setLoading(true);
 
     try {
-      if (!formData.aeronave_id || !formData.nome || !formData.expiry_date) {
+      if (!formData.aeronave_id || !formData.name || !formData.expiry_date) {
         toast({
           title: "Erro",
           description: "Preencha todos os campos obrigatórios.",
@@ -80,7 +81,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
 
       await createFlightDocument({
         aeronave_id: formData.aeronave_id,
-        name: formData.nome,
+        document_name: formData.name,
         document_type: formData.document_type || undefined,
         expiry_date: formData.expiry_date,
         file_path: "placeholder",
@@ -159,11 +160,11 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
               <SelectContent className="bg-slate-800 border-white/10">
                 {aircrafts.map((aircraft) => (
                   <SelectItem
-                    key={aeronave.id}
-                    value={aeronave.id}
+                    key={aircraft.id}
+                    value={aircraft.id}
                     className="text-white"
                   >
-                    {aeronave.matricula}
+                    {aircraft.matricula || aircraft.registration}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -203,7 +204,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
             <Input
               id="nome"
               placeholder="Ex: Seguro Responsabilidade Civil"
-              value={formData.nome}
+              value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-slate-800 border-white/10 text-white placeholder-gray-500"
             />

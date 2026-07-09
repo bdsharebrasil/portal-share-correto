@@ -26,7 +26,7 @@ export const UpdateCheckProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setCurrentVersion(storedVersion);
 
       // Buscar versão mais recente do Supabase
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("app_config")
         .select("value")
         .eq("key", "latest_version")

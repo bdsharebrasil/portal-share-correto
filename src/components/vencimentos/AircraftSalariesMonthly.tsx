@@ -24,6 +24,8 @@ interface AircraftData {
   id: string;
   registration: string;
   model: string;
+  matricula: string;
+  modelo: string;
   status: string;
 }
 
@@ -78,7 +80,14 @@ export function AircraftSalariesMonthly() {
         .eq("status", "ativa")
         .order('matricula', { ascending: true });
       if (error) throw error;
-      return data as AircraftData[];
+      return (data || []).map((a: any) => ({
+        id: a.id,
+        registration: a.matricula,
+        model: a.modelo,
+        matricula: a.matricula,
+        modelo: a.modelo,
+        status: a.status,
+      })) as AircraftData[];
     },
   });
 
@@ -88,9 +97,15 @@ export function AircraftSalariesMonthly() {
       const { data, error } = await supabase
         .from('taxas_hora_aeronave')
         .select("*")
-        .order("effective_date", { ascending: false });
+        .order("data_vigencia", { ascending: false });
       if (error) throw error;
-      return data as MonthlyRate[];
+      return (data || []).map((r: any) => ({
+        id: r.id,
+        aeronave_id: r.aeronave_id,
+        hourly_rate: r.taxa_hora,
+        effective_date: r.data_vigencia,
+        created_at: r.criado_em,
+      })) as MonthlyRate[];
     },
   });
 
@@ -105,7 +120,7 @@ export function AircraftSalariesMonthly() {
   const aircraftWithRates = useMemo(() => {
     return activeAircraft.map((aircraft) => {
       const currentMonthRate = allRates.find((r) => {
-        if (r.aeronave_id !== aeronave.id) return false;
+        if (r.aeronave_id !== aircraft.id) return false;
         const { month, year } = getMonthYearFromDate(r.effective_date);
         return month === selectedMonth && year === selectedYear;
       });
@@ -115,7 +130,7 @@ export function AircraftSalariesMonthly() {
 
       if (!currentMonthRate) {
         const mostRecentRate = allRates.find((r) => {
-          if (r.aeronave_id !== aeronave.id) return false;
+          if (r.aeronave_id !== aircraft.id) return false;
           const { month, year } = getMonthYearFromDate(r.effective_date);
           const rateDate = new Date(year, month - 1);
           const selectedDate = new Date(selectedYear, selectedMonth - 1);
@@ -127,7 +142,7 @@ export function AircraftSalariesMonthly() {
       }
 
       return {
-        ...aeronave,
+        ...aircraft,
         hourly_rate: displayRate,
         current_rate_id: currentRateId,
       };
@@ -161,8 +176,8 @@ export function AircraftSalariesMonthly() {
     mutationFn: async (data: any) => {
       const rateData = {
         aeronave_id: data.aeronave_id,
-        hourly_rate: parseFloat(data.hourly_rate),
-        effective_date: `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
+        taxa_hora: parseFloat(data.hourly_rate),
+        data_vigencia: `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`,
       };
 
       if (data.rate_id) {
@@ -172,7 +187,7 @@ export function AircraftSalariesMonthly() {
           .eq("id", data.rate_id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('taxas_hora_aeronave').insert(rateData);
+        const { error } = await supabase.from('taxas_hora_aeronave').insert([rateData]);
         if (error) throw error;
       }
     },
@@ -213,7 +228,7 @@ export function AircraftSalariesMonthly() {
 
   const handleInlineEdit = (aircraft: any) => {
     if (!isAllowed) return;
-    setEditingId(aeronave.id);
+    setEditingId(aircraft.id);
     setEditingValue(aircraft.hourly_rate.toString());
   };
 
@@ -223,7 +238,7 @@ export function AircraftSalariesMonthly() {
       return;
     }
 
-    const aircraftData = activeAircraft.find((a) => a.id === aeronave.id);
+    const aircraftData = activeAircraft.find((a) => a.id === aircraft.id);
     if (aircraftData) {
       saveRateMutation.mutate({
         aeronave_id: aircraftData.id,
@@ -304,8 +319,8 @@ export function AircraftSalariesMonthly() {
                 </SelectTrigger>
                 <SelectContent>
                   {availableAircraftToAdd.map((aircraft) => (
-                    <SelectItem key={aeronave.id} value={aeronave.id}>
-                      {aeronave.matricula} - {aeronave.modelo} (R$ {aircraft.hourly_rate.toFixed(2)}/hora)
+                    <SelectItem key={aircraft.id} value={aircraft.id}>
+                      {aircraft.matricula} - {aircraft.modelo} (R$ {aircraft.hourly_rate.toFixed(2)}/hora)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -338,16 +353,16 @@ export function AircraftSalariesMonthly() {
               </TableHeader>
               <TableBody>
                 {displayedAircraft.map((aircraft) => (
-                  <TableRow key={aeronave.id}>
-                    <TableCell className="font-semibold">{aeronave.matricula}</TableCell>
-                    <TableCell>{aeronave.modelo}</TableCell>
+                  <TableRow key={aircraft.id}>
+                    <TableCell className="font-semibold">{aircraft.matricula}</TableCell>
+                    <TableCell>{aircraft.modelo}</TableCell>
                     <TableCell>
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Ativa
                       </span>
                     </TableCell>
                     <TableCell>
-                      {editingId === aeronave.id ? (
+                      {editingId === aircraft.id ? (
                         <div className="flex gap-2 items-center">
                           <Input
                             type="number"
@@ -383,7 +398,7 @@ export function AircraftSalariesMonthly() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {editingId !== aeronave.id && (
+                        {editingId !== aircraft.id && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -393,11 +408,11 @@ export function AircraftSalariesMonthly() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
-                        {selectedAircraftsToShow.includes(aeronave.id) && (
+                        {selectedAircraftsToShow.includes(aircraft.id) && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleRemoveAircraft(aeronave.id)}
+                            onClick={() => handleRemoveAircraft(aircraft.id)}
                             title="Remover da tabela"
                             className="text-red-600 hover:text-red-700"
                           >
