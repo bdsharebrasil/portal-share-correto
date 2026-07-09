@@ -52,7 +52,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
       if (error) throw error;
 
       // Fetch partner names
-      const partnerIds = (data || []).filter(a => a.socios_id).map(a => a.socios_id!);
+      const partnerIds = (data || []).filter(a => a.socios_cliente_id).map(a => a.socios_cliente_id!);
       let partnersMap: Record<string, string> = {};
       if (partnerIds.length > 0) {
         const { data: partners } = await supabase
@@ -67,7 +67,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
       return (data || []).map(a => ({
         ...a,
         ativo: a.ativo ?? true,
-        partner_name: a.socios_id ? partnersMap[a.socios_id] || 'Sócio' : undefined,
+        partner_name: a.socios_cliente_id ? partnersMap[a.socios_cliente_id] || 'Sócio' : undefined,
       })) as AcessoPortal[];
     },
     enabled: !!clienteId,
