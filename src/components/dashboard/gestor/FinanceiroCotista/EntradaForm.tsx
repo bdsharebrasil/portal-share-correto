@@ -256,7 +256,6 @@ export default function EntradaForm(props: EntradaFormProps) {
       const { data } = await supabase
         .from("aeronave")
         .select("id, matricula, modelo")
-        .eq("ativo", true)
         .order("matricula");
       return (data ?? []) as Array<{ id: string; matricula: string; modelo: string }>;
     },
