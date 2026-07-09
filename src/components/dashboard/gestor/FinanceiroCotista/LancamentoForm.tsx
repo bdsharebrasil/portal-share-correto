@@ -37,8 +37,9 @@ type GrupoCusto = "FIXO" | "VARIAVEL" | "EXTRA";
 type Socio = {
   id: string;
   nome: string;
-  cpf: string | null;
-  percentual_participacao: number | null;
+  cpf?: string | null;
+  percentual_participacao?: number | null;
+  percentual?: number;
 };
 
 type RateioInput = {
