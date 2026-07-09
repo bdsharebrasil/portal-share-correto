@@ -40,7 +40,7 @@ export function TravelReportPdfModal({
       setLoading(true);
       setPdfDataUrl(null);
 
-      const { data: fullReport } = await supabase
+      const { data: fullReport } = await (supabase as any)
         .from("travel_expense_reports")
         .select("*")
         .eq("id", reportId)
@@ -51,12 +51,13 @@ export function TravelReportPdfModal({
         return;
       }
 
+      const report = fullReport as any;
       const expenses = (() => {
         try {
-          if (typeof fullReport.expenses === "string") {
-            return JSON.parse(fullReport.expenses);
+          if (typeof report.expenses === "string") {
+            return JSON.parse(report.expenses);
           }
-          return fullReport.expenses || [];
+          return report.expenses || [];
         } catch {
           return [];
         }
@@ -65,16 +66,16 @@ export function TravelReportPdfModal({
       const correctedTotals = calculateReportTotals(expenses);
 
       const pdfReport = {
-        numero: fullReport.report_number,
-        cliente_nome: fullReport.client,
-        aeronave: fullReport.aircraft_registration,
-        tripulante: fullReport.crew_member_name,
-        tripulante2: fullReport.crew_member_name_2,
-        trecho: fullReport.route,
-        destino: fullReport.route,
-        data_inicio: fullReport.start_date,
-        data_fim: fullReport.end_date,
-        observacoes: fullReport.observations,
+        numero: report.report_number,
+        cliente_nome: report.client,
+        aeronave: report.aircraft_registration,
+        tripulante: report.crew_member_name,
+        tripulante2: report.crew_member_name_2,
+        trecho: report.route,
+        destino: report.route,
+        data_inicio: report.start_date,
+        data_fim: report.end_date,
+        observacoes: report.observations,
         despesas: (expenses || []).map((e: any) => ({
           categoria: e.category,
           descricao: e.description,
@@ -233,7 +234,7 @@ export function TravelReportPdfModal({
         document.body.removeChild(link);
         toast.success("PDF baixado com sucesso!");
       } else {
-        const { data: fullReport } = await supabase
+        const { data: fullReport } = await (supabase as any)
           .from("travel_expense_reports")
           .select("*")
           .eq("id", reportId)
@@ -244,12 +245,13 @@ export function TravelReportPdfModal({
           return;
         }
 
+        const report = fullReport as any;
         const expenses = (() => {
           try {
-            if (typeof fullReport.expenses === "string") {
-              return JSON.parse(fullReport.expenses);
+            if (typeof report.expenses === "string") {
+              return JSON.parse(report.expenses);
             }
-            return fullReport.expenses || [];
+            return report.expenses || [];
           } catch {
             return [];
           }
@@ -258,16 +260,16 @@ export function TravelReportPdfModal({
         const correctedTotals = calculateReportTotals(expenses);
 
         const pdfReport = {
-          numero: fullReport.report_number,
-          cliente_nome: fullReport.client,
-          aeronave: fullReport.aircraft_registration,
-          tripulante: fullReport.crew_member_name,
-          tripulante2: fullReport.crew_member_name_2,
-          trecho: fullReport.route,
-          destino: fullReport.route,
-          data_inicio: fullReport.start_date,
-          data_fim: fullReport.end_date,
-          observacoes: fullReport.observations,
+          numero: report.report_number,
+          cliente_nome: report.client,
+          aeronave: report.aircraft_registration,
+          tripulante: report.crew_member_name,
+          tripulante2: report.crew_member_name_2,
+          trecho: report.route,
+          destino: report.route,
+          data_inicio: report.start_date,
+          data_fim: report.end_date,
+          observacoes: report.observations,
           despesas: (expenses || []).map((e: any) => ({
             categoria: e.category,
             descricao: e.description,

@@ -1,5 +1,5 @@
 import { Pencil, Trash2, Columns, ArrowDownUp, AlertTriangle, Sparkles, X } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
 export function DiarioBordoDicas() {

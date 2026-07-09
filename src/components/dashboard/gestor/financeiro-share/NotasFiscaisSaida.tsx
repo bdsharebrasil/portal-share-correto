@@ -1699,6 +1699,7 @@ export function NotasFiscaisSaida() {
                         data_vencimento: new Date().toISOString().split("T")[0],
                         descricao: "",
                         categoriaRecibo: "",
+                        numero_recibo: "",
                       });
                     }}
                     className="text-muted-foreground hover:text-foreground"

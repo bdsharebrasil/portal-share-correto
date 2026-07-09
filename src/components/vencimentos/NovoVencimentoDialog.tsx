@@ -23,7 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface Aircraft {
   id: string;
-  registration: string;
+  registration?: string;
+  matricula?: string;
 }
 
 interface Oficina {
@@ -64,7 +65,7 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
   const loadAircrafts = async () => {
     try {
       const list = await fetchAircrafts();
-      setAircrafts(list);
+      setAircrafts(list as unknown as Aircraft[]);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -242,11 +243,11 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
               <SelectContent className="bg-slate-800 border-white/10">
                 {aircrafts.map((aircraft) => (
                   <SelectItem
-                    key={aeronave.id}
-                    value={aeronave.id}
+                    key={aircraft.id}
+                    value={aircraft.id}
                     className="text-white"
                   >
-                    {aeronave.matricula}
+                    {aircraft.matricula || aircraft.registration}
                   </SelectItem>
                 ))}
               </SelectContent>

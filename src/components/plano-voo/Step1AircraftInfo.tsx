@@ -43,7 +43,7 @@ interface Aircraft {
 interface Aerodrome {
   id: string;
   designativo: string;
-  name: string;
+  nome: string;
   coordenadas: string | null;
 }
 
@@ -85,10 +85,10 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
         setAircraft(aircraftRes.data);
       }
       if (aerodromesRes.data) {
-        setAerodromes(aerodromesRes.data);
+        setAerodromes(aerodromesRes.data as Aerodrome[]);
         const options: AutocompleteOption[] = aerodromesRes.data.map((a) => ({
           id: a.designativo,
-          label: `${a.designativo} - ${a.name}`,
+          label: `${a.designativo} - ${a.nome}`,
         }));
         setAerodromesOptions(options);
       }

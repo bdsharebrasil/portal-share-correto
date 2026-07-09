@@ -159,7 +159,7 @@ export const RelatorioCustosModelo2: React.FC<RelatorioCustosModelo2Props> = ({
                     {mov.tipo === "receita" ? "+" : "-"} {formatBRL(mov.valor)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={mov.tipo === "receita" ? "success" : "destructive"} className="text-[10px] uppercase">
+                    <Badge variant={mov.tipo === "receita" ? "default" : "destructive"} className="text-[10px] uppercase">
                       {mov.tipo === "receita" ? "Aporte" : "Despesa"}
                     </Badge>
                   </TableCell>

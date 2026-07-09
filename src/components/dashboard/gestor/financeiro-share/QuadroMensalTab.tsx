@@ -141,6 +141,7 @@ export function QuadroMensalTab() {
     dateRange: undefined,
     amountRange: [0, 100000],
     source: "all",
+    caixaType: "all",
   });
 
   // ── Drag-scroll refs ──────────────────────────────────────────────────────

@@ -13,18 +13,31 @@ export function UpcomingFlightsPanel() {
   const { data: flights = [] } = useQuery({
     queryKey: ["upcoming-flights-panel"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("flight_schedules")
-        .select(`
-          *,
-          aircraft:aeronave_id(registration)
-        `)
-        .gte("flight_date", new Date().toISOString().split("T")[0])
-        .order("flight_date", { ascending: true })
-        .order("flight_time", { ascending: true })
+      const { data, error } = await (supabase as any)
+        .from("solicitacoes_reserva_voo")
+        .select("id, aeronave_id, origem, destino, data_agendada, horario_partida, qtd_passageiros, status")
+        .gte("data_agendada", new Date().toISOString().split("T")[0])
+        .order("data_agendada", { ascending: true })
+        .order("horario_partida", { ascending: true })
         .limit(4);
       if (error) throw error;
-      return data || [];
+
+      const aeronaveIds = [...new Set((data || []).map((flight: any) => flight.aeronave_id).filter(Boolean))];
+      const { data: aeronaves } = aeronaveIds.length
+        ? await (supabase as any).from("aeronave").select("id, matricula").in("id", aeronaveIds)
+        : { data: [] };
+      const aeronaveById = new Map((aeronaves || []).map((a: any) => [a.id, a]));
+
+      return (data || []).map((flight: any) => ({
+        id: flight.id,
+        flight_date: flight.data_agendada,
+        flight_time: flight.horario_partida,
+        origin: flight.origem,
+        destination: flight.destino,
+        passengers: flight.qtd_passageiros,
+        status: flight.status,
+        aeronave: aeronaveById.get(flight.aeronave_id),
+      }));
     },
   });
 

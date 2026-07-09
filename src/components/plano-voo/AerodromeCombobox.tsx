@@ -59,7 +59,7 @@ export function AerodromeCombobox({
             <span className="flex items-center gap-2 truncate">
               <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="font-mono font-semibold">{selectedAerodrome.designativo}</span>
-              <span className="text-muted-foreground truncate">- {selectedAerodrome.name}</span>
+              <span className="text-muted-foreground truncate">- {selectedAerodrome.nome}</span>
             </span>
           ) : (
             <span>{placeholder}</span>

@@ -5,39 +5,63 @@ export function useControleBancario() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["controle_bancario"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("controle_bancario")
-        .select(`
-          *,
-          categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria),
-          clientes:cliente_id(id, razao_social, proprietario),
-          socios:socios_id(id, nome),
-          fornecedores_favoritos:fornecedores_favoritos_id(id, nome_completo),
-          user_profiles:colaborador_id(id, full_name, display_name)
-        `)
+        .select("*")
         .order("data", { ascending: false });
 
       if (error) throw error;
 
+      const transacoes = data || [];
+
+      const [categoriasRes, clientesRes, sociosRes, fornecedoresRes, colaboradoresRes] = await Promise.all([
+        (supabase as any).from("categorias_movimentacao").select("id, nome, tipo, grupo_categoria"),
+        (supabase as any).from("clientes").select("id, razao_social, proprietario"),
+        (supabase as any).from("socios").select("id, nome"),
+        (supabase as any).from("fornecedores_favoritos").select("id, nome_completo"),
+        (supabase as any).from("user_profiles").select("id, full_name, display_name"),
+      ]);
+
+      const byId = (rows?: any[] | null) => new Map((rows || []).map((row: any) => [row.id, row]));
+      const categoriasById = byId(categoriasRes.data);
+      const clientesById = byId(clientesRes.data);
+      const sociosById = byId(sociosRes.data);
+      const fornecedoresById = byId(fornecedoresRes.data);
+      const colaboradoresById = byId(colaboradoresRes.data);
+
       // Map the data to include categoria_nome, referencia e cliente_nome
       // Referência pode ser: fornecedor ou colaborador (user_profile)
       // Cliente é separado para ter sua própria coluna
-      return (data || []).map((item: any) => ({
-        ...item,
-        categoria_nome: item.categorias_movimentacao?.nome || item.grupo_categoria || '-',
-        grupo_categoria_nome: item.categorias_movimentacao?.grupo_categoria || item.grupo_categoria || '-',
-        // Referência: fornecedor favorito ou colaborador
-        referencia: item.fornecedores_favoritos?.nome_completo ||
-          item.user_profiles?.full_name ||
-          item.user_profiles?.display_name ||
-          '-',
-        // Cliente: se houver partner use o nome do partner, senão empresa/proprietário
-        cliente_nome: item.socios?.nome ||
-          item.clientes?.razao_social ||
-          item.clientes?.proprietario ||
-          item.client_name ||
-          '-'
-      }));
+      return transacoes.map((item: any) => {
+        const categoria = categoriasById.get(item.categoria_id);
+        const cliente = clientesById.get(item.cliente_id);
+        const socio = sociosById.get(item.socios_cliente_id);
+        const fornecedor = fornecedoresById.get(item.fornecedores_favoritos_id);
+        const colaborador = colaboradoresById.get(item.colaborador_id);
+
+        return {
+          ...item,
+          categorias_movimentacao: categoria,
+          clientes: cliente,
+          socios: socio,
+          fornecedores_favoritos: fornecedor,
+          user_profiles: colaborador,
+          categoria_nome: categoria?.nome || item.grupo_categoria || '-',
+          grupo_categoria_nome: categoria?.grupo_categoria || item.grupo_categoria || '-',
+          // Referência: fornecedor favorito ou colaborador
+          referencia: fornecedor?.nome_completo ||
+            colaborador?.full_name ||
+            colaborador?.display_name ||
+            '-',
+          // Cliente: se houver partner use o nome do partner, senão empresa/proprietário
+          cliente_nome: socio?.nome ||
+            cliente?.razao_social ||
+            cliente?.proprietario ||
+            item.clientes_nome ||
+            item.client_name ||
+            '-'
+        };
+      });
     },
   });
 

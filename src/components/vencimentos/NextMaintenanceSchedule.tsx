@@ -80,10 +80,10 @@ export function NextMaintenanceSchedule({
       // Try to load from manutencoes first
       console.log('NextMaintenanceSchedule: Fetching data for aircraft:', aircraftId);
 
-      const { data: manutencoes, error: manutError } = await supabase
+      const { data: manutencoes, error: manutError } = await (supabase as any)
         .from('manutencoes')
         .select('*')
-        .eq('aircraft_id', aircraftId)
+        .eq('aeronave_id', aircraftId)
         .order('updated_at', { ascending: false });
 
       if (!manutError && manutencoes && manutencoes.length > 0) {
