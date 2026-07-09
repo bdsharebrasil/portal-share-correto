@@ -357,7 +357,7 @@ export function FechamentoBalancoTab({
         ],
         body: tableData,
         theme: "striped",
-        headStyles: { fillStyle: [41, 128, 185] },
+        headStyles: { fillColor: [41, 128, 185] },
         foot: [
           [
             "TOTAL",
@@ -394,7 +394,7 @@ export function FechamentoBalancoTab({
           head: [["Data", "Cotista / Usuário", "Tempo de Voo"]],
           body: voosData,
           theme: "grid",
-          headStyles: { fillStyle: [52, 73, 94] },
+          headStyles: { fillColor: [52, 73, 94] },
         });
       }
 
@@ -417,7 +417,7 @@ export function FechamentoBalancoTab({
           head: [["Data", "Fornecedor", "Descrição", "Categoria", "Valor Total"]],
           body: despesasData,
           theme: "grid",
-          headStyles: { fillStyle: [127, 140, 141] },
+          headStyles: { fillColor: [127, 140, 141] },
         });
       }
 
@@ -456,7 +456,7 @@ export function FechamentoBalancoTab({
           head: [["Devedor", "Ação", "Credor", "Valor"]],
           body: matrixData,
           theme: "grid",
-          headStyles: { fillStyle: [39, 174, 96] },
+          headStyles: { fillColor: [39, 174, 96] },
         });
       }
 

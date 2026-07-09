@@ -19,7 +19,7 @@ interface Props {
 interface AcessoPortal {
   id: string;
   clientes_id: string;
-  socios_id: string | null;
+  socios_cliente_id: string | null;
   login: string;
   hash_senha: string;
   ativo: boolean;
@@ -52,7 +52,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
       if (error) throw error;
 
       // Fetch partner names
-      const partnerIds = (data || []).filter(a => a.socios_id).map(a => a.socios_id!);
+      const partnerIds = (data || []).filter(a => a.socios_cliente_id).map(a => a.socios_cliente_id!);
       let partnersMap: Record<string, string> = {};
       if (partnerIds.length > 0) {
         const { data: partners } = await supabase
@@ -67,7 +67,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
       return (data || []).map(a => ({
         ...a,
         ativo: a.ativo ?? true,
-        partner_name: a.socios_id ? partnersMap[a.socios_id] || 'Sócio' : undefined,
+        partner_name: a.socios_cliente_id ? partnersMap[a.socios_cliente_id] || 'Sócio' : undefined,
       })) as AcessoPortal[];
     },
     enabled: !!clienteId,
@@ -99,7 +99,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
           .update({
             login: login.trim(),
             hash_senha: senha.trim(),
-            socios_id: partnerId,
+            socios_cliente_id: partnerId,
             atualizado_em: new Date().toISOString(),
           })
           .eq('id', editingId);
@@ -111,7 +111,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
             clientes_id: clienteId,
             login: login.trim(),
             hash_senha: senha.trim(),
-            socios_id: partnerId,
+            socios_cliente_id: partnerId,
             ativo: true,
           });
         if (error) throw error;
@@ -186,7 +186,7 @@ export function GerenciarAcessoPortal({ clienteId, socioId }: Props) {
     setEditingId(acesso.id);
     setLogin(acesso.login);
     setSenha(acesso.hash_senha);
-    setPartnerId(acesso.socios_id);
+    setPartnerId(acesso.socios_cliente_id);
     setDialogOpen(true);
   };
 

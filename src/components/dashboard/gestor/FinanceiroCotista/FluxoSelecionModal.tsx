@@ -11,6 +11,7 @@ import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 interface FluxoSelecionModalProps {
   open: boolean;
   onSelect: (fluxo: "entrada" | "saida") => void;
+  onClose?: () => void;
 }
 
 export function FluxoSelecionModal({ open, onSelect }: FluxoSelecionModalProps) {

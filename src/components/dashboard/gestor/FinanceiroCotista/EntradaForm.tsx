@@ -27,8 +27,9 @@ import { useEffect, useState } from "react";
 type Socio = {
   id: string;
   nome: string;
-  cpf: string | null;
-  percentual_participacao: number | null;
+  cpf?: string | null;
+  percentual_participacao?: number | null;
+  percentual?: number;
 };
 
 const STATUS_OPTIONS = [
@@ -255,7 +256,6 @@ export default function EntradaForm(props: EntradaFormProps) {
       const { data } = await supabase
         .from("aeronave")
         .select("id, matricula, modelo")
-        .eq("ativo", true)
         .order("matricula");
       return (data ?? []) as Array<{ id: string; matricula: string; modelo: string }>;
     },
