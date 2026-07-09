@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
-import { LancamentosTab } from "./LancamentosTab";
+
 import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
 import { HistoricoCreditsTab } from "./HistoricoCreditsTab";
 import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
