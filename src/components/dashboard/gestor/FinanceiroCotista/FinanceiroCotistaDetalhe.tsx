@@ -827,8 +827,8 @@ function LancamentoAcaoModal({
   onVoltarEscolha,
 }: {
   lancamento: DespesaUnificada | null;
-  acao: "editar" | "deletar" | null;
-  onAcao: (acao: "editar" | "deletar") => void;
+  acao: "editar" | "deletar" | "novo" | null;
+  onAcao: (acao: "editar" | "deletar" | "novo") => void;
   onClose: () => void;
   onEditarClick: () => void;
   onDeletarConfirm: () => void;
