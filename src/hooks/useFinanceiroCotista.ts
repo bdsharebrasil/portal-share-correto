@@ -235,13 +235,17 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
             .in("id_aeronave", aeronaveIds),
           (supabase as any)
             .from("rateio_despesas")
-            .select("*")
+            .select(
+              "*, cliente:clientes(id, razao_social, proprietario), socio:socios(id, nome)"
+            )
             .in("aeronave_id", aeronaveIds)
             .eq("cliente_id", clienteId!)
             .order("data_vencimento", { ascending: false }),
           (supabase as any)
             .from("rateio_despesas")
-            .select("*")
+            .select(
+              "*, cliente:clientes(id, razao_social, proprietario), socio:socios(id, nome)"
+            )
             .in("aeronave_id", aeronaveIds)
             .order("data_vencimento", { ascending: false }),
           supabase
@@ -262,8 +266,17 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
         ]);
 
         todosCotistas = cotistasData || [];
-        rateios = rats || [];
-        rateioDespesasComTodosCotistas = ratsAllClientes || [];
+        // Preencher nomes de cliente/socio vindos das relações, quando disponíveis
+        rateios = (rats || []).map((r: any) => ({
+          ...r,
+          clientes_nome: r.cliente?.razao_social || r.cliente?.proprietario || r.clientes_nome || null,
+          socios_nome: r.socio?.nome || r.socios_nome || null,
+        }));
+        rateioDespesasComTodosCotistas = (ratsAllClientes || []).map((r: any) => ({
+          ...r,
+          clientes_nome: r.cliente?.razao_social || r.cliente?.proprietario || r.clientes_nome || null,
+          socios_nome: r.socio?.nome || r.socios_nome || null,
+        }));
         abastecimentos = (abast || []).map((a: any) => {
           // Tentar encontrar o nome do cliente entre os cotistas da aeronave
           let clientes_nome: string | null = null;

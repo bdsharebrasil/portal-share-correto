@@ -61,9 +61,10 @@ type AnexoItem = {
 };
 
 const GRUPOS = [
-  { id: "FIXO", label: "Custo Fixo (Hangaragem, ADM, seguros)" },
-  { id: "VARIAVEL", label: "Custo Variável (Combustível, manutenção, taxas)" },
-  { id: "EXTRA", label: "Custo Extra (Pontual / corretiva)" },
+  { id: "FIXO", label: "FIXO" },
+  { id: "VARIAVEL_POR_HORA", label: "VARIÁVEL POR HORA" },
+  { id: "VARIAVEL_POR_VOO", label: "VARIÁVEL POR VOO" },
+  { id: "EXTRA", label: "EXTRA" },
 ];
 
 const STATUS_OPTIONS = [
@@ -80,10 +81,11 @@ const FORMA_PGTO = [
 ];
 
 const PERIODICIDADE = [
-  { id: "unica", label: "Única" },
-  { id: "mensal", label: "Mensal" },
-  { id: "trimestral", label: "Trimestral" },
-  { id: "anual", label: "Anual" },
+  { id: "MENSAL", label: "Mensal" },
+  { id: "TRIMESTRAL", label: "Trimestral" },
+  { id: "SEMESTRAL", label: "Semestral" },
+  { id: "ANUAL", label: "Anual" },
+  { id: "EVENTUAL", label: "Eventual" },
 ];
 
 const TIPO_ANEXO = [
@@ -306,7 +308,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         aeronave_id: p.aeronave_id ?? aeronaveIdParam ?? null,
         client_id: p.cliente_id ?? clienteId ?? null,
         forma_pagamento: p.forma_pagamento ?? "",
-        periodicidade: "unica",
+        periodicidade: "EVENTUAL",
         numero_doc: p.numero_doc ?? "",
         numero_nf: p.numero_nf ?? "",
         numero_boleto: p.numero_boleto ?? "",
@@ -350,7 +352,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   const [categoriaId, setCategoriaId] = useState("");
   const [categoriaCusto, setCategoriaCusto] = useState("");
   const [formaPgto, setFormaPgto] = useState("");
-  const [periodicidade, setPeriodicidade] = useState("unica");
+  const [periodicidade, setPeriodicidade] = useState("EVENTUAL");
   const [numeroDoc, setNumeroDoc] = useState("");
   const [numeroNf, setNumeroNf] = useState("");
   const [numeroBoleto, setNumeroBoleto] = useState("");
@@ -417,7 +419,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       setFornecedorNome(editingFinal.fornecedor_nome ?? "");
       setAeronaveSelected(editingFinal.aeronave_id ?? aeronaveIdParam ?? "");
       setFormaPgto(editingFinal.forma_pagamento ?? "");
-      setPeriodicidade(editingFinal.periodicidade ?? "unica");
+      setPeriodicidade(editingFinal.periodicidade ?? "EVENTUAL");
       setDataVencimento(editingFinal.data_vencimento ?? "");
       setNumeroDoc(editingFinal.numero_doc ?? "");
       setNumeroNf(editingFinal.numero_nf ?? "");
@@ -775,7 +777,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         pago_diretamente: pagador !== "EMPRESA",
         fluxo,
         forma_pagamento: formaPgto || null,
-        periodicidade: periodicidade || "unica",
+        periodicidade: periodicidade || "EVENTUAL",
         fornecedor_nome: fornecedor,
         numero_doc: numeroDoc || null,
         numero_nf: numeroNf || null,

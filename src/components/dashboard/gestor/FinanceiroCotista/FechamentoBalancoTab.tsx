@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { Fragment, useMemo, useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -9,6 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -21,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Calculator,
+  CalendarIcon,
   Clock,
   Gauge,
   Layers,
@@ -198,6 +206,27 @@ export function FechamentoBalancoTab({
     () => despesasAgrupadas.map((g) => g.despesa),
     [despesasAgrupadas]
   );
+
+  async function updateDespesaGroup(
+    group: { despesa: any; rateios: any[] },
+    patch: Record<string, any>
+  ) {
+    const ids = group.rateios.map((r) => r.id).filter(Boolean);
+    if (ids.length === 0) {
+      toast.error("Nenhum item para atualizar.");
+      return;
+    }
+    const { error } = await (supabase as any)
+      .from("rateio_despesas")
+      .update(patch)
+      .in("id", ids);
+    if (error) {
+      toast.error("Erro ao salvar: " + error.message);
+      return;
+    }
+    toast.success("Atualizado");
+    qc.invalidateQueries({ queryKey: ["fechamento-balanco", aeronaveId, periodoTipo, mes, ano, dataInicio, dataFim] });
+  }
 
   // Calcular o que cada sócio PAGOU de fato (Crédito)
   const creditoPorCotista = useMemo(() => {
@@ -718,6 +747,9 @@ export function FechamentoBalancoTab({
 /* ════════════════════════════════════════════════════════════════════
    LANÇAMENTOS DETALHADOS — estilo planilha "Centro de Lançamentos"
    ════════════════════════════════════════════════════════════════════ */
+const TIPOS_RATEIO = ["FIXO", "VARIAVEL_POR_HORA", "VARIAVEL_POR_VOO", "EXTRA"] as const;
+const PERIODICIDADES = ["MENSAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
+
 function LancamentosDetalhadosView({
   despesasAgrupadas,
   cotistas,
@@ -729,8 +761,155 @@ function LancamentosDetalhadosView({
   periodoLabel: string;
   aeronaveLabel?: string;
 }) {
+  const qc = useQueryClient();
   const [filtroCotista, setFiltroCotista] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+
+  async function updateDespesaGroup(
+    group: { despesa: any; rateios: any[] },
+    patch: Record<string, any>
+  ) {
+    const ids = group.rateios.map((r) => r.id).filter(Boolean);
+    if (ids.length === 0) {
+      toast.error("Nenhum item para atualizar.");
+      return;
+    }
+    const { error } = await (supabase as any)
+      .from("rateio_despesas")
+      .update(patch)
+      .in("id", ids);
+    if (error) {
+      toast.error("Erro ao salvar: " + error.message);
+      return;
+    }
+    toast.success("Atualizado");
+    qc.invalidateQueries({ queryKey: ["fechamento-balanco", aeronaveId, periodoTipo, mes, ano, dataInicio, dataFim] });
+  }
+
+  function LinhaDespesa({
+    group,
+    cotistas,
+    onUpdate,
+  }: {
+    group: { despesa: any; rateios: any[] };
+    cotistas: Cotista[];
+    onUpdate: (patch: Record<string, any>) => Promise<void>;
+  }) {
+    const [openDate, setOpenDate] = useState(false);
+    const [doc, setDoc] = useState(group.despesa.numero_doc || group.despesa.numero_nf || "");
+    const [descricao, setDescricao] = useState(group.despesa.descricao_despesa || "");
+    const [tipoRateio, setTipoRateio] = useState(group.despesa.tipo_rateio || "");
+    const [periodicidade, setPeriodicidade] = useState((group.despesa.periodicidade || "").toUpperCase());
+
+    useEffect(() => { setDoc(group.despesa.numero_doc || group.despesa.numero_nf || ""); }, [group.despesa.numero_doc, group.despesa.numero_nf]);
+    useEffect(() => { setDescricao(group.despesa.descricao_despesa || ""); }, [group.despesa.descricao_despesa]);
+    useEffect(() => { setTipoRateio(group.despesa.tipo_rateio || ""); }, [group.despesa.tipo_rateio]);
+    useEffect(() => { setPeriodicidade((group.despesa.periodicidade || "").toUpperCase()); }, [group.despesa.periodicidade]);
+
+    const dataRef = group.despesa.data_pagamento || group.despesa.data_vencimento;
+
+    return (
+      <tr className="hover:bg-muted/10 transition-colors">
+        <td className="p-2 border-b border-border">
+          <Popover open={openDate} onOpenChange={setOpenDate}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 px-2 gap-1.5 w-full justify-start font-normal text-left">
+                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs">{formatDate(dataRef)}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999]">
+              <DatePickerCalendar
+                value={dataRef ? new Date(dataRef + "T00:00:00") : undefined}
+                onChange={(d) => {
+                  if (!d) return;
+                  const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                  onUpdate({ data_pagamento: iso, data_vencimento: iso });
+                  setOpenDate(false);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </td>
+
+        <td className="p-2 border-b border-border">
+          <Input
+            value={doc}
+            onChange={(e) => setDoc(e.target.value)}
+            onBlur={() => { if (doc !== (group.despesa.numero_doc || group.despesa.numero_nf || "")) onUpdate({ numero_doc: doc || null }); }}
+            className="h-8 text-xs font-mono"
+          />
+        </td>
+
+        <td className="p-2 border-b border-border">
+          <Input
+            value={group.despesa.fornecedor_nome || ""}
+            onChange={(e) => onUpdate({ fornecedor_nome: e.target.value })}
+            onBlur={(e) => onUpdate({ fornecedor_nome: e.target.value || null })}
+            placeholder="Fornecedor"
+            className="h-8 text-xs"
+          />
+        </td>
+
+        <td className="p-2 border-b border-border">
+          <Input
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            onBlur={() => { if (descricao !== (group.despesa.descricao_despesa || "")) onUpdate({ descricao_despesa: descricao }); }}
+            className="h-8 text-xs"
+          />
+        </td>
+
+        <td className="p-2 border-b border-border">
+          <Input
+            value={group.despesa.categoria_custo || ""}
+            onChange={(e) => onUpdate({ categoria_custo: e.target.value })}
+            onBlur={(e) => onUpdate({ categoria_custo: e.target.value || null })}
+            placeholder="Categoria"
+            className="h-8 text-xs"
+          />
+        </td>
+
+        <td className="p-2 border-b border-border">
+          <Select value={tipoRateio} onValueChange={(v) => { setTipoRateio(v); onUpdate({ tipo_rateio: v }); }}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>
+              {TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </td>
+
+        <td className="p-2 border-b border-border">
+          <Select value={periodicidade} onValueChange={(v) => { setPeriodicidade(v); onUpdate({ periodicidade: v }); }}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>
+              {PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </td>
+
+        <td className="p-2 border-b border-border text-center">
+          <Badge variant="outline" className={(group.despesa.fluxo || "").toUpperCase().includes("ENTRA") ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-rose-500/40 text-rose-400 bg-rose-500/10"}>
+            {group.despesa.fluxo || "—"}
+          </Badge>
+        </td>
+
+        <td className="p-2 border-b border-border text-[10px] uppercase">{group.despesa.pago_por || "—"}</td>
+
+        {cotistas.map((c) => {
+          const r = group.rateios.find((item) => item.cliente_id === c.id || item.socio_id === c.id);
+          const pct = r ? Number(r.percentual_uso ?? r.percentual_sociedade ?? 0) : 0;
+          const rateio = r ? Number(r.valor_rateado || 0) : 0;
+          return (
+            <Fragment key={c.id}>
+              <td className="p-2 border-b border-l border-border text-center font-mono text-[10px]">{pct > 0 ? `${pct.toFixed(2)}%` : "—"}</td>
+              <td className="p-2 border-b border-l border-border text-right font-mono text-[10px]">{rateio > 0 ? formatBRL(rateio) : "—"}</td>
+            </Fragment>
+          );
+        })}
+      </tr>
+    );
+  }
 
   const filtrados = useMemo(() => {
     return despesasAgrupadas.filter(({ despesa, rateios }) => {
@@ -789,83 +968,32 @@ function LancamentosDetalhadosView({
                   <th className="text-left p-2 border-b border-border">Tipo</th>
                   <th className="text-center p-2 border-b border-border">Fluxo</th>
                   <th className="text-left p-2 border-b border-border">Pago Por</th>
-                  <th className="text-right p-2 border-b border-border">Valor</th>
                   <th colSpan={cotistas.length} className="text-center p-2 border-b border-l border-border bg-primary/5">% por Cotista</th>
                   <th colSpan={cotistas.length} className="text-center p-2 border-b border-l border-border bg-success/5">Rateio (R$)</th>
                 </tr>
                 <tr className="bg-muted/20 text-[10px]">
-                  <th colSpan={9} className="p-1 border-b border-border"></th>
+                  <th colSpan={8} className="p-1 border-b border-border"></th>
                   {cotistas.map((c) => (
-                    <th key={`p-${c.id}`} className="text-center p-1 border-b border-l border-border font-mono">{c.nome.split(" ")[0]}</th>
+                    <th key={`p-${c.id}`} className="text-center p-1 border-b border-l border-border font-mono">{(c.nome || c.id || '').split(" ")[0]}</th>
                   ))}
                   {cotistas.map((c) => (
-                    <th key={`r-${c.id}`} className="text-center p-1 border-b border-l border-border font-mono">{c.nome.split(" ")[0]}</th>
+                    <th key={`r-${c.id}`} className="text-center p-1 border-b border-l border-border font-mono">{(c.nome || c.id || '').split(" ")[0]}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                {filtrados.map(({ despesa: d, rateios }, idx) => {
-                  const dataRef = d.data_pagamento || d.data_vencimento;
-                  const doc = d.numero_nf || d.numero_doc || d.numero_recibo || d.numero_boleto || "—";
-                  const valor = Number(d.valor_total_despesa) || 0;
-                  const fluxoUp = (d.fluxo || "").toUpperCase();
-                  // mapa cotista->rateio consolidado (soma se múltiplos registros)
-                  const ratioByCotista = new Map<string, any>();
-                  rateios.forEach((r) => {
-                    const cid = r.cliente_id || r.socio_id;
-                    if (!cid) return;
-                    if (!ratioByCotista.has(cid)) {
-                      ratioByCotista.set(cid, { ...r });
-                    } else {
-                      const existing = ratioByCotista.get(cid)!;
-                      existing.valor_rateado = (Number(existing.valor_rateado) || 0) + (Number(r.valor_rateado) || 0);
-                      existing.valor_pago_real = (Number(existing.valor_pago_real) || 0) + (Number(r.valor_pago_real) || 0);
-                      existing.percentual_sociedade = Number(r.percentual_sociedade) || Number(existing.percentual_sociedade) || 0;
-                      existing.percentual_uso = Number(r.percentual_uso) || Number(existing.percentual_uso) || null;
-                    }
-                  });
-                  return (
-                    <tr key={idx} className="hover:bg-muted/30">
-                      <td className="p-2 border-b border-border font-mono">{formatDate(dataRef)}</td>
-                      <td className="p-2 border-b border-border font-mono">{doc}</td>
-                      <td className="p-2 border-b border-border">{d.fornecedor_nome || "—"}</td>
-                      <td className="p-2 border-b border-border">{d.descricao_despesa || "—"}</td>
-                      <td className="p-2 border-b border-border uppercase text-[10px]">{d.categoria_custo || "—"}</td>
-                      <td className="p-2 border-b border-border text-[10px]">{d.periodicidade || "—"}</td>
-                      <td className="p-2 border-b border-border text-center">
-                        <Badge variant="outline" className={fluxoUp === "ENTRADA" ? "border-success/40 text-success text-[10px]" : "border-destructive/40 text-destructive text-[10px]"}>
-                          {fluxoUp || "SAIDA"}
-                        </Badge>
-                      </td>
-                      <td className="p-2 border-b border-border text-[10px] uppercase">{d.pago_por || "—"}</td>
-                      <td className="p-2 border-b border-border text-right font-mono font-semibold">{formatBRL(valor)}</td>
-                      {cotistas.map((c) => {
-                        const r = ratioByCotista.get(c.id);
-                        const pct = r ? Number(r.percentual_uso ?? r.percentual_sociedade ?? 0) : 0;
-                        return (
-                          <td key={`p-${idx}-${c.id}`} className={`p-2 border-b border-l border-border text-center font-mono text-[10px] ${pct > 0 ? "bg-primary/5" : "text-muted-foreground/40"}`}>
-                            {pct > 0 ? `${pct.toFixed(2)}%` : "—"}
-                          </td>
-                        );
-                      })}
-                      {cotistas.map((c) => {
-                        const r = ratioByCotista.get(c.id);
-                        const v = r ? Number(r.valor_rateado || 0) : 0;
-                        return (
-                          <td key={`r-${idx}-${c.id}`} className={`p-2 border-b border-l border-border text-right font-mono text-[10px] ${v > 0 ? "bg-success/5 text-foreground" : "text-muted-foreground/40"}`}>
-                            {v > 0 ? formatBRL(v) : "—"}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
+                  <tbody>
+                {filtrados.map((group, idx) => (
+                  <LinhaDespesa
+                    key={group.despesa.id || idx}
+                    group={group}
+                    cotistas={cotistas}
+                    onUpdate={(patch) => updateDespesaGroup(group, patch)}
+                  />
+                ))}
               </tbody>
               <tfoot>
                 <tr className="bg-muted/40 font-semibold">
-                  <td colSpan={8} className="p-2 text-right">TOTAL</td>
-                  <td className="p-2 text-right font-mono">{formatBRL(total)}</td>
-                  <td colSpan={cotistas.length * 2} className="p-2"></td>
+                  <td colSpan={8 + cotistas.length * 2} className="p-2 text-right">TOTAL: {formatBRL(total)}</td>
                 </tr>
               </tfoot>
             </table>

@@ -44,56 +44,84 @@ const GRUPOS: CategoriaGrupo[] = [
   "CUSTOS VARIÁVEIS",
 ];
 
-// Mapeia uma despesa para grupo + subcategoria normalizada.
+// Normaliza acentos e caixa para comparação
+const norm = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
+// Formata em "Title Case" simples para exibição da subcategoria
+const toTitle = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/(^|\s|\/)([a-zà-ú])/g, (_m, p1, p2) => p1 + p2.toUpperCase());
+
+/**
+ * Mapa explícito de categoria_custo -> grupo.
+ * A subcategoria exibida é sempre o próprio categoria_custo (formatado).
+ * Assim cada linha do banco aparece na sua categoria correta, sem
+ * fallback para "Hangaragem".
+ */
+const CATEGORIA_GRUPO: Array<{ match: (n: string) => boolean; grupo: CategoriaGrupo }> = [
+  // PESSOAL & TRIPULAÇÃO
+  { match: (n) => n.includes("TRIPULA") || n.includes("ADM") || n.includes("PILOTAGEM") || n.includes("DIARIA"), grupo: "PESSOAL & TRIPULAÇÃO" },
+  { match: (n) => n.includes("RELATORIO") || n.includes("DESPESAS DE VIAGEM") || n.includes("DIARIAS"), grupo: "PESSOAL & TRIPULAÇÃO" },
+
+  // MANUTENÇÃO
+  { match: (n) => n.includes("MANUTEN") || n.includes("REVISAO") || n.includes("OFICINA") || n.includes("LUBRIF") || n.includes("PECA"), grupo: "MANUTENÇÃO" },
+
+  // CUSTOS FIXOS
+  { match: (n) => n.includes("HANGAR") && !n.includes("RAMPA") && !n.includes("DIARIA HANGAR"), grupo: "CUSTOS FIXOS" },
+  { match: (n) => n.includes("SEGURO") || n.includes("FISTEL") || n.includes("SOFT") || n.includes("ATUALIZ"), grupo: "CUSTOS FIXOS" },
+  { match: (n) => n.includes("DESPESAS BANCARIAS") || n.includes("BANCARIA") || n.includes("ANUIDADE"), grupo: "CUSTOS FIXOS" },
+  { match: (n) => n === "DESPESAS AERONAVE" || n.includes("ASSESSORIA") || n.includes("DOCUMENTAC"), grupo: "CUSTOS FIXOS" },
+
+  // CUSTOS VARIÁVEIS
+  { match: (n) => n.includes("COMBUST") || n.includes("ABASTEC"), grupo: "CUSTOS VARIÁVEIS" },
+  { match: (n) => n.includes("TAXA") || n.includes("DECEA") || n.includes("INFRAERO") || n.includes("POUSO"), grupo: "CUSTOS VARIÁVEIS" },
+  { match: (n) => n.includes("RAMPA") || n.includes("DIARIA HANGAR") || n.includes("ATENDIMENTO"), grupo: "CUSTOS VARIÁVEIS" },
+];
+
+// Mapeia uma despesa para grupo + subcategoria (subcategoria = categoria_custo real).
 function classificar(
   categoria: string | null,
   periodicidade: string | null,
   descricao: string | null,
 ): { grupo: CategoriaGrupo; sub: string } | null {
-  const cat = (categoria || "").trim().toUpperCase();
-  const per = (periodicidade || "").trim().toUpperCase();
-  const desc = (descricao || "").trim().toUpperCase();
+  const catRaw = (categoria || "").trim();
+  const cat = norm(catRaw);
+  const per = norm(periodicidade || "");
+  const desc = norm(descricao || "");
 
-  // 2) Pessoal & Tripulação
-  if (cat.includes("TRIPULA") || cat.includes("ADM")) {
-    let sub = "ADM e Pilotagem";
-    if (desc.includes("DIÁRIA") || desc.includes("DIARIA")) sub = "Diárias";
-    else if (desc.includes("RELAT")) sub = "Relatórios de Viagem";
-    return { grupo: "PESSOAL & TRIPULAÇÃO", sub };
+  // Subcategoria = a própria categoria_custo (sem inventar "Hangaragem")
+  let sub = catRaw ? toTitle(catRaw) : "Sem Categoria";
+
+  // 1) Match explícito pela categoria_custo
+  if (cat) {
+    for (const rule of CATEGORIA_GRUPO) {
+      if (rule.match(cat)) return { grupo: rule.grupo, sub };
+    }
   }
 
-  // 3) Manutenção
-  if (cat.includes("MANUTEN")) {
-    let sub = "M.O Itens Corretivos";
-    if (desc.includes("REVIS") || desc.includes("50H") || desc.includes("100H"))
-      sub = "Revisão 50h/100h";
-    else if (desc.includes("LUBRIF") || desc.includes("ÓLEO") || desc.includes("OLEO"))
-      sub = "Lubrificante";
-    else if (desc.includes("SOFT") || desc.includes("ATUALIZ"))
-      sub = "Softer & Atualizações";
-    return { grupo: "MANUTENÇÃO", sub };
+  // 2) Sem categoria: usar descrição para tentar classificar
+  if (desc) {
+    for (const rule of CATEGORIA_GRUPO) {
+      if (rule.match(desc)) {
+        return { grupo: rule.grupo, sub: catRaw ? toTitle(catRaw) : "Diversos" };
+      }
+    }
   }
 
-  // 1) Custos fixos
+  // 3) Último recurso: usar periodicidade
   if (per === "FIXO" || per === "MENSAL") {
-    let sub = "Hangaragem";
-    if (cat.includes("SEGURO") || desc.includes("SEGURO")) sub = "Seguro Casco";
-    else if (desc.includes("SOFT") || desc.includes("ATUALIZ"))
-      sub = "Softer & Atualizações";
-    else if (desc.includes("FISTEL") || cat.includes("FISTEL"))
-      sub = "Taxa Fistel";
-    else if (cat.includes("HANGAR") || desc.includes("HANGAR"))
-      sub = "Hangaragem";
     return { grupo: "CUSTOS FIXOS", sub };
   }
+  if (per.includes("VARIAVEL") || per === "EXTRA") {
+    return { grupo: "CUSTOS VARIÁVEIS", sub };
+  }
 
-  // 4) Variáveis
-  let sub = "Atendimento Hangar";
-  if (cat.includes("COMBUST") || desc.includes("ABASTEC")) sub = "Combustíveis";
-  else if (desc.includes("DECEA") || desc.includes("INFRAERO"))
-    sub = "Taxas DECEA/INFRAERO";
-  else if (desc.includes("POUSO") || desc.includes("TARIFA"))
-    sub = "Tarifas de Pouso";
   return { grupo: "CUSTOS VARIÁVEIS", sub };
 }
 

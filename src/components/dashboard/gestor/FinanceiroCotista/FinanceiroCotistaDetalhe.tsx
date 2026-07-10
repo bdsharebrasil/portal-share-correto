@@ -34,6 +34,7 @@ import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
+import { CentroLancamentos } from "./CentroLancamentos";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
 import LancamentoForm from "./LancamentoForm";
@@ -432,11 +433,19 @@ export default function FinanceiroCotistaDetalhe() {
                   Novo Lançamento
                 </Button>
               </div>
-              <TabelaFinanceiraTab
-                despesas={despesasDaAeronave}
-                cotistas={cotistasDaAeronave}
-                aeronaveLabel={aeronaveInfo?.matricula}
-              />
+              {aeronaveInfo?.id ? (
+                <CentroLancamentos
+                  aeronaveId={aeronaveInfo.id}
+                  cotistas={cotistasDaAeronave}
+                  aeronaveLabel={aeronaveInfo?.matricula}
+                />
+              ) : (
+                <TabelaFinanceiraTab
+                  despesas={despesasDaAeronave}
+                  cotistas={cotistasDaAeronave}
+                  aeronaveLabel={aeronaveInfo?.matricula}
+                />
+              )}
             </TabsContent>
 
             {/* Relatórios de Viagem */}

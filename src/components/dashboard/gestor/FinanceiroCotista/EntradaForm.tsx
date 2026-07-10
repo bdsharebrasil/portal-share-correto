@@ -326,7 +326,7 @@ export default function EntradaForm(props: EntradaFormProps) {
         pago_por_id: cotistaPagador,
         pago_diretamente: true,
         forma_pagamento: formaPgto || null,
-        periodicidade: "unica",
+        periodicidade: "EVENTUAL",
         observacoes: observacoes || null,
       };
 

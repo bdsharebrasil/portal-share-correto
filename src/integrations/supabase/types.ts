@@ -2403,6 +2403,39 @@ export type Database = {
           },
         ]
       }
+      cost_simulations: {
+        Row: {
+          costs: Json
+          created_at: string | null
+          description: string | null
+          form_data: Json
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          costs: Json
+          created_at?: string | null
+          description?: string | null
+          form_data: Json
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          costs?: Json
+          created_at?: string | null
+          description?: string | null
+          form_data?: Json
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cotistas_aeronave: {
         Row: {
           atualizado_em: string | null
@@ -3023,6 +3056,110 @@ export type Database = {
           },
           {
             foreignKeyName: "components_aircraft_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
+      }
+      ctm_ordem_acompanhamento_servico: {
+        Row: {
+          aeronave_id: string
+          created_at: string
+          data_entrada: string | null
+          data_saida: string | null
+          id: string
+          mecanico_responsavel: string | null
+          numero: string | null
+          objetivo: string | null
+          observacoes: string | null
+          oficina_nome: string | null
+          periodo: string | null
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          status: string | null
+          status_aprovacao: string | null
+          tipo_manutencao: string | null
+          tipo_rateio: string | null
+          total_geral: number | null
+          total_mao_obra: number | null
+          total_pecas: number | null
+          total_valor_os: number | null
+          updated_at: string
+        }
+        Insert: {
+          aeronave_id: string
+          created_at?: string
+          data_entrada?: string | null
+          data_saida?: string | null
+          id?: string
+          mecanico_responsavel?: string | null
+          numero?: string | null
+          objetivo?: string | null
+          observacoes?: string | null
+          oficina_nome?: string | null
+          periodo?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status?: string | null
+          status_aprovacao?: string | null
+          tipo_manutencao?: string | null
+          tipo_rateio?: string | null
+          total_geral?: number | null
+          total_mao_obra?: number | null
+          total_pecas?: number | null
+          total_valor_os?: number | null
+          updated_at?: string
+        }
+        Update: {
+          aeronave_id?: string
+          created_at?: string
+          data_entrada?: string | null
+          data_saida?: string | null
+          id?: string
+          mecanico_responsavel?: string | null
+          numero?: string | null
+          objetivo?: string | null
+          observacoes?: string | null
+          oficina_nome?: string | null
+          periodo?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          status?: string | null
+          status_aprovacao?: string | null
+          tipo_manutencao?: string | null
+          tipo_rateio?: string | null
+          total_geral?: number | null
+          total_mao_obra?: number | null
+          total_pecas?: number | null
+          total_valor_os?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_ordem_acompanhamento_servico_aeronave_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
