@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/layout/Layout";
@@ -117,6 +121,10 @@ export default function EmissaoRecibo() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [pendingReceiptData, setPendingReceiptData] = useState<any>(null);
+  const [editReceipt, setEditReceipt] = useState<any>(null);
+  const [editNumero, setEditNumero] = useState("");
+  const [editDescricao, setEditDescricao] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // ===================== INIT =====================
   useEffect(() => {
@@ -683,14 +691,14 @@ export default function EmissaoRecibo() {
   };
 
   // ===================== GERAR PDF APÓS CONFIRMAR PREVIEW =====================
-  const handleConfirmAndGeneratePdf = async () => {
+  const handleConfirmAndGeneratePdf = async (editedNumber?: string) => {
     if (!pendingReceiptData) return;
     
     try {
       setIsGeneratingPdf(true);
       const {
-        receiptData,
-        receiptNumber,
+        receiptData: originalReceiptData,
+        receiptNumber: originalNumber,
         receiptType: expectedReceiptType,
         boletoUrl,
         notaFiscalUrl,
@@ -698,6 +706,52 @@ export default function EmissaoRecibo() {
         companySettings: settings,
         currentUserId,
       } = pendingReceiptData;
+
+      let receiptData = originalReceiptData;
+      let receiptNumber = originalNumber;
+
+      // Se o número foi editado, atualizar no banco antes de gerar o PDF
+      const finalNumber = (editedNumber || "").trim();
+      if (finalNumber && finalNumber !== originalNumber) {
+        // Verificar duplicata
+        const { data: dup } = await supabase
+          .from("recibos")
+          .select("id")
+          .eq("numero_recibo", finalNumber)
+          .eq("usuario_id", currentUserId)
+          .neq("id", receiptData.id)
+          .maybeSingle();
+        if (dup) {
+          toast({
+            title: "Número duplicado",
+            description: `Já existe um recibo com o número ${finalNumber}.`,
+            variant: "destructive",
+          });
+          setIsGeneratingPdf(false);
+          return;
+        }
+
+        const { error: numErr } = await supabase
+          .from("recibos")
+          .update({ numero_recibo: finalNumber })
+          .eq("id", receiptData.id);
+        if (numErr) throw numErr;
+
+        // Espelhar em movimentacoes e contas_areceber quando existir
+        await supabase
+          .from("movimentacoes")
+          .update({ numero_recibo: finalNumber })
+          .eq("reference_id", receiptData.id)
+          .eq("reference_type", "recibo");
+        await supabase
+          .from("contas_areceber")
+          .update({ numero: finalNumber })
+          .eq("reference_id", receiptData.id)
+          .eq("reference_type", "recibo");
+
+        receiptData = { ...receiptData, numero_recibo: finalNumber };
+        receiptNumber = finalNumber;
+      }
 
       const pdfData = buildReceiptPdfData({
         receiptData,
@@ -820,7 +874,114 @@ export default function EmissaoRecibo() {
     }
   };
 
-  // ===================== RENDER =====================
+  // ===================== EDITAR RECIBO (histórico) =====================
+  const handleOpenEditReceipt = (receiptId: string) => {
+    const r = recentReceipts.find((x) => x.id === receiptId);
+    if (!r) return;
+    setEditReceipt(r);
+    setEditNumero(r.numero_recibo || "");
+    setEditDescricao((r as any).descricao_servico || "");
+  };
+
+  const handleSaveEditReceipt = async () => {
+    if (!editReceipt) return;
+    const newNumero = editNumero.trim();
+    const newDescricao = editDescricao.trim();
+    if (!newNumero) {
+      toast({ title: "Número obrigatório", description: "Informe um número de recibo", variant: "destructive" });
+      return;
+    }
+    if (!newDescricao) {
+      toast({ title: "Descrição obrigatória", description: "Informe a descrição do serviço", variant: "destructive" });
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      let currentUserId = userId;
+      if (!currentUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) throw new Error("Usuário não autenticado.");
+        currentUserId = user.id;
+      }
+
+      // Verificar duplicata do número
+      if (newNumero !== editReceipt.numero_recibo) {
+        const { data: dup } = await supabase
+          .from("recibos")
+          .select("id")
+          .eq("numero_recibo", newNumero)
+          .eq("usuario_id", currentUserId)
+          .neq("id", editReceipt.id)
+          .maybeSingle();
+        if (dup) {
+          toast({ title: "Número duplicado", description: `Já existe um recibo com o número ${newNumero}.`, variant: "destructive" });
+          setIsSavingEdit(false);
+          return;
+        }
+      }
+
+      const { error: upErr } = await supabase
+        .from("recibos")
+        .update({ numero_recibo: newNumero, descricao_servico: newDescricao })
+        .eq("id", editReceipt.id);
+      if (upErr) throw upErr;
+
+      // Sincronizar em movimentacoes e contas_areceber
+      await supabase
+        .from("movimentacoes")
+        .update({ numero_recibo: newNumero, descricao: newDescricao })
+        .eq("reference_id", editReceipt.id)
+        .eq("reference_type", "recibo");
+      await supabase
+        .from("contas_areceber")
+        .update({ numero: newNumero, descricao: newDescricao })
+        .eq("reference_id", editReceipt.id)
+        .eq("reference_type", "recibo");
+
+      // Regenerar PDF com os novos dados
+      try {
+        const { data: fullReceipt } = await supabase
+          .from("recibos")
+          .select("*")
+          .eq("id", editReceipt.id)
+          .single();
+
+        const pdfData = buildReceiptPdfData({
+          receiptData: fullReceipt,
+          receiptType: (fullReceipt?.tipo_recibo || "pagamento") as ReceiptType,
+          boletoUrl: fullReceipt?.url_boleto || null,
+          notaFiscalUrl: fullReceipt?.url_nf || null,
+          originalForm: {},
+          companySettings,
+        });
+        const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
+        const pdfFileName = `recibos/${editReceipt.id}_${Date.now()}.pdf`;
+        const { error: upldErr } = await supabase.storage
+          .from("receipts")
+          .upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+        if (!upldErr) {
+          const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
+          if (urlData?.publicUrl) {
+            await supabase.from("recibos").update({ url_pdf: urlData.publicUrl }).eq("id", editReceipt.id);
+          }
+        }
+      } catch (regenErr) {
+        console.error("Falha ao regenerar PDF do recibo:", regenErr);
+      }
+
+      await loadRecentReceipts(currentUserId);
+      setEditReceipt(null);
+      toast({ title: "Sucesso!", description: "Recibo atualizado" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Não foi possível atualizar";
+      toast({ title: "Erro ao editar", description: msg, variant: "destructive" });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-card/30 p-4 md:p-8 rounded-[13px] overflow-hidden">
@@ -937,10 +1098,10 @@ export default function EmissaoRecibo() {
                             Visualizar
                           </button>
                           <button
-                            onClick={() => handleDownloadReceipt(r.id)}
+                            onClick={() => handleOpenEditReceipt(r.id)}
                             className="flex-1 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg transition-colors text-sm font-medium"
                           >
-                            Baixar
+                            Editar
                           </button>
                           <button
                             onClick={() => handleDeleteReceipt(r.id)}
@@ -1004,6 +1165,46 @@ export default function EmissaoRecibo() {
           isGenerating={isGeneratingPdf}
         />
       )}
+
+      {/* Editar Recibo (histórico) */}
+      <Dialog open={!!editReceipt} onOpenChange={(o) => !o && setEditReceipt(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Recibo</DialogTitle>
+            <DialogDescription>
+              Ajuste o número e a descrição do serviço. O PDF será regerado com os novos dados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-num">Número do Recibo</Label>
+              <Input
+                id="edit-num"
+                value={editNumero}
+                onChange={(e) => setEditNumero(e.target.value)}
+                placeholder="Ex: REC-XYZ-001/26"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-desc">Descrição do Serviço</Label>
+              <Textarea
+                id="edit-desc"
+                value={editDescricao}
+                onChange={(e) => setEditDescricao(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditReceipt(null)} disabled={isSavingEdit}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEditReceipt} disabled={isSavingEdit}>
+              {isSavingEdit ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

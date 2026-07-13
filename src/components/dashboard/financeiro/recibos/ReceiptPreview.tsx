@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Document, Page, pdfjs } from "react-pdf";
 import { pdf } from "@react-pdf/renderer";
 import { ReciboDocument } from "@/lib/reciboGenerator";
@@ -15,7 +17,7 @@ interface ReceiptPreviewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: Record<string, unknown>;
-  onConfirm: () => Promise<void>;
+  onConfirm: (editedNumber: string) => Promise<void>;
   isGenerating?: boolean;
 }
 
@@ -32,19 +34,35 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const initialNumber = String((data as any)?.receipt_number || (data as any)?.numero_recibo || "");
+  const [editedNumber, setEditedNumber] = useState<string>(initialNumber);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>>(data);
 
-  // Gerar PDF blob quando o modal abrir
-  React.useEffect(() => {
-    if (open && !pdfUrl && data) {
-      generatePreviewPdf();
+  // Sincronizar quando abrir/mudar recibo
+  useEffect(() => {
+    if (open) {
+      setEditedNumber(initialNumber);
+      setPreviewData(data);
     }
-  }, [open, data]);
+  }, [open, initialNumber]);
 
-  const generatePreviewPdf = async () => {
+  // Gerar PDF blob quando o modal abrir ou dados mudarem
+  useEffect(() => {
+    if (open && previewData) {
+      generatePreviewPdf(previewData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, previewData]);
+
+  const generatePreviewPdf = async (currentData: Record<string, unknown>) => {
     try {
       setIsGeneratingPreview(true);
       setPreviewError(null);
-      const pdfBlob = await pdf(<ReciboDocument data={data} />).toBlob();
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(null);
+      }
+      const pdfBlob = await pdf(<ReciboDocument data={currentData} />).toBlob();
       const blobUrl = URL.createObjectURL(pdfBlob);
       setPdfUrl(blobUrl);
     } catch (error) {
@@ -53,6 +71,14 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
     } finally {
       setIsGeneratingPreview(false);
     }
+  };
+
+  const handleRegenerate = () => {
+    setPreviewData({
+      ...previewData,
+      receipt_number: editedNumber,
+      numero_recibo: editedNumber,
+    });
   };
 
   const onDocumentLoadSuccess = ({ numPages: pages }: { numPages: number }) => {
@@ -100,6 +126,37 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
         </DialogHeader>
 
         <div className="flex-1 flex flex-col overflow-hidden p-6">
+          {/* Editar número do recibo */}
+          <div className="mb-4 p-3 rounded-lg border bg-muted/30 flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <Label htmlFor="recibo-numero" className="text-sm">
+                Número do Recibo
+              </Label>
+              <Input
+                id="recibo-numero"
+                value={editedNumber}
+                onChange={(e) => setEditedNumber(e.target.value)}
+                placeholder="Ex: REC-XYZ-001/26"
+                className="mt-1"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRegenerate}
+              disabled={
+                isGeneratingPreview ||
+                !editedNumber.trim() ||
+                editedNumber === String((previewData as any)?.receipt_number || "")
+              }
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Atualizar prévia
+            </Button>
+          </div>
+
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
             <div className="flex items-center gap-2">
@@ -190,8 +247,8 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               Cancelar
             </Button>
             <Button
-              onClick={onConfirm}
-              disabled={isGenerating || isGeneratingPreview}
+              onClick={() => onConfirm(editedNumber.trim() || initialNumber)}
+              disabled={isGenerating || isGeneratingPreview || !editedNumber.trim()}
               className="gap-2"
             >
               {isGenerating ? (
