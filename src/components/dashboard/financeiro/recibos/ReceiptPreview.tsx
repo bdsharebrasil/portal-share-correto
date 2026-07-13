@@ -126,6 +126,37 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
         </DialogHeader>
 
         <div className="flex-1 flex flex-col overflow-hidden p-6">
+          {/* Editar número do recibo */}
+          <div className="mb-4 p-3 rounded-lg border bg-muted/30 flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <Label htmlFor="recibo-numero" className="text-sm">
+                Número do Recibo
+              </Label>
+              <Input
+                id="recibo-numero"
+                value={editedNumber}
+                onChange={(e) => setEditedNumber(e.target.value)}
+                placeholder="Ex: REC-XYZ-001/26"
+                className="mt-1"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRegenerate}
+              disabled={
+                isGeneratingPreview ||
+                !editedNumber.trim() ||
+                editedNumber === String((previewData as any)?.receipt_number || "")
+              }
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Atualizar prévia
+            </Button>
+          </div>
+
           {/* Toolbar */}
           <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
             <div className="flex items-center gap-2">
