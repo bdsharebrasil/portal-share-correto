@@ -683,14 +683,14 @@ export default function EmissaoRecibo() {
   };
 
   // ===================== GERAR PDF APÓS CONFIRMAR PREVIEW =====================
-  const handleConfirmAndGeneratePdf = async () => {
+  const handleConfirmAndGeneratePdf = async (editedNumber?: string) => {
     if (!pendingReceiptData) return;
     
     try {
       setIsGeneratingPdf(true);
       const {
-        receiptData,
-        receiptNumber,
+        receiptData: originalReceiptData,
+        receiptNumber: originalNumber,
         receiptType: expectedReceiptType,
         boletoUrl,
         notaFiscalUrl,
@@ -698,6 +698,52 @@ export default function EmissaoRecibo() {
         companySettings: settings,
         currentUserId,
       } = pendingReceiptData;
+
+      let receiptData = originalReceiptData;
+      let receiptNumber = originalNumber;
+
+      // Se o número foi editado, atualizar no banco antes de gerar o PDF
+      const finalNumber = (editedNumber || "").trim();
+      if (finalNumber && finalNumber !== originalNumber) {
+        // Verificar duplicata
+        const { data: dup } = await supabase
+          .from("recibos")
+          .select("id")
+          .eq("numero_recibo", finalNumber)
+          .eq("usuario_id", currentUserId)
+          .neq("id", receiptData.id)
+          .maybeSingle();
+        if (dup) {
+          toast({
+            title: "Número duplicado",
+            description: `Já existe um recibo com o número ${finalNumber}.`,
+            variant: "destructive",
+          });
+          setIsGeneratingPdf(false);
+          return;
+        }
+
+        const { error: numErr } = await supabase
+          .from("recibos")
+          .update({ numero_recibo: finalNumber })
+          .eq("id", receiptData.id);
+        if (numErr) throw numErr;
+
+        // Espelhar em movimentacoes e contas_areceber quando existir
+        await supabase
+          .from("movimentacoes")
+          .update({ numero_recibo: finalNumber })
+          .eq("reference_id", receiptData.id)
+          .eq("reference_type", "recibo");
+        await supabase
+          .from("contas_areceber")
+          .update({ numero: finalNumber })
+          .eq("reference_id", receiptData.id)
+          .eq("reference_type", "recibo");
+
+        receiptData = { ...receiptData, numero_recibo: finalNumber };
+        receiptNumber = finalNumber;
+      }
 
       const pdfData = buildReceiptPdfData({
         receiptData,
