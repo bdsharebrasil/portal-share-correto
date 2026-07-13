@@ -34,13 +34,25 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const initialNumber = String((data as any)?.receipt_number || (data as any)?.numero_recibo || "");
+  const [editedNumber, setEditedNumber] = useState<string>(initialNumber);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>>(data);
 
-  // Gerar PDF blob quando o modal abrir
-  React.useEffect(() => {
-    if (open && !pdfUrl && data) {
-      generatePreviewPdf();
+  // Sincronizar quando abrir/mudar recibo
+  useEffect(() => {
+    if (open) {
+      setEditedNumber(initialNumber);
+      setPreviewData(data);
     }
-  }, [open, data]);
+  }, [open, initialNumber]);
+
+  // Gerar PDF blob quando o modal abrir ou dados mudarem
+  useEffect(() => {
+    if (open && previewData) {
+      generatePreviewPdf(previewData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, previewData]);
 
   const generatePreviewPdf = async () => {
     try {
