@@ -1106,7 +1106,7 @@ export default function EmissaoRecibo() {
                           </button>
                           <button
                             onClick={() => handleOpenEditReceipt(r.id)}
-                            className="flex-1 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg transition-colors text-sm font-medium"
+                            className="flex-1 px-3 py-2 border border-[#ca8f25] bg-[rgba(161,142,62,0.216)] hover:bg-accent/30 text-[#ffd200] rounded-lg transition-colors text-sm font-medium"
                           >
                             Editar
                           </button>
