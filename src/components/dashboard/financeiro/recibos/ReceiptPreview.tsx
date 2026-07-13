@@ -247,8 +247,8 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               Cancelar
             </Button>
             <Button
-              onClick={onConfirm}
-              disabled={isGenerating || isGeneratingPreview}
+              onClick={() => onConfirm(editedNumber.trim() || initialNumber)}
+              disabled={isGenerating || isGeneratingPreview || !editedNumber.trim()}
               className="gap-2"
             >
               {isGenerating ? (
