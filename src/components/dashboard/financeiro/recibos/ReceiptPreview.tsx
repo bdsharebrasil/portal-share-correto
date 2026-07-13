@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { Document, Page, pdfjs } from "react-pdf";
 import { pdf } from "@react-pdf/renderer";
 import { ReciboDocument } from "@/lib/reciboGenerator";
@@ -15,7 +17,7 @@ interface ReceiptPreviewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: Record<string, unknown>;
-  onConfirm: () => Promise<void>;
+  onConfirm: (editedNumber: string) => Promise<void>;
   isGenerating?: boolean;
 }
 
