@@ -874,7 +874,114 @@ export default function EmissaoRecibo() {
     }
   };
 
-  // ===================== RENDER =====================
+  // ===================== EDITAR RECIBO (histórico) =====================
+  const handleOpenEditReceipt = (receiptId: string) => {
+    const r = recentReceipts.find((x) => x.id === receiptId);
+    if (!r) return;
+    setEditReceipt(r);
+    setEditNumero(r.numero_recibo || "");
+    setEditDescricao((r as any).descricao_servico || "");
+  };
+
+  const handleSaveEditReceipt = async () => {
+    if (!editReceipt) return;
+    const newNumero = editNumero.trim();
+    const newDescricao = editDescricao.trim();
+    if (!newNumero) {
+      toast({ title: "Número obrigatório", description: "Informe um número de recibo", variant: "destructive" });
+      return;
+    }
+    if (!newDescricao) {
+      toast({ title: "Descrição obrigatória", description: "Informe a descrição do serviço", variant: "destructive" });
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      let currentUserId = userId;
+      if (!currentUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) throw new Error("Usuário não autenticado.");
+        currentUserId = user.id;
+      }
+
+      // Verificar duplicata do número
+      if (newNumero !== editReceipt.numero_recibo) {
+        const { data: dup } = await supabase
+          .from("recibos")
+          .select("id")
+          .eq("numero_recibo", newNumero)
+          .eq("usuario_id", currentUserId)
+          .neq("id", editReceipt.id)
+          .maybeSingle();
+        if (dup) {
+          toast({ title: "Número duplicado", description: `Já existe um recibo com o número ${newNumero}.`, variant: "destructive" });
+          setIsSavingEdit(false);
+          return;
+        }
+      }
+
+      const { error: upErr } = await supabase
+        .from("recibos")
+        .update({ numero_recibo: newNumero, descricao_servico: newDescricao })
+        .eq("id", editReceipt.id);
+      if (upErr) throw upErr;
+
+      // Sincronizar em movimentacoes e contas_areceber
+      await supabase
+        .from("movimentacoes")
+        .update({ numero_recibo: newNumero, descricao: newDescricao })
+        .eq("reference_id", editReceipt.id)
+        .eq("reference_type", "recibo");
+      await supabase
+        .from("contas_areceber")
+        .update({ numero: newNumero, descricao: newDescricao })
+        .eq("reference_id", editReceipt.id)
+        .eq("reference_type", "recibo");
+
+      // Regenerar PDF com os novos dados
+      try {
+        const { data: fullReceipt } = await supabase
+          .from("recibos")
+          .select("*")
+          .eq("id", editReceipt.id)
+          .single();
+
+        const pdfData = buildReceiptPdfData({
+          receiptData: fullReceipt,
+          receiptType: (fullReceipt?.tipo_recibo || "pagamento") as ReceiptType,
+          boletoUrl: fullReceipt?.url_boleto || null,
+          notaFiscalUrl: fullReceipt?.url_nf || null,
+          originalForm: {},
+          companySettings,
+        });
+        const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
+        const pdfFileName = `recibos/${editReceipt.id}_${Date.now()}.pdf`;
+        const { error: upldErr } = await supabase.storage
+          .from("receipts")
+          .upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+        if (!upldErr) {
+          const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
+          if (urlData?.publicUrl) {
+            await supabase.from("recibos").update({ url_pdf: urlData.publicUrl }).eq("id", editReceipt.id);
+          }
+        }
+      } catch (regenErr) {
+        console.error("Falha ao regenerar PDF do recibo:", regenErr);
+      }
+
+      await loadRecentReceipts(currentUserId);
+      setEditReceipt(null);
+      toast({ title: "Sucesso!", description: "Recibo atualizado" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Não foi possível atualizar";
+      toast({ title: "Erro ao editar", description: msg, variant: "destructive" });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-card/30 p-4 md:p-8 rounded-[13px] overflow-hidden">
