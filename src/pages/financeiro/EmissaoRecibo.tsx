@@ -1098,10 +1098,10 @@ export default function EmissaoRecibo() {
                             Visualizar
                           </button>
                           <button
-                            onClick={() => handleDownloadReceipt(r.id)}
+                            onClick={() => handleOpenEditReceipt(r.id)}
                             className="flex-1 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg transition-colors text-sm font-medium"
                           >
-                            Baixar
+                            Editar
                           </button>
                           <button
                             onClick={() => handleDeleteReceipt(r.id)}
