@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
-import { Receipt, Eye, Trash2, Download, Calendar, CalendarIcon, Trash } from "lucide-react";
+import { Receipt, Eye, Trash2, Pencil, Calendar, CalendarIcon, Trash } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency, formatDate, GeneratedReceipt } from "@/lib/receiptUtils";
@@ -14,7 +14,7 @@ interface ReceiptHistoryProps {
   receipts: GeneratedReceipt[];
   onView: (receiptId: string) => Promise<void>;
   onDelete: (receiptId: string) => Promise<void>;
-  onDownload: (receiptId: string) => Promise<void>;
+  onEdit?: (receiptId: string) => void | Promise<void>;
   onClearAll: () => Promise<void>;
   isLoading?: boolean;
 }
@@ -23,7 +23,7 @@ export function ReceiptHistory({
   receipts,
   onView,
   onDelete,
-  onDownload,
+  onEdit,
   onClearAll,
   isLoading = false,
 }: ReceiptHistoryProps) {
@@ -33,7 +33,7 @@ export function ReceiptHistory({
   const [filterEndDateOpen, setFilterEndDateOpen] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
 
   const getFilteredReceipts = (): GeneratedReceipt[] => {
@@ -70,12 +70,14 @@ export function ReceiptHistory({
     }
   };
 
-  const handleDownloadReceipt = async (receiptId: string) => {
-    setDownloadingId(receiptId);
+  const handleEditReceipt = async (receiptId: string) => {
+    setEditingId(receiptId);
     try {
-      await onDownload(receiptId);
+      if (onEdit) {
+        await Promise.resolve(onEdit(receiptId));
+      }
     } finally {
-      setDownloadingId(null);
+      setEditingId(null);
     }
   };
 
@@ -242,15 +244,15 @@ export function ReceiptHistory({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDownloadReceipt(receipt.id)}
-                    title="Baixar recibo em PDF"
-                    className="text-cyan-600 hover:text-cyan-700"
-                    disabled={downloadingId === receipt.id || isLoading}
+                    onClick={() => handleEditReceipt(receipt.id)}
+                    title="Editar número e descrição"
+                    className="bg-amber-600/10 hover:bg-amber-600/20 text-amber-400 rounded-lg"
+                    disabled={editingId === receipt.id || isLoading}
                   >
-                    {downloadingId === receipt.id ? (
+                    {editingId === receipt.id ? (
                       <span className="animate-spin">⏳</span>
                     ) : (
-                      <Download className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     )}
                   </Button>
                   <Button

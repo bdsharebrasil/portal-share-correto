@@ -139,6 +139,9 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
                 placeholder="Ex: REC-XYZ-001/26"
                 className="mt-1"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Ajuste o número antes de salvar e gerar o recibo definitivo.
+              </p>
             </div>
             <Button
               type="button"
@@ -259,7 +262,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               ) : (
                 <>
                   <Download className="h-4 w-4" />
-                  Gerar PDF
+                  Salvar e gerar
                 </>
               )}
             </Button>

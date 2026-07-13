@@ -117,6 +117,7 @@ export default function EmissaoRecibo() {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
   const [viewPdfUrl, setViewPdfUrl] = useState<string | null>(null);
+  const [viewingReceiptId, setViewingReceiptId] = useState<string | null>(null);
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
@@ -681,6 +682,7 @@ export default function EmissaoRecibo() {
       const receipt = recentReceipts.find((r) => r.id === receiptId);
       if (!receipt || !receipt.url_pdf) throw new Error("PDF não disponível"); // corrigido: usa url_pdf
       setViewPdfUrl(receipt.url_pdf);
+      setViewingReceiptId(receiptId);
       setIsPdfViewerOpen(true);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Erro desconhecido";
@@ -963,7 +965,12 @@ export default function EmissaoRecibo() {
         if (!upldErr) {
           const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
           if (urlData?.publicUrl) {
+            // Atualiza DB
             await supabase.from("recibos").update({ url_pdf: urlData.publicUrl }).eq("id", editReceipt.id);
+            // Se o usuário estiver visualizando este recibo, atualiza o viewer para a nova URL
+            if (viewingReceiptId === editReceipt.id) {
+              setViewPdfUrl(urlData.publicUrl);
+            }
           }
         }
       } catch (regenErr) {
@@ -1132,7 +1139,7 @@ export default function EmissaoRecibo() {
         </div>
       </div>
 
-      <Dialog open={isPdfViewerOpen} onOpenChange={setIsPdfViewerOpen}>
+      <Dialog open={isPdfViewerOpen} onOpenChange={(open) => { setIsPdfViewerOpen(open); if (!open) setViewingReceiptId(null); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Visualizar Recibo</DialogTitle>
