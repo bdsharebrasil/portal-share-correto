@@ -950,7 +950,11 @@ export default function EmissaoRecibo() {
           .single();
 
         const pdfData = buildReceiptPdfData({
-          receiptData: fullReceipt,
+          receiptData: {
+            ...fullReceipt,
+            numero_recibo: newNumero,
+            descricao_servico: newDescricao,
+          },
           receiptType: (fullReceipt?.tipo_recibo || "pagamento") as ReceiptType,
           boletoUrl: fullReceipt?.url_boleto || null,
           notaFiscalUrl: fullReceipt?.url_nf || null,
@@ -962,19 +966,24 @@ export default function EmissaoRecibo() {
         const { error: upldErr } = await supabase.storage
           .from("receipts")
           .upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
-        if (!upldErr) {
-          const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
-          if (urlData?.publicUrl) {
-            // Atualiza DB
-            await supabase.from("recibos").update({ url_pdf: urlData.publicUrl }).eq("id", editReceipt.id);
-            // Se o usuário estiver visualizando este recibo, atualiza o viewer para a nova URL
-            if (viewingReceiptId === editReceipt.id) {
-              setViewPdfUrl(urlData.publicUrl);
-            }
-          }
+        if (upldErr) throw upldErr;
+
+        const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
+        if (!urlData?.publicUrl) throw new Error("Não foi possível obter a URL do PDF atualizado.");
+
+        const { error: pdfUpdateError } = await supabase
+          .from("recibos")
+          .update({ url_pdf: urlData.publicUrl })
+          .eq("id", editReceipt.id)
+          .eq("usuario_id", currentUserId);
+        if (pdfUpdateError) throw pdfUpdateError;
+
+        if (viewingReceiptId === editReceipt.id) {
+          setViewPdfUrl(urlData.publicUrl);
         }
       } catch (regenErr) {
         console.error("Falha ao regenerar PDF do recibo:", regenErr);
+        throw regenErr;
       }
 
       await loadRecentReceipts(currentUserId);
@@ -1106,7 +1115,7 @@ export default function EmissaoRecibo() {
                           </button>
                           <button
                             onClick={() => handleOpenEditReceipt(r.id)}
-                            className="flex-1 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg transition-colors text-sm font-medium"
+                            className="flex-1 px-3 py-2 border border-[#ca8f25] bg-[rgba(161,142,62,0.216)] hover:bg-accent/30 text-[#ffd200] rounded-lg transition-colors text-sm font-medium"
                           >
                             Editar
                           </button>
