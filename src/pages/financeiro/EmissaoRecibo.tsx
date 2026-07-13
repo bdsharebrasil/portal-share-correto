@@ -121,6 +121,10 @@ export default function EmissaoRecibo() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [pendingReceiptData, setPendingReceiptData] = useState<any>(null);
+  const [editReceipt, setEditReceipt] = useState<any>(null);
+  const [editNumero, setEditNumero] = useState("");
+  const [editDescricao, setEditDescricao] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // ===================== INIT =====================
   useEffect(() => {
