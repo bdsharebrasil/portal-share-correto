@@ -1165,6 +1165,46 @@ export default function EmissaoRecibo() {
           isGenerating={isGeneratingPdf}
         />
       )}
+
+      {/* Editar Recibo (histórico) */}
+      <Dialog open={!!editReceipt} onOpenChange={(o) => !o && setEditReceipt(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Recibo</DialogTitle>
+            <DialogDescription>
+              Ajuste o número e a descrição do serviço. O PDF será regerado com os novos dados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-num">Número do Recibo</Label>
+              <Input
+                id="edit-num"
+                value={editNumero}
+                onChange={(e) => setEditNumero(e.target.value)}
+                placeholder="Ex: REC-XYZ-001/26"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-desc">Descrição do Serviço</Label>
+              <Textarea
+                id="edit-desc"
+                value={editDescricao}
+                onChange={(e) => setEditDescricao(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditReceipt(null)} disabled={isSavingEdit}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEditReceipt} disabled={isSavingEdit}>
+              {isSavingEdit ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
