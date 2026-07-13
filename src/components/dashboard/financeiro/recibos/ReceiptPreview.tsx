@@ -54,11 +54,15 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, previewData]);
 
-  const generatePreviewPdf = async () => {
+  const generatePreviewPdf = async (currentData: Record<string, unknown>) => {
     try {
       setIsGeneratingPreview(true);
       setPreviewError(null);
-      const pdfBlob = await pdf(<ReciboDocument data={data} />).toBlob();
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(null);
+      }
+      const pdfBlob = await pdf(<ReciboDocument data={currentData} />).toBlob();
       const blobUrl = URL.createObjectURL(pdfBlob);
       setPdfUrl(blobUrl);
     } catch (error) {
@@ -67,6 +71,14 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
     } finally {
       setIsGeneratingPreview(false);
     }
+  };
+
+  const handleRegenerate = () => {
+    setPreviewData({
+      ...previewData,
+      receipt_number: editedNumber,
+      numero_recibo: editedNumber,
+    });
   };
 
   const onDocumentLoadSuccess = ({ numPages: pages }: { numPages: number }) => {
