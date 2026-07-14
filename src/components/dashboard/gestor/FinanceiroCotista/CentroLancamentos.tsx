@@ -58,6 +58,24 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [busca, setBusca] = useState("");
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [tableWidth, setTableWidth] = useState<number>(0);
+
+  useLayoutEffect(() => {
+    const update = () => {
+      if (tableRef.current) setTableWidth(tableRef.current.scrollWidth);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (tableRef.current) ro.observe(tableRef.current);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  });
 
   // Rateios da aeronave
   const { data: rateios = [], isLoading } = useQuery({
