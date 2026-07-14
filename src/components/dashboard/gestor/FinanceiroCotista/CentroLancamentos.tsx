@@ -24,6 +24,18 @@ interface CentroLancamentosProps {
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const TIPOS_RATEIO = ["FIXO", "VARIAVEL_POR_HORA", "VARIAVEL_POR_VOO", "EXTRA"] as const;
 const PERIODICIDADES = ["MENSAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
+const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
+  data: 112,
+  doc: 140,
+  valorDespesa: 140,
+  fornecedor: 190,
+  descricao: 220,
+  categoria: 180,
+  tipoRateio: 150,
+  periodicidade: 138,
+  fluxo: 96,
+  pagoPor: 130,
+};
 
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -58,9 +70,15 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [busca, setBusca] = useState("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
+  const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
   const topScrollRef = useRef<HTMLDivElement>(null);
   const bottomScrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
   const [tableWidth, setTableWidth] = useState<number>(0);
 
   useLayoutEffect(() => {
@@ -76,6 +94,43 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
       window.removeEventListener("resize", update);
     };
   });
+
+  useEffect(() => {
+    if (!resizing) return;
+
+    const onMove = (event: MouseEvent) => {
+      const nextWidth = Math.max(90, Math.min(320, resizing.startWidth + (event.clientX - resizing.startX)));
+      setColumnWidths((prev) => ({ ...prev, [resizing.key]: nextWidth }));
+    };
+
+    const onUp = () => setResizing(null);
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [resizing]);
+
+  const handleDragStart = (clientX: number) => {
+    isDraggingRef.current = true;
+    dragStartXRef.current = clientX;
+    dragStartScrollLeftRef.current = bottomScrollRef.current?.scrollLeft ?? 0;
+  };
+
+  const handleDragMove = (clientX: number) => {
+    if (!isDraggingRef.current || !bottomScrollRef.current) return;
+    const delta = clientX - dragStartXRef.current;
+    bottomScrollRef.current.scrollLeft = dragStartScrollLeftRef.current - delta;
+  };
+
+  const handleDragEnd = () => {
+    isDraggingRef.current = false;
+  };
+
+  const getColumnWidth = (key: string) => columnWidths[key] ?? DEFAULT_COLUMN_WIDTHS[key] ?? 140;
 
   // Rateios da aeronave
   const { data: rateios = [], isLoading } = useQuery({
@@ -125,6 +180,32 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     },
   });
 
+  const { data: pagadores = [] } = useQuery({
+    queryKey: ["pagadores-combo"],
+    queryFn: async () => {
+      const [clientesRes, sociosRes] = await Promise.all([
+        supabase.from("clientes" as any).select("id, razao_social, proprietario").order("razao_social"),
+        supabase.from("socios" as any).select("id, nome").order("nome"),
+      ]);
+
+      const items: { id: string; label: string }[] = [];
+      (clientesRes.data || []).forEach((cliente: any) => {
+        const nome = cliente.razao_social || cliente.proprietario || "Cliente";
+        if (nome) {
+          items.push({ id: nome, label: nome });
+        }
+      });
+      (sociosRes.data || []).forEach((socio: any) => {
+        const nome = socio.nome;
+        if (nome) {
+          items.push({ id: nome, label: nome });
+        }
+      });
+
+      return Array.from(new Map(items.map((item) => [item.id, item])).values()).sort((a, b) => a.label.localeCompare(b.label));
+    },
+  });
+
   // Agrupamento por despesa_id (ou id se avulso)
   const grupos = useMemo<GrupoLancamento[]>(() => {
     const map = new Map<string, GrupoLancamento>();
@@ -164,22 +245,38 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   // Filtro mês/ano/busca
   const gruposFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return grupos.filter((g) => {
-      const ref = g.data_pagamento || g.data_vencimento;
-      if (ref) {
-        const d = new Date(ref + "T00:00:00");
-        if (d.getMonth() + 1 !== mes || d.getFullYear() !== ano) return false;
-      } else {
-        return false;
-      }
-      if (q) {
-        const t = [g.descricao_despesa, g.fornecedor_nome, g.numero_doc, g.categoria_custo]
-          .filter(Boolean).join(" ").toLowerCase();
-        if (!t.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [grupos, mes, ano, busca]);
+    return grupos
+      .filter((g) => {
+        const ref = g.data_pagamento || g.data_vencimento;
+        if (ref) {
+          const d = new Date(ref + "T00:00:00");
+          if (d.getMonth() + 1 !== mes || d.getFullYear() !== ano) return false;
+        } else {
+          return false;
+        }
+        if (q) {
+          const t = [g.descricao_despesa, g.fornecedor_nome, g.numero_doc, g.categoria_custo]
+            .filter(Boolean).join(" ").toLowerCase();
+          if (!t.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = new Date((a.data_pagamento || a.data_vencimento || "") + "T00:00:00");
+        const dateB = new Date((b.data_pagamento || b.data_vencimento || "") + "T00:00:00");
+        const valA = Number.isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+        const valB = Number.isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+
+        if (valA === valB) {
+          const keyA = a.despesa_id || a.chave || a.ids[0] || "";
+          const keyB = b.despesa_id || b.chave || b.ids[0] || "";
+          const cmp = keyA.localeCompare(keyB);
+          return sortDirection === "asc" ? cmp : -cmp;
+        }
+
+        return sortDirection === "asc" ? valA - valB : valB - valA;
+      });
+  }, [grupos, mes, ano, busca, sortDirection]);
 
   const totalPeriodo = gruposFiltrados.reduce((s, g) => s + g.valor_total_despesa, 0);
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
@@ -200,6 +297,21 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .centro-lancamentos-scrollbar::-webkit-scrollbar {
+          height: 8px;
+        }
+        .centro-lancamentos-scrollbar::-webkit-scrollbar-track {
+          background: rgba(226, 232, 240, 0.7);
+        }
+        .centro-lancamentos-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(37, 99, 235, 0.8);
+          border-radius: 999px;
+        }
+        .centro-lancamentos-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(37, 99, 235, 1);
+        }
+      `}</style>
       {/* Header + filtros */}
       <div className="rounded-2xl bg-card/40 backdrop-blur-md border border-border/40 p-5 space-y-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -255,32 +367,82 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
               bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
             }
           }}
-          className="overflow-x-auto overflow-y-hidden border-b border-border/40 bg-muted/20 sticky top-0 z-20"
-          style={{ scrollbarGutter: "stable" }}
+          className="centro-lancamentos-scrollbar overflow-x-auto overflow-y-hidden border-b border-border/40 bg-muted/20 sticky top-0 z-20"
+          style={{ scrollbarGutter: "stable", scrollbarWidth: "thin", scrollbarColor: "#2563eb #e2e8f0" }}
         >
           <div style={{ width: tableWidth, height: 1 }} />
         </div>
         <div
           ref={bottomScrollRef}
+          onMouseDown={(event) => {
+            if ((event.target as HTMLElement).closest("input, select, button, [role='combobox']")) return;
+            handleDragStart(event.clientX);
+            event.preventDefault();
+          }}
+          onMouseMove={(event) => handleDragMove(event.clientX)}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={(event) => {
+            if (event.touches[0]) handleDragStart(event.touches[0].clientX);
+          }}
+          onTouchMove={(event) => {
+            if (event.touches[0]) handleDragMove(event.touches[0].clientX);
+          }}
+          onTouchEnd={handleDragEnd}
           onScroll={() => {
             if (topScrollRef.current && bottomScrollRef.current) {
               topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft;
             }
           }}
-          className="overflow-x-auto"
+          className="centro-lancamentos-scrollbar overflow-x-auto cursor-grab active:cursor-grabbing select-none"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#2563eb #e2e8f0" }}
         >
           <table ref={tableRef} className="w-full text-xs">
             <thead>
               <tr className="bg-muted/40 border-b border-border/40 text-[11px]">
-                <th className="px-3 py-2.5 text-left font-semibold w-28">Data</th>
-                <th className="px-3 py-2.5 text-left font-semibold w-32">Doc</th>
-                <th className="px-3 py-2.5 text-left font-semibold min-w-[180px]">Fornecedor</th>
-                <th className="px-3 py-2.5 text-left font-semibold min-w-[200px]">Descrição</th>
-                <th className="px-3 py-2.5 text-left font-semibold min-w-[180px]">Categoria</th>
-                <th className="px-3 py-2.5 text-left font-semibold w-40">Tipo de Rateio</th>
-                <th className="px-3 py-2.5 text-left font-semibold w-32">Periodicidade</th>
-                <th className="px-3 py-2.5 text-center font-semibold w-20">Fluxo</th>
-                <th className="px-3 py-2.5 text-left font-semibold w-32">Pago Por</th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("data"), minWidth: getColumnWidth("data") }}>
+                  <button type="button" onClick={() => setSortDirection((v) => (v === "desc" ? "asc" : "desc"))} className="flex items-center gap-1 text-left font-semibold">
+                    <span>Data</span>
+                    <span className="text-[10px] text-muted-foreground">{sortDirection === "desc" ? "↓" : "↑"}</span>
+                  </button>
+                  <div role="separator" aria-label="Redimensionar coluna Data" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "data", startX: event.clientX, startWidth: getColumnWidth("data") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("doc"), minWidth: getColumnWidth("doc") }}>
+                  Doc
+                  <div role="separator" aria-label="Redimensionar coluna Doc" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "doc", startX: event.clientX, startWidth: getColumnWidth("doc") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("valorDespesa"), minWidth: getColumnWidth("valorDespesa") }}>
+                  Valor despesa
+                  <div role="separator" aria-label="Redimensionar coluna Valor despesa" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "valorDespesa", startX: event.clientX, startWidth: getColumnWidth("valorDespesa") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("fornecedor"), minWidth: getColumnWidth("fornecedor") }}>
+                  Fornecedor
+                  <div role="separator" aria-label="Redimensionar coluna Fornecedor" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "fornecedor", startX: event.clientX, startWidth: getColumnWidth("fornecedor") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("descricao"), minWidth: getColumnWidth("descricao") }}>
+                  Descrição
+                  <div role="separator" aria-label="Redimensionar coluna Descrição" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "descricao", startX: event.clientX, startWidth: getColumnWidth("descricao") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("categoria"), minWidth: getColumnWidth("categoria") }}>
+                  Categoria
+                  <div role="separator" aria-label="Redimensionar coluna Categoria" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "categoria", startX: event.clientX, startWidth: getColumnWidth("categoria") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("tipoRateio"), minWidth: getColumnWidth("tipoRateio") }}>
+                  Tipo de Rateio
+                  <div role="separator" aria-label="Redimensionar coluna Tipo de Rateio" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "tipoRateio", startX: event.clientX, startWidth: getColumnWidth("tipoRateio") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("periodicidade"), minWidth: getColumnWidth("periodicidade") }}>
+                  Periodicidade
+                  <div role="separator" aria-label="Redimensionar coluna Periodicidade" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "periodicidade", startX: event.clientX, startWidth: getColumnWidth("periodicidade") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-center font-semibold" style={{ width: getColumnWidth("fluxo"), minWidth: getColumnWidth("fluxo") }}>
+                  Fluxo
+                  <div role="separator" aria-label="Redimensionar coluna Fluxo" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "fluxo", startX: event.clientX, startWidth: getColumnWidth("fluxo") }); }} />
+                </th>
+                <th className="relative px-3 py-2.5 text-left font-semibold" style={{ width: getColumnWidth("pagoPor"), minWidth: getColumnWidth("pagoPor") }}>
+                  Pago Por
+                  <div role="separator" aria-label="Redimensionar coluna Pago Por" tabIndex={0} className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20" onMouseDown={(event) => { event.preventDefault(); setResizing({ key: "pagoPor", startX: event.clientX, startWidth: getColumnWidth("pagoPor") }); }} />
+                </th>
                 {cotistas.map((c) => (
                   <th key={c.id} colSpan={2} className="px-3 py-2.5 text-center font-semibold border-l border-border/40 min-w-[180px]">
                     <div className="text-[11px] font-semibold truncate">{c.nome || c.id}</div>
@@ -289,7 +451,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
                 ))}
               </tr>
               <tr className="bg-muted/20 border-b border-border/40 text-[10px] text-muted-foreground">
-                <th colSpan={9} />
+                <th colSpan={11} />
                 {cotistas.map((c) => (
                   <Fragment key={c.id}>
                     <th className="px-2 py-1 text-center border-l border-border/40 font-medium">% Uso</th>
@@ -311,6 +473,8 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
                     cotistas={cotistas}
                     fornecedores={fornecedores}
                     categorias={categorias}
+                    pagadores={pagadores}
+                    getColumnWidth={getColumnWidth}
                     onUpdate={(patch) => updateGrupo(g, patch)}
                   />
                 ))
@@ -324,27 +488,31 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
 }
 
 function LinhaGrupo({
-  g, cotistas, fornecedores, categorias, onUpdate,
+  g, cotistas, fornecedores, categorias, pagadores, getColumnWidth, onUpdate,
 }: {
   g: GrupoLancamento;
   cotistas: Cotista[];
   fornecedores: { id: string; label: string }[];
   categorias: { id: string; label: string }[];
+  pagadores: { id: string; label: string }[];
+  getColumnWidth: (key: string) => number;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
 }) {
   const [openDate, setOpenDate] = useState(false);
   const [doc, setDoc] = useState(g.numero_doc || "");
   const [desc, setDesc] = useState(g.descricao_despesa || "");
+  const [valorDespesa, setValorDespesa] = useState(String(g.valor_total_despesa ?? 0));
 
   useEffect(() => { setDoc(g.numero_doc || ""); }, [g.numero_doc]);
   useEffect(() => { setDesc(g.descricao_despesa || ""); }, [g.descricao_despesa]);
+  useEffect(() => { setValorDespesa(String(g.valor_total_despesa ?? 0)); }, [g.valor_total_despesa]);
 
   const dataRef = g.data_pagamento || g.data_vencimento;
 
   return (
     <tr className="hover:bg-primary/5 transition-colors">
       {/* Data */}
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" style={{ width: getColumnWidth("data"), minWidth: getColumnWidth("data") }}>
         <Popover open={openDate} onOpenChange={setOpenDate}>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 px-2 gap-1.5 w-full justify-start font-normal">
@@ -367,7 +535,7 @@ function LinhaGrupo({
       </td>
 
       {/* Doc */}
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" style={{ width: getColumnWidth("doc"), minWidth: getColumnWidth("doc") }}>
         <Input
           value={doc}
           onChange={(e) => setDoc(e.target.value)}
@@ -376,8 +544,28 @@ function LinhaGrupo({
         />
       </td>
 
+      {/* Valor despesa */}
+      <td className="px-2 py-2" style={{ width: getColumnWidth("valorDespesa"), minWidth: getColumnWidth("valorDespesa") }}>
+        <Input
+          type="number"
+          inputMode="decimal"
+          value={valorDespesa}
+          onChange={(e) => setValorDespesa(e.target.value)}
+          onBlur={() => {
+            const parsed = Number(String(valorDespesa).replace(/\./g, "").replace(",", "."));
+            const normalized = Number.isNaN(parsed) ? 0 : parsed;
+            const current = Number(g.valor_total_despesa ?? 0);
+            if (normalized !== current) {
+              onUpdate({ valor_total_despesa: normalized });
+            }
+          }}
+          className="h-8 text-xs font-mono"
+          placeholder="0,00"
+        />
+      </td>
+
       {/* Fornecedor */}
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" style={{ width: getColumnWidth("fornecedor"), minWidth: getColumnWidth("fornecedor") }}>
         <SearchableCombobox
           items={fornecedores}
           value={g.fornecedor_nome || ""}
@@ -389,7 +577,7 @@ function LinhaGrupo({
       </td>
 
       {/* Descrição */}
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" style={{ width: getColumnWidth("descricao"), minWidth: getColumnWidth("descricao") }}>
         <Input
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
@@ -399,7 +587,7 @@ function LinhaGrupo({
       </td>
 
       {/* Categoria */}
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" style={{ width: getColumnWidth("categoria"), minWidth: getColumnWidth("categoria") }}>
         <SearchableCombobox
           items={categorias}
           value={g.categoria_custo || ""}
@@ -411,7 +599,7 @@ function LinhaGrupo({
       </td>
 
       {/* Tipo de Rateio */}
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" style={{ width: getColumnWidth("tipoRateio"), minWidth: getColumnWidth("tipoRateio") }}>
         <Select value={g.tipo_rateio || ""} onValueChange={(v) => onUpdate({ tipo_rateio: v })}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
           <SelectContent>
@@ -421,7 +609,7 @@ function LinhaGrupo({
       </td>
 
       {/* Periodicidade */}
-      <td className="px-2 py-2">
+      <td className="px-2 py-2" style={{ width: getColumnWidth("periodicidade"), minWidth: getColumnWidth("periodicidade") }}>
         <Select value={(g.periodicidade || "").toUpperCase()} onValueChange={(v) => onUpdate({ periodicidade: v })}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
           <SelectContent>
@@ -431,19 +619,26 @@ function LinhaGrupo({
       </td>
 
       {/* Fluxo */}
-      <td className="px-2 py-2 text-center">
-        <Badge variant="outline" className={cn("text-[10px]",
-          (g.fluxo || "").toUpperCase().includes("ENTRA")
-            ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
-            : "border-rose-500/40 text-rose-400 bg-rose-500/10"
-        )}>
-          {g.fluxo || "—"}
-        </Badge>
+      <td className="px-2 py-2 text-center" style={{ width: getColumnWidth("fluxo"), minWidth: getColumnWidth("fluxo") }}>
+        <Select value={(g.fluxo || "").toUpperCase()} onValueChange={(v) => onUpdate({ fluxo: v })}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ENTRADA">Entrada</SelectItem>
+            <SelectItem value="SAIDA">Saída</SelectItem>
+          </SelectContent>
+        </Select>
       </td>
 
       {/* Pago Por */}
-      <td className="px-2 py-2">
-        <span className="text-xs font-medium">{g.pago_por || "—"}</span>
+      <td className="px-2 py-2" style={{ width: getColumnWidth("pagoPor"), minWidth: getColumnWidth("pagoPor") }}>
+        <SearchableCombobox
+          items={pagadores}
+          value={g.pago_por || ""}
+          onChange={(_id, label) => onUpdate({ pago_por: label })}
+          placeholder="Selecione o pagador"
+          searchPlaceholder="Buscar pagador..."
+          allowFreeText
+        />
       </td>
 
       {/* Colunas por cotista */}
