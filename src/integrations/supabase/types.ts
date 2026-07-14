@@ -4996,27 +4996,6 @@ export type Database = {
         }
         Relationships: []
       }
-      favorite_services: {
-        Row: {
-          created_at: string | null
-          description: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          description: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          description?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       fornecedores_combustivel: {
         Row: {
           atualizado_em: string | null
@@ -8257,6 +8236,27 @@ export type Database = {
           lido_por?: string[] | null
           mensagem?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      receipt_descriptions: {
+        Row: {
+          criado_em: string | null
+          description: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string | null
+          description: string
+          id?: string
+          user_id?: string
+        }
+        Update: {
+          criado_em?: string | null
+          description?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }

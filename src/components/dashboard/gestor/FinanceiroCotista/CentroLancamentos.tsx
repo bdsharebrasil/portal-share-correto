@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,24 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [busca, setBusca] = useState("");
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const bottomScrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [tableWidth, setTableWidth] = useState<number>(0);
+
+  useLayoutEffect(() => {
+    const update = () => {
+      if (tableRef.current) setTableWidth(tableRef.current.scrollWidth);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (tableRef.current) ro.observe(tableRef.current);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  });
 
   // Rateios da aeronave
   const { data: rateios = [], isLoading } = useQuery({
@@ -229,8 +247,29 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
 
       {/* Tabela */}
       <div className="rounded-2xl bg-card/40 backdrop-blur-md border border-border/40 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        {/* Scroll horizontal superior sincronizado */}
+        <div
+          ref={topScrollRef}
+          onScroll={() => {
+            if (bottomScrollRef.current && topScrollRef.current) {
+              bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+            }
+          }}
+          className="overflow-x-auto overflow-y-hidden border-b border-border/40 bg-muted/20 sticky top-0 z-20"
+          style={{ scrollbarGutter: "stable" }}
+        >
+          <div style={{ width: tableWidth, height: 1 }} />
+        </div>
+        <div
+          ref={bottomScrollRef}
+          onScroll={() => {
+            if (topScrollRef.current && bottomScrollRef.current) {
+              topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft;
+            }
+          }}
+          className="overflow-x-auto"
+        >
+          <table ref={tableRef} className="w-full text-xs">
             <thead>
               <tr className="bg-muted/40 border-b border-border/40 text-[11px]">
                 <th className="px-3 py-2.5 text-left font-semibold w-28">Data</th>
