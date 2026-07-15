@@ -68,6 +68,14 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
         .eq("id", conta.id);
       if (updateError) throw updateError;
 
+      // 1.1 Update linked movimentacao status if available
+      if (conta.movimentacao_id) {
+        const { error: movError } = await (supabase.from("movimentacoes") as any)
+          .update({ status: "pago", data_pagamento: dataPagamento })
+          .eq("id", conta.movimentacao_id);
+        if (movError) throw movError;
+      }
+
       // 2. Insert into controle_bancario
       // Find categoria_id for the right group
       let categoriaId = conta.categoria_id || null;

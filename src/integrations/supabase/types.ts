@@ -7896,7 +7896,6 @@ export type Database = {
           atualizado_em: string | null
           boleto_url: string | null
           categoria_custo: string | null
-          categoria_id: string | null
           cliente_id: string | null
           clientes_nome: string | null
           comprovante_url: string | null
@@ -7936,7 +7935,6 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           categoria_custo?: string | null
-          categoria_id?: string | null
           cliente_id?: string | null
           clientes_nome?: string | null
           comprovante_url?: string | null
@@ -7976,7 +7974,6 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           categoria_custo?: string | null
-          categoria_id?: string | null
           cliente_id?: string | null
           clientes_nome?: string | null
           comprovante_url?: string | null
@@ -8044,13 +8041,6 @@ export type Database = {
             columns: ["categoria_custo"]
             isOneToOne: false
             referencedRelation: "expense_configu"
-            referencedColumns: ["expense_type"]
-          },
-          {
-            foreignKeyName: "rateio_despesas_categoria_id_fkey"
-            columns: ["categoria_id"]
-            isOneToOne: false
-            referencedRelation: "categorias_movimentacao"
             referencedColumns: ["id"]
           },
           {
@@ -8082,129 +8072,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      rateio_despesasold: {
-        Row: {
-          aeronave_id: string | null
-          aeronave_matricula: string | null
-          boleto: string | null
-          categoria_custo: string | null
-          categoria_id: string | null
-          client_name: string
-          cliente_id: string | null
-          comprovante_pagamento_direto_url: string | null
-          comprovante_url: string | null
-          data_envio: string | null
-          data_pagamento: string | null
-          data_pagamento_direto: string | null
-          data_vencimento: string | null
-          descricao_despesa: string | null
-          despesa_id: string
-          doc: string | null
-          fluxo: string | null
-          fonte_despesa: string | null
-          forma_pagamento: string | null
-          fornecedor_nome: string | null
-          horas_voadas: number | null
-          id: string
-          nota_fiscal: string | null
-          numero_recibo: string | null
-          observacoes: string | null
-          pago_diretamente: boolean | null
-          pago_por: string | null
-          percentual: number | null
-          percentual_voo: number | null
-          recebimento_id: string | null
-          recibo_url: string | null
-          socio_id: string | null
-          socio_nome: string | null
-          status: string | null
-          tipo_rateio: string | null
-          valor_pago_real: number | null
-          valor_rateado_por_uso: number
-          valor_total_despesa: number | null
-        }
-        Insert: {
-          aeronave_id?: string | null
-          aeronave_matricula?: string | null
-          boleto?: string | null
-          categoria_custo?: string | null
-          categoria_id?: string | null
-          client_name: string
-          cliente_id?: string | null
-          comprovante_pagamento_direto_url?: string | null
-          comprovante_url?: string | null
-          data_envio?: string | null
-          data_pagamento?: string | null
-          data_pagamento_direto?: string | null
-          data_vencimento?: string | null
-          descricao_despesa?: string | null
-          despesa_id: string
-          doc?: string | null
-          fluxo?: string | null
-          fonte_despesa?: string | null
-          forma_pagamento?: string | null
-          fornecedor_nome?: string | null
-          horas_voadas?: number | null
-          id?: string
-          nota_fiscal?: string | null
-          numero_recibo?: string | null
-          observacoes?: string | null
-          pago_diretamente?: boolean | null
-          pago_por?: string | null
-          percentual?: number | null
-          percentual_voo?: number | null
-          recebimento_id?: string | null
-          recibo_url?: string | null
-          socio_id?: string | null
-          socio_nome?: string | null
-          status?: string | null
-          tipo_rateio?: string | null
-          valor_pago_real?: number | null
-          valor_rateado_por_uso: number
-          valor_total_despesa?: number | null
-        }
-        Update: {
-          aeronave_id?: string | null
-          aeronave_matricula?: string | null
-          boleto?: string | null
-          categoria_custo?: string | null
-          categoria_id?: string | null
-          client_name?: string
-          cliente_id?: string | null
-          comprovante_pagamento_direto_url?: string | null
-          comprovante_url?: string | null
-          data_envio?: string | null
-          data_pagamento?: string | null
-          data_pagamento_direto?: string | null
-          data_vencimento?: string | null
-          descricao_despesa?: string | null
-          despesa_id?: string
-          doc?: string | null
-          fluxo?: string | null
-          fonte_despesa?: string | null
-          forma_pagamento?: string | null
-          fornecedor_nome?: string | null
-          horas_voadas?: number | null
-          id?: string
-          nota_fiscal?: string | null
-          numero_recibo?: string | null
-          observacoes?: string | null
-          pago_diretamente?: boolean | null
-          pago_por?: string | null
-          percentual?: number | null
-          percentual_voo?: number | null
-          recebimento_id?: string | null
-          recibo_url?: string | null
-          socio_id?: string | null
-          socio_nome?: string | null
-          status?: string | null
-          tipo_rateio?: string | null
-          valor_pago_real?: number | null
-          valor_rateado_por_uso?: number
-          valor_total_despesa?: number | null
-        }
-        Relationships: []
       }
       recados: {
         Row: {
@@ -10205,6 +10072,7 @@ export type Database = {
         Row: {
           aeronave_id: string | null
           categoria_custo: string | null
+          categoria_custo_nome: string | null
           cliente_id: string | null
           cotista_nome: string | null
           mes_ano: string | null
@@ -10249,7 +10117,7 @@ export type Database = {
             columns: ["categoria_custo"]
             isOneToOne: false
             referencedRelation: "expense_configu"
-            referencedColumns: ["expense_type"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rateio_despesas_cliente_id_fkey"

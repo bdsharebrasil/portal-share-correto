@@ -42,27 +42,13 @@ import {
   ArrowRight,
   Download,
   PieChart as PieChartIcon,
-  BarChart as BarChartIcon,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-  Legend,
-} from "recharts";
+import { ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
-import { AbastecimentosTab } from "./AbastecimentosTab";
 
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", {
@@ -125,10 +111,10 @@ export function FechamentoBalancoTab({
   abastecimentos = [],
   relatorios = [],
 }: Props) {
+  const qc = useQueryClient();
   const hoje = new Date();
   const [periodoTipo, setPeriodoTipo] = useState<PeriodoTipo>("mensal");
   const [mes, setMes] = useState<number>(hoje.getMonth() + 1);
-  const [mesFim, setMesFim] = useState<number>(hoje.getMonth() + 1);
   const [ano, setAno] = useState<number>(hoje.getFullYear());
   const [dataInicio, setDataInicio] = useState<string>(
     `${ano}-${String(mes).padStart(2, "0")}-01`
@@ -142,9 +128,7 @@ export function FechamentoBalancoTab({
     let end: string;
     if (periodoTipo === "mensal") {
       start = new Date(ano, mes - 1, 1).toISOString().slice(0, 10);
-      // Se mesFim for menor que mes (erro de seleção), ajustamos para ser igual ao mes
-      const realMesFim = Math.max(mes, mesFim);
-      end = new Date(ano, realMesFim, 0).toISOString().slice(0, 10);
+      end = new Date(ano, mes, 0).toISOString().slice(0, 10);
     } else if (periodoTipo === "acumulado-ano") {
       start = `${ano}-01-01`;
       end = `${ano}-12-31`;
@@ -340,9 +324,7 @@ export function FechamentoBalancoTab({
 
   const periodoLabel =
     periodoTipo === "mensal"
-      ? mes === mesFim 
-        ? `${MESES[mes - 1]}/${ano}`
-        : `${MESES[mes - 1]} a ${MESES[mesFim - 1]} de ${ano}`
+      ? `${MESES[mes - 1]}/${ano}`
       : periodoTipo === "acumulado-ano"
       ? `Acumulado ${ano}`
       : `${inicio} a ${fim}`;
@@ -532,15 +514,6 @@ export function FechamentoBalancoTab({
                     ))}
                   </SelectContent>
                 </Select>
-                <span className="text-xs text-muted-foreground">até</span>
-                <Select value={String(mesFim)} onValueChange={(v) => setMesFim(Number(v))}>
-                  <SelectTrigger className="w-36 h-10"><SelectValue placeholder="Fim" /></SelectTrigger>
-                  <SelectContent>
-                    {MESES.map((m, i) => (
-                      <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
                   <SelectTrigger className="w-28 h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -576,11 +549,8 @@ export function FechamentoBalancoTab({
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="resumo" className="w-full">
+      <Tabs defaultValue="lancamentos" className="w-full">
         <TabsList className="bg-card/60 border border-border p-1 rounded-xl flex-wrap h-auto">
-          <TabsTrigger value="resumo" className="rounded-lg gap-2">
-            <Calculator className="h-4 w-4" /> Resumo
-          </TabsTrigger>
           <TabsTrigger value="lancamentos" className="rounded-lg gap-2">
             <FileText className="h-4 w-4" /> Lançamentos Detalhados
           </TabsTrigger>
@@ -590,126 +560,7 @@ export function FechamentoBalancoTab({
           <TabsTrigger value="diario" className="rounded-lg gap-2">
             <Plane className="h-4 w-4" /> Diário de Bordo
           </TabsTrigger>
-          <TabsTrigger value="abast" className="rounded-lg gap-2">
-            <Fuel className="h-4 w-4" /> Abastecimentos
-          </TabsTrigger>
         </TabsList>
-
-        {/* RESUMO */}
-        <TabsContent value="resumo" className="mt-4 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2 bg-card/60 border-border">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Crédito vs Custo Devido por Sócio</CardTitle>
-                <BarChartIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="h-[300px] mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={linhas}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.1)" />
-                    <XAxis dataKey="nome" fontSize={10} axisLine={false} tickLine={false} />
-                    <YAxis fontSize={10} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${v/1000}k`} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.8)', border: 'none', borderRadius: '8px' }}
-                      formatter={(value: number) => formatBRL(value)}
-                    />
-                    <Legend iconType="circle" />
-                    <Bar dataKey="credito" name="Crédito (Já Pago)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
-                    <Bar dataKey="custoDevido" name="Custo Devido" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/60 border-border">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Distribuição de Saldo</CardTitle>
-                <PieChartIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="h-[300px] mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={linhas.map(l => ({ name: l.nome, value: Math.abs(l.saldo) }))}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {linhas.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.saldo >= 0 ? "#10b981" : "#ef4444"} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.8)', border: 'none', borderRadius: '8px' }}
-                      formatter={(value: number) => formatBRL(value)}
-                    />
-                    <Legend verticalAlign="bottom" height={36}/>
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <KpiCard icon={<Layers className="h-5 w-5" />} label="Custo Fixo Total" value={formatBRL(custoFixo)} sub="Rateado por % de cota" />
-            <KpiCard icon={<Gauge className="h-5 w-5" />} label="Custo Variável Total" value={formatBRL(custoVariavel)} sub="Rateado por horas voadas" />
-            <KpiCard icon={<Clock className="h-5 w-5" />} label="Horas Totais Voadas" value={formatHHMM(horasTotais)} sub={`${voos.length} lançamentos no diário`} />
-            <KpiCard icon={<Wallet className="h-5 w-5" />} label="Custo Médio / Hora" value={formatBRL(custoMedioHora)} sub="Variável ÷ horas totais" />
-          </div>
-
-          <Card className="bg-card/60 border-border">
-            <CardHeader>
-              <CardTitle className="text-base">Acerto de Contas — {periodoLabel}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">Calculando...</p>
-              ) : cotistas.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">Nenhum cotista vinculado a esta aeronave.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cotista</TableHead>
-                      <TableHead className="text-right">% Cota</TableHead>
-                      <TableHead className="text-right">Horas Voadas</TableHead>
-                      <TableHead className="text-right">Quota Social (Fixo)</TableHead>
-                      <TableHead className="text-right">Uso Finan. (Var)</TableHead>
-                      <TableHead className="text-right">Total Devido</TableHead>
-                      <TableHead className="text-right">Já Pago (Crédito)</TableHead>
-                      <TableHead className="text-right">Diferença / Saldo</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {linhas.map((l) => {
-                      const positivo = l.saldo >= 0;
-                      return (
-                        <TableRow key={l.id} className={l.id === clienteEmFoco ? "bg-primary/5" : undefined}>
-                          <TableCell className="font-medium">{l.nome}</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{l.percentual}%</TableCell>
-                          <TableCell className="text-right font-mono text-xs">{formatHHMM(l.horas)}</TableCell>
-                          <TableCell className="text-right font-mono text-sm">{formatBRL(l.parcelaFixa)}</TableCell>
-                          <TableCell className="text-right font-mono text-sm">{formatBRL(l.parcelaVariavel)}</TableCell>
-                          <TableCell className="text-right font-mono text-sm font-semibold">{formatBRL(l.custoDevido)}</TableCell>
-                          <TableCell className="text-right font-mono text-sm text-success">{formatBRL(l.credito)}</TableCell>
-                          <TableCell className={`text-right font-mono text-sm font-bold ${positivo ? "text-success" : "text-destructive"}`}>
-                            <div className="flex items-center justify-end gap-1">
-                              {positivo ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                              <span>{positivo ? "A Receber: " : "A Pagar: "}{formatBRL(Math.abs(l.saldo))}</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* LANÇAMENTOS DETALHADOS */}
         <TabsContent value="lancamentos" className="mt-4">
@@ -735,10 +586,7 @@ export function FechamentoBalancoTab({
           )}
         </TabsContent>
 
-        {/* ABASTECIMENTOS */}
-        <TabsContent value="abast" className="mt-4">
-          <AbastecimentosTab abastecimentos={abastecimentos as any} cotistas={cotistas} aeronaveLabel={aeronaveLabel} />
-        </TabsContent>
+        {/* ABASTECIMENTOS removido conforme solicitado */}
       </Tabs>
     </div>
   );
@@ -764,6 +612,7 @@ function LancamentosDetalhadosView({
   const qc = useQueryClient();
   const [filtroCotista, setFiltroCotista] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState<string>("todos");
 
   async function updateDespesaGroup(
     group: { despesa: any; rateios: any[] },
@@ -783,7 +632,7 @@ function LancamentosDetalhadosView({
       return;
     }
     toast.success("Atualizado");
-    qc.invalidateQueries({ queryKey: ["fechamento-balanco", aeronaveId, periodoTipo, mes, ano, dataInicio, dataFim] });
+    qc.invalidateQueries({ queryKey: ["fechamento-balanco"] });
   }
 
   function LinhaDespesa({
@@ -810,92 +659,15 @@ function LancamentosDetalhadosView({
 
     return (
       <tr className="hover:bg-muted/10 transition-colors">
-        <td className="p-2 border-b border-border">
-          <Popover open={openDate} onOpenChange={setOpenDate}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 px-2 gap-1.5 w-full justify-start font-normal text-left">
-                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs">{formatDate(dataRef)}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999]">
-              <DatePickerCalendar
-                value={dataRef ? new Date(dataRef + "T00:00:00") : undefined}
-                onChange={(d) => {
-                  if (!d) return;
-                  const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-                  onUpdate({ data_pagamento: iso, data_vencimento: iso });
-                  setOpenDate(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-        </td>
-
-        <td className="p-2 border-b border-border">
-          <Input
-            value={doc}
-            onChange={(e) => setDoc(e.target.value)}
-            onBlur={() => { if (doc !== (group.despesa.numero_doc || group.despesa.numero_nf || "")) onUpdate({ numero_doc: doc || null }); }}
-            className="h-8 text-xs font-mono"
-          />
-        </td>
-
-        <td className="p-2 border-b border-border">
-          <Input
-            value={group.despesa.fornecedor_nome || ""}
-            onChange={(e) => onUpdate({ fornecedor_nome: e.target.value })}
-            onBlur={(e) => onUpdate({ fornecedor_nome: e.target.value || null })}
-            placeholder="Fornecedor"
-            className="h-8 text-xs"
-          />
-        </td>
-
-        <td className="p-2 border-b border-border">
-          <Input
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            onBlur={() => { if (descricao !== (group.despesa.descricao_despesa || "")) onUpdate({ descricao_despesa: descricao }); }}
-            className="h-8 text-xs"
-          />
-        </td>
-
-        <td className="p-2 border-b border-border">
-          <Input
-            value={group.despesa.categoria_custo || ""}
-            onChange={(e) => onUpdate({ categoria_custo: e.target.value })}
-            onBlur={(e) => onUpdate({ categoria_custo: e.target.value || null })}
-            placeholder="Categoria"
-            className="h-8 text-xs"
-          />
-        </td>
-
-        <td className="p-2 border-b border-border">
-          <Select value={tipoRateio} onValueChange={(v) => { setTipoRateio(v); onUpdate({ tipo_rateio: v }); }}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>
-              {TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </td>
-
-        <td className="p-2 border-b border-border">
-          <Select value={periodicidade} onValueChange={(v) => { setPeriodicidade(v); onUpdate({ periodicidade: v }); }}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>
-              {PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </td>
-
-        <td className="p-2 border-b border-border text-center">
-          <Badge variant="outline" className={(group.despesa.fluxo || "").toUpperCase().includes("ENTRA") ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-rose-500/40 text-rose-400 bg-rose-500/10"}>
-            {group.despesa.fluxo || "—"}
-          </Badge>
-        </td>
-
+        <td className="p-2 border-b border-border"><div className="text-xs">{formatDate(dataRef)}</div></td>
+        <td className="p-2 border-b border-border"><div className="text-xs font-mono">{group.despesa.numero_doc || group.despesa.numero_nf || "—"}</div></td>
+        <td className="p-2 border-b border-border"><div className="text-xs">{group.despesa.fornecedor_nome || "—"}</div></td>
+        <td className="p-2 border-b border-border"><div className="text-xs">{group.despesa.descricao_despesa || "—"}</div></td>
+        <td className="p-2 border-b border-border"><div className="text-xs">{group.despesa.categoria_custo || "—"}</div></td>
+        <td className="p-2 border-b border-border"><div className="text-xs">{group.despesa.tipo_rateio || "—"}</div></td>
+        <td className="p-2 border-b border-border"><div className="text-xs">{(group.despesa.periodicidade || "—").toString()}</div></td>
+        <td className="p-2 border-b border-border text-center"><Badge variant="outline" className={(group.despesa.fluxo || "").toUpperCase().includes("ENTRA") ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-rose-500/40 text-rose-400 bg-rose-500/10"}>{group.despesa.fluxo || "—"}</Badge></td>
         <td className="p-2 border-b border-border text-[10px] uppercase">{group.despesa.pago_por || "—"}</td>
-
         {cotistas.map((c) => {
           const r = group.rateios.find((item) => item.cliente_id === c.id || item.socio_id === c.id);
           const pct = r ? Number(r.percentual_uso ?? r.percentual_sociedade ?? 0) : 0;
@@ -926,17 +698,29 @@ function LancamentosDetalhadosView({
         );
         if (!txt.includes(q)) return false;
       }
+      if (filtroCategoria !== "todos") {
+        const cat = (despesa.categoria_custo || "").toString();
+        if (cat !== filtroCategoria) return false;
+      }
       return true;
     });
-  }, [despesasAgrupadas, filtroCotista, busca]);
+  }, [despesasAgrupadas, filtroCotista, busca, filtroCategoria]);
+
+  const categoriasDisponiveis = useMemo(() => {
+    const s = new Set<string>();
+    despesasAgrupadas.forEach(({ despesa }) => {
+      if (despesa.categoria_custo) s.add(String(despesa.categoria_custo));
+    });
+    return Array.from(s).sort();
+  }, [despesasAgrupadas]);
 
   const total = filtrados.reduce((a, { despesa }) => a + (Number(despesa.valor_total_despesa) || 0), 0);
 
   return (
     <Card className="bg-card/60 border-border">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+      <CardHeader className="flex items-center justify-between gap-3">
         <CardTitle className="text-base">Centro de Lançamentos — {periodoLabel}</CardTitle>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           <input
             placeholder="Buscar fornecedor, descrição, NF..."
             value={busca}
@@ -948,6 +732,14 @@ function LancamentosDetalhadosView({
             <SelectContent>
               <SelectItem value="todos">Todos os cotistas</SelectItem>
               {cotistas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {/* filtro por categoria */}
+          <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+            <SelectTrigger className="w-44 h-9"><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todas as categorias</SelectItem>
+              {categoriasDisponiveis.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -1148,15 +940,4 @@ function EquilibrioContasView({
   );
 }
 
-function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-b from-card/80 to-card/40 backdrop-blur-md p-5 shadow-lg">
-      <div className="flex items-start justify-between mb-3">
-        <div className="p-2 rounded-xl bg-primary/10 text-primary">{icon}</div>
-      </div>
-      <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground/80 font-semibold mb-1">{label}</p>
-      <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
-      {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
-    </div>
-  );
-}
+// KpiCard removed — não mais usado no Resumo

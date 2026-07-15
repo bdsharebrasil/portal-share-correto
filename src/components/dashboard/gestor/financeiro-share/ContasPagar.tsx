@@ -132,6 +132,7 @@ export function ContasPagar() {
         .from("contas_apagar")
         .select(`
           *,
+          movimentacao:movimentacao_id(id, status),
           fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo, conta_pagamento),
           clientes:cliente_id(id, razao_social, proprietario)
         `)
@@ -542,7 +543,7 @@ export function ContasPagar() {
                               variant={vencida ? "destructive" : "outline"}
                               className="capitalize font-medium"
                             >
-                              {vencida ? "Vencida" : conta.status}
+                              {vencida ? "Vencida" : conta.movimentacao?.status || conta.status}
                             </Badge>
                           )}
                         </td>
