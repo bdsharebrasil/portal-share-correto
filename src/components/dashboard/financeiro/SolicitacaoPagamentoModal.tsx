@@ -162,7 +162,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         if (tipoNormalizado === "COMBUSTIVEIS") {
           const { data, error: fetchError } = await supabase
             .from("abastecimentos")
-            .select("id, id_clientes, valor_total, data, nf")
+            .select("id, id_clientes, valor_total, data, nf, comprovante_pagamento, comprovante_url, nota_url, boleto_url, comanda_url")
             .eq("id_clientes", clienteId)
             .order("data", { ascending: false })
             .limit(50); // Limitar para otimizar
@@ -200,7 +200,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         if (tipoNormalizado === "DESPESAS_DE_VIAGEM") {
           const { data, error: fetchError } = await supabase
             .from("travel_expense_reports")
-            .select("id, clientes_id, total_valor, despesas")
+            .select("id, clientes_id, total_valor, despesas, url_pdf")
             .eq("clientes_id", clienteId)
             .order("created_at", { ascending: false })
             .limit(50); // Limitar para otimizar
@@ -341,14 +341,61 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const reciboNumeroSelecionado = reciboSelecionado?.numero_recibo || reciboSelecionado?.numero || null;
 
       const anexosProc = await uploadAnexos();
-      const nfUrl = pickUrl(anexosProc, "nf");
+      let anexosOrigem: Record<string, string | null> = {};
+      if (referenciaTipo === "abastecimento" && referenciaId) {
+        const { data, error } = await (supabase as any)
+          .from("abastecimentos")
+          .select("comprovante_pagamento, comprovante_url, nota_url, boleto_url, comanda_url")
+          .eq("id", referenciaId)
+          .single();
+        if (error) throw error;
+        anexosOrigem = data || {};
+      }
+      if (referenciaTipo === "travel_expense_report" && referenciaId) {
+        const { data, error } = await (supabase as any)
+          .from("travel_expense_reports")
+          .select("url_pdf")
+          .eq("id", referenciaId)
+          .single();
+        if (error) throw error;
+        anexosOrigem = data || {};
+      }
+      const nfUrl = pickUrl(anexosProc, "nf") || anexosOrigem.nota_url || null;
       const reciboUrl = pickUrl(anexosProc, "recibo") || reciboUrlSelecionado;
-      const boletoUrl = pickUrl(anexosProc, "boleto");
-      const docUrl = pickUrl(anexosProc, "doc");
+      const boletoUrl = pickUrl(anexosProc, "boleto") || anexosOrigem.boleto_url || null;
+      const docUrl = pickUrl(anexosProc, "doc") || anexosOrigem.comanda_url || anexosOrigem.url_pdf || null;
+      const comprovanteUrl = docUrl || anexosOrigem.comprovante_pagamento || anexosOrigem.comprovante_url || null;
       const nfNum = pickNumero(anexosProc, "nf");
       const reciboNum = pickNumero(anexosProc, "recibo") || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
       const docNum = pickNumero(anexosProc, "doc");
+
+      if (referenciaTipo && referenciaId) {
+        const { data: existente, error } = await (supabase as any)
+          .from("movimentacoes")
+          .select("id")
+          .eq("reference_type", referenciaTipo)
+          .eq("reference_id", referenciaId)
+          .maybeSingle();
+        if (error) throw error;
+        if (existente) {
+          toast.info("Esta solicitação já está vinculada ao lançamento de origem.");
+          return;
+        }
+      }
+
+      if (reciboNum) {
+        const { data: existente, error } = await (supabase as any)
+          .from("movimentacoes")
+          .select("id")
+          .eq("numero_recibo", reciboNum)
+          .maybeSingle();
+        if (error) throw error;
+        if (existente) {
+          toast.error("Já existe um lançamento associado a este recibo.");
+          return;
+        }
+      }
 
       // 1) contas_apagar
       const capId = await insertAndGetId("contas_apagar", {
@@ -395,7 +442,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         nf_url: nfUrl,
         recibo_url: reciboUrl,
         boleto_url: boletoUrl,
-        comprovante_url: docUrl,
+        comprovante_url: comprovanteUrl,
         observacoes: obsFinal || null,
         contas_apagar_id: capId,
         reference_type: referenciaTipo || "solicitacao_pagamento",
@@ -440,6 +487,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         boleto_url: boletoUrl,
         nf_url: nfUrl,
         recibo_url: reciboUrl,
+        comprovante_url: comprovanteUrl,
       });
 
       // 4) reembolsável → contas_areceber
