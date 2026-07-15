@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -132,7 +131,6 @@ export function ContasPagar() {
         .from("contas_apagar")
         .select(`
           *,
-          movimentacao:movimentacao_id(id, status),
           fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo, conta_pagamento),
           clientes:cliente_id(id, razao_social, proprietario)
         `)
@@ -543,7 +541,7 @@ export function ContasPagar() {
                               variant={vencida ? "destructive" : "outline"}
                               className="capitalize font-medium"
                             >
-                              {vencida ? "Vencida" : conta.movimentacao?.status || conta.status}
+                              {vencida ? "Vencida" : conta.status}
                             </Badge>
                           )}
                         </td>
