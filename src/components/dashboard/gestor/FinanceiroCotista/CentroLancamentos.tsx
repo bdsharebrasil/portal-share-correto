@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
-import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, RotateCcw, DollarSign, ExternalLink, Upload, Loader2, FileDigit } from "lucide-react";
+import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, DollarSign, ExternalLink, Upload, Loader2, FileDigit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -521,10 +521,6 @@ function LinhaGrupo({
     setExpanded((v) => !v);
   };
 
-  const handleMarcarPendente = async () => {
-    await onUpdate({ status: "pendente", data_pagamento: null, forma_pagamento: null, comprovante_url: null });
-  };
-
   const handleExcluir = async () => {
     const { error } = await (supabase as any).from("rateio_despesas").delete().in("id", g.ids);
     if (error) { toast.error("Erro ao excluir: " + error.message); return; }
@@ -735,9 +731,6 @@ function LinhaGrupo({
                       <Button size="sm" variant="secondary" onClick={() => setShowPayDialog(true)} className="gap-2 h-8 text-[11px] w-full justify-start shadow-sm">
                         <FileDigit className="h-3.5 w-3.5" /> Editar Pagamento
                       </Button>
-                      <Button size="sm" variant="outline" onClick={handleMarcarPendente} className="gap-2 border-amber-500/30 text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 h-8 text-[11px] w-full justify-start">
-                        <RotateCcw className="h-3.5 w-3.5" /> Reverter Status
-                      </Button>
                     </>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-red-500 hover:bg-red-500/10 hover:text-red-600 h-8 text-[11px] w-full justify-start mt-1">
@@ -760,7 +753,17 @@ function LinhaGrupo({
         </tr>
       )}
 
-      <PagamentoDialog open={showPayDialog} onOpenChange={setShowPayDialog} grupo={g} onSaved={() => { setShowPayDialog(false); qc.invalidateQueries(); }} onUpdate={onUpdate} />
+      <PagamentoDialog
+        open={showPayDialog}
+        onOpenChange={setShowPayDialog}
+        grupo={g}
+        onSaved={(savedStatus) => {
+          setShowPayDialog(false);
+          setExpanded(savedStatus !== "pago");
+          qc.invalidateQueries();
+        }}
+        onUpdate={onUpdate}
+      />
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
@@ -813,43 +816,63 @@ function PagamentoDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   grupo: GrupoLancamento;
-  onSaved: () => void;
+  onSaved: (status: "pago" | "pendente") => void;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
 }) {
   const [dataPag, setDataPag] = useState(grupo.data_pagamento || new Date().toISOString().slice(0, 10));
   const [forma, setForma] = useState(grupo.forma_pagamento || "pix");
-  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<"pago" | "pendente">(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
+  const [comprovante, setComprovante] = useState<File | null>(null);
+  const [notaFiscal, setNotaFiscal] = useState<File | null>(null);
+  const [recibo, setRecibo] = useState<File | null>(null);
+  const [boleto, setBoleto] = useState<File | null>(null);
+  const [documento, setDocumento] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setDataPag(grupo.data_pagamento || new Date().toISOString().slice(0, 10));
       setForma(grupo.forma_pagamento || "pix");
-      setFile(null);
+      setStatus(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
+      setComprovante(null);
+      setNotaFiscal(null);
+      setRecibo(null);
+      setBoleto(null);
+      setDocumento(null);
     }
   }, [open, grupo.data_pagamento, grupo.forma_pagamento]);
 
   const handleSalvar = async () => {
     setSaving(true);
     try {
-      let comprovante_url: string | null = grupo.comprovante_url;
-      if (file) {
+      const uploadArquivo = async (file: File | null, tipo: string, atual: string | null) => {
+        if (!file) return atual;
         const ext = (file.name.split(".").pop() || "bin").toLowerCase();
-        const path = `rateio-comprovantes/${grupo.chave}/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("client-documents").upload(path, file, { upsert: true });
-        if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("client-documents").getPublicUrl(path);
-        comprovante_url = urlData.publicUrl;
-      }
+        const path = `rateio-anexos/${grupo.chave}/${tipo}-${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from("client-documents").upload(path, file, { upsert: true });
+        if (error) throw error;
+        return supabase.storage.from("client-documents").getPublicUrl(path).data.publicUrl;
+      };
+      const [comprovante_url, nf_url, recibo_url, boleto_url, documentoUrl] = await Promise.all([
+        uploadArquivo(comprovante, "comprovante", grupo.comprovante_url),
+        uploadArquivo(notaFiscal, "nota-fiscal", grupo.nf_url),
+        uploadArquivo(recibo, "recibo", grupo.recibo_url),
+        uploadArquivo(boleto, "boleto", grupo.boleto_url),
+        uploadArquivo(documento, "documento", null),
+      ]);
       await onUpdate({
-        status: "pago",
-        data_pagamento: dataPag,
-        forma_pagamento: forma,
+        status,
+        data_pagamento: status === "pago" ? dataPag : null,
+        forma_pagamento: status === "pago" ? forma : null,
         comprovante_url,
-        valor_pago_real: grupo.valor_total_despesa,
+        nf_url,
+        recibo_url,
+        boleto_url,
+        observacoes: documentoUrl ? [grupo.observacoes, `Documento: ${documentoUrl}`].filter(Boolean).join("\n") : grupo.observacoes,
+        valor_pago_real: status === "pago" ? grupo.valor_total_despesa : null,
       });
-      toast.success("Pagamento registrado com sucesso");
-      onSaved();
+      toast.success(status === "pago" ? "Pagamento salvo" : "Lançamento atualizado como pendente");
+      onSaved(status);
     } catch (e: any) {
       toast.error("Erro: " + (e?.message || String(e)));
     } finally {
@@ -865,12 +888,22 @@ function PagamentoDialog({
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid gap-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={(value: "pago" | "pendente") => setStatus(value)}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
             <Label>Data da liquidação</Label>
-            <Input type="date" value={dataPag} onChange={(e) => setDataPag(e.target.value)} className="h-9" />
+            <Input type="date" value={dataPag} onChange={(e) => setDataPag(e.target.value)} disabled={status !== "pago"} className="h-9" />
           </div>
           <div className="grid gap-2">
             <Label>Forma de pagamento</Label>
-            <Select value={forma} onValueChange={setForma}>
+            <Select value={forma} onValueChange={setForma} disabled={status !== "pago"}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
@@ -878,9 +911,13 @@ function PagamentoDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Anexar Comprovante (opcional)</Label>
-            <Input type="file" accept="image/*,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" />
-            {grupo.comprovante_url && !file && (
+            <Label>Anexos do lançamento</Label>
+            <Input type="file" accept="image/*,.pdf" onChange={(e) => setComprovante(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Comprovante" />
+            <Input type="file" accept="image/*,.pdf" onChange={(e) => setNotaFiscal(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Nota fiscal" />
+            <Input type="file" accept="image/*,.pdf" onChange={(e) => setRecibo(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Recibo" />
+            <Input type="file" accept="image/*,.pdf" onChange={(e) => setBoleto(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Boleto" />
+            <Input type="file" accept="image/*,.pdf" onChange={(e) => setDocumento(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Outro documento" />
+            {grupo.comprovante_url && !comprovante && (
               <a href={grupo.comprovante_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1.5 mt-1">
                 <ExternalLink className="h-3.5 w-3.5" /> Visualizar comprovante atual
               </a>
