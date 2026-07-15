@@ -18,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import {
   findExistingFuelReference,
+  findExistingReceiptReference,
   findExistingTravelExpenseReference,
   normalizarTipoDespesa,
 } from "@/components/dashboard/financeiro/solicitacaoPagamentoValidators";
@@ -106,7 +107,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [anexos, setAnexos] = useState<AnexoDoc[]>([]);
   const [usarReciboExistente, setUsarReciboExistente] = useState(false);
   const [reciboExistenteId, setReciboExistenteId] = useState("");
-  const [referenciaDuplicada, setReferenciaDuplicada] = useState<{ tipo: "abastecimento" | "travel_expense_report" | null; id: string | null; mensagem: string | null }>({ tipo: null, id: null, mensagem: null });
+  const [referenciaDuplicada, setReferenciaDuplicada] = useState<{ tipo: "abastecimento" | "travel_expense_report" | "recibo" | null; id: string | null; mensagem: string | null }>({ tipo: null, id: null, mensagem: null });
 
   const [saving, setSaving] = useState(false);
 
@@ -158,6 +159,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       }
 
       try {
+        if (!clienteId || !tipoDespesaLabel || valorNumerico <= 0) {
+          setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
+          return;
+        }
+
         // Verificação de COMBUSTÍVEIS
         if (tipoNormalizado === "COMBUSTIVEIS") {
           const { data, error: fetchError } = await supabase
@@ -179,7 +185,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
               data: dataEmissao ? format(dataEmissao, "yyyy-MM-dd") : undefined,
               numeroNf: "", // Número NF seria adicionado se disponível no formulário
             },
-            (data || []) as Array<{ id: string; id_clientes?: string | null; valor_total?: number | null; data?: string | null; nf?: string | null }>
+            (data || []) as unknown as Array<{ id: string; id_clientes?: string | null; valor_total?: number | null; data?: string | null; nf?: string | null }>
           );
 
           if (match) {
@@ -229,6 +235,30 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           return;
         }
 
+        const reciboNumero = usarReciboExistente ? recibosExistentes.find((r) => r.id === reciboExistenteId)?.numero_recibo || recibosExistentes.find((r) => r.id === reciboExistenteId)?.numero : null;
+        if (reciboNumero) {
+          const { data, error: fetchError } = await supabase
+            .from("recibos")
+            .select("id, cliente_id, clientes_id, valor_total, numero_recibo, numero")
+            .eq("cliente_id", clienteId)
+            .or(`numero_recibo.eq.${reciboNumero},numero.eq.${reciboNumero}`)
+            .limit(50);
+          if (!fetchError) {
+            const match = findExistingReceiptReference(
+              { clienteId, valor: valorNumerico, numeroRecibo: reciboNumero },
+              (data || []) as unknown as Array<{ id: string; cliente_id?: string | null; clientes_id?: string | null; valor_total?: number | null; numero_recibo?: string | null; numero?: string | null }>
+            );
+            if (match) {
+              setReferenciaDuplicada({
+                tipo: "recibo",
+                id: match.id,
+                mensagem: `✓ Recibo já cadastrado: o registro será reutilizado para evitar duplicidade. Número: ${match.numero_recibo || match.numero || "—"}`,
+              });
+              return;
+            }
+          }
+        }
+
         // Para outros tipos, não há busca de duplicidade
         setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
       } catch (error) {
@@ -243,7 +273,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [clienteId, dataEmissao, descricao, tipoDespesaLabel, valorNumerico]);
+  }, [clienteId, dataEmissao, descricao, tipoDespesaLabel, valorNumerico, reciboExistenteId, usarReciboExistente, recibosExistentes]);
 
   const resetForm = () => {
     setClienteId(""); setSocioId(""); setAeronaveId(""); setReembolsavel(false);
@@ -324,7 +354,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         ? "abastecimento"
         : referenciaDuplicada?.tipo === "travel_expense_report"
           ? "travel_expense_report"
-          : null;
+          : referenciaDuplicada?.tipo === "recibo"
+            ? "recibo"
+            : null;
       const referenciaId = referenciaDuplicada?.id ?? null;
 
       // A fonteDespesa indica a origem do lançamento
@@ -333,7 +365,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         ? "abastecimento"
         : referenciaTipo === "travel_expense_report"
           ? "travel_expense_report"
-          : "solicitacao_pagamento";
+          : referenciaTipo === "recibo"
+            ? "recibo"
+            : "solicitacao_pagamento";
       const reciboSelecionado = usarReciboExistente
         ? recibosExistentes.find((r) => r.id === reciboExistenteId) || null
         : null;
@@ -345,7 +379,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       if (referenciaTipo === "abastecimento" && referenciaId) {
         const { data, error } = await (supabase as any)
           .from("abastecimentos")
-          .select("comprovante_pagamento, comprovante_url, nota_url, boleto_url, comanda_url")
+          .select("comprovante_pagamento, comprovante_url, nota_url, boleto_url, comanda_url, nf, comprovante_pagamento, nota_url, boleto_url, comanda_url")
           .eq("id", referenciaId)
           .single();
         if (error) throw error;
@@ -354,7 +388,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       if (referenciaTipo === "travel_expense_report" && referenciaId) {
         const { data, error } = await (supabase as any)
           .from("travel_expense_reports")
-          .select("url_pdf")
+          .select("id, url_pdf")
           .eq("id", referenciaId)
           .single();
         if (error) throw error;
@@ -370,7 +404,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const boletoNum = pickNumero(anexosProc, "boleto");
       const docNum = pickNumero(anexosProc, "doc");
 
-      if (referenciaTipo && referenciaId) {
+      if (!rascunho && referenciaTipo && referenciaId) {
         const { data: existente, error } = await (supabase as any)
           .from("movimentacoes")
           .select("id")
@@ -382,6 +416,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           toast.info("Esta solicitação já está vinculada ao lançamento de origem.");
           return;
         }
+        toast.info("Já existe uma referência de origem correspondente; a solicitação não será duplicada.");
+        return;
       }
 
       if (reciboNum) {

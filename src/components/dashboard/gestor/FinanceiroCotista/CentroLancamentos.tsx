@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Cotista { id: string; nome: string; percentual: number; }
@@ -274,7 +275,8 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           if (d.getMonth() + 1 !== mes || d.getFullYear() !== ano) return false;
         } else return false;
         if (q) {
-          const t = [g.descricao_despesa, g.fornecedor_nome, g.numero_doc, g.categoria_custo].filter(Boolean).join(" ").toLowerCase();
+          const categoriaLabel = categorias.find((item) => item.id === g.categoria_custo)?.label || g.categoria_custo || "";
+          const t = [g.descricao_despesa, g.fornecedor_nome, g.numero_doc, categoriaLabel].filter(Boolean).join(" ").toLowerCase();
           if (!t.includes(q)) return false;
         }
         return true;
@@ -511,12 +513,19 @@ function LinhaGrupo({
     return byLabel?.id ?? "";
   }, [categorias, g.categoria_custo]);
 
+  const categoriaLabel = useMemo(() => {
+    const raw = String(g.categoria_custo ?? "").trim();
+    if (!raw) return "—";
+    const byId = categorias.find((item) => item.id === raw);
+    if (byId) return byId.label;
+    return raw;
+  }, [categorias, g.categoria_custo]);
+
   const status = (g.status || "pendente").toLowerCase();
   const isPago = status === "pago" || status === "pagamento_validado";
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     const target = e.target as HTMLElement;
-    // Otimizada para ignorar todos os cliques em popovers, selects e inputs do Radix
     if (target.closest("input, button, select, [role='combobox'], [role='option'], [role='dialog'], [data-radix-popper-content-wrapper], [data-no-drag], a")) return;
     setExpanded((v) => !v);
   };
@@ -533,108 +542,153 @@ function LinhaGrupo({
     <>
       <tr className={cn("hover:bg-primary/5 transition-colors cursor-pointer group", expanded && "bg-primary/5 border-b-transparent")} onClick={handleRowClick}>
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("data")}>
-          <Popover open={openDate} onOpenChange={setOpenDate}>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 px-2 w-full justify-start font-normal text-xs overflow-hidden">
-                <CalendarIcon className="h-3.5 w-3.5 mr-1.5 shrink-0 opacity-70" />
-                <span className="truncate">{fmtDate(dataRef)}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999] shadow-xl">
-              <DatePickerCalendar
-                value={dataRef ? new Date(dataRef + "T00:00:00") : undefined}
-                onChange={(d) => {
-                  if (!d) return;
-                  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                  onUpdate({ data_pagamento: iso, data_vencimento: iso });
-                  setOpenDate(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{fmtDate(dataRef)}</div>
+          ) : (
+            <Popover open={openDate} onOpenChange={setOpenDate}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 px-2 w-full justify-start font-normal text-xs overflow-hidden">
+                  <CalendarIcon className="h-3.5 w-3.5 mr-1.5 shrink-0 opacity-70" />
+                  <span className="truncate">{fmtDate(dataRef)}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-auto p-0 border-0 z-[9999] shadow-xl">
+                <DatePickerCalendar
+                  value={dataRef ? new Date(dataRef + "T00:00:00") : undefined}
+                  onChange={(d) => {
+                    if (!d) return;
+                    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                    onUpdate({ data_pagamento: iso, data_vencimento: iso });
+                    setOpenDate(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("doc")}>
-          <Input value={doc} onChange={(e) => setDoc(e.target.value)} onBlur={() => { if (doc !== (g.numero_doc || "")) onUpdate({ numero_doc: doc || null }); }} className="h-8 text-xs font-mono w-full" />
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{g.numero_doc || "—"}</div>
+          ) : (
+            <Input value={doc} onChange={(e) => setDoc(e.target.value)} onBlur={() => { if (doc !== (g.numero_doc || "")) onUpdate({ numero_doc: doc || null }); }} className="h-8 text-xs font-mono w-full" />
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("valorDespesa")}>
-          <div className="relative w-full">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">R$</span>
-            <Input
-              ref={valorInputRef}
-              type="text"
-              inputMode="decimal"
-              value={valorDespesa}
-              onChange={(e) => {
-                const input = e.target as HTMLInputElement;
-                const raw = input.value;
-                const selStart = input.selectionStart ?? raw.length;
-                const digitsLeft = raw.slice(0, selStart).replace(/\D/g, "").length;
-                const formatted = maskCurrencyInput(raw.replace(/\D/g, ""));
-                setValorDespesa(formatted);
-                let digitCount = 0, newPos = formatted.length;
-                for (let i = 0; i < formatted.length; i++) {
-                  if (/\d/.test(formatted[i])) digitCount++;
-                  if (digitCount >= digitsLeft) { newPos = i + 1; break; }
-                }
-                requestAnimationFrame(() => { try { valorInputRef.current?.setSelectionRange(newPos, newPos); } catch { } });
-              }}
-              onBlur={() => {
-                const normalized = parsePTBRNumber(valorDespesa);
-                if (normalized !== Number(g.valor_total_despesa ?? 0)) onUpdate({ valor_total_despesa: normalized });
-                setValorDespesa(formatNumberPTBR(normalized));
-              }}
-              className="h-8 text-xs font-mono pl-7 w-full font-bold"
-              placeholder="0,00"
-            />
-          </div>
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{formatBRL(g.valor_total_despesa)}</div>
+          ) : (
+            <div className="relative w-full">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">R$</span>
+              <Input
+                ref={valorInputRef}
+                type="text"
+                inputMode="decimal"
+                value={valorDespesa}
+                onChange={(e) => {
+                  const input = e.target as HTMLInputElement;
+                  const raw = input.value;
+                  const selStart = input.selectionStart ?? raw.length;
+                  const digitsLeft = raw.slice(0, selStart).replace(/\D/g, "").length;
+                  const formatted = maskCurrencyInput(raw.replace(/\D/g, ""));
+                  setValorDespesa(formatted);
+                  let digitCount = 0, newPos = formatted.length;
+                  for (let i = 0; i < formatted.length; i++) {
+                    if (/\d/.test(formatted[i])) digitCount++;
+                    if (digitCount >= digitsLeft) { newPos = i + 1; break; }
+                  }
+                  requestAnimationFrame(() => { try { valorInputRef.current?.setSelectionRange(newPos, newPos); } catch { } });
+                }}
+                onBlur={() => {
+                  const normalized = parsePTBRNumber(valorDespesa);
+                  if (normalized !== Number(g.valor_total_despesa ?? 0)) onUpdate({ valor_total_despesa: normalized });
+                  setValorDespesa(formatNumberPTBR(normalized));
+                }}
+                className="h-8 text-xs font-mono pl-7 w-full font-bold"
+                placeholder="0,00"
+              />
+            </div>
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("fornecedor")}>
-          <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
-            <SearchableCombobox items={fornecedores} value={g.fornecedor_nome || ""} onChange={(_id, label) => onUpdate({ fornecedor_nome: label })} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
-          </div>
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{g.fornecedor_nome || "—"}</div>
+          ) : (
+            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
+              <SearchableCombobox items={fornecedores} value={g.fornecedor_nome || ""} onChange={(_id, label) => onUpdate({ fornecedor_nome: label })} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
+            </div>
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("descricao")}>
-          <Input value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => { if (desc !== (g.descricao_despesa || "")) onUpdate({ descricao_despesa: desc }); }} className="h-8 text-xs w-full" />
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{g.descricao_despesa || "—"}</div>
+          ) : (
+            <Input value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => { if (desc !== (g.descricao_despesa || "")) onUpdate({ descricao_despesa: desc }); }} className="h-8 text-xs w-full" />
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("categoria")}>
-          <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
-            <SearchableCombobox items={categorias} value={categoriaSelecionada} onChange={(id) => onUpdate({ categoria_custo: id || null })} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
-          </div>
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{categoriaLabel}</div>
+          ) : (
+            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
+              <SearchableCombobox items={categorias} value={categoriaSelecionada} onChange={(id) => onUpdate({ categoria_custo: id || null })} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
+            </div>
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("tipoRateio")}>
-          <Select value={g.tipo_rateio || ""} onValueChange={(v) => onUpdate({ tipo_rateio: v })}>
-            <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>{TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t} className="text-xs">{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-          </Select>
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{(g.tipo_rateio || "—").replace(/_/g, " ")}</div>
+          ) : (
+            <Select value={g.tipo_rateio || ""} onValueChange={(v) => onUpdate({ tipo_rateio: v })}>
+              <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>{TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t} className="text-xs">{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("periodicidade")}>
-          <Select value={(g.periodicidade || "").toUpperCase()} onValueChange={(v) => onUpdate({ periodicidade: v })}>
-            <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p} className="text-xs">{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>)}</SelectContent>
-          </Select>
+          {isPago ? (
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{(g.periodicidade || "—").charAt(0) + (g.periodicidade || "").slice(1).toLowerCase()}</div>
+          ) : (
+            <Select value={(g.periodicidade || "").toUpperCase()} onValueChange={(v) => onUpdate({ periodicidade: v })}>
+              <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p} className="text-xs">{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden text-center" style={getCellStyles("fluxo")}>
-          <Select value={(g.fluxo || "").toUpperCase()} onValueChange={(v) => onUpdate({ fluxo: v })}>
-            <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ENTRADA" className="text-xs">Entrada</SelectItem>
-              <SelectItem value="SAIDA" className="text-xs">Saída</SelectItem>
-            </SelectContent>
-          </Select>
+          {isPago ? (
+            <div className="h-8 flex items-center justify-center text-xs font-medium text-foreground truncate">{(g.fluxo || "—").toUpperCase()}</div>
+          ) : (
+            <Select value={(g.fluxo || "").toUpperCase()} onValueChange={(v) => onUpdate({ fluxo: v })}>
+              <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ENTRADA" className="text-xs">Entrada</SelectItem>
+                <SelectItem value="SAIDA" className="text-xs">Saída</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </td>
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("pagoPor")}>
-          <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
-            <SearchableCombobox items={pagadores} value={g.pago_por || ""} onChange={(_id, label) => onUpdate({ pago_por: label })} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
-          </div>
+          {isPago ? (
+            <div className="h-8 flex items-center gap-2">
+              <div className="min-w-0 flex-1 text-xs font-medium text-foreground truncate">{g.pago_por || "—"}</div>
+              <Button size="icon" variant="outline" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); setShowPayDialog(true); }} title="Editar lançamento pago">
+                <FileDigit className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
+              <SearchableCombobox items={pagadores} value={g.pago_por || ""} onChange={(_id, label) => onUpdate({ pago_por: label })} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
+            </div>
+          )}
         </td>
 
         {cotistas.map((c) => {
@@ -727,11 +781,9 @@ function LinhaGrupo({
                       <DollarSign className="h-3.5 w-3.5" /> Quitar Lançamento
                     </Button>
                   ) : (
-                    <>
-                      <Button size="sm" variant="secondary" onClick={() => setShowPayDialog(true)} className="gap-2 h-8 text-[11px] w-full justify-start shadow-sm">
-                        <FileDigit className="h-3.5 w-3.5" /> Editar Pagamento
-                      </Button>
-                    </>
+                    <Button size="sm" variant="secondary" onClick={() => setShowPayDialog(true)} className="gap-2 h-8 text-[11px] w-full justify-start shadow-sm">
+                      <FileDigit className="h-3.5 w-3.5" /> Editar Pagamento
+                    </Button>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-red-500 hover:bg-red-500/10 hover:text-red-600 h-8 text-[11px] w-full justify-start mt-1">
                     <Trash2 className="h-3.5 w-3.5" /> Excluir
@@ -757,6 +809,9 @@ function LinhaGrupo({
         open={showPayDialog}
         onOpenChange={setShowPayDialog}
         grupo={g}
+        fornecedores={fornecedores}
+        categorias={categorias}
+        pagadores={pagadores}
         onSaved={(savedStatus) => {
           setShowPayDialog(false);
           setExpanded(savedStatus !== "pago");
@@ -811,17 +866,34 @@ const FORMAS_PAGAMENTO = [
 ];
 
 function PagamentoDialog({
-  open, onOpenChange, grupo, onSaved, onUpdate,
+  open, onOpenChange, grupo, fornecedores, categorias, pagadores, onSaved, onUpdate,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   grupo: GrupoLancamento;
+  fornecedores: { id: string; label: string }[];
+  categorias: { id: string; label: string }[];
+  pagadores: { id: string; label: string }[];
   onSaved: (status: "pago" | "pendente") => void;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
 }) {
   const [dataPag, setDataPag] = useState(grupo.data_pagamento || new Date().toISOString().slice(0, 10));
+  const [dataVencimento, setDataVencimento] = useState(grupo.data_vencimento || new Date().toISOString().slice(0, 10));
   const [forma, setForma] = useState(grupo.forma_pagamento || "pix");
   const [status, setStatus] = useState<"pago" | "pendente">(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
+  const [docNumero, setDocNumero] = useState(grupo.numero_doc || "");
+  const [descricao, setDescricao] = useState(grupo.descricao_despesa || "");
+  const [fornecedor, setFornecedor] = useState(grupo.fornecedor_nome || "");
+  const [categoria, setCategoria] = useState(grupo.categoria_custo || "");
+  const [tipoRateio, setTipoRateio] = useState(grupo.tipo_rateio || "FIXO");
+  const [periodicidade, setPeriodicidade] = useState(grupo.periodicidade || "EVENTUAL");
+  const [fluxo, setFluxo] = useState(grupo.fluxo || "SAIDA");
+  const [pagador, setPagador] = useState(grupo.pago_por || "");
+  const [observacoes, setObservacoes] = useState(grupo.observacoes || "");
+  const [numeroNf, setNumeroNf] = useState(grupo.numero_nf || "");
+  const [numeroRecibo, setNumeroRecibo] = useState(grupo.numero_recibo || "");
+  const [numeroBoleto, setNumeroBoleto] = useState(grupo.numero_boleto || "");
+  const [valorTotal, setValorTotal] = useState(formatNumberPTBR(grupo.valor_total_despesa));
   const [comprovante, setComprovante] = useState<File | null>(null);
   const [notaFiscal, setNotaFiscal] = useState<File | null>(null);
   const [recibo, setRecibo] = useState<File | null>(null);
@@ -832,15 +904,29 @@ function PagamentoDialog({
   useEffect(() => {
     if (open) {
       setDataPag(grupo.data_pagamento || new Date().toISOString().slice(0, 10));
+      setDataVencimento(grupo.data_vencimento || new Date().toISOString().slice(0, 10));
       setForma(grupo.forma_pagamento || "pix");
       setStatus(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
+      setDocNumero(grupo.numero_doc || "");
+      setDescricao(grupo.descricao_despesa || "");
+      setFornecedor(grupo.fornecedor_nome || "");
+      setCategoria(grupo.categoria_custo || "");
+      setTipoRateio(grupo.tipo_rateio || "FIXO");
+      setPeriodicidade(grupo.periodicidade || "EVENTUAL");
+      setFluxo(grupo.fluxo || "SAIDA");
+      setPagador(grupo.pago_por || "");
+      setObservacoes(grupo.observacoes || "");
+      setNumeroNf(grupo.numero_nf || "");
+      setNumeroRecibo(grupo.numero_recibo || "");
+      setNumeroBoleto(grupo.numero_boleto || "");
+      setValorTotal(formatNumberPTBR(grupo.valor_total_despesa));
       setComprovante(null);
       setNotaFiscal(null);
       setRecibo(null);
       setBoleto(null);
       setDocumento(null);
     }
-  }, [open, grupo.data_pagamento, grupo.forma_pagamento]);
+  }, [open, grupo.data_pagamento, grupo.data_vencimento, grupo.forma_pagamento, grupo.numero_doc, grupo.descricao_despesa, grupo.fornecedor_nome, grupo.categoria_custo, grupo.tipo_rateio, grupo.periodicidade, grupo.fluxo, grupo.pago_por, grupo.observacoes, grupo.numero_nf, grupo.numero_recibo, grupo.numero_boleto, grupo.status, grupo.valor_total_despesa]);
 
   const handleSalvar = async () => {
     setSaving(true);
@@ -860,17 +946,37 @@ function PagamentoDialog({
         uploadArquivo(boleto, "boleto", grupo.boleto_url),
         uploadArquivo(documento, "documento", null),
       ]);
-      await onUpdate({
+      const valorTotalNormalizado = parsePTBRNumber(valorTotal);
+      const patch: Record<string, any> = {
         status,
         data_pagamento: status === "pago" ? dataPag : null,
+        data_vencimento: dataVencimento || null,
         forma_pagamento: status === "pago" ? forma : null,
+        numero_doc: docNumero || null,
+        descricao_despesa: descricao || null,
+        fornecedor_nome: fornecedor || null,
+        categoria_custo: categoria || null,
+        tipo_rateio: tipoRateio || null,
+        periodicidade: periodicidade || null,
+        fluxo: fluxo || null,
+        pago_por: pagador || null,
+        numero_nf: numeroNf || null,
+        numero_recibo: numeroRecibo || null,
+        numero_boleto: numeroBoleto || null,
+        valor_total_despesa: valorTotalNormalizado || null,
         comprovante_url,
         nf_url,
         recibo_url,
         boleto_url,
-        observacoes: documentoUrl ? [grupo.observacoes, `Documento: ${documentoUrl}`].filter(Boolean).join("\n") : grupo.observacoes,
-        valor_pago_real: status === "pago" ? grupo.valor_total_despesa : null,
-      });
+        observacoes: [observacoes, documentoUrl ? `Documento: ${documentoUrl}` : null].filter(Boolean).join("\n") || null,
+        valor_pago_real: status === "pago" ? valorTotalNormalizado : null,
+      };
+      if (status === "pendente") {
+        patch.data_pagamento = null;
+        patch.forma_pagamento = null;
+        patch.valor_pago_real = null;
+      }
+      await onUpdate(patch);
       toast.success(status === "pago" ? "Pagamento salvo" : "Lançamento atualizado como pendente");
       onSaved(status);
     } catch (e: any) {
@@ -882,7 +988,7 @@ function PagamentoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{grupo.status === "pago" ? "Editar pagamento" : "Registrar pagamento"}</DialogTitle>
         </DialogHeader>
@@ -897,9 +1003,15 @@ function PagamentoDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2">
-            <Label>Data da liquidação</Label>
-            <Input type="date" value={dataPag} onChange={(e) => setDataPag(e.target.value)} disabled={status !== "pago"} className="h-9" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>Data da liquidação</Label>
+              <Input type="date" value={dataPag} onChange={(e) => setDataPag(e.target.value)} disabled={status !== "pago"} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Data de vencimento</Label>
+              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-9" />
+            </div>
           </div>
           <div className="grid gap-2">
             <Label>Forma de pagamento</Label>
@@ -911,17 +1023,96 @@ function PagamentoDialog({
             </Select>
           </div>
           <div className="grid gap-2">
+            <Label>Descrição</Label>
+            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="h-9" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label>Documento</Label>
+              <Input value={docNumero} onChange={(e) => setDocNumero(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Valor total</Label>
+              <Input
+                type="text"
+                value={valorTotal}
+                onChange={(e) => setValorTotal(maskCurrencyInput(e.target.value))}
+                onBlur={() => setValorTotal(formatNumberPTBR(parsePTBRNumber(valorTotal)))}
+                className="h-9 font-mono"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Fornecedor</Label>
+              <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>Categoria</Label>
+              <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Pago por</Label>
+              <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label>Tipo de rateio</Label>
+              <Select value={tipoRateio} onValueChange={setTipoRateio}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>{TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Periodicidade</Label>
+              <Select value={periodicidade} onValueChange={setPeriodicidade}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Fluxo</Label>
+              <Select value={fluxo} onValueChange={setFluxo}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ENTRADA">Entrada</SelectItem>
+                  <SelectItem value="SAIDA">Saída</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label>Número NF</Label>
+              <Input value={numeroNf} onChange={(e) => setNumeroNf(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Número recibo</Label>
+              <Input value={numeroRecibo} onChange={(e) => setNumeroRecibo(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Número boleto</Label>
+              <Input value={numeroBoleto} onChange={(e) => setNumeroBoleto(e.target.value)} className="h-9" />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Observações</Label>
+            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} />
+          </div>
+          <div className="grid gap-2">
             <Label>Anexos do lançamento</Label>
             <Input type="file" accept="image/*,.pdf" onChange={(e) => setComprovante(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Comprovante" />
             <Input type="file" accept="image/*,.pdf" onChange={(e) => setNotaFiscal(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Nota fiscal" />
             <Input type="file" accept="image/*,.pdf" onChange={(e) => setRecibo(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Recibo" />
             <Input type="file" accept="image/*,.pdf" onChange={(e) => setBoleto(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Boleto" />
             <Input type="file" accept="image/*,.pdf" onChange={(e) => setDocumento(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Outro documento" />
-            {grupo.comprovante_url && !comprovante && (
-              <a href={grupo.comprovante_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1.5 mt-1">
-                <ExternalLink className="h-3.5 w-3.5" /> Visualizar comprovante atual
-              </a>
-            )}
+            <div className="space-y-1 text-xs text-muted-foreground">
+              {grupo.comprovante_url && !comprovante && <a href={grupo.comprovante_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Comprovante atual </a>}
+              {grupo.nf_url && !notaFiscal && <a href={grupo.nf_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Nota fiscal atual </a>}
+              {grupo.recibo_url && !recibo && <a href={grupo.recibo_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Recibo atual </a>}
+              {grupo.boleto_url && !boleto && <a href={grupo.boleto_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Boleto atual </a>}
+            </div>
           </div>
         </div>
         <DialogFooter className="pt-2">

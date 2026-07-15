@@ -1,5 +1,6 @@
 import {
   findExistingFuelReference,
+  findExistingReceiptReference,
   findExistingTravelExpenseReference,
   normalizarTipoDespesa,
 } from "../solicitacaoPagamentoValidators";
@@ -140,6 +141,53 @@ describe("solicitacaoPagamentoValidators", () => {
         mockAbastecimentos
       );
       expect(match?.id).toBe("abast-2");
+    });
+  });
+
+  describe("findExistingReceiptReference", () => {
+    const mockRecibos = [
+      {
+        id: "receipt-1",
+        cliente_id: "client-1",
+        valor_total: 1250.0,
+        numero_recibo: "RCB-001",
+      },
+      {
+        id: "receipt-2",
+        cliente_id: "client-1",
+        valor_total: 850.5,
+        numero: "NF-55",
+      },
+      {
+        id: "receipt-3",
+        cliente_id: "client-2",
+        valor_total: 1250.0,
+        numero_recibo: "RCB-002",
+      },
+    ];
+
+    it("deve encontrar correspondência por cliente + valor + número de recibo", () => {
+      const match = findExistingReceiptReference(
+        {
+          clienteId: "client-1",
+          valor: 1250.0,
+          numeroRecibo: "RCB-001",
+        },
+        mockRecibos
+      );
+      expect(match?.id).toBe("receipt-1");
+    });
+
+    it("deve encontrar correspondência por número mesmo sem valor exato", () => {
+      const match = findExistingReceiptReference(
+        {
+          clienteId: "client-1",
+          valor: 850.5,
+          numeroRecibo: "nf-55",
+        },
+        mockRecibos
+      );
+      expect(match?.id).toBe("receipt-2");
     });
   });
 

@@ -15,6 +15,15 @@ export interface TravelExpenseCandidate {
   despesas?: unknown;
 }
 
+export interface ReceiptCandidate {
+  id: string;
+  cliente_id?: string | null;
+  clientes_id?: string | null;
+  valor_total?: number | null;
+  numero_recibo?: string | null;
+  numero?: string | null;
+}
+
 export interface TravelExpenseItem {
   description?: string | null;
   amount?: number | null;
@@ -75,6 +84,42 @@ export function findExistingFuelReference(
   if (valueMatch) return valueMatch;
 
   return null;
+}
+
+export function findExistingReceiptReference(
+  candidate: {
+    clienteId?: string | null;
+    valor?: number | null;
+    numeroRecibo?: string | null;
+  },
+  registros: ReceiptCandidate[]
+): ReceiptCandidate | null {
+  const valor = Number(candidate.valor ?? 0) || 0;
+  const numeroRecibo = (candidate.numeroRecibo || "").trim().toLowerCase();
+
+  const exactMatch = registros.find((registro) => {
+    const sameCliente = candidate.clienteId && (registro.cliente_id === candidate.clienteId || registro.clientes_id === candidate.clienteId);
+    const sameValue = valor && registro.valor_total && Math.abs(Number(registro.valor_total) - valor) < 0.01;
+    const sameNumber = numeroRecibo && (registro.numero_recibo || registro.numero || "") && (registro.numero_recibo || registro.numero || "").trim().toLowerCase() === numeroRecibo;
+    return sameCliente && sameValue && sameNumber;
+  });
+  if (exactMatch) return exactMatch;
+
+  if (numeroRecibo) {
+    const numberMatch = registros.find((registro) => {
+      const sameCliente = candidate.clienteId && (registro.cliente_id === candidate.clienteId || registro.clientes_id === candidate.clienteId);
+      const sameNumber = (registro.numero_recibo || registro.numero || "").trim().toLowerCase() === numeroRecibo;
+      return sameCliente && sameNumber;
+    });
+    if (numberMatch) return numberMatch;
+  }
+
+  const valueMatch = registros.find((registro) => {
+    const sameCliente = candidate.clienteId && (registro.cliente_id === candidate.clienteId || registro.clientes_id === candidate.clienteId);
+    const sameValue = valor && registro.valor_total && Math.abs(Number(registro.valor_total) - valor) < 0.01;
+    return sameCliente && sameValue;
+  });
+  return valueMatch ?? null;
 }
 
 export function findExistingTravelExpenseReference(
