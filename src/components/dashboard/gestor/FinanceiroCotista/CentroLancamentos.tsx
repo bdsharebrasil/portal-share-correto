@@ -697,7 +697,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           className="centro-lancamentos-scrollbar overflow-x-auto cursor-grab active:cursor-grabbing select-none bg-background"
         >
           <table ref={tableRef} className="centro-lancamentos-table w-full text-xs text-left" style={{ tableLayout: "fixed" }}>
-            <thead>
+            <thead data-no-drag>
               {(["ENTRADA", "SAIDA"] as const).map((fluxo) => {
                 const gruposDoFluxo = gruposFiltrados.filter((g) => (g.fluxo || "").toUpperCase() === fluxo);
                 if (!gruposDoFluxo.length) return null;
