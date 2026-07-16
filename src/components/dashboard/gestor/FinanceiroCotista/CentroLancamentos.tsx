@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, DollarSign, ExternalLink, Upload, Loader2, FileDigit, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, DollarSign, ExternalLink, Upload, Loader2, FileDigit, ArrowDownCircle, ArrowUpCircle, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -72,6 +72,11 @@ const fmtDate = (s?: string | null) => {
   if (!s) return "—";
   const d = new Date(s.length <= 10 ? s + "T00:00:00" : s);
   return format(d, "dd/MM/yyyy");
+};
+
+const getDocumentUrls = (observacoes?: string | null) => {
+  if (!observacoes) return [];
+  return Array.from(new Set(observacoes.match(/https?:\/\/[^\s]+/g) || []));
 };
 
 interface GrupoLancamento {
@@ -877,6 +882,7 @@ function LinhaGrupo({
 
   const status = (g.status || "pendente").toLowerCase();
   const isPago = status === "pago" || status === "pagamento_validado";
+  const documentUrls = getDocumentUrls(g.observacoes);
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
     const target = e.target as HTMLElement;
@@ -1062,13 +1068,12 @@ function LinhaGrupo({
         })}
       </tr>
 
-      {/* Card Expandido focado nas 9 colunas (Checkbox + 8 infos antes do Pago Por) */}
       {expanded && (
         <tr className="bg-muted/20">
-          <td colSpan={9} className="p-0 border-b border-border align-top">
+          <td colSpan={10 + cotistas.length * 2} className="p-0 border-b border-border align-top">
             <div className="px-5 py-4 animate-in slide-in-from-top-2 duration-200">
-              <div className="flex flex-col md:flex-row gap-6 justify-between items-start">
-                <div className="flex-1 min-w-[280px] w-full space-y-3">
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)_160px] xl:items-start">
+                <div className="min-w-0 space-y-3">
                   <div className="flex items-center gap-2">
                     {isPago ? (
                       <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><CheckCircle2 className="h-3.5 w-3.5" /> Pago</Badge>
@@ -1106,9 +1111,9 @@ function LinhaGrupo({
                   )}
                 </div>
 
-                <div className="flex-[1.2] min-w-[280px] w-full">
+                <div className="min-w-0">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5 mb-2.5 pl-1">
-                    <Paperclip className="h-3.5 w-3.5" /> Anexos e Documentos
+                    <Paperclip className="h-3.5 w-3.5" /> Anexos e documentos
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {travelReportPdf && (
@@ -1127,12 +1132,15 @@ function LinhaGrupo({
                     <AnexoPill label="Nota Fiscal" numero={g.numero_nf} url={g.nf_url} />
                     <AnexoPill label="Recibo" numero={g.numero_recibo} url={g.recibo_url} />
                     <AnexoPill label="Boleto" numero={g.numero_boleto} url={g.boleto_url} />
-                    <AnexoPill label="Documento" numero={g.numero_doc} url={null} />
+                    {documentUrls.map((url, index) => (
+                      <AnexoPill key={url} label={`Documento ${index + 1} (PDF)`} numero={null} url={url} />
+                    ))}
+                    {!documentUrls.length && <AnexoPill label="Documento" numero={g.numero_doc} url={null} />}
                     <AnexoPill label="Comprovante" numero={null} url={g.comprovante_url} />
                   </div>
                 </div>
 
-                <div className="min-w-[140px] flex flex-col gap-2 border-l border-border pl-6 shrink-0">
+                <div className="flex flex-col gap-2 border-t border-border pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Ações</div>
                   {!isPago ? (
                     <Button size="sm" onClick={() => setShowPayDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-8 text-[11px] w-full justify-start">
@@ -1150,16 +1158,6 @@ function LinhaGrupo({
               </div>
             </div>
           </td>
-
-          {/* Células vazias de fechamento de coluna da tabela pai */}
-          <td className="p-0 border-b border-border bg-transparent align-top" style={getCellStyles("pagoPor")}></td>
-
-          {cotistas.map((c) => (
-            <Fragment key={`exp-${c.id}`}>
-              <td className="p-0 border-b border-border align-top border-l border-border bg-transparent" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}></td>
-              <td className="p-0 border-b border-border align-top bg-transparent" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}></td>
-            </Fragment>
-          ))}
         </tr>
       )}
 
@@ -1197,16 +1195,19 @@ function LinhaGrupo({
 function AnexoPill({ label, numero, url }: { label: string; numero: string | null; url: string | null }) {
   const isFilled = numero || url;
   return (
-    <div className={cn("flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-colors", isFilled ? "bg-background border-border hover:bg-muted/40" : "bg-transparent border-border/40 opacity-60")}>
-      <span className="font-medium text-muted-foreground/80">{label}</span>
-      <div className="flex items-center gap-2">
-        {numero && <span className="font-mono text-foreground/80 max-w-[80px] truncate" title={numero}>{numero}</span>}
+    <div className={cn("flex min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs transition-colors", isFilled ? "bg-background border-border hover:bg-muted/40" : "bg-transparent border-border/40 opacity-60")}>
+      <div className="flex min-w-0 items-center gap-2">
+        {url && <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />}
+        <span className="truncate font-medium text-muted-foreground/80">{label}</span>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {numero && <span className="max-w-[80px] truncate font-mono text-foreground/80" title={numero}>{numero}</span>}
         {url ? (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 flex items-center bg-primary/10 p-1 rounded-md" onClick={(e) => e.stopPropagation()} title="Abrir arquivo">
-            <ExternalLink className="h-3.5 w-3.5" />
+          <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-1 font-medium text-primary hover:bg-primary/15" onClick={(e) => e.stopPropagation()} title="Abrir arquivo">
+            <span className="hidden sm:inline">Abrir</span><ExternalLink className="h-3.5 w-3.5" />
           </a>
         ) : (
-          <span className="text-[10px] text-muted-foreground/40 italic">Vazio</span>
+          <span className="text-[10px] italic text-muted-foreground/40">Vazio</span>
         )}
       </div>
     </div>
