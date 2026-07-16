@@ -202,6 +202,7 @@ describe("solicitacaoPagamentoValidators", () => {
           { description: "Transporte", amount: 800 },
           { description: "Refeições", amount: 500 },
         ]),
+        pago_em: null, // Não pago
       },
       {
         id: "travel-2",
@@ -211,6 +212,7 @@ describe("solicitacaoPagamentoValidators", () => {
           { description: "Combustível", amount: 500 },
           { description: "Pedágio", amount: 350 },
         ] as any,
+        pago_em: null, // Não pago
       },
       {
         id: "travel-3",
@@ -219,6 +221,7 @@ describe("solicitacaoPagamentoValidators", () => {
         despesas: JSON.stringify([
           { description: "Hotel Rio", amount: 1500 },
         ]),
+        pago_em: "2024-01-20T10:00:00Z", // Já pago
       },
     ];
 
@@ -315,6 +318,35 @@ describe("solicitacaoPagamentoValidators", () => {
       );
       expect(match?.id).toBe("travel-1");
     });
+
+    it("deve permitir pagamento para relatório não pago (pago_em = null)", () => {
+      // Relatório não pago não deve ser encontrado como duplicado
+      const match = findExistingTravelExpenseReference(
+        {
+          clienteId: "client-1",
+          valor: 2500.0,
+          descricao: "Relatório de viagem",
+        },
+        mockTravelReports
+      );
+      // Como travel-1 não foi pago, a busca não encontrará nada
+      // (apenas relatórios pagos são considerados duplicados)
+      expect(match).toBeNull();
+    });
+
+    it("deve bloquear pagamento duplicado para relatório já pago (pago_em != null)", () => {
+      // Relatório já pago deve ser encontrado como referência duplicada
+      const paidReports = mockTravelReports.filter((r) => r.pago_em != null);
+      const match = findExistingTravelExpenseReference(
+        {
+          clienteId: "client-2",
+          valor: 2500.0,
+          descricao: "",
+        },
+        paidReports
+      );
+      expect(match?.id).toBe("travel-3");
+    });
   });
 
   describe("Casos de Uso Reais", () => {
@@ -343,7 +375,7 @@ describe("solicitacaoPagamentoValidators", () => {
       expect(match?.id).toBe("real-fuel-1");
     });
 
-    it("Cenário 2: Despesa de viagem duplicada", () => {
+    it("Cenário 2: Despesa de viagem não paga - permitir novo pagamento", () => {
       const travelReports = [
         {
           id: "real-travel-1",
@@ -354,20 +386,51 @@ describe("solicitacaoPagamentoValidators", () => {
             { description: "Transporte", amount: 700 },
             { description: "Refeições", amount: 300 },
           ]),
+          pago_em: null, // Não foi pago ainda
         },
       ];
 
-      // Usuário tenta criar solicitação para hotel da mesma viagem
+      // Usuário tenta criar solicitação para viagem não paga
+      // Não deve encontrar como duplicado pois ainda não foi pago
       const match = findExistingTravelExpenseReference(
         {
           clienteId: "geolink-log",
-          valor: 1500,
-          descricao: "Hotel em São Paulo",
+          valor: 2500.0,
+          descricao: "Relatório de viagem",
         },
         travelReports
       );
 
-      expect(match?.id).toBe("real-travel-1");
+      expect(match).toBeNull(); // Permite criar novo pagamento
+    });
+
+    it("Cenário 2B: Despesa de viagem já paga - bloquear novo pagamento", () => {
+      const paidTravelReports = [
+        {
+          id: "real-travel-1-paid",
+          clientes_id: "geolink-log",
+          total_valor: 2500.0,
+          despesas: JSON.stringify([
+            { description: "Hotel em São Paulo", amount: 1500 },
+            { description: "Transporte", amount: 700 },
+            { description: "Refeições", amount: 300 },
+          ]),
+          pago_em: "2024-01-15T10:00:00Z", // Já foi pago
+        },
+      ];
+
+      // Usuário tenta criar nova solicitação para viagem já paga
+      // Deve encontrar como referência duplicada (pois já foi pago)
+      const match = findExistingTravelExpenseReference(
+        {
+          clienteId: "geolink-log",
+          valor: 2500.0,
+          descricao: "Relatório de viagem",
+        },
+        paidTravelReports
+      );
+
+      expect(match?.id).toBe("real-travel-1-paid"); // Bloqueia duplicação
     });
 
     it("Cenário 3: Sem duplicata - tipo diferente", () => {

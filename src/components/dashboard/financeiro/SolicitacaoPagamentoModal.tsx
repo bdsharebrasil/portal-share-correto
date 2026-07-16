@@ -1,5 +1,5 @@
 import { SetStateAction, useEffect, useMemo, useState } from "react";
-import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -53,6 +53,16 @@ type TipoDespesaOption = { id: string; expense_type: string };
 type FornecedorOption = { id: string; label: string };
 type AeronaveOption = { id: string; matricula: string; modelo: string };
 type ReciboOption = { id: string; numero_recibo?: string | null; numero?: string | null; pdf_url?: string | null; arquivo_url?: string | null; valor_total?: number | null; created_at?: string | null };
+type TravelReportOption = {
+  id: string; numero_relatorio: string;
+  data_inicio?: string | null; data_fim?: string | null;
+  total_valor?: number | null; total_trip?: number | null; total_trip2?: number | null; total_clientes?: number | null;
+  nome_tripulante?: string | null; nome_tripulante_2?: string | null;
+  tripulacao_id?: string | null; tripulante_id2?: string | null;
+  matricula_aeronave?: string | null; url_pdf?: string | null;
+  aeronave_id?: string | null; socios_id?: string | null; clientes_id?: string | null;
+  pago_em?: string | null;
+};
 type InsertedRow = {
   expense_type: SetStateAction<string>; id: string 
 };
@@ -108,6 +118,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [usarReciboExistente, setUsarReciboExistente] = useState(false);
   const [reciboExistenteId, setReciboExistenteId] = useState("");
   const [referenciaDuplicada, setReferenciaDuplicada] = useState<{ tipo: "abastecimento" | "travel_expense_report" | "recibo" | null; id: string | null; mensagem: string | null }>({ tipo: null, id: null, mensagem: null });
+  const [travelReports, setTravelReports] = useState<TravelReportOption[]>([]);
+  const [travelReportId, setTravelReportId] = useState("");
 
   const [saving, setSaving] = useState(false);
 
@@ -120,7 +132,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         supabase.from("fornecedores_favoritos").select("id, nome_completo, apelido").order("nome_completo"),
         supabase.from("fornecedores_combustivel").select("id, nome_fornecedor, nome_cidade").order("nome_fornecedor"),
         supabase.from("aeronave").select("id, matricula, modelo").order("matricula"),
-        supabase.from("recibos").select("id, numero_recibo, numero, pdf_url, arquivo_url, valor_total, created_at").order("created_at", { ascending: false }),
+        supabase.from("recibos").select("id, numero_recibo, url_pdf, valor_total, criado_em, cliente_id").order("criado_em", { ascending: false }),
       ]);
       setClientes((cli.data as ClienteOption[] | null) || []);
       setTiposDespesa((tip.data as TipoDespesaOption[] | null) || []);
@@ -143,6 +155,34 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const clienteSel = useMemo(() => clientes.find((c) => c.id === clienteId), [clientes, clienteId]);
   const socioSel = useMemo(() => socios.find((s) => s.id === socioId), [socios, socioId]);
   const aeronaveSel = useMemo(() => aeronaves.find((a) => a.id === aeronaveId), [aeronaves, aeronaveId]);
+
+  const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaLabel || "");
+  const isViagemMode = tipoNormalizadoAtual === "DESPESAS_DE_VIAGEM";
+  const travelReportSel = useMemo(() => travelReports.find((r) => r.id === travelReportId), [travelReports, travelReportId]);
+
+  // Carrega relatórios de viagem do cliente/aeronave/sócio selecionados
+  useEffect(() => {
+    if (!open || !isViagemMode || !clienteId) { setTravelReports([]); setTravelReportId(""); return; }
+    let q: any = (supabase as any)
+      .from("travel_expense_reports")
+      .select("id, numero_relatorio, data_inicio, data_fim, total_valor, total_trip, total_trip2, total_clientes, nome_tripulante, nome_tripulante_2, tripulacao_id, tripulante_id2, matricula_aeronave, url_pdf, aeronave_id, socios_id, clientes_id, pago_em")
+      .eq("clientes_id", clienteId)
+      .order("data_inicio", { ascending: false })
+      .limit(50);
+    if (aeronaveId) q = q.eq("aeronave_id", aeronaveId);
+    if (socioId) q = q.eq("socios_id", socioId);
+    q.then(({ data }: any) => setTravelReports((data as TravelReportOption[] | null) || []));
+  }, [open, isViagemMode, clienteId, aeronaveId, socioId]);
+
+  // Auto-preenche valor total quando um relatório é selecionado
+  useEffect(() => {
+    if (!travelReportSel) return;
+    const total = socioId
+      ? Number(travelReportSel.total_valor || 0)
+      : Number(travelReportSel.total_valor || (Number(travelReportSel.total_trip || 0) + Number(travelReportSel.total_trip2 || 0) + Number(travelReportSel.total_clientes || 0)));
+    setValorTotal(String(total.toFixed(2)));
+    setDescricao((prev) => prev || `Relatório de viagem ${travelReportSel.numero_relatorio}`);
+  }, [travelReportSel, socioId]);
 
   const valorNumerico = Number(String(valorTotal).replace(",", ".")) || 0;
   const percNumerico = Number(String(percentualUso).replace(",", ".")) || 0;
@@ -206,7 +246,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         if (tipoNormalizado === "DESPESAS_DE_VIAGEM") {
           const { data, error: fetchError } = await supabase
             .from("travel_expense_reports")
-            .select("id, clientes_id, total_valor, despesas, url_pdf")
+            .select("id, clientes_id, total_valor, despesas, url_pdf, pago_em")
             .eq("clientes_id", clienteId)
             .order("created_at", { ascending: false })
             .limit(50); // Limitar para otimizar
@@ -218,7 +258,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
           const match = findExistingTravelExpenseReference(
             { clienteId, valor: valorNumerico, descricao },
-            (data || []) as Array<{ id: string; clientes_id?: string | null; total_valor?: number | null; despesas?: unknown }>
+            (data || []) as Array<{ id: string; clientes_id?: string | null; total_valor?: number | null; despesas?: unknown; pago_em?: string | null }>
           );
 
           if (match) {
@@ -282,6 +322,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setFornecedorId(""); setFornecedorNome("");
     setDataEmissao(new Date()); setDataVencimento(new Date()); setAnexos([]);
     setUsarReciboExistente(false); setReciboExistenteId(""); setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
+    setTravelReportId(""); setTravelReports([]);
   };
 
   // --- Anexos ---
@@ -289,6 +330,25 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const updateAnexo = (id: string, patch: Partial<AnexoDoc>) =>
     setAnexos((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   const removeAnexo = (id: string) => setAnexos((prev) => prev.filter((a) => a.id !== id));
+  const moveAnexo = (id: string, dir: -1 | 1) =>
+    setAnexos((prev) => {
+      const idx = prev.findIndex((a) => a.id === id);
+      if (idx < 0) return prev;
+      const target = idx + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const copy = prev.slice();
+      [copy[idx], copy[target]] = [copy[target], copy[idx]];
+      return copy;
+    });
+  const previewAnexo = (a: AnexoDoc) => {
+    if (a.arquivo) return URL.createObjectURL(a.arquivo);
+    return a.url || null;
+  };
+  const isImage = (a: AnexoDoc) => {
+    if (a.arquivo) return a.arquivo.type.startsWith("image/");
+    if (a.url) return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(a.url);
+    return false;
+  };
 
   const uploadAnexos = async (): Promise<AnexoDoc[]> => {
     const out: AnexoDoc[] = [];
@@ -526,10 +586,72 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         comprovante_url: comprovanteUrl,
       });
 
-      // 4) reembolsável → contas_areceber
-      if (reembolsavel && !rascunho) {
+      // 4) Modo Despesa de Viagem: gera contas a pagar por tripulante e conta a receber para o cliente
+      if (isViagemMode && travelReportSel && !rascunho) {
+        const trip1Val = Number(travelReportSel.total_trip || 0);
+        const trip2Val = Number(travelReportSel.total_trip2 || 0);
+        const cliVal = Number(travelReportSel.total_clientes || 0);
+        const anexosPdfRv = travelReportSel.url_pdf || null;
+
+        // Conta a pagar para tripulante 1
+        if (trip1Val > 0 && travelReportSel.nome_tripulante) {
+          await supabaseClient.from("contas_apagar").insert({
+            data_vencimento: dataVenc,
+            data_agendamento: dataVenc,
+            valor: trip1Val,
+            categoria: "REEMBOLSO TRIPULAÇÃO",
+            descricao: `RV ${travelReportSel.numero_relatorio} — ${travelReportSel.nome_tripulante}`,
+            status: statusCP,
+            observacoes: `Reembolso tripulante 1 do relatório ${travelReportSel.numero_relatorio}`,
+            cliente_id: clienteId,
+            socios_cliente_id: socioId || null,
+            aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
+            arquivo_pdf_url: anexosPdfRv,
+            movimentacao_id: movId,
+            criado_por: userId,
+          });
+        }
+        // Conta a pagar para tripulante 2
+        if (trip2Val > 0 && travelReportSel.nome_tripulante_2) {
+          await supabaseClient.from("contas_apagar").insert({
+            data_vencimento: dataVenc,
+            data_agendamento: dataVenc,
+            valor: trip2Val,
+            categoria: "REEMBOLSO TRIPULAÇÃO",
+            descricao: `RV ${travelReportSel.numero_relatorio} — ${travelReportSel.nome_tripulante_2}`,
+            status: statusCP,
+            observacoes: `Reembolso tripulante 2 do relatório ${travelReportSel.numero_relatorio}`,
+            cliente_id: clienteId,
+            socios_cliente_id: socioId || null,
+            aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
+            arquivo_pdf_url: anexosPdfRv,
+            movimentacao_id: movId,
+            criado_por: userId,
+          });
+        }
+        // Conta a receber do cliente (apenas se não houver sócio vinculado)
+        if (!socioId && cliVal > 0) {
+          await supabaseClient.from("contas_areceber").insert({
+            numero: `RV-${travelReportSel.numero_relatorio}`,
+            cliente_id: clienteId,
+            cliente_nome: clienteSel?.razao_social || "",
+            cliente_cnpj: clienteSel?.cnpj || null,
+            data_criacao: dataComp,
+            data_vencimento: dataVenc,
+            valor: cliVal,
+            categoria: "RELATÓRIO DE VIAGEM",
+            descricao: `Cobrança RV ${travelReportSel.numero_relatorio} — ${travelReportSel.nome_tripulante || ""}`,
+            status: "pendente",
+            aeronave: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
+            reference_type: "travel_expense_report",
+            reference_id: travelReportSel.id,
+          });
+        }
+      } else if (reembolsavel && !rascunho) {
+        // Reembolso padrão (não viagem) → contas_areceber
         await supabaseClient.from("contas_areceber").insert({
           numero: `SP-${capId.slice(0, 8)}`,
+          cliente_id: clienteId,
           cliente_nome: clienteSel?.razao_social || "",
           cliente_cnpj: clienteSel?.cnpj || null,
           data_criacao: dataComp,
@@ -622,6 +744,95 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             {reembolsavel && <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20">Reembolsável</Badge>}
           </section>
 
+          {/* Seleção de Relatório de Viagem - ANTES da seção de dados de despesa */}
+          {isViagemMode && (
+            <section className="space-y-3 rounded-lg border border-sky-500/20 bg-sky-500/5 p-4">
+              <div className="flex items-center gap-2">
+                <Plane className="h-4 w-4 text-sky-400" />
+                <h3 className="text-sm font-semibold text-sky-300 uppercase tracking-wide">Relatório de Viagem</h3>
+              </div>
+              {!clienteId ? (
+                <p className="text-xs text-muted-foreground">Selecione o cliente para carregar os relatórios.</p>
+              ) : travelReports.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhum relatório encontrado para este cliente/aeronave/sócio.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label>Selecione o relatório</Label>
+                  <Select value={travelReportId} onValueChange={setTravelReportId}>
+                    <SelectTrigger><SelectValue placeholder="Escolha um relatório" /></SelectTrigger>
+                    <SelectContent>
+                      {travelReports.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.numero_relatorio}
+                          {r.data_inicio && ` — ${format(new Date(r.data_inicio), "dd/MM/yyyy")}`}
+                          {r.matricula_aeronave && ` · ${r.matricula_aeronave}`}
+                          {` · R$ ${Number(r.total_valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {travelReportSel && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Number(travelReportSel.total_trip || 0) > 0 && travelReportSel.nome_tripulante && (
+                      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                        <div className="flex items-center justify-between text-xs text-amber-300">
+                          <span>A pagar — Tripulante 1</span>
+                          <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-300">Conta a Pagar</Badge>
+                        </div>
+                        <p className="text-sm mt-1 font-medium">{travelReportSel.nome_tripulante}</p>
+                        <p className="text-lg font-bold text-amber-200">
+                          R$ {Number(travelReportSel.total_trip || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    )}
+                    {Number(travelReportSel.total_trip2 || 0) > 0 && travelReportSel.nome_tripulante_2 && (
+                      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                        <div className="flex items-center justify-between text-xs text-amber-300">
+                          <span>A pagar — Tripulante 2</span>
+                          <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-300">Conta a Pagar</Badge>
+                        </div>
+                        <p className="text-sm mt-1 font-medium">{travelReportSel.nome_tripulante_2}</p>
+                        <p className="text-lg font-bold text-amber-200">
+                          R$ {Number(travelReportSel.total_trip2 || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    )}
+                    {!socioId && Number(travelReportSel.total_clientes || 0) > 0 && (
+                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 md:col-span-2">
+                        <div className="flex items-center justify-between text-xs text-emerald-300">
+                          <span>A receber do cliente</span>
+                          <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/30 text-emerald-300">Conta a Receber</Badge>
+                        </div>
+                        <p className="text-sm mt-1 font-medium">{clienteSel?.razao_social}</p>
+                        <p className="text-lg font-bold text-emerald-200">
+                          R$ {Number(travelReportSel.total_clientes || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    )}
+                    {socioId && (
+                      <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3 md:col-span-2">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Total do relatório (sócio vinculado — sem conta a receber)</span>
+                        </div>
+                        <p className="text-lg font-bold">
+                          R$ {Number(travelReportSel.total_valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {travelReportSel.url_pdf && (
+                    <a href={travelReportSel.url_pdf} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-sky-300 hover:text-sky-200">
+                      <ExternalLink className="h-3 w-3" /> Abrir PDF do relatório
+                    </a>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Dados da despesa */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dados da Despesa</h3>
@@ -645,20 +856,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   allowFreeText
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Fornecedor</Label>
-                <SearchableCombobox
-                  items={fornecedores}
-                  value={fornecedorId}
-                  onChange={(id, label) => {
-                    setFornecedorId(id);
-                    const found = fornecedores.find((f) => f.id === id);
-                    setFornecedorNome(found?.label || label || "");
-                  }}
-                  placeholder="Selecione ou digite"
-                  allowFreeText
-                />
-              </div>
+              {!isViagemMode && (
+                <div className="space-y-1.5">
+                  <Label>Fornecedor</Label>
+                  <SearchableCombobox
+                    items={fornecedores}
+                    value={fornecedorId}
+                    onChange={(id, label) => {
+                      setFornecedorId(id);
+                      const found = fornecedores.find((f) => f.id === id);
+                      setFornecedorNome(found?.label || label || "");
+                    }}
+                    placeholder="Selecione ou digite"
+                    allowFreeText
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -756,30 +969,58 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
               </p>
             )}
             <div className="space-y-2">
-              {anexos.map((a) => (
-                <div key={a.id} className="grid grid-cols-12 gap-2 items-center rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
-                  <Select value={a.tipo} onValueChange={(v) => updateAnexo(a.id, { tipo: v as AnexoDoc["tipo"] })}>
-                    <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_ANEXO.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Input className="col-span-3" placeholder="Número" value={a.numero} onChange={(e) => updateAnexo(a.id, { numero: e.target.value })} />
-                  <div className="col-span-5 flex items-center gap-2">
-                    <label className="flex-1 cursor-pointer">
-                      <input type="file" className="hidden" accept="application/pdf,image/*"
-                        onChange={(e) => updateAnexo(a.id, { arquivo: e.target.files?.[0] || null })} />
-                      <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2 text-xs hover:bg-white/[0.05] transition">
-                        {a.arquivo ? <FileText className="h-3.5 w-3.5 text-emerald-400" /> : <Upload className="h-3.5 w-3.5" />}
-                        <span className="truncate">{a.arquivo?.name || a.url || "Selecionar arquivo"}</span>
+              {anexos.map((a, idx) => {
+                const preview = previewAnexo(a);
+                const img = isImage(a);
+                return (
+                  <div key={a.id} className="rounded-lg border border-white/10 bg-white/[0.02] p-2.5 space-y-2">
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-1 flex flex-col items-center gap-0.5">
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === 0} onClick={() => moveAnexo(a.id, -1)}>
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === anexos.length - 1} onClick={() => moveAnexo(a.id, 1)}>
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                    </label>
+                      <Select value={a.tipo} onValueChange={(v) => updateAnexo(a.id, { tipo: v as AnexoDoc["tipo"] })}>
+                        <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_ANEXO.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Input className="col-span-3" placeholder="Número" value={a.numero} onChange={(e) => updateAnexo(a.id, { numero: e.target.value })} />
+                      <div className="col-span-4 flex items-center gap-2">
+                        <label className="flex-1 cursor-pointer">
+                          <input type="file" className="hidden" accept="application/pdf,image/*"
+                            onChange={(e) => updateAnexo(a.id, { arquivo: e.target.files?.[0] || null })} />
+                          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2 text-xs hover:bg-white/[0.05] transition">
+                            {a.arquivo || a.url ? <FileText className="h-3.5 w-3.5 text-emerald-400" /> : <Upload className="h-3.5 w-3.5" />}
+                            <span className="truncate">{a.arquivo?.name || a.url || "Selecionar arquivo"}</span>
+                          </div>
+                        </label>
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" className="col-span-1" onClick={() => removeAnexo(a.id)}>
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      </Button>
+                    </div>
+                    {preview && (
+                      <div className="flex items-center gap-3 pl-8">
+                        {img ? (
+                          <img src={preview} alt="preview" className="h-16 w-16 rounded object-cover border border-white/10" />
+                        ) : (
+                          <div className="h-16 w-16 rounded border border-white/10 bg-white/[0.03] flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        <a href={preview} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-sky-300 hover:text-sky-200">
+                          <Eye className="h-3 w-3" /> Pré-visualizar
+                        </a>
+                      </div>
+                    )}
                   </div>
-                  <Button type="button" variant="ghost" size="icon" className="col-span-1" onClick={() => removeAnexo(a.id)}>
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>

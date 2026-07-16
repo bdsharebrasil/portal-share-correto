@@ -13,6 +13,7 @@ export interface TravelExpenseCandidate {
   clientes_id?: string | null;
   total_valor?: number | null;
   despesas?: unknown;
+  pago_em?: string | null;
 }
 
 export interface ReceiptCandidate {
@@ -137,6 +138,9 @@ export function findExistingTravelExpenseReference(
   // 1. Exata: cliente + valor total
   // 2. Parcial: cliente + valor total + descrição na despesa
   // 3. Aproximada: cliente + valor aproximado
+  
+  // Filtrar apenas registros já pagos para evitar bloquear novos pagamentos
+  const pagosRegistros = registros.filter((r) => r.pago_em != null);
 
   const parseDespes = (despesa: unknown): TravelExpenseItem[] => {
     if (Array.isArray(despesa)) return despesa;
@@ -151,8 +155,8 @@ export function findExistingTravelExpenseReference(
     return [];
   };
 
-  // Correspondência EXATA: cliente + valor total do relatório
-  const exactMatch = registros.find((registro) => {
+  // Correspondência EXATA: cliente + valor total do relatório (apenas se já pago)
+  const exactMatch = pagosRegistros.find((registro) => {
     if (!candidate.clienteId || !registro.clientes_id) return false;
     if (registro.clientes_id !== candidate.clienteId) return false;
     if (!valor || !registro.total_valor) return false;
@@ -160,9 +164,9 @@ export function findExistingTravelExpenseReference(
   });
   if (exactMatch) return exactMatch;
 
-  // Correspondência FORTE: cliente + valor + descrição em alguma despesa
+  // Correspondência FORTE: cliente + valor + descrição em alguma despesa (apenas se já pago)
   if (descricao) {
-    const descMatch = registros.find((registro) => {
+    const descMatch = pagosRegistros.find((registro) => {
       if (!candidate.clienteId || !registro.clientes_id || registro.clientes_id !== candidate.clienteId) return false;
       if (valor && registro.total_valor && Math.abs(Number(registro.total_valor) - valor) >= 0.01) return false;
 
@@ -186,8 +190,8 @@ export function findExistingTravelExpenseReference(
     if (descMatch) return descMatch;
   }
 
-  // Correspondência MÉDIA: cliente + valor aproximado
-  const valueMatch = registros.find((registro) => {
+  // Correspondência MÉDIA: cliente + valor aproximado (apenas se já pago)
+  const valueMatch = pagosRegistros.find((registro) => {
     if (!candidate.clienteId || !registro.clientes_id || registro.clientes_id !== candidate.clienteId) return false;
     if (!valor || !registro.total_valor) return false;
     return Math.abs(Number(registro.total_valor) - valor) < 0.01;

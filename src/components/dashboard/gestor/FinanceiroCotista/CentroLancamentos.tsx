@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
-import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, DollarSign, ExternalLink, Upload, Loader2, FileDigit } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, DollarSign, ExternalLink, Upload, Loader2, FileDigit, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -42,7 +43,6 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   categoria: 170,
   tipoRateio: 150,
   periodicidade: 130,
-  fluxo: 96,
   pagoPor: 130,
 };
 
@@ -77,6 +77,7 @@ const fmtDate = (s?: string | null) => {
 interface GrupoLancamento {
   chave: string;
   despesa_id: string | null;
+  fonte_despesa: string | null;
   ids: string[];
   data_pagamento: string | null;
   data_vencimento: string | null;
@@ -100,6 +101,14 @@ interface GrupoLancamento {
   boleto_url: string | null;
   valor_total_despesa: number;
   rateiosPorCotista: Map<string, any>;
+  abastecimentoAnexos?: {
+    id: string;
+    comanda_url: string | null;
+    nota_url: string | null;
+    boleto_url: string | null;
+    comanda: string | null;
+    nf: string | null;
+  } | null;
 }
 
 export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: CentroLancamentosProps) {
@@ -108,7 +117,9 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear());
   const [busca, setBusca] = useState("");
+  const [fluxoFiltro, setFluxoFiltro] = useState<"TODOS" | "ENTRADA" | "SAIDA">("TODOS");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [selectedChaves, setSelectedChaves] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
 
@@ -136,14 +147,22 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
 
   useEffect(() => {
     if (!resizing) return;
+
     const onMove = (event: MouseEvent) => {
-      const nextWidth = Math.max(80, Math.min(400, resizing.startWidth + (event.clientX - resizing.startX)));
+      const nextWidth = Math.max(80, Math.min(800, resizing.startWidth + (event.clientX - resizing.startX)));
       setColumnWidths((prev) => ({ ...prev, [resizing.key]: nextWidth }));
     };
+
     const onUp = () => setResizing(null);
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+
     return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -164,6 +183,10 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const handleDragEnd = () => { isDraggingRef.current = false; };
 
   const getColumnWidth = (key: string) => columnWidths[key] ?? DEFAULT_COLUMN_WIDTHS[key] ?? 140;
+
+  const startResize = (key: string, clientX: number, startWidth: number) => {
+    setResizing({ key, startX: clientX, startWidth });
+  };
 
   const { data: rateios = [], isLoading } = useQuery({
     queryKey: ["centro-lancamentos", aeronaveId],
@@ -224,14 +247,132 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     },
   });
 
+  // Puxa PDFs de relatórios de viagem cujo id foi utilizado como despesa_id
+  const travelReportIds = useMemo(() => {
+    const set = new Set<string>();
+    (rateios as any[]).forEach((r: any) => {
+      if (r.fonte_despesa === "travel_expense_reports" && r.despesa_id) set.add(r.despesa_id);
+    });
+    return Array.from(set);
+  }, [rateios]);
+
+  const { data: travelReports = [] } = useQuery({
+    queryKey: ["centro-lancamentos-travel-reports", travelReportIds],
+    enabled: travelReportIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("travel_expense_reports")
+        .select("id, url_pdf")
+        .in("id", travelReportIds);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const travelReportMap = useMemo(() => {
+    const m = new Map<string, string>();
+    (travelReports as any[]).forEach((t: any) => { if (t.url_pdf) m.set(t.id, t.url_pdf); });
+    return m;
+  }, [travelReports]);
+
+  // Puxa PDFs de recibos por numero_recibo
+  const reciboNumeros = useMemo(() => {
+    const set = new Set<string>();
+    (rateios as any[]).forEach((r: any) => {
+      if (r.numero_recibo) set.add(String(r.numero_recibo));
+    });
+    return Array.from(set);
+  }, [rateios]);
+
+  const { data: recibosData = [] } = useQuery({
+    queryKey: ["centro-lancamentos-recibos", reciboNumeros],
+    enabled: reciboNumeros.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("recibos")
+        .select("id, numero_recibo, url_pdf")
+        .in("numero_recibo", reciboNumeros);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const reciboMap = useMemo(() => {
+    const m = new Map<string, { url_pdf: string | null; numero_recibo: string | null }>();
+    (recibosData as any[]).forEach((r: any) => {
+      if (r.numero_recibo) m.set(String(r.numero_recibo), { url_pdf: r.url_pdf || null, numero_recibo: r.numero_recibo });
+    });
+    return m;
+  }, [recibosData]);
+
+  const abastecimentoIds = useMemo(() => {
+    const set = new Set<string>();
+    (rateios as any[]).forEach((r: any) => {
+      const fonte = String(r?.fonte_despesa || "").trim().toLowerCase();
+      const categoria = String(r?.categoria_custo || "").trim().toLowerCase();
+      const descricao = String(r?.descricao_despesa || "").trim().toLowerCase();
+      const looksLikeFuel =
+        fonte.includes("abaste") ||
+        categoria.includes("abaste") ||
+        categoria.includes("combust") ||
+        descricao.includes("abaste") ||
+        descricao.includes("combust");
+
+      if (looksLikeFuel && r?.despesa_id) set.add(r.despesa_id);
+    });
+    return Array.from(set);
+  }, [rateios]);
+
+  const { data: abastecimentosAnexosData = [] } = useQuery({
+    queryKey: ["centro-lancamentos-abastecimentos", abastecimentoIds],
+    enabled: abastecimentoIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("abastecimentos")
+        .select("id, comanda_url, nota_url, boleto_url, comanda, nf")
+        .in("id", abastecimentoIds);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const abastecimentoAnexosMap = useMemo(() => {
+    const map = new Map<string, { id: string; comanda_url: string | null; nota_url: string | null; boleto_url: string | null; comanda: string | null; nf: string | null }>();
+    (abastecimentosAnexosData as any[]).forEach((item: any) => {
+      if (item?.id) {
+        map.set(item.id, {
+          id: item.id,
+          comanda_url: item.comanda_url ?? null,
+          nota_url: item.nota_url ?? null,
+          boleto_url: item.boleto_url ?? null,
+          comanda: item.comanda ?? null,
+          nf: item.nf ?? null,
+        });
+      }
+    });
+    return map;
+  }, [abastecimentosAnexosData]);
+
   const grupos = useMemo<GrupoLancamento[]>(() => {
     const map = new Map<string, GrupoLancamento>();
     (rateios as any[]).forEach((r: any) => {
       const chave = r.despesa_id || r.id;
+      const fonte = String(r?.fonte_despesa || "").trim().toLowerCase();
+      const categoria = String(r?.categoria_custo || "").trim().toLowerCase();
+      const descricao = String(r?.descricao_despesa || "").trim().toLowerCase();
+      const looksLikeFuel =
+        fonte.includes("abaste") ||
+        categoria.includes("abaste") ||
+        categoria.includes("combust") ||
+        descricao.includes("abaste") ||
+        descricao.includes("combust");
+      const abastecimentoAnexos = looksLikeFuel && r?.despesa_id ? abastecimentoAnexosMap.get(r.despesa_id) ?? null : null;
+
       if (!map.has(chave)) {
         map.set(chave, {
           chave,
           despesa_id: r.despesa_id || null,
+          fonte_despesa: r.fonte_despesa || null,
           ids: [],
           data_pagamento: r.data_pagamento,
           data_vencimento: r.data_vencimento,
@@ -255,6 +396,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           boleto_url: r.boleto_url ?? null,
           valor_total_despesa: Number(r.valor_total_despesa) || 0,
           rateiosPorCotista: new Map(),
+          abastecimentoAnexos,
         });
       }
       const g = map.get(chave)!;
@@ -263,8 +405,10 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
       if (r.socio_id) g.rateiosPorCotista.set(r.socio_id, r);
     });
     return Array.from(map.values());
-  }, [rateios]);
+  }, [rateios, abastecimentoAnexosMap]);
 
+  // Esta constante define TODOS os grupos que passam pelos filtros do topo (mês, busca, fluxo).
+  // A tabela usa isso para desenhar as linhas.
   const gruposFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return grupos
@@ -279,6 +423,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           const t = [g.descricao_despesa, g.fornecedor_nome, g.numero_doc, categoriaLabel].filter(Boolean).join(" ").toLowerCase();
           if (!t.includes(q)) return false;
         }
+        if (fluxoFiltro !== "TODOS" && (g.fluxo || "").toUpperCase() !== fluxoFiltro) return false;
         return true;
       })
       .sort((a, b) => {
@@ -295,9 +440,70 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         }
         return sortDirection === "asc" ? valA - valB : valB - valA;
       });
-  }, [grupos, mes, ano, busca, sortDirection]);
+  }, [grupos, mes, ano, busca, fluxoFiltro, sortDirection, categorias]);
 
-  const totalPeriodo = gruposFiltrados.reduce((s, g) => s + g.valor_total_despesa, 0);
+  // Nova Lógica: Usar gruposParaSoma para alimentar as totalizações.
+  // Se houver seleção, soma só o selecionado. Se não, soma tudo que está filtrado.
+  const gruposParaSoma = useMemo(() => {
+    if (selectedChaves.length === 0) return gruposFiltrados;
+    return gruposFiltrados.filter((g) => selectedChaves.includes(g.chave));
+  }, [gruposFiltrados, selectedChaves]);
+
+  const totalPeriodo = gruposParaSoma.reduce((s, g) => s + (Number(g.valor_total_despesa) || 0), 0);
+  
+  const resumoPorFluxo = useMemo(() => {
+    const normalizeFluxo = (value?: string | null) => (value || "").toUpperCase();
+    const gruposPorFluxo = new Map<string, { total: number; porCotista: Map<string, number> }>([
+      ["ENTRADA", { total: 0, porCotista: new Map() }],
+      ["SAIDA", { total: 0, porCotista: new Map() }],
+    ]);
+
+    gruposParaSoma.forEach((g) => {
+      const fluxo = normalizeFluxo(g.fluxo);
+      const bucket = fluxo === "ENTRADA" ? gruposPorFluxo.get("ENTRADA") : gruposPorFluxo.get("SAIDA");
+      if (!bucket) return;
+
+      bucket.total += Number(g.valor_total_despesa) || 0;
+
+      g.rateiosPorCotista.forEach((rateio, cotistaId) => {
+        const valorRateio = Number(rateio?.valor_rateado) || 0;
+        if (!valorRateio) return;
+        bucket.porCotista.set(cotistaId, (bucket.porCotista.get(cotistaId) || 0) + valorRateio);
+      });
+    });
+
+    return Array.from(gruposPorFluxo.entries()).map(([fluxo, dados]) => ({
+      fluxo,
+      total: dados.total,
+      porCotista: cotistas.map((cotista) => ({
+        id: cotista.id,
+        nome: cotista.nome || cotista.id,
+        valor: dados.porCotista.get(cotista.id) || 0,
+      })).filter((item) => item.valor > 0),
+    }));
+  }, [gruposParaSoma, cotistas]);
+
+  const saldoPeriodo = (resumoPorFluxo.find((r) => r.fluxo === "ENTRADA")?.total || 0) - (resumoPorFluxo.find((r) => r.fluxo === "SAIDA")?.total || 0);
+
+  const todosVisiveisSelecionados = gruposFiltrados.length > 0 && gruposFiltrados.every((g) => selectedChaves.includes(g.chave));
+  const isFiltrandoSelecao = selectedChaves.length > 0;
+
+  const toggleSelecao = (chave: string) => {
+    setSelectedChaves((prev) => (prev.includes(chave) ? prev.filter((item) => item !== chave) : [...prev, chave]));
+  };
+
+  const toggleSelecionarVisiveis = () => {
+    setSelectedChaves((prev) => {
+      const next = new Set(prev);
+      if (todosVisiveisSelecionados) {
+        gruposFiltrados.forEach((g) => next.delete(g.chave));
+      } else {
+        gruposFiltrados.forEach((g) => next.add(g.chave));
+      }
+      return Array.from(next);
+    });
+  };
+
   const anos = Array.from({ length: 6 }, (_, i) => hoje.getFullYear() - i);
 
   async function updateGrupo(g: GrupoLancamento, patch: Record<string, any>) {
@@ -314,58 +520,161 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <style>{`
         .centro-lancamentos-scrollbar::-webkit-scrollbar { height: 8px; }
-        .centro-lancamentos-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.7); }
-        .centro-lancamentos-scrollbar::-webkit-scrollbar-thumb { background: rgba(37, 99, 235, 0.8); border-radius: 999px; }
-        .centro-lancamentos-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(37, 99, 235, 1); }
+        .centro-lancamentos-scrollbar::-webkit-scrollbar-track { background: hsl(var(--muted) / 0.5); }
+        .centro-lancamentos-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
+        .centro-lancamentos-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+        .centro-lancamentos-table th,
+        .centro-lancamentos-table td {
+          border-right: 1px solid hsl(var(--border) / 0.5);
+        }
+        .centro-lancamentos-table th:last-child,
+        .centro-lancamentos-table td:last-child {
+          border-right: none;
+        }
+        .centro-lancamentos-table thead th {
+          background: hsl(var(--muted) / 0.55);
+          color: hsl(var(--muted-foreground));
+          font-weight: 600;
+          letter-spacing: 0.07em;
+        }
+        .centro-lancamentos-table tbody tr:nth-child(even) {
+          background-color: hsl(var(--muted) / 0.25);
+        }
       `}</style>
 
-      {/* Header + filtros */}
-      <div className="rounded-2xl bg-card/40 backdrop-blur-md border border-border/40 p-5 space-y-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div>
-              <h2 className="text-base font-semibold tracking-tight" style={{ marginTop: '1px', marginBottom: '1px', paddingTop: '2px', paddingBottom: '2px' }}>Centro de Lançamentos</h2>
-              <p className="text-xs text-muted-foreground" style={{ fontSize: '14px', marginTop: '8px', marginBottom: '8px' }}>
-                {MESES[mes - 1]}/{ano} {aeronaveLabel ? ` · ${aeronaveLabel}` : ""} · {gruposFiltrados.length} lançamento(s)
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">Total do Período</p>
-            <p className="text-2xl font-bold" style={{ fontFamily: 'AR One Sans, sans-serif' }}>{formatBRL(totalPeriodo)}</p>
+      {/* Header — flat, no card wrapper, no blur haze */}
+      <div className="flex items-start justify-between gap-6 flex-wrap border-b border-border pb-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-1 h-9 w-1 rounded-full bg-primary" />
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/70">Gestão Financeira</p>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Centro de Lançamentos</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              {MESES[mes - 1]}/{ano}{aeronaveLabel ? ` · ${aeronaveLabel}` : ""} · 
+              {isFiltrandoSelecao ? (
+                <span className="font-semibold text-primary ml-1">{selectedChaves.length} de {gruposFiltrados.length} selecionado(s)</span>
+              ) : (
+                <span className="ml-1">{gruposFiltrados.length} lançamento(s)</span>
+              )}
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2.5">
-          <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-            <SelectTrigger className="w-40 h-10 bg-background/60 rounded-xl"><SelectValue /></SelectTrigger>
-            <SelectContent>{MESES.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-            <SelectTrigger className="w-28 h-10 bg-background/60 rounded-xl"><SelectValue /></SelectTrigger>
-            <SelectContent>{anos.map((a) => <SelectItem key={a} value={String(a)}>{a}</SelectItem>)}</SelectContent>
-          </Select>
-          <div className="relative flex-1 min-w-[260px] max-w-md" style={{ paddingLeft: '3px', paddingRight: '3px', marginLeft: '25px', marginRight: '25px', marginTop: '14px', marginBottom: '14px', paddingTop: '1px', paddingBottom: '1px' }}>
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por descrição, fornecedor..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="pl-9 h-10 bg-background/60 rounded-xl w-full"
-            />
+        <div className="flex items-stretch gap-3">
+          <div className={cn(
+            "rounded-lg border px-4 py-2.5 text-right min-w-[150px] transition-colors",
+            isFiltrandoSelecao ? "bg-primary/10 border-primary/30" : "bg-muted/30 border-border"
+          )}>
+            <p className={cn(
+              "text-[10px] uppercase tracking-wider font-semibold transition-colors",
+              isFiltrandoSelecao ? "text-primary/80" : "text-muted-foreground"
+            )}>
+              {isFiltrandoSelecao ? "Total Selecionado" : "Total do Período"}
+            </p>
+            <p className="text-xl font-bold font-mono tabular-nums text-foreground">{formatBRL(totalPeriodo)}</p>
+          </div>
+          <div className={cn(
+            "rounded-lg border px-4 py-2.5 text-right min-w-[150px] transition-colors",
+            isFiltrandoSelecao
+              ? (saldoPeriodo >= 0 ? "border-emerald-500/50 bg-emerald-500/10" : "border-rose-500/50 bg-rose-500/10")
+              : (saldoPeriodo >= 0 ? "border-emerald-500/25 bg-emerald-500/[0.06]" : "border-rose-500/25 bg-rose-500/[0.06]")
+          )}>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              {isFiltrandoSelecao ? "Saldo Selecionado" : "Saldo do Período"}
+            </p>
+            <p className={cn("text-xl font-bold font-mono tabular-nums", saldoPeriodo >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+              {formatBRL(saldoPeriodo)}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Tabela Clean - Sem divs desnecessárias causando scrolls duplos */}
-      <div className="rounded-2xl bg-card/40 backdrop-blur-md border border-border/40 overflow-hidden shadow-sm w-full">
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
+          <SelectTrigger className="w-40 h-9 bg-background border-border rounded-lg text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>{MESES.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
+          <SelectTrigger className="w-24 h-9 bg-background border-border rounded-lg text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>{anos.map((a) => <SelectItem key={a} value={String(a)}>{a}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={fluxoFiltro} onValueChange={(value) => setFluxoFiltro(value as "TODOS" | "ENTRADA" | "SAIDA") }>
+          <SelectTrigger className="w-32 h-9 bg-background border-border rounded-lg text-xs"><SelectValue placeholder="Fluxo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="TODOS">Todos</SelectItem>
+            <SelectItem value="ENTRADA">Entradas</SelectItem>
+            <SelectItem value="SAIDA">Saídas</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por descrição, fornecedor..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9 h-9 bg-background border-border rounded-lg text-xs"
+          />
+        </div>
+        {selectedChaves.length > 0 && (
+          <div className="flex items-center gap-2 ml-auto rounded-lg border border-primary/25 bg-primary/5 pl-3 pr-1 py-1">
+            <span className="text-xs font-medium text-foreground">{selectedChaves.length} selecionado(s)</span>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedChaves([])}>Limpar</Button>
+          </div>
+        )}
+      </div>
+
+      {/* Resumo por fluxo */}
+      <div className="grid gap-3 md:grid-cols-2">
+        {resumoPorFluxo.map((item) => {
+          const isEntrada = item.fluxo === "ENTRADA";
+          return (
+            <div key={item.fluxo} className={cn(
+              "rounded-lg border bg-background p-4 transition-colors",
+              isEntrada 
+                ? (isFiltrandoSelecao ? "border-emerald-500/50 bg-emerald-500/5" : "border-emerald-500/20")
+                : (isFiltrandoSelecao ? "border-rose-500/50 bg-rose-500/5" : "border-rose-500/20")
+            )}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {isEntrada
+                    ? <ArrowDownCircle className="h-4 w-4 text-emerald-500" />
+                    : <ArrowUpCircle className="h-4 w-4 text-rose-500" />}
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
+                      {isEntrada ? "Entradas" : "Saídas"} {isFiltrandoSelecao ? "(Selecionado)" : ""}
+                    </p>
+                    <p className={cn("text-lg font-bold font-mono tabular-nums", isEntrada ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>{formatBRL(item.total)}</p>
+                  </div>
+                </div>
+                <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[10px]">
+                  {item.porCotista.length} sócio(s)
+                </Badge>
+              </div>
+              {item.porCotista.length > 0 && (
+                <div className="mt-3 space-y-1 border-t border-border/60 pt-2.5">
+                  {item.porCotista.map((cotista) => (
+                    <div key={cotista.id} className="flex items-center justify-between text-xs">
+                      <span className="truncate pr-2 text-muted-foreground">{cotista.nome}</span>
+                      <span className="font-mono font-semibold text-foreground tabular-nums">{formatBRL(cotista.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tabela — Ajustada com span dinâmico exato das colunas restritamente alinhadas */}
+      <div className="rounded-lg border border-border overflow-hidden w-full">
         <div
           ref={topScrollRef}
           onScroll={() => { if (bottomScrollRef.current && topScrollRef.current) bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft; }}
-          className="centro-lancamentos-scrollbar overflow-x-auto overflow-y-hidden border-b border-border/40 bg-muted/20 sticky top-0 z-20"
+          className="centro-lancamentos-scrollbar overflow-x-auto overflow-y-hidden border-b border-border bg-muted/30 sticky top-0 z-20"
         >
           <div style={{ width: tableWidth, height: 1 }} />
         </div>
@@ -380,80 +689,117 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           onMouseUp={handleDragEnd}
           onMouseLeave={handleDragEnd}
           onScroll={() => { if (topScrollRef.current && bottomScrollRef.current) topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft; }}
-          className="centro-lancamentos-scrollbar overflow-x-auto cursor-grab active:cursor-grabbing select-none"
+          className="centro-lancamentos-scrollbar overflow-x-auto cursor-grab active:cursor-grabbing select-none bg-background"
         >
-          <table ref={tableRef} className="w-full text-xs text-left" style={{ tableLayout: "fixed" }}>
+          <table ref={tableRef} className="centro-lancamentos-table w-full text-xs text-left" style={{ tableLayout: "fixed" }}>
             <thead>
-              <tr className="bg-muted/40 border-b border-border/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+              {(["ENTRADA", "SAIDA"] as const).map((fluxo) => {
+                const gruposDoFluxo = gruposFiltrados.filter((g) => (g.fluxo || "").toUpperCase() === fluxo);
+                if (!gruposDoFluxo.length) return null;
+                const isEntrada = fluxo === "ENTRADA";
+                return (
+                  <tr key={fluxo} className={cn("border-b border-border", isEntrada ? "bg-emerald-500/[0.05]" : "bg-rose-500/[0.05]")}>
+                    {/* AQUI ESTÁ O COLSPAN EXATO: 10 colunas normais + cotistas * 2 */}
+                    <td colSpan={10 + cotistas.length * 2} className="px-4 py-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={cn(
+                          "text-[10.5px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5",
+                          isEntrada ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                        )}>
+                          {isEntrada ? <ArrowDownCircle className="h-3 w-3" /> : <ArrowUpCircle className="h-3 w-3" />}
+                          {isEntrada ? "Entradas" : "Saídas"}
+                        </span>
+                        <span className="text-[10.5px] text-muted-foreground">{gruposDoFluxo.length} lançamento(s)</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr className="border-b border-border text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                <th className="w-10 px-2 py-2.5 text-center font-semibold">
+                  <Checkbox checked={todosVisiveisSelecionados} onCheckedChange={toggleSelecionarVisiveis} aria-label="Selecionar todos os lançamentos visíveis" />
+                </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("data")}>
                   <button type="button" onClick={() => setSortDirection((v) => (v === "desc" ? "asc" : "desc"))} className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors">
                     <span>Data</span> <span className="text-[10px]">{sortDirection === "desc" ? "↓" : "↑"}</span>
                   </button>
-                  <ResizeHandle columnKey="data" startWidth={getColumnWidth("data")} setResizing={setResizing} />
+                  <ResizeHandle columnKey="data" startWidth={getColumnWidth("data")} onStartResize={startResize} />
                 </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("doc")}>
-                  Doc <ResizeHandle columnKey="doc" startWidth={getColumnWidth("doc")} setResizing={setResizing} />
+                  Doc <ResizeHandle columnKey="doc" startWidth={getColumnWidth("doc")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("valorDespesa")}>
-                  Valor <ResizeHandle columnKey="valorDespesa" startWidth={getColumnWidth("valorDespesa")} setResizing={setResizing} />
+                <th className="relative px-3 py-2.5 font-semibold text-right" style={getCellStyles("valorDespesa")}>
+                  Valor <ResizeHandle columnKey="valorDespesa" startWidth={getColumnWidth("valorDespesa")} onStartResize={startResize} />
                 </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("fornecedor")}>
-                  Fornecedor <ResizeHandle columnKey="fornecedor" startWidth={getColumnWidth("fornecedor")} setResizing={setResizing} />
+                  Fornecedor <ResizeHandle columnKey="fornecedor" startWidth={getColumnWidth("fornecedor")} onStartResize={startResize} />
                 </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("descricao")}>
-                  Descrição <ResizeHandle columnKey="descricao" startWidth={getColumnWidth("descricao")} setResizing={setResizing} />
+                  Descrição <ResizeHandle columnKey="descricao" startWidth={getColumnWidth("descricao")} onStartResize={startResize} />
                 </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("categoria")}>
-                  Categoria <ResizeHandle columnKey="categoria" startWidth={getColumnWidth("categoria")} setResizing={setResizing} />
+                  Categoria <ResizeHandle columnKey="categoria" startWidth={getColumnWidth("categoria")} onStartResize={startResize} />
                 </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("tipoRateio")}>
-                  Tipo de Rateio <ResizeHandle columnKey="tipoRateio" startWidth={getColumnWidth("tipoRateio")} setResizing={setResizing} />
+                  Tipo de Rateio <ResizeHandle columnKey="tipoRateio" startWidth={getColumnWidth("tipoRateio")} onStartResize={startResize} />
                 </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("periodicidade")}>
-                  Periodicidade <ResizeHandle columnKey="periodicidade" startWidth={getColumnWidth("periodicidade")} setResizing={setResizing} />
-                </th>
-                <th className="relative px-3 py-2.5 text-center font-semibold" style={getCellStyles("fluxo")}>
-                  Fluxo <ResizeHandle columnKey="fluxo" startWidth={getColumnWidth("fluxo")} setResizing={setResizing} />
+                  Periodicidade <ResizeHandle columnKey="periodicidade" startWidth={getColumnWidth("periodicidade")} onStartResize={startResize} />
                 </th>
                 <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("pagoPor")}>
-                  Pago Por <ResizeHandle columnKey="pagoPor" startWidth={getColumnWidth("pagoPor")} setResizing={setResizing} />
+                  Pago Por <ResizeHandle columnKey="pagoPor" startWidth={getColumnWidth("pagoPor")} onStartResize={startResize} />
                 </th>
 
                 {cotistas.map((c) => (
-                  <th key={c.id} colSpan={2} className="px-3 py-2 text-center font-semibold border-l border-border/40" style={{ width: COTISTA_TOTAL_WIDTH, minWidth: COTISTA_TOTAL_WIDTH, maxWidth: COTISTA_TOTAL_WIDTH }}>
-                    <div className="text-[11px] font-bold text-foreground truncate uppercase">{c.nome || c.id}</div>
-                    <div className="text-[9px] font-normal tracking-wide">{c.percentual}% cota</div>
+                  <th key={c.id} colSpan={2} className="px-3 py-2 text-center font-semibold border-l border-border" style={{ width: COTISTA_TOTAL_WIDTH, minWidth: COTISTA_TOTAL_WIDTH, maxWidth: COTISTA_TOTAL_WIDTH }}>
+                    <div className="text-[11px] font-bold text-foreground truncate uppercase tracking-normal">{c.nome || c.id}</div>
+                    <div className="text-[9px] font-normal tracking-wide normal-case">{c.percentual}% cota</div>
                   </th>
                 ))}
               </tr>
-              <tr className="bg-muted/20 border-b border-border/40 text-[10px] text-muted-foreground uppercase">
+              <tr className="bg-muted/20 border-b border-border text-[10px] text-muted-foreground uppercase">
+                {/* 10 Colunas exatas reservadas no layout superior */}
                 <th colSpan={10} />
                 {cotistas.map((c) => (
                   <Fragment key={c.id}>
-                    <th className="px-2 py-1 text-center border-l border-border/40 font-medium bg-muted/10" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}>% Uso</th>
-                    <th className="px-2 py-1 text-right font-medium bg-muted/10" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}>Rateio</th>
+                    <th className="px-2 py-1 text-center border-l border-border font-medium" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}>% Uso</th>
+                    <th className="px-2 py-1 text-right font-medium" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}>Rateio</th>
                   </Fragment>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/30">
+            <tbody className="divide-y divide-border/60">
               {isLoading ? (
                 <tr><td colSpan={10 + cotistas.length * 2} className="px-4 py-8 text-center text-muted-foreground">Carregando lançamentos...</td></tr>
               ) : gruposFiltrados.length === 0 ? (
                 <tr><td colSpan={10 + cotistas.length * 2} className="px-4 py-8 text-center text-muted-foreground">Nenhum lançamento encontrado no período.</td></tr>
               ) : (
-                gruposFiltrados.map((g) => (
-                  <LinhaGrupo
-                    key={g.chave}
-                    g={g}
-                    cotistas={cotistas}
-                    fornecedores={fornecedores}
-                    categorias={categorias}
-                    pagadores={pagadores}
-                    getCellStyles={getCellStyles}
-                    onUpdate={(patch) => updateGrupo(g, patch)}
-                  />
-                ))
+                ["ENTRADA", "SAIDA"].map((fluxo) => {
+                  const gruposDoFluxo = gruposFiltrados.filter((g) => (g.fluxo || "").toUpperCase() === fluxo);
+                  if (!gruposDoFluxo.length) return null;
+
+                  return (
+                    <Fragment key={fluxo}>
+                      {gruposDoFluxo.map((g) => (
+                        <LinhaGrupo
+                          key={g.chave}
+                          g={g}
+                          cotistas={cotistas}
+                          fornecedores={fornecedores}
+                          categorias={categorias}
+                          pagadores={pagadores}
+                          getCellStyles={getCellStyles}
+                          selectedChaves={selectedChaves}
+                          onToggleSelect={toggleSelecao}
+                          onUpdate={(patch) => updateGrupo(g, patch)}
+                          travelReportPdf={g.despesa_id ? travelReportMap.get(g.despesa_id) || null : null}
+                          reciboInfo={g.numero_recibo ? reciboMap.get(String(g.numero_recibo)) || null : null}
+                          abastecimentoAnexos={g.abastecimentoAnexos ?? null}
+                        />
+                      ))}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -463,23 +809,25 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   );
 }
 
-function ResizeHandle({ columnKey, startWidth, setResizing }: { columnKey: string; startWidth: number; setResizing: any }) {
+function ResizeHandle({ columnKey, startWidth, onStartResize }: { columnKey: string; startWidth: number; onStartResize: (key: string, clientX: number, startWidth: number) => void }) {
   return (
     <div
       data-no-drag
       role="separator"
       tabIndex={0}
-      className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize hover:bg-primary/20 z-10 transition-colors"
+      className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize hover:bg-primary/20 z-10 transition-colors"
       onMouseDown={(event) => {
         event.preventDefault();
-        setResizing({ key: columnKey, startX: event.clientX, startWidth });
+        event.stopPropagation();
+        onStartResize(columnKey, event.clientX, startWidth);
       }}
     />
   );
 }
 
 function LinhaGrupo({
-  g, cotistas, fornecedores, categorias, pagadores, getCellStyles, onUpdate,
+  g, cotistas, fornecedores, categorias, pagadores, getCellStyles, selectedChaves, onToggleSelect, onUpdate,
+  travelReportPdf, reciboInfo, abastecimentoAnexos,
 }: {
   g: GrupoLancamento;
   cotistas: Cotista[];
@@ -487,7 +835,12 @@ function LinhaGrupo({
   categorias: { id: string; label: string }[];
   pagadores: { id: string; label: string }[];
   getCellStyles: (key: string) => React.CSSProperties;
+  selectedChaves: string[];
+  onToggleSelect: (chave: string) => void;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
+  travelReportPdf: string | null;
+  reciboInfo: { url_pdf: string | null; numero_recibo: string | null } | null;
+  abastecimentoAnexos: GrupoLancamento["abastecimentoAnexos"];
 }) {
   const qc = useQueryClient();
   const [openDate, setOpenDate] = useState(false);
@@ -504,6 +857,7 @@ function LinhaGrupo({
   useEffect(() => { setValorDespesa(formatNumberPTBR(Number(g.valor_total_despesa ?? 0))); }, [g.valor_total_despesa]);
 
   const dataRef = g.data_pagamento || g.data_vencimento;
+  const isEntrada = (g.fluxo || "").toUpperCase() === "ENTRADA";
   const categoriaSelecionada = useMemo(() => {
     const raw = String(g.categoria_custo ?? "").trim();
     if (!raw) return "";
@@ -540,7 +894,10 @@ function LinhaGrupo({
 
   return (
     <>
-      <tr className={cn("hover:bg-primary/5 transition-colors cursor-pointer group", expanded && "bg-primary/5 border-b-transparent")} onClick={handleRowClick}>
+      <tr className={cn("hover:bg-muted/50 transition-colors cursor-pointer group", expanded && "bg-muted/40 border-b-transparent", selectedChaves.includes(g.chave) && "bg-primary/5") } onClick={handleRowClick}>
+        <td className="px-2 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={selectedChaves.includes(g.chave)} onCheckedChange={() => onToggleSelect(g.chave)} aria-label={`Selecionar lançamento ${g.descricao_despesa || g.numero_doc || g.chave}`} />
+        </td>
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("data")}>
           {isPago ? (
             <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{fmtDate(dataRef)}</div>
@@ -575,9 +932,9 @@ function LinhaGrupo({
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("valorDespesa")}>
+        <td className="px-2 py-1.5 overflow-hidden text-right" style={getCellStyles("valorDespesa")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{formatBRL(g.valor_total_despesa)}</div>
+            <div className={cn("h-8 flex items-center justify-end text-xs font-mono font-bold truncate tabular-nums", isEntrada ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>{formatBRL(g.valor_total_despesa)}</div>
           ) : (
             <div className="relative w-full">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">R$</span>
@@ -605,7 +962,7 @@ function LinhaGrupo({
                   if (normalized !== Number(g.valor_total_despesa ?? 0)) onUpdate({ valor_total_despesa: normalized });
                   setValorDespesa(formatNumberPTBR(normalized));
                 }}
-                className="h-8 text-xs font-mono pl-7 w-full font-bold"
+                className="h-8 text-xs font-mono pl-7 w-full font-bold text-right"
                 placeholder="0,00"
               />
             </div>
@@ -662,27 +1019,15 @@ function LinhaGrupo({
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden text-center" style={getCellStyles("fluxo")}>
-          {isPago ? (
-            <div className="h-8 flex items-center justify-center text-xs font-medium text-foreground truncate">{(g.fluxo || "—").toUpperCase()}</div>
-          ) : (
-            <Select value={(g.fluxo || "").toUpperCase()} onValueChange={(v) => onUpdate({ fluxo: v })}>
-              <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ENTRADA" className="text-xs">Entrada</SelectItem>
-                <SelectItem value="SAIDA" className="text-xs">Saída</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        </td>
+        {/* 
+          A COLUNA FLUXO FOI REMOVIDA DAQUI POIS NÃO EXISTIA MAIS NO CABEÇALHO. 
+          Isso resolveu todo o problema de desalinhamento das células de rateio! 
+        */}
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("pagoPor")}>
           {isPago ? (
-            <div className="h-8 flex items-center gap-2">
+            <div className="h-8 flex items-center">
               <div className="min-w-0 flex-1 text-xs font-medium text-foreground truncate">{g.pago_por || "—"}</div>
-              <Button size="icon" variant="outline" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); setShowPayDialog(true); }} title="Editar lançamento pago">
-                <FileDigit className="h-3.5 w-3.5" />
-              </Button>
             </div>
           ) : (
             <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
@@ -697,15 +1042,15 @@ function LinhaGrupo({
           const rateado = r ? Number(r.valor_rateado) || 0 : 0;
           return (
             <Fragment key={c.id}>
-              <td className="px-2 py-1.5 text-center border-l border-border/40 text-[11px] font-medium text-muted-foreground bg-muted/5 overflow-hidden" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}>
+              <td className="px-2 py-1.5 text-center border-l border-border text-[11px] font-medium text-muted-foreground overflow-hidden" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}>
                 {r ? `${pctUso.toFixed(2)}%` : "—"}
               </td>
-              <td className="px-2 py-1.5 text-right font-mono text-[11px] bg-muted/5 overflow-hidden pr-3" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}>
+              <td className="px-2 py-1.5 text-right font-mono text-[11px] overflow-hidden pr-3 tabular-nums" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}>
                 {r ? (
                   <div className="flex flex-col items-end w-full">
                     <span className="font-semibold text-foreground">{formatBRL(rateado)}</span>
                     {Number(r.valor_pago_real || 0) > 0 && (
-                      <span className="text-[9px] text-emerald-500/80 leading-tight block truncate w-full text-right mt-0.5">
+                      <span className="text-[9px] text-emerald-600 dark:text-emerald-400/80 leading-tight block truncate w-full text-right mt-0.5">
                         Pago: {formatBRL(Number(r.valor_pago_real || 0))}
                       </span>
                     )}
@@ -717,25 +1062,25 @@ function LinhaGrupo({
         })}
       </tr>
 
-      {/* Card Expandido focado apenas até a 9ª Coluna (Fluxo) */}
+      {/* Card Expandido focado nas 9 colunas (Checkbox + 8 infos antes do Pago Por) */}
       {expanded && (
-        <tr className="bg-muted/5">
-          <td colSpan={9} className="p-0 border-b border-primary/20 align-top bg-gradient-to-b from-primary/5 to-transparent/5">
-            <div className="px-5 py-4 animate-in slide-in-from-top-2 duration-200 shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)]">
+        <tr className="bg-muted/20">
+          <td colSpan={9} className="p-0 border-b border-border align-top">
+            <div className="px-5 py-4 animate-in slide-in-from-top-2 duration-200">
               <div className="flex flex-col md:flex-row gap-6 justify-between items-start">
                 <div className="flex-1 min-w-[280px] w-full space-y-3">
                   <div className="flex items-center gap-2">
                     {isPago ? (
-                      <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/30 gap-1.5 px-2.5 py-0.5 rounded-md shadow-sm"><CheckCircle2 className="h-3.5 w-3.5" /> Pago</Badge>
+                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><CheckCircle2 className="h-3.5 w-3.5" /> Pago</Badge>
                     ) : status === "cancelado" ? (
-                      <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/20 border-red-500/30 gap-1.5 px-2.5 py-0.5 rounded-md shadow-sm"><XCircle className="h-3.5 w-3.5" /> Cancelado</Badge>
+                      <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 border-rose-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><XCircle className="h-3.5 w-3.5" /> Cancelado</Badge>
                     ) : (
-                      <Badge className="bg-amber-500/15 text-amber-500 hover:bg-amber-500/20 border-amber-500/30 gap-1.5 px-2.5 py-0.5 rounded-md shadow-sm"><Clock className="h-3.5 w-3.5" /> Pendente</Badge>
+                      <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><Clock className="h-3.5 w-3.5" /> Pendente</Badge>
                     )}
                     <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider ml-2">Detalhes Financeiros</span>
                   </div>
 
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs bg-background/50 border border-border/40 p-3 rounded-xl shadow-sm">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs bg-background border border-border p-3 rounded-lg">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] uppercase text-muted-foreground font-semibold">Vencimento</span>
                       <span className="font-medium text-foreground">{fmtDate(g.data_vencimento)}</span>
@@ -750,12 +1095,12 @@ function LinhaGrupo({
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] uppercase text-muted-foreground font-semibold">Valor Total</span>
-                      <span className="font-mono text-[13px] font-bold text-primary">{formatBRL(g.valor_total_despesa)}</span>
+                      <span className="font-mono text-[13px] font-bold text-primary tabular-nums">{formatBRL(g.valor_total_despesa)}</span>
                     </div>
                   </div>
 
                   {g.observacoes && (
-                    <div className="text-xs bg-background/30 p-2.5 rounded-lg border border-border/20 text-muted-foreground/90 italic">
+                    <div className="text-xs bg-background p-2.5 rounded-lg border border-border text-muted-foreground/90 italic">
                       <span className="font-semibold not-italic mr-1">Obs:</span> {g.observacoes}
                     </div>
                   )}
@@ -766,6 +1111,19 @@ function LinhaGrupo({
                     <Paperclip className="h-3.5 w-3.5" /> Anexos e Documentos
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {travelReportPdf && (
+                      <AnexoPill label="Relatório de Viagem (PDF)" numero={null} url={travelReportPdf} />
+                    )}
+                    {reciboInfo?.url_pdf && (
+                      <AnexoPill label="Recibo (PDF)" numero={reciboInfo.numero_recibo} url={reciboInfo.url_pdf} />
+                    )}
+                    {abastecimentoAnexos && (abastecimentoAnexos.comanda_url || abastecimentoAnexos.nota_url || abastecimentoAnexos.boleto_url) && (
+                      <>
+                        <AnexoPill label="Comanda" numero={abastecimentoAnexos.comanda || null} url={abastecimentoAnexos.comanda_url} />
+                        <AnexoPill label="Nota" numero={abastecimentoAnexos.nf || null} url={abastecimentoAnexos.nota_url} />
+                        <AnexoPill label="Boleto" numero={null} url={abastecimentoAnexos.boleto_url} />
+                      </>
+                    )}
                     <AnexoPill label="Nota Fiscal" numero={g.numero_nf} url={g.nf_url} />
                     <AnexoPill label="Recibo" numero={g.numero_recibo} url={g.recibo_url} />
                     <AnexoPill label="Boleto" numero={g.numero_boleto} url={g.boleto_url} />
@@ -774,18 +1132,18 @@ function LinhaGrupo({
                   </div>
                 </div>
 
-                <div className="min-w-[140px] flex flex-col gap-2 border-l border-border/30 pl-6 shrink-0">
+                <div className="min-w-[140px] flex flex-col gap-2 border-l border-border pl-6 shrink-0">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Ações</div>
                   {!isPago ? (
-                    <Button size="sm" onClick={() => setShowPayDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-8 text-[11px] w-full justify-start shadow-sm">
+                    <Button size="sm" onClick={() => setShowPayDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-8 text-[11px] w-full justify-start">
                       <DollarSign className="h-3.5 w-3.5" /> Quitar Lançamento
                     </Button>
                   ) : (
-                    <Button size="sm" variant="secondary" onClick={() => setShowPayDialog(true)} className="gap-2 h-8 text-[11px] w-full justify-start shadow-sm">
+                    <Button size="sm" variant="secondary" onClick={() => setShowPayDialog(true)} className="gap-2 h-8 text-[11px] w-full justify-start">
                       <FileDigit className="h-3.5 w-3.5" /> Editar Pagamento
                     </Button>
                   )}
-                  <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-red-500 hover:bg-red-500/10 hover:text-red-600 h-8 text-[11px] w-full justify-start mt-1">
+                  <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 hover:text-rose-600 h-8 text-[11px] w-full justify-start mt-1">
                     <Trash2 className="h-3.5 w-3.5" /> Excluir
                   </Button>
                 </div>
@@ -793,13 +1151,13 @@ function LinhaGrupo({
             </div>
           </td>
 
-          {/* Células vazias para as colunas "Pago Por" e "Cotistas" para que a estrutura visual da linha acima não seja afetada */}
-          <td className="p-0 border-b border-primary/20 bg-transparent align-top" style={getCellStyles("pagoPor")}></td>
-          
+          {/* Células vazias de fechamento de coluna da tabela pai */}
+          <td className="p-0 border-b border-border bg-transparent align-top" style={getCellStyles("pagoPor")}></td>
+
           {cotistas.map((c) => (
             <Fragment key={`exp-${c.id}`}>
-              <td className="p-0 border-b border-primary/20 align-top border-l border-border/40 bg-transparent" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}></td>
-              <td className="p-0 border-b border-primary/20 align-top bg-transparent" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}></td>
+              <td className="p-0 border-b border-border align-top border-l border-border bg-transparent" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}></td>
+              <td className="p-0 border-b border-border align-top bg-transparent" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}></td>
             </Fragment>
           ))}
         </tr>
@@ -828,7 +1186,7 @@ function LinhaGrupo({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleExcluir} className="bg-red-600 hover:bg-red-700 text-white">Excluir Lançamento</AlertDialogAction>
+            <AlertDialogAction onClick={handleExcluir} className="bg-rose-600 hover:bg-rose-700 text-white">Excluir Lançamento</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -839,7 +1197,7 @@ function LinhaGrupo({
 function AnexoPill({ label, numero, url }: { label: string; numero: string | null; url: string | null }) {
   const isFilled = numero || url;
   return (
-    <div className={cn("flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-colors", isFilled ? "bg-background/60 border-border/60 hover:bg-background/80" : "bg-transparent border-border/20 opacity-60")}>
+    <div className={cn("flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-colors", isFilled ? "bg-background border-border hover:bg-muted/40" : "bg-transparent border-border/40 opacity-60")}>
       <span className="font-medium text-muted-foreground/80">{label}</span>
       <div className="flex items-center gap-2">
         {numero && <span className="font-mono text-foreground/80 max-w-[80px] truncate" title={numero}>{numero}</span>}
@@ -1100,19 +1458,49 @@ function PagamentoDialog({
             <Label>Observações</Label>
             <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} />
           </div>
-          <div className="grid gap-2">
-            <Label>Anexos do lançamento</Label>
-            <Input type="file" accept="image/*,.pdf" onChange={(e) => setComprovante(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Comprovante" />
-            <Input type="file" accept="image/*,.pdf" onChange={(e) => setNotaFiscal(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Nota fiscal" />
-            <Input type="file" accept="image/*,.pdf" onChange={(e) => setRecibo(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Recibo" />
-            <Input type="file" accept="image/*,.pdf" onChange={(e) => setBoleto(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Boleto" />
-            <Input type="file" accept="image/*,.pdf" onChange={(e) => setDocumento(e.target.files?.[0] || null)} className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium" aria-label="Outro documento" />
-            <div className="space-y-1 text-xs text-muted-foreground">
-              {grupo.comprovante_url && !comprovante && <a href={grupo.comprovante_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Comprovante atual </a>}
-              {grupo.nf_url && !notaFiscal && <a href={grupo.nf_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Nota fiscal atual </a>}
-              {grupo.recibo_url && !recibo && <a href={grupo.recibo_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Recibo atual </a>}
-              {grupo.boleto_url && !boleto && <a href={grupo.boleto_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1.5"> <ExternalLink className="h-3.5 w-3.5" /> Boleto atual </a>}
+          <div className="grid gap-3 rounded-lg border border-border p-3">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+              <Paperclip className="h-3.5 w-3.5" /> Anexos do lançamento
             </div>
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              Cada campo abaixo é gravado na coluna correspondente do banco. Envie o arquivo certo em cada linha.
+            </p>
+
+            <FileFieldRow
+              label="Comprovante"
+              hint="→ comprovante_url"
+              currentUrl={grupo.comprovante_url}
+              file={comprovante}
+              onChange={setComprovante}
+            />
+            <FileFieldRow
+              label="Nota Fiscal"
+              hint="→ nf_url"
+              currentUrl={grupo.nf_url}
+              file={notaFiscal}
+              onChange={setNotaFiscal}
+            />
+            <FileFieldRow
+              label="Recibo"
+              hint="→ recibo_url"
+              currentUrl={grupo.recibo_url}
+              file={recibo}
+              onChange={setRecibo}
+            />
+            <FileFieldRow
+              label="Boleto"
+              hint="→ boleto_url"
+              currentUrl={grupo.boleto_url}
+              file={boleto}
+              onChange={setBoleto}
+            />
+            <FileFieldRow
+              label="Outro documento"
+              hint="salvo em Observações"
+              currentUrl={null}
+              file={documento}
+              onChange={setDocumento}
+            />
           </div>
         </div>
         <DialogFooter className="pt-2">
@@ -1123,5 +1511,46 @@ function PagamentoDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+function FileFieldRow({
+  label, hint, currentUrl, file, onChange,
+}: {
+  label: string;
+  hint: string;
+  currentUrl: string | null;
+  file: File | null;
+  onChange: (f: File | null) => void;
+}) {
+  return (
+    <div className="grid gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs font-semibold text-foreground">
+          {label} <span className="ml-1 text-[10px] font-mono text-muted-foreground/70">{hint}</span>
+        </Label>
+        {currentUrl && !file && (
+          <a
+            href={currentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-primary hover:underline flex items-center gap-1"
+          >
+            <ExternalLink className="h-3 w-3" /> atual
+          </a>
+        )}
+      </div>
+      <Input
+        type="file"
+        accept="image/*,.pdf"
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+        className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium"
+        aria-label={label}
+      />
+      {file && (
+        <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 truncate">
+          Novo arquivo: {file.name}
+        </span>
+      )}
+    </div>
   );
 }

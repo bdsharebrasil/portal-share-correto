@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash, CheckCircle2, DollarSign, Search, X } from "lucide-react";
+import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Trash, CheckCircle2, DollarSign, Search, X } from "lucide-react";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
 import { FuelPaymentDialog } from "./FuelPaymentDialog";
 import { FinancialHistoryTab } from "./FinancialHistoryTab";
-import { EnvioDespesaTab } from "./EnvioDespesaTab";
 import { toast } from "sonner";
 
 export interface ClientDataTabsProps {
@@ -545,7 +544,6 @@ export function ClientDataTabs({
               <TabsTrigger value="fuel">Abastecimentos</TabsTrigger>
               <TabsTrigger value="ctm">CTM</TabsTrigger>
               <TabsTrigger value="travel-reports">Relatórios de Viagem</TabsTrigger>
-              <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
             </TabsList>
           </div>
 
@@ -1269,28 +1267,6 @@ export function ClientDataTabs({
           </Card>
         </TabsContent>
 
-        {/* ── Envio de Despesa ────────────────────────────────────────────────── */}
-        <TabsContent value="envio-despesa" className="space-y-4">
-          <Card className="bg-gradient-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Send className="h-5 w-5 text-primary" />
-                Envio de Despesa ao Cliente
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Envie despesas diretamente para o cliente, selecionando um fornecedor favorito.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <EnvioDespesaTab
-                clientId={clientId}
-                clientName={clientName}
-                aircraftId={aircraftId}
-                aircraftRegistration={aircraftRegistration}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       <FileUploadDialog
