@@ -814,19 +814,22 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   );
 }
 
-function ResizeHandle({ columnKey, startWidth, onStartResize }: { columnKey: string; startWidth: number; onStartResize: (key: string, clientX: number, startWidth: number) => void }) {
+function ResizeHandle({ columnKey, startWidth, onStartResize, isResizing }: { columnKey: string; startWidth: number; onStartResize: (key: string, clientX: number, startWidth: number) => void; isResizing?: boolean }) {
   return (
     <div
       data-no-drag
       role="separator"
-      tabIndex={0}
-      className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize hover:bg-primary/20 z-10 transition-colors"
+      aria-orientation="vertical"
+      title="Arraste para redimensionar coluna"
+      className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-10 flex items-stretch justify-end group/rh"
       onMouseDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
         onStartResize(columnKey, event.clientX, startWidth);
       }}
-    />
+    >
+      <div className={`w-[3px] h-full transition-colors ${isResizing ? "bg-primary" : "bg-border/50 group-hover/rh:bg-primary/70"}`} />
+    </div>
   );
 }
 
