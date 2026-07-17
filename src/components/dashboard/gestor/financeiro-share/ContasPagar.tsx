@@ -132,13 +132,29 @@ export function ContasPagar() {
         .select(`
           *,
           fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo, conta_pagamento),
-          clientes:cliente_id(id, razao_social, proprietario)
+          clientes:cliente_id(id, razao_social, proprietario),
+          socios:socios_cliente_id(id, nome)
         `)
         .neq("status", "paga")
         .order("data_vencimento", { ascending: true });
 
       if (error) throw error;
-      setContas(data || []);
+
+      // Buscar nome do solicitante (criado_por → user_profiles)
+      const userIds = [...new Set((data || []).map((c: any) => c.criado_por).filter(Boolean))];
+      const userMap = new Map<string, string>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("user_profiles")
+          .select("id, full_name")
+          .in("id", userIds as string[]);
+        (profiles || []).forEach((p: any) => userMap.set(p.id, p.full_name || ""));
+      }
+      const enriched = (data || []).map((c: any) => ({
+        ...c,
+        solicitante_nome: c.criado_por ? userMap.get(c.criado_por) || null : null,
+      }));
+      setContas(enriched);
     } catch (err: any) {
       toast.error("Erro ao carregar lista: " + err.message);
     } finally {
@@ -233,8 +249,9 @@ export function ContasPagar() {
 
     setIsSaving(true);
     try {
+      const { socios_id, ...payloadForm } = formData;
       const payload = {
-        ...formData,
+        ...payloadForm,
         valor: parseFloat(formData.valor.toString().replace(',', '.')),
         criado_por: user?.id,
         numero_doc: formData.numero_doc || null,
@@ -506,20 +523,79 @@ export function ContasPagar() {
                         onClick={() => !isRecorrente && toggleExpand(conta.id)}
                       >
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            {isRecorrente && <Repeat className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
-                            <div>
-                              <div className="font-semibold text-foreground">
-                                {conta.fornecedores_favoritos?.nome_completo || conta.fornecedor_nome || "Lançamento Avulso"}
-                              </div>
-                              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                {conta.numero_doc || "Sem documento"} • <span className="italic">{conta.categoria}</span>
-                              </div>
-                              {conta.conta_pagamento_fornecedor && (
-                                <div className="text-[10px] text-muted-foreground/70 mt-0.5">
-                                  Pagar em: {conta.conta_pagamento_fornecedor}
-                                </div>
-                              )}
+                          <div className="flex items-start gap-2">
+                            {isRecorrente && <Repeat className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0 mt-1" />}
+                            <div className="min-w-0 space-y-0.5">
+                              {(() => {
+                                const isTravelReport = typeof conta.reference_type === "string" && conta.reference_type.startsWith("travel_report");
+                                const rvMatch = conta.descricao?.match(/RV\s+([A-Z0-9\-\/]+)/i);
+                                const numeroRV = rvMatch?.[1] || null;
+                                const tripulanteMatch = conta.descricao?.match(/TRIPULANTE\s+\d+\s*\(([^)]+)\)/i);
+                                const nomeTripulante = tripulanteMatch?.[1] || null;
+                                const baseTitle = conta.fornecedores_favoritos?.nome_completo || conta.fornecedor_nome || (isTravelReport ? nomeTripulante : null);
+                                const titleText = baseTitle || conta.categoria || "Lançamento Avulso";
+                                const subtitleText = baseTitle ? conta.categoria : null;
+                                const clienteNome = conta.clientes?.razao_social || conta.clientes?.proprietario;
+                                const socioNome = conta.socios?.nome;
+                                return (
+                                  <>
+                                    <div className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
+                                      <span
+                                        className="cursor-pointer hover:text-primary transition-colors"
+                                        onClick={(e) => { e.stopPropagation(); if (!isRecorrente) toggleExpand(conta.id); }}
+                                      >
+                                        {titleText}
+                                      </span>
+                                      {isTravelReport && (
+                                        <Badge variant="outline" className="text-[9px] font-semibold text-sky-600 border-sky-500/30 bg-sky-500/10 uppercase">
+                                          Relatório de Viagem{numeroRV ? ` • RV ${numeroRV}` : ""}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">
+                                      {conta.numero_doc || conta.nf_numero || conta.numero_recibo || "Sem documento"} • <span className="italic">{subtitleText || "—"}</span>
+                                    </div>
+                                    {isTravelReport && (
+                                      <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                        A pagar ao tripulante: R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                      </div>
+                                    )}
+                                    {clienteNome && (
+                                      <div className="text-[11px] text-foreground/80">
+                                        <span className="text-muted-foreground">Cliente-Sócio:</span> <span className="font-medium">{clienteNome}</span>
+                                      </div>
+                                    )}
+                                    {socioNome && (
+                                      <div className="text-[11px] text-foreground/80">
+                                        <span className="text-muted-foreground">Sócio:</span> <span className="font-medium">{socioNome}</span>
+                                      </div>
+                                    )}
+                                    {conta.aeronave_registro && (
+                                      <div className="text-[11px] text-foreground/80">
+                                        <span className="text-muted-foreground">Aeronave:</span> <span className="font-medium">{conta.aeronave_registro}</span>
+                                      </div>
+                                    )}
+                                    {conta.descricao && !isTravelReport && (
+                                      <div className="text-[11px] text-foreground/80 line-clamp-2 max-w-md">{conta.descricao}</div>
+                                    )}
+                                    {conta.observacoes && (
+                                      <div className="text-[10px] text-muted-foreground/80 italic line-clamp-1 max-w-md">
+                                        Obs: {conta.observacoes}
+                                      </div>
+                                    )}
+                                    {conta.solicitante_nome && (
+                                      <div className="text-[10px] text-muted-foreground/70">
+                                        Solicitado por: <span className="font-medium">{conta.solicitante_nome}</span>
+                                      </div>
+                                    )}
+                                    {conta.conta_pagamento_fornecedor && (
+                                      <div className="text-[10px] text-muted-foreground/70">
+                                        Pagar em: {conta.conta_pagamento_fornecedor}
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         </td>
