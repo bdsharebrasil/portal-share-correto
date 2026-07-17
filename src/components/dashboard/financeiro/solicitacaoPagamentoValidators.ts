@@ -1,4 +1,5 @@
 export type TipoDespesaCategoria = "COMBUSTIVEIS" | "DESPESAS_DE_VIAGEM" | "OUTRA";
+export type TipoRateio = "FIXO" | "VARIAVEL_POR_VOO" | "VARIAVEL_POR_HORA" | "EXTRA";
 
 export interface FuelCandidate {
   id: string;
@@ -36,6 +37,15 @@ export function normalizarTipoDespesa(label: string): TipoDespesaCategoria {
   if (normalized.includes("COMBUST")) return "COMBUSTIVEIS";
   if (normalized.includes("DESPESA") && normalized.includes("VIAGEM")) return "DESPESAS_DE_VIAGEM";
   return "OUTRA";
+}
+
+export function normalizarTipoRateio(value: string | null | undefined): TipoRateio {
+  const normalized = (value || "").normalize("NFD").replace(/[^\w\s]/g, "").trim().toUpperCase();
+
+  if (normalized.includes("VARIAVEL") && normalized.includes("VOO")) return "VARIAVEL_POR_VOO";
+  if (normalized.includes("VARIAVEL") && normalized.includes("HORA")) return "VARIAVEL_POR_HORA";
+  if (normalized.includes("EXTRA")) return "EXTRA";
+  return "FIXO";
 }
 
 export function findExistingFuelReference(

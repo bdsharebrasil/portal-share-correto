@@ -3,6 +3,7 @@ import {
   findExistingReceiptReference,
   findExistingTravelExpenseReference,
   normalizarTipoDespesa,
+  normalizarTipoRateio,
 } from "../solicitacaoPagamentoValidators";
 
 describe("solicitacaoPagamentoValidators", () => {
@@ -24,6 +25,20 @@ describe("solicitacaoPagamentoValidators", () => {
       expect(normalizarTipoDespesa("Manutenção")).toBe("OUTRA");
       expect(normalizarTipoDespesa("Consultoria")).toBe("OUTRA");
       expect(normalizarTipoDespesa("Hotel")).toBe("OUTRA");
+    });
+  });
+
+  describe("normalizarTipoRateio", () => {
+    it("deve normalizar os tipos de rateio suportados", () => {
+      expect(normalizarTipoRateio("FIXO")).toBe("FIXO");
+      expect(normalizarTipoRateio("variável por voo")).toBe("VARIAVEL_POR_VOO");
+      expect(normalizarTipoRateio("Variável por hora")).toBe("VARIAVEL_POR_HORA");
+      expect(normalizarTipoRateio("extra")).toBe("EXTRA");
+    });
+
+    it("deve retornar FIXO para valores desconhecidos", () => {
+      expect(normalizarTipoRateio("")).toBe("FIXO");
+      expect(normalizarTipoRateio("qualquer coisa")).toBe("FIXO");
     });
   });
 

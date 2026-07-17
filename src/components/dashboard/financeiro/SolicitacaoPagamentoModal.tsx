@@ -21,6 +21,7 @@ import {
   findExistingReceiptReference,
   findExistingTravelExpenseReference,
   normalizarTipoDespesa,
+  normalizarTipoRateio,
 } from "@/components/dashboard/financeiro/solicitacaoPagamentoValidators";
 
 interface SolicitacaoPagamentoModalProps {
@@ -109,6 +110,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [valorTotal, setValorTotal] = useState("");
   const [percentualUso, setPercentualUso] = useState("100");
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("EVENTUAL");
+  const [tipoRateio, setTipoRateio] = useState("FIXO");
   const [observacoes, setObservacoes] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
   const [fornecedorNome, setFornecedorNome] = useState("");
@@ -319,7 +321,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const resetForm = () => {
     setClienteId(""); setSocioId(""); setAeronaveId(""); setReembolsavel(false);
     setTipoDespesa(""); setTipoDespesaLabel(""); setDescricao(""); setValorTotal("");
-    setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setObservacoes("");
+    setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio("FIXO"); setObservacoes("");
     setFornecedorId(""); setFornecedorNome("");
     setDataEmissao(new Date()); setDataVencimento(new Date()); setAnexos([]);
     setUsarReciboExistente(false); setReciboExistenteId(""); setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
@@ -403,10 +405,23 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     const categoriaLimpa = (nomeCategoria || '').trim();
     if (!categoriaLimpa) return null;
 
+    const { data: expenseConfig, error: expenseError } = await supabase
+      .from('expense_configu')
+      .select('id, expense_type')
+      .ilike('expense_type', categoriaLimpa)
+      .limit(1)
+      .maybeSingle();
+
+    if (expenseError) {
+      console.warn('Erro ao buscar tipo de despesa em expense_configu:', expenseError);
+    }
+
+    const nomeParaCategoria = expenseConfig?.expense_type || categoriaLimpa;
+
     const { data: categoriaExistente, error: categoriaError } = await supabase
       .from('categorias_movimentacao')
       .select('id, nome')
-      .ilike('nome', categoriaLimpa)
+      .ilike('nome', nomeParaCategoria)
       .limit(1)
       .maybeSingle();
 
@@ -415,27 +430,52 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       return null;
     }
 
-    if (categoriaExistente?.id) return categoriaExistente.id;
+    if (categoriaExistente?.id) {
+      const { data: categoriaConfirmada, error: confirmError } = await supabase
+        .from('categorias_movimentacao')
+        .select('id')
+        .eq('id', categoriaExistente.id)
+        .maybeSingle();
 
-    const fallbackName = categoriaLimpa.length > 80 ? categoriaLimpa.slice(0, 80) : categoriaLimpa;
-    const { data: categoriaCriada, error: createError } = await supabase
-      .from('categorias_movimentacao')
-      .insert({
-        nome: fallbackName,
-        tipo: 'despesa',
-        grupo_categoria: 'DESPESAS',
-        ativo: true,
-        criado_por: userId,
-      } as any)
-      .select('id, nome')
-      .single();
-
-    if (createError) {
-      console.warn('Erro ao criar categoria fallback:', createError);
+      if (!confirmError && categoriaConfirmada?.id) return categoriaConfirmada.id;
+      console.warn('Categoria localizada mas não confirmada no banco:', categoriaExistente.id);
       return null;
     }
 
-    return categoriaCriada?.id || null;
+    const fallbackName = nomeParaCategoria.length > 80 ? nomeParaCategoria.slice(0, 80) : nomeParaCategoria;
+    try {
+      const { data: categoriaCriada, error: createError } = await supabase
+        .from('categorias_movimentacao')
+        .insert({
+          nome: fallbackName,
+          tipo: 'despesa',
+          grupo_categoria: 'DESPESAS',
+          ativo: true,
+          criado_por: userId,
+        } as any)
+        .select('id, nome')
+        .single();
+
+      if (createError) {
+        console.warn('Erro ao criar categoria fallback:', createError);
+        return null;
+      }
+
+      if (!categoriaCriada?.id) return null;
+
+      const { data: categoriaConfirmada, error: confirmError } = await supabase
+        .from('categorias_movimentacao')
+        .select('id')
+        .eq('id', categoriaCriada.id)
+        .maybeSingle();
+
+      if (!confirmError && categoriaConfirmada?.id) return categoriaConfirmada.id;
+      console.warn('Categoria criada mas não confirmada no banco:', categoriaCriada.id);
+      return null;
+    } catch (error) {
+      console.warn('Falha inesperada ao resolver categoria:', error);
+      return null;
+    }
   };
 
   // --- Cadastro rápido tipo despesa ---
@@ -563,162 +603,130 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       }
 
       const categoriaContaId = await resolveCategoriaConta(tipoDespesaLabel || 'Despesa', userId);
+      const tipoRateioFinal = normalizarTipoRateio(tipoRateio);
+      const supabaseClient = supabase as unknown as SupabaseClientLike;
+      const travelReportNumeroDoc = (isViagemMode && travelReportSel?.numero_relatorio) ? travelReportSel.numero_relatorio : docNum;
       if (!categoriaContaId) {
         throw new Error("Não foi possível resolver/criar a categoria da despesa. Verifique as permissões de escrita em 'categorias_movimentacao'.");
       }
 
-      // 1) contas_apagar
-      const capId = await insertAndGetId("contas_apagar", {
-        data_vencimento: dataVenc,
-        data_agendamento: dataVenc,
-        valor: valorNumerico,
-        categoria: tipoDespesaLabel || null,
-        categoria_id: categoriaContaId || null,
-        descricao,
-        status: statusCP,
-        observacoes: observacoes || null,
-        cliente_id: clienteId,
-        socios_cliente_id: socioId || null,
-        fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
-        fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null,
-        fornecedor_nome: fornecedorNome || null,
-        aeronave_registro: aeronaveSel?.matricula || null,
-        possui_boleto: !!boletoUrl,
-        boleto_url: boletoUrl,
-        vencimento_boleto: boletoUrl ? dataVenc : null,
-        possui_nf: !!nfUrl,
-        nf_numero: nfNum,
-        nf_url: nfUrl,
-        possui_recibo: !!reciboUrl,
-        numero_recibo: reciboNum,
-        recibo_url: reciboUrl,
-        data_recibo: reciboUrl ? dataComp : null,
-        numero_doc: docNum,
-        arquivo_pdf_url: docUrl,
-        criado_por: userId,
-      });
-
-      // 2) movimentacoes (tipo despesa, tipo_caixa cliente) — com rollback em caso de erro
-      let movId: string;
-      try {
-        movId = await insertAndGetId("movimentacoes", {
-          descricao,
-          tipo: "despesa",
-          tipo_caixa: "cliente",
-          categoria_id: categoriaContaId,
-          valor: valorNumerico,
-          data_competencia: dataComp,
-          data_vencimento: dataVenc,
-          status: statusMov,
-          aeronave_id: aeronaveId || null,
-          clientes_id: clienteId,
-          socio_id: socioId || null,
-          reembolsavel,
-          fornecedor_nome: fornecedorNome || null,
-          numero_nf: nfNum,
-          numero_recibo: reciboNum,
-          numero_boleto: boletoNum,
-          numero_doc: docNum,
-          nf_url: nfUrl,
-          recibo_url: reciboUrl,
-          boleto_url: boletoUrl,
-          comprovante_url: comprovanteUrl,
-          observacoes: obsFinal || null,
-          contas_apagar_id: capId,
-          reference_type: referenciaTipo || "solicitacao_pagamento",
-          reference_id: referenciaTipo && referenciaId ? referenciaId : null,
-          criado_por: userId,
-        });
-      } catch (movErr) {
-        // Rollback: remove o contas_apagar órfão para não gerar duplicidade
-        await supabase.from("contas_apagar").delete().eq("id", capId);
-        throw movErr;
-      }
-
-      await supabase.from("contas_apagar").update({ movimentacao_id: movId }).eq("id", capId);
-
-      // 3) rateio_despesas (uma linha para o cotista/cliente)
-      const supabaseClient = supabase as unknown as SupabaseClientLike;
-      await supabaseClient.from("rateio_despesas").insert({
-        despesa_id: movId,
-        fonte_despesa: fonteDespesa,
-        tipo_rateio: periodicidade === "MENSAL" ? "FIXO" : "EXTRA",
-        fluxo: "SAÍDA",
-        data_vencimento: dataVenc,
-        data_pagamento: null,
-        numero_boleto: boletoNum,
-        numero_nf: nfNum,
-        numero_doc: docNum,
-        numero_recibo: reciboNum,
-        fornecedor_nome: fornecedorNome || null,
-        cliente_id: clienteId,
-        clientes_nome: clienteSel?.razao_social || null,
-        socio_id: socioId || null,
-        socios_nome: socioSel?.nome || null,
-        pago_por: null,
-        pago_diretamente: false,
-        aeronave_id: aeronaveId || null,
-        aeronave_registro: aeronaveSel?.matricula || null,
-        percentual_sociedade: socioSel?.percentual_participacao ?? 0,
-        percentual_uso: percNumerico,
-        descricao_despesa: descricao,
-        categoria_custo: tipoDespesa || null,
-        periodicidade,
-        valor_total_despesa: valorNumerico,
-        valor_rateado: valorRateado,
-        valor_pago_real: null,
-        status: statusMov,
-        observacoes: obsFinal || null,
-        boleto_url: boletoUrl,
-        nf_url: nfUrl,
-        recibo_url: reciboUrl,
-        comprovante_url: comprovanteUrl,
-      });
-
-      // 4) Modo Despesa de Viagem: gera contas a pagar por tripulante e conta a receber para o cliente
       if (isViagemMode && travelReportSel && !rascunho) {
-        const trip1Val = Number(travelReportSel.total_trip || 0);
-        const trip2Val = Number(travelReportSel.total_trip2 || 0);
-        const cliVal = Number(travelReportSel.total_clientes || 0);
-        const anexosPdfRv = travelReportSel.url_pdf || null;
+        const tripValues = [
+          { label: "Tripulante 1", valor: Number(travelReportSel.total_trip || 0), nome: travelReportSel.nome_tripulante || null },
+          { label: "Tripulante 2", valor: Number(travelReportSel.total_trip2 || 0), nome: travelReportSel.nome_tripulante_2 || null },
+        ].filter((entry) => entry.valor > 0);
 
-        // Conta a pagar para tripulante 1
-        if (trip1Val > 0 && travelReportSel.nome_tripulante) {
-          await supabaseClient.from("contas_apagar").insert({
+        if (tripValues.length === 0) {
+          throw new Error("Nenhum valor de tripulante foi encontrado para este relatório de viagem.");
+        }
+
+        for (const entry of tripValues) {
+          const capId = await insertAndGetId("contas_apagar", {
             data_vencimento: dataVenc,
             data_agendamento: dataVenc,
-            valor: trip1Val,
+            valor: entry.valor,
             categoria: "REEMBOLSO TRIPULAÇÃO",
-            descricao: `RV ${travelReportSel.numero_relatorio} — ${travelReportSel.nome_tripulante}`,
+            categoria_id: categoriaContaId || null,
+            descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`,
             status: statusCP,
-            observacoes: `Reembolso tripulante 1 do relatório ${travelReportSel.numero_relatorio}`,
+            observacoes: `Reembolso ${entry.label.toLowerCase()} do relatório ${travelReportSel.numero_relatorio}`,
             cliente_id: clienteId,
             socios_cliente_id: socioId || null,
+            fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
+            fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null,
+            fornecedor_nome: fornecedorNome || null,
             aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
-            arquivo_pdf_url: anexosPdfRv,
-            movimentacao_id: movId,
+            possui_boleto: !!boletoUrl,
+            boleto_url: boletoUrl,
+            vencimento_boleto: boletoUrl ? dataVenc : null,
+            possui_nf: !!nfUrl,
+            nf_numero: nfNum,
+            nf_url: nfUrl,
+            possui_recibo: !!reciboUrl,
+            numero_recibo: reciboNum,
+            recibo_url: reciboUrl,
+            data_recibo: reciboUrl ? dataComp : null,
+            numero_doc: travelReportNumeroDoc,
+            arquivo_pdf_url: travelReportSel.url_pdf || docUrl || null,
             criado_por: userId,
           });
-        }
-        // Conta a pagar para tripulante 2
-        if (trip2Val > 0 && travelReportSel.nome_tripulante_2) {
-          await supabaseClient.from("contas_apagar").insert({
+
+          let movId: string;
+          try {
+            movId = await insertAndGetId("movimentacoes", {
+              descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`,
+              tipo: "despesa",
+              tipo_caixa: "cliente",
+              categoria_id: categoriaContaId,
+              valor: entry.valor,
+              valor_original: Number(travelReportSel.total_valor || valorNumerico),
+              data_competencia: dataComp,
+              data_vencimento: dataVenc,
+              status: statusMov,
+              aeronave_id: aeronaveId || null,
+              clientes_id: clienteId,
+              socio_id: socioId || null,
+              reembolsavel,
+              fornecedor_nome: fornecedorNome || null,
+              numero_nf: nfNum,
+              numero_recibo: reciboNum,
+              numero_boleto: boletoNum,
+              numero_doc: travelReportNumeroDoc,
+              nf_url: nfUrl,
+              recibo_url: reciboUrl,
+              boleto_url: boletoUrl,
+              comprovante_url: comprovanteUrl,
+              observacoes: obsFinal || null,
+              contas_apagar_id: capId,
+              reference_type: "travel_expense_report",
+              reference_id: travelReportSel.id,
+              criado_por: userId,
+            });
+          } catch (movErr) {
+            await supabase.from("contas_apagar").delete().eq("id", capId);
+            throw movErr;
+          }
+
+          await supabase.from("contas_apagar").update({ movimentacao_id: movId }).eq("id", capId);
+
+          await supabaseClient.from("rateio_despesas").insert({
+            despesa_id: movId,
+            fonte_despesa: "travel_expense_report",
+            tipo_rateio: tipoRateioFinal,
+            fluxo: "SAÍDA",
             data_vencimento: dataVenc,
-            data_agendamento: dataVenc,
-            valor: trip2Val,
-            categoria: "REEMBOLSO TRIPULAÇÃO",
-            descricao: `RV ${travelReportSel.numero_relatorio} — ${travelReportSel.nome_tripulante_2}`,
-            status: statusCP,
-            observacoes: `Reembolso tripulante 2 do relatório ${travelReportSel.numero_relatorio}`,
+            data_pagamento: null,
+            numero_boleto: boletoNum,
+            numero_nf: nfNum,
+            numero_doc: travelReportNumeroDoc,
+            numero_recibo: reciboNum,
+            fornecedor_nome: fornecedorNome || null,
             cliente_id: clienteId,
-            socios_cliente_id: socioId || null,
+            clientes_nome: clienteSel?.razao_social || null,
+            socio_id: socioId || null,
+            socios_nome: socioSel?.nome || null,
+            pago_por: null,
+            pago_diretamente: false,
+            aeronave_id: aeronaveId || null,
             aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
-            arquivo_pdf_url: anexosPdfRv,
-            movimentacao_id: movId,
-            criado_por: userId,
+            percentual_sociedade: socioSel?.percentual_participacao ?? 0,
+            percentual_uso: percNumerico,
+            descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`,
+            categoria_custo: tipoDespesa || null,
+            periodicidade,
+            valor_total_despesa: entry.valor,
+            valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2),
+            valor_pago_real: null,
+            status: statusMov,
+            observacoes: obsFinal || null,
+            boleto_url: boletoUrl,
+            nf_url: nfUrl,
+            recibo_url: reciboUrl,
+            comprovante_url: comprovanteUrl,
           });
         }
-        // Conta a receber do cliente (apenas se não houver sócio vinculado)
+
+        const cliVal = Number(travelReportSel.total_clientes || 0);
         if (!socioId && cliVal > 0) {
           await supabaseClient.from("contas_areceber").insert({
             numero: `RV-${travelReportSel.numero_relatorio}`,
@@ -736,23 +744,131 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             reference_id: travelReportSel.id,
           });
         }
-      } else if (reembolsavel && !rascunho) {
-        // Reembolso padrão (não viagem) → contas_areceber
-        await supabaseClient.from("contas_areceber").insert({
-          numero: `SP-${capId.slice(0, 8)}`,
-          cliente_id: clienteId,
-          cliente_nome: clienteSel?.razao_social || "",
-          cliente_cnpj: clienteSel?.cnpj || null,
-          data_criacao: dataComp,
+      } else {
+        // 1) contas_apagar
+        const capId = await insertAndGetId("contas_apagar", {
           data_vencimento: dataVenc,
+          data_agendamento: dataVenc,
           valor: valorNumerico,
-          categoria: "REEMBOLSO",
-          descricao: `Reembolso: ${descricao}`,
-          status: "pendente",
-          aeronave: aeronaveSel?.matricula || null,
-          reference_type: "solicitacao_pagamento",
-          reference_id: movId,
+          categoria: tipoDespesaLabel || null,
+          categoria_id: categoriaContaId || null,
+          descricao,
+          status: statusCP,
+          observacoes: observacoes || null,
+          cliente_id: clienteId,
+          socios_cliente_id: socioId || null,
+          fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
+          fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null,
+          fornecedor_nome: fornecedorNome || null,
+          aeronave_registro: aeronaveSel?.matricula || null,
+          possui_boleto: !!boletoUrl,
+          boleto_url: boletoUrl,
+          vencimento_boleto: boletoUrl ? dataVenc : null,
+          possui_nf: !!nfUrl,
+          nf_numero: nfNum,
+          nf_url: nfUrl,
+          possui_recibo: !!reciboUrl,
+          numero_recibo: reciboNum,
+          recibo_url: reciboUrl,
+          data_recibo: reciboUrl ? dataComp : null,
+          numero_doc: docNum,
+          arquivo_pdf_url: docUrl,
+          criado_por: userId,
         });
+
+        // 2) movimentacoes (tipo despesa, tipo_caixa cliente) — com rollback em caso de erro
+        let movId: string;
+        try {
+          movId = await insertAndGetId("movimentacoes", {
+            descricao,
+            tipo: "despesa",
+            tipo_caixa: "cliente",
+            categoria_id: categoriaContaId,
+            valor: valorNumerico,
+            data_competencia: dataComp,
+            data_vencimento: dataVenc,
+            status: statusMov,
+            aeronave_id: aeronaveId || null,
+            clientes_id: clienteId,
+            socio_id: socioId || null,
+            reembolsavel,
+            fornecedor_nome: fornecedorNome || null,
+            numero_nf: nfNum,
+            numero_recibo: reciboNum,
+            numero_boleto: boletoNum,
+            numero_doc: docNum,
+            nf_url: nfUrl,
+            recibo_url: reciboUrl,
+            boleto_url: boletoUrl,
+            comprovante_url: comprovanteUrl,
+            observacoes: obsFinal || null,
+            contas_apagar_id: capId,
+            reference_type: referenciaTipo || "solicitacao_pagamento",
+            reference_id: referenciaTipo && referenciaId ? referenciaId : null,
+            criado_por: userId,
+          });
+        } catch (movErr) {
+          // Rollback: remove o contas_apagar órfão para não gerar duplicidade
+          await supabase.from("contas_apagar").delete().eq("id", capId);
+          throw movErr;
+        }
+
+        await supabase.from("contas_apagar").update({ movimentacao_id: movId }).eq("id", capId);
+
+        // 3) rateio_despesas (uma linha para o cotista/cliente)
+        await supabaseClient.from("rateio_despesas").insert({
+          despesa_id: movId,
+          fonte_despesa: fonteDespesa,
+          tipo_rateio: tipoRateioFinal,
+          fluxo: "SAÍDA",
+          data_vencimento: dataVenc,
+          data_pagamento: null,
+          numero_boleto: boletoNum,
+          numero_nf: nfNum,
+          numero_doc: docNum,
+          numero_recibo: reciboNum,
+          fornecedor_nome: fornecedorNome || null,
+          cliente_id: clienteId,
+          clientes_nome: clienteSel?.razao_social || null,
+          socio_id: socioId || null,
+          socios_nome: socioSel?.nome || null,
+          pago_por: null,
+          pago_diretamente: false,
+          aeronave_id: aeronaveId || null,
+          aeronave_registro: aeronaveSel?.matricula || null,
+          percentual_sociedade: socioSel?.percentual_participacao ?? 0,
+          percentual_uso: percNumerico,
+          descricao_despesa: descricao,
+          categoria_custo: tipoDespesa || null,
+          periodicidade,
+          valor_total_despesa: valorNumerico,
+          valor_rateado: valorRateado,
+          valor_pago_real: null,
+          status: statusMov,
+          observacoes: obsFinal || null,
+          boleto_url: boletoUrl,
+          nf_url: nfUrl,
+          recibo_url: reciboUrl,
+          comprovante_url: comprovanteUrl,
+        });
+
+        if (reembolsavel && !rascunho) {
+          await supabaseClient.from("contas_areceber").insert({
+            numero: `SP-${capId.slice(0, 8)}`,
+            cliente_id: clienteId,
+            cliente_nome: clienteSel?.razao_social || "",
+            cliente_cnpj: clienteSel?.cnpj || null,
+            data_criacao: dataComp,
+            data_vencimento: dataVenc,
+            valor: valorNumerico,
+            categoria: "REEMBOLSO",
+            descricao: `Reembolso: ${descricao}`,
+            status: "pendente",
+            aeronave: aeronaveSel?.matricula || null,
+            reference_type: "solicitacao_pagamento",
+            reference_id: movId,
+          });
+        }
       }
 
       if (!rascunho) {
@@ -1000,6 +1116,21 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                     <SelectItem value="SEMESTRAL">Semestral</SelectItem>
                     <SelectItem value="ANUAL">Anual</SelectItem>
                     <SelectItem value="EVENTUAL">Eventual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Tipo de rateio</Label>
+                <Select value={tipoRateio} onValueChange={setTipoRateio}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o tipo de rateio" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FIXO">FIXO</SelectItem>
+                    <SelectItem value="VARIAVEL_POR_VOO">VARIAVEL_POR_VOO</SelectItem>
+                    <SelectItem value="VARIAVEL_POR_HORA">VARIAVEL_POR_HORA</SelectItem>
+                    <SelectItem value="EXTRA">EXTRA</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

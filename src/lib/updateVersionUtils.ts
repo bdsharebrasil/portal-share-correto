@@ -8,11 +8,14 @@ export const updateLatestVersion = async (newVersion: string): Promise<boolean> 
   try {
     const { error } = await supabase
       .from("app_config")
-      .update({
-        value: newVersion,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("key", "latest_version");
+      .upsert(
+        {
+          key: "latest_version",
+          value: newVersion,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" }
+      );
 
     if (error) {
       console.error("Erro ao atualizar versão:", error);
@@ -36,9 +39,9 @@ export const getLatestVersion = async (): Promise<string | null> => {
       .from("app_config")
       .select("value")
       .eq("key", "latest_version")
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    if (error && error.code !== "PGRST116") {
       console.error("Erro ao obter versão:", error);
       return null;
     }

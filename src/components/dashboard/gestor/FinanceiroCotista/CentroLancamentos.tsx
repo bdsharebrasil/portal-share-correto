@@ -74,6 +74,13 @@ const fmtDate = (s?: string | null) => {
   return format(d, "dd/MM/yyyy");
 };
 
+const normalizeFluxo = (value?: string | null): "ENTRADA" | "SAIDA" => {
+  const raw = String(value || "").trim().toUpperCase();
+  const normalized = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (normalized === "ENTRADA" || normalized === "CREDITO" || normalized === "CREDITO_COTISTA") return "ENTRADA";
+  return "SAIDA";
+};
+
 const getDocumentUrls = (observacoes?: string | null) => {
   if (!observacoes) return [];
   return Array.from(new Set(observacoes.match(/https?:\/\/[^\s]+/g) || []));
@@ -153,8 +160,9 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   useEffect(() => {
     if (!resizing) return;
 
-    const onMove = (event: MouseEvent) => {
-      const nextWidth = Math.max(80, Math.min(800, resizing.startWidth + (event.clientX - resizing.startX)));
+    const onMove = (event: PointerEvent | MouseEvent) => {
+      const clientX = "clientX" in event ? event.clientX : 0;
+      const nextWidth = Math.max(80, Math.min(800, resizing.startWidth + (clientX - resizing.startX)));
       setColumnWidths((prev) => ({ ...prev, [resizing.key]: nextWidth }));
     };
 
@@ -162,13 +170,15 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
 
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", onMove);
+    window.addEventListener("pointermove", onMove as EventListener);
+    window.addEventListener("pointerup", onUp as EventListener);
     window.addEventListener("mouseup", onUp);
 
     return () => {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("pointermove", onMove as EventListener);
+      window.removeEventListener("pointerup", onUp as EventListener);
       window.removeEventListener("mouseup", onUp);
     };
   }, [resizing]);
@@ -390,7 +400,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           categoria_custo: r.categoria_custo,
           tipo_rateio: r.tipo_rateio,
           periodicidade: r.periodicidade,
-          fluxo: r.fluxo,
+          fluxo: normalizeFluxo(r.fluxo),
           pago_por: r.pago_por,
           status: r.status ?? null,
           forma_pagamento: r.forma_pagamento ?? null,
@@ -428,7 +438,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           const t = [g.descricao_despesa, g.fornecedor_nome, g.numero_doc, categoriaLabel].filter(Boolean).join(" ").toLowerCase();
           if (!t.includes(q)) return false;
         }
-        if (fluxoFiltro !== "TODOS" && (g.fluxo || "").toUpperCase() !== fluxoFiltro) return false;
+        if (fluxoFiltro !== "TODOS" && normalizeFluxo(g.fluxo) !== fluxoFiltro) return false;
         return true;
       })
       .sort((a, b) => {
@@ -696,10 +706,10 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           onScroll={() => { if (topScrollRef.current && bottomScrollRef.current) topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft; }}
           className="centro-lancamentos-scrollbar overflow-x-auto cursor-grab active:cursor-grabbing select-none bg-background"
         >
-          <table ref={tableRef} className="centro-lancamentos-table w-full text-xs text-left" style={{ tableLayout: "fixed" }}>
+          <table ref={tableRef} className="centro-lancamentos-table w-full text-xs text-left" style={{ tableLayout: "auto" }}>
             <thead data-no-drag>
               {(["ENTRADA", "SAIDA"] as const).map((fluxo) => {
-                const gruposDoFluxo = gruposFiltrados.filter((g) => (g.fluxo || "").toUpperCase() === fluxo);
+                const gruposDoFluxo = gruposFiltrados.filter((g) => normalizeFluxo(g.fluxo) === fluxo);
                 if (!gruposDoFluxo.length) return null;
                 const isEntrada = fluxo === "ENTRADA";
                 return (
@@ -780,7 +790,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
                 <tr><td colSpan={10 + cotistas.length * 2} className="px-4 py-8 text-center text-muted-foreground">Nenhum lançamento encontrado no período.</td></tr>
               ) : (
                 ["ENTRADA", "SAIDA"].map((fluxo) => {
-                  const gruposDoFluxo = gruposFiltrados.filter((g) => (g.fluxo || "").toUpperCase() === fluxo);
+                  const gruposDoFluxo = gruposFiltrados.filter((g) => normalizeFluxo(g.fluxo) === fluxo);
                   if (!gruposDoFluxo.length) return null;
 
                   return (
@@ -865,7 +875,7 @@ function LinhaGrupo({
   useEffect(() => { setValorDespesa(formatNumberPTBR(Number(g.valor_total_despesa ?? 0))); }, [g.valor_total_despesa]);
 
   const dataRef = g.data_pagamento || g.data_vencimento;
-  const isEntrada = (g.fluxo || "").toUpperCase() === "ENTRADA";
+  const isEntrada = normalizeFluxo(g.fluxo) === "ENTRADA";
   const categoriaSelecionada = useMemo(() => {
     const raw = String(g.categoria_custo ?? "").trim();
     if (!raw) return "";

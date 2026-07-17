@@ -30,9 +30,9 @@ export const UpdateCheckProvider: React.FC<{ children: React.ReactNode }> = ({ c
         .from("app_config")
         .select("value")
         .eq("key", "latest_version")
-        .single();
+        .maybeSingle();
 
-      if (error) {
+      if (error && error.code !== "PGRST116") {
         console.warn("Erro ao verificar versão:", error);
         return;
       }
