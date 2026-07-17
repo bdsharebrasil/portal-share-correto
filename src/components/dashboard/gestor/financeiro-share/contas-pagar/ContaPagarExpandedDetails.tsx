@@ -90,6 +90,11 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
             <FileText className="h-3.5 w-3.5" /> NOTA FISCAL
           </a>
         )}
+        {conta.arquivo_pdf_url && (
+          <a href={conta.arquivo_pdf_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 text-violet-700 rounded-md text-[11px] font-semibold hover:bg-violet-500/20 transition-all border border-violet-500/20">
+            <FileText className="h-3.5 w-3.5" /> ARQUIVO
+          </a>
+        )}
         {conta.decea_url && (
           <a href={conta.decea_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-700 rounded-md text-[11px] font-semibold hover:bg-amber-500/20 transition-all border border-amber-500/20">
             <FileText className="h-3.5 w-3.5" /> DOC DECEA
@@ -103,6 +108,11 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
         {conta.comprovante_pagamento_url && (
           <a href={conta.comprovante_pagamento_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 text-green-700 rounded-md text-[11px] font-semibold hover:bg-green-500/20 transition-all border border-green-500/20">
             <FileText className="h-3.5 w-3.5" /> COMPROVANTE
+          </a>
+        )}
+        {conta.recibo_url && (
+          <a href={conta.recibo_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-700 rounded-md text-[11px] font-semibold hover:bg-emerald-500/20 transition-all border border-emerald-500/20">
+            <FileText className="h-3.5 w-3.5" /> RECIBO
           </a>
         )}
       </div>
