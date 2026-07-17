@@ -1127,9 +1127,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 <Select value={tipoRateio} onValueChange={setTipoRateio}>
                   <SelectTrigger><SelectValue placeholder="Selecione o tipo de rateio" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FIXO">FIXO</SelectItem>
-                    <SelectItem value="VARIAVEL_POR_VOO">VARIAVEL_POR_VOO</SelectItem>
-                    <SelectItem value="VARIAVEL_POR_HORA">VARIAVEL_POR_HORA</SelectItem>
+                    <SelectItem value="FIXO">Fixo</SelectItem>
+                    <SelectItem value="VARIAVEL_POR_VOO">VARIAVEL POR VOO</SelectItem>
+                    <SelectItem value="VARIAVEL_POR_HORA">VARIAVEL POR HORA</SelectItem>
                     <SelectItem value="EXTRA">EXTRA</SelectItem>
                   </SelectContent>
                 </Select>
