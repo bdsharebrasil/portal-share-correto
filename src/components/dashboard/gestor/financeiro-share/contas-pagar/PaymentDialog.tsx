@@ -89,11 +89,27 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
             data_pagamento: dataPagamento,
             forma_pagamento: metodoPagamento || null,
             valor_pago_real: valorNum,
+            comprovante_url: comprovanteUrl || null,
+            pago_por: banco,
             atualizado_em: new Date().toISOString(),
           })
           .eq("despesa_id", conta.movimentacao_id);
         if (rateioError) throw rateioError;
       }
+
+      // Fallback: also try to update rateio_despesas linked by contas_apagar.id
+      // (covers cases where the source record used contas_apagar.id as despesa_id)
+      await (supabase.from("rateio_despesas") as any)
+        .update({
+          status: "pago",
+          data_pagamento: dataPagamento,
+          forma_pagamento: metodoPagamento || null,
+          valor_pago_real: valorNum,
+          comprovante_url: comprovanteUrl || null,
+          pago_por: banco,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("despesa_id", conta.id);
 
       let categoriaId = conta.categoria_id || null;
       if (!categoriaId) {
