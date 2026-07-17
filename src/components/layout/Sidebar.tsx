@@ -177,7 +177,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <ChevronLeft className="h-4 w-4" />
           </button>
 
-          <nav className="flex flex-col items-center gap-3 w-full overflow-y-auto custom-scrollbar px-1">
+          {/* O overflow-y-auto foi removido aqui para permitir que o tooltip vaze para cima do conteúdo da página, tirando também o scroll indesejado. */}
+          <nav className="flex flex-col items-center gap-3 w-full px-1 overflow-visible">
             {allItems.map((item) => {
               const iconEl = item.icon ? <item.icon className="h-5 w-5" /> : null;
               const baseCircle = "relative w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-200 group";
@@ -185,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               const active = "bg-primary/20 border-primary/60 text-primary shadow-[0_0_0_3px_rgba(59,130,246,0.15)]";
 
               const tooltip = (
-                <span className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900/95 border border-slate-700/60 px-2.5 py-1 text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg">
+                <span className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900/95 border border-slate-700/60 px-2.5 py-1 text-xs text-foreground opacity-0 group-hover:opacity-100 transition-opacity z-[60] shadow-lg">
                   {item.title}
                 </span>
               );
