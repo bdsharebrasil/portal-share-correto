@@ -174,20 +174,20 @@ export default function SolicitacaoCompras() {
 
   const loadPaymentRequests = async () => {
     try {
-      // Nota: Adicionei cliente_id e socio_id na seleção. Garanta que essas colunas existam na tabela movimentacoes.
-      const { data: movements, error: movementsError } = await supabase
+      // Coluna correta na tabela movimentacoes é `clientes_id` (não `cliente_id`).
+      const { data: movements, error: movementsError } = await (supabase as any)
         .from('movimentacoes')
-        .select('id, descricao, valor, data_competencia, data_vencimento, status, observacoes, criado_por, contas_apagar_id, cliente_id, socio_id')
+        .select('id, descricao, valor, data_competencia, data_vencimento, status, observacoes, criado_por, contas_apagar_id, clientes_id, socio_id')
         .eq('reference_type', 'solicitacao_pagamento')
         .order('data_competencia', { ascending: false });
 
       if (movementsError) throw movementsError;
 
-      const contaIds = [...new Set((movements || []).map((m: any) => m.contas_apagar_id).filter(Boolean))];
+      const contaIds = [...new Set((movements || []).map((m: any) => m.contas_apagar_id).filter((id: any): id is string => typeof id === 'string'))] as string[];
       const contasMap = new Map<string, any>();
 
       if (contaIds.length > 0) {
-        const { data: contasData, error: contasError } = await supabase
+        const { data: contasData, error: contasError } = await (supabase as any)
           .from('contas_apagar')
           .select('id, status, data_pagamento, comprovante_pagamento_url, nf_url, boleto_url, arquivo_pdf_url')
           .in('id', contaIds);
@@ -196,7 +196,11 @@ export default function SolicitacaoCompras() {
         (contasData || []).forEach((conta: any) => contasMap.set(conta.id, conta));
       }
 
-      const userIds = [...new Set((movements || []).map((m: any) => m.criado_por).filter(Boolean))];
+      const userIds: string[] = [...new Set<string>(
+        (movements || [])
+          .map((m: any) => m.criado_por)
+          .filter((id: unknown): id is string => typeof id === 'string')
+      )];
       const userMap = new Map<string, string>();
 
       if (userIds.length > 0) {
@@ -215,6 +219,7 @@ export default function SolicitacaoCompras() {
 
         return {
           ...movement,
+          cliente_id: movement.clientes_id ?? null,
           status: paymentStatus,
           descricao: movement.descricao || 'Solicitação de pagamento',
           valor: Number(movement.valor || 0),
