@@ -50,7 +50,7 @@ const BUCKET = "n.f-boletos-clients";
 type ClienteOption = { id: string; razao_social: string; tem_socio?: boolean | null; cnpj?: string | null };
 type SocioOption = { id: string; nome: string; percentual_participacao?: number | null };
 type TipoDespesaOption = { id: string; expense_type: string };
-type FornecedorOption = { id: string; label: string };
+type FornecedorOption = { id: string; label: string; source: "favorito" | "combustivel" };
 type AeronaveOption = { id: string; matricula: string; modelo: string };
 type ReciboOption = { id: string; numero_recibo?: string | null; numero?: string | null; pdf_url?: string | null; arquivo_url?: string | null; valor_total?: number | null; created_at?: string | null };
 type TravelReportOption = {
@@ -136,9 +136,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       ]);
       setClientes((cli.data as ClienteOption[] | null) || []);
       setTiposDespesa((tip.data as TipoDespesaOption[] | null) || []);
-      const forn = [
-        ...(((ff.data as Array<{ id: string; apelido?: string | null; nome_completo?: string | null }> | null) || [])).map((f) => ({ id: f.id, label: f.apelido || f.nome_completo || "Fornecedor" })),
-        ...(((fc.data as Array<{ id: string; nome_fornecedor?: string | null; nome_cidade?: string | null }> | null) || [])).map((f) => ({ id: f.id, label: `${f.nome_fornecedor || "Fornecedor"} (${f.nome_cidade || "Cidade"})` })),
+      const forn: FornecedorOption[] = [
+        ...(((ff.data as Array<{ id: string; apelido?: string | null; nome_completo?: string | null }> | null) || [])).map((f) => ({ id: f.id, label: f.apelido || f.nome_completo || "Fornecedor", source: "favorito" as const })),
+        ...(((fc.data as Array<{ id: string; nome_fornecedor?: string | null; nome_cidade?: string | null }> | null) || [])).map((f) => ({ id: f.id, label: `${f.nome_fornecedor || "Fornecedor"} (${f.nome_cidade || "Cidade"})`, source: "combustivel" as const })),
       ];
       setFornecedores(forn);
       setAeronaves((aer.data as AeronaveOption[] | null) || []);
@@ -155,6 +155,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const clienteSel = useMemo(() => clientes.find((c) => c.id === clienteId), [clientes, clienteId]);
   const socioSel = useMemo(() => socios.find((s) => s.id === socioId), [socios, socioId]);
   const aeronaveSel = useMemo(() => aeronaves.find((a) => a.id === aeronaveId), [aeronaves, aeronaveId]);
+  const fornecedorSel = useMemo(() => fornecedores.find((f) => f.id === fornecedorId), [fornecedores, fornecedorId]);
 
   const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaLabel || "");
   const isViagemMode = tipoNormalizadoAtual === "DESPESAS_DE_VIAGEM";
@@ -369,6 +370,74 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const pickUrl = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo)?.url || null;
   const pickNumero = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo)?.numero || null;
 
+  const notifyAdminsAboutPaymentRequest = async (requestDescription: string, clientName: string | null, value: number, userName: string | null) => {
+    try {
+      const { data: adminRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['admin', 'financeiro_master', 'gestor_master']);
+
+      if (rolesError) throw rolesError;
+
+      const targetUserIds = [...new Set((adminRoles || []).map((row: any) => row.user_id).filter(Boolean))];
+
+      if (targetUserIds.length === 0) return;
+
+      const notifications = targetUserIds.map((userId: string) => ({
+        user_id: userId,
+        title: 'Nova solicitação de pagamento',
+        message: `${userName || 'Um usuário'} criou uma solicitação de pagamento para ${clientName || 'um cliente'} no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}.`,
+        type: 'info',
+        read: false,
+        created_at: new Date().toISOString(),
+      }));
+
+      const { error: insertError } = await supabase.from('notifications').insert(notifications);
+      if (insertError) throw insertError;
+    } catch (error) {
+      console.warn('Não foi possível enviar a notificação administrativa:', error);
+    }
+  };
+
+  const resolveCategoriaConta = async (nomeCategoria: string, userId: string | null) => {
+    const categoriaLimpa = (nomeCategoria || '').trim();
+    if (!categoriaLimpa) return null;
+
+    const { data: categoriaExistente, error: categoriaError } = await supabase
+      .from('categorias_movimentacao')
+      .select('id, nome')
+      .ilike('nome', categoriaLimpa)
+      .limit(1)
+      .maybeSingle();
+
+    if (categoriaError) {
+      console.warn('Erro ao buscar categoria:', categoriaError);
+      return null;
+    }
+
+    if (categoriaExistente?.id) return categoriaExistente.id;
+
+    const fallbackName = categoriaLimpa.length > 80 ? categoriaLimpa.slice(0, 80) : categoriaLimpa;
+    const { data: categoriaCriada, error: createError } = await supabase
+      .from('categorias_movimentacao')
+      .insert({
+        nome: fallbackName,
+        tipo: 'despesa',
+        grupo_categoria: 'DESPESAS',
+        ativo: true,
+        criado_por: userId,
+      } as any)
+      .select('id, nome')
+      .single();
+
+    if (createError) {
+      console.warn('Erro ao criar categoria fallback:', createError);
+      return null;
+    }
+
+    return categoriaCriada?.id || null;
+  };
+
   // --- Cadastro rápido tipo despesa ---
   const criarTipoDespesa = async (label: string) => {
     const supabaseClient = supabase as unknown as SupabaseClientLike;
@@ -493,18 +562,26 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         }
       }
 
+      const categoriaContaId = await resolveCategoriaConta(tipoDespesaLabel || 'Despesa', userId);
+      if (!categoriaContaId) {
+        throw new Error("Não foi possível resolver/criar a categoria da despesa. Verifique as permissões de escrita em 'categorias_movimentacao'.");
+      }
+
       // 1) contas_apagar
       const capId = await insertAndGetId("contas_apagar", {
         data_vencimento: dataVenc,
         data_agendamento: dataVenc,
         valor: valorNumerico,
-        categoria: tipoDespesaLabel,
+        categoria: tipoDespesaLabel || null,
+        categoria_id: categoriaContaId || null,
         descricao,
         status: statusCP,
         observacoes: observacoes || null,
         cliente_id: clienteId,
         socios_cliente_id: socioId || null,
-        fornecedor_favorito_id: fornecedorId || null,
+        fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
+        fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null,
+        fornecedor_nome: fornecedorNome || null,
         aeronave_registro: aeronaveSel?.matricula || null,
         possui_boleto: !!boletoUrl,
         boleto_url: boletoUrl,
@@ -512,6 +589,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         possui_nf: !!nfUrl,
         nf_numero: nfNum,
         nf_url: nfUrl,
+        possui_recibo: !!reciboUrl,
+        numero_recibo: reciboNum,
+        recibo_url: reciboUrl,
+        data_recibo: reciboUrl ? dataComp : null,
         numero_doc: docNum,
         arquivo_pdf_url: docUrl,
         criado_por: userId,
@@ -522,6 +603,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         descricao,
         tipo: "despesa",
         tipo_caixa: "cliente",
+        categoria_id: categoriaContaId,
         valor: valorNumerico,
         data_competencia: dataComp,
         data_vencimento: dataVenc,
@@ -570,7 +652,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         pago_diretamente: false,
         aeronave_id: aeronaveId || null,
         aeronave_registro: aeronaveSel?.matricula || null,
-        percentual_sociedade: socioSel?.percentual_participacao || null,
+        percentual_sociedade: socioSel?.percentual_participacao ?? 0,
         percentual_uso: percNumerico,
         descricao_despesa: descricao,
         categoria_custo: tipoDespesa || null,
@@ -666,7 +748,16 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         });
       }
 
-      toast.success(rascunho ? "Rascunho salvo" : "Solicitação enviada para pagamento");
+      if (!rascunho) {
+        const userName = (await supabase.from('user_profiles').select('full_name').eq('id', userId).maybeSingle()).data?.full_name || null;
+        await notifyAdminsAboutPaymentRequest(descricao, clienteSel?.razao_social || null, valorNumerico, userName);
+      }
+
+      toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso", {
+        description: rascunho
+          ? "Seu rascunho foi salvo com sucesso."
+          : "A solicitação foi criada e enviada para o fluxo de pagamento.",
+      });
       resetForm();
       onOpenChange(false);
     } catch (e: unknown) {
