@@ -1111,11 +1111,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MENSAL">Mensal</SelectItem>
-                    <SelectItem value="TRIMESTRAL">Trimestral</SelectItem>
-                    <SelectItem value="SEMESTRAL">Semestral</SelectItem>
-                    <SelectItem value="ANUAL">Anual</SelectItem>
-                    <SelectItem value="EVENTUAL">Eventual</SelectItem>
+                    <SelectItem value="MENSAL">MENSAL</SelectItem>
+                    <SelectItem value="SEMESTRAL">SEMESTRAL</SelectItem>
+                    <SelectItem value="ANUAL">ANUAL</SelectItem>
+                    <SelectItem value="EVENTUAL">EVENTUAL</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
