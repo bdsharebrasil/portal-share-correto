@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { toast } from "sonner";
 import { Upload, FileText, X } from "lucide-react";
 import { format } from "date-fns";
@@ -16,15 +17,22 @@ interface PaymentDialogProps {
   onPaid: () => void;
 }
 
-export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDialogProps) {
+export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDialogProps) {
   const { user } = useAuth();
+  const { data: contasBancarias = [] } = useContasBancarias();
   const [dataPagamento, setDataPagamento] = useState(format(new Date(), "yyyy-MM-dd"));
   const [banco, setBanco] = useState("");
   const [metodoPagamento, setMetodoPagamento] = useState("");
-  const [prazo, setPrazo] = useState("");
+  const [valorPago, setValorPago] = useState<string>("");
   const [comprovanteUrl, setComprovanteUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (conta?.valor != null) {
+      setValorPago(String(conta.valor));
+    }
+  }, [conta?.id, conta?.valor]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,32 +60,30 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
   const handleConfirm = async () => {
     if (!banco) { toast.error("Selecione um banco"); return; }
     if (!metodoPagamento) { toast.error("Selecione o método de pagamento"); return; }
-    if (!prazo) { toast.error("Selecione o prazo"); return; }
     if (!dataPagamento) { toast.error("Informe a data do pagamento"); return; }
+    const valorNum = parseFloat(valorPago);
+    if (!valorNum || valorNum <= 0) { toast.error("Informe um valor válido"); return; }
     setSaving(true);
     try {
-      // 1. Update contas_apagar
       const { error: updateError } = await (supabase.from("contas_apagar") as any)
         .update({
           status: "paga",
           data_pagamento: dataPagamento,
           banco_pagamento: banco,
+          valor_pago: valorNum,
           comprovante_pagamento_url: comprovanteUrl || null,
           atualizado_em: new Date().toISOString()
         })
         .eq("id", conta.id);
       if (updateError) throw updateError;
 
-      // 1.1 Update linked movimentacao status if available
       if (conta.movimentacao_id) {
         const { error: movError } = await (supabase.from("movimentacoes") as any)
-          .update({ status: "pago", data_pagamento: dataPagamento })
+          .update({ status: "pago", data_pagamento: dataPagamento, valor: valorNum })
           .eq("id", conta.movimentacao_id);
         if (movError) throw movError;
       }
 
-      // 2. Insert into controle_bancario
-      // Find categoria_id for the right group
       let categoriaId = conta.categoria_id || null;
       if (!categoriaId) {
         const { data: catData } = await supabase
@@ -94,7 +100,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
           tipo_movimento: "saida",
           categoria_id: categoriaId,
           descricao: `${conta.categoria} - ${conta.fornecedor_nome}`,
-          valor: parseFloat(conta.valor),
+          valor: valorNum,
           conta_banco: banco,
           status: "pago",
           fornecedores_favoritos_id: conta.fornecedor_favorito_id || null,
@@ -129,13 +135,45 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
           <div className="space-y-4 py-4">
             <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
               <p className="text-sm font-semibold">{conta.fornecedor_nome}</p>
-              <p className="text-lg font-bold text-red-500">R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <p className="text-xs text-muted-foreground">
+                Valor original: R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
             </div>
+
+            <div>
+              <label className="text-sm font-semibold mb-1 block">Valor Pago *</label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={valorPago}
+                onChange={e => setValorPago(e.target.value)}
+                placeholder="0,00"
+              />
+            </div>
+
             <div>
               <label className="text-sm font-semibold mb-1 block">Data do Pagamento *</label>
-              <Input type="data" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
+              <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
             </div>
-          
+
+            <div>
+              <label className="text-sm font-semibold mb-1 block">Banco *</label>
+              <RegularSelect value={banco} onValueChange={setBanco}>
+                <SelectTrigger><SelectValue placeholder="Selecione o banco..." /></SelectTrigger>
+                <SelectContent>
+                  {contasBancarias.length === 0 && (
+                    <SelectItem value="__none__" disabled>Nenhuma conta cadastrada</SelectItem>
+                  )}
+                  {contasBancarias.map((c) => (
+                    <SelectItem key={c.id} value={c.banco || c.id}>
+                      {c.banco}{c.numero_conta ? ` - ${c.numero_conta}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </RegularSelect>
+            </div>
+
             <div>
               <label className="text-sm font-semibold mb-1 block">Método de Pagamento *</label>
               <RegularSelect value={metodoPagamento} onValueChange={setMetodoPagamento}>
@@ -151,16 +189,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
                 </SelectContent>
               </RegularSelect>
             </div>
-            <div>
-              <label className="text-sm font-semibold mb-1 block">Prazo *</label>
-              <RegularSelect value={prazo} onValueChange={setPrazo}>
-                <SelectTrigger><SelectValue placeholder="Selecione o prazo..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mensal">Mensal</SelectItem>
-                  <SelectItem value="extra">Extra</SelectItem>
-                </SelectContent>
-              </RegularSelect>
-            </div>
+
             <div>
               <label className="text-sm font-semibold mb-1 block">Comprovante</label>
               {comprovanteUrl ? (
@@ -178,6 +207,7 @@ export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDia
                 </>
               )}
             </div>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
               <Button onClick={handleConfirm} disabled={saving} className="bg-green-600 hover:bg-green-700">
