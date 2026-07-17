@@ -25,6 +25,7 @@ export type Database = {
           comanda: string | null
           comanda_url: string | null
           comprovante_pagamento: string | null
+          comprovante_url: string | null
           created_at: string | null
           criado_por: string | null
           data: string
@@ -60,6 +61,7 @@ export type Database = {
           comanda?: string | null
           comanda_url?: string | null
           comprovante_pagamento?: string | null
+          comprovante_url?: string | null
           created_at?: string | null
           criado_por?: string | null
           data: string
@@ -95,6 +97,7 @@ export type Database = {
           comanda?: string | null
           comanda_url?: string | null
           comprovante_pagamento?: string | null
+          comprovante_url?: string | null
           created_at?: string | null
           criado_por?: string | null
           data?: string
@@ -1474,6 +1477,7 @@ export type Database = {
           arquivo_pdf_url: string | null
           atualizado_em: string | null
           banco: string | null
+          banco_pagemento: string | null
           boleto_url: string | null
           categoria: string | null
           categoria_id: string | null
@@ -1488,11 +1492,14 @@ export type Database = {
           data_agendamento: string | null
           data_pagamento: string | null
           data_recebimento_boleto: string | null
+          data_recibo: string | null
           data_vencimento: string
           decea_url: string | null
           descricao: string | null
           empresa: string | null
+          fornecedor_combustivel_id: string | null
           fornecedor_favorito_id: string | null
+          fornecedor_nome: string | null
           id: string
           infraero_url: string | null
           movimentacao_id: string | null
@@ -1501,14 +1508,18 @@ export type Database = {
           numero_doc: string | null
           numero_documento_decea: string | null
           numero_documento_infraero: string | null
+          numero_recibo: string | null
           observacoes: string | null
           possui_boleto: boolean | null
           possui_nf: boolean | null
+          possui_recibo: boolean | null
+          recibo_url: string | null
           reference_id: string | null
           reference_type: string | null
           socios_cliente_id: string | null
           status: string
           valor: number
+          valor_pago: string | null
           vencimento_boleto: string | null
         }
         Insert: {
@@ -1516,6 +1527,7 @@ export type Database = {
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           banco?: string | null
+          banco_pagemento?: string | null
           boleto_url?: string | null
           categoria?: string | null
           categoria_id?: string | null
@@ -1530,11 +1542,14 @@ export type Database = {
           data_agendamento?: string | null
           data_pagamento?: string | null
           data_recebimento_boleto?: string | null
+          data_recibo?: string | null
           data_vencimento: string
           decea_url?: string | null
           descricao?: string | null
           empresa?: string | null
+          fornecedor_combustivel_id?: string | null
           fornecedor_favorito_id?: string | null
+          fornecedor_nome?: string | null
           id?: string
           infraero_url?: string | null
           movimentacao_id?: string | null
@@ -1543,14 +1558,18 @@ export type Database = {
           numero_doc?: string | null
           numero_documento_decea?: string | null
           numero_documento_infraero?: string | null
+          numero_recibo?: string | null
           observacoes?: string | null
           possui_boleto?: boolean | null
           possui_nf?: boolean | null
+          possui_recibo?: boolean | null
+          recibo_url?: string | null
           reference_id?: string | null
           reference_type?: string | null
           socios_cliente_id?: string | null
           status: string
           valor: number
+          valor_pago?: string | null
           vencimento_boleto?: string | null
         }
         Update: {
@@ -1558,6 +1577,7 @@ export type Database = {
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           banco?: string | null
+          banco_pagemento?: string | null
           boleto_url?: string | null
           categoria?: string | null
           categoria_id?: string | null
@@ -1572,11 +1592,14 @@ export type Database = {
           data_agendamento?: string | null
           data_pagamento?: string | null
           data_recebimento_boleto?: string | null
+          data_recibo?: string | null
           data_vencimento?: string
           decea_url?: string | null
           descricao?: string | null
           empresa?: string | null
+          fornecedor_combustivel_id?: string | null
           fornecedor_favorito_id?: string | null
+          fornecedor_nome?: string | null
           id?: string
           infraero_url?: string | null
           movimentacao_id?: string | null
@@ -1585,14 +1608,18 @@ export type Database = {
           numero_doc?: string | null
           numero_documento_decea?: string | null
           numero_documento_infraero?: string | null
+          numero_recibo?: string | null
           observacoes?: string | null
           possui_boleto?: boolean | null
           possui_nf?: boolean | null
+          possui_recibo?: boolean | null
+          recibo_url?: string | null
           reference_id?: string | null
           reference_type?: string | null
           socios_cliente_id?: string | null
           status?: string
           valor?: number
+          valor_pago?: string | null
           vencimento_boleto?: string | null
         }
         Relationships: [
@@ -1706,6 +1733,13 @@ export type Database = {
             columns: ["criado_por"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_fornecedor_combustivel_id_fkey"
+            columns: ["fornecedor_combustivel_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores_combustivel"
             referencedColumns: ["id"]
           },
           {
@@ -7917,7 +7951,7 @@ export type Database = {
           observacoes: string | null
           pago_diretamente: boolean | null
           pago_por: string | null
-          percentual_sociedade: number
+          percentual_sociedade: number | null
           percentual_uso: number | null
           periodicidade: string | null
           recibo_url: string | null
@@ -7956,7 +7990,7 @@ export type Database = {
           observacoes?: string | null
           pago_diretamente?: boolean | null
           pago_por?: string | null
-          percentual_sociedade: number
+          percentual_sociedade?: number | null
           percentual_uso?: number | null
           periodicidade?: string | null
           recibo_url?: string | null
@@ -7995,7 +8029,7 @@ export type Database = {
           observacoes?: string | null
           pago_diretamente?: boolean | null
           pago_por?: string | null
-          percentual_sociedade?: number
+          percentual_sociedade?: number | null
           percentual_uso?: number | null
           periodicidade?: string | null
           recibo_url?: string | null
