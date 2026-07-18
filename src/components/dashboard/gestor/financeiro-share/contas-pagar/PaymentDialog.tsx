@@ -7,12 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { toast } from "sonner";
-import { Upload, FileText, X } from "lucide-react";
+import { Upload, FileText, X, Users } from "lucide-react";
 import { format } from "date-fns";
-
-interface SocioOption { name?: string | null; nome?: string | null; }
-interface ClienteOption { razao_social?: string | null; }
-type SupabaseQuery = ReturnType<typeof supabase.from>;
 
 interface PaymentContaLike {
   id?: string;
@@ -26,15 +22,28 @@ interface PaymentContaLike {
   aeronave_registro?: string | null;
   numero?: string | null;
   movimentacao_id?: string | null;
-  clientes?: ClienteOption | null;
-  socios?: SocioOption[] | null;
+  clientes?: { razao_social?: string | null } | null;
+  socios?: Array<{ name?: string | null; nome?: string | null }> | null;
 }
+
 interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   conta: PaymentContaLike | null;
   onPaid: () => void;
 }
+
+interface RateioRow {
+  id: string;
+  cliente_id: string | null;
+  clientes_nome: string | null;
+  socio_id: string | null;
+  socios_nome: string | null;
+  valor_rateado: number | null;
+  valor_pago_real: number | null;
+}
+
+type SupabaseQuery = ReturnType<typeof supabase.from>;
 
 export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDialogProps) {
   const { user } = useAuth();
@@ -47,40 +56,75 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
   const [comprovanteUrl, setComprovanteUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [rateioRows, setRateioRows] = useState<RateioRow[]>([]);
+  const [rateioValues, setRateioValues] = useState<Record<string, string>>({});
+
+  // Carrega rateio_despesas vinculados a esta conta
+  useEffect(() => {
+    if (!open || !conta?.id) {
+      setRateioRows([]);
+      setRateioValues({});
+      return;
+    }
+    (async () => {
+      const despesaIds = [conta.id, conta.movimentacao_id].filter(Boolean) as string[];
+      const { data, error } = await (supabase as any)
+        .from("rateio_despesas")
+        .select("id, cliente_id, clientes_nome, socio_id, socios_nome, valor_rateado, valor_pago_real")
+        .in("despesa_id", despesaIds);
+      if (error) {
+        console.error("Erro ao carregar rateio:", error);
+        setRateioRows([]);
+        return;
+      }
+      const rows = (data || []) as RateioRow[];
+      setRateioRows(rows);
+      const defaults: Record<string, string> = {};
+      rows.forEach((r) => {
+        defaults[r.id] = String(r.valor_rateado ?? 0);
+      });
+      setRateioValues(defaults);
+    })();
+  }, [open, conta?.id, conta?.movimentacao_id]);
+
+  const rateioTotal = useMemo(
+    () =>
+      Object.values(rateioValues).reduce(
+        (acc, v) => acc + (parseFloat(v || "0") || 0),
+        0
+      ),
+    [rateioValues]
+  );
 
   const pagadoresOptions = useMemo(() => {
     const options: Array<{ value: string; label: string }> = [];
     const seen = new Set<string>();
-
-    const addOption = (value: string | null | undefined, label: string) => {
-      const normalizedValue = value?.trim();
-      if (!normalizedValue) return;
-      if (seen.has(normalizedValue)) return;
-      seen.add(normalizedValue);
-      options.push({ value: normalizedValue, label });
+    const add = (value: string | null | undefined, label: string) => {
+      const v = value?.trim();
+      if (!v || seen.has(v)) return;
+      seen.add(v);
+      options.push({ value: v, label });
     };
-
-    addOption(conta?.clientes?.razao_social, `Cliente: ${conta?.clientes?.razao_social}`);
-    (Array.isArray(conta?.socios) ? conta.socios : []).forEach((socio) => {
-      addOption(socio?.nome ?? socio?.name, `Sócio: ${socio?.nome ?? socio?.name}`);
+    add(conta?.clientes?.razao_social, `Cliente: ${conta?.clientes?.razao_social}`);
+    (conta?.socios || []).forEach((s) => add(s?.nome ?? s?.name, `Sócio: ${s?.nome ?? s?.name}`));
+    rateioRows.forEach((r) => {
+      if (r.clientes_nome) add(r.clientes_nome, `Cliente: ${r.clientes_nome}`);
+      if (r.socios_nome) add(r.socios_nome, `Sócio: ${r.socios_nome}`);
     });
-
     return options;
-  }, [conta?.clientes?.razao_social, conta?.socios]);
+  }, [conta?.clientes?.razao_social, conta?.socios, rateioRows]);
 
   useEffect(() => {
-    if (conta?.valor != null) {
-      setValorPago(String(conta.valor));
-    }
+    if (conta?.valor != null) setValorPago(String(conta.valor));
   }, [conta?.id, conta?.valor]);
 
   useEffect(() => {
     if (pagadoresOptions.length > 0) {
       const clienteNome = conta?.clientes?.razao_social?.trim();
       setPagoPor(clienteNome || pagadoresOptions[0].value);
-      return;
+    } else {
+      setPagoPor("");
     }
-    setPagoPor("");
   }, [conta?.id, conta?.clientes?.razao_social, pagadoresOptions]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,115 +133,107 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.name
-        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
-        .substring(0, 100);
-      const fileExt = sanitizedFileName.split('.').pop();
-      const fileName = `comprovante_${timestamp}_${conta?.id || 'unknown'}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from("nfs-share-recebidas").upload(fileName, file);
-      if (uploadError) throw uploadError;
+      const sanitized = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_").substring(0, 100);
+      const ext = sanitized.split(".").pop();
+      const fileName = `comprovante_${timestamp}_${conta?.id || "unknown"}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("nfs-share-recebidas").upload(fileName, file);
+      if (upErr) throw upErr;
       const { data } = supabase.storage.from("nfs-share-recebidas").getPublicUrl(fileName);
       setComprovanteUrl(data.publicUrl);
       toast.success("Comprovante enviado!");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro ao enviar";
-      toast.error(message);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao enviar");
     } finally {
       setUploading(false);
     }
   };
 
   const handleConfirm = async () => {
-    if (!banco) { toast.error("Selecione um banco"); return; }
-    if (!metodoPagamento) { toast.error("Selecione o método de pagamento"); return; }
-    if (!dataPagamento) { toast.error("Informe a data do pagamento"); return; }
-    const valorNum = parseFloat(valorPago);
-    if (!valorNum || valorNum <= 0) { toast.error("Informe um valor válido"); return; }
+    if (!banco) return toast.error("Selecione um banco");
+    if (!metodoPagamento) return toast.error("Selecione o método de pagamento");
+    if (!dataPagamento) return toast.error("Informe a data do pagamento");
+
+    const hasRateio = rateioRows.length > 0;
+    const valorNum = hasRateio ? rateioTotal : parseFloat(valorPago);
+    if (!valorNum || valorNum <= 0) return toast.error("Informe um valor válido");
+
     setSaving(true);
     try {
-      const { error: updateError } = await (supabase.from("contas_apagar") as unknown as SupabaseQuery)
+      // 1) Atualiza conta a pagar
+      const { error: updErr } = await (supabase.from("contas_apagar") as unknown as SupabaseQuery)
         .update({
           status: "paga",
           data_pagamento: dataPagamento,
           banco_pagamento: banco,
           valor_pago: valorNum,
           comprovante_pagamento_url: comprovanteUrl || null,
-          atualizado_em: new Date().toISOString()
-        })
-        .eq("id", conta.id);
-      if (updateError) throw updateError;
-
-      if (conta.movimentacao_id) {
-        const { error: movError } = await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
-          .update({ status: "pago", data_pagamento: dataPagamento, valor: valorNum })
-          .eq("id", conta.movimentacao_id);
-        if (movError) throw movError;
-
-        const { error: rateioError } = await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
-          .update({
-            status: "pago",
-            data_pagamento: dataPagamento,
-            forma_pagamento: metodoPagamento || null,
-            valor_pago_real: valorNum,
-            comprovante_url: comprovanteUrl || null,
-            pago_por: pagoPor || null,
-            atualizado_em: new Date().toISOString(),
-          })
-          .eq("despesa_id", conta.movimentacao_id);
-        if (rateioError) throw rateioError;
-      }
-
-      // Fallback: also try to update rateio_despesas linked by contas_apagar.id
-      // (covers cases where the source record used contas_apagar.id as despesa_id)
-      await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
-        .update({
-          status: "pago",
-          data_pagamento: dataPagamento,
-          forma_pagamento: metodoPagamento || null,
-          valor_pago_real: valorNum,
-          comprovante_url: comprovanteUrl || null,
-          pago_por: pagoPor || null,
           atualizado_em: new Date().toISOString(),
         })
-        .eq("despesa_id", conta.id);
+        .eq("id", conta!.id);
+      if (updErr) throw updErr;
 
-      let categoriaId = conta.categoria_id || null;
-      if (!categoriaId) {
+      // 2) Movimentação vinculada
+      if (conta!.movimentacao_id) {
+        await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
+          .update({ status: "pago", data_pagamento: dataPagamento, valor: valorNum })
+          .eq("id", conta!.movimentacao_id);
+      }
+
+      // 3) Atualiza cada linha do rateio com seu próprio valor
+      if (hasRateio) {
+        for (const row of rateioRows) {
+          const valorRow = parseFloat(rateioValues[row.id] || "0") || 0;
+          const pagador = row.clientes_nome || row.socios_nome || pagoPor || null;
+          await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
+            .update({
+              status: "pago",
+              data_pagamento: dataPagamento,
+              forma_pagamento: metodoPagamento || null,
+              valor_pago_real: valorRow,
+              comprovante_url: comprovanteUrl || null,
+              pago_por: pagador,
+              atualizado_em: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+        }
+      }
+
+      // 4) Controle bancário
+      let categoriaId = conta!.categoria_id || null;
+      if (!categoriaId && conta!.categoria) {
         const { data: catData } = await supabase
           .from("categorias_movimentacao")
           .select("id")
-          .eq("nome", conta.categoria)
+          .eq("nome", conta!.categoria)
           .limit(1);
         categoriaId = catData?.[0]?.id || null;
       }
-
       if (categoriaId) {
         await (supabase.from("controle_bancario") as unknown as SupabaseQuery).insert([{
           data: dataPagamento,
           tipo_movimento: "saida",
           categoria_id: categoriaId,
-          descricao: `${conta.categoria} - ${conta.fornecedor_nome}`,
+          descricao: `${conta!.categoria} - ${conta!.fornecedor_nome}`,
           valor: valorNum,
           banco_pagamento: banco,
           status: "pago",
-          fornecedores_favoritos_id: conta.fornecedor_favorito_id || null,
-          client_id: conta.cliente_id || null,
-          aeronave_id: conta.aeronave_id || null,
-          aeronave_registro: conta.aeronave_registro || null,
+          fornecedores_favoritos_id: conta!.fornecedor_favorito_id || null,
+          client_id: conta!.cliente_id || null,
+          aeronave_id: conta!.aeronave_id || null,
+          aeronave_registro: conta!.aeronave_registro || null,
           comprovante_url: comprovanteUrl || null,
-          grupo_categoria: conta.categoria,
+          grupo_categoria: conta!.categoria,
           criado_por: user?.id,
-          numero_documento: conta.numero || null,
-          referencia: conta.id
+          numero_documento: conta!.numero || null,
+          referencia: conta!.id,
         }]);
       }
 
       toast.success("Pagamento registrado com sucesso!");
       onPaid();
       onOpenChange(false);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro ao registrar pagamento";
-      toast.error(message);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao registrar pagamento");
     } finally {
       setSaving(false);
     }
@@ -205,82 +241,120 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registrar Pagamento</DialogTitle>
         </DialogHeader>
         {conta && (
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
             <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
               <p className="text-sm font-semibold">{conta.fornecedor_nome}</p>
               <p className="text-xs text-muted-foreground">
-                Valor original: R$ {Number(String(conta.valor ?? 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                Valor original: R$ {Number(String(conta.valor ?? 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
             </div>
 
-            <div>
-              <label className="text-sm font-semibold mb-1 block">Valor Pago *</label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={valorPago}
-                onChange={e => setValorPago(e.target.value)}
-                placeholder="0,00"
-              />
-            </div>
+            {rateioRows.length > 0 ? (
+              <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase text-primary">
+                  <Users className="h-3.5 w-3.5" />
+                  Rateio — valor pago por cada participante
+                </div>
+                <div className="space-y-2">
+                  {rateioRows.map((row) => {
+                    const nome = row.clientes_nome || row.socios_nome || "—";
+                    const tipo = row.clientes_nome ? "Cliente" : "Sócio";
+                    return (
+                      <div key={row.id} className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2 items-center">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">{nome}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">
+                            {tipo} • rateado: R$ {Number(row.valor_rateado ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={rateioValues[row.id] ?? ""}
+                          onChange={(e) => setRateioValues((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                          className="h-9"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-xs pt-2 border-t border-border/50">
+                  <span className="text-muted-foreground">Total pago</span>
+                  <span className="font-bold">R$ {rateioTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm font-semibold mb-1 block">Valor Pago *</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={valorPago}
+                  onChange={(e) => setValorPago(e.target.value)}
+                  placeholder="0,00"
+                />
+              </div>
+            )}
 
-            <div>
-              <label className="text-sm font-semibold mb-1 block">Data do Pagamento *</label>
-              <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold mb-1 block">Banco *</label>
-              <RegularSelect value={banco} onValueChange={setBanco}>
-                <SelectTrigger><SelectValue placeholder="Selecione o banco..." /></SelectTrigger>
-                <SelectContent>
-                  {contasBancarias.length === 0 && (
-                    <SelectItem value="__none__" disabled>Nenhuma conta cadastrada</SelectItem>
-                  )}
-                  {contasBancarias.map((c) => (
-                    <SelectItem key={c.id} value={c.banco || c.id}>
-                      {c.banco}{c.numero_conta ? ` - ${c.numero_conta}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </RegularSelect>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold mb-1 block">Método de Pagamento *</label>
-              <RegularSelect value={metodoPagamento} onValueChange={setMetodoPagamento}>
-                <SelectTrigger><SelectValue placeholder="Selecione o método..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="transferencia">Transferência Bancária</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
-                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                </SelectContent>
-              </RegularSelect>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold mb-1 block">Pago por</label>
-              <RegularSelect value={pagoPor} onValueChange={setPagoPor}>
-                <SelectTrigger><SelectValue placeholder="Selecione o pagador..." /></SelectTrigger>
-                <SelectContent>
-                  {pagadoresOptions.length === 0 && (
-                    <SelectItem value="__none__" disabled>Nenhum pagador disponível</SelectItem>
-                  )}
-                  {pagadoresOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </RegularSelect>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-semibold mb-1 block">Data do Pagamento *</label>
+                <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1 block">Banco *</label>
+                <RegularSelect value={banco} onValueChange={setBanco}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {contasBancarias.length === 0 && (
+                      <SelectItem value="__none__" disabled>Nenhuma conta cadastrada</SelectItem>
+                    )}
+                    {contasBancarias.map((c) => (
+                      <SelectItem key={c.id} value={c.banco || c.id}>
+                        {c.banco}{c.numero_conta ? ` - ${c.numero_conta}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </RegularSelect>
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1 block">Método *</label>
+                <RegularSelect value={metodoPagamento} onValueChange={setMetodoPagamento}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="transferencia">Transferência Bancária</SelectItem>
+                    <SelectItem value="boleto">Boleto</SelectItem>
+                    <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                    <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                  </SelectContent>
+                </RegularSelect>
+              </div>
+              {rateioRows.length === 0 && (
+                <div>
+                  <label className="text-sm font-semibold mb-1 block">Pago por</label>
+                  <RegularSelect value={pagoPor} onValueChange={setPagoPor}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {pagadoresOptions.length === 0 && (
+                        <SelectItem value="__none__" disabled>Nenhum pagador</SelectItem>
+                      )}
+                      {pagadoresOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </RegularSelect>
+                </div>
+              )}
             </div>
 
             <div>
@@ -294,16 +368,16 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
               ) : (
                 <>
                   <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleUpload} disabled={uploading} className="hidden" id="comprovante-upload" />
-                  <Button variant="outline" onClick={() => document.getElementById('comprovante-upload')?.click()} disabled={uploading} className="w-full">
+                  <Button variant="outline" onClick={() => document.getElementById("comprovante-upload")?.click()} disabled={uploading} className="w-full">
                     <Upload className="h-4 w-4 mr-2" />{uploading ? "Enviando..." : "Anexar Comprovante"}
                   </Button>
                 </>
               )}
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-              <Button onClick={handleConfirm} disabled={saving} className="bg-green-600 hover:bg-green-700">
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
+              <Button onClick={handleConfirm} disabled={saving} className="w-full sm:w-auto bg-green-600 hover:bg-green-700">
                 {saving ? "Processando..." : "Confirmar Pagamento"}
               </Button>
             </DialogFooter>
