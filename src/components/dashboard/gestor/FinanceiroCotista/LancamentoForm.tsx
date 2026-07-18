@@ -33,7 +33,8 @@ import { Label } from "@/components/ui/label";
 import { syncCotistaReembolsoMirror, deleteCotistaReembolsoMirror } from "@/lib/cotistaFinanceSync";
 import { useEffect, useMemo, useState } from "react";
 
-type GrupoCusto = "FIXO" | "VARIAVEL POR VOO" | "VARIAVEL POR HORA" | "EXTRA";
+// Bate com o check constraint rateio_tipo_check (usa underscore, não espaço)
+type GrupoCusto = "FIXO" |  "EXTRA" | "VARIAVEL_POR_VOO" | "VARIAVEL_POR_HORA";
 
 type Socio = {
   id: string;
@@ -62,6 +63,7 @@ type AnexoItem = {
 
 const GRUPOS = [
   { id: "FIXO", label: "FIXO" },
+
   { id: "VARIAVEL_POR_HORA", label: "VARIÁVEL POR HORA" },
   { id: "VARIAVEL_POR_VOO", label: "VARIÁVEL POR VOO" },
   { id: "EXTRA", label: "EXTRA" },
@@ -77,7 +79,7 @@ const FORMA_PGTO = [
   { id: "TED", label: "TED / Transferência" },
   { id: "BOLETO", label: "BOLETO" },
   { id: "DINHEIRO", label: "DINHEIRO" },
-  { id: "CARTAO", label: "CARTÃO" },
+
 ];
 
 const PERIODICIDADE = [
@@ -217,14 +219,14 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 export default function LancamentoForm(props: LancamentoFormProps) {
   const isModalContext = props.isModal === true;
-  
+
   // Props do contexto (página)
   const { clienteId: paramClienteId, aeronaveId: paramAeronaveId } = useParams<{ clienteId: string; aeronaveId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
-  
+
   // Resolver clienteId e aeronaveId
   const clienteId = props.clienteId || paramClienteId;
   const aeronaveIdParam = props.aeronaveId || paramAeronaveId;
@@ -233,7 +235,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   const editingProp = props.editing;
   const onSavedProp = props.onSaved;
   const onCancelProp = props.onCancel;
-  
+
   const despesaPrefill = (location.state as any)?.despesaPrefill ?? null;
   const editingId = searchParams.get("editing");
 
@@ -348,8 +350,8 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   const [pagador, setPagador] = useState<string>("EMPRESA");
   const [status, setStatus] = useState<"pago" | "pendente">("pago");
   const [observacoes, setObservacoes] = useState("");
-  const [categoriaId, setCategoriaId] = useState("");
-  const [categoriaCusto, setCategoriaCusto] = useState("");
+  const [categoriaId, setCategoriaId] = useState(""); // FK para categorias_movimentacao (usado só em `movimentacoes`)
+  const [categoriaCustoId, setCategoriaCustoId] = useState(""); // FK uuid para expense_configu (usado em `rateio_despesas`)
   const [formaPgto, setFormaPgto] = useState("");
   const [periodicidade, setPeriodicidade] = useState("EVENTUAL");
   const [numeroDoc, setNumeroDoc] = useState("");
@@ -390,7 +392,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
     },
   });
 
-  // Categorias
+  // Categorias contábeis (usadas em movimentacoes.categoria_id)
   const { data: categorias } = useQuery({
     queryKey: ["categorias-mov-cotista"],
     queryFn: async () => {
@@ -404,6 +406,29 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       return (data ?? []) as Array<{ id: string; nome: string; grupo_categoria: string | null }>;
     },
   });
+
+  // Categorias de custo (expense_configu) — usadas em rateio_despesas.categoria_custo (uuid)
+  const { data: expenseConfigs } = useQuery({
+    queryKey: ["expense-configu"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("expense_configu")
+        .select("id, expense_type, subcategoria_1, subcategoria_2")
+        .order("expense_type");
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string;
+        expense_type: string;
+        subcategoria_1: string | null;
+        subcategoria_2: string | null;
+      }>;
+    },
+  });
+
+  const expenseConfigOptions = (expenseConfigs ?? []).map((c) => ({
+    id: c.id,
+    label: [c.expense_type, c.subcategoria_1, c.subcategoria_2].filter(Boolean).join(" / "),
+  }));
 
   // Init from editing
   useEffect(() => {
@@ -440,7 +465,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         const { data: rs } = await (supabase as any)
           .from("rateio_despesas")
           .select(
-            "socio_id, socios_nome, percentual_sociedade, valor_pago_real, pago_por, fluxo, categoria_custo"
+            "socio_id, socios_nome, percentual_sociedade, valor_pago_real, pago_por, fluxo, categoria_custo, periodicidade"
           )
           .eq("despesa_id", editingFinal.id);
 
@@ -465,7 +490,8 @@ export default function LancamentoForm(props: LancamentoFormProps) {
             setPagador(pagou ? pagou.socio_id : "EMPRESA");
           }
           if (first) {
-            setCategoriaCusto(first.categoria_custo ?? "");
+            setCategoriaCustoId(first.categoria_custo ?? "");
+            setPeriodicidade(first.periodicidade ?? "EVENTUAL");
           }
         } else {
           seedFromSocios();
@@ -493,11 +519,11 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   useEffect(() => {
     if (pagador === "CLIENTE" && rateios.length > 0) {
       const pct = rateios.length === 3 ? 33.3333 : +(100 / rateios.length).toFixed(4);
-      
+
       setRateios((rs) => rs.map((r) => {
-        return { 
-          ...r, 
-          percentual: pct, 
+        return {
+          ...r,
+          percentual: pct,
           valor_pago_real: 0,
         };
       }));
@@ -587,27 +613,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
     };
   }
 
-  async function ensureCategoria(): Promise<string | null> {
-    if (categoriaId) return categoriaId;
-    const nome = `Rateio - ${grupo}`;
-    const { data: existing } = await (supabase as any)
-      .from("categorias_movimentacao")
-      .select("id")
-      .eq("nome", nome)
-      .maybeSingle();
-    if (existing?.id) return existing.id;
-    const { data: created } = await (supabase as any)
-      .from("categorias_movimentacao")
-      .insert({
-        nome,
-        tipo: "despesa",
-        grupo_categoria: grupo,
-        ativo: true,
-      })
-      .select("id")
-      .single();
-    return created?.id ?? null;
-  }
+  
 
   async function refreshPartnerAccount(socioId: string, socioNome: string, socioCpf: string | null) {
     if (!socioCpf) return;
@@ -658,6 +664,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
     if (algumNeg) return toast.error("Percentuais negativos não são permitidos");
     if (!pctOk) return toast.error(`Soma dos percentuais é ${somaPct.toFixed(2)}% (deve ser 100%)`);
     if (pagoExcede) return toast.error("Soma dos valores pagos excede o valor total");
+    if (!categoriaCustoId) return toast.error("Selecione a categoria de custo");
 
     setSaving(true);
     try {
@@ -667,21 +674,13 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         : null;
 
       let pagoPor: string;
-      let pagoPorTipo: string;
-      let pagoPorId: string | null = null;
 
       if (pagador === "EMPRESA") {
         pagoPor = "EMPRESA";
-        pagoPorTipo = "EMPRESA";
-        pagoPorId = null;
       } else if (pagador === "CLIENTE") {
         pagoPor = clienteId;
-        pagoPorTipo = "CLIENTE";
-        pagoPorId = clienteId;
       } else {
         pagoPor = pagadorSocio?.id ?? pagadorSocio?.socio_nome ?? "";
-        pagoPorTipo = "SOCIO";
-        pagoPorId = pagadorSocio?.id ?? null;
       }
 
       const fornecedor = fornecedorNome.trim() || "EMPRESA";
@@ -717,7 +716,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         reembolso_quitado: false,
         pago_diretamente: pagador !== "EMPRESA",
         criado_por: user?.id ?? null,
-        categoria_id: catId,
+        categoria_id: catId, // válido aqui: coluna existe em `movimentacoes`
         reference_type: "rateio_despesa",
       };
 
@@ -750,6 +749,8 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       }
 
       const aeroSelecionada = clienteAeronaves.find((a) => a.id_aeronave === aeronaveSelected)?.aeronave;
+
+      // Payload alinhado 1:1 com as colunas reais de `rateio_despesas`
       const rateioRows = rateios.map((r) => ({
         despesa_id: movId,
         fonte_despesa: "movimentacoes",
@@ -766,17 +767,14 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         valor_pago_real: r.valor_pago_real,
         status,
         descricao_despesa: descricao,
-        categoria_id: catId,
-        categoria_custo: categoriaCusto || null,
+        categoria_custo: categoriaCustoId, // uuid → expense_configu.id
+        periodicidade: periodicidade || "EVENTUAL",
         data_vencimento: dataVencimento || dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         pago_por: pagoPor,
-        pago_por_tipo: pagoPorTipo,
-        pago_por_id: pagoPorId,
         pago_diretamente: pagador !== "EMPRESA",
         fluxo,
         forma_pagamento: formaPgto || null,
-        periodicidade: periodicidade || "EVENTUAL",
         fornecedor_nome: fornecedor,
         numero_doc: numeroDoc || null,
         numero_nf: numeroNf || null,
@@ -835,9 +833,9 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       }
 
       qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
-      
+
       toast.success(editingFinal ? "Lançamento atualizado" : "Lançamento criado");
-      
+
       if (onSavedProp) {
         onSavedProp();
       } else {
@@ -918,7 +916,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
             />
           </Field>
 
-          <Field label="Categoria">
+          <Field label="Categoria contábil">
             <SearchableCombobox
               items={categoriaOptions}
               value={categoriaId}
@@ -928,12 +926,13 @@ export default function LancamentoForm(props: LancamentoFormProps) {
             />
           </Field>
 
-          <Field label="Categoria de custo (texto livre)">
-            <Input
-              value={categoriaCusto}
-              onChange={(e) => setCategoriaCusto(e.target.value)}
-              placeholder="Ex.: Manutenção, Combustível..."
-              className="h-11 rounded-xl"
+          <Field label="Categoria de custo" required>
+            <SearchableCombobox
+              items={expenseConfigOptions}
+              value={categoriaCustoId}
+              onChange={setCategoriaCustoId}
+              placeholder="Buscar categoria de custo..."
+              searchPlaceholder="Ex.: Combustível, Manutenção..."
             />
           </Field>
 
@@ -1235,7 +1234,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         </Button>
         <Button
           onClick={handleSave}
-          disabled={saving || !pctOk || pagoExcede || algumNeg || !aeronaveSelected}
+          disabled={saving || !pctOk || pagoExcede || algumNeg || !aeronaveSelected || !categoriaCustoId}
           className="gap-2 min-w-[200px]"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
