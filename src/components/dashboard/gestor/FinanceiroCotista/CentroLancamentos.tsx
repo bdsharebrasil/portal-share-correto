@@ -28,7 +28,7 @@ interface CentroLancamentosProps {
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const TIPOS_RATEIO = ["FIXO", "VARIAVEL_POR_HORA", "VARIAVEL_POR_VOO", "EXTRA"] as const;
-const PERIODICIDADES = ["MENSAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
+const PERIODICIDADES = ["MENSAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
 
 const COL_USO_WIDTH = 75;
 const COL_RATEIO_WIDTH = 115;
@@ -1029,11 +1029,11 @@ function LinhaGrupo({
 
         <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("periodicidade")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{(g.periodicidade || "—").charAt(0) + (g.periodicidade || "").slice(1).toLowerCase()}</div>
+            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{(g.periodicidade || "—").toUpperCase()}</div>
           ) : (
             <Select value={(g.periodicidade || "").toUpperCase()} onValueChange={(v) => onUpdate({ periodicidade: v })}>
               <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p} className="text-xs">{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>)}</SelectContent>
+              <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}</SelectContent>
             </Select>
           )}
         </td>
@@ -1440,7 +1440,7 @@ function PagamentoDialog({
               <Label>Periodicidade</Label>
               <Select value={periodicidade} onValueChange={setPeriodicidade}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>)}</SelectContent>
+                <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
@@ -1448,8 +1448,8 @@ function PagamentoDialog({
               <Select value={fluxo} onValueChange={setFluxo}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ENTRADA">Entrada</SelectItem>
-                  <SelectItem value="SAIDA">Saída</SelectItem>
+                  <SelectItem value="ENTRADA">ENTRADA</SelectItem>
+                  <SelectItem value="SAIDA">SAIDA</SelectItem>
                 </SelectContent>
               </Select>
             </div>

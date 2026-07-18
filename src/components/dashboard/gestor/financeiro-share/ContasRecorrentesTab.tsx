@@ -263,7 +263,6 @@ export function ContasRecorrentesTab() {
     switch (frequency) {
       case "semanal": return "Semanal";
       case "mensal": return day ? `Dia ${day} do mês` : "Mensal";
-      case "trimestral": return "Trimestral";
       case "anual": return "Anual";
       default: return frequency;
     }

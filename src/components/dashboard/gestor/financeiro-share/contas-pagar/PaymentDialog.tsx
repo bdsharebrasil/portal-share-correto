@@ -178,7 +178,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           categoria_id: categoriaId,
           descricao: `${conta.categoria} - ${conta.fornecedor_nome}`,
           valor: valorNum,
-          conta_banco: banco,
+          banco_pagamento: banco,
           status: "pago",
           fornecedores_favoritos_id: conta.fornecedor_favorito_id || null,
           client_id: conta.cliente_id || null,

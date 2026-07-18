@@ -33,7 +33,7 @@ import { Label } from "@/components/ui/label";
 import { syncCotistaReembolsoMirror, deleteCotistaReembolsoMirror } from "@/lib/cotistaFinanceSync";
 import { useEffect, useMemo, useState } from "react";
 
-type GrupoCusto = "FIXO" | "VARIAVEL" | "EXTRA";
+type GrupoCusto = "FIXO" | "VARIAVEL POR VOO" | "VARIAVEL POR HORA" | "EXTRA";
 
 type Socio = {
   id: string;
@@ -68,31 +68,30 @@ const GRUPOS = [
 ];
 
 const STATUS_OPTIONS = [
-  { id: "pago", label: "Pago" },
-  { id: "pendente", label: "Pendente" },
+  { id: "pago", label: "PAGO" },
+  { id: "pendente", label: "PENDENTE" },
 ];
 
 const FORMA_PGTO = [
   { id: "PIX", label: "PIX" },
   { id: "TED", label: "TED / Transferência" },
-  { id: "BOLETO", label: "Boleto" },
-  { id: "DINHEIRO", label: "Dinheiro" },
-  { id: "CARTAO", label: "Cartão" },
+  { id: "BOLETO", label: "BOLETO" },
+  { id: "DINHEIRO", label: "DINHEIRO" },
+  { id: "CARTAO", label: "CARTÃO" },
 ];
 
 const PERIODICIDADE = [
-  { id: "MENSAL", label: "Mensal" },
-  { id: "TRIMESTRAL", label: "Trimestral" },
-  { id: "SEMESTRAL", label: "Semestral" },
-  { id: "ANUAL", label: "Anual" },
-  { id: "EVENTUAL", label: "Eventual" },
+  { id: "MENSAL", label: "MENSAL" },
+  { id: "SEMESTRAL", label: "SEMESTRAL" },
+  { id: "ANUAL", label: "ANUAL" },
+  { id: "EVENTUAL", label: "EVENTUAL" },
 ];
 
 const TIPO_ANEXO = [
-  { id: "comprovante", label: "Comprovante" },
-  { id: "recibo", label: "Recibo" },
-  { id: "nf", label: "Nota Fiscal" },
-  { id: "boleto", label: "Boleto" },
+  { id: "comprovante", label: "COMPROVANTE" },
+  { id: "recibo", label: "RECIBO" },
+  { id: "nf", label: "NOTA FISCAL" },
+  { id: "boleto", label: "BOLETO" },
 ];
 
 const fmtBRL = (v: number) =>

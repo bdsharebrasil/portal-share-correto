@@ -596,7 +596,7 @@ export function FechamentoBalancoTab({
    LANÇAMENTOS DETALHADOS — estilo planilha "Centro de Lançamentos"
    ════════════════════════════════════════════════════════════════════ */
 const TIPOS_RATEIO = ["FIXO", "VARIAVEL_POR_HORA", "VARIAVEL_POR_VOO", "EXTRA"] as const;
-const PERIODICIDADES = ["MENSAL", "TRIMESTRAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
+const PERIODICIDADES = ["MENSAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
 
 function LancamentosDetalhadosView({
   despesasAgrupadas,

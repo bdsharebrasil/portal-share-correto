@@ -334,7 +334,6 @@ export default function AgendamentoPagamentos() {
                               <Badge variant="outline" className="gap-1">
                                 <Repeat className="w-3 h-3" />
                                 {agendamento.frequencia_recorrencia === 'mensal' ? 'Mensal' :
-                                  agendamento.frequencia_recorrencia === 'trimestral' ? 'Trimestral' :
                                     agendamento.frequencia_recorrencia === 'anual' ? 'Anual' : 'Semanal'}
                                 {agendamento.dia_recorrencia && ` - Dia ${agendamento.dia_recorrencia}`}
                               </Badge>

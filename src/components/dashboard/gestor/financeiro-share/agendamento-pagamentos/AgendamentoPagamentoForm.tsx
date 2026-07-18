@@ -34,7 +34,6 @@ const categorias = [
 const frequencias = [
   { value: "semanal", label: "Semanal" },
   { value: "mensal", label: "Mensal" },
-  { value: "trimestral", label: "Trimestral" },
   { value: "anual", label: "Anual" }
 ];
 
