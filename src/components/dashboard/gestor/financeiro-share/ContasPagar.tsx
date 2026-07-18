@@ -326,14 +326,44 @@ export function ContasPagar() {
 
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
-    const { error } = await supabase.from("contas_apagar").delete().eq("id", deleteConfirmId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Conta removida.");
+    try {
+      // Buscar conta para pegar movimentacao_id
+      const { data: contaRow } = await (supabase as any)
+        .from("contas_apagar")
+        .select("id, movimentacao_id")
+        .eq("id", deleteConfirmId)
+        .maybeSingle();
+
+      const despesaIds = [deleteConfirmId, contaRow?.movimentacao_id].filter(Boolean) as string[];
+
+      // 1) Excluir rateio_despesas vinculados
+      if (despesaIds.length > 0) {
+        await (supabase as any)
+          .from("rateio_despesas")
+          .delete()
+          .in("despesa_id", despesaIds);
+      }
+
+      // 2) Excluir movimentação vinculada
+      if (contaRow?.movimentacao_id) {
+        await (supabase as any)
+          .from("movimentacoes")
+          .delete()
+          .eq("id", contaRow.movimentacao_id);
+      }
+
+      // 3) Excluir a conta a pagar
+      const { error } = await supabase.from("contas_apagar").delete().eq("id", deleteConfirmId);
+      if (error) throw error;
+
+      toast.success("Conta, movimentação e rateio removidos.");
       setDeleteConfirmId(null);
       loadContas();
+    } catch (err: any) {
+      toast.error("Erro ao excluir: " + err.message);
     }
   };
+
 
   const toggleExpand = (id: string) => {
     const s = new Set(expandedRows);
