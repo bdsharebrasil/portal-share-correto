@@ -83,7 +83,7 @@ export default function FinanceiroCotistaDetalhe() {
   const { clienteId } = useParams<{ clienteId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { data, isLoading } = useFinanceiroCotistaDetalhe(clienteId);
+  const { data, isLoading, error } = useFinanceiroCotistaDetalhe(clienteId);
   const [aeronaveSelecionada, setAeronaveSelecionada] = useState<string>("");
   const [socioSelecionado, setSocioSelecionado] = useState<string | undefined>();
   const [drillCard, setDrillCard] = useState<null | "total" | "share" | "direto" | "abast">(null);
@@ -202,6 +202,20 @@ export default function FinanceiroCotistaDetalhe() {
     );
   }
 
+  if (error) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+            <X className="h-8 w-8 text-destructive" />
+          </div>
+          <p className="text-lg font-medium text-foreground tracking-tight">Erro ao carregar perfil do cotista</p>
+          <p className="text-sm text-muted-foreground">{error.message || "Ocorreu um problema ao buscar os dados do cliente."}</p>
+        </div>
+      </Layout>
+    );
+  }
+
   if (!cliente) {
     return (
       <Layout>
@@ -313,7 +327,7 @@ export default function FinanceiroCotistaDetalhe() {
               </div>
 
               {/* Métricas Hero */}
-              <div className="flex flex-row md:flex-col gap-6 md:pl-10 md:border-l border-border/40 min-w-[140px]">
+              <div className="flex flex-row md:flex-col gap-6 md:pl-10 md:border-l border-border/40 min-w-0 md:min-w-[140px]">
                 <div>
                   <p className="text-[10px] uppercase font-semibold tracking-[0.2em] text-muted-foreground/70 mb-1">
                     Aeronaves

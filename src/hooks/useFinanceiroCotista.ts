@@ -182,14 +182,16 @@ export function useClientesCotistas() {
  * linha por despesa com colunas para cada cotista).
  */
 export function useFinanceiroCotistaDetalhe(clienteId?: string) {
+  const normalizedClienteId = clienteId?.trim();
   return useQuery({
-    enabled: !!clienteId,
-    queryKey: ["financeiro-cotista-detalhe", clienteId],
+    enabled: !!normalizedClienteId,
+    queryKey: ["financeiro-cotista-detalhe", normalizedClienteId],
     queryFn: async () => {
+      if (!normalizedClienteId) throw new Error("ID do cliente inválido");
       const { data: cliente, error: cErr } = await supabase
         .from("clientes")
         .select("*")
-        .eq("id", clienteId!)
+        .eq("id", normalizedClienteId)
         .maybeSingle();
       if (cErr) throw cErr;
 
@@ -239,7 +241,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
               "*, cliente:clientes(id, razao_social, proprietario), socio:socios(id, nome)"
             )
             .in("aeronave_id", aeronaveIds)
-            .eq("cliente_id", clienteId!)
+            .eq("cliente_id", normalizedClienteId)
             .order("data_vencimento", { ascending: false }),
           (supabase as any)
             .from("rateio_despesas")
@@ -261,7 +263,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
               "id, numero_relatorio, rota, data_inicio, data_fim, dias_count, total_valor, total_clientes, status, aeronave_id, matricula_aeronave, socios_id, nome_tripulante, observacoes"
             )
             .in("aeronave_id", aeronaveIds)
-            .eq("clientes_id", clienteId!)
+            .eq("clientes_id", normalizedClienteId)
             .order("data_inicio", { ascending: false }),
         ]);
 

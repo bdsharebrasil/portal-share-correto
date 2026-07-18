@@ -3,6 +3,7 @@
 ## O que foi implementado
 
 ### 1. ✅ Vínculo Automático com Origem
+undefined is not an object (evaluating 'data.totaisGrupoMes["CUSTOS FIXOS"][mes]')
 - **Combustíveis**: Quando o tipo de despesa é "COMBUSTÍVEIS", a solicitação automaticamente detecta e se vincula a registros existentes em `abastecimentos`
 - **Despesas de Viagem**: Quando o tipo é "DESPESAS DE VIAGEM", a solicitação detecta e se vincula a registros em `travel_expense_reports`
 - **Reutilização de Registros**: Em vez de duplicar, o sistema reutiliza o registro existente mediante os campos:

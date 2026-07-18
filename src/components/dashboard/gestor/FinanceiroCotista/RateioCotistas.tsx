@@ -39,14 +39,18 @@ export function RateioCotistas({ aeronaveId, matricula, cotistas, ano }: Props) 
 
   const totalFixoMes = useMemo(() => {
     if (!data) return 0;
+
+    const getTotalGrupo = (grupo: string) =>
+      data.totaisGrupoMes?.[grupo]?.[mes] || 0;
+
     return (
-      data.totaisGrupoMes["CUSTOS FIXOS"][mes] +
-      data.totaisGrupoMes["PESSOAL & TRIPULAÇÃO"][mes] +
-      data.totaisGrupoMes["MANUTENÇÃO"][mes]
+      getTotalGrupo("CUSTOS FIXOS") +
+      getTotalGrupo("PESSOAL & TRIPULAÇÃO") +
+      getTotalGrupo("MANUTENÇÃO")
     );
   }, [data, mes]);
 
-  const totalVariavelMes = data?.totaisGrupoMes["CUSTOS VARIÁVEIS"][mes] || 0;
+  const totalVariavelMes = data?.totaisGrupoMes?.["CUSTOS VARIÁVEIS"]?.[mes] || 0;
 
   const calcular = (cot: Cotista) => {
     const horas = data?.horasMesPorCotista[cot.id]?.[mes] || 0;
@@ -157,7 +161,7 @@ export function RateioCotistas({ aeronaveId, matricula, cotistas, ano }: Props) 
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                   <Metric label="Horas Voadas" value={r.horas.toFixed(1)} />
                   <Metric
                     label="Cota Fixa"
