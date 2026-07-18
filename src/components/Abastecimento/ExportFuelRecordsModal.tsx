@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { resolveFuelRecordPartnerName } from "./fuelRecordsUtils";
 
 interface FuelRecord {
   id: string;
@@ -17,6 +18,8 @@ interface FuelRecord {
   valor_unitario: number;
   valor_total: number;
   partner_name?: string | null;
+  nome_socio?: string | null;
+  socio_nome?: string | null;
   abastecimento_galoes?: number | null;
 }
 
@@ -157,7 +160,7 @@ export function ExportFuelRecordsModal({
                           <TableCell className="whitespace-nowrap text-xs">{record.trecho || "-"}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs">{record.local || "-"}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs">{record.comanda || "-"}</TableCell>
-                          <TableCell className="whitespace-nowrap text-xs">{record.partner_name || record.partner_name || "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">{resolveFuelRecordPartnerName(record) || "-"}</TableCell>
                           <TableCell className="text-right whitespace-nowrap text-xs">{record.litros.toFixed(2)}</TableCell>
                           <TableCell className="text-right whitespace-nowrap text-xs">R$ {record.valor_unitario.toFixed(2)}</TableCell>
                           <TableCell className="text-right whitespace-nowrap text-xs font-semibold text-primary">

@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModernFileUpload } from "@/components/ui/modern-file-upload";
 import { ExportFuelRecordsModal } from "./ExportFuelRecordsModal";
+import { resolveFuelRecordPartnerName } from "./fuelRecordsUtils";
 interface Client {
   id: string;
   razao_social: string;
@@ -643,9 +644,9 @@ export function FuelRecordsByAircraft({
     // Filter by partner
     if (filterPartner && filterPartner !== "all") {
       if (filterPartner === "__no_partner__") {
-        filtered = filtered.filter(record => !record.nome_socio);
+        filtered = filtered.filter(record => !resolveFuelRecordPartnerName(record));
       } else {
-        filtered = filtered.filter(record => record.nome_socio === filterPartner);
+        filtered = filtered.filter(record => resolveFuelRecordPartnerName(record) === filterPartner);
       }
     }
 
@@ -674,7 +675,7 @@ export function FuelRecordsByAircraft({
           record.comanda?.toLowerCase().includes(lowerSearchText) ||
           record.nf?.toLowerCase().includes(lowerSearchText) ||
           record.observacao?.toLowerCase().includes(lowerSearchText) ||
-          record.nome_socio?.toLowerCase().includes(lowerSearchText) ||
+          resolveFuelRecordPartnerName(record).toLowerCase().includes(lowerSearchText) ||
           record.litros?.toString().includes(lowerSearchText) ||
           record.valor_total?.toString().includes(lowerSearchText)
         );
@@ -1276,7 +1277,7 @@ export function FuelRecordsByAircraft({
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="__no_partner__">Sem sócio (Cliente)</SelectItem>
               {(() => {
-                const uniquePartners = Array.from(new Set(records.map(r => r.nome_socio).filter(Boolean))) as string[];
+                const uniquePartners = Array.from(new Set(records.map(r => resolveFuelRecordPartnerName(r)).filter(Boolean))) as string[];
                 return uniquePartners.map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ));
@@ -2191,7 +2192,7 @@ export function FuelRecordsByAircraft({
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
-                  <TableCell className="text-muted-foreground font-medium">{record.nome_socio || "-"}</TableCell>
+                  <TableCell className="text-muted-foreground font-medium">{resolveFuelRecordPartnerName(record) || "-"}</TableCell>
                   <TableCell>
                     {record.status_pagamento === "pago" ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
                       <FileCheck className="h-4 w-4" />

@@ -35,6 +35,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { cn } from "@/lib/utils";
 import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
+import { findCotistaIdForRecord, resolveCategoriaLabel } from "./fechamentoBalancoUtils";
 
 /* ════════════════════════════════════════════════════════════════════
    HELPERS
@@ -126,7 +127,7 @@ export function FechamentoBalancoTab({
     enabled: !!aeronaveId,
     queryKey: ["fechamento-balanco", aeronaveId, periodoTipo, mes, ano, dataInicio, dataFim],
     queryFn: async () => {
-      const [{ data: rateios }, { data: voos }] = await Promise.all([
+      const [{ data: rateios }, { data: voos }, { data: expenseConfig }, { data: categoriasMovimentacao }] = await Promise.all([
         (supabase as any)
           .from("rateio_despesas")
           .select(
@@ -142,13 +143,29 @@ export function FechamentoBalancoTab({
           .eq("aeronave_id", aeronaveId)
           .gte("data_registro", inicio)
           .lte("data_registro", fim),
+        (supabase as any).from("expense_configu").select("id, expense_type").order("expense_type"),
+        (supabase as any).from("categorias_movimentacao").select("id, nome").eq("ativo", true).order("nome"),
       ]);
-      return { rateios: (rateios || []) as any[], voos: (voos || []) as any[] };
+
+      const categoriasPorId = new Map<string, string>();
+      (expenseConfig || []).forEach((item: any) => {
+        if (item?.id) categoriasPorId.set(item.id, item.expense_type || item.id);
+      });
+      (categoriasMovimentacao || []).forEach((item: any) => {
+        if (item?.id) categoriasPorId.set(item.id, item.nome || item.id);
+      });
+
+      return {
+        rateios: (rateios || []) as any[],
+        voos: (voos || []) as any[],
+        categoriasPorId,
+      };
     },
   });
 
   const rateios = data?.rateios || [];
   const voos = data?.voos || [];
+  const categoriasPorId = data?.categoriasPorId || new Map<string, string>();
 
   const despesasAgrupadas = useMemo(() => {
     const m = new Map<string, { despesa: any; rateios: any[] }>();
@@ -172,7 +189,7 @@ export function FechamentoBalancoTab({
     cotistas.forEach((c) => map.set(c.id, 0));
     rateios.forEach((r) => {
       if ((r.fluxo || "").toUpperCase() === "ENTRADA") return;
-      const cid = r.cliente_id || r.socio_id;
+      const cid = findCotistaIdForRecord(cotistas, r);
       if (!cid || !map.has(cid)) return;
       const valPago = Number(r.valor_pago_real || 0);
       if (valPago > 0) map.set(cid, (map.get(cid) || 0) + valPago);
@@ -194,9 +211,18 @@ export function FechamentoBalancoTab({
         });
         return;
       }
-      const cid = r.cliente_id || r.socio_id;
+
+      const cid = findCotistaIdForRecord(cotistas, r);
       if (!cid || !map.has(cid)) return;
-      map.set(cid, (map.get(cid) || 0) + (Number(r.valor_rateado) || 0));
+
+      const valorRateado = Number(r.valor_rateado || 0);
+      const valorTotal = Number(r.valor_total_despesa || 0);
+      const percentualUso = Number(r.percentual_uso ?? r.percentual_sociedade ?? 0);
+      const valorBase = valorRateado > 0 ? valorRateado : percentualUso > 0 ? valorTotal * (percentualUso / 100) : 0;
+
+      if (valorBase > 0) {
+        map.set(cid, (map.get(cid) || 0) + valorBase);
+      }
     });
     return map;
   }, [rateios, cotistas]);
@@ -205,7 +231,7 @@ export function FechamentoBalancoTab({
     const map = new Map<string, number>();
     cotistas.forEach((c) => map.set(c.id, 0));
     voos.forEach((v) => {
-      const cid = v.clientes_id || v.socios_id;
+      const cid = findCotistaIdForRecord(cotistas, v);
       if (!cid || !map.has(cid)) return;
       map.set(cid, (map.get(cid) || 0) + (Number(v.tempo_total) || 0));
     });
@@ -313,7 +339,7 @@ export function FechamentoBalancoTab({
           body: voos
             .sort((a, b) => new Date(a.data_registro).getTime() - new Date(b.data_registro).getTime())
             .map((v) => {
-              const cotista = cotistas.find((c) => c.id === (v.clientes_id || v.socios_id));
+              const cotista = cotistas.find((c) => findCotistaIdForRecord([c], v) === c.id);
               return [formatDate(v.data_registro), cotista?.nome || "—", formatHHMM(Number(v.tempo_total) || 0)];
             }),
           theme: "grid",
@@ -501,6 +527,7 @@ export function FechamentoBalancoTab({
                 cotistas={cotistas}
                 periodoLabel={periodoLabel}
                 aeronaveLabel={aeronaveLabel}
+                categoriasPorId={categoriasPorId}
               />
             </TabsContent>
 
@@ -623,12 +650,13 @@ function CotistaBalanceCard({ linha }: { linha: any }) {
    EXTRATO COMPLETO — espelho fiel do Centro de Lançamentos, somente leitura
    ════════════════════════════════════════════════════════════════════ */
 function ExtratoCompleto({
-  despesasAgrupadas, cotistas, periodoLabel, aeronaveLabel,
+  despesasAgrupadas, cotistas, periodoLabel, aeronaveLabel, categoriasPorId,
 }: {
   despesasAgrupadas: { despesa: any; rateios: any[] }[];
   cotistas: Cotista[];
   periodoLabel: string;
   aeronaveLabel?: string;
+  categoriasPorId: Map<string, string>;
 }) {
   const [filtroCotista, setFiltroCotista] = useState<string>("todos");
   const [busca, setBusca] = useState("");
@@ -636,9 +664,12 @@ function ExtratoCompleto({
 
   const categoriasDisponiveis = useMemo(() => {
     const s = new Set<string>();
-    despesasAgrupadas.forEach(({ despesa }) => { if (despesa.categoria_custo) s.add(String(despesa.categoria_custo)); });
+    despesasAgrupadas.forEach(({ despesa }) => {
+      const nome = resolveCategoriaLabel(despesa.categoria_custo, categoriasPorId);
+      if (nome && nome !== "—") s.add(nome);
+    });
     return Array.from(s).sort();
-  }, [despesasAgrupadas]);
+  }, [despesasAgrupadas, categoriasPorId]);
 
   const filtrados = useMemo(() => {
     return despesasAgrupadas.filter(({ despesa, rateios }) => {
@@ -651,10 +682,11 @@ function ExtratoCompleto({
         const txt = norm([despesa.descricao_despesa, despesa.fornecedor_nome, despesa.categoria_custo, despesa.numero_nf, despesa.numero_doc].join(" "));
         if (!txt.includes(q)) return false;
       }
-      if (filtroCategoria !== "todos" && (despesa.categoria_custo || "") !== filtroCategoria) return false;
+      const categoriaLabel = resolveCategoriaLabel(despesa.categoria_custo, categoriasPorId);
+      if (filtroCategoria !== "todos" && categoriaLabel !== filtroCategoria) return false;
       return true;
     });
-  }, [despesasAgrupadas, filtroCotista, busca, filtroCategoria]);
+  }, [despesasAgrupadas, filtroCotista, busca, filtroCategoria, categoriasPorId]);
 
   const grupos: { fluxo: "ENTRADA" | "SAIDA"; itens: typeof filtrados }[] = useMemo(() => {
     const entradas = filtrados.filter((g) => (g.despesa.fluxo || "").toUpperCase() === "ENTRADA");
@@ -755,7 +787,7 @@ function ExtratoCompleto({
                         <td className="p-2 border-b border-border/70 font-mono">{g.despesa.numero_doc || g.despesa.numero_nf || "—"}</td>
                         <td className="p-2 border-b border-border/70">{g.despesa.fornecedor_nome || "—"}</td>
                         <td className="p-2 border-b border-border/70">{g.despesa.descricao_despesa || "—"}</td>
-                        <td className="p-2 border-b border-border/70">{g.despesa.categoria_custo || "—"}</td>
+                        <td className="p-2 border-b border-border/70">{resolveCategoriaLabel(g.despesa.categoria_custo, categoriasPorId)}</td>
                         <td className="p-2 border-b border-border/70">{(g.despesa.tipo_rateio || "—").replace(/_/g, " ")}</td>
                         <td className="p-2 border-b border-border/70">{(g.despesa.periodicidade || "—").toString().toUpperCase()}</td>
                         <td className="p-2 border-b border-border/70 font-medium">{g.despesa.pago_por || "—"}</td>
