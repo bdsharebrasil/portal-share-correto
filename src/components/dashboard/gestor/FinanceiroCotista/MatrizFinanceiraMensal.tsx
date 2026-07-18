@@ -2,21 +2,11 @@ import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  useMatrizFinanceira,
-  type CategoriaGrupo,
-} from "@/hooks/useMatrizFinanceira";
+import { useMatrizFinanceira } from "@/hooks/useMatrizFinanceira";
 
 const MESES = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-];
-
-const GRUPOS: CategoriaGrupo[] = [
-  "CUSTOS FIXOS",
-  "PESSOAL & TRIPULAÇÃO",
-  "MANUTENÇÃO",
-  "CUSTOS VARIÁVEIS",
 ];
 
 const fmt = (n: number) =>
@@ -39,13 +29,27 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
   const mesAtual = new Date().getMonth();
   const { data, isLoading } = useMatrizFinanceira(aeronaveId, anoAtual);
 
-  const [expandidos, setExpandidos] = useState<Record<string, boolean>>(() => ({
-    "CUSTOS FIXOS": true,
-    "PESSOAL & TRIPULAÇÃO": true,
-    "MANUTENÇÃO": true,
-    "CUSTOS VARIÁVEIS": true,
-  }));
+  const grupos = data?.grupos ?? [];
+
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({});
   const [subExpandido, setSubExpandido] = useState<Record<string, boolean>>({});
+
+  // Garante que grupos recém-carregados iniciem expandidos, sem apagar
+  // o estado de grupos já colapsados manualmente pelo usuário.
+  React.useEffect(() => {
+    if (!grupos.length) return;
+    setExpandidos((prev) => {
+      const novo = { ...prev };
+      let mudou = false;
+      for (const g of grupos) {
+        if (!(g in novo)) {
+          novo[g] = true;
+          mudou = true;
+        }
+      }
+      return mudou ? novo : prev;
+    });
+  }, [grupos]);
 
   const fmtBRLFull = (n: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -53,15 +57,14 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
     new Date(s + (s.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR");
 
   const linhasPorGrupo = useMemo(() => {
-    const m: Record<CategoriaGrupo, typeof data extends infer T ? any[] : any[]> = {
-      "CUSTOS FIXOS": [],
-      "PESSOAL & TRIPULAÇÃO": [],
-      "MANUTENÇÃO": [],
-      "CUSTOS VARIÁVEIS": [],
-    };
-    for (const l of data?.linhas || []) m[l.grupo].push(l);
+    const m: Record<string, typeof data extends infer T ? any[] : any[]> = {};
+    for (const g of grupos) m[g] = [];
+    for (const l of data?.linhas || []) {
+      if (!m[l.grupo]) m[l.grupo] = [];
+      m[l.grupo].push(l);
+    }
     return m;
-  }, [data]);
+  }, [data, grupos]);
 
   if (isLoading) {
     return (
@@ -117,8 +120,8 @@ export function MatrizFinanceiraMensal({ aeronaveId, matricula, ano }: Props) {
             </tr>
           </thead>
           <tbody>
-            {GRUPOS.map((grupo) => {
-              const linhas = linhasPorGrupo[grupo];
+            {grupos.map((grupo) => {
+              const linhas = linhasPorGrupo[grupo] || [];
               const totaisGrupo = data?.totaisGrupoMes[grupo] || Array(12).fill(0);
               const totalGrupoYTD = totaisGrupo.reduce((a, b) => a + b, 0);
               const aberto = expandidos[grupo];
