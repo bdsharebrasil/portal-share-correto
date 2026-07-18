@@ -91,6 +91,7 @@ interface GrupoLancamento {
   despesa_id: string | null;
   fonte_despesa: string | null;
   ids: string[];
+  data_emissao: string | null;
   data_pagamento: string | null;
   data_vencimento: string | null;
   numero_doc: string | null;
@@ -389,6 +390,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           despesa_id: r.despesa_id || null,
           fonte_despesa: r.fonte_despesa || null,
           ids: [],
+          data_emissao: r.data_emissao ?? r.data_pagamento ?? r.data_vencimento ?? null,
           data_pagamento: r.data_pagamento,
           data_vencimento: r.data_vencimento,
           numero_doc: r.numero_doc,
@@ -428,7 +430,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     const q = busca.trim().toLowerCase();
     return grupos
       .filter((g) => {
-        const ref = g.data_pagamento || g.data_vencimento;
+        const ref = g.data_emissao || g.data_pagamento || g.data_vencimento;
         if (ref) {
           const d = new Date(ref + "T00:00:00");
           if (d.getMonth() + 1 !== mes || d.getFullYear() !== ano) return false;
@@ -442,8 +444,8 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         return true;
       })
       .sort((a, b) => {
-        const dateA = new Date((a.data_pagamento || a.data_vencimento || "") + "T00:00:00");
-        const dateB = new Date((b.data_pagamento || b.data_vencimento || "") + "T00:00:00");
+        const dateA = new Date(((a.data_emissao || a.data_pagamento || a.data_vencimento) || "") + "T00:00:00");
+        const dateB = new Date(((b.data_emissao || b.data_pagamento || b.data_vencimento) || "") + "T00:00:00");
         const valA = Number.isNaN(dateA.getTime()) ? 0 : dateA.getTime();
         const valB = Number.isNaN(dateB.getTime()) ? 0 : dateB.getTime();
 
@@ -874,7 +876,7 @@ function LinhaGrupo({
   useEffect(() => { setDesc(g.descricao_despesa || ""); }, [g.descricao_despesa]);
   useEffect(() => { setValorDespesa(formatNumberPTBR(Number(g.valor_total_despesa ?? 0))); }, [g.valor_total_despesa]);
 
-  const dataRef = g.data_pagamento || g.data_vencimento;
+  const dataRef = g.data_emissao || g.data_pagamento || g.data_vencimento;
   const isEntrada = normalizeFluxo(g.fluxo) === "ENTRADA";
   const categoriaSelecionada = useMemo(() => {
     const raw = String(g.categoria_custo ?? "").trim();
@@ -1249,7 +1251,8 @@ function PagamentoDialog({
   onSaved: (status: "pago" | "pendente") => void;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
 }) {
-  const [dataPag, setDataPag] = useState(grupo.data_pagamento || new Date().toISOString().slice(0, 10));
+  const [dataEmissao, setDataEmissao] = useState(grupo.data_emissao || grupo.data_pagamento || new Date().toISOString().slice(0, 10));
+  const [dataPagamento, setDataPagamento] = useState(grupo.data_pagamento || "");
   const [dataVencimento, setDataVencimento] = useState(grupo.data_vencimento || new Date().toISOString().slice(0, 10));
   const [forma, setForma] = useState(grupo.forma_pagamento || "pix");
   const [status, setStatus] = useState<"pago" | "pendente">(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
@@ -1275,7 +1278,8 @@ function PagamentoDialog({
 
   useEffect(() => {
     if (open) {
-      setDataPag(grupo.data_pagamento || new Date().toISOString().slice(0, 10));
+      setDataEmissao(grupo.data_emissao || grupo.data_pagamento || new Date().toISOString().slice(0, 10));
+      setDataPagamento(grupo.data_pagamento || "");
       setDataVencimento(grupo.data_vencimento || new Date().toISOString().slice(0, 10));
       setForma(grupo.forma_pagamento || "pix");
       setStatus(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
@@ -1298,7 +1302,7 @@ function PagamentoDialog({
       setBoleto(null);
       setDocumento(null);
     }
-  }, [open, grupo.data_pagamento, grupo.data_vencimento, grupo.forma_pagamento, grupo.numero_doc, grupo.descricao_despesa, grupo.fornecedor_nome, grupo.categoria_custo, grupo.tipo_rateio, grupo.periodicidade, grupo.fluxo, grupo.pago_por, grupo.observacoes, grupo.numero_nf, grupo.numero_recibo, grupo.numero_boleto, grupo.status, grupo.valor_total_despesa]);
+  }, [open, grupo.data_emissao, grupo.data_pagamento, grupo.data_vencimento, grupo.forma_pagamento, grupo.numero_doc, grupo.descricao_despesa, grupo.fornecedor_nome, grupo.categoria_custo, grupo.tipo_rateio, grupo.periodicidade, grupo.fluxo, grupo.pago_por, grupo.observacoes, grupo.numero_nf, grupo.numero_recibo, grupo.numero_boleto, grupo.status, grupo.valor_total_despesa]);
 
   const handleSalvar = async () => {
     setSaving(true);
@@ -1321,7 +1325,8 @@ function PagamentoDialog({
       const valorTotalNormalizado = parsePTBRNumber(valorTotal);
       const patch: Record<string, any> = {
         status,
-        data_pagamento: status === "pago" ? dataPag : null,
+        data_emissao: dataEmissao || null,
+        data_pagamento: status === "pago" ? (dataPagamento || dataEmissao || null) : null,
         data_vencimento: dataVencimento || null,
         forma_pagamento: status === "pago" ? forma : null,
         numero_doc: docNumero || null,
@@ -1377,13 +1382,17 @@ function PagamentoDialog({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label>Data da liquidação</Label>
-              <Input type="date" value={dataPag} onChange={(e) => setDataPag(e.target.value)} disabled={status !== "pago"} className="h-9" />
+              <Label>Data de emissão</Label>
+              <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-9" />
             </div>
             <div className="grid gap-2">
               <Label>Data de vencimento</Label>
               <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-9" />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Data de pagamento</Label>
+            <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status !== "pago"} className="h-9" />
           </div>
           <div className="grid gap-2">
             <Label>Forma de pagamento</Label>
