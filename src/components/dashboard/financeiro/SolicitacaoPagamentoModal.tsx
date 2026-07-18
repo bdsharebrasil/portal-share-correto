@@ -35,6 +35,36 @@ interface SolicitacaoPagamentoModalProps {
 
 type Periodicidade = "MENSAL" | "SEMESTRAL" | "ANUAL" | "EVENTUAL";
 
+type TaxaOrigem = "INFRAERO" | "DECEA" | null;
+
+interface TaxaReciboOption {
+  id: string;
+  numero_recibo: string | null;
+  numero_documento: string | null;
+  valor_total: number | null;
+  percentual: number | null;
+  nome_categoria: string | null;
+  aeronave_id: string | null;
+  url_pdf: string | null;
+  data_emissao: string | null;
+  status: string | null;
+}
+
+interface AbastecimentoLookup {
+  id: string;
+  comanda: string | null;
+  nf: string | null;
+  data: string | null;
+  valor_total: number | null;
+  litros: number | null;
+  local: string | null;
+  status_pagamento: string | null;
+  comprovante_pagamento: string | null;
+  boleto_url: string | null;
+  nota_url: string | null;
+  comprovante_url: string | null;
+}
+
 interface AnexoDoc {
   id: string;
   tipo: "nf" | "recibo" | "boleto" | "doc";
@@ -53,14 +83,14 @@ const TIPOS_ANEXO: { value: AnexoDoc["tipo"]; label: string }[] = [
 const BUCKET = "n.f-boletos-clients";
 
 type SocioOption = { id: string; nome: string; percentual_participacao?: number | null };
-type TipoDespesaOption = { id: string; expense_type: string };
+type TipoDespesaOption = { id: string; expense_type: string; subcategoria_1?: string | null; subcategoria_2?: string | null };
 type FornecedorOption = { id: string; label: string; source: "favorito" | "combustivel" };
 type AeronaveOption = { id: string; matricula: string; modelo: string };
 type ReciboOption = { id: string; numero_recibo?: string | null; numero?: string | null; pdf_url?: string | null; arquivo_url?: string | null; valor_total?: number | null; created_at?: string | null };
 type TravelReportOption = {
   id: string; numero_relatorio: string;
   data_inicio?: string | null; data_fim?: string | null;
-  total_valor?: number | null; total_trip?: number | null; total_trip2?: number | null; total_clientes?: number | null;
+  total_valor?: number | null; total_trip?: number | null; total_trip2?: number | null; total_clientes?: number | null; total_tripulacao?: number | null; total_sharebrasil?: number | null;
   nome_tripulante?: string | null; nome_tripulante_2?: string | null;
   tripulacao_id?: string | null; tripulante_id2?: string | null;
   matricula_aeronave?: string | null; url_pdf?: string | null;
@@ -119,6 +149,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [reembolsavel, setReembolsavel] = useState(false);
   const [tipoDespesa, setTipoDespesa] = useState("");
   const [tipoDespesaLabel, setTipoDespesaLabel] = useState("");
+  const [tipoDespesaBase, setTipoDespesaBase] = useState("");
+  const [subcategoriaSel, setSubcategoriaSel] = useState<string>("");
   const [descricao, setDescricao] = useState("");
   const [valorTotal, setValorTotal] = useState("");
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("EVENTUAL");
@@ -142,11 +174,23 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [travelReportId, setTravelReportId] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Combustível: busca de abastecimento existente por comanda + nf
+  const [fuelComanda, setFuelComanda] = useState("");
+  const [fuelNf, setFuelNf] = useState("");
+  const [fuelLookupLoading, setFuelLookupLoading] = useState(false);
+  const [fuelLookupResult, setFuelLookupResult] = useState<AbastecimentoLookup | null>(null);
+  const [fuelLookupSearched, setFuelLookupSearched] = useState(false);
+
+  // Taxas Aeroportuárias
+  const [taxaOrigem, setTaxaOrigem] = useState<TaxaOrigem>(null);
+  const [taxaRecibos, setTaxaRecibos] = useState<TaxaReciboOption[]>([]);
+  const [taxaReciboId, setTaxaReciboId] = useState("");
+
   useEffect(() => {
     if (!open) return;
     (async () => {
       const [tip, ff, fc, aer, rec] = await Promise.all([
-        supabase.from("expense_configu").select("id, expense_type").order("expense_type"),
+        supabase.from("expense_configu").select("id, expense_type, subcategoria_1, subcategoria_2").order("expense_type"),
         supabase.from("fornecedores_favoritos").select("id, nome_completo, apelido").order("nome_completo"),
         supabase.from("fornecedores_combustivel").select("id, nome_fornecedor, nome_cidade").order("nome_fornecedor"),
         supabase.from("aeronave").select("id, matricula, modelo").order("matricula"),
@@ -213,6 +257,86 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const getClienteAeronaveInfo = (cid: string) => clientesDaAeronave.find((c) => c.clienteId === cid);
   const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaLabel || "");
   const isViagemMode = tipoNormalizadoAtual === "DESPESAS_DE_VIAGEM";
+  const isCombustivelMode = tipoNormalizadoAtual === "COMBUSTIVEIS";
+  const isTaxasMode = /TAXAS?\s*AEROPORT/i.test(tipoDespesaLabel || "");
+
+  const tipoDespesaSel = useMemo(() => tiposDespesa.find((t) => t.id === tipoDespesa), [tiposDespesa, tipoDespesa]);
+  const subcategoriasDisponiveis = useMemo(() => {
+    const arr: string[] = [];
+    if (tipoDespesaSel?.subcategoria_1) arr.push(tipoDespesaSel.subcategoria_1);
+    if (tipoDespesaSel?.subcategoria_2) arr.push(tipoDespesaSel.subcategoria_2);
+    return arr;
+  }, [tipoDespesaSel]);
+
+  // Buscar recibos de INFRAERO/DECEA por aeronave quando aplicável
+  useEffect(() => {
+    if (!open || !isTaxasMode || !taxaOrigem || !aeronaveId) {
+      setTaxaRecibos([]);
+      setTaxaReciboId("");
+      return;
+    }
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("recibos")
+        .select("id, numero_recibo, numero_documento, valor_total, percentual, nome_categoria, aeronave_id, url_pdf, data_emissao, status")
+        .eq("aeronave_id", aeronaveId)
+        .ilike("nome_categoria", `%${taxaOrigem}%`)
+        .order("data_emissao", { ascending: false })
+        .limit(50);
+      if (error) {
+        console.warn("Erro ao buscar recibos de taxa:", error);
+        setTaxaRecibos([]);
+        return;
+      }
+      setTaxaRecibos((data || []) as TaxaReciboOption[]);
+    })();
+  }, [open, isTaxasMode, taxaOrigem, aeronaveId]);
+
+  // Ao selecionar um recibo de taxa, preencher valor, descrição e nº doc
+  useEffect(() => {
+    if (!taxaReciboId) return;
+    const r = taxaRecibos.find((t) => t.id === taxaReciboId);
+    if (!r) return;
+    if (r.valor_total) setValorTotal(String(Number(r.valor_total).toFixed(2)));
+    setDescricao((prev) => prev || `${r.nome_categoria || "Taxa"} - Recibo ${r.numero_recibo || r.numero_documento || ""}`);
+  }, [taxaReciboId, taxaRecibos]);
+
+  const buscarAbastecimento = async () => {
+    if (!fuelComanda && !fuelNf) {
+      toast.error("Informe a comanda ou o número da NF para buscar");
+      return;
+    }
+    setFuelLookupLoading(true);
+    setFuelLookupSearched(true);
+    try {
+      let q: any = (supabase as any)
+        .from("abastecimentos")
+        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url")
+        .order("data", { ascending: false })
+        .limit(1);
+      if (aeronaveId) q = q.eq("aeronave_id", aeronaveId);
+      if (fuelComanda) q = q.eq("comanda", fuelComanda);
+      if (fuelNf) q = q.eq("nf", fuelNf);
+      const { data } = await q;
+      const found = (data && data[0]) as AbastecimentoLookup | undefined;
+      if (found) {
+        setFuelLookupResult(found);
+        if (found.valor_total) setValorTotal(String(Number(found.valor_total).toFixed(2)));
+        setReferenciaDuplicada({
+          tipo: "abastecimento",
+          id: found.id,
+          mensagem: `✓ Abastecimento encontrado (Comanda ${found.comanda || "—"} / NF ${found.nf || "—"})`,
+        });
+        toast.success("Abastecimento localizado");
+      } else {
+        setFuelLookupResult(null);
+        setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
+        toast.info("Nenhum abastecimento encontrado — preencha os demais campos para criar um novo.");
+      }
+    } finally {
+      setFuelLookupLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isViagemMode && aeronaveId && clienteLinhas.length === 0) {
@@ -236,7 +360,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     if (!open || !isViagemMode || !clienteId) { setTravelReports([]); setTravelReportId(""); return; }
     let q: any = (supabase as any)
       .from("travel_expense_reports")
-      .select("id, numero_relatorio, data_inicio, data_fim, total_valor, total_trip, total_trip2, total_clientes, nome_tripulante, nome_tripulante_2, tripulacao_id, tripulante_id2, matricula_aeronave, url_pdf, aeronave_id, socios_id, clientes_id, pago_em")
+      .select("id, numero_relatorio, data_inicio, data_fim, total_valor, total_trip, total_trip2, total_clientes, total_tripulacao, total_sharebrasil, nome_tripulante, nome_tripulante_2, tripulacao_id, tripulante_id2, matricula_aeronave, url_pdf, aeronave_id, socios_id, clientes_id, pago_em")
       .eq("clientes_id", clienteId)
       .order("data_inicio", { ascending: false })
       .limit(50);
@@ -368,6 +492,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setUsarReciboExistente(false); setReciboExistenteId(""); setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
     setTravelReportId(""); setTravelReports([]);
     setClienteLinhas([]); setClienteId(""); setSocioId("");
+    setFuelComanda(""); setFuelNf(""); setFuelLookupResult(null); setFuelLookupSearched(false);
+    setTaxaOrigem(null); setTaxaRecibos([]); setTaxaReciboId("");
   };
 
   const clientesJaUsados = new Set(clienteLinhas.map((l) => l.clienteId).filter(Boolean));
@@ -694,7 +820,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background/70 backdrop-blur-2xl border-white/10 shadow-2xl font-poppins rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
@@ -703,52 +829,50 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             Programar Pagamento — Cliente
           </DialogTitle>
           <DialogDescription>
-            Crie uma solicitação de pagamento vinculada a uma aeronave e a um ou mais clientes/cotistas.
+            O formulário evolui conforme suas respostas. Comece pela aeronave e siga as etapas.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
           
-          {/* SEÇÃO 1: Classificação Básica da Despesa */}
+          {/* SEÇÃO 1: Classificação Básica (Progressiva) */}
           <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5 shadow-sm">
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                 <Wallet className="h-4 w-4" /> Classificação
               </h3>
-              {/* Badge discreto de Reembolsável */}
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full transition-colors hover:bg-emerald-500/20">
-                <Switch id="reembolsavel" checked={reembolsavel} onCheckedChange={setReembolsavel} className="scale-75 origin-right" />
-                <Label htmlFor="reembolsavel" className="cursor-pointer text-xs font-medium text-emerald-300">Reembolsável</Label>
-              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Aeronave *</Label>
-                <SearchableCombobox
-                  items={aeronaves.map((a) => ({ id: a.id, label: `${a.matricula} — ${a.modelo}` }))}
-                  value={aeronaveId} onChange={(id) => setAeronaveId(id)}
-                  placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tipo de despesa *</Label>
-                <SearchableCombobox
-                  items={tiposDespesa.map((t) => ({ id: t.id, label: t.expense_type }))}
-                  value={tipoDespesa} onChange={(id, label) => {
-                    const existente = tiposDespesa.find((t) => t.id === id);
-                    if (existente) { setTipoDespesa(id); setTipoDespesaLabel(existente.expense_type); }
-                    else if (label) { if (window.confirm(`Adicionar novo tipo "${label}"?`)) criarTipoDespesa(label); }
-                  }}
-                  placeholder="Selecione o tipo" allowFreeText
-                />
-              </div>
+            {/* Passo 1: Aeronave */}
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+              <Label>1. Aeronave *</Label>
+              <SearchableCombobox
+                items={aeronaves.map((a) => ({ id: a.id, label: `${a.matricula} — ${a.modelo}` }))}
+                value={aeronaveId} onChange={(id) => setAeronaveId(id)}
+                placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave"
+              />
             </div>
 
-            {/* Periodicidade e Rateio na mesma linha logo abaixo do Tipo */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Periodicidade</Label>
+            {/* Passo 2: Tipo de rateio (após aeronave) */}
+            {aeronaveId && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                <Label>2. Tipo de rateio *</Label>
+                <Select value={tipoRateio} onValueChange={setTipoRateio}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o tipo de rateio" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FIXO">FIXO</SelectItem>
+                    <SelectItem value="VARIAVEL_POR_VOO">VARIÁVEL POR VOO</SelectItem>
+                    <SelectItem value="VARIAVEL_POR_HORA">VARIÁVEL POR HORA</SelectItem>
+                    <SelectItem value="EXTRA">EXTRA</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Passo 3: Periodicidade */}
+            {aeronaveId && tipoRateio && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                <Label>3. Periodicidade *</Label>
                 <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -759,19 +883,64 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Tipo de rateio</Label>
-                <Select value={tipoRateio} onValueChange={setTipoRateio}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o tipo de rateio" /></SelectTrigger>
+            )}
+
+            {/* Passo 4: Reembolsável? */}
+            {aeronaveId && tipoRateio && periodicidade && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                <Label>4. Esta despesa é reembolsável? *</Label>
+                <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 px-4 py-3 rounded-xl">
+                  <Switch id="reembolsavel" checked={reembolsavel} onCheckedChange={setReembolsavel} />
+                  <Label htmlFor="reembolsavel" className="cursor-pointer text-sm font-medium text-emerald-200">
+                    {reembolsavel ? "Sim — gerar cobrança ao cliente" : "Não — despesa da empresa"}
+                  </Label>
+                </div>
+              </div>
+            )}
+
+            {/* Passo 5: Tipo de despesa */}
+            {aeronaveId && tipoRateio && periodicidade && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                <Label>5. Tipo de despesa *</Label>
+                <SearchableCombobox
+                  items={tiposDespesa.map((t) => ({ id: t.id, label: t.expense_type }))}
+                  value={tipoDespesa} onChange={(id, label) => {
+                    const existente = tiposDespesa.find((t) => t.id === id);
+                    if (existente) {
+                      setTipoDespesa(id);
+                      setTipoDespesaBase(existente.expense_type);
+                      setTipoDespesaLabel(existente.expense_type);
+                      setSubcategoriaSel("");
+                    }
+                    else if (label) { if (window.confirm(`Adicionar novo tipo "${label}"?`)) criarTipoDespesa(label); }
+                  }}
+                  placeholder="Selecione o tipo" allowFreeText
+                />
+              </div>
+            )}
+
+            {/* Passo 5b: Subcategoria (aparece se o tipo tiver subcategorias) */}
+            {tipoDespesa && subcategoriasDisponiveis.length > 0 && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                <Label>5.1 Subcategoria *</Label>
+                <Select
+                  value={subcategoriaSel || "__none__"}
+                  onValueChange={(v) => {
+                    const val = v === "__none__" ? "" : v;
+                    setSubcategoriaSel(val);
+                    setTipoDespesaLabel(val || tipoDespesaBase);
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione a subcategoria" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="FIXO">FIXO</SelectItem>
-                    <SelectItem value="VARIAVEL_POR_VOO">VARIAVEL POR VOO</SelectItem>
-                    <SelectItem value="VARIAVEL_POR_HORA">VARIAVEL POR HORA</SelectItem>
-                    <SelectItem value="EXTRA">EXTRA</SelectItem>
+                    <SelectItem value="__none__">— Nenhuma (usar {tipoDespesaBase}) —</SelectItem>
+                    {subcategoriasDisponiveis.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            )}
           </section>
 
           {/* SEÇÃO 2 (Single-client): Relatórios de Viagem */}
@@ -823,6 +992,33 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   <div className="space-y-1.5">
                     <Label>% de uso do Cliente</Label>
                     <Input type="text" inputMode="decimal" value={percentualUso} onChange={(e) => setPercentualUso(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {travelReportSel && (
+                <div className="rounded-xl border border-sky-500/20 bg-background/40 p-4 space-y-2">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <Label className="text-xs uppercase tracking-wide text-sky-300">Pagamento à Tripulação</Label>
+                    <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-200">
+                      Total: {Number(travelReportSel.total_tripulacao ?? ((Number(travelReportSel.total_trip || 0)) + (Number(travelReportSel.total_trip2 || 0)))).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
+                      <span className="text-muted-foreground">{travelReportSel.nome_tripulante || "Tripulante 1"}</span>
+                      <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    </div>
+                    <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
+                      <span className="text-muted-foreground">{travelReportSel.nome_tripulante_2 || "Tripulante 2"}</span>
+                      <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip2 || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    </div>
+                    {Number(travelReportSel.total_clientes || 0) > 0 && (
+                      <div className="flex justify-between rounded-md bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 md:col-span-2">
+                        <span className="text-emerald-300">A receber do cliente (total_clientes)</span>
+                        <span className="font-medium text-emerald-200">{Number(travelReportSel.total_clientes || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -994,6 +1190,107 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
               </div>
             </section>
           )}
+
+          {/* Combustível: comanda + NF para buscar abastecimento existente */}
+          {isCombustivelMode && aeronaveId && (
+            <section className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-xl p-5">
+              <div className="flex items-center gap-2 border-b border-amber-500/10 pb-3">
+                <Plane className="h-4 w-4 text-amber-300" />
+                <h3 className="text-sm font-semibold text-amber-200 uppercase tracking-wide">Combustível — Comanda / NF</h3>
+              </div>
+              <p className="text-xs text-amber-100/70">
+                Informe a comanda e/ou o número da NF. Se já existir um abastecimento cadastrado, ele será vinculado; caso contrário, um novo será criado ao salvar.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Comanda</Label>
+                  <Input value={fuelComanda} onChange={(e) => setFuelComanda(e.target.value)} placeholder="Nº da comanda" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Nº da NF</Label>
+                  <Input value={fuelNf} onChange={(e) => setFuelNf(e.target.value)} placeholder="Nº da nota fiscal" />
+                </div>
+                <div className="flex items-end">
+                  <Button type="button" variant="outline" className="w-full border-amber-500/30 hover:bg-amber-500/10" onClick={buscarAbastecimento} disabled={fuelLookupLoading}>
+                    {fuelLookupLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />} Buscar / Vincular
+                  </Button>
+                </div>
+              </div>
+              {fuelLookupSearched && !fuelLookupResult && (
+                <p className="text-xs text-amber-200/80 rounded-md border border-amber-500/20 bg-amber-500/10 p-2">
+                  Nenhum abastecimento encontrado — os campos abaixo criarão um novo registro.
+                </p>
+              )}
+              {fuelLookupResult && (
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100">
+                  ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {Number(fuelLookupResult.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Taxas Aeroportuárias: INFRAERO / DECEA */}
+          {isTaxasMode && aeronaveId && (
+            <section className="space-y-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-xl p-5">
+              <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-3">
+                <FileText className="h-4 w-4 text-indigo-300" />
+                <h3 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">Taxas Aeroportuárias</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Origem da Taxa *</Label>
+                  <Select value={taxaOrigem ?? ""} onValueChange={(v) => { setTaxaOrigem(v as TaxaOrigem); setTaxaReciboId(""); }}>
+                    <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INFRAERO">Tarifa INFRAERO</SelectItem>
+                      <SelectItem value="DECEA">Tarifa de Navegação Aérea — DECEA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {taxaOrigem && (
+                  <div className="space-y-1.5">
+                    <Label>Recibo emitido</Label>
+                    <Select value={taxaReciboId} onValueChange={setTaxaReciboId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={taxaRecibos.length === 0 ? "Nenhum recibo encontrado" : "Escolha um recibo"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {taxaRecibos.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
+                            {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
+                            {` · R$ ${Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {taxaReciboId && (() => {
+                const r = taxaRecibos.find((x) => x.id === taxaReciboId);
+                if (!r) return null;
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-white/5 bg-background/40 p-3 text-xs">
+                    <div><div className="text-muted-foreground">Nº Documento</div><div className="font-medium">{r.numero_documento || "—"}</div></div>
+                    <div><div className="text-muted-foreground">Nº Recibo</div><div className="font-medium">{r.numero_recibo || "—"}</div></div>
+                    <div><div className="text-muted-foreground">Percentual</div><div className="font-medium">{r.percentual ?? "—"}%</div></div>
+                    <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
+                    {r.url_pdf && (
+                      <a href={r.url_pdf} target="_blank" rel="noreferrer" className="col-span-full inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> Abrir PDF do recibo</a>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <p className="text-[11px] text-indigo-100/60">
+                Ao selecionar o recibo, os clientes/sócios com participação serão rateados automaticamente conforme o percentual da aeronave.
+              </p>
+            </section>
+          )}
+
 
           {/* SEÇÃO 6: Anexos */}
           <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
