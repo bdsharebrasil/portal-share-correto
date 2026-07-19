@@ -139,6 +139,9 @@ async function insertAndGetId(table: string, payload: Record<string, unknown>) {
 }
 
 export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPagamentoModalProps) {
+  // === ESTADO DO WIZARD ===
+  const [etapaAtual, setEtapaAtual] = useState(1);
+
   const [tiposDespesa, setTiposDespesa] = useState<TipoDespesaOption[]>([]);
   const [fornecedores, setFornecedores] = useState<FornecedorOption[]>([]);
   const [aeronaves, setAeronaves] = useState<AeronaveOption[]>([]);
@@ -174,7 +177,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [travelReportId, setTravelReportId] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Combustível: busca de abastecimento existente por comanda + nf
+  // Combustível
   const [fuelComanda, setFuelComanda] = useState("");
   const [fuelNf, setFuelNf] = useState("");
   const [fuelLookupLoading, setFuelLookupLoading] = useState(false);
@@ -268,7 +271,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     return arr;
   }, [tipoDespesaSel]);
 
-  // Buscar recibos de INFRAERO/DECEA por aeronave quando aplicável
   useEffect(() => {
     if (!open || !isTaxasMode || !taxaOrigem || !aeronaveId) {
       setTaxaRecibos([]);
@@ -284,7 +286,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         .order("data_emissao", { ascending: false })
         .limit(50);
       if (error) {
-        console.warn("Erro ao buscar recibos de taxa:", error);
         setTaxaRecibos([]);
         return;
       }
@@ -292,7 +293,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     })();
   }, [open, isTaxasMode, taxaOrigem, aeronaveId]);
 
-  // Ao selecionar um recibo de taxa, preencher valor, descrição e nº doc
   useEffect(() => {
     if (!taxaReciboId) return;
     const r = taxaRecibos.find((t) => t.id === taxaReciboId);
@@ -380,7 +380,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
   const valorNumerico = Number(String(valorTotal).replace(",", ".")) || 0;
   const percNumerico = Number(String(percentualUso).replace(",", ".")) || 0;
-  const valorRateado = +(valorNumerico * (percNumerico / 100)).toFixed(2);
   
   const linhasRateioPreview = useMemo(() => montarLinhasRateio({
     valorTotal: valorNumerico,
@@ -484,6 +483,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   }, [clienteIdParaDedup, dataEmissao, descricao, tipoDespesaLabel, valorNumerico, reciboExistenteId, usarReciboExistente, recibosExistentes]);
 
   const resetForm = () => {
+    setEtapaAtual(1); // Wizard volta para a etapa inicial
     setAeronaveId(""); setReembolsavel(false);
     setTipoDespesa(""); setTipoDespesaLabel(""); setDescricao(""); setValorTotal("");
     setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio("FIXO"); setObservacoes("");
@@ -494,6 +494,18 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setClienteLinhas([]); setClienteId(""); setSocioId("");
     setFuelComanda(""); setFuelNf(""); setFuelLookupResult(null); setFuelLookupSearched(false);
     setTaxaOrigem(null); setTaxaRecibos([]); setTaxaReciboId("");
+  };
+
+  // --- LÓGICA DO WIZARD: Validação por etapa ---
+  const podeAvancar = () => {
+    if (etapaAtual === 1) {
+      return !!(aeronaveId && tipoRateio && periodicidade && tipoDespesaLabel);
+    }
+    if (etapaAtual === 2) {
+      if (isViagemMode) return !!clienteId;
+      if (!isViagemMode) return clienteLinhas.length > 0 && clienteLinhas.every((l) => !!l.clienteId) && !erroSomaClientes;
+    }
+    return true;
   };
 
   const clientesJaUsados = new Set(clienteLinhas.map((l) => l.clienteId).filter(Boolean));
@@ -664,7 +676,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       if (!categoriaContaId) throw new Error("Não foi possível resolver/criar a categoria da despesa.");
 
       if (isViagemMode && travelReportSel && !rascunho) {
-        // --- Fluxo RV ---
         const travelReportNumeroDoc = travelReportSel.numero_relatorio || docNum;
         const tripValues = [
           { label: "Tripulante 1", valor: Number(travelReportSel.total_trip || 0), nome: travelReportSel.nome_tripulante || null },
@@ -740,7 +751,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           });
         }
       } else if (!isViagemMode) {
-        // --- Fluxo Geral ---
         const capId = await insertAndGetId("contas_apagar", {
           data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumerico, categoria: tipoDespesaLabel || null,
           categoria_id: categoriaContaId || null, descricao, status: statusCP, observacoes: observacoes || null,
@@ -829,558 +839,591 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             Programar Pagamento — Cliente
           </DialogTitle>
           <DialogDescription>
-            O formulário evolui conforme suas respostas. Comece pela aeronave e siga as etapas.
+            Etapa {etapaAtual} de 3 — {etapaAtual === 1 ? "Classificação Básica" : etapaAtual === 2 ? "Rateio e Contexto" : "Dados Finais da Fatura"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
           
-          {/* SEÇÃO 1: Classificação Básica (Progressiva) */}
-          <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5 shadow-sm">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <Wallet className="h-4 w-4" /> Classificação
-              </h3>
-            </div>
-
-            {/* Passo 1: Aeronave */}
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-              <Label>1. Aeronave *</Label>
-              <SearchableCombobox
-                items={aeronaves.map((a) => ({ id: a.id, label: `${a.matricula} — ${a.modelo}` }))}
-                value={aeronaveId} onChange={(id) => setAeronaveId(id)}
-                placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave"
-              />
-            </div>
-
-            {/* Passo 2: Tipo de rateio (após aeronave) */}
-            {aeronaveId && (
-              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <Label>2. Tipo de rateio *</Label>
-                <Select value={tipoRateio} onValueChange={setTipoRateio}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o tipo de rateio" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="FIXO">FIXO</SelectItem>
-                    <SelectItem value="VARIAVEL_POR_VOO">VARIÁVEL POR VOO</SelectItem>
-                    <SelectItem value="VARIAVEL_POR_HORA">VARIÁVEL POR HORA</SelectItem>
-                    <SelectItem value="EXTRA">EXTRA</SelectItem>
-                  </SelectContent>
-                </Select>
+          {/* =========================================
+              ETAPA 1: Classificação Básica (Progressiva)
+              ========================================= */}
+          {etapaAtual === 1 && (
+            <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Wallet className="h-4 w-4" /> Classificação
+                </h3>
               </div>
-            )}
 
-            {/* Passo 3: Periodicidade */}
-            {aeronaveId && tipoRateio && (
               <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <Label>3. Periodicidade *</Label>
-                <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MENSAL">MENSAL</SelectItem>
-                    <SelectItem value="SEMESTRAL">SEMESTRAL</SelectItem>
-                    <SelectItem value="ANUAL">ANUAL</SelectItem>
-                    <SelectItem value="EVENTUAL">EVENTUAL</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Passo 4: Reembolsável? */}
-            {aeronaveId && tipoRateio && periodicidade && (
-              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <Label>4. Esta despesa é reembolsável? *</Label>
-                <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 px-4 py-3 rounded-xl">
-                  <Switch id="reembolsavel" checked={reembolsavel} onCheckedChange={setReembolsavel} />
-                  <Label htmlFor="reembolsavel" className="cursor-pointer text-sm font-medium text-emerald-200">
-                    {reembolsavel ? "Sim — gerar cobrança ao cliente" : "Não — despesa da empresa"}
-                  </Label>
-                </div>
-              </div>
-            )}
-
-            {/* Passo 5: Tipo de despesa */}
-            {aeronaveId && tipoRateio && periodicidade && (
-              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <Label>5. Tipo de despesa *</Label>
+                <Label>1. Aeronave *</Label>
                 <SearchableCombobox
-                  items={tiposDespesa.map((t) => ({ id: t.id, label: t.expense_type }))}
-                  value={tipoDespesa} onChange={(id, label) => {
-                    const existente = tiposDespesa.find((t) => t.id === id);
-                    if (existente) {
-                      setTipoDespesa(id);
-                      setTipoDespesaBase(existente.expense_type);
-                      setTipoDespesaLabel(existente.expense_type);
-                      setSubcategoriaSel("");
-                    }
-                    else if (label) { if (window.confirm(`Adicionar novo tipo "${label}"?`)) criarTipoDespesa(label); }
-                  }}
-                  placeholder="Selecione o tipo" allowFreeText
+                  items={aeronaves.map((a) => ({ id: a.id, label: `${a.matricula} — ${a.modelo}` }))}
+                  value={aeronaveId} onChange={(id) => setAeronaveId(id)}
+                  placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave"
                 />
               </div>
-            )}
 
-            {/* Passo 5b: Subcategoria (aparece se o tipo tiver subcategorias) */}
-            {tipoDespesa && subcategoriasDisponiveis.length > 0 && (
-              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <Label>5.1 Subcategoria *</Label>
-                <Select
-                  value={subcategoriaSel || "__none__"}
-                  onValueChange={(v) => {
-                    const val = v === "__none__" ? "" : v;
-                    setSubcategoriaSel(val);
-                    setTipoDespesaLabel(val || tipoDespesaBase);
-                  }}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione a subcategoria" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">— Nenhuma (usar {tipoDespesaBase}) —</SelectItem>
-                    {subcategoriasDisponiveis.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </section>
-
-          {/* SEÇÃO 2 (Single-client): Relatórios de Viagem */}
-          {isViagemMode && aeronaveId && (
-            <section className="space-y-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-5">
-              <div className="flex items-center gap-2 border-b border-sky-500/10 pb-3">
-                <Plane className="h-4 w-4 text-sky-400" />
-                <h3 className="text-sm font-semibold text-sky-300 uppercase tracking-wide">Relatório de Viagem</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Cliente *</Label>
-                  <SearchableCombobox items={clientesDaAeronave.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))} value={clienteId} onChange={(id) => { setClienteId(id); setSocioId(""); }} placeholder="Selecione o cliente" emptyMessage="Nenhum cliente" />
-                </div>
-                {socios.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label>Sócio (opcional)</Label>
-                    <Select value={socioId || "__all__"} onValueChange={(v) => setSocioId(v === "__all__" ? "" : v)}>
-                      <SelectTrigger><SelectValue placeholder="Todos os sócios" /></SelectTrigger>
-                      <SelectContent><SelectItem value="__all__">— Todos —</SelectItem>{socios.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              {clienteId && travelReports.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label>Selecione o relatório</Label>
-                  <Select value={travelReportId} onValueChange={setTravelReportId}>
-                    <SelectTrigger><SelectValue placeholder="Escolha um relatório" /></SelectTrigger>
+              {aeronaveId && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <Label>2. Tipo de rateio *</Label>
+                  <Select value={tipoRateio} onValueChange={setTipoRateio}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o tipo de rateio" /></SelectTrigger>
                     <SelectContent>
-                      {travelReports.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.numero_relatorio} {r.data_inicio && ` — ${format(new Date(r.data_inicio), "dd/MM/yyyy")}`} {` · R$ ${Number(r.total_valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                        </SelectItem>
+                      <SelectItem value="FIXO">FIXO</SelectItem>
+                      <SelectItem value="VARIAVEL_POR_VOO">VARIÁVEL POR VOO</SelectItem>
+                      <SelectItem value="VARIAVEL_POR_HORA">VARIÁVEL POR HORA</SelectItem>
+                      <SelectItem value="EXTRA">EXTRA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {aeronaveId && tipoRateio && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <Label>3. Periodicidade *</Label>
+                  <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MENSAL">MENSAL</SelectItem>
+                      <SelectItem value="SEMESTRAL">SEMESTRAL</SelectItem>
+                      <SelectItem value="ANUAL">ANUAL</SelectItem>
+                      <SelectItem value="EVENTUAL">EVENTUAL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {aeronaveId && tipoRateio && periodicidade && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <Label>4. Esta despesa é reembolsável? *</Label>
+                  <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 px-4 py-3 rounded-xl">
+                    <Switch id="reembolsavel" checked={reembolsavel} onCheckedChange={setReembolsavel} />
+                    <Label htmlFor="reembolsavel" className="cursor-pointer text-sm font-medium text-emerald-200">
+                      {reembolsavel ? "Sim — gerar cobrança ao cliente" : "Não — despesa da empresa"}
+                    </Label>
+                  </div>
+                </div>
+              )}
+
+              {aeronaveId && tipoRateio && periodicidade && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <Label>5. Tipo de despesa *</Label>
+                  <SearchableCombobox
+                    items={tiposDespesa.map((t) => ({ id: t.id, label: t.expense_type }))}
+                    value={tipoDespesa} onChange={(id, label) => {
+                      const existente = tiposDespesa.find((t) => t.id === id);
+                      if (existente) {
+                        setTipoDespesa(id);
+                        setTipoDespesaBase(existente.expense_type);
+                        setTipoDespesaLabel(existente.expense_type);
+                        setSubcategoriaSel("");
+                      }
+                      else if (label) { if (window.confirm(`Adicionar novo tipo "${label}"?`)) criarTipoDespesa(label); }
+                    }}
+                    placeholder="Selecione o tipo" allowFreeText
+                  />
+                </div>
+              )}
+
+              {tipoDespesa && subcategoriasDisponiveis.length > 0 && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <Label>5.1 Subcategoria *</Label>
+                  <Select
+                    value={subcategoriaSel || "__none__"}
+                    onValueChange={(v) => {
+                      const val = v === "__none__" ? "" : v;
+                      setSubcategoriaSel(val);
+                      setTipoDespesaLabel(val || tipoDespesaBase);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione a subcategoria" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Nenhuma (usar {tipoDespesaBase}) —</SelectItem>
+                      {subcategoriasDisponiveis.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               )}
+            </section>
+          )}
 
-              {travelReportSel && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Valor total da Viagem (R$)</Label>
-                    <Input type="text" inputMode="decimal" value={valorTotal} onChange={(e) => setValorTotal(e.target.value)} />
+          {/* =========================================
+              ETAPA 2: Contexto Específico
+              ========================================= */}
+          {etapaAtual === 2 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              
+              {isViagemMode && aeronaveId && (
+                <section className="space-y-4 rounded-xl border border-sky-500/20 bg-sky-500/5 p-5">
+                  <div className="flex items-center gap-2 border-b border-sky-500/10 pb-3">
+                    <Plane className="h-4 w-4 text-sky-400" />
+                    <h3 className="text-sm font-semibold text-sky-300 uppercase tracking-wide">Relatório de Viagem</h3>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>% de uso do Cliente</Label>
-                    <Input type="text" inputMode="decimal" value={percentualUso} onChange={(e) => setPercentualUso(e.target.value)} />
-                  </div>
-                </div>
-              )}
 
-              {travelReportSel && (
-                <div className="rounded-xl border border-sky-500/20 bg-background/40 p-4 space-y-2">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <Label className="text-xs uppercase tracking-wide text-sky-300">Pagamento à Tripulação</Label>
-                    <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-200">
-                      Total: {Number(travelReportSel.total_tripulacao ?? ((Number(travelReportSel.total_trip || 0)) + (Number(travelReportSel.total_trip2 || 0)))).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                    <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
-                      <span className="text-muted-foreground">{travelReportSel.nome_tripulante || "Tripulante 1"}</span>
-                      <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Cliente *</Label>
+                      <SearchableCombobox items={clientesDaAeronave.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))} value={clienteId} onChange={(id) => { setClienteId(id); setSocioId(""); }} placeholder="Selecione o cliente" emptyMessage="Nenhum cliente" />
                     </div>
-                    <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
-                      <span className="text-muted-foreground">{travelReportSel.nome_tripulante_2 || "Tripulante 2"}</span>
-                      <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip2 || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                    </div>
-                    {Number(travelReportSel.total_clientes || 0) > 0 && (
-                      <div className="flex justify-between rounded-md bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 md:col-span-2">
-                        <span className="text-emerald-300">A receber do cliente (total_clientes)</span>
-                        <span className="font-medium text-emerald-200">{Number(travelReportSel.total_clientes || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                    {socios.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label>Sócio (opcional)</Label>
+                        <Select value={socioId || "__all__"} onValueChange={(v) => setSocioId(v === "__all__" ? "" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Todos os sócios" /></SelectTrigger>
+                          <SelectContent><SelectItem value="__all__">— Todos —</SelectItem>{socios.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent>
+                        </Select>
                       </div>
                     )}
                   </div>
-                </div>
-              )}
 
-              {isViagemMode && socios.length > 0 && linhasRateioPreview.length > 0 && (
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs uppercase tracking-wide">Rateio por sócio</Label>
-                    <Badge variant="outline" className="border-sky-500/20 bg-sky-500/10 text-sky-300">{linhasRateioPreview.length} linha(s)</Badge>
-                  </div>
-                  <div className="space-y-2">
-                    {linhasRateioPreview.map((linha, index) => (
-                      <div key={`rv-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 rounded-md border border-white/5 bg-background/50 p-3 text-sm">
-                        <div className="font-medium text-foreground">{linha.socio_nome || "Sócio"}</div>
-                        <div className="text-muted-foreground">% de uso: {linha.percentual_uso.toFixed(2)}%</div>
-                        <div className="text-sky-300">Valor: {linha.valor_rateado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* SEÇÃO 3 (Multi-client): Clientes desta despesa (e Valor Principal) */}
-          {!isViagemMode && aeronaveId && (
-            <section className="space-y-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-emerald-500/10 pb-4">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-emerald-400" />
-                  <h3 className="text-sm font-semibold text-emerald-300 uppercase tracking-wide">Rateio & Clientes</h3>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  {/* Valor Total Movido para dentro da seção de clientes */}
-                  <div className="flex items-center gap-3 bg-background/40 px-3 py-2 rounded-lg border border-white/5 shadow-inner">
-                    <Label className="whitespace-nowrap font-medium text-emerald-200">Valor Total (R$) *</Label>
-                    <Input 
-                      type="text" 
-                      inputMode="decimal" 
-                      className="w-32 h-8 text-sm font-semibold bg-transparent border-emerald-500/30 focus-visible:ring-emerald-500/50 text-right" 
-                      value={valorTotal} 
-                      onChange={(e) => setValorTotal(e.target.value)} 
-                      placeholder="0,00" 
-                    />
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={addClienteLinha} disabled={clientesJaUsados.size >= clientesDaAeronave.length} className="shrink-0">
-                    <Plus className="h-4 w-4 mr-1.5" /> Adicionar cliente
-                  </Button>
-                </div>
-              </div>
-
-              {clientesDaAeronave.length === 0 && (
-                <p className="text-xs text-amber-400">Nenhum cotista vinculado a esta aeronave.</p>
-              )}
-
-              <div className="space-y-3">
-                {clienteLinhas.map((linha) => {
-                  const info = getClienteAeronaveInfo(linha.clienteId);
-                  const itensDisponiveis = clientesDaAeronave.filter((c) => c.clienteId === linha.clienteId || !clientesJaUsados.has(c.clienteId));
-                  const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
-                  const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
-
-                  return (
-                    <div key={linha.uid} className="rounded-lg border border-white/10 bg-background/60 p-4 space-y-4">
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
-                        <div className="lg:col-span-5 space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">Cliente / Entidade</Label>
-                          <SearchableCombobox items={itensDisponiveis.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))} value={linha.clienteId} onChange={(id) => updateClienteLinha(linha.uid, { clienteId: id, overridesSocio: {} })} placeholder="Selecione..." emptyMessage="Nenhum cliente disponível" />
-                        </div>
-                        <div className="lg:col-span-3 space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">% da Nota</Label>
-                          <Input type="text" inputMode="decimal" value={linha.percentualUsoCliente} onChange={(e) => updateClienteLinha(linha.uid, { percentualUsoCliente: e.target.value })} placeholder="100" />
-                        </div>
-                        <div className="lg:col-span-3 space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">Subtotal do Cliente</Label>
-                          <Input value={valorCliente.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} readOnly className="bg-muted/30 font-medium text-emerald-300" />
-                        </div>
-                        <div className="lg:col-span-1 flex justify-end">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeClienteLinha(linha.uid)} disabled={clienteLinhas.length === 1} className="hover:bg-red-500/10">
-                            <Trash2 className="h-4 w-4 text-red-400" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {info && info.socios.length > 0 && (
-                        <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rateio Interno (Por Sócio)</Label>
-                            <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{info.socios.length} linha(s)</Badge>
-                          </div>
-                          
-                          <div className="grid gap-2">
-                            {(() => {
-                              const totalPctSocios = info.socios.reduce((s, so) => s + (Number(so.percentual_participacao ?? 0) || 0), 0);
-                              return info.socios.map((s) => {
-                                const overrideVal = linha.overridesSocio[s.id];
-                                const autoPct = totalPctSocios > 0 ? (Number(s.percentual_participacao ?? 0) / totalPctSocios) * 100 : 100 / info.socios.length;
-                                const pctEfetivo = overrideVal !== undefined && overrideVal !== "" && !Number.isNaN(Number(overrideVal.replace(",", "."))) ? Number(overrideVal.replace(",", ".")) : autoPct;
-                                const valorSocio = +(valorCliente * (pctEfetivo / 100)).toFixed(2);
-                                
-                                return (
-                                  <div key={s.id} className="flex items-center justify-between rounded-md border border-white/5 bg-black/20 p-2 text-sm">
-                                    <div className="font-medium text-foreground w-1/3">{s.nome}</div>
-                                    <div className="flex items-center gap-2 w-1/3 text-muted-foreground">
-                                      <span className="text-xs whitespace-nowrap">% de uso:</span>
-                                      <Input type="text" inputMode="decimal" className="h-7 w-20 text-xs text-center" placeholder={`${autoPct.toFixed(2)}`} value={overrideVal ?? ""} onChange={(e) => updateOverrideSocio(linha.uid, s.id, e.target.value)} />
-                                      <span className="text-xs opacity-50">({autoPct.toFixed(2)}%)</span>
-                                    </div>
-                                    <div className="text-emerald-300 font-medium text-right w-1/3">
-                                      Valor rateado: {valorSocio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                    </div>
-                                  </div>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                      )}
+                  {clienteId && travelReports.length > 0 && (
+                    <div className="space-y-1.5">
+                      <Label>Selecione o relatório</Label>
+                      <Select value={travelReportId} onValueChange={setTravelReportId}>
+                        <SelectTrigger><SelectValue placeholder="Escolha um relatório" /></SelectTrigger>
+                        <SelectContent>
+                          {travelReports.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.numero_relatorio} {r.data_inicio && ` — ${format(new Date(r.data_inicio), "dd/MM/yyyy")}`} {` · R$ ${Number(r.total_valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
 
-              {clienteLinhas.length > 0 && (
-                <div className={cn("text-xs rounded-md p-2 border font-medium", erroSomaClientes ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300")}>
-                  Soma de clientes: {somaPercentualClientes.toFixed(2)}% {erroSomaClientes ? `— ${erroSomaClientes}` : "— OK"}
-                </div>
-              )}
-            </section>
-          )}
+                  {travelReportSel && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label>Valor total da Viagem (R$)</Label>
+                        <Input type="text" inputMode="decimal" value={valorTotal} onChange={(e) => setValorTotal(e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>% de uso do Cliente</Label>
+                        <Input type="text" inputMode="decimal" value={percentualUso} onChange={(e) => setPercentualUso(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
 
-          {/* SEÇÃO 4: Dados Adicionais da Fatura */}
-          <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b border-white/5 pb-3">Informações da Fatura</h3>
+                  {travelReportSel && (
+                    <div className="rounded-xl border border-sky-500/20 bg-background/40 p-4 space-y-2">
+                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                        <Label className="text-xs uppercase tracking-wide text-sky-300">Pagamento à Tripulação</Label>
+                        <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-200">
+                          Total: {Number(travelReportSel.total_tripulacao ?? ((Number(travelReportSel.total_trip || 0)) + (Number(travelReportSel.total_trip2 || 0)))).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
+                          <span className="text-muted-foreground">{travelReportSel.nome_tripulante || "Tripulante 1"}</span>
+                          <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                        </div>
+                        <div className="flex justify-between rounded-md bg-white/5 px-3 py-2">
+                          <span className="text-muted-foreground">{travelReportSel.nome_tripulante_2 || "Tripulante 2"}</span>
+                          <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip2 || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                        </div>
+                        {Number(travelReportSel.total_clientes || 0) > 0 && (
+                          <div className="flex justify-between rounded-md bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 md:col-span-2">
+                            <span className="text-emerald-300">A receber do cliente (total_clientes)</span>
+                            <span className="font-medium text-emerald-200">{Number(travelReportSel.total_clientes || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-            {!isViagemMode && (
-              <div className="space-y-1.5">
-                <Label>Fornecedor</Label>
-                <SearchableCombobox items={fornecedores} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedorNome(fornecedores.find((f) => f.id === id)?.label || label || ""); }} placeholder="Selecione ou digite" allowFreeText />
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label>Descrição da Despesa *</Label>
-              <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} maxLength={500} placeholder="Ex: Manutenção de rotina" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DateField label="Data de emissão (Competência)" value={dataEmissao} onChange={setDataEmissao} />
-              <DateField label="Data de vencimento *" value={dataVencimento} onChange={setDataVencimento} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Observações Adicionais</Label>
-              <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} maxLength={1000} />
-            </div>
-          </section>
-
-          {/* SEÇÃO 5: Alertas de Duplicidade */}
-          {referenciaDuplicada?.tipo && (
-            <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <div className="flex items-start gap-3">
-                <Link2 className="mt-0.5 h-5 w-5 text-emerald-400" />
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-emerald-300">Integração Detectada</p>
-                  <p className="text-sm text-emerald-100/80">{referenciaDuplicada.mensagem}</p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Combustível: comanda + NF para buscar abastecimento existente */}
-          {isCombustivelMode && aeronaveId && (
-            <section className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-xl p-5">
-              <div className="flex items-center gap-2 border-b border-amber-500/10 pb-3">
-                <Plane className="h-4 w-4 text-amber-300" />
-                <h3 className="text-sm font-semibold text-amber-200 uppercase tracking-wide">Combustível — Comanda / NF</h3>
-              </div>
-              <p className="text-xs text-amber-100/70">
-                Informe a comanda e/ou o número da NF. Se já existir um abastecimento cadastrado, ele será vinculado; caso contrário, um novo será criado ao salvar.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Comanda</Label>
-                  <Input value={fuelComanda} onChange={(e) => setFuelComanda(e.target.value)} placeholder="Nº da comanda" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Nº da NF</Label>
-                  <Input value={fuelNf} onChange={(e) => setFuelNf(e.target.value)} placeholder="Nº da nota fiscal" />
-                </div>
-                <div className="flex items-end">
-                  <Button type="button" variant="outline" className="w-full border-amber-500/30 hover:bg-amber-500/10" onClick={buscarAbastecimento} disabled={fuelLookupLoading}>
-                    {fuelLookupLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />} Buscar / Vincular
-                  </Button>
-                </div>
-              </div>
-              {fuelLookupSearched && !fuelLookupResult && (
-                <p className="text-xs text-amber-200/80 rounded-md border border-amber-500/20 bg-amber-500/10 p-2">
-                  Nenhum abastecimento encontrado — os campos abaixo criarão um novo registro.
-                </p>
-              )}
-              {fuelLookupResult && (
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100">
-                  ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {Number(fuelLookupResult.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Taxas Aeroportuárias: INFRAERO / DECEA */}
-          {isTaxasMode && aeronaveId && (
-            <section className="space-y-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-xl p-5">
-              <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-3">
-                <FileText className="h-4 w-4 text-indigo-300" />
-                <h3 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">Taxas Aeroportuárias</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Origem da Taxa *</Label>
-                  <Select value={taxaOrigem ?? ""} onValueChange={(v) => { setTaxaOrigem(v as TaxaOrigem); setTaxaReciboId(""); }}>
-                    <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="INFRAERO">Tarifa INFRAERO</SelectItem>
-                      <SelectItem value="DECEA">Tarifa de Navegação Aérea — DECEA</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {taxaOrigem && (
-                  <div className="space-y-1.5">
-                    <Label>Recibo emitido</Label>
-                    <Select value={taxaReciboId} onValueChange={setTaxaReciboId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={taxaRecibos.length === 0 ? "Nenhum recibo encontrado" : "Escolha um recibo"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {taxaRecibos.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
-                            {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
-                            {` · R$ ${Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                          </SelectItem>
+                  {isViagemMode && socios.length > 0 && linhasRateioPreview.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs uppercase tracking-wide">Rateio por sócio</Label>
+                        <Badge variant="outline" className="border-sky-500/20 bg-sky-500/10 text-sky-300">{linhasRateioPreview.length} linha(s)</Badge>
+                      </div>
+                      <div className="space-y-2">
+                        {linhasRateioPreview.map((linha, index) => (
+                          <div key={`rv-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 rounded-md border border-white/5 bg-background/50 p-3 text-sm">
+                            <div className="font-medium text-foreground">{linha.socio_nome || "Sócio"}</div>
+                            <div className="text-muted-foreground">% de uso: {linha.percentual_uso.toFixed(2)}%</div>
+                            <div className="text-sky-300">Valor: {linha.valor_rateado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                          </div>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {!isViagemMode && aeronaveId && (
+                <section className="space-y-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-emerald-500/10 pb-4">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-emerald-400" />
+                      <h3 className="text-sm font-semibold text-emerald-300 uppercase tracking-wide">Rateio & Clientes</h3>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3 bg-background/40 px-3 py-2 rounded-lg border border-white/5 shadow-inner">
+                        <Label className="whitespace-nowrap font-medium text-emerald-200">Valor Total (R$) *</Label>
+                        <Input 
+                          type="text" 
+                          inputMode="decimal" 
+                          className="w-32 h-8 text-sm font-semibold bg-transparent border-emerald-500/30 focus-visible:ring-emerald-500/50 text-right" 
+                          value={valorTotal} 
+                          onChange={(e) => setValorTotal(e.target.value)} 
+                          placeholder="0,00" 
+                        />
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={addClienteLinha} disabled={clientesJaUsados.size >= clientesDaAeronave.length} className="shrink-0">
+                        <Plus className="h-4 w-4 mr-1.5" /> Adicionar cliente
+                      </Button>
+                    </div>
+                  </div>
+
+                  {clientesDaAeronave.length === 0 && (
+                    <p className="text-xs text-amber-400">Nenhum cotista vinculado a esta aeronave.</p>
+                  )}
+
+                  <div className="space-y-3">
+                    {clienteLinhas.map((linha) => {
+                      const info = getClienteAeronaveInfo(linha.clienteId);
+                      const itensDisponiveis = clientesDaAeronave.filter((c) => c.clienteId === linha.clienteId || !clientesJaUsados.has(c.clienteId));
+                      const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
+                      const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
+
+                      return (
+                        <div key={linha.uid} className="rounded-lg border border-white/10 bg-background/60 p-4 space-y-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+                            <div className="lg:col-span-5 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Cliente / Entidade</Label>
+                              <SearchableCombobox items={itensDisponiveis.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))} value={linha.clienteId} onChange={(id) => updateClienteLinha(linha.uid, { clienteId: id, overridesSocio: {} })} placeholder="Selecione..." emptyMessage="Nenhum cliente disponível" />
+                            </div>
+                            <div className="lg:col-span-3 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">% da Nota</Label>
+                              <Input type="text" inputMode="decimal" value={linha.percentualUsoCliente} onChange={(e) => updateClienteLinha(linha.uid, { percentualUsoCliente: e.target.value })} placeholder="100" />
+                            </div>
+                            <div className="lg:col-span-3 space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Subtotal do Cliente</Label>
+                              <Input value={valorCliente.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} readOnly className="bg-muted/30 font-medium text-emerald-300" />
+                            </div>
+                            <div className="lg:col-span-1 flex justify-end">
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeClienteLinha(linha.uid)} disabled={clienteLinhas.length === 1} className="hover:bg-red-500/10">
+                                <Trash2 className="h-4 w-4 text-red-400" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {info && info.socios.length > 0 && (
+                            <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rateio Interno (Por Sócio)</Label>
+                                <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{info.socios.length} linha(s)</Badge>
+                              </div>
+                              
+                              <div className="grid gap-2">
+                                {(() => {
+                                  const totalPctSocios = info.socios.reduce((s, so) => s + (Number(so.percentual_participacao ?? 0) || 0), 0);
+                                  return info.socios.map((s) => {
+                                    const overrideVal = linha.overridesSocio[s.id];
+                                    const autoPct = totalPctSocios > 0 ? (Number(s.percentual_participacao ?? 0) / totalPctSocios) * 100 : 100 / info.socios.length;
+                                    const pctEfetivo = overrideVal !== undefined && overrideVal !== "" && !Number.isNaN(Number(overrideVal.replace(",", "."))) ? Number(overrideVal.replace(",", ".")) : autoPct;
+                                    const valorSocio = +(valorCliente * (pctEfetivo / 100)).toFixed(2);
+                                    
+                                    return (
+                                      <div key={s.id} className="flex items-center justify-between rounded-md border border-white/5 bg-black/20 p-2 text-sm">
+                                        <div className="font-medium text-foreground w-1/3">{s.nome}</div>
+                                        <div className="flex items-center gap-2 w-1/3 text-muted-foreground">
+                                          <span className="text-xs whitespace-nowrap">% de uso:</span>
+                                          <Input type="text" inputMode="decimal" className="h-7 w-20 text-xs text-center" placeholder={`${autoPct.toFixed(2)}`} value={overrideVal ?? ""} onChange={(e) => updateOverrideSocio(linha.uid, s.id, e.target.value)} />
+                                          <span className="text-xs opacity-50">({autoPct.toFixed(2)}%)</span>
+                                        </div>
+                                        <div className="text-emerald-300 font-medium text-right w-1/3">
+                                          Valor rateado: {valorSocio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                        </div>
+                                      </div>
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {clienteLinhas.length > 0 && (
+                    <div className={cn("text-xs rounded-md p-2 border font-medium", erroSomaClientes ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300")}>
+                      Soma de clientes: {somaPercentualClientes.toFixed(2)}% {erroSomaClientes ? `— ${erroSomaClientes}` : "— OK"}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {isCombustivelMode && aeronaveId && (
+                <section className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-xl p-5">
+                  <div className="flex items-center gap-2 border-b border-amber-500/10 pb-3">
+                    <Plane className="h-4 w-4 text-amber-300" />
+                    <h3 className="text-sm font-semibold text-amber-200 uppercase tracking-wide">Combustível — Comanda / NF</h3>
+                  </div>
+                  <p className="text-xs text-amber-100/70">
+                    Informe a comanda e/ou o número da NF. Se já existir um abastecimento cadastrado, ele será vinculado; caso contrário, um novo será criado ao salvar.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Comanda</Label>
+                      <Input value={fuelComanda} onChange={(e) => setFuelComanda(e.target.value)} placeholder="Nº da comanda" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Nº da NF</Label>
+                      <Input value={fuelNf} onChange={(e) => setFuelNf(e.target.value)} placeholder="Nº da nota fiscal" />
+                    </div>
+                    <div className="flex items-end">
+                      <Button type="button" variant="outline" className="w-full border-amber-500/30 hover:bg-amber-500/10" onClick={buscarAbastecimento} disabled={fuelLookupLoading}>
+                        {fuelLookupLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />} Buscar / Vincular
+                      </Button>
+                    </div>
+                  </div>
+                  {fuelLookupSearched && !fuelLookupResult && (
+                    <p className="text-xs text-amber-200/80 rounded-md border border-amber-500/20 bg-amber-500/10 p-2">
+                      Nenhum abastecimento encontrado — os campos abaixo criarão um novo registro.
+                    </p>
+                  )}
+                  {fuelLookupResult && (
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100">
+                      ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {Number(fuelLookupResult.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {isTaxasMode && aeronaveId && (
+                <section className="space-y-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-xl p-5">
+                  <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-3">
+                    <FileText className="h-4 w-4 text-indigo-300" />
+                    <h3 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">Taxas Aeroportuárias</h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Origem da Taxa *</Label>
+                      <Select value={taxaOrigem ?? ""} onValueChange={(v) => { setTaxaOrigem(v as TaxaOrigem); setTaxaReciboId(""); }}>
+                        <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="INFRAERO">Tarifa INFRAERO</SelectItem>
+                          <SelectItem value="DECEA">Tarifa de Navegação Aérea — DECEA</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {taxaOrigem && (
+                      <div className="space-y-1.5">
+                        <Label>Recibo emitido</Label>
+                        <Select value={taxaReciboId} onValueChange={setTaxaReciboId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={taxaRecibos.length === 0 ? "Nenhum recibo encontrado" : "Escolha um recibo"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {taxaRecibos.map((r) => (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
+                                {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
+                                {` · R$ ${Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  {taxaReciboId && (() => {
+                    const r = taxaRecibos.find((x) => x.id === taxaReciboId);
+                    if (!r) return null;
+                    return (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-white/5 bg-background/40 p-3 text-xs">
+                        <div><div className="text-muted-foreground">Nº Documento</div><div className="font-medium">{r.numero_documento || "—"}</div></div>
+                        <div><div className="text-muted-foreground">Nº Recibo</div><div className="font-medium">{r.numero_recibo || "—"}</div></div>
+                        <div><div className="text-muted-foreground">Percentual</div><div className="font-medium">{r.percentual ?? "—"}%</div></div>
+                        <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
+                        {r.url_pdf && (
+                          <a href={r.url_pdf} target="_blank" rel="noreferrer" className="col-span-full inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> Abrir PDF do recibo</a>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  <p className="text-[11px] text-indigo-100/60">
+                    Ao selecionar o recibo, os clientes/sócios com participação serão rateados automaticamente conforme o percentual da aeronave.
+                  </p>
+                </section>
+              )}
+            </div>
+          )}
+
+          {/* =========================================
+              ETAPA 3: Dados Finais e Anexos
+              ========================================= */}
+          {etapaAtual === 3 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b border-white/5 pb-3">Informações da Fatura</h3>
+
+                {!isViagemMode && (
+                  <div className="space-y-1.5">
+                    <Label>Fornecedor</Label>
+                    <SearchableCombobox items={fornecedores} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedorNome(fornecedores.find((f) => f.id === id)?.label || label || ""); }} placeholder="Selecione ou digite" allowFreeText />
                   </div>
                 )}
-              </div>
 
-              {taxaReciboId && (() => {
-                const r = taxaRecibos.find((x) => x.id === taxaReciboId);
-                if (!r) return null;
-                return (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-white/5 bg-background/40 p-3 text-xs">
-                    <div><div className="text-muted-foreground">Nº Documento</div><div className="font-medium">{r.numero_documento || "—"}</div></div>
-                    <div><div className="text-muted-foreground">Nº Recibo</div><div className="font-medium">{r.numero_recibo || "—"}</div></div>
-                    <div><div className="text-muted-foreground">Percentual</div><div className="font-medium">{r.percentual ?? "—"}%</div></div>
-                    <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
-                    {r.url_pdf && (
-                      <a href={r.url_pdf} target="_blank" rel="noreferrer" className="col-span-full inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> Abrir PDF do recibo</a>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <p className="text-[11px] text-indigo-100/60">
-                Ao selecionar o recibo, os clientes/sócios com participação serão rateados automaticamente conforme o percentual da aeronave.
-              </p>
-            </section>
-          )}
-
-
-          {/* SEÇÃO 6: Anexos */}
-          <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <FileText className="h-4 w-4" /> Documentos e Anexos
-              </h3>
-              <Button type="button" variant="outline" size="sm" onClick={addAnexo}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar arquivo
-              </Button>
-            </div>
-
-            <div className="rounded-lg border border-white/5 bg-background/50 p-3 space-y-3">
-              <div className="flex items-center gap-3">
-                <Switch id="usar-recibo-existente" checked={usarReciboExistente} onCheckedChange={setUsarReciboExistente} />
-                <div>
-                  <Label htmlFor="usar-recibo-existente" className="cursor-pointer text-sm font-medium">Vincular a um recibo emitido</Label>
-                  <p className="text-xs text-muted-foreground">Puxa automaticamente o PDF de um recibo criado pelo sistema.</p>
+                <div className="space-y-1.5">
+                  <Label>Descrição da Despesa *</Label>
+                  <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} maxLength={500} placeholder="Ex: Manutenção de rotina" />
                 </div>
-              </div>
-              {usarReciboExistente && (
-                <Select value={reciboExistenteId} onValueChange={setReciboExistenteId}>
-                  <SelectTrigger className="w-full md:w-1/2 mt-2"><SelectValue placeholder="Escolha um recibo existente" /></SelectTrigger>
-                  <SelectContent>
-                    {recibosExistentes.map((r) => <SelectItem key={r.id} value={r.id}>{r.numero_recibo || r.numero || `Recibo ${r.id.slice(0, 6)}`}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
 
-            {anexos.length === 0 && (
-              <p className="text-xs text-muted-foreground border border-dashed border-white/10 rounded-lg p-6 text-center bg-white/[0.01]">
-                Nenhum arquivo anexado.
-              </p>
-            )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <DateField label="Data de emissão (Competência)" value={dataEmissao} onChange={setDataEmissao} />
+                  <DateField label="Data de vencimento *" value={dataVencimento} onChange={setDataVencimento} />
+                </div>
 
-            <div className="space-y-2">
-              {anexos.map((a, idx) => {
-                const preview = previewAnexo(a);
-                const img = isImage(a);
-                return (
-                  <div key={a.id} className="rounded-lg border border-white/10 bg-background/40 p-3 space-y-3 transition hover:bg-background/60">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                      <div className="md:col-span-1 flex flex-row md:flex-col items-center gap-1 justify-center">
-                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === 0} onClick={() => moveAnexo(a.id, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
-                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === anexos.length - 1} onClick={() => moveAnexo(a.id, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
-                      </div>
-                      <Select value={a.tipo} onValueChange={(v) => updateAnexo(a.id, { tipo: v as AnexoDoc["tipo"] })}>
-                        <SelectTrigger className="md:col-span-3"><SelectValue /></SelectTrigger>
-                        <SelectContent>{TIPOS_ANEXO.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <Input className="md:col-span-3" placeholder="Nº Documento (Opcional)" value={a.numero} onChange={(e) => updateAnexo(a.id, { numero: e.target.value })} />
-                      <div className="md:col-span-4">
-                        <label className="flex-1 cursor-pointer block">
-                          <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => updateAnexo(a.id, { arquivo: e.target.files?.[0] || null })} />
-                          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
-                            {a.arquivo || a.url ? <FileText className="h-4 w-4 text-emerald-400" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
-                            <span className="truncate flex-1">{a.arquivo?.name || a.url || "Procurar arquivo..."}</span>
-                          </div>
-                        </label>
-                      </div>
-                      <div className="md:col-span-1 flex justify-end">
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeAnexo(a.id)} className="hover:bg-red-500/10">
-                          <Trash2 className="h-4 w-4 text-red-400" />
-                        </Button>
-                      </div>
+                <div className="space-y-1.5">
+                  <Label>Observações Adicionais</Label>
+                  <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} maxLength={1000} />
+                </div>
+              </section>
+
+              {referenciaDuplicada?.tipo && (
+                <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                  <div className="flex items-start gap-3">
+                    <Link2 className="mt-0.5 h-5 w-5 text-emerald-400" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-emerald-300">Integração Detectada</p>
+                      <p className="text-sm text-emerald-100/80">{referenciaDuplicada.mensagem}</p>
                     </div>
-                    {preview && (
-                      <div className="flex items-center gap-3 md:pl-10">
-                        {img ? <img src={preview} alt="preview" className="h-12 w-12 rounded object-cover border border-white/10" /> : <div className="h-12 w-12 rounded border border-white/10 bg-white/[0.03] flex items-center justify-center"><FileText className="h-5 w-5 text-muted-foreground" /></div>}
-                        <a href={preview} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors">
-                          <Eye className="h-3.5 w-3.5" /> Visualizar anexo
-                        </a>
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+                </section>
+              )}
+
+              <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <FileText className="h-4 w-4" /> Documentos e Anexos
+                  </h3>
+                  <Button type="button" variant="outline" size="sm" onClick={addAnexo}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar arquivo
+                  </Button>
+                </div>
+
+                <div className="rounded-lg border border-white/5 bg-background/50 p-3 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Switch id="usar-recibo-existente" checked={usarReciboExistente} onCheckedChange={setUsarReciboExistente} />
+                    <div>
+                      <Label htmlFor="usar-recibo-existente" className="cursor-pointer text-sm font-medium">Vincular a um recibo emitido</Label>
+                      <p className="text-xs text-muted-foreground">Puxa automaticamente o PDF de um recibo criado pelo sistema.</p>
+                    </div>
+                  </div>
+                  {usarReciboExistente && (
+                    <Select value={reciboExistenteId} onValueChange={setReciboExistenteId}>
+                      <SelectTrigger className="w-full md:w-1/2 mt-2"><SelectValue placeholder="Escolha um recibo existente" /></SelectTrigger>
+                      <SelectContent>
+                        {recibosExistentes.map((r) => <SelectItem key={r.id} value={r.id}>{r.numero_recibo || r.numero || `Recibo ${r.id.slice(0, 6)}`}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {anexos.length === 0 && (
+                  <p className="text-xs text-muted-foreground border border-dashed border-white/10 rounded-lg p-6 text-center bg-white/[0.01]">
+                    Nenhum arquivo anexado.
+                  </p>
+                )}
+
+                <div className="space-y-2">
+                  {anexos.map((a, idx) => {
+                    const preview = previewAnexo(a);
+                    const img = isImage(a);
+                    return (
+                      <div key={a.id} className="rounded-lg border border-white/10 bg-background/40 p-3 space-y-3 transition hover:bg-background/60">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                          <div className="md:col-span-1 flex flex-row md:flex-col items-center gap-1 justify-center">
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === 0} onClick={() => moveAnexo(a.id, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === anexos.length - 1} onClick={() => moveAnexo(a.id, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                          </div>
+                          <Select value={a.tipo} onValueChange={(v) => updateAnexo(a.id, { tipo: v as AnexoDoc["tipo"] })}>
+                            <SelectTrigger className="md:col-span-3"><SelectValue /></SelectTrigger>
+                            <SelectContent>{TIPOS_ANEXO.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                          </Select>
+                          <Input className="md:col-span-3" placeholder="Nº Documento (Opcional)" value={a.numero} onChange={(e) => updateAnexo(a.id, { numero: e.target.value })} />
+                          <div className="md:col-span-4">
+                            <label className="flex-1 cursor-pointer block">
+                              <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => updateAnexo(a.id, { arquivo: e.target.files?.[0] || null })} />
+                              <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
+                                {a.arquivo || a.url ? <FileText className="h-4 w-4 text-emerald-400" /> : <Upload className="h-4 w-4 text-muted-foreground" />}
+                                <span className="truncate flex-1">{a.arquivo?.name || a.url || "Procurar arquivo..."}</span>
+                              </div>
+                            </label>
+                          </div>
+                          <div className="md:col-span-1 flex justify-end">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeAnexo(a.id)} className="hover:bg-red-500/10">
+                              <Trash2 className="h-4 w-4 text-red-400" />
+                            </Button>
+                          </div>
+                        </div>
+                        {preview && (
+                          <div className="flex items-center gap-3 md:pl-10">
+                            {img ? <img src={preview} alt="preview" className="h-12 w-12 rounded object-cover border border-white/10" /> : <div className="h-12 w-12 rounded border border-white/10 bg-white/[0.03] flex items-center justify-center"><FileText className="h-5 w-5 text-muted-foreground" /></div>}
+                            <a href={preview} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors">
+                              <Eye className="h-3.5 w-3.5" /> Visualizar anexo
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             </div>
-          </section>
+          )}
         </div>
 
-        <DialogFooter className="gap-3 pt-4 border-t border-white/10 mt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button variant="outline" onClick={() => handleSalvar(true)} disabled={saving} className="border-white/20">
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />} Salvar Rascunho
-          </Button>
-          <Button onClick={() => handleSalvar(false)} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />} Solicitar Pagamento
-          </Button>
+        {/* =========================================
+            RODAPÉ DE NAVEGAÇÃO REFEITO
+            ========================================= */}
+        <DialogFooter className="gap-3 pt-4 border-t border-white/10 mt-2 flex sm:justify-between w-full">
+          {/* Botão de Voltar (escondido na etapa 1) */}
+          <div className="flex-shrink-0">
+            {etapaAtual > 1 && (
+              <Button variant="ghost" onClick={() => setEtapaAtual((prev) => prev - 1)} disabled={saving}>
+                Voltar
+              </Button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+              Cancelar
+            </Button>
+
+            {etapaAtual < 3 ? (
+              <Button 
+                onClick={() => setEtapaAtual((prev) => prev + 1)} 
+                disabled={!podeAvancar() || saving}
+                className="bg-sky-600 hover:bg-sky-500 text-white"
+              >
+                Próxima Etapa
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => handleSalvar(true)} disabled={saving} className="border-white/20">
+                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />} Salvar Rascunho
+                </Button>
+                <Button onClick={() => handleSalvar(false)} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
+                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />} Solicitar Pagamento
+                </Button>
+              </>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
