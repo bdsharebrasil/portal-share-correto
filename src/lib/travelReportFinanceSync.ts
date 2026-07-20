@@ -163,6 +163,16 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
     });
   }
 
+  const { data: reportData, error: reportError } = await (supabase as any)
+    .from("travel_expense_reports")
+    .select("url_pdf")
+    .eq("id", params.reportId)
+    .single();
+  const reportPdfUrl: string | null = reportData?.url_pdf || null;
+  if (reportError) {
+    console.warn("Não foi possível buscar url_pdf do relatório de viagem:", reportError);
+  }
+
   for (const t of tripulantesParaReembolsar) {
     const descricaoBase = `Reembolso RV ${params.numeroRelatorio} — ${t.label} (${t.nome})`;
     // Chave de origem (idempotência): mesma para contas_apagar e movimentacoes
@@ -174,12 +184,19 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
     try {
       const { data: existingCp } = await (supabase as any)
         .from("contas_apagar")
-        .select("id")
+        .select("id, arquivo_pdf_url")
         .eq("reference_type", cpReferenceType)
         .eq("reference_id", params.reportId)
         .maybeSingle();
 
       let contasApagarId: string | null = existingCp?.id ?? null;
+
+      if (existingCp?.id && reportPdfUrl && !existingCp.arquivo_pdf_url) {
+        await supabase
+          .from("contas_apagar")
+          .update({ arquivo_pdf_url: reportPdfUrl })
+          .eq("id", existingCp.id);
+      }
 
       if (!contasApagarId) {
         const cpPayload: any = {
@@ -194,6 +211,7 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
           aeronave_registro: params.matriculaAeronave || null,
           aeronave_id: params.aeronaveId || null,
           observacoes: `Gerado automaticamente pelo Relatório de Viagem ${params.numeroRelatorio}`,
+          arquivo_pdf_url: reportPdfUrl,
           reference_type: cpReferenceType,
           reference_id: params.reportId,
           criado_por: params.userId || null,

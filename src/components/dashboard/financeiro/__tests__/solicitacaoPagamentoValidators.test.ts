@@ -1,9 +1,19 @@
+declare const describe: (name: string, fn: () => void) => void;
+declare const it: (name: string, fn: () => void) => void;
+declare const expect: <T>(actual: T) => {
+  toBe(expected: unknown): void;
+  toBeNull(): void;
+};
+
 import {
   findExistingFuelReference,
   findExistingReceiptReference,
   findExistingTravelExpenseReference,
   normalizarTipoDespesa,
   normalizarTipoRateio,
+  resolverFornecedorSolicitacao,
+  resolverPagoPorSolicitacao,
+  resolverSubcategoriaSelecionadaParaPayload,
 } from "../solicitacaoPagamentoValidators";
 
 describe("solicitacaoPagamentoValidators", () => {
@@ -39,6 +49,36 @@ describe("solicitacaoPagamentoValidators", () => {
     it("deve retornar FIXO para valores desconhecidos", () => {
       expect(normalizarTipoRateio("")).toBe("FIXO");
       expect(normalizarTipoRateio("qualquer coisa")).toBe("FIXO");
+    });
+  });
+
+  describe("resolverPagoPorSolicitacao", () => {
+    it("usa o nome do sócio quando a despesa é específica", () => {
+      expect(resolverPagoPorSolicitacao({ socioNome: "Ana", clienteNome: "Cliente A", rateadoParaTodosSocios: false })).toBe("Ana");
+    });
+
+    it("usa o nome do cliente para despesas rateadas entre todos os sócios", () => {
+      expect(resolverPagoPorSolicitacao({ socioNome: "Ana", clienteNome: "Cliente A", rateadoParaTodosSocios: true })).toBe("Cliente A");
+    });
+  });
+
+  describe("resolverFornecedorSolicitacao", () => {
+    it("força o fornecedor SHARE BRASIL para despesas de viagem", () => {
+      expect(resolverFornecedorSolicitacao({ isViagemMode: true, fornecedorNome: "Fornecedor X" })).toBe("SHARE BRASIL");
+    });
+
+    it("mantém o fornecedor informado para outros tipos de despesa", () => {
+      expect(resolverFornecedorSolicitacao({ isViagemMode: false, fornecedorNome: "Fornecedor X" })).toBe("Fornecedor X");
+    });
+  });
+
+  describe("resolverSubcategoriaSelecionadaParaPayload", () => {
+    it("retorna apenas a subcategoria selecionada", () => {
+      expect(resolverSubcategoriaSelecionadaParaPayload({ subcategoriaSelecionada: "Hotel" })).toBe("Hotel");
+    });
+
+    it("retorna null quando não há subcategoria selecionada", () => {
+      expect(resolverSubcategoriaSelecionadaParaPayload({ subcategoriaSelecionada: "   " })).toBeNull();
     });
   });
 
@@ -457,3 +497,4 @@ describe("solicitacaoPagamentoValidators", () => {
     });
   });
 });
+

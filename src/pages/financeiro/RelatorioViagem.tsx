@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { previewPDFForPrint } from '@/lib/travelReportPDF';
+import { previewPDFForPrint, generatePDF } from '@/lib/travelReportPDF';
 import type { TravelReport as PDFTravelReport, TravelExpense } from '@/lib/travelReportPDF';
 import {
   Dialog, DialogContent, DialogHeader,
@@ -124,6 +124,7 @@ export default function RelatorioViagem() {
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isBackfillingPdf, setIsBackfillingPdf] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [clientPartners, setClientPartners] = useState<any[]>([]);
@@ -290,6 +291,126 @@ export default function RelatorioViagem() {
       expenses: expenses as Expense[],
       status: normalizeStatus(r.status),
     } as TravelReport;
+  };
+
+  const buildPdfPayload = (report: any, clientName: string): PDFTravelReport => {
+    const despesas = (() => {
+      try { return typeof report.despesas === 'string' ? JSON.parse(report.despesas) : report.despesas || []; }
+      catch { return []; }
+    })();
+
+    return {
+      numero: report.numero_relatorio,
+      cliente_nome: clientName,
+      aeronave: report.matricula_aeronave || '',
+      tripulante: report.nome_tripulante || '',
+      tripulante2: report.nome_tripulante_2 || '',
+      trecho: report.rota || '',
+      destino: report.rota || '',
+      data_inicio: report.data_inicio || new Date().toISOString().split('T')[0],
+      data_fim: report.data_fim || new Date().toISOString().split('T')[0],
+      observacoes: report.observacoes || '',
+      despesas: (despesas || []).map((e: any) => ({
+        categoria: e.category || e.categoria || '',
+        descricao: e.description || e.descricao || '',
+        valor: Number(e.amount ?? e.valor ?? 0),
+        pago_por: e.paid_by || e.pago_por || '',
+        data: e.expense_date || e.data || '',
+        comprovante_url: e.receipt_url || e.comprovante_url || null,
+      })) as TravelExpense[],
+      total_combustivel: Number(report.total_combustivel || 0),
+      total_hospedagem: Number(report.total_hospedagem || 0),
+      total_alimentacao: Number(report.total_alimentacao || 0),
+      total_transporte: Number(report.total_transporte || 0),
+      total_outros: Number(report.total_outros || 0),
+      total_tripulante: Number(report.total_tripulacao || 0),
+      total_tripulante1: Number(report.total_trip || 0),
+      total_tripulante2: Number(report.total_trip2 || 0),
+      total_cliente: Number(report.total_clientes || 0),
+      total_sharebrasil: Number(report.total_sharebrasil || 0),
+      valor_total: Number(report.total_valor || 0),
+    };
+  };
+
+  const getReportClientName = async (report: any) => {
+    if (report.socios_id) {
+      const { data: socio } = await supabase.from('socios').select('nome').eq('id', report.socios_id).single();
+      return socio?.nome || 'Cliente';
+    }
+    if (report.clientes_id) {
+      const { data: cliente } = await supabase.from('clientes').select('razao_social').eq('id', report.clientes_id).single();
+      return cliente?.razao_social || 'Cliente';
+    }
+    return 'Cliente';
+  };
+
+  const ensureReportPdf = async (report: any) => {
+    if (report.url_pdf) return null;
+
+    const clientName = await getReportClientName(report);
+    const pdfData = buildPdfPayload(report, clientName);
+    const pdfBlob = await generatePDF(pdfData, clientName);
+
+    const matriculaSafe = (report.matricula_aeronave || 'SEM-MATRICULA').replace(/[^A-Z0-9-]/gi, '');
+    const numeroSafe = String(report.numero_relatorio || 'REL').replace(/[\/\s]/g, '-');
+    const clientFolderPath = `${report.clientes_id}/.keep`;
+    const pdfPath = `${report.clientes_id}/${matriculaSafe}/${numeroSafe}-${Date.now()}.pdf`;
+
+    try {
+      const emptyBlob = new Blob([''], { type: 'text/plain' });
+      await supabase.storage.from('travel-reports').upload(clientFolderPath, emptyBlob, { upsert: true });
+    } catch (folderErr) {
+      console.warn('⚠️ Aviso ao criar pasta do cliente:', folderErr);
+    }
+
+    const { error: uploadErr } = await supabase.storage.from('travel-reports').upload(pdfPath, pdfBlob, { contentType: 'application/pdf', upsert: true });
+    if (uploadErr) throw uploadErr;
+
+    const { data: publicUrlData } = supabase.storage.from('travel-reports').getPublicUrl(pdfPath);
+    if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter publicUrl do storage');
+
+    const { error: updateError } = await supabase.from('travel_expense_reports').update({ url_pdf: publicUrlData.publicUrl, pdf_path: pdfPath }).eq('id', report.id);
+    if (updateError) throw updateError;
+
+    return report.id;
+  };
+
+  const backfillMissingPdf = async () => {
+    setIsBackfillingPdf(true);
+    try {
+      const { data: reportsToFill, error } = await supabase
+        .from('travel_expense_reports')
+        .select('*')
+        .or('url_pdf.is.null,url_pdf.eq.')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (!reportsToFill || reportsToFill.length === 0) {
+        toast.success('Nenhum relatório encontrado sem PDF.');
+        return;
+      }
+
+      let filledCount = 0;
+      let failedCount = 0;
+
+      for (const report of reportsToFill) {
+        try {
+          await ensureReportPdf(report);
+          filledCount += 1;
+        } catch (error: any) {
+          console.warn(`Falha ao preencher PDF para relatório ${report.numero_relatorio}:`, error);
+          failedCount += 1;
+        }
+      }
+
+      toast.success(`Backfill concluído: ${filledCount} relatório(s) atualizado(s), ${failedCount} falha(s).`);
+      await loadReports();
+    } catch (error: any) {
+      console.error('Erro no backfill de PDFs:', error);
+      toast.error(`Erro ao preencher PDFs ausentes: ${error?.message || 'verifique o console'}`);
+    } finally {
+      setIsBackfillingPdf(false);
+    }
   };
 
   // -------------------------------------------------------------------------
@@ -1180,7 +1301,18 @@ export default function RelatorioViagem() {
                 {/* Finalizados — pastas por cliente */}
                 {activeTab === 'relatorios' && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">Pastas de Clientes</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                      <h3 className="text-lg font-semibold">Pastas de Clientes</h3>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={backfillMissingPdf}
+                        disabled={isBackfillingPdf}
+                        className="rounded-lg"
+                      >
+                        {isBackfillingPdf ? 'Preenchendo PDFs...' : 'Preencher PDFs ausentes'}
+                      </Button>
+                    </div>
                     {reportsWithClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-3" />

@@ -77,6 +77,35 @@ export function normalizarTipoRateio(value: string | null | undefined): TipoRate
   return "FIXO";
 }
 
+export function resolverPagoPorSolicitacao(params: {
+  socioNome?: string | null;
+  clienteNome?: string | null;
+  rateadoParaTodosSocios?: boolean;
+}): string | null {
+  const socioNome = (params.socioNome || "").trim();
+  const clienteNome = (params.clienteNome || "").trim();
+
+  if (params.rateadoParaTodosSocios) {
+    return clienteNome || socioNome || null;
+  }
+
+  return socioNome || clienteNome || null;
+}
+
+export function resolverFornecedorSolicitacao(params: {
+  isViagemMode?: boolean;
+  fornecedorNome?: string | null;
+}): string | null {
+  if (params.isViagemMode) return "SHARE BRASIL";
+  return (params.fornecedorNome || "").trim() || null;
+}
+
+export function resolverSubcategoriaSelecionadaParaPayload(params: {
+  subcategoriaSelecionada?: string | null;
+}): string | null {
+  return (params.subcategoriaSelecionada || "").trim() || null;
+}
+
 /**
  * Rateio de UM cliente entre seus sócios (modelo holding).
  * Usado no fluxo de Despesas de Viagem (single-cliente).

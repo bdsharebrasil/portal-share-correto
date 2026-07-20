@@ -21,6 +21,10 @@ interface PaymentContaLike {
   aeronave_id?: string | null;
   aeronave_registro?: string | null;
   numero?: string | null;
+  numero_doc?: string | null;
+  descricao?: string | null;
+  reference_type?: string | null;
+  reference_id?: string | null;
   movimentacao_id?: string | null;
   clientes?: { razao_social?: string | null } | null;
   socios?: Array<{ name?: string | null; nome?: string | null }> | { name?: string | null; nome?: string | null } | null;
@@ -45,6 +49,15 @@ interface RateioRow {
 
 type SupabaseQuery = ReturnType<typeof supabase.from>;
 
+type TravelReportSummary = {
+  numero_relatorio: string | null;
+  total_valor: number | null;
+  total_trip: number | null;
+  nome_tripulante: string | null;
+  total_trip2: number | null;
+  nome_tripulante_2: string | null;
+};
+
 export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDialogProps) {
   const { user } = useAuth();
   const { data: contasBancarias = [] } = useContasBancarias();
@@ -58,6 +71,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
   const [saving, setSaving] = useState(false);
   const [rateioRows, setRateioRows] = useState<RateioRow[]>([]);
   const [rateioValues, setRateioValues] = useState<Record<string, string>>({});
+  const [travelReport, setTravelReport] = useState<TravelReportSummary | null>(null);
 
   const normalizeRateioValue = (value: string | number | null | undefined) => {
     const numberValue = Number(String(value ?? "").replace(",", "."));
@@ -74,33 +88,79 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     setRateioValues((prev) => ({ ...prev, [rowId]: normalizeRateioValue(prev[rowId] ?? "0") }));
   };
 
-  // Carrega rateio_despesas vinculados a esta conta
+  // Carrega rateio_despesas vinculados a esta conta e o resumo do relatório de viagem (quando aplicável)
   useEffect(() => {
     if (!open || !conta?.id) {
       setRateioRows([]);
       setRateioValues({});
+      setTravelReport(null);
       return;
     }
+
     (async () => {
       const despesaIds = [conta.id, conta.movimentacao_id].filter(Boolean) as string[];
-      const { data, error } = await (supabase as any)
+      const { data: rateioData, error: rateioError } = await (supabase as any)
         .from("rateio_despesas")
         .select("id, cliente_id, clientes_nome, socio_id, socios_nome, valor_rateado, valor_pago_real")
         .in("despesa_id", despesaIds);
-      if (error) {
-        console.error("Erro ao carregar rateio:", error);
+      if (rateioError) {
+        console.error("Erro ao carregar rateio:", rateioError);
         setRateioRows([]);
-        return;
+      } else {
+        const rows = (rateioData || []) as RateioRow[];
+        setRateioRows(rows);
+        const defaults: Record<string, string> = {};
+        rows.forEach((r) => {
+          defaults[r.id] = normalizeRateioValue(r.valor_pago_real ?? r.valor_rateado ?? 0);
+        });
+        setRateioValues(defaults);
       }
-      const rows = (data || []) as RateioRow[];
-      setRateioRows(rows);
-      const defaults: Record<string, string> = {};
-      rows.forEach((r) => {
-        defaults[r.id] = normalizeRateioValue(r.valor_pago_real ?? r.valor_rateado ?? 0);
-      });
-      setRateioValues(defaults);
+
+      const reportReferenceId = conta?.reference_id?.trim() || null;
+      const descricao = String(conta?.descricao || "");
+      const numeroDoc = String(conta?.numero || conta?.numero_doc || "");
+      const extractNumeroRelatorio = (input: string): string | null => {
+        const rvMatch = input.match(/RV[- ]?([A-Z0-9\-/]+)/i);
+        if (rvMatch?.[1]) return rvMatch[1];
+        const viagemMatch = input.match(/Reembolso Viagem\s+(.+?)\s+-\s+/i);
+        if (viagemMatch?.[1]) return viagemMatch[1].trim();
+        const docMatch = input.match(/^(.+?)(?:-T[12])?$/i);
+        return docMatch?.[1] || null;
+      };
+      const numeroRelatorio = extractNumeroRelatorio(numeroDoc) || extractNumeroRelatorio(descricao);
+      const referenceType = String(conta?.reference_type || "").toLowerCase();
+      const isTravelExpenseCategory = Boolean(
+        reportReferenceId ||
+        referenceType.includes("travel_report") ||
+        referenceType.includes("travel_expense_report") ||
+        String(conta?.categoria || "").toUpperCase().includes("VIAGEM") ||
+        descricao.toUpperCase().includes("RV ") ||
+        numeroRelatorio
+      );
+
+      if (isTravelExpenseCategory) {
+        let query: any = (supabase as any)
+          .from("travel_expense_reports")
+          .select("numero_relatorio, total_valor, total_trip, nome_tripulante, total_trip2, nome_tripulante_2");
+
+        if (reportReferenceId) {
+          query = query.eq("id", reportReferenceId);
+        } else if (numeroRelatorio) {
+          query = query.eq("numero_relatorio", numeroRelatorio);
+        }
+
+        const { data: reportData, error: reportError } = await query.maybeSingle();
+        if (!reportError && reportData) {
+          setTravelReport(reportData as TravelReportSummary);
+        } else {
+          if (reportError) console.warn("Erro ao carregar resumo do relatório de viagem:", reportError);
+          setTravelReport(null);
+        }
+      } else {
+        setTravelReport(null);
+      }
     })();
-  }, [open, conta?.id, conta?.movimentacao_id]);
+  }, [open, conta?.id, conta?.movimentacao_id, conta?.reference_id, conta?.reference_type, conta?.categoria, conta?.descricao, conta?.numero_doc]);
 
   const rateioTotal = useMemo(
     () =>
@@ -274,6 +334,23 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
               </p>
             </div>
 
+            {travelReport ? (
+              <div className="space-y-2 rounded-lg border border-sky-500/20 bg-sky-500/5 p-3 text-sm">
+                <div className="font-semibold text-sky-300">Relatório de Viagem</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-sky-100">
+                  <div>Número do relatório: {travelReport.numero_relatorio || "—"}</div>
+                  <div>Total do relatório: R$ {Number(travelReport.total_valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                  <div>Tripulante 1: {travelReport.nome_tripulante || "—"}</div>
+                  <div>Valor Trip 1: R$ {Number(travelReport.total_trip || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                  {travelReport.nome_tripulante_2 ? (
+                    <>
+                      <div>Tripulante 2: {travelReport.nome_tripulante_2}</div>
+                      <div>Valor Trip 2: R$ {Number(travelReport.total_trip2 || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {rateioRows.length > 0 ? (
               <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase text-primary">

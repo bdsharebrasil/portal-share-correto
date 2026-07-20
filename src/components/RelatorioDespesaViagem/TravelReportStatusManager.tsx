@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { generatePDF } from "@/lib/travelReportPDF";
 import {
   Clock,
   CheckCircle2,
@@ -102,25 +103,120 @@ export function TravelReportStatusManager({
   const nextStatus = STATUS_FLOW[currentStatus];
   const statusInfo = STATUS_INFO[currentStatus];
 
+  const uploadReportPdfIfNeeded = async (reportId: string): Promise<{ url_pdf: string; pdf_path: string } | null> => {
+    const { data: report, error: reportError } = await supabase
+      .from("travel_expense_reports")
+      .select("*")
+      .eq("id", reportId)
+      .single();
+
+    if (reportError || !report) throw reportError || new Error("Relatório de viagem não encontrado");
+    if (report.url_pdf) return null;
+
+    const despesas = (() => {
+      try {
+        return typeof report.despesas === "string" ? JSON.parse(report.despesas) : report.despesas || [];
+      } catch {
+        return [];
+      }
+    })();
+
+    let clientName = "Cliente";
+    if (report.socios_id) {
+      const { data: socio } = await supabase
+        .from("socios")
+        .select("nome")
+        .eq("id", report.socios_id)
+        .single();
+      if (socio?.nome) clientName = socio.nome;
+    } else if (report.clientes_id) {
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("razao_social")
+        .eq("id", report.clientes_id)
+        .single();
+      if (cliente?.razao_social) clientName = cliente.razao_social;
+    }
+
+    const pdfReport = {
+      numero: report.numero_relatorio,
+      cliente_nome: clientName,
+      aeronave: report.matricula_aeronave || "",
+      tripulante: report.nome_tripulante || "",
+      tripulante2: report.nome_tripulante_2 || "",
+      trecho: report.rota || "",
+      destino: report.rota || "",
+      data_inicio: report.data_inicio || new Date().toISOString().split("T")[0],
+      data_fim: report.data_fim || new Date().toISOString().split("T")[0],
+      observacoes: report.observacoes || "",
+      despesas: (despesas || []).map((e: any) => ({
+        categoria: e.category || e.categoria || "",
+        descricao: e.description || e.descricao || "",
+        valor: Number(e.amount ?? e.valor ?? 0),
+        pago_por: e.paid_by || e.pago_por || "",
+        data: e.expense_date || e.data || "",
+        comprovante_url: e.receipt_url || e.comprovante_url || null,
+      })),
+      total_combustivel: Number(report.total_combustivel || 0),
+      total_hospedagem: Number(report.total_hospedagem || 0),
+      total_alimentacao: Number(report.total_alimentacao || 0),
+      total_transporte: Number(report.total_transporte || 0),
+      total_outros: Number(report.total_outros || 0),
+      total_tripulante: Number(report.total_tripulacao || 0),
+      total_tripulante1: Number(report.total_trip || 0),
+      total_tripulante2: Number(report.total_trip2 || 0),
+      total_cliente: Number(report.total_clientes || 0),
+      total_sharebrasil: Number(report.total_sharebrasil || 0),
+      valor_total: Number(report.total_valor || 0),
+    };
+
+    const pdfBlob = await generatePDF(pdfReport, clientName);
+    const matriculaSafe = (report.matricula_aeronave || "SEM-MATRICULA").replace(/[^A-Z0-9-]/gi, "");
+    const numeroSafe = String(report.numero_relatorio || "REL").replace(/[\/\s]/g, "-");
+    const clientFolderPath = `${report.clientes_id}/.keep`;
+    const pdfPath = `${report.clientes_id}/${matriculaSafe}/${numeroSafe}-${Date.now()}.pdf`;
+
+    try {
+      const emptyBlob = new Blob([""] , { type: "text/plain" });
+      await supabase.storage.from("travel-reports").upload(clientFolderPath, emptyBlob, { upsert: true });
+    } catch (folderErr) {
+      console.warn("⚠️ Aviso ao criar pasta do cliente:", folderErr);
+    }
+
+    const { error: uploadErr } = await supabase.storage
+      .from("travel-reports")
+      .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+    if (uploadErr) throw uploadErr;
+
+    const { data: publicUrlData } = supabase.storage.from("travel-reports").getPublicUrl(pdfPath);
+    return {
+      url_pdf: publicUrlData.publicUrl,
+      pdf_path: pdfPath,
+    };
+  };
+
   const handleStatusChange = async () => {
     if (!targetStatus) return;
 
     setIsLoading(true);
     try {
-      // 1. Atualizar o status do relatório
+      const pdfUpdate = (targetStatus === "Finalizado" || targetStatus === "Enviado")
+        ? await uploadReportPdfIfNeeded(reportId)
+        : null;
+
       const { error: reportError } = await supabase
         .from("travel_expense_reports")
         .update({
           status: targetStatus,
           updated_at: new Date().toISOString(),
+          ...(pdfUpdate ?? {}),
         })
         .eq("id", reportId);
 
       if (reportError) throw reportError;
 
-      // 2. Se mudar para "Finalizado", atualizar budget também
       if (targetStatus === "Finalizado") {
-        // Log de auditoria
         const { error: auditError } = await supabase
           .from("travel_report_audit_log")
           .insert({
@@ -130,7 +226,7 @@ export function TravelReportStatusManager({
             data_mudanca: new Date().toISOString(),
             observacoes: `Status alterado de ${currentStatus} para ${targetStatus}`,
           })
-          .catch(() => ({ error: null })); // Não quebra se tabela não existir
+          .catch(() => ({ error: null }));
       }
 
       toast.success(`✓ Status alterado para "${STATUS_INFO[targetStatus].label}"`);
@@ -139,7 +235,7 @@ export function TravelReportStatusManager({
       setTargetStatus(null);
     } catch (error: any) {
       console.error("Erro ao alterar status:", error);
-      toast.error(`❌ Erro ao alterar status: ${error.message}`);
+      toast.error(`❌ Erro ao alterar status: ${error?.message || "Erro desconhecido"}`);
     } finally {
       setIsLoading(false);
     }

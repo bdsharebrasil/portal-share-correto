@@ -25,6 +25,9 @@ import {
   montarLinhasRateioMultiCliente,
   normalizarTipoDespesa,
   normalizarTipoRateio,
+  resolverFornecedorSolicitacao,
+  resolverPagoPorSolicitacao,
+  resolverSubcategoriaSelecionadaParaPayload,
   validarSomaPercentualClientes,
   ClienteLinhaRateioInput,
 } from "@/components/dashboard/financeiro/solicitacaoPagamentoValidators";
@@ -170,6 +173,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [anexos, setAnexos] = useState<AnexoDoc[]>([]);
   const [usarReciboExistente, setUsarReciboExistente] = useState(false);
   const [reciboExistenteId, setReciboExistenteId] = useState("");
+  const [reciboExistentePorCliente, setReciboExistentePorCliente] = useState<Record<string, string>>({});
   const [referenciaDuplicada, setReferenciaDuplicada] = useState<{ tipo: "abastecimento" | "travel_expense_report" | "recibo" | null; id: string | null; mensagem: string | null }>({ tipo: null, id: null, mensagem: null });
 
   const [clienteLinhas, setClienteLinhas] = useState<ClienteLinhaState[]>([]);
@@ -278,6 +282,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     if (tipoDespesaSel?.subcategoria_2) arr.push(tipoDespesaSel.subcategoria_2);
     return arr;
   }, [tipoDespesaSel]);
+  const subcategoriaSelecionadaParaPayload = useMemo(() => resolverSubcategoriaSelecionadaParaPayload({
+    subcategoriaSelecionada: subcategoriaSel || null,
+  }), [subcategoriaSel]);
 
   useEffect(() => {
     if (!open || !isTaxasMode || !taxaOrigem || !aeronaveId) {
@@ -346,8 +353,35 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     }
   };
 
+  const buildAllClientesLines = (clientes: ClienteAeronaveOption[]): ClienteLinhaState[] => {
+    if (!clientes.length) return [];
+
+    const basePercent = Number((100 / clientes.length).toFixed(2));
+    const linhas = clientes.map((cliente) => ({
+      uid: crypto.randomUUID(),
+      clienteId: cliente.clienteId,
+      percentualUsoCliente: basePercent.toFixed(2),
+      overridesSocio: {},
+      valorOverridesSocio: {},
+    }));
+
+    const total = linhas.reduce((sum, linha) => sum + Number(String(linha.percentualUsoCliente).replace(",", ".")), 0);
+    const remainder = +(100 - total).toFixed(2);
+    if (remainder !== 0) {
+      linhas[0].percentualUsoCliente = (Number(String(linhas[0].percentualUsoCliente).replace(",", ".")) + remainder).toFixed(2);
+    }
+
+    return linhas;
+  };
+
   useEffect(() => {
     if (isViagemMode || !aeronaveId || !clienteId) return;
+
+    if (clienteId === "__all__") {
+      setClienteLinhas(buildAllClientesLines(clientesDaAeronave));
+      return;
+    }
+
     const info = clientesDaAeronave.find((c) => c.clienteId === clienteId);
     const overridesSocio: Record<string, string> = {};
     if (socioId && info) {
@@ -365,9 +399,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   }, [isViagemMode, aeronaveId, clienteId, socioId, clientesDaAeronave]);
 
   useEffect(() => {
-    if (!clienteId) { setSocios([]); setSocioId(""); return; }
+    if (!clienteId) { setSocios([]); setSocioId(""); setReciboExistentePorCliente({}); return; }
     const info = getClienteAeronaveInfo(clienteId);
     setSocios(info?.socios || []);
+    setReciboExistentePorCliente({});
   }, [clienteId, clientesDaAeronave]);
 
   const clienteSel = useMemo(() => getClienteAeronaveInfo(clienteId), [clienteId, clientesDaAeronave]);
@@ -375,6 +410,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const aeronaveSel = useMemo(() => aeronaves.find((a) => a.id === aeronaveId), [aeronaves, aeronaveId]);
   const fornecedorSel = useMemo(() => fornecedores.find((f) => f.id === fornecedorId), [fornecedores, fornecedorId]);
   const travelReportSel = useMemo(() => travelReports.find((r) => r.id === travelReportId), [travelReports, travelReportId]);
+  const valorReceberClienteViagem = useMemo(() => {
+    if (!travelReportSel) return 0;
+    const totalViagem = Number(travelReportSel.total_valor || 0);
+    return +(totalViagem - Number(travelReportSel.total_clientes || 0)).toFixed(2);
+  }, [travelReportSel]);
   const anexosSocioOptions = useMemo(() => {
     const opcoesBase = isViagemMode
       ? socios.map((s) => ({ id: s.id, nome: s.nome }))
@@ -386,9 +426,30 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   }, [clienteLinhas, clientesDaAeronave, isViagemMode, socios]);
 
   const recibosFiltrados = useMemo(() => {
-    if (!clienteId) return recibosExistentes;
+    if (!clienteId || clienteId === "__all__") return recibosExistentes;
     return recibosExistentes.filter((r) => r.cliente_id === clienteId || r.clientes_id === clienteId);
   }, [clienteId, recibosExistentes]);
+
+  const recibosPorCliente = (targetClienteId: string) => recibosExistentes.filter((r) => r.cliente_id === targetClienteId || r.clientes_id === targetClienteId);
+
+  const getSelectedReciboIdForCliente = (targetClienteId: string) =>
+    clienteId === "__all__" ? reciboExistentePorCliente[targetClienteId] : reciboExistenteId;
+
+  const getSelectedReciboForCliente = (targetClienteId: string) => {
+    if (!usarReciboExistente) return null;
+    const selectedId = getSelectedReciboIdForCliente(targetClienteId);
+    return selectedId ? recibosExistentes.find((r) => r.id === selectedId) || null : null;
+  };
+
+  const getReciboNumeroForCliente = (targetClienteId: string) => {
+    const recibo = getSelectedReciboForCliente(targetClienteId);
+    return recibo?.numero_recibo || recibo?.numero || null;
+  };
+
+  const getReciboUrlForCliente = (targetClienteId: string) => {
+    const recibo = getSelectedReciboForCliente(targetClienteId);
+    return recibo?.pdf_url || recibo?.arquivo_url || null;
+  };
 
   useEffect(() => {
     if (!open || !isViagemMode || !clienteId) { setTravelReports([]); setTravelReportId(""); return; }
@@ -711,7 +772,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const referenciaId = referenciaDuplicada?.id ?? null;
       const fonteDespesa = referenciaTipo || "solicitacao_pagamento";
       
-      const reciboSelecionado = usarReciboExistente ? recibosExistentes.find((r) => r.id === reciboExistenteId) || null : null;
+      const reciboSelecionado = usarReciboExistente && clienteId !== "__all__"
+        ? recibosExistentes.find((r) => r.id === reciboExistenteId) || null
+        : null;
       const reciboUrlSelecionado = reciboSelecionado?.pdf_url || reciboSelecionado?.arquivo_url || null;
       const reciboNumeroSelecionado = reciboSelecionado?.numero_recibo || reciboSelecionado?.numero || null;
 
@@ -730,20 +793,27 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const reciboUrl = pickUrl(anexosProc, "recibo") || reciboUrlSelecionado;
       const boletoUrl = pickUrl(anexosProc, "boleto") || anexosOrigem.boleto_url || null;
       const docUrl = pickUrl(anexosProc, "doc") || anexosOrigem.comanda_url || anexosOrigem.url_pdf || null;
+      const arquivoPdfUrl = isRelatorioViagemMode
+        ? travelReportSel?.url_pdf || docUrl || null
+        : isReciboViagemMode
+          ? reciboSelecionado?.pdf_url || reciboSelecionado?.arquivo_url || docUrl || null
+          : docUrl || null;
       const demonstrativoUrl = pickUrl(anexosProc, "demonstrativo") || null;
       const comprovanteUrl = docUrl || anexosOrigem.comprovante_pagamento || anexosOrigem.comprovante_url || null;
       const nfNum = pickNumero(anexosProc, "nf");
       const reciboNum = pickNumero(anexosProc, "recibo") || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
+      const isAllClients = clienteId === "__all__";
       const docNum = pickNumero(anexosProc, "doc") || (isRelatorioViagemMode && travelReportSel ? travelReportSel.numero_relatorio : null) || (isReciboViagemMode ? referenciaNumero : null);
-      const subcategoria1Val = tipoDespesaSel?.subcategoria_1 || null;
-      const subcategoria2Val = tipoDespesaSel?.subcategoria_2 || null;
-      const subcategoria3Val = (tipoDespesaSel as { subcategoria_3?: string | null } | undefined)?.subcategoria_3 || null;
-      const subcategoria4Val = (tipoDespesaSel as { subcategoria_4?: string | null } | undefined)?.subcategoria_4 || null;
+      const subcategoria1Val = subcategoriaSelecionadaParaPayload;
+      const subcategoria2Val = null;
+      const subcategoria3Val = null;
+      const subcategoria4Val = null;
+      const fornecedorNomeFinal = resolverFornecedorSolicitacao({ isViagemMode, fornecedorNome });
 
       if (!rascunho && referenciaTipo && referenciaId) {
         const { data: existente } = await (supabase as any).from("movimentacoes").select("id").eq("reference_type", referenciaTipo).eq("reference_id", referenciaId).maybeSingle();
-        if (existente) { toast.info("Esta solicitação já está vinculada ao lançamento de origem."); return; }
+        if (existente) { toast.info("Já existe uma solicitação de pagamento para essa despesa."); return; }
       }
 
       if (reciboNum) {
@@ -766,30 +836,32 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
         if (tripValues.length === 0) throw new Error("Nenhum valor de tripulante foi encontrado.");
 
-        for (const entry of tripValues) {
+        for (const [index, entry] of tripValues.entries()) {
           const linhasRateioViagem = montarLinhasRateio({ valorTotal: entry.valor, percentualUso: percNumerico, socios, socioSelecionadoId: socioId || null });
           const capId = await insertAndGetId("contas_apagar", {
             data_vencimento: dataVenc, data_agendamento: dataVenc, valor: entry.valor, categoria: "REEMBOLSO TRIPULAÇÃO",
             categoria_id: categoriaContaId || null, descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`,
             status: statusCP, observacoes: `Reembolso ${entry.label.toLowerCase()} do relatório ${travelReportSel.numero_relatorio}`,
             cliente_id: clienteId, socios_cliente_id: socioId || null, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
-            fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNome || null,
+            fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNomeFinal,
             aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null, possui_boleto: !!boletoUrl,
             boleto_url: boletoUrl, vencimento_boleto: boletoUrl ? dataVenc : null, possui_nf: !!nfUrl, nf_numero: nfNum,
             nf_url: nfUrl, possui_recibo: !!reciboUrl, numero_recibo: reciboNum, recibo_url: reciboUrl, data_recibo: reciboUrl ? dataComp : null,
-            numero_doc: travelReportNumeroDoc, arquivo_pdf_url: travelReportSel.url_pdf || docUrl || null, criado_por: userId,
+            numero_doc: travelReportNumeroDoc, arquivo_pdf_url: arquivoPdfUrl, reference_type: "travel_expense_report", reference_id: travelReportSel.id, criado_por: userId,
           });
 
           let movId: string;
           try {
             movId = await insertAndGetId("movimentacoes", {
               descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, tipo: "despesa", tipo_caixa: "cliente",
-              categoria_id: categoriaContaId, valor: entry.valor, valor_original: Number(travelReportSel.total_valor || valorNumerico),
+              categoria_id: categoriaContaId, valor: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
-              clientes_id: clienteId, socio_id: socioId || null, reembolsavel, fornecedor_nome: fornecedorNome || null,
+              clientes_id: clienteId, socio_id: socioId || null, reembolsavel, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: travelReportNumeroDoc,
               nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
-              observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: "travel_expense_report", reference_id: travelReportSel.id, criado_por: userId,
+              observacoes: obsFinal || null, contas_apagar_id: capId,
+              ...(index === 0 ? { reference_type: "travel_expense_report", reference_id: travelReportSel.id } : {}),
+              criado_por: userId,
             });
           } catch (movErr) {
             await supabase.from("contas_apagar").delete().eq("id", capId);
@@ -802,32 +874,36 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             ? linhasRateioViagem.map((linha) => ({
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
                 data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
-                fornecedor_nome: fornecedorNome || null, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
+                fornecedor_nome: fornecedorNomeFinal, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
                 socios_nome: linha.socio_nome, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
+                relatorio_url: travelReportSel.url_pdf || docUrl || null,
+                pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, rateadoParaTodosSocios: !socioId }),
               }))
             : [{
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
                 data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
-                fornecedor_nome: fornecedorNome || null, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: socioId || null,
+                fornecedor_nome: fornecedorNomeFinal, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: socioId || null,
                 socios_nome: socioSel?.nome || null, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socioSel?.percentual_participacao ?? 0, percentual_uso: percNumerico,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
+                relatorio_url: travelReportSel.url_pdf || docUrl || null,
+                pago_por: resolverPagoPorSolicitacao({ socioNome: socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, rateadoParaTodosSocios: !socioId }),
               }];
 
           await supabaseClient.from("rateio_despesas").insert(rateioPayloadsViagem as any);
         }
 
-        const cliVal = Number(travelReportSel.total_clientes || 0);
-        if (!socioId && cliVal > 0) {
+        const valorAReceberCliente = valorReceberClienteViagem;
+        if (!socioId && valorAReceberCliente > 0) {
           await supabaseClient.from("contas_areceber").insert({
             numero: `RV-${travelReportSel.numero_relatorio}`, cliente_id: clienteId, cliente_nome: clienteSel?.razaoSocial || "",
-            cliente_cnpj: clienteSel?.cnpj || null, data_criacao: dataComp, data_vencimento: dataVenc, valor: cliVal,
+            cliente_cnpj: clienteSel?.cnpj || null, data_criacao: dataComp, data_vencimento: dataVenc, valor: valorAReceberCliente,
             categoria: "RELATÓRIO DE VIAGEM", descricao: `Cobrança RV ${travelReportSel.numero_relatorio} — ${travelReportSel.nome_tripulante || ""}`,
             status: "pendente", aeronave: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null, reference_type: "travel_expense_report", reference_id: travelReportSel.id,
           });
@@ -837,9 +913,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumerico, categoria: tipoDespesaLabel || null,
           categoria_id: categoriaContaId || null, descricao, status: statusCP, observacoes: observacoes || null,
           cliente_id: clienteLinhas.length === 1 ? clienteLinhas[0].clienteId : null, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
-          fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNome || null,
+          fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNomeFinal,
           aeronave_registro: aeronaveSel?.matricula || null, possui_boleto: !!boletoUrl, boleto_url: boletoUrl, vencimento_boleto: boletoUrl ? dataVenc : null,
-          possui_nf: !!nfUrl, nf_numero: nfNum, nf_url: nfUrl, possui_recibo: !!reciboUrl, numero_recibo: reciboNum, recibo_url: reciboUrl, data_recibo: reciboUrl ? dataComp : null,
+          possui_nf: !!nfUrl, nf_numero: nfNum, nf_url: nfUrl, possui_recibo: !!reciboUrl && !isAllClients, numero_recibo: isAllClients ? null : reciboNum, recibo_url: isAllClients ? null : reciboUrl, data_recibo: !isAllClients && reciboUrl ? dataComp : null,
           numero_doc: docNum, arquivo_pdf_url: docUrl, criado_por: userId,
         });
 
@@ -849,12 +925,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             const info = getClienteAeronaveInfo(linha.clienteId);
             const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
             const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
+            const reciboNumLinha = pickNumero(anexosProc, "recibo") || getReciboNumeroForCliente(linha.clienteId);
+            const reciboUrlLinha = pickUrl(anexosProc, "recibo") || getReciboUrlForCliente(linha.clienteId);
 
             const movId = await insertAndGetId("movimentacoes", {
               descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
               categoria_id: categoriaContaId, valor: valorCliente, valor_original: valorNumerico, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
-              aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, reembolsavel, fornecedor_nome: fornecedorNome || null,
-              numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: docNum, nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
+              aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, reembolsavel, fornecedor_nome: fornecedorNomeFinal,
+              numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum, nf_url: nfUrl, recibo_url: reciboUrlLinha, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
               observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
             });
             movimentacaoIdsPorCliente[linha.clienteId] = movId;
@@ -867,14 +945,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
         await supabase.from("contas_apagar").update({ movimentacao_id: Object.values(movimentacaoIdsPorCliente)[0] || null }).eq("id", capId);
 
-        const rateioPayloads = linhasRateioMultiCliente.map((linha) => ({
-          despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
-          data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNum, fornecedor_nome: fornecedorNome || null,
-          cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socio_nome, pago_diretamente: false,
-          aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
-          descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumerico, valor_rateado: linha.valor_rateado,
-          status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
-        }));
+        const rateioPayloads = linhasRateioMultiCliente.map((linha) => {
+          const reciboNumLinha = pickNumero(anexosProc, "recibo") || getReciboNumeroForCliente(linha.cliente_id);
+          const reciboUrlLinha = pickUrl(anexosProc, "recibo") || getReciboUrlForCliente(linha.cliente_id);
+          return {
+            despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
+            data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
+            cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
+            aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
+            descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumerico, valor_rateado: linha.valor_rateado,
+            status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
+            pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, rateadoParaTodosSocios: !socioId }),
+          };
+        });
 
         await supabaseClient.from("rateio_despesas").insert(rateioPayloads as any);
 
@@ -968,7 +1051,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">Cliente</Label>
-                      <SearchableCombobox items={clientesDaAeronave.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))} value={clienteId} onChange={(id) => { setClienteId(id); setSocioId(""); setReciboExistenteId(""); }} placeholder="Selecione o cliente" emptyMessage="Nenhum cliente" />
+                      <SearchableCombobox
+                        items={
+                          !isViagemMode
+                            ? [{ id: "__all__", label: "— Todos os clientes —" }, ...clientesDaAeronave.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))]
+                            : clientesDaAeronave.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))
+                        }
+                        value={clienteId}
+                        onChange={(id) => { setClienteId(id); setSocioId(""); setReciboExistenteId(""); }}
+                        placeholder="Selecione o cliente"
+                        emptyMessage="Nenhum cliente"
+                      />
                     </div>
                     {socios.length > 0 && (
                       <div className="space-y-1.5">
@@ -1144,10 +1237,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                           <span className="text-muted-foreground">{travelReportSel.nome_tripulante_2 || "Tripulante 2"}</span>
                           <span className="font-medium text-sky-200">{Number(travelReportSel.total_trip2 || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
                         </div>
-                        {Number(travelReportSel.total_clientes || 0) > 0 && (
+                        {!socioId && Number(travelReportSel.total_clientes || 0) > 0 && valorReceberClienteViagem > 0 && (
                           <div className="flex justify-between rounded-md bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 md:col-span-2">
-                            <span className="text-emerald-300">A receber do cliente (total_clientes)</span>
-                            <span className="font-medium text-emerald-200">{Number(travelReportSel.total_clientes || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                            <span className="text-emerald-300">A receber do cliente</span>
+                            <span className="font-medium text-emerald-200">{valorReceberClienteViagem.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
                           </div>
                         )}
                       </div>
@@ -1462,12 +1555,40 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                     </div>
                   </div>
                   {usarReciboExistente && (
-                    <Select value={reciboExistenteId} onValueChange={setReciboExistenteId}>
-                      <SelectTrigger className="w-full md:w-1/2 mt-2"><SelectValue placeholder="Escolha um recibo existente" /></SelectTrigger>
-                      <SelectContent>
-                        {recibosFiltrados.map((r) => <SelectItem key={r.id} value={r.id}>{r.numero_recibo || r.numero || `Recibo ${r.id.slice(0, 6)}`}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    clienteId === "__all__" ? (
+                      <div className="space-y-3 mt-3">
+                        {clientesDaAeronave.map((cliente) => {
+                          const recibosCliente = recibosPorCliente(cliente.clienteId);
+                          return (
+                            <div key={cliente.clienteId} className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Recibo para {cliente.razaoSocial}</Label>
+                              {recibosCliente.length > 0 ? (
+                                <Select
+                                  value={reciboExistentePorCliente[cliente.clienteId] || ""}
+                                  onValueChange={(v) => setReciboExistentePorCliente((prev) => ({ ...prev, [cliente.clienteId]: v }))}
+                                >
+                                  <SelectTrigger className="w-full md:w-1/2"><SelectValue placeholder="Escolha um recibo" /></SelectTrigger>
+                                  <SelectContent>
+                                    {recibosCliente.map((r) => (
+                                      <SelectItem key={r.id} value={r.id}>{r.numero_recibo || r.numero || `Recibo ${r.id.slice(0, 6)}`}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <p className="text-xs text-amber-300">Nenhum recibo encontrado para este cliente.</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <Select value={reciboExistenteId} onValueChange={setReciboExistenteId}>
+                        <SelectTrigger className="w-full md:w-1/2 mt-2"><SelectValue placeholder="Escolha um recibo existente" /></SelectTrigger>
+                        <SelectContent>
+                          {recibosFiltrados.map((r) => <SelectItem key={r.id} value={r.id}>{r.numero_recibo || r.numero || `Recibo ${r.id.slice(0, 6)}`}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )
                   )}
                 </div>
 
