@@ -68,7 +68,7 @@ interface AbastecimentoLookup {
 
 interface AnexoDoc {
   id: string;
-  tipo: "nf" | "recibo" | "boleto" | "doc";
+  tipo: "nf" | "recibo" | "boleto" | "doc" | "demonstrativo";
   numero: string;
   arquivo?: File | null;
   url?: string | null;
@@ -79,6 +79,7 @@ const TIPOS_ANEXO: { value: AnexoDoc["tipo"]; label: string }[] = [
   { value: "nf", label: "Nota Fiscal" },
   { value: "recibo", label: "Recibo" },
   { value: "boleto", label: "Boleto" },
+  { value: "demonstrativo", label: "Demonstrativo" },
   { value: "doc", label: "Documento" },
 ];
 
@@ -112,6 +113,7 @@ interface ClienteLinhaState {
   clienteId: string;
   percentualUsoCliente: string;
   overridesSocio: Record<string, string>;
+  valorOverridesSocio: Record<string, string>;
 }
 
 type InsertedRow = {
@@ -342,7 +344,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
   useEffect(() => {
     if (!isViagemMode && aeronaveId && clienteLinhas.length === 0) {
-      setClienteLinhas([{ uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "100", overridesSocio: {} }]);
+      setClienteLinhas([{ uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "100", overridesSocio: {}, valorOverridesSocio: {} }]);
     }
   }, [isViagemMode, aeronaveId]);
 
@@ -411,12 +413,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           const num = Number(String(val).replace(",", "."));
           if (!Number.isNaN(num)) overrides[sId] = num;
         });
+        const valorOverrides: Record<string, number> = {};
+        Object.entries(l.valorOverridesSocio || {}).forEach(([sId, val]) => {
+          if (val === "" || val === undefined) return;
+          const num = Number(String(val).replace(",", "."));
+          if (!Number.isNaN(num)) valorOverrides[sId] = num;
+        });
         return {
           clienteId: l.clienteId,
           clienteNome: info?.razaoSocial || "Cliente",
           percentualUsoCliente: Number(String(l.percentualUsoCliente).replace(",", ".")) || 0,
           socios: info?.socios || [],
           overridesSocio: overrides,
+          valorOverridesSocio: valorOverrides,
         };
       });
     return montarLinhasRateioMultiCliente({ valorTotal: valorNumerico, linhas: linhasInput });
@@ -520,10 +529,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   };
 
   const clientesJaUsados = new Set(clienteLinhas.map((l) => l.clienteId).filter(Boolean));
-  const addClienteLinha = () => setClienteLinhas((prev) => [...prev, { uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "", overridesSocio: {} }]);
+  const addClienteLinha = () => setClienteLinhas((prev) => [...prev, { uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "", overridesSocio: {}, valorOverridesSocio: {} }]);
   const updateClienteLinha = (uid: string, patch: Partial<ClienteLinhaState>) => setClienteLinhas((prev) => prev.map((l) => (l.uid === uid ? { ...l, ...patch } : l)));
   const removeClienteLinha = (uid: string) => setClienteLinhas((prev) => prev.filter((l) => l.uid !== uid));
   const updateOverrideSocio = (linhaUid: string, socioId: string, valor: string) => setClienteLinhas((prev) => prev.map((l) => (l.uid === linhaUid ? { ...l, overridesSocio: { ...l.overridesSocio, [socioId]: valor } } : l)));
+  const updateValorOverrideSocio = (linhaUid: string, socioId: string, valor: string) => setClienteLinhas((prev) => prev.map((l) => (l.uid === linhaUid ? { ...l, valorOverridesSocio: { ...l.valorOverridesSocio, [socioId]: valor } } : l)));
 
   const addAnexo = () => setAnexos((prev) => [...prev, { id: crypto.randomUUID(), tipo: "nf", numero: "", arquivo: null, socioId: null }]);
   const updateAnexo = (id: string, patch: Partial<AnexoDoc>) => setAnexos((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
@@ -664,11 +674,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const reciboUrl = pickUrl(anexosProc, "recibo") || reciboUrlSelecionado;
       const boletoUrl = pickUrl(anexosProc, "boleto") || anexosOrigem.boleto_url || null;
       const docUrl = pickUrl(anexosProc, "doc") || anexosOrigem.comanda_url || anexosOrigem.url_pdf || null;
+      const demonstrativoUrl = pickUrl(anexosProc, "demonstrativo") || null;
       const comprovanteUrl = docUrl || anexosOrigem.comprovante_pagamento || anexosOrigem.comprovante_url || null;
       const nfNum = pickNumero(anexosProc, "nf");
       const reciboNum = pickNumero(anexosProc, "recibo") || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
       const docNum = pickNumero(anexosProc, "doc");
+      const subcategoria1Val = tipoDespesaSel?.subcategoria_1 || null;
+      const subcategoria2Val = tipoDespesaSel?.subcategoria_2 || null;
 
       if (!rascunho && referenciaTipo && referenciaId) {
         const { data: existente } = await (supabase as any).from("movimentacoes").select("id").eq("reference_type", referenciaTipo).eq("reference_id", referenciaId).maybeSingle();
@@ -736,7 +749,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
-                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl,
+                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
               }))
             : [{
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
@@ -746,7 +759,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 percentual_sociedade: socioSel?.percentual_participacao ?? 0, percentual_uso: percNumerico,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
-                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl,
+                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
               }];
 
           await supabaseClient.from("rateio_despesas").insert(rateioPayloadsViagem as any);
@@ -802,7 +815,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socio_nome, pago_diretamente: false,
           aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
           descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumerico, valor_rateado: linha.valor_rateado,
-          status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl,
+          status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
         }));
 
         await supabaseClient.from("rateio_despesas").insert(rateioPayloads as any);
@@ -1138,20 +1151,29 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                                   const totalPctSocios = info.socios.reduce((s, so) => s + (Number(so.percentual_participacao ?? 0) || 0), 0);
                                   return info.socios.map((s) => {
                                     const overrideVal = linha.overridesSocio[s.id];
+                                    const valorOverrideVal = linha.valorOverridesSocio?.[s.id];
                                     const autoPct = totalPctSocios > 0 ? (Number(s.percentual_participacao ?? 0) / totalPctSocios) * 100 : 100 / info.socios.length;
-                                    const pctEfetivo = overrideVal !== undefined && overrideVal !== "" && !Number.isNaN(Number(overrideVal.replace(",", "."))) ? Number(overrideVal.replace(",", ".")) : autoPct;
-                                    const valorSocio = +(valorCliente * (pctEfetivo / 100)).toFixed(2);
-                                    
+                                    const hasValorOverride = valorOverrideVal !== undefined && valorOverrideVal !== "" && !Number.isNaN(Number(String(valorOverrideVal).replace(",", ".")));
+                                    const pctEfetivo = hasValorOverride
+                                      ? (valorNumerico > 0 ? (Number(String(valorOverrideVal).replace(",", ".")) / valorNumerico) * 100 : 0)
+                                      : (overrideVal !== undefined && overrideVal !== "" && !Number.isNaN(Number(overrideVal.replace(",", "."))) ? Number(overrideVal.replace(",", ".")) : autoPct);
+                                    const valorSocio = hasValorOverride
+                                      ? Number(String(valorOverrideVal).replace(",", "."))
+                                      : +(valorCliente * (pctEfetivo / 100)).toFixed(2);
+
                                     return (
-                                      <div key={s.id} className="flex items-center justify-between rounded-md border border-white/5 bg-black/20 p-2 text-sm">
-                                        <div className="font-medium text-foreground w-1/3">{s.nome}</div>
-                                        <div className="flex items-center gap-2 w-1/3 text-muted-foreground">
-                                          <span className="text-xs whitespace-nowrap">% de uso:</span>
-                                          <Input type="text" inputMode="decimal" className="h-7 w-20 text-xs text-center" placeholder={`${autoPct.toFixed(2)}`} value={overrideVal ?? ""} onChange={(e) => updateOverrideSocio(linha.uid, s.id, e.target.value)} />
-                                          <span className="text-xs opacity-50">({autoPct.toFixed(2)}%)</span>
+                                      <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-md border border-white/5 bg-black/20 p-2 text-sm">
+                                        <div className="font-medium text-foreground min-w-[140px] flex-1">{s.nome}</div>
+                                        <div className="flex items-center gap-1 text-muted-foreground">
+                                          <span className="text-xs whitespace-nowrap">%:</span>
+                                          <Input type="text" inputMode="decimal" className="h-7 w-20 text-xs text-center" placeholder={`${autoPct.toFixed(2)}`} value={hasValorOverride ? pctEfetivo.toFixed(2) : (overrideVal ?? "")} onChange={(e) => { updateOverrideSocio(linha.uid, s.id, e.target.value); updateValorOverrideSocio(linha.uid, s.id, ""); }} />
                                         </div>
-                                        <div className="text-emerald-300 font-medium text-right w-1/3">
-                                          Valor rateado: {valorSocio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                        <div className="flex items-center gap-1 text-emerald-300">
+                                          <span className="text-xs whitespace-nowrap">R$:</span>
+                                          <Input type="text" inputMode="decimal" className="h-7 w-28 text-xs text-right" placeholder={valorSocio.toFixed(2)} value={valorOverrideVal ?? ""} onChange={(e) => updateValorOverrideSocio(linha.uid, s.id, e.target.value)} />
+                                          <span className="text-[10px] opacity-60 whitespace-nowrap">
+                                            = {valorSocio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                          </span>
                                         </div>
                                       </div>
                                     );
