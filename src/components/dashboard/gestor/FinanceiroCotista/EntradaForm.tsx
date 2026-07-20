@@ -277,6 +277,9 @@ export default function EntradaForm(props: EntradaFormProps) {
       const cotista = socios.find((s) => s.id === cotistaPagador);
       if (!cotista) throw new Error("Cotista não encontrado");
 
+      // Para entradas, converter 'pago' para 'recebido'
+      const rateioStatus = status === "pago" ? "recebido" : status;
+
       // Criar lançamento como ENTRADA
       const movPayload: any = {
         descricao: descricao.trim(),
@@ -287,7 +290,7 @@ export default function EntradaForm(props: EntradaFormProps) {
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         client_id: clienteId,
         socio_id: cotistaPagador,
-        status,
+        status: rateioStatus,
         observacoes: observacoes || null,
         forma_pagamento: formaPgto || null,
         criado_por: user?.id ?? null,
@@ -318,7 +321,7 @@ export default function EntradaForm(props: EntradaFormProps) {
         valor_total_despesa: valorNum,
         valor_rateado: valorNum,
         valor_pago_real: valorNum,
-        status,
+        status: rateioStatus,
         descricao_despesa: descricao,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         pago_por: cotistaPagador,

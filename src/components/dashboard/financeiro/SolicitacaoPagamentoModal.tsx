@@ -199,6 +199,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [clienteLinhas, setClienteLinhas] = useState<ClienteLinhaState[]>([]);
   const [clienteId, setClienteId] = useState("");
   const [socioId, setSocioId] = useState("");
+  const [sociosExcluidos, setSociosExcluidos] = useState<string[]>([]);
   const [socios, setSocios] = useState<SocioOption[]>([]);
   const [percentualUso, setPercentualUso] = useState("100");
   const [travelReports, setTravelReports] = useState<TravelReportOption[]>([]);
@@ -310,6 +311,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setClienteLinhas([]);
     setClienteId("");
     setSocioId("");
+    setSociosExcluidos([]);
   }, [aeronaveId]);
 
   useEffect(() => {
@@ -322,6 +324,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   }, [clienteId, socioId, clientesDaAeronave]);
 
   const getClienteAeronaveInfo = (cid: string) => clientesDaAeronave.find((c) => c.clienteId === cid);
+  const getSociosVisiveisParaCliente = (info?: ClienteAeronaveOption | null) => {
+    const base = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
+    return base.filter((s) => !sociosExcluidos.includes(s.id));
+  };
   const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaBase || tipoDespesaLabel || "");
   const subcategoriaNormalizadaAtual = normalizarSubcategoriaDespesa(subcategoriaSel || "");
   const isViagemMode = tipoNormalizadoAtual === "DESPESAS_DE_VIAGEM";
@@ -344,7 +350,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const isSubcat2Sel = !!(tipoDespesaSel?.subcategoria_2 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_2);
   const subcategoriaSelecionadaParaPayload = useMemo(() => resolverSubcategoriaSelecionadaParaPayload({
     subcategoriaSelecionada: subcategoriaSel || null,
-  }), [subcategoriaSel]);
+    subcategoria1: tipoDespesaSel?.subcategoria_1 || null,
+    subcategoria2: tipoDespesaSel?.subcategoria_2 || null,
+  }), [subcategoriaSel, tipoDespesaSel?.subcategoria_1, tipoDespesaSel?.subcategoria_2]);
 
   useEffect(() => {
     if (!open || !isReciboFirstMode || !aeronaveId) {
@@ -664,8 +672,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     return +(totalViagem - Number(travelReportSel.total_clientes || 0)).toFixed(2);
   }, [travelReportSel]);
   const sociosParaRateio = useMemo(
-    () => filtrarSociosParaRateio({ socios, socioSelecionadoId: socioId || null }),
-    [socios, socioId],
+    () => filtrarSociosParaRateio({ socios, socioSelecionadoId: socioId || null, sociosExcluidos }),
+    [socios, socioId, sociosExcluidos],
   );
 
   const anexosSocioOptions = useMemo(() => {
@@ -809,7 +817,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       .filter((l) => l.clienteId)
       .map((l) => {
         const info = getClienteAeronaveInfo(l.clienteId);
-        const sociosVisiveis = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
+        const sociosVisiveis = getSociosVisiveisParaCliente(info);
         const overrides: Record<string, number> = {};
         Object.entries(l.overridesSocio).forEach(([sId, val]) => {
           if (val === "" || val === undefined) return;
@@ -914,7 +922,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setDataEmissao(new Date()); setDataVencimento(new Date()); setAnexos([]);
     setUsarReciboExistente(false); setReciboExistenteId(""); setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
     setTravelReportId(""); setTravelReports([]); setReferenciaNumero("");
-    setClienteLinhas([]); setClienteId(""); setSocioId("");
+    setClienteLinhas([]); setClienteId(""); setSocioId(""); setSociosExcluidos([]);
     setFuelComanda(""); setFuelNf(""); setFuelLookupResult(null); setFuelLookupSearched(false);
     setTaxaOrigem(null); setTaxaRecibos([]); setTaxaReciboId(""); setTaxaReciboPorCliente({}); setTaxaRecibosMultiplos([]);
   };
@@ -937,6 +945,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const addClienteLinha = () => setClienteLinhas((prev) => [...prev, { uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "", overridesSocio: {}, valorOverridesSocio: {}, numeroDocumentoRecibo: undefined, urlBoleto: undefined, urlDemonstrativo: undefined }]);
   const updateClienteLinha = (uid: string, patch: Partial<ClienteLinhaState>) => setClienteLinhas((prev) => prev.map((l) => (l.uid === uid ? { ...l, ...patch } : l)));
   const removeClienteLinha = (uid: string) => setClienteLinhas((prev) => prev.filter((l) => l.uid !== uid));
+  const toggleSocioExcluido = (socioIdToToggle: string) => {
+    setSociosExcluidos((prev) => prev.includes(socioIdToToggle) ? prev.filter((id) => id !== socioIdToToggle) : [...prev, socioIdToToggle]);
+  };
   const updateOverrideSocio = (linhaUid: string, socioId: string, valor: string) => setClienteLinhas((prev) => prev.map((l) => (l.uid === linhaUid ? { ...l, overridesSocio: { ...l.overridesSocio, [socioId]: valor } } : l)));
   const updateValorOverrideSocio = (linhaUid: string, socioId: string, valor: string) => setClienteLinhas((prev) => prev.map((l) => (l.uid === linhaUid ? { ...l, valorOverridesSocio: { ...l.valorOverridesSocio, [socioId]: valor } } : l)));
 
@@ -1174,7 +1185,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
                 relatorio_url: travelReportSel.url_pdf || docUrl || null,
-                pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, rateadoParaTodosSocios: !socioId }),
+                pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length }),
               }))
             : [{
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
@@ -1186,7 +1197,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 valor_total_despesa: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
                 relatorio_url: travelReportSel.url_pdf || docUrl || null,
-                pago_por: resolverPagoPorSolicitacao({ socioNome: socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, rateadoParaTodosSocios: !socioId }),
+                pago_por: resolverPagoPorSolicitacao({ socioNome: socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length || (socioId ? 1 : 0) }),
               }];
 
           await supabaseClient.from("rateio_despesas").insert(rateioPayloadsViagem as any);
@@ -1270,7 +1281,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
             descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
             status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
-            pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, rateadoParaTodosSocios: !socioId }),
+            pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
           };
         });
 
@@ -1290,6 +1301,16 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             });
           }
         }
+      }
+
+      if (!rascunho && referenciaTipo === "abastecimento" && referenciaId) {
+        const socioNomeParaAbastecimento = (socioSel?.nome || (clienteLinhas.length === 1 ? null : null)).trim() || null;
+        await supabase.from("abastecimentos").update({
+          status_pagamento: "pago",
+          data_pagamento: dataComp,
+          socio_nome: socioNomeParaAbastecimento,
+          updated_at: new Date().toISOString(),
+        }).eq("id", referenciaId);
       }
 
       if (!rascunho) {
@@ -1770,7 +1791,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   <div className="space-y-3">
                     {clienteLinhas.map((linha) => {
                       const info = getClienteAeronaveInfo(linha.clienteId);
-                      const sociosVisiveis = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
+                      const sociosVisiveis = getSociosVisiveisParaCliente(info);
                       const itensDisponiveis = clientesDaAeronave.filter((c) => c.clienteId === linha.clienteId || !clientesJaUsados.has(c.clienteId));
                       const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
                       const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
@@ -1828,6 +1849,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                               <div className="flex items-center justify-between">
                                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rateio Interno (Por Sócio)</Label>
                                 <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{sociosVisiveis.length} linha(s)</Badge>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                {info.socios.map((socio) => {
+                                  const isExcluded = sociosExcluidos.includes(socio.id);
+                                  return (
+                                    <button
+                                      key={socio.id}
+                                      type="button"
+                                      onClick={() => toggleSocioExcluido(socio.id)}
+                                      className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${isExcluded ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"}`}
+                                    >
+                                      {isExcluded ? <span className="flex items-center gap-1"><Trash2 className="h-3 w-3" /> {socio.nome}</span> : socio.nome}
+                                    </button>
+                                  );
+                                })}
                               </div>
                               
                               <div className="grid gap-2">

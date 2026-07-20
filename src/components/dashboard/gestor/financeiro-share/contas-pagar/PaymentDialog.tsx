@@ -263,7 +263,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       if (hasRateio) {
         for (const row of rateioRows) {
           const valorRow = Number(normalizeRateioValue(rateioValues[row.id] ?? "0")) || 0;
-          const pagador = row.clientes_nome || row.socios_nome || pagoPor || null;
+          const pagador = row.socios_nome || row.clientes_nome || pagoPor || null;
           await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
             .update({
               status: "pago",
@@ -276,6 +276,21 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
             })
             .eq("id", row.id);
         }
+      }
+
+      if (conta?.reference_type?.toLowerCase() === "abastecimento" && conta?.reference_id) {
+        const socioNomeAbastecimento = rateioRows.find((row) => row.socios_nome?.trim())?.socios_nome?.trim() || null;
+        await (supabase.from("abastecimentos") as unknown as SupabaseQuery)
+          .update({
+            status_pagamento: "pago",
+            data_pagamento: dataPagamento,
+            forma_pagamento: metodoPagamento || null,
+            comprovante_pagamento: comprovanteUrl || null,
+            comprovante_url: comprovanteUrl || null,
+            socio_nome: socioNomeAbastecimento,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", conta.reference_id);
       }
 
       // 4) Controle bancário

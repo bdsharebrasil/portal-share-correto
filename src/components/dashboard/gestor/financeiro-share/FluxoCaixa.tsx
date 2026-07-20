@@ -626,7 +626,7 @@ export function FluxoCaixa() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <Tabs value={activeTab} onVolumeChange={setActiveTab} className="w-full">
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'lista' | 'visualizacao-mensal' | 'caixa-cliente')} className="w-full">
       <TabsList className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl rounded-lg p-1 border border-white/10 w-full justify-start h-auto gap-2">
         <TabsTrigger
           value="lista"

@@ -896,7 +896,8 @@ function LinhaGrupo({
   }, [categorias, g.categoria_custo]);
 
   const status = (g.status || "pendente").toLowerCase();
-  const isPago = status === "pago" || status === "pagamento_validado";
+  const isFinalized = (isEntrada && (status === "recebido" || status === "confirmado")) || (!isEntrada && (status === "pago" || status === "pagamento_validado"));
+  const isPago = isFinalized;
   const documentUrls = getDocumentUrls(g.observacoes);
 
   const handleRowClick = (e: React.MouseEvent<HTMLTableRowElement>) => {
@@ -1085,38 +1086,18 @@ function LinhaGrupo({
 
       {expanded && (
         <tr className="bg-muted/20">
-          <td colSpan={10 + cotistas.length * 2} className="p-0 border-b border-border align-top">
+          <td colSpan={10} className="p-0 border-b border-border border-r align-top">
             <div className="px-5 py-4 animate-in slide-in-from-top-2 duration-200">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)_160px] xl:items-start">
+              <div className="grid gap-5 grid-cols-[minmax(0,1fr)_minmax(300px,1fr)_160px] items-start">
                 <div className="min-w-0 space-y-3">
                   <div className="flex items-center gap-2">
                     {isPago ? (
-                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><CheckCircle2 className="h-3.5 w-3.5" /> Pago</Badge>
+                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><CheckCircle2 className="h-3.5 w-3.5" /> {isEntrada ? "Recebido" : "Pago"}</Badge>
                     ) : status === "cancelado" ? (
                       <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 border-rose-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><XCircle className="h-3.5 w-3.5" /> Cancelado</Badge>
                     ) : (
                       <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><Clock className="h-3.5 w-3.5" /> Pendente</Badge>
                     )}
-                    <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider ml-2">Detalhes Financeiros</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs bg-background border border-border p-3 rounded-lg">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] uppercase text-muted-foreground font-semibold">Vencimento</span>
-                      <span className="font-medium text-foreground">{fmtDate(g.data_vencimento)}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] uppercase text-muted-foreground font-semibold">Pagamento</span>
-                      <span className="font-medium text-foreground">{fmtDate(g.data_pagamento)}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] uppercase text-muted-foreground font-semibold">Forma</span>
-                      <span className="font-medium text-foreground truncate">{g.forma_pagamento || "—"}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] uppercase text-muted-foreground font-semibold">Valor Total</span>
-                      <span className="font-mono text-[13px] font-bold text-primary tabular-nums">{formatBRL(g.valor_total_despesa)}</span>
-                    </div>
                   </div>
 
                   {g.observacoes && (
@@ -1173,6 +1154,12 @@ function LinhaGrupo({
               </div>
             </div>
           </td>
+          {cotistas.map((c) => (
+            <Fragment key={c.id}>
+              <td className="px-2 py-1.5 bg-muted/20 border-b border-border" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }} />
+              <td className="px-2 py-1.5 bg-muted/20 border-b border-border" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }} />
+            </Fragment>
+          ))}
         </tr>
       )}
 
@@ -1248,14 +1235,15 @@ function PagamentoDialog({
   fornecedores: { id: string; label: string }[];
   categorias: { id: string; label: string }[];
   pagadores: { id: string; label: string }[];
-  onSaved: (status: "pago" | "pendente") => void;
+  onSaved: (status: "pago" | "recebido" | "pendente") => void;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
 }) {
   const [dataEmissao, setDataEmissao] = useState(grupo.data_emissao || grupo.data_pagamento || new Date().toISOString().slice(0, 10));
   const [dataPagamento, setDataPagamento] = useState(grupo.data_pagamento || "");
   const [dataVencimento, setDataVencimento] = useState(grupo.data_vencimento || new Date().toISOString().slice(0, 10));
   const [forma, setForma] = useState(grupo.forma_pagamento || "pix");
-  const [status, setStatus] = useState<"pago" | "pendente">(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
+  const isGrupoEntrada = normalizeFluxo(grupo.fluxo) === "ENTRADA";
+  const [status, setStatus] = useState<"pago" | "recebido" | "pendente">(grupo.status?.toLowerCase() === "pago" || grupo.status?.toLowerCase() === "recebido" ? (grupo.status?.toLowerCase() as any) : "pendente");
   const [docNumero, setDocNumero] = useState(grupo.numero_doc || "");
   const [descricao, setDescricao] = useState(grupo.descricao_despesa || "");
   const [fornecedor, setFornecedor] = useState(grupo.fornecedor_nome || "");
@@ -1282,7 +1270,7 @@ function PagamentoDialog({
       setDataPagamento(grupo.data_pagamento || "");
       setDataVencimento(grupo.data_vencimento || new Date().toISOString().slice(0, 10));
       setForma(grupo.forma_pagamento || "pix");
-      setStatus(grupo.status?.toLowerCase() === "pago" ? "pago" : "pendente");
+      setStatus(grupo.status?.toLowerCase() === "pago" || grupo.status?.toLowerCase() === "recebido" ? (grupo.status?.toLowerCase() as any) : "pendente");
       setDocNumero(grupo.numero_doc || "");
       setDescricao(grupo.descricao_despesa || "");
       setFornecedor(grupo.fornecedor_nome || "");
@@ -1326,9 +1314,9 @@ function PagamentoDialog({
       const patch: Record<string, any> = {
         status,
         data_emissao: dataEmissao || null,
-        data_pagamento: status === "pago" ? (dataPagamento || dataEmissao || null) : null,
+        data_pagamento: status !== "pendente" ? (dataPagamento || dataEmissao || null) : null,
         data_vencimento: dataVencimento || null,
-        forma_pagamento: status === "pago" ? forma : null,
+        forma_pagamento: status !== "pendente" ? forma : null,
         numero_doc: docNumero || null,
         descricao_despesa: descricao || null,
         fornecedor_nome: fornecedor || null,
@@ -1346,7 +1334,7 @@ function PagamentoDialog({
         recibo_url,
         boleto_url,
         observacoes: [observacoes, documentoUrl ? `Documento: ${documentoUrl}` : null].filter(Boolean).join("\n") || null,
-        valor_pago_real: status === "pago" ? valorTotalNormalizado : null,
+        valor_pago_real: status !== "pendente" ? valorTotalNormalizado : null,
       };
       if (status === "pendente") {
         patch.data_pagamento = null;
@@ -1354,7 +1342,8 @@ function PagamentoDialog({
         patch.valor_pago_real = null;
       }
       await onUpdate(patch);
-      toast.success(status === "pago" ? "Pagamento salvo" : "Lançamento atualizado como pendente");
+      const statusLabel = status === "pago" ? "Pagamento salvo" : status === "recebido" ? "Entrada marcada como recebida" : "Lançamento atualizado como pendente";
+      toast.success(statusLabel);
       onSaved(status);
     } catch (e: any) {
       toast.error("Erro: " + (e?.message || String(e)));
@@ -1367,16 +1356,25 @@ function PagamentoDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{grupo.status === "pago" ? "Editar pagamento" : "Registrar pagamento"}</DialogTitle>
+          <DialogTitle>{grupo.status === "pago" || grupo.status === "recebido" ? (isGrupoEntrada ? "Editar recebimento" : "Editar pagamento") : (isGrupoEntrada ? "Registrar recebimento" : "Registrar pagamento")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="grid gap-2">
             <Label>Status</Label>
-            <Select value={status} onValueChange={(value: "pago" | "pendente") => setStatus(value)}>
+            <Select value={status} onValueChange={(value) => setStatus(value as any)}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pago">Pago</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
+                {isGrupoEntrada ? (
+                  <>
+                    <SelectItem value="recebido">Recebido</SelectItem>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -1392,11 +1390,11 @@ function PagamentoDialog({
           </div>
           <div className="grid gap-2">
             <Label>Data de pagamento</Label>
-            <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status !== "pago"} className="h-9" />
+            <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-9" />
           </div>
           <div className="grid gap-2">
             <Label>Forma de pagamento</Label>
-            <Select value={forma} onValueChange={setForma} disabled={status !== "pago"}>
+            <Select value={forma} onValueChange={setForma} disabled={status === "pendente"}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}

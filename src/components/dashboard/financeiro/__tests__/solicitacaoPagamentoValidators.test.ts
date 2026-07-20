@@ -60,6 +60,14 @@ describe("solicitacaoPagamentoValidators", () => {
     it("usa o nome do cliente para despesas rateadas entre todos os sócios", () => {
       expect(resolverPagoPorSolicitacao({ socioNome: "Ana", clienteNome: "Cliente A", rateadoParaTodosSocios: true })).toBe("Cliente A");
     });
+
+    it("usa o nome do sócio quando há exatamente um sócio no rateio", () => {
+      expect(resolverPagoPorSolicitacao({ socioNome: "DEJALMO", clienteNome: "DGA ADMINISTRADORA DE BENS SPE LTDA", socioCount: 1 })).toBe("DEJALMO");
+    });
+
+    it("usa o nome do cliente quando há mais de um sócio no rateio", () => {
+      expect(resolverPagoPorSolicitacao({ socioNome: "DEJALMO", clienteNome: "DGA ADMINISTRADORA DE BENS SPE LTDA", socioCount: 2 })).toBe("DGA ADMINISTRADORA DE BENS SPE LTDA");
+    });
   });
 
   describe("resolverFornecedorSolicitacao", () => {
@@ -75,6 +83,10 @@ describe("solicitacaoPagamentoValidators", () => {
   describe("resolverSubcategoriaSelecionadaParaPayload", () => {
     it("retorna apenas a subcategoria selecionada", () => {
       expect(resolverSubcategoriaSelecionadaParaPayload({ subcategoriaSelecionada: "Hotel" })).toBe("Hotel");
+    });
+
+    it("preserva o valor da subcategoria quando ela corresponde à opção do tipo de despesa", () => {
+      expect(resolverSubcategoriaSelecionadaParaPayload({ subcategoriaSelecionada: "TARIFA DE NAVEGAÇÃO AEREA - DECEA", subcategoria1: "TARIFA INFRAERO", subcategoria2: "TARIFA DE NAVEGAÇÃO AEREA - DECEA" })).toBe("TARIFA DE NAVEGAÇÃO AEREA - DECEA");
     });
 
     it("retorna null quando não há subcategoria selecionada", () => {

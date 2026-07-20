@@ -81,9 +81,19 @@ export function resolverPagoPorSolicitacao(params: {
   socioNome?: string | null;
   clienteNome?: string | null;
   rateadoParaTodosSocios?: boolean;
+  socioCount?: number;
 }): string | null {
   const socioNome = (params.socioNome || "").trim();
   const clienteNome = (params.clienteNome || "").trim();
+  const socioCount = Number(params.socioCount ?? 0) || 0;
+
+  if (socioCount > 1) {
+    return clienteNome || socioNome || null;
+  }
+
+  if (socioCount === 1) {
+    return socioNome || clienteNome || null;
+  }
 
   if (params.rateadoParaTodosSocios) {
     return clienteNome || socioNome || null;
@@ -102,8 +112,19 @@ export function resolverFornecedorSolicitacao(params: {
 
 export function resolverSubcategoriaSelecionadaParaPayload(params: {
   subcategoriaSelecionada?: string | null;
+  subcategoria1?: string | null;
+  subcategoria2?: string | null;
 }): string | null {
-  return (params.subcategoriaSelecionada || "").trim() || null;
+  const selecionada = (params.subcategoriaSelecionada || "").trim();
+  if (!selecionada) return null;
+
+  const sub1 = (params.subcategoria1 || "").trim();
+  const sub2 = (params.subcategoria2 || "").trim();
+
+  if (sub1 && selecionada.toUpperCase() === sub1.toUpperCase()) return sub1;
+  if (sub2 && selecionada.toUpperCase() === sub2.toUpperCase()) return sub2;
+
+  return selecionada;
 }
 
 /**
@@ -119,12 +140,16 @@ export function resolverSubcategoriaSelecionadaParaPayload(params: {
 export function filtrarSociosParaRateio(params: {
   socios: SocioRateioInput[];
   socioSelecionadoId: string | null;
+  sociosExcluidos?: string[] | null;
 }): SocioRateioInput[] {
   const sociosAtivos = (params.socios || []).filter((socio) => Boolean(socio?.id));
+  const idsExcluidos = new Set((params.sociosExcluidos || []).filter(Boolean).map((id) => String(id)));
+  const filtrados = sociosAtivos.filter((socio) => !idsExcluidos.has(String(socio.id)));
+
   if (!params.socioSelecionadoId || params.socioSelecionadoId.trim() === "") {
-    return sociosAtivos;
+    return filtrados;
   }
-  return sociosAtivos.filter((socio) => socio.id === params.socioSelecionadoId);
+  return filtrados.filter((socio) => socio.id === params.socioSelecionadoId);
 }
 
 export function resolverClienteParaRateio(params: {

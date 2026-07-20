@@ -99,6 +99,10 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
           .from('abastecimentos')
           .update({
             status_pagamento: 'pago',
+            data_pagamento: dataPagamento,
+            forma_pagamento: formaPagamento,
+            comprovante_pagamento: comprovanteUrl,
+            comprovante_url: comprovanteUrl,
             updated_at: new Date().toISOString()
           })
           .eq('id', itemId);
