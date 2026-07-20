@@ -146,6 +146,8 @@ export interface ClienteLinhaRateioInput {
   socios: SocioRateioInput[];
   /** Overrides manuais opcionais: socioId -> percentual de uso dentro da fatia do cliente (0-100). */
   overridesSocio?: Record<string, number>;
+  /** Overrides manuais de valor rateado por sócio (em R$). Se informado, tem prioridade sobre overridesSocio. */
+  valorOverridesSocio?: Record<string, number>;
 }
 
 export interface LinhaRateioClienteMontada extends LinhRateioMontada {
@@ -159,16 +161,7 @@ export interface LinhaRateioClienteMontada extends LinhRateioMontada {
 
 /**
  * Monta as linhas de rateio_despesas para uma solicitação com múltiplos clientes
- * na mesma nota (ex: manutenção de aeronave dividida proporcionalmente ao uso).
- *
- * Para cada linha de cliente:
- *  - valor_cliente = valorTotal * percentualUsoCliente / 100
- *  - se o cliente não tiver sócios (cotista direto): 1 linha de rateio com o valor cheio do cliente
- *  - se tiver sócios (modelo holding): 1 linha por sócio, usando o override manual se informado,
- *    senão o percentual de cotistas_aeronave normalizado para somar 100% dentro do cliente.
- *
- * percentual_uso no resultado é sempre relativo ao VALOR TOTAL DA NOTA (não só à fatia do cliente),
- * para manter compatibilidade com os relatórios que já leem esse campo dessa forma.
+ * na mesma nota. Aceita overrides de percentual e/ou valor por sócio.
  */
 export function montarLinhasRateioMultiCliente(params: {
   valorTotal: number;
@@ -202,20 +195,28 @@ export function montarLinhasRateioMultiCliente(params: {
     const totalPctSocios = socios.reduce((sum, s) => sum + (Number(s.percentual_participacao ?? 0) || 0), 0);
 
     for (const socio of socios) {
-      const override = linha.overridesSocio?.[socio.id];
+      const overrideValor = linha.valorOverridesSocio?.[socio.id];
+      const overridePct = linha.overridesSocio?.[socio.id];
       const percentualOriginal = Number(socio.percentual_participacao ?? 0) || 0;
 
-      let pctSocioDentroDoCliente: number;
-      if (override !== undefined && override !== null && !Number.isNaN(override)) {
-        pctSocioDentroDoCliente = Number(override) || 0;
-      } else if (totalPctSocios > 0) {
-        pctSocioDentroDoCliente = (percentualOriginal / totalPctSocios) * 100;
-      } else {
-        pctSocioDentroDoCliente = 100 / socios.length;
-      }
+      let valorRateado: number;
+      let percentualUsoEfetivo: number;
 
-      const percentualUsoEfetivo = +(pctCliente * (pctSocioDentroDoCliente / 100)).toFixed(2);
-      const valorRateado = +(valorTotal * (percentualUsoEfetivo / 100)).toFixed(2);
+      if (overrideValor !== undefined && overrideValor !== null && !Number.isNaN(overrideValor)) {
+        valorRateado = +Number(overrideValor).toFixed(2);
+        percentualUsoEfetivo = valorTotal > 0 ? +((valorRateado / valorTotal) * 100).toFixed(2) : 0;
+      } else {
+        let pctSocioDentroDoCliente: number;
+        if (overridePct !== undefined && overridePct !== null && !Number.isNaN(overridePct)) {
+          pctSocioDentroDoCliente = Number(overridePct) || 0;
+        } else if (totalPctSocios > 0) {
+          pctSocioDentroDoCliente = (percentualOriginal / totalPctSocios) * 100;
+        } else {
+          pctSocioDentroDoCliente = 100 / socios.length;
+        }
+        percentualUsoEfetivo = +(pctCliente * (pctSocioDentroDoCliente / 100)).toFixed(2);
+        valorRateado = +(valorTotal * (percentualUsoEfetivo / 100)).toFixed(2);
+      }
 
       resultado.push({
         cliente_id: linha.clienteId,
