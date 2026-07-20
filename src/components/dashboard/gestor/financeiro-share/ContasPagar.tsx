@@ -389,7 +389,7 @@ export function ContasPagar() {
       const filterStatus = (filters as any).status || filters.status;
       const contaStatus = (c as any).status || c.status;
       const statusOk = filterStatus === "all" || (filterStatus === "vencido" ? isVencida(c.data_vencimento, contaStatus) : contaStatus === filterStatus);
-      const mesOk = !filters.mes || c.data_vencimento?.startsWith(filters.mes);
+      const mesOk = !filters.mes || filterStatus === "all" || filterStatus === "vencido" || c.data_vencimento?.startsWith(filters.mes);
       return searchOk && statusOk && mesOk;
     });
   }, [allContas, filters]);
