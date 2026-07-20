@@ -50,6 +50,8 @@ interface TaxaReciboOption {
   nome_categoria: string | null;
   aeronave_id: string | null;
   url_pdf: string | null;
+  url_boleto: string | null;
+  url_nf: string | null;
   data_emissao: string | null;
   status: string | null;
 }
@@ -117,6 +119,10 @@ interface ClienteLinhaState {
   percentualUsoCliente: string;
   overridesSocio: Record<string, string>;
   valorOverridesSocio: Record<string, string>;
+  // Dados de recibo de taxa (preenchidos automaticamente)
+  numeroDocumentoRecibo?: string | null;
+  urlBoleto?: string | null;
+  urlDemonstrativo?: string | null;
 }
 
 type InsertedRow = {
@@ -197,6 +203,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [taxaOrigem, setTaxaOrigem] = useState<TaxaOrigem>(null);
   const [taxaRecibos, setTaxaRecibos] = useState<TaxaReciboOption[]>([]);
   const [taxaReciboId, setTaxaReciboId] = useState("");
+  const [taxaReciboPorCliente, setTaxaReciboPorCliente] = useState<Record<string, string>>({});
+  const [taxaRecibosMultiplos, setTaxaRecibosMultiplos] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -295,7 +303,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     (async () => {
       const { data, error } = await (supabase as any)
         .from("recibos")
-        .select("id, numero_recibo, numero_documento, valor_total, percentual, nome_categoria, aeronave_id, url_pdf, data_emissao, status")
+        .select("id, numero_recibo, numero_documento, valor_total, percentual, nome_categoria, aeronave_id, url_pdf, url_boleto, url_nf, data_emissao, status")
         .eq("aeronave_id", aeronaveId)
         .ilike("nome_categoria", `%${taxaOrigem}%`)
         .order("data_emissao", { ascending: false })
@@ -312,9 +320,36 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     if (!taxaReciboId) return;
     const r = taxaRecibos.find((t) => t.id === taxaReciboId);
     if (!r) return;
-    if (r.valor_total) setValorTotal(String(Number(r.valor_total).toFixed(2)));
+    if (r.valor_total) setValorTotal(String(Number(r.valor_total / 100).toFixed(2)));
     setDescricao((prev) => prev || `${r.nome_categoria || "Taxa"} - Recibo ${r.numero_recibo || r.numero_documento || ""}`);
   }, [taxaReciboId, taxaRecibos]);
+
+  // Preencher automaticamente dados de taxa nas linhas de rateio quando for modo de taxas
+  useEffect(() => {
+    if (!isTaxasMode || clienteLinhas.length === 0) return;
+
+    setClienteLinhas((prevLinhas) =>
+      prevLinhas.map((linha) => {
+        const reciboId =
+          clienteId === "__all__"
+            ? taxaReciboPorCliente[linha.clienteId]
+            : taxaReciboId;
+
+        if (!reciboId) return linha;
+
+        const recibo = taxaRecibos.find((r) => r.id === reciboId);
+        if (!recibo) return linha;
+
+        // Preencher automaticamente os dados do recibo
+        return {
+          ...linha,
+          numeroDocumentoRecibo: recibo.numero_documento || undefined,
+          urlBoleto: recibo.url_boleto || undefined,
+          urlDemonstrativo: recibo.url_nf || undefined,
+        };
+      })
+    );
+  }, [isTaxasMode, taxaReciboId, taxaReciboPorCliente, taxaRecibos, clienteLinhas.length, clienteId]);
 
   const buscarAbastecimento = async () => {
     if (!fuelComanda && !fuelNf) {
@@ -336,7 +371,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const found = (data && data[0]) as AbastecimentoLookup | undefined;
       if (found) {
         setFuelLookupResult(found);
-        if (found.valor_total) setValorTotal(String(Number(found.valor_total).toFixed(2)));
+        if (found.valor_total) setValorTotal(String(Number(found.valor_total / 100).toFixed(2)));
         setReferenciaDuplicada({
           tipo: "abastecimento",
           id: found.id,
@@ -363,6 +398,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       percentualUsoCliente: basePercent.toFixed(2),
       overridesSocio: {},
       valorOverridesSocio: {},
+      numeroDocumentoRecibo: undefined,
+      urlBoleto: undefined,
+      urlDemonstrativo: undefined,
     }));
 
     const total = linhas.reduce((sum, linha) => sum + Number(String(linha.percentualUsoCliente).replace(",", ".")), 0);
@@ -449,6 +487,40 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const getReciboUrlForCliente = (targetClienteId: string) => {
     const recibo = getSelectedReciboForCliente(targetClienteId);
     return recibo?.pdf_url || recibo?.arquivo_url || null;
+  };
+
+  const getSelectedTaxaReciboIdForCliente = (targetClienteId: string) =>
+    clienteId === "__all__" ? taxaReciboPorCliente[targetClienteId] : taxaReciboId;
+
+  const getSelectedTaxaReciboForCliente = (targetClienteId: string) => {
+    if (!isTaxasMode) return null;
+    const selectedId = getSelectedTaxaReciboIdForCliente(targetClienteId);
+    return selectedId ? taxaRecibos.find((r) => r.id === selectedId) || null : null;
+  };
+
+  const getTaxaReciboNumeroForCliente = (targetClienteId: string) => {
+    const recibo = getSelectedTaxaReciboForCliente(targetClienteId);
+    return recibo?.numero_recibo || recibo?.numero_documento || null;
+  };
+
+  const getTaxaReciboUrlForCliente = (targetClienteId: string) => {
+    const recibo = getSelectedTaxaReciboForCliente(targetClienteId);
+    return recibo?.url_pdf || null;
+  };
+
+  const getTaxaRecibosMultiplosData = () => {
+    return taxaRecibosMultiplos.map((reciboId) => {
+      const recibo = taxaRecibos.find((r) => r.id === reciboId);
+      return {
+        id: reciboId,
+        numero: recibo?.numero_recibo || recibo?.numero_documento || null,
+        url: recibo?.url_pdf || null,
+        valor: recibo?.valor_total || null,
+        numeroDocumento: recibo?.numero_documento || null,
+        urlBoleto: recibo?.url_boleto || null,
+        urlDemonstrativo: recibo?.url_nf || null,
+      };
+    });
   };
 
   useEffect(() => {
@@ -572,7 +644,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           if (fetchError) return;
           const match = findExistingFuelReference({ clienteId: clienteIdParaDedup, valor: valorNumerico, data: dataEmissao ? format(dataEmissao, "yyyy-MM-dd") : undefined, numeroNf: "" }, (data || []) as any);
           if (match) {
-            setReferenciaDuplicada({ tipo: "abastecimento", id: match.id, mensagem: `✓ Abastecimento encontrado. Data: ${match.data ? format(new Date(match.data), "dd/MM/yyyy") : "—"} | Valor: R$ ${match.valor_total?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "0,00"}` });
+            setReferenciaDuplicada({ tipo: "abastecimento", id: match.id, mensagem: `✓ Abastecimento encontrado. Data: ${match.data ? format(new Date(match.data), "dd/MM/yyyy") : "—"} | Valor: R$ ${(match.valor_total ? match.valor_total / 100 : 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) || "0,00"}` });
           } else {
             setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
           }
@@ -628,7 +700,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setTravelReportId(""); setTravelReports([]); setReferenciaNumero("");
     setClienteLinhas([]); setClienteId(""); setSocioId("");
     setFuelComanda(""); setFuelNf(""); setFuelLookupResult(null); setFuelLookupSearched(false);
-    setTaxaOrigem(null); setTaxaRecibos([]); setTaxaReciboId("");
+    setTaxaOrigem(null); setTaxaRecibos([]); setTaxaReciboId(""); setTaxaReciboPorCliente({}); setTaxaRecibosMultiplos([]);
   };
 
   // --- LÓGICA DO WIZARD: Validação por etapa ---
@@ -646,7 +718,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   };
 
   const clientesJaUsados = new Set(clienteLinhas.map((l) => l.clienteId).filter(Boolean));
-  const addClienteLinha = () => setClienteLinhas((prev) => [...prev, { uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "", overridesSocio: {}, valorOverridesSocio: {} }]);
+  const addClienteLinha = () => setClienteLinhas((prev) => [...prev, { uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "", overridesSocio: {}, valorOverridesSocio: {}, numeroDocumentoRecibo: undefined, urlBoleto: undefined, urlDemonstrativo: undefined }]);
   const updateClienteLinha = (uid: string, patch: Partial<ClienteLinhaState>) => setClienteLinhas((prev) => prev.map((l) => (l.uid === uid ? { ...l, ...patch } : l)));
   const removeClienteLinha = (uid: string) => setClienteLinhas((prev) => prev.filter((l) => l.uid !== uid));
   const updateOverrideSocio = (linhaUid: string, socioId: string, valor: string) => setClienteLinhas((prev) => prev.map((l) => (l.uid === linhaUid ? { ...l, overridesSocio: { ...l.overridesSocio, [socioId]: valor } } : l)));
@@ -766,7 +838,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const dataComp = format(dataEmissao || new Date(), "yyyy-MM-dd");
       const statusMov = rascunho ? "rascunho" : "pendente";
       const statusCP = rascunho ? "rascunho" : "pendente";
-      const obsFinal = [observacoes, referenciaDuplicada?.mensagem].filter(Boolean).join("\n");
+      const taxaRecibosMultiplosData = getTaxaRecibosMultiplosData();
+      const recibosMultiplosObs = taxaRecibosMultiplosData.length > 0 ? `Recibos de taxa: ${taxaRecibosMultiplosData.map((r) => r.numero).filter(Boolean).join(", ")}` : null;
+      const obsFinal = [observacoes, referenciaDuplicada?.mensagem, recibosMultiplosObs].filter(Boolean).join("\n");
+      const valorNumericoFinal = taxaRecibosMultiplosData.length > 0 ? +(taxaRecibosMultiplosData.reduce((sum, r) => sum + (Number(r.valor) || 0) / 100, 0)).toFixed(2) : valorNumerico;
 
       const referenciaTipo = referenciaDuplicada?.tipo || null;
       const referenciaId = referenciaDuplicada?.id ?? null;
@@ -790,7 +865,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       }
 
       const nfUrl = pickUrl(anexosProc, "nf") || anexosOrigem.nota_url || null;
-      const reciboUrl = pickUrl(anexosProc, "recibo") || reciboUrlSelecionado;
+      const taxaReciboSelecionado = isTaxasMode && !isAllClients ? taxaRecibos.find((r) => r.id === taxaReciboId) || null : null;
+      const reciboUrl = pickUrl(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.url : null) || (isTaxasMode ? taxaReciboSelecionado?.url_pdf : null) || reciboUrlSelecionado;
       const boletoUrl = pickUrl(anexosProc, "boleto") || anexosOrigem.boleto_url || null;
       const docUrl = pickUrl(anexosProc, "doc") || anexosOrigem.comanda_url || anexosOrigem.url_pdf || null;
       const arquivoPdfUrl = isRelatorioViagemMode
@@ -801,7 +877,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const demonstrativoUrl = pickUrl(anexosProc, "demonstrativo") || null;
       const comprovanteUrl = docUrl || anexosOrigem.comprovante_pagamento || anexosOrigem.comprovante_url || null;
       const nfNum = pickNumero(anexosProc, "nf");
-      const reciboNum = pickNumero(anexosProc, "recibo") || reciboNumeroSelecionado;
+      const reciboNum = pickNumero(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.numero : null) || (isTaxasMode ? taxaReciboSelecionado?.numero_recibo || taxaReciboSelecionado?.numero_documento || null : null) || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
       const isAllClients = clienteId === "__all__";
       const docNum = pickNumero(anexosProc, "doc") || (isRelatorioViagemMode && travelReportSel ? travelReportSel.numero_relatorio : null) || (isReciboViagemMode ? referenciaNumero : null);
@@ -910,8 +986,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         }
       } else if (!isViagemMode) {
         const capId = await insertAndGetId("contas_apagar", {
-          data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumerico, categoria: tipoDespesaLabel || null,
-          categoria_id: categoriaContaId || null, descricao, status: statusCP, observacoes: observacoes || null,
+          data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumericoFinal, categoria: tipoDespesaLabel || null,
+          categoria_id: categoriaContaId || null, descricao, status: statusCP, observacoes: obsFinal || null,
           cliente_id: clienteLinhas.length === 1 ? clienteLinhas[0].clienteId : null, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
           fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNomeFinal,
           aeronave_registro: aeronaveSel?.matricula || null, possui_boleto: !!boletoUrl, boleto_url: boletoUrl, vencimento_boleto: boletoUrl ? dataVenc : null,
@@ -924,13 +1000,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           for (const linha of clienteLinhas) {
             const info = getClienteAeronaveInfo(linha.clienteId);
             const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
-            const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
-            const reciboNumLinha = pickNumero(anexosProc, "recibo") || getReciboNumeroForCliente(linha.clienteId);
-            const reciboUrlLinha = pickUrl(anexosProc, "recibo") || getReciboUrlForCliente(linha.clienteId);
+            const valorCliente = +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
+            const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId);
+            const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId);
 
             const movId = await insertAndGetId("movimentacoes", {
               descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
-              categoria_id: categoriaContaId, valor: valorCliente, valor_original: valorNumerico, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
+              categoria_id: categoriaContaId, valor: valorCliente, valor_original: valorNumericoFinal, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
               aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, reembolsavel, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum, nf_url: nfUrl, recibo_url: reciboUrlLinha, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
               observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
@@ -946,14 +1022,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         await supabase.from("contas_apagar").update({ movimentacao_id: Object.values(movimentacaoIdsPorCliente)[0] || null }).eq("id", capId);
 
         const rateioPayloads = linhasRateioMultiCliente.map((linha) => {
-          const reciboNumLinha = pickNumero(anexosProc, "recibo") || getReciboNumeroForCliente(linha.cliente_id);
-          const reciboUrlLinha = pickUrl(anexosProc, "recibo") || getReciboUrlForCliente(linha.cliente_id);
+          const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
+          const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
           return {
             despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
             data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
             cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
             aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
-            descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumerico, valor_rateado: linha.valor_rateado,
+            descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
             status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
             pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, rateadoParaTodosSocios: !socioId }),
           };
@@ -965,7 +1041,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           for (const linha of clienteLinhas) {
             const info = getClienteAeronaveInfo(linha.clienteId);
             const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
-            const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
+            const valorCliente = +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
             const movIdCliente = movimentacaoIdsPorCliente[linha.clienteId];
 
             await supabaseClient.from("contas_areceber").insert({
@@ -980,7 +1056,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       if (!rascunho) {
         const userName = (await supabase.from('user_profiles').select('full_name').eq('id', userId).maybeSingle()).data?.full_name || null;
         const clientLabel = isViagemMode ? clienteSel?.razaoSocial || null : clienteLinhas.length === 1 ? getClienteAeronaveInfo(clienteLinhas[0].clienteId)?.razaoSocial || null : `${clienteLinhas.length} clientes`;
-        await notifyAdminsAboutPaymentRequest(descricao, clientLabel, valorNumerico, userName);
+        await notifyAdminsAboutPaymentRequest(descricao, clientLabel, valorNumericoFinal, userName);
       }
 
       toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso");
@@ -1194,7 +1270,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                                 <SelectItem key={r.id} value={r.id}>
                                   {r.numero_recibo || r.numero_documento || r.numero || `Recibo ${r.id.slice(0, 6)}`}
                                   {r.data_emissao ? ` — ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
-                                  {` · R$ ${Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                                  {` · R$ ${(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1291,7 +1367,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   </div>
 
                   <p className="text-[11px] text-emerald-100/70">
-                    Cliente e sócio já selecionados na etapa anterior — confirme o valor e a porcentagem da despesa.
+                    {isTaxasMode 
+                      ? "Dados de número de documento, boleto e demonstrativo são preenchidos automaticamente do recibo selecionado."
+                      : "Cliente e sócio já selecionados na etapa anterior — confirme o valor e a porcentagem da despesa."}
                   </p>
 
 
@@ -1323,6 +1401,36 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                             </div>
                           </div>
 
+                          {/* Dados de recibo de taxa preenchidos automaticamente */}
+                          {isTaxasMode && (linha.numeroDocumentoRecibo || linha.urlBoleto || linha.urlDemonstrativo) && (
+                            <div className="rounded-md bg-indigo-500/10 border border-indigo-500/30 p-3 space-y-2">
+                              <div className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wide">Dados do Recibo (Preenchidos Automaticamente)</div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                {linha.numeroDocumentoRecibo && (
+                                  <div>
+                                    <span className="text-muted-foreground block mb-1">Nº Documento</span>
+                                    <span className="text-indigo-200 font-medium">{linha.numeroDocumentoRecibo}</span>
+                                  </div>
+                                )}
+                                {linha.urlBoleto && (
+                                  <div>
+                                    <span className="text-muted-foreground block mb-1">Boleto</span>
+                                    <a href={linha.urlBoleto} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">
+                                      <ExternalLink className="h-3 w-3" /> Abrir
+                                    </a>
+                                  </div>
+                                )}
+                                {linha.urlDemonstrativo && (
+                                  <div>
+                                    <span className="text-muted-foreground block mb-1">Demonstrativo</span>
+                                    <a href={linha.urlDemonstrativo} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">
+                                      <ExternalLink className="h-3 w-3" /> Abrir
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
 
                           {info && info.socios.length > 0 && (
                             <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
@@ -1411,7 +1519,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   )}
                   {fuelLookupResult && (
                     <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100">
-                      ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {Number(fuelLookupResult.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      ✓ Vinculado ao abastecimento existente · Comanda {fuelLookupResult.comanda || "—"} · NF {fuelLookupResult.nf || "—"} · R$ {(Number(fuelLookupResult.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </div>
                   )}
                 </section>
@@ -1427,7 +1535,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>Origem da Taxa *</Label>
-                      <Select value={taxaOrigem ?? ""} onValueChange={(v) => { setTaxaOrigem(v as TaxaOrigem); setTaxaReciboId(""); }}>
+                      <Select value={taxaOrigem ?? ""} onValueChange={(v) => { setTaxaOrigem(v as TaxaOrigem); setTaxaReciboId(""); setTaxaReciboPorCliente({}); setTaxaRecibosMultiplos([]); }}>
                         <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="INFRAERO">Tarifa INFRAERO</SelectItem>
@@ -1435,7 +1543,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                         </SelectContent>
                       </Select>
                     </div>
-                    {taxaOrigem && (
+                    {taxaOrigem && !clienteLinhas.some((l) => l.clienteId === "__all__") && (
                       <div className="space-y-1.5">
                         <Label>Recibo emitido</Label>
                         <Select value={taxaReciboId} onValueChange={setTaxaReciboId}>
@@ -1447,7 +1555,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                               <SelectItem key={r.id} value={r.id}>
                                 {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
                                 {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
-                                {` · R$ ${Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                                {` · R$ ${(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1455,6 +1563,82 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                       </div>
                     )}
                   </div>
+
+                  {taxaOrigem && clienteLinhas.some((l) => l.clienteId === "__all__") && (
+                    <div className="space-y-3 mt-3">
+                      <p className="text-xs text-indigo-200 font-medium">Selecione um recibo para cada cliente:</p>
+                      {clientesDaAeronave.map((cliente) => (
+                        <div key={cliente.clienteId} className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Recibo para {cliente.razaoSocial}</Label>
+                          <Select
+                            value={taxaReciboPorCliente[cliente.clienteId] || ""}
+                            onValueChange={(v) => setTaxaReciboPorCliente((prev) => ({ ...prev, [cliente.clienteId]: v }))}
+                          >
+                            <SelectTrigger className="w-full md:w-1/2"><SelectValue placeholder="Escolha um recibo" /></SelectTrigger>
+                            <SelectContent>
+                              {taxaRecibos.map((r) => (
+                                <SelectItem key={r.id} value={r.id}>
+                                  {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
+                                  {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
+                                  {` · R$ ${(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {taxaOrigem && !clienteLinhas.some((l) => l.clienteId === "__all__") && (
+                    <div className="space-y-3 mt-4 p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/10">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-indigo-200">Recibos adicionados:</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs"
+                          onClick={() => {
+                            if (taxaReciboId && !taxaRecibosMultiplos.includes(taxaReciboId)) {
+                              setTaxaRecibosMultiplos([...taxaRecibosMultiplos, taxaReciboId]);
+                              setTaxaReciboId("");
+                            }
+                          }}
+                          disabled={!taxaReciboId}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Recibo
+                        </Button>
+                      </div>
+
+                      {taxaRecibosMultiplos.length === 0 ? (
+                        <p className="text-xs text-indigo-300/60">Nenhum recibo adicionado. Selecione um recibo e clique em "Adicionar".</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {taxaRecibosMultiplos.map((reciboId, idx) => {
+                            const r = taxaRecibos.find((x) => x.id === reciboId);
+                            if (!r) return null;
+                            return (
+                              <div key={reciboId} className="flex items-start justify-between gap-2 p-2 rounded-md bg-indigo-500/20 border border-indigo-500/30">
+                                <div className="flex-1 text-xs">
+                                  <div className="font-medium text-indigo-100">{idx + 1}. {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}</div>
+                                  <div className="text-indigo-300/70">{r.data_emissao ? format(new Date(r.data_emissao), "dd/MM/yyyy") : "—"} · R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 hover:bg-red-500/30 hover:text-red-300"
+                                  onClick={() => setTaxaRecibosMultiplos(taxaRecibosMultiplos.filter((id) => id !== reciboId))}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {taxaReciboId && (() => {
                     const r = taxaRecibos.find((x) => x.id === taxaReciboId);
@@ -1464,7 +1648,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                         <div><div className="text-muted-foreground">Nº Documento</div><div className="font-medium">{r.numero_documento || "—"}</div></div>
                         <div><div className="text-muted-foreground">Nº Recibo</div><div className="font-medium">{r.numero_recibo || "—"}</div></div>
                         <div><div className="text-muted-foreground">Percentual</div><div className="font-medium">{r.percentual ?? "—"}%</div></div>
-                        <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {Number(r.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
+                        <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
                         {r.url_pdf && (
                           <a href={r.url_pdf} target="_blank" rel="noreferrer" className="col-span-full inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> Abrir PDF do recibo</a>
                         )}
