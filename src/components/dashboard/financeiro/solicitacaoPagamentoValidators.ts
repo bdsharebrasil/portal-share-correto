@@ -7,6 +7,11 @@ export interface SocioRateioInput {
   percentual_participacao?: number | null;
 }
 
+export interface SocioAnexoOption {
+  id: string;
+  nome: string;
+}
+
 export interface LinhRateioMontada {
   socio_id: string | null;
   socio_nome: string | null;
@@ -50,6 +55,17 @@ export function normalizarTipoDespesa(label: string): TipoDespesaCategoria {
   if (normalized.includes("COMBUST")) return "COMBUSTIVEIS";
   if (normalized.includes("DESPESA") && normalized.includes("VIAGEM")) return "DESPESAS_DE_VIAGEM";
   return "OUTRA";
+}
+
+export function consolidarSociosParaAnexo(socios: Array<SocioRateioInput | SocioAnexoOption>): SocioAnexoOption[] {
+  const mapa = new Map<string, SocioAnexoOption>();
+  for (const socio of socios || []) {
+    if (!socio?.id) continue;
+    if (!mapa.has(socio.id)) {
+      mapa.set(socio.id, { id: socio.id, nome: socio.nome || "Sócio" });
+    }
+  }
+  return Array.from(mapa.values());
 }
 
 export function normalizarTipoRateio(value: string | null | undefined): TipoRateio {
