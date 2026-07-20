@@ -23,7 +23,6 @@ import {
   findExistingTravelExpenseReference,
   montarLinhasRateio,
   montarLinhasRateioMultiCliente,
-  normalizarSubcategoriaDespesa,
   normalizarTipoDespesa,
   normalizarTipoRateio,
   validarSomaPercentualClientes,
@@ -264,11 +263,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   }, [aeronaveId]);
 
   const getClienteAeronaveInfo = (cid: string) => clientesDaAeronave.find((c) => c.clienteId === cid);
-  const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaLabel || "");
-  const subcategoriaNormalizadaAtual = normalizarSubcategoriaDespesa(subcategoriaSel || tipoDespesaLabel || "");
+  const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaBase || tipoDespesaLabel || "");
+  const subcategoriaNormalizadaAtual = normalizarSubcategoriaDespesa(subcategoriaSel || "");
   const isViagemMode = tipoNormalizadoAtual === "DESPESAS_DE_VIAGEM";
   const isCombustivelMode = tipoNormalizadoAtual === "COMBUSTIVEIS";
-  const isTaxasMode = /TAXAS?\s*AEROPORT/i.test(tipoDespesaLabel || "");
+  const isTaxasMode = /TAXAS?\s*AEROPORT/i.test(tipoDespesaBase || tipoDespesaLabel || "");
   const isRelatorioViagemMode = isViagemMode && subcategoriaNormalizadaAtual === "RELATORIO_DE_VIAGEM";
   const isReciboViagemMode = isViagemMode && subcategoriaNormalizadaAtual === "RECIBO_DE_VIAGEM";
 
@@ -1039,7 +1038,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                     onValueChange={(v) => {
                       const val = v === "__none__" ? "" : v;
                       setSubcategoriaSel(val);
-                      setTipoDespesaLabel(val || tipoDespesaBase);
                     }}
                   >
                     <SelectTrigger><SelectValue placeholder="Selecione a subcategoria" /></SelectTrigger>
@@ -1599,3 +1597,12 @@ function DateField({ label, value, onChange }: { label: string; value?: Date; on
     </div>
   );
 }
+
+function normalizarSubcategoriaDespesa(subcategoria: string): string {
+  if (!subcategoria || typeof subcategoria !== "string") return "";
+  const normalized = subcategoria.normalize("NFD").replace(/[^\w\s]/g, "").toUpperCase().trim();
+  if (normalized.includes("RELATORIO") && normalized.includes("VIAGEM")) return "RELATORIO_DE_VIAGEM";
+  if (normalized.includes("RECIBO") && normalized.includes("VIAGEM")) return "RECIBO_DE_VIAGEM";
+  return normalized;
+}
+

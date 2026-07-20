@@ -23,7 +23,7 @@ interface PaymentContaLike {
   numero?: string | null;
   movimentacao_id?: string | null;
   clientes?: { razao_social?: string | null } | null;
-  socios?: Array<{ name?: string | null; nome?: string | null }> | null;
+  socios?: Array<{ name?: string | null; nome?: string | null }> | { name?: string | null; nome?: string | null } | null;
 }
 
 interface PaymentDialogProps {
@@ -111,6 +111,11 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     [rateioValues]
   );
 
+  const sociosList = useMemo(() => {
+    if (!conta?.socios) return [] as Array<{ name?: string | null; nome?: string | null }>;
+    return Array.isArray(conta.socios) ? conta.socios : [conta.socios];
+  }, [conta?.socios]);
+
   const pagadoresOptions = useMemo(() => {
     const options: Array<{ value: string; label: string }> = [];
     const seen = new Set<string>();
@@ -121,7 +126,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       options.push({ value: v, label });
     };
     add(conta?.clientes?.razao_social, `Cliente: ${conta?.clientes?.razao_social}`);
-    (conta?.socios || []).forEach((s) => add(s?.nome ?? s?.name, `Sócio: ${s?.nome ?? s?.name}`));
+    sociosList.forEach((s) => add(s?.nome ?? s?.name, `Sócio: ${s?.nome ?? s?.name}`));
     rateioRows.forEach((r) => {
       if (r.clientes_nome) add(r.clientes_nome, `Cliente: ${r.clientes_nome}`);
       if (r.socios_nome) add(r.socios_nome, `Sócio: ${r.socios_nome}`);
