@@ -215,6 +215,7 @@ export interface ClienteLinhaRateioInput {
 }
 
 export interface LinhaRateioClienteMontada extends LinhRateioMontada {
+  [x: string]: any;
   cliente_id: string;
   cliente_nome: string;
   percentual_uso_cliente: number;

@@ -97,6 +97,10 @@ const TIPOS_ANEXO: { value: AnexoDoc["tipo"]; label: string }[] = [
 
 const BUCKET = "n.f-boletos-clients";
 
+// Tipos de combustível suportados pelo abastecimento — mantidos como lista fechada
+// para evitar variações de digitação ("JET-A1", "Jet A1", "jet a-1"...) chegando ao banco.
+const TIPOS_COMBUSTIVEL = ["AVGAS", "JET A-1"] as const;
+
 type SocioOption = { id: string; nome: string; percentual_participacao?: number | null };
 type TipoDespesaOption = { id: string; expense_type: string; subcategoria_1?: string | null; subcategoria_2?: string | null };
 type FornecedorOption = { id: string; label: string; source: "favorito" | "combustivel" };
@@ -219,7 +223,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     trecho: "",
     litros: "",
     valor_unitario: "",
-    valor_total: "",
     abastecedor_id: "",
     tipo_combustivel: "",
     observacao: "",
@@ -227,6 +230,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [novoAbastComandaFile, setNovoAbastComandaFile] = useState<File | null>(null);
   const [novoAbastNotaFile, setNovoAbastNotaFile] = useState<File | null>(null);
   const [novoAbastBoletoFile, setNovoAbastBoletoFile] = useState<File | null>(null);
+
+  // Valor total do novo abastecimento é sempre derivado de litros × valor unitário.
+  // Nunca é enviado ao banco — "valor_total" é coluna GENERATED ALWAYS AS (litros * valor_unitario) STORED.
+  const novoAbastLitrosNum = Number(String(novoAbast.litros).replace(",", ".")) || 0;
+  const novoAbastValorUnitarioNum = Number(String(novoAbast.valor_unitario).replace(",", ".")) || 0;
+  const novoAbastValorTotalCalculado = +(novoAbastLitrosNum * novoAbastValorUnitarioNum).toFixed(2);
 
   // Taxas Aeroportuárias
   const [taxaOrigem, setTaxaOrigem] = useState<TaxaOrigem>(null);
@@ -497,7 +506,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       trecho: "",
       litros: "",
       valor_unitario: "",
-      valor_total: "",
       abastecedor_id: "",
       tipo_combustivel: "",
       observacao: "",
@@ -523,10 +531,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     }
     const litrosNum = Number(String(novoAbast.litros).replace(",", ".")) || 0;
     const vuNum = Number(String(novoAbast.valor_unitario).replace(",", ".")) || 0;
-    let valorTotalNum = Number(String(novoAbast.valor_total).replace(",", ".")) || 0;
-    if (!valorTotalNum && litrosNum && vuNum) valorTotalNum = +(litrosNum * vuNum).toFixed(2);
+    const valorTotalNum = +(litrosNum * vuNum).toFixed(2);
     if (!valorTotalNum) {
-      toast.error("Informe o valor total (ou litros + valor unitário).");
+      toast.error("Informe litros e valor unitário para calcular o valor total.");
       return;
     }
     setNovoAbastSaving(true);
@@ -546,7 +553,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         trecho: novoAbast.trecho || "",
         litros: litrosNum || null,
         valor_unitario: vuNum || null,
-        valor_total: valorTotalNum,
+        // valor_total NÃO entra aqui: é coluna GENERATED ALWAYS AS (litros * valor_unitario) STORED no banco.
+        // Enviar qualquer valor para ela dispara o erro 428C9 (cannot insert a non-DEFAULT value).
         comanda: fuelComanda || null,
         nf: fuelNf || null,
         abastecedor_id: novoAbast.abastecedor_id || null,
@@ -572,6 +580,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         id: inserted.id,
         mensagem: `✓ Novo abastecimento criado (Comanda ${inserted.comanda || "—"} / NF ${inserted.nf || "—"})`,
       });
+      // O valor exibido no restante do wizard usa o total calculado localmente (idêntico ao
+      // gerado pelo banco, já que ambos partem de litros × valor_unitario).
       setValorTotal(valorTotalNum.toFixed(2));
       toast.success("Abastecimento criado e vinculado.");
       setNovoAbastOpen(false);
@@ -1053,8 +1063,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const referenciaTipo = referenciaDuplicada?.tipo || null;
       const referenciaId = referenciaDuplicada?.id ?? null;
       const fonteDespesa = referenciaTipo || "solicitacao_pagamento";
+      const isAllClients = clienteId === "__all__";
       
-      const reciboSelecionado = usarReciboExistente && clienteId !== "__all__"
+      const reciboSelecionado = usarReciboExistente && !isAllClients
         ? recibosExistentes.find((r) => r.id === reciboExistenteId) || null
         : null;
       const reciboUrlSelecionado = reciboSelecionado?.pdf_url || reciboSelecionado?.arquivo_url || null;
@@ -1086,7 +1097,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       const nfNum = pickNumero(anexosProc, "nf");
       const reciboNum = pickNumero(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.numero : null) || (isTaxasMode ? taxaReciboSelecionado?.numero_recibo || taxaReciboSelecionado?.numero_documento || null : null) || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
-      const isAllClients = clienteId === "__all__";
       const docNum = pickNumero(anexosProc, "doc") || (isRelatorioViagemMode && travelReportSel ? travelReportSel.numero_relatorio : null) || (isReciboViagemMode ? referenciaNumero : null);
       const subcategoria1Val = subcategoriaSelecionadaParaPayload;
       const subcategoria2Val = null;
@@ -2208,14 +2218,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <Label>Abastecedor (Fornecedor)</Label>
-                <Select value={novoAbast.abastecedor_id} onValueChange={(v) => setNovoAbast((p) => ({ ...p, abastecedor_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o abastecedor" /></SelectTrigger>
-                  <SelectContent>
-                    {fornecedores.filter((f) => f.source === "combustivel").map((f) => (
-                      <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableCombobox
+                  items={fornecedores.filter((f) => f.source === "combustivel").map((f) => ({ id: f.id, label: f.label }))}
+                  value={novoAbast.abastecedor_id}
+                  onChange={(id) => setNovoAbast((p) => ({ ...p, abastecedor_id: id }))}
+                  placeholder="Selecione o abastecedor"
+                  searchPlaceholder="Buscar abastecedor..."
+                  emptyMessage="Nenhum abastecedor encontrado"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Local</Label>
@@ -2234,12 +2244,30 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 <Input type="number" step="0.01" value={novoAbast.valor_unitario} onChange={(e) => setNovoAbast((p) => ({ ...p, valor_unitario: e.target.value }))} />
               </div>
               <div className="space-y-1.5 md:col-span-2">
-                <Label>Valor Total (R$) *</Label>
-                <Input type="number" step="0.01" value={novoAbast.valor_total} onChange={(e) => setNovoAbast((p) => ({ ...p, valor_total: e.target.value }))} placeholder="Se vazio, será calculado por Litros × Valor Unitário" />
+                <Label>Valor Total (R$)</Label>
+                <Input
+                  value={novoAbastValorTotalCalculado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  readOnly
+                  className="bg-muted/30 font-medium"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Calculado automaticamente (Litros × Valor Unitário). O banco também gera esse valor sozinho — por isso não é enviado no insert.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label>Tipo de Combustível</Label>
-                <Input value={novoAbast.tipo_combustivel} onChange={(e) => setNovoAbast((p) => ({ ...p, tipo_combustivel: e.target.value }))} placeholder="Ex: JET-A1, AVGAS" />
+                <Select
+                  value={novoAbast.tipo_combustivel || "__none__"}
+                  onValueChange={(v) => setNovoAbast((p) => ({ ...p, tipo_combustivel: v === "__none__" ? "" : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Selecione —</SelectItem>
+                    {TIPOS_COMBUSTIVEL.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <Label>Observação</Label>
@@ -2300,4 +2328,3 @@ function normalizarSubcategoriaDespesa(subcategoria: string): string {
   if (normalized.includes("RECIBO") && normalized.includes("VIAGEM")) return "RECIBO_DE_VIAGEM";
   return normalized;
 }
-
