@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import {
+  consolidarSociosParaAnexo,
   findExistingFuelReference,
   findExistingReceiptReference,
   findExistingTravelExpenseReference,
@@ -71,6 +72,7 @@ interface AnexoDoc {
   numero: string;
   arquivo?: File | null;
   url?: string | null;
+  socioId?: string | null;
 }
 
 const TIPOS_ANEXO: { value: AnexoDoc["tipo"]; label: string }[] = [
@@ -355,6 +357,15 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const aeronaveSel = useMemo(() => aeronaves.find((a) => a.id === aeronaveId), [aeronaves, aeronaveId]);
   const fornecedorSel = useMemo(() => fornecedores.find((f) => f.id === fornecedorId), [fornecedores, fornecedorId]);
   const travelReportSel = useMemo(() => travelReports.find((r) => r.id === travelReportId), [travelReports, travelReportId]);
+  const anexosSocioOptions = useMemo(() => {
+    const opcoesBase = isViagemMode
+      ? socios.map((s) => ({ id: s.id, nome: s.nome }))
+      : clienteLinhas.flatMap((linha) => {
+          const info = getClienteAeronaveInfo(linha.clienteId);
+          return (info?.socios || []).map((s) => ({ id: s.id, nome: s.nome }));
+        });
+    return consolidarSociosParaAnexo(opcoesBase);
+  }, [clienteLinhas, clientesDaAeronave, isViagemMode, socios]);
 
   useEffect(() => {
     if (!open || !isViagemMode || !clienteId) { setTravelReports([]); setTravelReportId(""); return; }
@@ -514,7 +525,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const removeClienteLinha = (uid: string) => setClienteLinhas((prev) => prev.filter((l) => l.uid !== uid));
   const updateOverrideSocio = (linhaUid: string, socioId: string, valor: string) => setClienteLinhas((prev) => prev.map((l) => (l.uid === linhaUid ? { ...l, overridesSocio: { ...l.overridesSocio, [socioId]: valor } } : l)));
 
-  const addAnexo = () => setAnexos((prev) => [...prev, { id: crypto.randomUUID(), tipo: "nf", numero: "", arquivo: null }]);
+  const addAnexo = () => setAnexos((prev) => [...prev, { id: crypto.randomUUID(), tipo: "nf", numero: "", arquivo: null, socioId: null }]);
   const updateAnexo = (id: string, patch: Partial<AnexoDoc>) => setAnexos((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   const removeAnexo = (id: string) => setAnexos((prev) => prev.filter((a) => a.id !== id));
   const moveAnexo = (id: string, dir: -1 | 1) =>
@@ -719,7 +730,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           const rateioPayloadsViagem = linhasRateioViagem.length > 0
             ? linhasRateioViagem.map((linha) => ({
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
-                data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
+                data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
                 fornecedor_nome: fornecedorNome || null, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
                 socios_nome: linha.socio_nome, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
@@ -729,7 +740,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
               }))
             : [{
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
-                data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
+                data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
                 fornecedor_nome: fornecedorNome || null, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: socioId || null,
                 socios_nome: socioSel?.nome || null, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socioSel?.percentual_participacao ?? 0, percentual_uso: percNumerico,
@@ -787,7 +798,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
         const rateioPayloads = linhasRateioMultiCliente.map((linha) => ({
           despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
-          data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNum, fornecedor_nome: fornecedorNome || null,
+          data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNum, fornecedor_nome: fornecedorNome || null,
           cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socio_nome, pago_diretamente: false,
           aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
           descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumerico, valor_rateado: linha.valor_rateado,
@@ -1097,7 +1108,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                         <div key={linha.uid} className="rounded-lg border border-white/10 bg-background/60 p-4 space-y-4">
                           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
                             <div className="lg:col-span-5 space-y-1.5">
-                              <Label className="text-xs text-muted-foreground">Cliente / Entidade</Label>
+                              <Label className="text-xs text-muted-foreground">Cliente </Label>
                               <SearchableCombobox items={itensDisponiveis.map((c) => ({ id: c.clienteId, label: c.razaoSocial }))} value={linha.clienteId} onChange={(id) => updateClienteLinha(linha.uid, { clienteId: id, overridesSocio: {} })} placeholder="Selecione..." emptyMessage="Nenhum cliente disponível" />
                             </div>
                             <div className="lg:col-span-3 space-y-1.5">
@@ -1109,7 +1120,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                               <Input value={valorCliente.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} readOnly className="bg-muted/30 font-medium text-emerald-300" />
                             </div>
                             <div className="lg:col-span-1 flex justify-end">
-                              <Button type="button" variant="ghost" size="icon" onClick={() => removeClienteLinha(linha.uid)} disabled={clienteLinhas.length === 1} className="hover:bg-red-500/10">
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeClienteLinha(linha.uid)} className="hover:bg-red-500/10">
                                 <Trash2 className="h-4 w-4 text-red-400" />
                               </Button>
                             </div>
@@ -1351,11 +1362,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                             <Button type="button" variant="ghost" size="icon" className="h-6 w-6" disabled={idx === anexos.length - 1} onClick={() => moveAnexo(a.id, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
                           </div>
                           <Select value={a.tipo} onValueChange={(v) => updateAnexo(a.id, { tipo: v as AnexoDoc["tipo"] })}>
-                            <SelectTrigger className="md:col-span-3"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="md:col-span-2"><SelectValue /></SelectTrigger>
                             <SelectContent>{TIPOS_ANEXO.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                           </Select>
+                          {anexosSocioOptions.length > 0 && (
+                            <div className="md:col-span-3">
+                              <Select value={a.socioId || "__none__"} onValueChange={(v) => updateAnexo(a.id, { socioId: v === "__none__" ? null : v })}>
+                                <SelectTrigger><SelectValue placeholder="Sócio do anexo" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">— Sem sócio específico —</SelectItem>
+                                  {anexosSocioOptions.map((s) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                           <Input className="md:col-span-3" placeholder="Nº Documento (Opcional)" value={a.numero} onChange={(e) => updateAnexo(a.id, { numero: e.target.value })} />
-                          <div className="md:col-span-4">
+                          <div className="md:col-span-3">
                             <label className="flex-1 cursor-pointer block">
                               <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => updateAnexo(a.id, { arquivo: e.target.files?.[0] || null })} />
                               <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
