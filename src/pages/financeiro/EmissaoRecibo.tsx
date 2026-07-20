@@ -29,6 +29,12 @@ interface Cliente {
   status?: string | null;
 }
 
+interface CotistaAeronave {
+  id_clientes: string;
+  percentual_sociedade: number | null;
+  clientes: Cliente | null;
+}
+
 interface FavoritePayer {
   id: string;
   name: string;
@@ -234,7 +240,7 @@ export default function EmissaoRecibo() {
 
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
-      const isRateado = originalForm.isRateado === true;
+      const isRateado = originalForm.reembolsoRateado === true;
       const selectedAircraftId = getSelectedAircraftId(originalForm);
       const expectedReceiptType: ReceiptType = isReembolso ? "reembolso" : "pagamento";
       const nomePagador = originalForm.pagadorNome?.trim();
@@ -250,6 +256,26 @@ export default function EmissaoRecibo() {
         supabase,
         originalForm.clienteId?.trim() || null
       );
+
+      const valorTotalDespesa = isRateado
+        ? parseCurrencyInput(originalForm.reembolsoValorTotal)
+        : null;
+      let cotistasDaAeronave: CotistaAeronave[] = [];
+
+      if (isReembolso && isRateado) {
+        if (!selectedAircraftId || !valorTotalDespesa || valorTotalDespesa <= 0) {
+          throw new Error("Informe a aeronave e o valor total da despesa para gerar os recibos rateados.");
+        }
+
+        const { data, error } = await supabase
+          .from("cotistas_aeronave")
+          .select("id_clientes, percentual_sociedade, clientes:id_clientes(id, razao_social, cnpj, endereco, cidade, uf)")
+          .eq("id_aeronave", selectedAircraftId);
+
+        if (error) throw error;
+        if (!data?.length) throw new Error("Não há clientes cotistas vinculados à aeronave selecionada.");
+        cotistasDaAeronave = data;
+      }
 
       // ===================== UPLOAD DE ARQUIVOS =====================
       let boletoUrl: string | null = null;
@@ -301,8 +327,15 @@ export default function EmissaoRecibo() {
         data_max_pagamento: originalForm.prazoMaximoQuitacao || null,                       // max_payment_date
         forma_pagamento: originalForm.formaPagamento?.trim() || null,                      // payment_method
         cliente_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,       // client_id
-        url_boleto: boletoUrl,                                                              // boleto_url
-        url_nf: notaFiscalUrl,                                                             // nf_url
+        url_boleto: boletoUrl,                                                              // boleto_url (legacy)
+        url_nf: notaFiscalUrl,                                                             // nf_url (legacy)
+        boleto_url: boletoUrl,                                                              // recibos.boleto_url
+        nf_url: notaFiscalUrl,                                                              // recibos.nf_url
+        demonstrativo_url: deceeaUrl || infraeroUrl || null,                                // recibos.demonstrativo_url
+        data_vencimento: originalForm.dataVencimentoBoleto || null,                         // recibos.data_vencimento
+        competencia_decea: formData.isDecea ? (originalForm.competenciaDecea || null) : null,
+        competencia_infraero: formData.isInfraero ? (originalForm.competenciaInfraero || null) : null,
+        subcategoria_1: originalForm.reembolsoSubcategoria || null,
         numero_documento: originalForm.reembolsoNumeroDocumento                            // doc_number
           || originalForm.numeroDocumentoDecea
           || originalForm.numeroDocumentoInfraero
@@ -314,7 +347,46 @@ export default function EmissaoRecibo() {
           ? parseFloat(originalForm.reembolsoPorcentagem)
           : null,
         valor_total: parseCurrencyInput(originalForm.reembolsoValorTotal),                  // total_amount
+        socios_cliente: formData.socioNome || null,
       };
+
+      const receiptsToInsert = isReembolso && isRateado
+        ? await Promise.all(
+            cotistasDaAeronave.map(async (cotista) => {
+              const cliente = cotista.clientes;
+              const percentual = Number(cotista.percentual_sociedade || 0);
+              const isClienteSelecionado = cotista.id_clientes === originalForm.clienteId;
+              const numeroRecibo = isClienteSelecionado
+                ? receiptNumber
+                : await generateSequentialReceiptNumber(
+                    cliente?.razao_social || "CLIENTE",
+                    supabase,
+                    cotista.id_clientes
+                  );
+
+              return {
+                ...receiptPayload,
+                numero_recibo: numeroRecibo,
+                cliente_id: cotista.id_clientes,
+                nome_pagador: isClienteSelecionado ? nomePagador : cliente?.razao_social || "Cliente",
+                documento_pagador: isClienteSelecionado
+                  ? receiptPayload.documento_pagador
+                  : cliente?.cnpj || null,
+                endereco_pagador: isClienteSelecionado
+                  ? receiptPayload.endereco_pagador
+                  : cliente?.endereco || null,
+                cidade_pagador: isClienteSelecionado
+                  ? receiptPayload.cidade_pagador
+                  : cliente?.cidade || null,
+                uf_pagador: isClienteSelecionado ? receiptPayload.uf_pagador : cliente?.uf || null,
+                valor: Number(((valorTotalDespesa! * percentual) / 100).toFixed(2)),
+                percentual,
+                valor_total: valorTotalDespesa,
+                socios_cliente: isClienteSelecionado ? receiptPayload.socios_cliente : null,
+              };
+            })
+          )
+        : [receiptPayload];
 
       // Verificar duplicata pelo numero_recibo + usuario_id
       const { data: existing } = await supabase
@@ -325,14 +397,14 @@ export default function EmissaoRecibo() {
         .single();
       if (existing) throw new Error("Recibo já gerado anteriormente.");
 
-      const { data: insertedReceipt, error: dbError } = await supabase
+      const { data: insertedReceipts, error: dbError } = await supabase
         .from("recibos")
-        .insert(receiptPayload)
-        .select("*")
-        .single();
+        .insert(receiptsToInsert)
+        .select("*");
       if (dbError) throw dbError;
 
-      let receiptData = insertedReceipt;
+      let receiptData = insertedReceipts?.find((receipt) => receipt.numero_recibo === receiptNumber);
+      if (!receiptData) throw new Error("Não foi possível identificar o recibo principal gerado.");
 
       if (
         receiptData.tipo_recibo !== expectedReceiptType ||

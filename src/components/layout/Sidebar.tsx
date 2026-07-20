@@ -57,7 +57,7 @@ const baseMenuGroups: MenuGroup[] = [
   {
     title: "Financeiro & Cartões",
     items: [
-      { title: "Solicitação de Compras", icon: CreditCard, href: "/financeiro/compras" },
+      { title: "Solicitações compras/pagamentos", icon: CreditCard, href: "/financeiro/compras" },
       { title: "Cartões Corporativos", icon: Wallet, href: "/cartoes-corporativos" },
     ],
   },

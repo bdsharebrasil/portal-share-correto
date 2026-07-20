@@ -29,10 +29,13 @@ interface ReceiptFormProps {
   onSubmit: (data: any) => void;
 }
 
-interface Categoria {
+interface ExpenseConfig {
   id: string;
-  nome: string;
-  grupo_categoria: string;
+  expense_type: string;
+  subcategoria_1: string | null;
+  subcategoria_2: string | null;
+  subcategoria_3: string | null;
+  subcategoria_4: string | null;
 }
 
 interface FavoriteDescription {
@@ -80,6 +83,7 @@ export function ReceiptForm({
     reembolsoPorcentagem: "",
     reembolsoCategoriaId: "",
     reembolsoCategoriaNome: "",
+    reembolsoSubcategoria: "",
     reembolsoNumeroDocumento: "",
     reembolsoRateado: false,
     reembolsoBoletoFile: null as File | null,
@@ -99,7 +103,7 @@ export function ReceiptForm({
   const [aircrafts, setAircrafts] = useState<any[]>([]);
   const [clientPartners, setClientPartners] = useState<ClientPartner[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>("");
-  const [categoriasReembolsaveis, setCategoriasReembolsaveis] = useState<Categoria[]>([]);
+  const [expenseConfigs, setExpenseConfigs] = useState<ExpenseConfig[]>([]);
   const [favoriteDescriptions, setFavoriteDescriptions] = useState<FavoriteDescription[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [valorEditadoManualmente, setValorEditadoManualmente] = useState(false);
@@ -107,11 +111,22 @@ export function ReceiptForm({
 
   const isReembolso = formData.receiptType === "reembolso";
 
-  const selectedCategoria = categoriasReembolsaveis.find(
+  const selectedExpenseConfig = expenseConfigs.find(
     (c) => c.id === formData.reembolsoCategoriaId
   );
-  const categoriaNome =
-    selectedCategoria?.nome || formData.reembolsoCategoriaNome || "";
+  const subcategoriaOptions: string[] = selectedExpenseConfig
+    ? [
+        selectedExpenseConfig.subcategoria_1,
+        selectedExpenseConfig.subcategoria_2,
+        selectedExpenseConfig.subcategoria_3,
+        selectedExpenseConfig.subcategoria_4,
+      ].filter((s): s is string => !!s)
+    : [];
+  const categoriaNome = selectedExpenseConfig
+    ? [selectedExpenseConfig.expense_type, formData.reembolsoSubcategoria]
+        .filter(Boolean)
+        .join(" / ")
+    : formData.reembolsoCategoriaNome || "";
   const isDecea = categoriaNome.toUpperCase().includes("DECEA");
   const isInfraero = categoriaNome.toUpperCase().includes("INFRAERO");
   const isDECEAorINFRAERO = isDecea || isInfraero;
@@ -143,16 +158,14 @@ export function ReceiptForm({
     return new Date(y, m - 1, d);
   };
 
-  // ─── Load categorias reembolsáveis ───────────────────────────────────────
+  // ─── Load expense_configu (categorias de despesas reembolsáveis) ──────────
   useEffect(() => {
-    supabase
-      .from("categorias_movimentacao")
-      .select("id, nome, grupo_categoria")
-      .eq("grupo_categoria", "DESPESAS REEMBOLSÁVEIS")
-      .eq("ativo", true)
-      .order("nome")
-      .then(({ data }) => {
-        if (data) setCategoriasReembolsaveis(data);
+    (supabase as any)
+      .from("expense_configu")
+      .select("id, expense_type, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4")
+      .order("expense_type")
+      .then(({ data }: { data: ExpenseConfig[] | null }) => {
+        if (data) setExpenseConfigs(data);
       });
   }, []);
 
@@ -174,6 +187,7 @@ export function ReceiptForm({
         reembolsoPorcentagem: "",
         reembolsoCategoriaId: "",
         reembolsoCategoriaNome: "",
+        reembolsoSubcategoria: "",
         reembolsoNumeroDocumento: "",
         reembolsoRateado: false,
         reembolsoBoletoFile: null,
@@ -191,10 +205,11 @@ export function ReceiptForm({
     }
   }, [formData.receiptType]);
 
-  // ─── Reset DECEA/INFRAERO fields when category changes ───────────────────
+  // ─── Reset subcategoria e campos DECEA/INFRAERO quando categoria muda ──────
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
+      reembolsoSubcategoria: "",
       numeroDocumentoDecea: "",
       competenciaDecea: "",
       decealFile: null,
@@ -208,7 +223,7 @@ export function ReceiptForm({
 
   // ─── Auto-fill description based on category + aeronave ──────────────────
   useEffect(() => {
-    if (!isReembolso || !selectedCategoria) return;
+    if (!isReembolso || !selectedExpenseConfig) return;
 
     const selectedAircraft = aircrafts.find((a) => a.id === formData.aircraftId);
     const aeronaveStr = selectedAircraft?.matricula
@@ -238,13 +253,17 @@ export function ReceiptForm({
         servicoDescricao: `REFERENTE A DECEA${aeronaveStr}${comp}${doc}`.trim(),
       }));
     } else {
+      const subcatStr = formData.reembolsoSubcategoria
+        ? ` / ${formData.reembolsoSubcategoria}`
+        : "";
       setFormData((prev) => ({
         ...prev,
-        servicoDescricao: `Referente a ${selectedCategoria.nome}`,
+        servicoDescricao: `Referente a ${selectedExpenseConfig.expense_type}${subcatStr}`,
       }));
     }
   }, [
     formData.reembolsoCategoriaId,
+    formData.reembolsoSubcategoria,
     formData.aircraftId,
     formData.competenciaInfraero,
     formData.numeroDocumentoInfraero,
@@ -484,9 +503,9 @@ export function ReceiptForm({
     label: `${a.matricula} – ${a.modelo}${a.isClient ? " ★" : ""}`,
   }));
 
-  const categoriaItems = categoriasReembolsaveis.map((c) => ({
+  const categoriaItems = expenseConfigs.map((c) => ({
     id: c.id,
-    label: c.nome,
+    label: c.expense_type,
   }));
 
   const submitting = isGenerating || isSaving;
@@ -514,22 +533,47 @@ export function ReceiptForm({
 
           {/* CATEGORIA */}
           {isReembolso && (
-            <div>
-              <Label>Categoria (Despesas Reembolsáveis) *</Label>
-              <SearchableCombobox
-                items={categoriaItems}
-                value={formData.reembolsoCategoriaId}
-                onChange={(id, label) =>
-                  setFormData((p) => ({
-                    ...p,
-                    reembolsoCategoriaId: id,
-                    reembolsoCategoriaNome: label,
-                  }))
-                }
-                placeholder="Selecione a categoria"
-                searchPlaceholder="Buscar categoria..."
-                emptyMessage="Nenhuma categoria encontrada"
-              />
+            <div className="space-y-3">
+              <div>
+                <Label>Categoria (Despesas Reembolsáveis) *</Label>
+                <SearchableCombobox
+                  items={categoriaItems}
+                  value={formData.reembolsoCategoriaId}
+                  onChange={(id, label) =>
+                    setFormData((p) => ({
+                      ...p,
+                      reembolsoCategoriaId: id,
+                      reembolsoCategoriaNome: label,
+                    }))
+                  }
+                  placeholder="Selecione a categoria"
+                  searchPlaceholder="Buscar categoria..."
+                  emptyMessage="Nenhuma categoria encontrada"
+                />
+              </div>
+              {subcategoriaOptions.length > 0 && (
+                <div>
+                  <Label>Subcategoria</Label>
+                  <Select
+                    value={formData.reembolsoSubcategoria}
+                    onValueChange={(v) =>
+                      setFormData((p) => ({ ...p, reembolsoSubcategoria: v === "__none__" ? "" : v }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a subcategoria (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Nenhuma —</SelectItem>
+                      {subcategoriaOptions.map((sub) => (
+                        <SelectItem key={sub} value={sub}>
+                          {sub}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
 

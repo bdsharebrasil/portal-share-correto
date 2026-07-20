@@ -21,10 +21,12 @@ import {
   findExistingFuelReference,
   findExistingReceiptReference,
   findExistingTravelExpenseReference,
+  filtrarSociosParaRateio,
   montarLinhasRateio,
   montarLinhasRateioMultiCliente,
   normalizarTipoDespesa,
   normalizarTipoRateio,
+  resolverClienteParaRateio,
   resolverFornecedorSolicitacao,
   resolverPagoPorSolicitacao,
   resolverSubcategoriaSelecionadaParaPayload,
@@ -69,6 +71,11 @@ interface AbastecimentoLookup {
   boleto_url: string | null;
   nota_url: string | null;
   comprovante_url: string | null;
+  comanda_url?: string | null;
+  data_vencimento_boleto?: string | null;
+  abastecedor?: string | null;
+  abastecedor_id?: string | null;
+  data_pagamento?: string | null;
 }
 
 interface AnexoDoc {
@@ -123,6 +130,9 @@ interface ClienteLinhaState {
   numeroDocumentoRecibo?: string | null;
   urlBoleto?: string | null;
   urlDemonstrativo?: string | null;
+  urlPdfRecibo?: string | null;
+  numeroReciboRecibo?: string | null;
+  valorReciboCliente?: number | null;
 }
 
 type InsertedRow = {
@@ -199,6 +209,25 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const [fuelLookupResult, setFuelLookupResult] = useState<AbastecimentoLookup | null>(null);
   const [fuelLookupSearched, setFuelLookupSearched] = useState(false);
 
+  // Novo Abastecimento (criação inline quando não encontrado)
+  const [novoAbastOpen, setNovoAbastOpen] = useState(false);
+  const [novoAbastSaving, setNovoAbastSaving] = useState(false);
+  const [novoAbast, setNovoAbast] = useState({
+    data: format(new Date(), "yyyy-MM-dd"),
+    data_vencimento_boleto: "",
+    local: "",
+    trecho: "",
+    litros: "",
+    valor_unitario: "",
+    valor_total: "",
+    abastecedor_id: "",
+    tipo_combustivel: "",
+    observacao: "",
+  });
+  const [novoAbastComandaFile, setNovoAbastComandaFile] = useState<File | null>(null);
+  const [novoAbastNotaFile, setNovoAbastNotaFile] = useState<File | null>(null);
+  const [novoAbastBoletoFile, setNovoAbastBoletoFile] = useState<File | null>(null);
+
   // Taxas Aeroportuárias
   const [taxaOrigem, setTaxaOrigem] = useState<TaxaOrigem>(null);
   const [taxaRecibos, setTaxaRecibos] = useState<TaxaReciboOption[]>([]);
@@ -274,12 +303,24 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setSocioId("");
   }, [aeronaveId]);
 
+  useEffect(() => {
+    if (!socioId || clienteId || !clientesDaAeronave.length) return;
+
+    const clienteInferido = resolverClienteParaRateio({ clienteId, socioId, clientesDaAeronave });
+    if (clienteInferido) {
+      setClienteId(clienteInferido);
+    }
+  }, [clienteId, socioId, clientesDaAeronave]);
+
   const getClienteAeronaveInfo = (cid: string) => clientesDaAeronave.find((c) => c.clienteId === cid);
   const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaBase || tipoDespesaLabel || "");
   const subcategoriaNormalizadaAtual = normalizarSubcategoriaDespesa(subcategoriaSel || "");
   const isViagemMode = tipoNormalizadoAtual === "DESPESAS_DE_VIAGEM";
   const isCombustivelMode = tipoNormalizadoAtual === "COMBUSTIVEIS";
   const isTaxasMode = /TAXAS?\s*AEROPORT/i.test(tipoDespesaBase || tipoDespesaLabel || "");
+  const isSeguroMode = /SEGURO/i.test(tipoDespesaBase || tipoDespesaLabel || "");
+  const isFistelMode = /FISTEL/i.test(tipoDespesaBase || tipoDespesaLabel || "");
+  const isReciboFirstMode = isTaxasMode || isSeguroMode || isFistelMode;
   const isRelatorioViagemMode = isViagemMode && subcategoriaNormalizadaAtual === "RELATORIO_DE_VIAGEM";
   const isReciboViagemMode = isViagemMode && subcategoriaNormalizadaAtual === "RECIBO_DE_VIAGEM";
 
@@ -290,12 +331,23 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     if (tipoDespesaSel?.subcategoria_2) arr.push(tipoDespesaSel.subcategoria_2);
     return arr;
   }, [tipoDespesaSel]);
+  const isSubcat1Sel = !!(tipoDespesaSel?.subcategoria_1 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_1);
+  const isSubcat2Sel = !!(tipoDespesaSel?.subcategoria_2 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_2);
   const subcategoriaSelecionadaParaPayload = useMemo(() => resolverSubcategoriaSelecionadaParaPayload({
     subcategoriaSelecionada: subcategoriaSel || null,
   }), [subcategoriaSel]);
 
   useEffect(() => {
-    if (!open || !isTaxasMode || !taxaOrigem || !aeronaveId) {
+    if (!open || !isReciboFirstMode || !aeronaveId) {
+      setTaxaRecibos([]);
+      setTaxaReciboId("");
+      return;
+    }
+    // Para TAXAS AEROPORT precisa da origem (INFRAERO/DECEA); para SEGUROS/FISTEL filtra pelo próprio tipo de despesa
+    const filtroCategoria = isTaxasMode
+      ? (taxaOrigem || "")
+      : (tipoDespesaBase || tipoDespesaLabel || "");
+    if (isTaxasMode && !taxaOrigem) {
       setTaxaRecibos([]);
       setTaxaReciboId("");
       return;
@@ -303,18 +355,24 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     (async () => {
       const { data, error } = await (supabase as any)
         .from("recibos")
-        .select("id, numero_recibo, numero_documento, valor_total, percentual, nome_categoria, aeronave_id, url_pdf, url_boleto, url_nf, data_emissao, status")
+        .select("id, numero_recibo, numero_documento, valor_total, percentual, nome_categoria, aeronave_id, url_pdf, boleto_url, demonstrativo_url, data_emissao, status")
         .eq("aeronave_id", aeronaveId)
-        .ilike("nome_categoria", `%${taxaOrigem}%`)
+        .ilike("nome_categoria", `%${filtroCategoria}%`)
         .order("data_emissao", { ascending: false })
         .limit(50);
       if (error) {
         setTaxaRecibos([]);
         return;
       }
-      setTaxaRecibos((data || []) as TaxaReciboOption[]);
+      // normaliza para o shape esperado (url_boleto/url_nf legado)
+      const rows = ((data || []) as any[]).map((r) => ({
+        ...r,
+        url_boleto: r.boleto_url ?? r.url_boleto ?? null,
+        url_nf: r.demonstrativo_url ?? r.url_nf ?? null,
+      }));
+      setTaxaRecibos(rows as TaxaReciboOption[]);
     })();
-  }, [open, isTaxasMode, taxaOrigem, aeronaveId]);
+  }, [open, isReciboFirstMode, isTaxasMode, taxaOrigem, aeronaveId, tipoDespesaBase, tipoDespesaLabel]);
 
   useEffect(() => {
     if (!taxaReciboId) return;
@@ -326,7 +384,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
   // Preencher automaticamente dados de taxa nas linhas de rateio quando for modo de taxas
   useEffect(() => {
-    if (!isTaxasMode || clienteLinhas.length === 0) return;
+    if (!isReciboFirstMode || clienteLinhas.length === 0) return;
 
     setClienteLinhas((prevLinhas) =>
       prevLinhas.map((linha) => {
@@ -341,15 +399,31 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         if (!recibo) return linha;
 
         // Preencher automaticamente os dados do recibo
+        const valorReciboEmReais = Number(recibo.valor_total || 0) / 100;
+        const pctRecibo = Number(recibo.percentual ?? 0);
         return {
           ...linha,
           numeroDocumentoRecibo: recibo.numero_documento || undefined,
+          numeroReciboRecibo: recibo.numero_recibo || undefined,
           urlBoleto: recibo.url_boleto || undefined,
           urlDemonstrativo: recibo.url_nf || undefined,
+          urlPdfRecibo: recibo.url_pdf || undefined,
+          valorReciboCliente: valorReciboEmReais || undefined,
+          // Se o recibo trouxer percentual, usa como % do cliente; caso contrário mantém o valor atual
+          percentualUsoCliente: pctRecibo > 0 ? pctRecibo.toFixed(2) : linha.percentualUsoCliente,
         };
       })
     );
-  }, [isTaxasMode, taxaReciboId, taxaReciboPorCliente, taxaRecibos, clienteLinhas.length, clienteId]);
+  }, [isReciboFirstMode, taxaReciboId, taxaReciboPorCliente, taxaRecibos, clienteLinhas.length, clienteId]);
+
+  // Quando um recibo único é escolhido (cliente específico) atualiza automaticamente o Valor Total da despesa
+  useEffect(() => {
+    if (!isReciboFirstMode || !taxaReciboId) return;
+    const r = taxaRecibos.find((x) => x.id === taxaReciboId);
+    if (r && r.valor_total) {
+      setValorTotal(String((Number(r.valor_total) / 100).toFixed(2)));
+    }
+  }, [isReciboFirstMode, taxaReciboId, taxaRecibos]);
 
   const buscarAbastecimento = async () => {
     if (!fuelComanda && !fuelNf) {
@@ -361,7 +435,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     try {
       let q: any = (supabase as any)
         .from("abastecimentos")
-        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url")
+        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
         .order("data", { ascending: false })
         .limit(1);
       if (aeronaveId) q = q.eq("aeronave_id", aeronaveId);
@@ -385,6 +459,127 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       }
     } finally {
       setFuelLookupLoading(false);
+    }
+  };
+
+  // Autofill dos campos "Informações da Fatura" a partir do abastecimento vinculado
+  useEffect(() => {
+    if (!isCombustivelMode || !fuelLookupResult) return;
+    if (fuelLookupResult.data) {
+      const d = new Date(fuelLookupResult.data + "T00:00:00");
+      if (!isNaN(d.getTime())) setDataEmissao(d);
+    }
+    if (fuelLookupResult.data_vencimento_boleto) {
+      const dv = new Date(fuelLookupResult.data_vencimento_boleto + "T00:00:00");
+      if (!isNaN(dv.getTime())) setDataVencimento(dv);
+    } else if (fuelLookupResult.data) {
+      const d = new Date(fuelLookupResult.data + "T00:00:00");
+      if (!isNaN(d.getTime())) setDataVencimento(d);
+    }
+    if (fuelLookupResult.abastecedor_id) {
+      const forn = fornecedores.find((f) => f.id === fuelLookupResult.abastecedor_id && f.source === "combustivel");
+      if (forn) {
+        setFornecedorId(forn.id);
+        setFornecedorNome(forn.label);
+        return;
+      }
+    }
+    if (fuelLookupResult.abastecedor) {
+      setFornecedorNome(fuelLookupResult.abastecedor);
+    }
+  }, [fuelLookupResult, isCombustivelMode, fornecedores]);
+
+  const resetNovoAbast = () => {
+    setNovoAbast({
+      data: format(new Date(), "yyyy-MM-dd"),
+      data_vencimento_boleto: "",
+      local: "",
+      trecho: "",
+      litros: "",
+      valor_unitario: "",
+      valor_total: "",
+      abastecedor_id: "",
+      tipo_combustivel: "",
+      observacao: "",
+    });
+    setNovoAbastComandaFile(null);
+    setNovoAbastNotaFile(null);
+    setNovoAbastBoletoFile(null);
+  };
+
+  const uploadAbastFile = async (file: File | null, folder: string): Promise<string | null> => {
+    if (!file) return null;
+    const path = `abastecimentos/${aeronaveId || "sem-aeronave"}/${folder}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
+    if (error) throw error;
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const criarNovoAbastecimento = async () => {
+    if (!aeronaveId) {
+      toast.error("Selecione a aeronave antes de criar o abastecimento.");
+      return;
+    }
+    const litrosNum = Number(String(novoAbast.litros).replace(",", ".")) || 0;
+    const vuNum = Number(String(novoAbast.valor_unitario).replace(",", ".")) || 0;
+    let valorTotalNum = Number(String(novoAbast.valor_total).replace(",", ".")) || 0;
+    if (!valorTotalNum && litrosNum && vuNum) valorTotalNum = +(litrosNum * vuNum).toFixed(2);
+    if (!valorTotalNum) {
+      toast.error("Informe o valor total (ou litros + valor unitário).");
+      return;
+    }
+    setNovoAbastSaving(true);
+    try {
+      const [comandaUrl, notaUrl, boletoUrl] = await Promise.all([
+        uploadAbastFile(novoAbastComandaFile, "comanda"),
+        uploadAbastFile(novoAbastNotaFile, "nota"),
+        uploadAbastFile(novoAbastBoletoFile, "boleto"),
+      ]);
+      const supplier = fornecedores.find((f) => f.id === novoAbast.abastecedor_id && f.source === "combustivel");
+      const payload: Record<string, unknown> = {
+        aeronave_id: aeronaveId,
+        id_clientes: clienteId && clienteId !== "__all__" ? clienteId : null,
+        data: novoAbast.data,
+        data_vencimento_boleto: novoAbast.data_vencimento_boleto || null,
+        local: novoAbast.local || null,
+        trecho: novoAbast.trecho || "",
+        litros: litrosNum || null,
+        valor_unitario: vuNum || null,
+        valor_total: valorTotalNum,
+        comanda: fuelComanda || null,
+        nf: fuelNf || null,
+        abastecedor_id: novoAbast.abastecedor_id || null,
+        abastecedor: supplier?.label || null,
+        tipo_combustivel: novoAbast.tipo_combustivel || null,
+        observacao: novoAbast.observacao || null,
+        comanda_url: comandaUrl,
+        nota_url: notaUrl,
+        boleto_url: boletoUrl,
+        status_pagamento: "em aberto",
+      };
+      const { data, error } = await (supabase as any)
+        .from("abastecimentos")
+        .insert(payload)
+        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
+        .single();
+      if (error) throw error;
+      const inserted = data as AbastecimentoLookup;
+      setFuelLookupResult(inserted);
+      setFuelLookupSearched(true);
+      setReferenciaDuplicada({
+        tipo: "abastecimento",
+        id: inserted.id,
+        mensagem: `✓ Novo abastecimento criado (Comanda ${inserted.comanda || "—"} / NF ${inserted.nf || "—"})`,
+      });
+      setValorTotal(valorTotalNum.toFixed(2));
+      toast.success("Abastecimento criado e vinculado.");
+      setNovoAbastOpen(false);
+      resetNovoAbast();
+    } catch (err: any) {
+      toast.error("Erro ao criar abastecimento: " + (err?.message || "desconhecido"));
+    } finally {
+      setNovoAbastSaving(false);
     }
   };
 
@@ -421,10 +616,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     }
 
     const info = clientesDaAeronave.find((c) => c.clienteId === clienteId);
+    const sociosVisiveis = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
     const overridesSocio: Record<string, string> = {};
-    if (socioId && info) {
-      for (const s of info.socios) {
-        overridesSocio[s.id] = s.id === socioId ? "100" : "0";
+    if (info) {
+      for (const s of sociosVisiveis) {
+        overridesSocio[s.id] = "100";
       }
     }
     setClienteLinhas([{
@@ -443,7 +639,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     setReciboExistentePorCliente({});
   }, [clienteId, clientesDaAeronave]);
 
-  const clienteSel = useMemo(() => getClienteAeronaveInfo(clienteId), [clienteId, clientesDaAeronave]);
+  const clienteSelecionadoInferido = useMemo(
+    () => resolverClienteParaRateio({ clienteId, socioId, clientesDaAeronave }),
+    [clienteId, socioId, clientesDaAeronave],
+  );
+  const clienteSel = useMemo(() => getClienteAeronaveInfo(clienteId) || getClienteAeronaveInfo(clienteSelecionadoInferido || ""), [clienteId, clienteSelecionadoInferido, clientesDaAeronave]);
   const socioSel = useMemo(() => socios.find((s) => s.id === socioId), [socios, socioId]);
   const aeronaveSel = useMemo(() => aeronaves.find((a) => a.id === aeronaveId), [aeronaves, aeronaveId]);
   const fornecedorSel = useMemo(() => fornecedores.find((f) => f.id === fornecedorId), [fornecedores, fornecedorId]);
@@ -453,15 +653,20 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     const totalViagem = Number(travelReportSel.total_valor || 0);
     return +(totalViagem - Number(travelReportSel.total_clientes || 0)).toFixed(2);
   }, [travelReportSel]);
+  const sociosParaRateio = useMemo(
+    () => filtrarSociosParaRateio({ socios, socioSelecionadoId: socioId || null }),
+    [socios, socioId],
+  );
+
   const anexosSocioOptions = useMemo(() => {
     const opcoesBase = isViagemMode
-      ? socios.map((s) => ({ id: s.id, nome: s.nome }))
+      ? sociosParaRateio.map((s) => ({ id: s.id, nome: s.nome }))
       : clienteLinhas.flatMap((linha) => {
           const info = getClienteAeronaveInfo(linha.clienteId);
           return (info?.socios || []).map((s) => ({ id: s.id, nome: s.nome }));
         });
     return consolidarSociosParaAnexo(opcoesBase);
-  }, [clienteLinhas, clientesDaAeronave, isViagemMode, socios]);
+  }, [clienteLinhas, clientesDaAeronave, isViagemMode, sociosParaRateio]);
 
   const recibosFiltrados = useMemo(() => {
     if (!clienteId || clienteId === "__all__") return recibosExistentes;
@@ -584,9 +789,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const linhasRateioPreview = useMemo(() => montarLinhasRateio({
     valorTotal: valorNumerico,
     percentualUso: percNumerico,
-    socios,
+    socios: sociosParaRateio,
     socioSelecionadoId: socioId || null,
-  }), [valorNumerico, percNumerico, socios, socioId]);
+  }), [valorNumerico, percNumerico, sociosParaRateio, socioId]);
 
   const linhasRateioMultiCliente = useMemo(() => {
     if (isViagemMode) return [];
@@ -594,6 +799,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       .filter((l) => l.clienteId)
       .map((l) => {
         const info = getClienteAeronaveInfo(l.clienteId);
+        const sociosVisiveis = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
         const overrides: Record<string, number> = {};
         Object.entries(l.overridesSocio).forEach(([sId, val]) => {
           if (val === "" || val === undefined) return;
@@ -610,13 +816,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           clienteId: l.clienteId,
           clienteNome: info?.razaoSocial || "Cliente",
           percentualUsoCliente: Number(String(l.percentualUsoCliente).replace(",", ".")) || 0,
-          socios: info?.socios || [],
+          socios: sociosVisiveis,
           overridesSocio: overrides,
           valorOverridesSocio: valorOverrides,
         };
       });
     return montarLinhasRateioMultiCliente({ valorTotal: valorNumerico, linhas: linhasInput });
-  }, [clienteLinhas, clientesDaAeronave, valorNumerico, isViagemMode]);
+  }, [clienteLinhas, clientesDaAeronave, valorNumerico, isViagemMode, socioId]);
 
   const somaPercentualClientes = clienteLinhas.reduce((sum, l) => sum + (Number(String(l.percentualUsoCliente).replace(",", ".")) || 0), 0);
   const erroSomaClientes = !isViagemMode && clienteLinhas.length > 0
@@ -707,7 +913,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const podeAvancar = () => {
     if (etapaAtual === 1) {
       const baseOk = !!(aeronaveId && tipoRateio && periodicidade && tipoDespesaLabel);
-      if (isViagemMode) return baseOk && !!clienteId;
+      if (isViagemMode) return baseOk && (!!clienteId || !!socioId);
       return baseOk;
     }
     if (etapaAtual === 2) {
@@ -815,7 +1021,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     if (!dataVencimento) return "Data de vencimento é obrigatória";
 
     if (isViagemMode) {
-      if (!clienteId) return "Selecione o cliente";
+      if (!clienteId && !socioId) return "Selecione o cliente ou o sócio";
     } else {
       if (clienteLinhas.length === 0 || clienteLinhas.some((l) => !l.clienteId)) return "Selecione o(s) cliente(s) desta despesa";
       const idsUnicos = new Set(clienteLinhas.map((l) => l.clienteId));
@@ -829,6 +1035,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
   const handleSalvar = async (rascunho: boolean) => {
     const erro = validar();
     if (erro) { toast.error(erro); return; }
+    const clienteParaPersistencia = clienteId || clienteSelecionadoInferido || null;
     setSaving(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -918,7 +1125,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             data_vencimento: dataVenc, data_agendamento: dataVenc, valor: entry.valor, categoria: "REEMBOLSO TRIPULAÇÃO",
             categoria_id: categoriaContaId || null, descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`,
             status: statusCP, observacoes: `Reembolso ${entry.label.toLowerCase()} do relatório ${travelReportSel.numero_relatorio}`,
-            cliente_id: clienteId, socios_cliente_id: socioId || null, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
+            cliente_id: clienteParaPersistencia, socios_cliente_id: socioId || null, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
             fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNomeFinal,
             aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null, possui_boleto: !!boletoUrl,
             boleto_url: boletoUrl, vencimento_boleto: boletoUrl ? dataVenc : null, possui_nf: !!nfUrl, nf_numero: nfNum,
@@ -932,7 +1139,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
               descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, tipo: "despesa", tipo_caixa: "cliente",
               categoria_id: categoriaContaId, valor: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
-              clientes_id: clienteId, socio_id: socioId || null, reembolsavel, fornecedor_nome: fornecedorNomeFinal,
+              clientes_id: clienteParaPersistencia, socio_id: socioId || null, reembolsavel, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: travelReportNumeroDoc,
               nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
               observacoes: obsFinal || null, contas_apagar_id: capId,
@@ -985,14 +1192,36 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           });
         }
       } else if (!isViagemMode) {
+        const primaryTaxaRecibo = isTaxasMode
+          ? (taxaReciboSelecionado
+              || (taxaRecibosMultiplos.length > 0 ? taxaRecibos.find((r) => r.id === taxaRecibosMultiplos[0]) : null)
+              || (Object.values(taxaReciboPorCliente).length > 0
+                    ? taxaRecibos.find((r) => r.id === Object.values(taxaReciboPorCliente)[0])
+                    : null)
+              || null)
+          : null;
+        const taxaNumeroDocumento = primaryTaxaRecibo?.numero_documento || null;
+        const taxaNumeroRecibo = primaryTaxaRecibo?.numero_recibo || primaryTaxaRecibo?.numero_documento || null;
+        const taxaDemonstrativoUrl = primaryTaxaRecibo?.url_nf || null;
+        const numeroDocFinal = (isTaxasMode && taxaNumeroRecibo) ? taxaNumeroRecibo : docNum;
+        const taxasSubcatFields: Record<string, unknown> = {};
+        if (isTaxasMode && isSubcat1Sel) {
+          taxasSubcatFields.numero_documento_infraero = taxaNumeroDocumento;
+          taxasSubcatFields.infraero_url = taxaDemonstrativoUrl;
+        }
+        if (isTaxasMode && isSubcat2Sel) {
+          taxasSubcatFields.numero_documento_decea = taxaNumeroDocumento;
+          taxasSubcatFields.decea_url = taxaDemonstrativoUrl;
+        }
         const capId = await insertAndGetId("contas_apagar", {
           data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumericoFinal, categoria: tipoDespesaLabel || null,
           categoria_id: categoriaContaId || null, descricao, status: statusCP, observacoes: obsFinal || null,
-          cliente_id: clienteLinhas.length === 1 ? clienteLinhas[0].clienteId : null, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
+          cliente_id: clienteLinhas.length === 1 ? clienteLinhas[0].clienteId : clienteParaPersistencia, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
           fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNomeFinal,
           aeronave_registro: aeronaveSel?.matricula || null, possui_boleto: !!boletoUrl, boleto_url: boletoUrl, vencimento_boleto: boletoUrl ? dataVenc : null,
           possui_nf: !!nfUrl, nf_numero: nfNum, nf_url: nfUrl, possui_recibo: !!reciboUrl && !isAllClients, numero_recibo: isAllClients ? null : reciboNum, recibo_url: isAllClients ? null : reciboUrl, data_recibo: !isAllClients && reciboUrl ? dataComp : null,
-          numero_doc: docNum, arquivo_pdf_url: docUrl, criado_por: userId,
+          numero_doc: numeroDocFinal, arquivo_pdf_url: docUrl, criado_por: userId,
+          ...taxasSubcatFields,
         });
 
         const movimentacaoIdsPorCliente: Record<string, string> = {};
@@ -1343,6 +1572,157 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 </section>
               )}
 
+              {isReciboFirstMode && aeronaveId && (
+                <section className="space-y-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-xl p-5">
+                  <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-3">
+                    <FileText className="h-4 w-4 text-indigo-300" />
+                    <h3 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">
+                      {isTaxasMode ? "Taxas Aeroportuárias — Recibos" : isSeguroMode ? "Seguros — Recibos Emitidos" : "Taxa FISTEL — Recibos Emitidos"}
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {isTaxasMode && (
+                      <div className="space-y-1.5">
+                        <Label>Origem da Taxa *</Label>
+                        <Select value={taxaOrigem ?? ""} onValueChange={(v) => { setTaxaOrigem(v as TaxaOrigem); setTaxaReciboId(""); setTaxaReciboPorCliente({}); setTaxaRecibosMultiplos([]); }}>
+                          <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="INFRAERO">Tarifa INFRAERO</SelectItem>
+                            <SelectItem value="DECEA">Tarifa de Navegação Aérea — DECEA</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {(!isTaxasMode || taxaOrigem) && !clienteLinhas.some((l) => l.clienteId === "__all__") && (
+                      <div className="space-y-1.5">
+                        <Label>Recibo emitido</Label>
+                        <Select value={taxaReciboId} onValueChange={setTaxaReciboId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={taxaRecibos.length === 0 ? "Nenhum recibo encontrado" : "Escolha um recibo"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {taxaRecibos.map((r) => (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
+                                {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
+                                {` · R$ ${(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  {(!isTaxasMode || taxaOrigem) && clienteLinhas.some((l) => l.clienteId === "__all__") && (
+                    <div className="space-y-3 mt-3">
+                      <p className="text-xs text-indigo-200 font-medium">Selecione um recibo para cada cliente:</p>
+                      {clientesDaAeronave.map((cliente) => (
+                        <div key={cliente.clienteId} className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Recibo para {cliente.razaoSocial}</Label>
+                          <Select
+                            value={taxaReciboPorCliente[cliente.clienteId] || ""}
+                            onValueChange={(v) => setTaxaReciboPorCliente((prev) => ({ ...prev, [cliente.clienteId]: v }))}
+                          >
+                            <SelectTrigger className="w-full md:w-1/2"><SelectValue placeholder="Escolha um recibo" /></SelectTrigger>
+                            <SelectContent>
+                              {taxaRecibos.map((r) => (
+                                <SelectItem key={r.id} value={r.id}>
+                                  {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
+                                  {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
+                                  {` · R$ ${(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {(!isTaxasMode || taxaOrigem) && !clienteLinhas.some((l) => l.clienteId === "__all__") && (
+                    <div className="space-y-3 mt-4 p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/10">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-indigo-200">Recibos adicionados:</p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs"
+                          onClick={() => {
+                            if (taxaReciboId && !taxaRecibosMultiplos.includes(taxaReciboId)) {
+                              setTaxaRecibosMultiplos([...taxaRecibosMultiplos, taxaReciboId]);
+                              setTaxaReciboId("");
+                            }
+                          }}
+                          disabled={!taxaReciboId}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Recibo
+                        </Button>
+                      </div>
+
+                      {taxaRecibosMultiplos.length === 0 ? (
+                        <p className="text-xs text-indigo-300/60">Nenhum recibo adicionado. Selecione um recibo e clique em "Adicionar".</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {taxaRecibosMultiplos.map((reciboId, idx) => {
+                            const r = taxaRecibos.find((x) => x.id === reciboId);
+                            if (!r) return null;
+                            return (
+                              <div key={reciboId} className="flex items-start justify-between gap-2 p-2 rounded-md bg-indigo-500/20 border border-indigo-500/30">
+                                <div className="flex-1 text-xs">
+                                  <div className="font-medium text-indigo-100">{idx + 1}. {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}</div>
+                                  <div className="text-indigo-300/70">{r.data_emissao ? format(new Date(r.data_emissao), "dd/MM/yyyy") : "—"} · R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 hover:bg-red-500/30 hover:text-red-300"
+                                  onClick={() => setTaxaRecibosMultiplos(taxaRecibosMultiplos.filter((id) => id !== reciboId))}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {taxaReciboId && (() => {
+                    const r = taxaRecibos.find((x) => x.id === taxaReciboId);
+                    if (!r) return null;
+                    return (
+                      <div className="rounded-lg border border-indigo-500/30 bg-background/40 p-4 space-y-3">
+                        <div className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wide">Resumo do Recibo Selecionado</div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                          <div><div className="text-muted-foreground">Nº Documento</div><div className="font-medium text-indigo-100">{r.numero_documento || "—"}</div></div>
+                          <div><div className="text-muted-foreground">Nº Recibo</div><div className="font-medium">{r.numero_recibo || "—"}</div></div>
+                          <div><div className="text-muted-foreground">Percentual</div><div className="font-medium">{r.percentual ?? "—"}%</div></div>
+                          <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
+                        </div>
+                        <div className="flex flex-wrap gap-4 pt-2 border-t border-white/5 text-xs">
+                          {r.url_pdf && (
+                            <a href={r.url_pdf} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> PDF do recibo</a>
+                          )}
+                          {r.url_boleto && (
+                            <a href={r.url_boleto} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200"><ExternalLink className="h-3.5 w-3.5" /> Boleto</a>
+                          )}
+                          {r.url_nf && (
+                            <a href={r.url_nf} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200"><ExternalLink className="h-3.5 w-3.5" /> Demonstrativo</a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <p className="text-[11px] text-indigo-100/60">
+                    Ao selecionar o recibo, o card de <b>Rateio & Clientes</b> abaixo é preenchido automaticamente (percentual, valor e anexo).
+                  </p>
+                </section>
+              )}
               {!isViagemMode && aeronaveId && (
                 <section className="space-y-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-emerald-500/10 pb-4">
@@ -1380,6 +1760,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   <div className="space-y-3">
                     {clienteLinhas.map((linha) => {
                       const info = getClienteAeronaveInfo(linha.clienteId);
+                      const sociosVisiveis = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
                       const itensDisponiveis = clientesDaAeronave.filter((c) => c.clienteId === linha.clienteId || !clientesJaUsados.has(c.clienteId));
                       const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
                       const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
@@ -1432,17 +1813,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                             </div>
                           )}
 
-                          {info && info.socios.length > 0 && (
+                          {info && sociosVisiveis.length > 0 && (
                             <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
                               <div className="flex items-center justify-between">
                                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rateio Interno (Por Sócio)</Label>
-                                <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{info.socios.length} linha(s)</Badge>
+                                <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{sociosVisiveis.length} linha(s)</Badge>
                               </div>
                               
                               <div className="grid gap-2">
                                 {(() => {
-                                  const totalPctSocios = info.socios.reduce((s, so) => s + (Number(so.percentual_participacao ?? 0) || 0), 0);
-                                  return info.socios.map((s) => {
+                                  const totalPctSocios = sociosVisiveis.reduce((s, so) => s + (Number(so.percentual_participacao ?? 0) || 0), 0);
+                                  return sociosVisiveis.map((s) => {
                                     const overrideVal = linha.overridesSocio[s.id];
                                     const valorOverrideVal = linha.valorOverridesSocio?.[s.id];
                                     const autoPct = totalPctSocios > 0 ? (Number(s.percentual_participacao ?? 0) / totalPctSocios) * 100 : 100 / info.socios.length;
@@ -1513,9 +1894,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                     </div>
                   </div>
                   {fuelLookupSearched && !fuelLookupResult && (
-                    <p className="text-xs text-amber-200/80 rounded-md border border-amber-500/20 bg-amber-500/10 p-2">
-                      Nenhum abastecimento encontrado — os campos abaixo criarão um novo registro.
-                    </p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-md border border-amber-500/20 bg-amber-500/10 p-3">
+                      <p className="text-xs text-amber-200/80">
+                        Nenhum abastecimento encontrado. Crie um novo para vincular a esta solicitação.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500/30 text-amber-100"
+                        onClick={() => setNovoAbastOpen(true)}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Criar novo abastecimento
+                      </Button>
+                    </div>
                   )}
                   {fuelLookupResult && (
                     <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100">
@@ -1525,142 +1916,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 </section>
               )}
 
-              {isTaxasMode && aeronaveId && (
-                <section className="space-y-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-xl p-5">
-                  <div className="flex items-center gap-2 border-b border-indigo-500/10 pb-3">
-                    <FileText className="h-4 w-4 text-indigo-300" />
-                    <h3 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">Taxas Aeroportuárias</h3>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label>Origem da Taxa *</Label>
-                      <Select value={taxaOrigem ?? ""} onValueChange={(v) => { setTaxaOrigem(v as TaxaOrigem); setTaxaReciboId(""); setTaxaReciboPorCliente({}); setTaxaRecibosMultiplos([]); }}>
-                        <SelectTrigger><SelectValue placeholder="Selecione a origem" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="INFRAERO">Tarifa INFRAERO</SelectItem>
-                          <SelectItem value="DECEA">Tarifa de Navegação Aérea — DECEA</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {taxaOrigem && !clienteLinhas.some((l) => l.clienteId === "__all__") && (
-                      <div className="space-y-1.5">
-                        <Label>Recibo emitido</Label>
-                        <Select value={taxaReciboId} onValueChange={setTaxaReciboId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder={taxaRecibos.length === 0 ? "Nenhum recibo encontrado" : "Escolha um recibo"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {taxaRecibos.map((r) => (
-                              <SelectItem key={r.id} value={r.id}>
-                                {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
-                                {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
-                                {` · R$ ${(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-
-                  {taxaOrigem && clienteLinhas.some((l) => l.clienteId === "__all__") && (
-                    <div className="space-y-3 mt-3">
-                      <p className="text-xs text-indigo-200 font-medium">Selecione um recibo para cada cliente:</p>
-                      {clientesDaAeronave.map((cliente) => (
-                        <div key={cliente.clienteId} className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Recibo para {cliente.razaoSocial}</Label>
-                          <Select
-                            value={taxaReciboPorCliente[cliente.clienteId] || ""}
-                            onValueChange={(v) => setTaxaReciboPorCliente((prev) => ({ ...prev, [cliente.clienteId]: v }))}
-                          >
-                            <SelectTrigger className="w-full md:w-1/2"><SelectValue placeholder="Escolha um recibo" /></SelectTrigger>
-                            <SelectContent>
-                              {taxaRecibos.map((r) => (
-                                <SelectItem key={r.id} value={r.id}>
-                                  {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}
-                                  {r.data_emissao ? ` · ${format(new Date(r.data_emissao), "dd/MM/yyyy")}` : ""}
-                                  {` · R$ ${(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {taxaOrigem && !clienteLinhas.some((l) => l.clienteId === "__all__") && (
-                    <div className="space-y-3 mt-4 p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/10">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-indigo-200">Recibos adicionados:</p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="h-7 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs"
-                          onClick={() => {
-                            if (taxaReciboId && !taxaRecibosMultiplos.includes(taxaReciboId)) {
-                              setTaxaRecibosMultiplos([...taxaRecibosMultiplos, taxaReciboId]);
-                              setTaxaReciboId("");
-                            }
-                          }}
-                          disabled={!taxaReciboId}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Recibo
-                        </Button>
-                      </div>
-
-                      {taxaRecibosMultiplos.length === 0 ? (
-                        <p className="text-xs text-indigo-300/60">Nenhum recibo adicionado. Selecione um recibo e clique em "Adicionar".</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {taxaRecibosMultiplos.map((reciboId, idx) => {
-                            const r = taxaRecibos.find((x) => x.id === reciboId);
-                            if (!r) return null;
-                            return (
-                              <div key={reciboId} className="flex items-start justify-between gap-2 p-2 rounded-md bg-indigo-500/20 border border-indigo-500/30">
-                                <div className="flex-1 text-xs">
-                                  <div className="font-medium text-indigo-100">{idx + 1}. {r.numero_recibo || r.numero_documento || `Recibo ${r.id.slice(0, 6)}`}</div>
-                                  <div className="text-indigo-300/70">{r.data_emissao ? format(new Date(r.data_emissao), "dd/MM/yyyy") : "—"} · R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
-                                </div>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0 hover:bg-red-500/30 hover:text-red-300"
-                                  onClick={() => setTaxaRecibosMultiplos(taxaRecibosMultiplos.filter((id) => id !== reciboId))}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {taxaReciboId && (() => {
-                    const r = taxaRecibos.find((x) => x.id === taxaReciboId);
-                    if (!r) return null;
-                    return (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-lg border border-white/5 bg-background/40 p-3 text-xs">
-                        <div><div className="text-muted-foreground">Nº Documento</div><div className="font-medium">{r.numero_documento || "—"}</div></div>
-                        <div><div className="text-muted-foreground">Nº Recibo</div><div className="font-medium">{r.numero_recibo || "—"}</div></div>
-                        <div><div className="text-muted-foreground">Percentual</div><div className="font-medium">{r.percentual ?? "—"}%</div></div>
-                        <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
-                        {r.url_pdf && (
-                          <a href={r.url_pdf} target="_blank" rel="noreferrer" className="col-span-full inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> Abrir PDF do recibo</a>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  <p className="text-[11px] text-indigo-100/60">
-                    Ao selecionar o recibo, os clientes/sócios com participação serão rateados automaticamente conforme o percentual da aeronave.
-                  </p>
-                </section>
-              )}
             </div>
           )}
 
@@ -1672,10 +1927,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
               <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide border-b border-white/5 pb-3">Informações da Fatura</h3>
 
-                {!isViagemMode && (
+                {!isViagemMode && !(isCombustivelMode && fuelLookupResult) && (
                   <div className="space-y-1.5">
                     <Label>Fornecedor</Label>
                     <SearchableCombobox items={fornecedores} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedorNome(fornecedores.find((f) => f.id === id)?.label || label || ""); }} placeholder="Selecione ou digite" allowFreeText />
+                  </div>
+                )}
+
+                {isCombustivelMode && fuelLookupResult && (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100 space-y-1">
+                    <div><span className="text-emerald-300 font-semibold">Fornecedor (abastecedor):</span> {fuelLookupResult.abastecedor || fornecedorNome || "—"}</div>
+                    <div>
+                      <span className="text-emerald-300 font-semibold">Data:</span> {fuelLookupResult.data ? format(new Date(fuelLookupResult.data + "T00:00:00"), "dd/MM/yyyy") : "—"}
+                      {" · "}
+                      <span className="text-emerald-300 font-semibold">Vencimento:</span> {fuelLookupResult.data_vencimento_boleto ? format(new Date(fuelLookupResult.data_vencimento_boleto + "T00:00:00"), "dd/MM/yyyy") : "—"}
+                    </div>
+                    <p className="text-emerald-200/70 pt-1">Fornecedor, data de emissão e vencimento vêm do abastecimento vinculado.</p>
                   </div>
                 )}
 
@@ -1697,10 +1964,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <DateField label="Data de emissão (Competência)" value={dataEmissao} onChange={setDataEmissao} />
-                  <DateField label="Data de vencimento *" value={dataVencimento} onChange={setDataVencimento} />
-                </div>
+                {!(isCombustivelMode && fuelLookupResult) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <DateField label="Data de emissão (Competência)" value={dataEmissao} onChange={setDataEmissao} />
+                    <DateField label="Data de vencimento *" value={dataVencimento} onChange={setDataVencimento} />
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <Label>Observações Adicionais</Label>
@@ -1729,6 +1998,33 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                     <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar arquivo
                   </Button>
                 </div>
+
+                {isCombustivelMode && fuelLookupResult && (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">Anexos do abastecimento vinculado</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                      {[
+                        { label: `Comanda${fuelLookupResult.comanda ? ` · ${fuelLookupResult.comanda}` : ""}`, url: fuelLookupResult.comanda_url },
+                        { label: `Nota Fiscal${fuelLookupResult.nf ? ` · ${fuelLookupResult.nf}` : ""}`, url: fuelLookupResult.nota_url },
+                        { label: "Boleto", url: fuelLookupResult.boleto_url },
+                        { label: "Comprovante de Pagamento", url: fuelLookupResult.comprovante_pagamento || fuelLookupResult.comprovante_url },
+                      ].map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 rounded-md border border-emerald-500/15 bg-background/40 px-3 py-2">
+                          <FileText className={cn("h-4 w-4", item.url ? "text-emerald-400" : "text-muted-foreground")} />
+                          <span className="flex-1 truncate text-emerald-100/80">{item.label}</span>
+                          {item.url ? (
+                            <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300">
+                              <Eye className="h-3.5 w-3.5" /> Ver
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground text-[10px]">sem arquivo</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-emerald-200/70">Estes anexos foram carregados diretamente do registro em <span className="font-mono">abastecimentos</span>.</p>
+                  </div>
+                )}
 
                 <div className="rounded-lg border border-white/5 bg-background/50 p-3 space-y-3">
                   <div className="flex items-center gap-3">
@@ -1880,6 +2176,100 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* ============================================
+          Modal inline: Novo Abastecimento
+          ============================================ */}
+      <Dialog open={novoAbastOpen} onOpenChange={(v) => { setNovoAbastOpen(v); if (!v) resetNovoAbast(); }}>
+        <DialogContent className="max-w-2xl" style={{ zIndex: 1100 }}>
+          <DialogHeader>
+            <DialogTitle>Novo Abastecimento</DialogTitle>
+            <DialogDescription>
+              Cadastre o abastecimento na tabela <span className="font-mono">abastecimentos</span>. Ele será vinculado automaticamente a esta solicitação.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Comanda</Label>
+                <Input value={fuelComanda} onChange={(e) => setFuelComanda(e.target.value)} placeholder="Nº da comanda" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nº da NF</Label>
+                <Input value={fuelNf} onChange={(e) => setFuelNf(e.target.value)} placeholder="Nº da nota fiscal" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Data *</Label>
+                <Input type="date" value={novoAbast.data} onChange={(e) => setNovoAbast((p) => ({ ...p, data: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Vencimento do Boleto</Label>
+                <Input type="date" value={novoAbast.data_vencimento_boleto} onChange={(e) => setNovoAbast((p) => ({ ...p, data_vencimento_boleto: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Abastecedor (Fornecedor)</Label>
+                <Select value={novoAbast.abastecedor_id} onValueChange={(v) => setNovoAbast((p) => ({ ...p, abastecedor_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o abastecedor" /></SelectTrigger>
+                  <SelectContent>
+                    {fornecedores.filter((f) => f.source === "combustivel").map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Local</Label>
+                <Input value={novoAbast.local} onChange={(e) => setNovoAbast((p) => ({ ...p, local: e.target.value }))} placeholder="Ex: SBSP" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Trecho</Label>
+                <Input value={novoAbast.trecho} onChange={(e) => setNovoAbast((p) => ({ ...p, trecho: e.target.value }))} placeholder="Ex: SBSP-SBRJ" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Litros</Label>
+                <Input type="number" step="0.01" value={novoAbast.litros} onChange={(e) => setNovoAbast((p) => ({ ...p, litros: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Valor Unitário (R$)</Label>
+                <Input type="number" step="0.01" value={novoAbast.valor_unitario} onChange={(e) => setNovoAbast((p) => ({ ...p, valor_unitario: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Valor Total (R$) *</Label>
+                <Input type="number" step="0.01" value={novoAbast.valor_total} onChange={(e) => setNovoAbast((p) => ({ ...p, valor_total: e.target.value }))} placeholder="Se vazio, será calculado por Litros × Valor Unitário" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tipo de Combustível</Label>
+                <Input value={novoAbast.tipo_combustivel} onChange={(e) => setNovoAbast((p) => ({ ...p, tipo_combustivel: e.target.value }))} placeholder="Ex: JET-A1, AVGAS" />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Observação</Label>
+                <Textarea rows={2} value={novoAbast.observacao} onChange={(e) => setNovoAbast((p) => ({ ...p, observacao: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-white/10">
+              <div className="space-y-1.5">
+                <Label>Comanda (arquivo)</Label>
+                <Input type="file" accept="application/pdf,image/*" onChange={(e) => setNovoAbastComandaFile(e.target.files?.[0] || null)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nota Fiscal (arquivo)</Label>
+                <Input type="file" accept="application/pdf,image/*" onChange={(e) => setNovoAbastNotaFile(e.target.files?.[0] || null)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Boleto (arquivo)</Label>
+                <Input type="file" accept="application/pdf,image/*" onChange={(e) => setNovoAbastBoletoFile(e.target.files?.[0] || null)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNovoAbastOpen(false)} disabled={novoAbastSaving}>Cancelar</Button>
+            <Button onClick={criarNovoAbastecimento} disabled={novoAbastSaving} className="bg-amber-600 hover:bg-amber-500 text-white">
+              {novoAbastSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />} Criar Abastecimento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

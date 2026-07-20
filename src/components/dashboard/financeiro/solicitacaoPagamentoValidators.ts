@@ -116,6 +116,42 @@ export function resolverSubcategoriaSelecionadaParaPayload(params: {
  * e pode estar desatualizado/zerado — isso é o que causava o rateio igualitário
  * incorreto (33.33% para todos) reportado anteriormente.
  */
+export function filtrarSociosParaRateio(params: {
+  socios: SocioRateioInput[];
+  socioSelecionadoId: string | null;
+}): SocioRateioInput[] {
+  const sociosAtivos = (params.socios || []).filter((socio) => Boolean(socio?.id));
+  if (!params.socioSelecionadoId || params.socioSelecionadoId.trim() === "") {
+    return sociosAtivos;
+  }
+  return sociosAtivos.filter((socio) => socio.id === params.socioSelecionadoId);
+}
+
+export function resolverClienteParaRateio(params: {
+  clienteId?: string | null;
+  socioId?: string | null;
+  clientesDaAeronave?: Array<{
+    clienteId: string;
+    socios?: Array<{ id?: string | null }>;
+  }>;
+}): string | null {
+  const clienteSelecionado = (params.clienteId || "").trim();
+  if (clienteSelecionado && clienteSelecionado !== "__all__") {
+    return clienteSelecionado;
+  }
+
+  const socioSelecionado = (params.socioId || "").trim();
+  if (!socioSelecionado) {
+    return null;
+  }
+
+  const clienteEncontrado = (params.clientesDaAeronave || []).find((cliente) =>
+    (cliente.socios || []).some((socio) => (socio.id || "") === socioSelecionado),
+  );
+
+  return clienteEncontrado?.clienteId || null;
+}
+
 export function montarLinhasRateio(params: {
   valorTotal: number;
   percentualUso: number | string;
@@ -124,11 +160,10 @@ export function montarLinhasRateio(params: {
 }): LinhRateioMontada[] {
   const valor = Number(params.valorTotal ?? 0) || 0;
   const percentualUso = Number(String(params.percentualUso ?? "100").replace(",", ".")) || 0;
-  const sociosAtivos = (params.socios || []).filter((socio) => Boolean(socio?.id));
-
-  const linhasBase = (params.socioSelecionadoId && params.socioSelecionadoId.trim())
-    ? sociosAtivos.filter((socio) => socio.id === params.socioSelecionadoId)
-    : sociosAtivos;
+  const linhasBase = filtrarSociosParaRateio({
+    socios: params.socios,
+    socioSelecionadoId: params.socioSelecionadoId,
+  });
 
   if (!linhasBase.length) {
     return [];
