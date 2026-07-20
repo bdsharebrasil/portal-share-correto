@@ -59,6 +59,21 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
   const [rateioRows, setRateioRows] = useState<RateioRow[]>([]);
   const [rateioValues, setRateioValues] = useState<Record<string, string>>({});
 
+  const normalizeRateioValue = (value: string | number | null | undefined) => {
+    const numberValue = Number(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(numberValue)) return "0.00";
+    return numberValue.toFixed(2);
+  };
+
+  const handleRateioValueChange = (rowId: string, value: string) => {
+    const sanitized = value.replace(/[^0-9,.-]/g, "");
+    setRateioValues((prev) => ({ ...prev, [rowId]: sanitized }));
+  };
+
+  const handleRateioValueBlur = (rowId: string) => {
+    setRateioValues((prev) => ({ ...prev, [rowId]: normalizeRateioValue(prev[rowId] ?? "0") }));
+  };
+
   // Carrega rateio_despesas vinculados a esta conta
   useEffect(() => {
     if (!open || !conta?.id) {
@@ -81,7 +96,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       setRateioRows(rows);
       const defaults: Record<string, string> = {};
       rows.forEach((r) => {
-        defaults[r.id] = String(r.valor_rateado ?? 0);
+        defaults[r.id] = normalizeRateioValue(r.valor_pago_real ?? r.valor_rateado ?? 0);
       });
       setRateioValues(defaults);
     })();
@@ -90,7 +105,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
   const rateioTotal = useMemo(
     () =>
       Object.values(rateioValues).reduce(
-        (acc, v) => acc + (parseFloat(v || "0") || 0),
+        (acc, v) => acc + Number(normalizeRateioValue(v || "0")),
         0
       ),
     [rateioValues]
@@ -182,14 +197,14 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       // 3) Atualiza cada linha do rateio com seu próprio valor
       if (hasRateio) {
         for (const row of rateioRows) {
-          const valorRow = parseFloat(rateioValues[row.id] || "0") || 0;
+          const valorRow = Number(normalizeRateioValue(rateioValues[row.id] ?? "0")) || 0;
           const pagador = row.clientes_nome || row.socios_nome || pagoPor || null;
           await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
             .update({
               status: "pago",
               data_pagamento: dataPagamento,
               forma_pagamento: metodoPagamento || null,
-              valor_pago_real: valorRow,
+              valor_pago_real: Number(valorRow.toFixed(2)),
               comprovante_url: comprovanteUrl || null,
               pago_por: pagador,
               atualizado_em: new Date().toISOString(),
@@ -262,22 +277,28 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
                 </div>
                 <div className="space-y-2">
                   {rateioRows.map((row) => {
-                    const nome = row.clientes_nome || row.socios_nome || "—";
-                    const tipo = row.clientes_nome ? "Cliente" : "Sócio";
+                    const nomeCliente = row.clientes_nome?.trim() || null;
+                    const nomeSocio = row.socios_nome?.trim() || null;
+                    const etiqueta = nomeSocio || nomeCliente || "Participante";
+                    const metadados = [nomeCliente ? `Cliente: ${nomeCliente}` : null, nomeSocio ? `Sócio: ${nomeSocio}` : null].filter(Boolean);
+                    const valorAtual = Number((row.valor_pago_real ?? row.valor_rateado ?? 0).toFixed(2));
                     return (
                       <div key={row.id} className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-2 items-center">
                         <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">{nome}</div>
+                          <div className="text-sm font-medium truncate">{etiqueta}</div>
+                          {metadados.length > 0 && (
+                            <div className="text-[10px] text-muted-foreground truncate">{metadados.join(" • ")}</div>
+                          )}
                           <div className="text-[10px] text-muted-foreground uppercase">
-                            {tipo} • rateado: R$ {Number(row.valor_rateado ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            {nomeSocio ? "Sócio" : nomeCliente ? "Cliente" : "Participante"} • rateado: R$ {valorAtual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </div>
                         </div>
                         <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                          type="text"
+                          inputMode="decimal"
                           value={rateioValues[row.id] ?? ""}
-                          onChange={(e) => setRateioValues((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                          onChange={(e) => handleRateioValueChange(row.id, e.target.value)}
+                          onBlur={() => handleRateioValueBlur(row.id)}
                           className="h-9"
                         />
                       </div>
