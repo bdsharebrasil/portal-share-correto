@@ -372,9 +372,9 @@ export async function generateSequentialReceiptNumber(
   }
 
   // 3) Buscar o maior número já usado com esse prefixo, no ano atual,
-  // na tabela correta: movimentacoes
+  // na tabela `recibos` (fonte de verdade única)
   const { data: existing, error: existingError } = await supabase
-    .from("movimentacoes")
+    .from("recibos")
     .select("numero_recibo")
     .ilike("numero_recibo", `REC-${prefix}%/${year}`)
     .not("numero_recibo", "is", null);

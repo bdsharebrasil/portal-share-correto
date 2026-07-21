@@ -239,11 +239,18 @@ export default function EmissaoRecibo() {
   };
 
   // ===================== GERAÇÃO DE RECIBO =====================
+  const normalizeId = (value: any): string | null => {
+     if (typeof value !== "string") return value ?? null;
+     const trimmed = value.trim();
+     if (!trimmed) return null;
+     return trimmed.startsWith("__") ? null : trimmed;
+  };
+
   const handleGenerateReceipt = async (formData: any) => {
     if (isGenerating) return;
     setIsGenerating(true);
     setIsGeneratingPdf(false);
-
+ 
     try {
       let currentUserId = userId;
       if (!currentUserId) {
@@ -255,12 +262,9 @@ export default function EmissaoRecibo() {
 
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
-      let sendToProgramacao = false;
-      if (isReembolso) {
-        sendToProgramacao = confirm("deseja enviar esse recibo para programação de pagamento?");
-        // sinaliza para uso posterior
-        originalForm.__sendToProgramacao = sendToProgramacao;
-      }
+      const sendToProgramacao = isReembolso && Boolean(formData.enviarParaProgramacao);
+      // sinaliza para uso posterior
+      originalForm.__sendToProgramacao = sendToProgramacao;
       const isRateado = originalForm.reembolsoRateado === true;
       const selectedAircraftId = getSelectedAircraftId(originalForm);
       const expectedReceiptType: ReceiptType = isReembolso ? "reembolso" : "pagamento";
@@ -272,10 +276,11 @@ export default function EmissaoRecibo() {
       if (!valorNumerico || valorNumerico <= 0) throw new Error("Valor deve ser maior que zero");
       if (!(formData.servicoDescricao || "").trim()) throw new Error("Descrição do serviço é obrigatória");
 
+      const normalizedClienteId = normalizeId(originalForm.clienteId);
       const receiptNumber = await generateSequentialReceiptNumber(
         nomePagador,
         supabase,
-        originalForm.clienteId?.trim() || null
+        normalizedClienteId
       );
 
       const valorTotalDespesa = isRateado
@@ -358,7 +363,7 @@ export default function EmissaoRecibo() {
         numero_recibo: receiptNumber,                                                       // receipt_number
         data_max_pagamento: originalForm.prazoMaximoQuitacao || null,                       // max_payment_date
         forma_pagamento: originalForm.formaPagamento?.trim() || null,                      // payment_method
-        cliente_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,       // client_id
+        cliente_id: normalizedClienteId,       // cliente_id
         boleto_url: boletoUrl,                                                              // boleto_url (legacy) / recibos.boleto_url
         nf_url: notaFiscalUrl,                                                              // recibos.nf_url
         demonstrativo_url: deceeaUrl || infraeroUrl || null,                                // recibos.demonstrativo_url
@@ -478,7 +483,7 @@ export default function EmissaoRecibo() {
       console.log("Recibo inserido:", receiptData);
 
       // ===================== PROCESSAR REEMBOLSO =====================
-      if (isReembolso && originalForm.clienteId) {
+      if (isReembolso && normalizedClienteId) {
         try {
           console.log("📨 Processando reembolso...");
           const isDecea = formData.isDecea === true;
@@ -521,7 +526,7 @@ export default function EmissaoRecibo() {
             descricao: brDescription,
             status: "gerada na emissão de recibo",
             criado_por: currentUserId,
-            client_id: originalForm.clienteId,
+            cliente_id: normalizeId(originalForm.clienteId),
             aeronave_registro: aeronaveRegistro,
           };
 
@@ -560,7 +565,7 @@ export default function EmissaoRecibo() {
               data_competencia: dataEmissaoStr,
               data_vencimento: dataVencimento,
               aeronave_id: selectedAircraftId || null,
-              clientes_id: originalForm.clienteId,
+              clientes_id: normalizeId(originalForm.clienteId),
               status: "pendente",
               fornecedor_nome: nomePagador,
               numero_recibo: receiptData.numero_recibo,
@@ -588,9 +593,10 @@ export default function EmissaoRecibo() {
             }
 
             // ===== 3. Criar contas_areceber =====
-            const clienteData = clientesAtivos.find((c) => c.id === originalForm.clienteId);
+            const clienteData = clientesAtivos.find((c) => c.id === normalizedClienteId);
             const contaReceberPayload: any = {
               numero: receiptData.numero_recibo || `REC-${receiptData.id.substring(0, 8)}`,
+              cliente_id: normalizedClienteId,
               cliente_nome: clienteData?.razao_social || nomePagador,
               cliente_cnpj: clienteData?.cnpj || originalForm.pagadorDocumento || "",
               categoria: "Clientes - Despesas Reembolsáveis",
@@ -627,7 +633,7 @@ export default function EmissaoRecibo() {
                 data_competencia: dataEmissaoStr,
                 data_vencimento: dataVencimento,
                 aeronave_id: selectedAircraftId || null,
-                clientes_id: originalForm.clienteId,
+                clientes_id: normalizedClienteId,
                 status: "pendente",
                 numero_recibo: receiptData.numero_recibo,
                 boleto_url: boletoUrl,
@@ -649,12 +655,12 @@ export default function EmissaoRecibo() {
               }
 
               // ===== 5. Espelho de despesa para o cliente/aeronave (ADM SHARE BRASIL) =====
-              if (originalForm.clienteId && selectedAircraftId) {
+              if (normalizedClienteId && selectedAircraftId) {
                 try {
                   await syncClientExpenseMirror({
                     origin: "recibo",
                     originId: receiptData.id,
-                    cliente_id: originalForm.clienteId,
+                    cliente_id: normalizedClienteId,
                     aeronave_id: selectedAircraftId,
                     valor: valorRecibo,
                     data_competencia: dataEmissaoStr,
@@ -693,7 +699,7 @@ export default function EmissaoRecibo() {
 
                 const rateioPayload = {
                   despesa_id: contaData?.id || receiptData.id,
-                  client_id: ac.id_clientes,          // corrigido: era ac.cliente_id
+                  cliente_id: ac.id_clientes,          // corrigido: era ac.cliente_id
                   client_name: clientData?.razao_social || "Desconhecido",
                   aeronave_id: selectedAircraftId || null,
                   aeronave_registro: aeronaveRegistro,
@@ -903,8 +909,11 @@ export default function EmissaoRecibo() {
           const r = receiptData;
           const orig = pendingReceiptData.originalForm || {};
           const cliente = clientesAtivos.find((c) => c.id === (orig.clienteId || r.cliente_id));
-          const socioId = orig.socioId || orig.selectedPartnerId || null;
+          let socioId = orig.socioId || orig.selectedPartnerId || null;
           const socioNome = orig.socioNome || null;
+          if (socioId === "__client__" || socioId === "__all__") {
+            socioId = null;
+          }
           // Buscar registro da aeronave
           let aeronaveRegistro = "";
           if (r.aeronave_id) {
@@ -916,9 +925,24 @@ export default function EmissaoRecibo() {
             }
           }
 
+          const valorTotalDespesaVal =
+            (typeof orig.reembolsoValorTotal === "string"
+              ? parseFloat(String(orig.reembolsoValorTotal).replace(/\./g, "").replace(",", "."))
+              : Number(orig.reembolsoValorTotal)) || Number(r.valor_total) || Number(r.valor) || null;
+          const valorRateadoVal = Number(r.valor) || null;
+          const percentualUsoVal =
+            (typeof orig.reembolsoPorcentagem === "string"
+              ? parseFloat(String(orig.reembolsoPorcentagem).replace(",", "."))
+              : Number(orig.reembolsoPorcentagem)) ||
+            (valorTotalDespesaVal && valorRateadoVal
+              ? +((valorRateadoVal / valorTotalDespesaVal) * 100).toFixed(2)
+              : null);
+
           const initial = {
             data_emissao: r.data_emissao || orig.dataEmissao || null,
             data_vencimento: r.data_vencimento || orig.prazoMaximoQuitacao || orig.dataVencimentoBoleto || null,
+            periodicidade: orig.periodicidade || r.periodicidade || null,
+            tipo_rateio: orig.tipoRateio || orig.tipo_rateio || r.tipo_rateio || null,
             numero_doc: r.numero_documento || orig.reembolsoNumeroDocumento || null,
             descricao_despesa: r.descricao_servico || orig.servicoDescricao || null,
             cliente_id: r.cliente_id || orig.clienteId || null,
@@ -928,6 +952,10 @@ export default function EmissaoRecibo() {
             aeronave_id: r.aeronave_id || orig.aircraftId || orig.aeronaveId || null,
             aeronave_registro: aeronaveRegistro || null,
             numero_recibo: r.numero_recibo || receiptNumber,
+            // campos adicionais
+            nome_categoria: r.nome_categoria || orig.reembolsoCategoriaNome || null,
+            subcategoria_1: r.subcategoria_1 || null,
+            subcategoria_selecionada: orig.reembolsoSubcategoria || null,
             anexos: [
               { tipo: "boleto", url: r.boleto_url || pendingReceiptData.boletoUrl || null },
               { tipo: "nf", url: r.nf_url || pendingReceiptData.notaFiscalUrl || null },
@@ -939,6 +967,21 @@ export default function EmissaoRecibo() {
             demonstrativo_url: r.demonstrativo_url || null,
             competencia_infraero: r.competencia_infraero || orig.competenciaInfraero || orig.competencia_infraero || null,
             competencia_decea: r.competencia_decea || orig.competenciaDecea || orig.competencia_decea || null,
+            // valores para rateio do cliente (todos editáveis no modal)
+            valor_total: valorTotalDespesaVal,
+            valor_total_despesa: valorTotalDespesaVal,
+            valor_rateado: valorRateadoVal,
+            percentual_uso: percentualUsoVal,
+            rateio_cliente: (r.cliente_id || orig.clienteId)
+              ? [{
+                  cliente_id: r.cliente_id || orig.clienteId,
+                  cliente_nome: cliente?.razao_social || cliente?.nome || null,
+                  valor_total_despesa: valorTotalDespesaVal,
+                  valor_rateado: valorRateadoVal,
+                  percentual_uso: percentualUsoVal,
+                  socio_id: socioId,
+                }]
+              : [],
           };
 
           setSolicitacaoInitialData(initial);

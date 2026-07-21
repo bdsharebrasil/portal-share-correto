@@ -131,6 +131,7 @@ interface ClienteLinhaState {
   uid: string;
   clienteId: string;
   percentualUsoCliente: string;
+  valorClienteOverride?: string;
   overridesSocio: Record<string, string>;
   valorOverridesSocio: Record<string, string>;
   // Dados de recibo de taxa (preenchidos automaticamente)
@@ -326,6 +327,26 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
       if (initialData.aeronave_id) setAeronaveId(initialData.aeronave_id);
       if (initialData.numero_recibo) setReferenciaNumero(initialData.numero_recibo);
       if (initialData.numero_doc) setReferenciaNumero(initialData.numero_doc);
+      if (initialData.periodicidade) setPeriodicidade(initialData.periodicidade as Periodicidade);
+      if (initialData.tipo_rateio) setTipoRateio(initialData.tipo_rateio);
+      if (initialData.percentual_uso != null) setPercentualUso(String(initialData.percentual_uso));
+
+      // rateio_cliente prefill (linhas editáveis)
+      if (Array.isArray(initialData.rateio_cliente) && initialData.rateio_cliente.length) {
+        const linhas: ClienteLinhaState[] = initialData.rateio_cliente.map((rc: any) => ({
+          uid: crypto.randomUUID(),
+          clienteId: rc.cliente_id || "",
+          percentualUsoCliente: rc.percentual_uso != null ? String(rc.percentual_uso) : "",
+          overridesSocio: {},
+          valorOverridesSocio: rc.socio_id && rc.valor_rateado != null
+            ? { [rc.socio_id]: String(rc.valor_rateado) }
+            : {},
+          numeroDocumentoRecibo: initialData.numero_recibo || initialData.numero_doc || undefined,
+          urlBoleto: initialData.boleto_url || undefined,
+          urlDemonstrativo: initialData.demonstrativo_url || undefined,
+        }));
+        setClienteLinhas(linhas);
+      }
 
       // anexos
       if (Array.isArray(initialData.anexos) && initialData.anexos.length) {
@@ -1088,6 +1109,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
     toast.success(`Tipo "${label}" adicionado`);
   };
 
+  const normalizeClienteId = (value: string | null | undefined): string | null => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return null;
+    const lower = trimmed.toLowerCase();
+    if (lower === "__all__" || lower === "all" || lower === "todos") return null;
+    // Only accept UUID-shaped identifiers to avoid inserting sentinels like "all"
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRe.test(trimmed)) return null;
+    return trimmed;
+  };
+
   const validar = (): string | null => {
     if (!aeronaveId) return "Selecione a aeronave";
     if (!descricao.trim()) return "Descreva a despesa";
@@ -1110,7 +1142,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
   const handleSalvar = async (rascunho: boolean) => {
     const erro = validar();
     if (erro) { toast.error(erro); return; }
-    const clienteParaPersistencia = clienteId || clienteSelecionadoInferido || null;
+    const clienteParaPersistencia = normalizeClienteId(clienteId) || clienteSelecionadoInferido || null;
     setSaving(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -1232,7 +1264,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
             ? linhasRateioViagem.map((linha) => ({
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
                 data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
-                fornecedor_nome: fornecedorNomeFinal, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
+                fornecedor_nome: fornecedorNomeFinal, cliente_id: normalizeClienteId(clienteId), clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
                 socios_nome: linha.socio_nome, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
@@ -1244,7 +1276,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
             : [{
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
                 data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
-                fornecedor_nome: fornecedorNomeFinal, cliente_id: clienteId, clientes_nome: clienteSel?.razaoSocial || null, socio_id: socioId || null,
+                fornecedor_nome: fornecedorNomeFinal, cliente_id: normalizeClienteId(clienteId), clientes_nome: clienteSel?.razaoSocial || null, socio_id: socioId || null,
                 socios_nome: socioSel?.nome || null, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socioSel?.percentual_participacao ?? 0, percentual_uso: percNumerico,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
@@ -1260,7 +1292,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
         const valorAReceberCliente = valorReceberClienteViagem;
         if (!socioId && valorAReceberCliente > 0) {
           await supabaseClient.from("contas_areceber").insert({
-            numero: `RV-${travelReportSel.numero_relatorio}`, cliente_id: clienteId, cliente_nome: clienteSel?.razaoSocial || "",
+            numero: `RV-${travelReportSel.numero_relatorio}`, cliente_id: normalizeClienteId(clienteId), cliente_nome: clienteSel?.razaoSocial || "",
             cliente_cnpj: clienteSel?.cnpj || null, data_criacao: dataComp, data_vencimento: dataVenc, valor: valorAReceberCliente,
             categoria: "RELATÓRIO DE VIAGEM", descricao: `Cobrança RV ${travelReportSel.numero_relatorio} — ${travelReportSel.nome_tripulante || ""}`,
             status: "pendente", aeronave: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null, reference_type: "travel_expense_report", reference_id: travelReportSel.id,
@@ -1304,7 +1336,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
           for (const linha of clienteLinhas) {
             const info = getClienteAeronaveInfo(linha.clienteId);
             const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
-            const valorCliente = +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
+            const overrideStr = linha.valorClienteOverride;
+            const overrideNum = overrideStr !== undefined && overrideStr !== ""
+              ? Number(String(overrideStr).replace(/\./g, "").replace(",", "."))
+              : NaN;
+            const valorCliente = Number.isFinite(overrideNum)
+              ? +overrideNum.toFixed(2)
+              : +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
             const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId);
             const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId);
 
@@ -1346,7 +1384,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
           for (const linha of clienteLinhas) {
             const info = getClienteAeronaveInfo(linha.clienteId);
             const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
-            const valorCliente = +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
+            const overrideStr = linha.valorClienteOverride;
+            const overrideNum = overrideStr !== undefined && overrideStr !== ""
+              ? Number(String(overrideStr).replace(/\./g, "").replace(",", "."))
+              : NaN;
+            const valorCliente = Number.isFinite(overrideNum)
+              ? +overrideNum.toFixed(2)
+              : +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
             const movIdCliente = movimentacaoIdsPorCliente[linha.clienteId];
 
             await supabaseClient.from("contas_areceber").insert({
@@ -1849,7 +1893,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                       const sociosVisiveis = getSociosVisiveisParaCliente(info);
                       const itensDisponiveis = clientesDaAeronave.filter((c) => c.clienteId === linha.clienteId || !clientesJaUsados.has(c.clienteId));
                       const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
-                      const valorCliente = +(valorNumerico * (pctCliente / 100)).toFixed(2);
+                      const overrideNum = linha.valorClienteOverride !== undefined && linha.valorClienteOverride !== ""
+                        ? Number(String(linha.valorClienteOverride).replace(/\./g, "").replace(",", "."))
+                        : NaN;
+                      const valorCliente = Number.isFinite(overrideNum)
+                        ? +overrideNum.toFixed(2)
+                        : +(valorNumerico * (pctCliente / 100)).toFixed(2);
 
                       return (
                         <div key={linha.uid} className="rounded-lg border border-white/10 bg-background/60 p-4 space-y-4">
@@ -1860,11 +1909,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                             </div>
                             <div className="lg:col-span-3 space-y-1.5">
                               <Label className="text-xs text-muted-foreground">% da Nota</Label>
-                              <Input type="text" inputMode="decimal" value={linha.percentualUsoCliente} onChange={(e) => updateClienteLinha(linha.uid, { percentualUsoCliente: e.target.value })} placeholder="100" />
+                              <Input type="text" inputMode="decimal" value={linha.percentualUsoCliente} onChange={(e) => updateClienteLinha(linha.uid, { percentualUsoCliente: e.target.value, valorClienteOverride: undefined })} placeholder="100" />
                             </div>
                             <div className="lg:col-span-3 space-y-1.5">
-                              <Label className="text-xs text-muted-foreground">Subtotal do Cliente</Label>
-                              <Input value={valorCliente.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} readOnly className="bg-muted/30 font-medium text-emerald-300" />
+                              <Label className="text-xs text-muted-foreground">Valor a Pagar (R$)</Label>
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                value={linha.valorClienteOverride ?? valorCliente.toFixed(2).replace(".", ",")}
+                                onChange={(e) => updateClienteLinha(linha.uid, { valorClienteOverride: e.target.value })}
+                                placeholder="0,00"
+                                className="font-medium text-emerald-300"
+                                title="Sugestão calculada pelo % do rateio. Pode ser editado livremente — o ajuste é feito no Fechamento de Balanço."
+                              />
                             </div>
                           </div>
 

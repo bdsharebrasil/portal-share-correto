@@ -7885,6 +7885,7 @@ export type Database = {
       }
       rateio_despesas: {
         Row: {
+          abastecimento_id: string | null
           aeronave_id: string | null
           aeronave_registro: string | null
           atualizado_em: string | null
@@ -7931,6 +7932,7 @@ export type Database = {
           valor_total_despesa: number | null
         }
         Insert: {
+          abastecimento_id?: string | null
           aeronave_id?: string | null
           aeronave_registro?: string | null
           atualizado_em?: string | null
@@ -7977,6 +7979,7 @@ export type Database = {
           valor_total_despesa?: number | null
         }
         Update: {
+          abastecimento_id?: string | null
           aeronave_id?: string | null
           aeronave_registro?: string | null
           atualizado_em?: string | null
@@ -8023,6 +8026,13 @@ export type Database = {
           valor_total_despesa?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "rateio_despesas_abastecimento_id_fkey"
+            columns: ["abastecimento_id"]
+            isOneToOne: false
+            referencedRelation: "abastecimentos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rateio_despesas_aeronave_id_fkey"
             columns: ["aeronave_id"]
@@ -8167,6 +8177,7 @@ export type Database = {
           nome_pagador: string
           numero_documento: string | null
           numero_recibo: string
+          pdf_url: string | null
           percentual: number | null
           socios_cliente: string | null
           status: string | null
@@ -8176,7 +8187,6 @@ export type Database = {
           subcategoria_4: string | null
           tipo_recibo: string | null
           uf_pagador: string | null
-          pdf_url: string | null
           usuario_id: string
           valor: number
           valor_total: number | null
@@ -8205,6 +8215,7 @@ export type Database = {
           nome_pagador: string
           numero_documento?: string | null
           numero_recibo: string
+          pdf_url?: string | null
           percentual?: number | null
           socios_cliente?: string | null
           status?: string | null
@@ -8214,7 +8225,6 @@ export type Database = {
           subcategoria_4?: string | null
           tipo_recibo?: string | null
           uf_pagador?: string | null
-          pdf_url?: string | null
           usuario_id: string
           valor: number
           valor_total?: number | null
@@ -8243,6 +8253,7 @@ export type Database = {
           nome_pagador?: string
           numero_documento?: string | null
           numero_recibo?: string
+          pdf_url?: string | null
           percentual?: number | null
           socios_cliente?: string | null
           status?: string | null
@@ -8252,7 +8263,6 @@ export type Database = {
           subcategoria_4?: string | null
           tipo_recibo?: string | null
           uf_pagador?: string | null
-          pdf_url?: string | null
           usuario_id?: string
           valor?: number
           valor_total?: number | null
@@ -9028,6 +9038,7 @@ export type Database = {
           observacoes: string | null
           pago_em: string | null
           pdf_path: string | null
+          pdf_url: string | null
           requires_client_approval: boolean | null
           rota: string | null
           socios_id: string | null
@@ -9046,7 +9057,6 @@ export type Database = {
           tripulacao_id: string | null
           tripulante_id2: string | null
           updated_at: string | null
-          pdf_url: string | null
         }
         Insert: {
           aeronave_id?: string | null
@@ -9079,6 +9089,7 @@ export type Database = {
           observacoes?: string | null
           pago_em?: string | null
           pdf_path?: string | null
+          pdf_url?: string | null
           requires_client_approval?: boolean | null
           rota?: string | null
           socios_id?: string | null
@@ -9097,7 +9108,6 @@ export type Database = {
           tripulacao_id?: string | null
           tripulante_id2?: string | null
           updated_at?: string | null
-          pdf_url?: string | null
         }
         Update: {
           aeronave_id?: string | null
@@ -9130,6 +9140,7 @@ export type Database = {
           observacoes?: string | null
           pago_em?: string | null
           pdf_path?: string | null
+          pdf_url?: string | null
           requires_client_approval?: boolean | null
           rota?: string | null
           socios_id?: string | null
@@ -9148,7 +9159,6 @@ export type Database = {
           tripulacao_id?: string | null
           tripulante_id2?: string | null
           updated_at?: string | null
-          pdf_url?: string | null
         }
         Relationships: [
           {
