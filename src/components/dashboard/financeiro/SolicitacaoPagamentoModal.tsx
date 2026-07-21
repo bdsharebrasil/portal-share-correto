@@ -37,6 +37,7 @@ import {
 interface SolicitacaoPagamentoModalProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  initialData?: any;
 }
 
 type Periodicidade = "MENSAL" | "SEMESTRAL" | "ANUAL" | "EVENTUAL";
@@ -44,6 +45,8 @@ type Periodicidade = "MENSAL" | "SEMESTRAL" | "ANUAL" | "EVENTUAL";
 type TaxaOrigem = "INFRAERO" | "DECEA" | null;
 
 interface TaxaReciboOption {
+  boleto_url: string | null;
+  nf_url: string | null;
   id: string;
   numero_recibo: string | null;
   numero_documento: string | null;
@@ -51,7 +54,7 @@ interface TaxaReciboOption {
   percentual: number | null;
   nome_categoria: string | null;
   aeronave_id: string | null;
-  url_pdf: string | null;
+  pdf_url: string | null;
   url_boleto: string | null;
   url_nf: string | null;
   data_emissao: string | null;
@@ -112,7 +115,7 @@ type TravelReportOption = {
   total_valor?: number | null; total_trip?: number | null; total_trip2?: number | null; total_clientes?: number | null; total_tripulacao?: number | null; total_sharebrasil?: number | null;
   nome_tripulante?: string | null; nome_tripulante_2?: string | null;
   tripulacao_id?: string | null; tripulante_id2?: string | null;
-  matricula_aeronave?: string | null; url_pdf?: string | null;
+  matricula_aeronave?: string | null; pdf_url?: string | null;
   aeronave_id?: string | null; socios_id?: string | null; clientes_id?: string | null;
   pago_em?: string | null;
 };
@@ -165,7 +168,7 @@ async function insertAndGetId(table: string, payload: Record<string, unknown>) {
   return row.id;
 }
 
-export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPagamentoModalProps) {
+export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: SolicitacaoPagamentoModalProps) {
   // === ESTADO DO WIZARD ===
   const [etapaAtual, setEtapaAtual] = useState(1);
 
@@ -253,7 +256,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         supabase.from("fornecedores_favoritos").select("id, nome_completo, apelido").order("nome_completo"),
         supabase.from("fornecedores_combustivel").select("id, nome_fornecedor, nome_cidade").order("nome_fornecedor"),
         supabase.from("aeronave").select("id, matricula, modelo").order("matricula"),
-        supabase.from("recibos").select("id, numero_recibo, numero_documento, url_pdf, valor_total, criado_em, cliente_id, aeronave_id, data_emissao").order("criado_em", { ascending: false }),
+        supabase.from("recibos").select("id, numero_recibo, numero_documento, pdf_url, valor_total, criado_em, cliente_id, aeronave_id, data_emissao").order("criado_em", { ascending: false }),
       ]);
       setTiposDespesa((tip.data as TipoDespesaOption[] | null) || []);
       const forn: FornecedorOption[] = [
@@ -306,6 +309,57 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       setClientesDaAeronave(Array.from(map.values()));
     })();
   }, [open, aeronaveId]);
+
+  // Prefill fields when opened with initialData
+  useEffect(() => {
+    if (!open || !initialData) return;
+    try {
+      if (initialData.data_emissao) setDataEmissao(new Date(initialData.data_emissao));
+      if (initialData.data_vencimento) setDataVencimento(new Date(initialData.data_vencimento));
+      if (initialData.descricao_despesa) setDescricao(initialData.descricao_despesa);
+      if (initialData.descricao) setDescricao(initialData.descricao);
+      if (initialData.valor_total) setValorTotal(String(initialData.valor_total));
+      if (initialData.valor) setValorTotal(String(initialData.valor));
+      if (initialData.cliente_id) setClienteId(initialData.cliente_id);
+      if (initialData.clientes_nome) setFornecedorNome(initialData.clientes_nome);
+      if (initialData.socio_id) setSocioId(initialData.socio_id);
+      if (initialData.aeronave_id) setAeronaveId(initialData.aeronave_id);
+      if (initialData.numero_recibo) setReferenciaNumero(initialData.numero_recibo);
+      if (initialData.numero_doc) setReferenciaNumero(initialData.numero_doc);
+
+      // anexos
+      if (Array.isArray(initialData.anexos) && initialData.anexos.length) {
+        const mapped = initialData.anexos.map((a: any, idx: number) => ({
+          id: `prefill-${idx}`,
+          tipo: a.tipo || (a.url && a.url.includes("boleto") ? "boleto" : "doc"),
+          numero: a.numero || initialData.numero_recibo || initialData.numero_doc || "",
+          arquivo: null,
+          url: a.url || a.url_boleto || a.url_nf || a.url_pdf || null,
+          socioId: a.socioId || null,
+        }));
+        setAnexos(mapped as AnexoDoc[]);
+      } else {
+        const possible = [] as AnexoDoc[];
+        if (initialData.boleto_url) possible.push({ id: "prefill-boleto", tipo: "boleto", numero: "", arquivo: null, url: initialData.boleto_url, socioId: null });
+        if (initialData.nf_url) possible.push({ id: "prefill-nf", tipo: "nf", numero: "", arquivo: null, url: initialData.nf_url, socioId: null });
+        if (initialData.demonstrativo_url) possible.push({ id: "prefill-dem", tipo: "demonstrativo", numero: "", arquivo: null, url: initialData.demonstrativo_url, socioId: null });
+        if (initialData.pdf_url || initialData.recibo_url) possible.push({ id: "prefill-recibo", tipo: "recibo", numero: initialData.numero_recibo || "", arquivo: null, url: initialData.pdf_url || initialData.recibo_url, socioId: null });
+        if (possible.length) setAnexos(possible);
+      }
+
+      // competencia
+      if (initialData.competencia_infraero) {
+        setTaxaOrigem("INFRAERO");
+        setDescricao((prev) => prev || `Competência ${initialData.competencia_infraero}`);
+      }
+      if (initialData.competencia_decea) {
+        setTaxaOrigem("DECEA");
+        setDescricao((prev) => prev || `Competência ${initialData.competencia_decea}`);
+      }
+    } catch (e) {
+      console.warn("Erro ao pré-preencher SolicitacaoPagamentoModal:", e);
+    }
+  }, [open, initialData]);
 
   useEffect(() => {
     setClienteLinhas([]);
@@ -372,7 +426,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     (async () => {
       const { data, error } = await (supabase as any)
         .from("recibos")
-        .select("id, numero_recibo, numero_documento, valor_total, percentual, nome_categoria, aeronave_id, url_pdf, boleto_url, demonstrativo_url, data_emissao, status")
+        .select("id, numero_recibo, numero_documento, valor_total, percentual, nome_categoria, aeronave_id, pdf_url, boleto_url, demonstrativo_url, data_emissao, status")
         .eq("aeronave_id", aeronaveId)
         .ilike("nome_categoria", `%${filtroCategoria}%`)
         .order("data_emissao", { ascending: false })
@@ -424,7 +478,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
           numeroReciboRecibo: recibo.numero_recibo || undefined,
           urlBoleto: recibo.url_boleto || undefined,
           urlDemonstrativo: recibo.url_nf || undefined,
-          urlPdfRecibo: recibo.url_pdf || undefined,
+          urlPdfRecibo: recibo.pdf_url || undefined,
           valorReciboCliente: valorReciboEmReais || undefined,
           // Se o recibo trouxer percentual, usa como % do cliente; caso contrário mantém o valor atual
           percentualUsoCliente: pctRecibo > 0 ? pctRecibo.toFixed(2) : linha.percentualUsoCliente,
@@ -728,7 +782,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
 
   const getTaxaReciboUrlForCliente = (targetClienteId: string) => {
     const recibo = getSelectedTaxaReciboForCliente(targetClienteId);
-    return recibo?.url_pdf || null;
+    return recibo?.pdf_url || null;
   };
 
   const getTaxaRecibosMultiplosData = () => {
@@ -737,7 +791,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
       return {
         id: reciboId,
         numero: recibo?.numero_recibo || recibo?.numero_documento || null,
-        url: recibo?.url_pdf || null,
+        url: recibo?.pdf_url || null,
         valor: recibo?.valor_total || null,
         numeroDocumento: recibo?.numero_documento || null,
         urlBoleto: recibo?.url_boleto || null,
@@ -750,7 +804,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
     if (!open || !isViagemMode || !clienteId) { setTravelReports([]); setTravelReportId(""); return; }
     let q: any = (supabase as any)
       .from("travel_expense_reports")
-      .select("id, numero_relatorio, data_inicio, data_fim, total_valor, total_trip, total_trip2, total_clientes, total_tripulacao, total_sharebrasil, nome_tripulante, nome_tripulante_2, tripulacao_id, tripulante_id2, matricula_aeronave, url_pdf, aeronave_id, socios_id, clientes_id, pago_em")
+      .select("id, numero_relatorio, data_inicio, data_fim, total_valor, total_trip, total_trip2, total_clientes, total_tripulacao, total_sharebrasil, nome_tripulante, nome_tripulante_2, tripulacao_id, tripulante_id2, matricula_aeronave, pdf_url, aeronave_id, socios_id, clientes_id, pago_em")
       .eq("clientes_id", clienteId)
       .order("data_inicio", { ascending: false })
       .limit(50);
@@ -878,7 +932,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         if (tipoNormalizado === "DESPESAS_DE_VIAGEM") {
           const { data, error: fetchError } = await supabase
             .from("travel_expense_reports")
-            .select("id, clientes_id, total_valor, despesas, url_pdf, pago_em")
+            .select("id, clientes_id, total_valor, despesas, pdf_url, pago_em")
             .eq("clientes_id", clienteIdParaDedup)
             .order("created_at", { ascending: false })
             .limit(50);
@@ -1089,17 +1143,17 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
         anexosOrigem = data || {};
       }
       if (referenciaTipo === "travel_expense_report" && referenciaId) {
-        const { data } = await (supabase as any).from("travel_expense_reports").select("id, url_pdf").eq("id", referenciaId).single();
+        const { data } = await (supabase as any).from("travel_expense_reports").select("id, pdf_url").eq("id", referenciaId).single();
         anexosOrigem = data || {};
       }
 
       const nfUrl = pickUrl(anexosProc, "nf") || anexosOrigem.nota_url || null;
       const taxaReciboSelecionado = isTaxasMode && !isAllClients ? taxaRecibos.find((r) => r.id === taxaReciboId) || null : null;
-      const reciboUrl = pickUrl(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.url : null) || (isTaxasMode ? taxaReciboSelecionado?.url_pdf : null) || reciboUrlSelecionado;
+      const reciboUrl = pickUrl(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.url : null) || (isTaxasMode ? taxaReciboSelecionado?.pdf_url : null) || reciboUrlSelecionado;
       const boletoUrl = pickUrl(anexosProc, "boleto") || anexosOrigem.boleto_url || null;
-      const docUrl = pickUrl(anexosProc, "doc") || anexosOrigem.comanda_url || anexosOrigem.url_pdf || null;
+      const docUrl = pickUrl(anexosProc, "doc") || anexosOrigem.comanda_url || anexosOrigem.pdf_url || null;
       const arquivoPdfUrl = isRelatorioViagemMode
-        ? travelReportSel?.url_pdf || docUrl || null
+        ? travelReportSel?.pdf_url || docUrl || null
         : isReciboViagemMode
           ? reciboSelecionado?.pdf_url || reciboSelecionado?.arquivo_url || docUrl || null
           : docUrl || null;
@@ -1184,7 +1238,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
-                relatorio_url: travelReportSel.url_pdf || docUrl || null,
+                relatorio_url: travelReportSel.pdf_url || docUrl || null,
                 pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length }),
               }))
             : [{
@@ -1196,7 +1250,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
-                relatorio_url: travelReportSel.url_pdf || docUrl || null,
+                relatorio_url: travelReportSel.pdf_url || docUrl || null,
                 pago_por: resolverPagoPorSolicitacao({ socioNome: socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length || (socioId ? 1 : 0) }),
               }];
 
@@ -1282,6 +1336,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
             descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
             status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
             pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
+            abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
           };
         });
 
@@ -1735,14 +1790,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange }: SolicitacaoPag
                           <div><div className="text-muted-foreground">Valor Total</div><div className="font-medium text-indigo-200">R$ {(Number(r.valor_total || 0) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div></div>
                         </div>
                         <div className="flex flex-wrap gap-4 pt-2 border-t border-white/5 text-xs">
-                          {r.url_pdf && (
-                            <a href={r.url_pdf} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> PDF do recibo</a>
+                          {r.pdf_url && (
+                            <a href={r.pdf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-300 hover:text-sky-200"><ExternalLink className="h-3.5 w-3.5" /> PDF do recibo</a>
                           )}
-                          {r.url_boleto && (
-                            <a href={r.url_boleto} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200"><ExternalLink className="h-3.5 w-3.5" /> Boleto</a>
+                          {r.boleto_url && (
+                            <a href={r.boleto_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200"><ExternalLink className="h-3.5 w-3.5" /> Boleto</a>
                           )}
-                          {r.url_nf && (
-                            <a href={r.url_nf} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200"><ExternalLink className="h-3.5 w-3.5" /> Demonstrativo</a>
+                          {r.nf_url && (
+                            <a href={r.nf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200"><ExternalLink className="h-3.5 w-3.5" /> Demonstrativo</a>
                           )}
                         </div>
                       </div>

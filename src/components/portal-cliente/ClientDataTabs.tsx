@@ -422,13 +422,13 @@ export function ClientDataTabs({
           if (referenceIds.length > 0) {
             const { data: pdfData, error: pdfError } = await supabase
               .from("travel_expense_reports")
-              .select("id, url_pdf")
+              .select("id, pdf_url")
               .in("id", referenceIds);
 
-            if (pdfError) console.warn("Erro ao buscar url_pdf dos relatórios:", pdfError);
+            if (pdfError) console.warn("Erro ao buscar pdf_url dos relatórios:", pdfError);
 
             (pdfData || []).forEach((row: any) => {
-              pdfMap[row.id] = row.url_pdf || null;
+              pdfMap[row.id] = row.pdf_url || null;
             });
           }
 

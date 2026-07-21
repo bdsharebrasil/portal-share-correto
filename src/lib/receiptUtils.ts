@@ -64,7 +64,7 @@ export interface GeneratedReceipt {
   data_max_pagamento?: string;
   forma_pagamento?: string;
   cliente_id?: string;
-  url_pdf?: string;
+ 
   criado_em: string;
   // Backward compatibility aliases
   receipt_number?: string;

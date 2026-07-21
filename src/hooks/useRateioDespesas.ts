@@ -8,6 +8,7 @@ interface PercentualVooData {
 }
 
 interface RateioDespesaRow {
+  nome_socio: string;
   id: string;
   despesa_id: string;
   client_id: string;
@@ -114,7 +115,7 @@ export function useRateioDespesas({
         .lte("data_vencimento", periodo.fim);
 
       if (aeronaveId) {
-        query = query.eq("id_aeronave", aeronaveId);
+        query = query.eq("aeronave_id", aeronaveId);
       }
 
       const { data: rateioDespesas, error: rdErr } = await query;
@@ -150,7 +151,7 @@ export function useRateioDespesas({
       if (despesaIds.length > 0) {
         const { data: receipts, error: rcErr } = await supabase
           .from("recibos")
-          .select("id, numero_recibo, nome_categoria, url_nf, url_boleto, numero_documento")
+          .select("id, numero_recibo, nome_categoria, nf_url, boleto_url, numero_documento")
           .in("id", despesaIds);
 
         if (!rcErr && receipts) {
@@ -183,8 +184,8 @@ export function useRateioDespesas({
           valor_por_voo: valorPorVoo,
           receipt_number: receiptInfo?.numero_recibo,
           receipt_category: receiptInfo?.nome_categoria,
-          receipt_nf: receiptInfo?.url_nf,
-          receipt_boleto: receiptInfo?.url_boleto,
+          receipt_nf: receiptInfo?.nf_url,
+          receipt_boleto: receiptInfo?.boleto_url,
           doc_number: receiptInfo?.numero_documento,
         };
       });

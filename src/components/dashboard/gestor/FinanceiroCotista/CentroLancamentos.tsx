@@ -279,7 +279,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("travel_expense_reports")
-        .select("id, url_pdf")
+        .select("id, pdf_url")
         .in("id", travelReportIds);
       if (error) throw error;
       return data || [];
@@ -288,7 +288,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
 
   const travelReportMap = useMemo(() => {
     const m = new Map<string, string>();
-    (travelReports as any[]).forEach((t: any) => { if (t.url_pdf) m.set(t.id, t.url_pdf); });
+    (travelReports as any[]).forEach((t: any) => { if (t.pdf_url) m.set(t.id, t.pdf_url); });
     return m;
   }, [travelReports]);
 
@@ -307,7 +307,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("recibos")
-        .select("id, numero_recibo, url_pdf")
+        .select("id, numero_recibo, pdf_url")
         .in("numero_recibo", reciboNumeros);
       if (error) throw error;
       return data || [];
@@ -315,9 +315,9 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   });
 
   const reciboMap = useMemo(() => {
-    const m = new Map<string, { url_pdf: string | null; numero_recibo: string | null }>();
+    const m = new Map<string, { pdf_url: string | null; numero_recibo: string | null }>();
     (recibosData as any[]).forEach((r: any) => {
-      if (r.numero_recibo) m.set(String(r.numero_recibo), { url_pdf: r.url_pdf || null, numero_recibo: r.numero_recibo });
+      if (r.numero_recibo) m.set(String(r.numero_recibo), { pdf_url: r.pdf_url || null, numero_recibo: r.numero_recibo });
     });
     return m;
   }, [recibosData]);
@@ -860,7 +860,7 @@ function LinhaGrupo({
   onToggleSelect: (chave: string) => void;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
   travelReportPdf: string | null;
-  reciboInfo: { url_pdf: string | null; numero_recibo: string | null } | null;
+  reciboInfo: { pdf_url: string | null; numero_recibo: string | null } | null;
   abastecimentoAnexos: GrupoLancamento["abastecimentoAnexos"];
 }) {
   const qc = useQueryClient();
@@ -1116,8 +1116,8 @@ function LinhaGrupo({
                     {travelReportPdf && (
                       <AnexoPill label="Relatório de Viagem (PDF)" numero={null} url={travelReportPdf} />
                     )}
-                    {reciboInfo?.url_pdf && (
-                      <AnexoPill label="Recibo (PDF)" numero={reciboInfo.numero_recibo} url={reciboInfo.url_pdf} />
+                    {reciboInfo?.pdf_url && (
+                      <AnexoPill label="Recibo (PDF)" numero={reciboInfo.numero_recibo} url={reciboInfo.pdf_url} />
                     )}
                     {abastecimentoAnexos && (abastecimentoAnexos.comanda_url || abastecimentoAnexos.nota_url || abastecimentoAnexos.boleto_url) && (
                       <>

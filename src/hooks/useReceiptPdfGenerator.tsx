@@ -75,7 +75,7 @@ export const useReceiptPdfGenerator = () => {
       console.log("💾 Atualizando banco de dados...");
       const { error: updateError } = await supabase
         .from("recibos")
-        .update({ url_pdf: urlData.publicUrl })
+        .update({ pdf_url: urlData.publicUrl })
         .eq("id", receiptData.id)
         .eq("usuario_id", userId);
 

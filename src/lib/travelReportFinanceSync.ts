@@ -165,12 +165,12 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
 
   const { data: reportData, error: reportError } = await (supabase as any)
     .from("travel_expense_reports")
-    .select("url_pdf")
+    .select("pdf_url")
     .eq("id", params.reportId)
     .single();
-  const reportPdfUrl: string | null = reportData?.url_pdf || null;
+  const reportPdfUrl: string | null = reportData?.pdf_url || null;
   if (reportError) {
-    console.warn("Não foi possível buscar url_pdf do relatório de viagem:", reportError);
+    console.warn("Não foi possível buscar pdf_url do relatório de viagem:", reportError);
   }
 
   for (const t of tripulantesParaReembolsar) {

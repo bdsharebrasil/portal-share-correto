@@ -237,7 +237,7 @@ export function useSocioAccounts(clientId: string | null) {
 
       if (error) throw error;
 
-      const accounts = ((data || []) as PartnerAccountRow[]).map(normalizePartnerAccount);
+      const accounts = ((data || []) as unknown as PartnerAccountRow[]).map(normalizePartnerAccount);
       const seenByPartner = new Set<string>();
       const seenById = new Set<string | null>();
 
@@ -425,7 +425,7 @@ export function useSocioTransactions(
             total_crew2: 0,
             total_sharebrasil: 0,
             total_client: 0,
-            url_pdf: null,
+            pdf_url: null,
             spent_crew: 0,
             remaining_crew: 0,
             spent_sharebrasil: 0,
@@ -653,9 +653,9 @@ export function useAddDeposit(showToast = true) {
         // partner_accounts usa clientes_id (não cliente_id)
         const { data: account, error: accErr } = await supabase
           .from("partner_accounts")
-          .select("id, saldo_atual, total_depositado, socios_id")
+          .select("id, saldo_atual, total_depositado, socios_cliente_id")
           .eq("clientes_id", data.clientId)
-          .eq("socios_id", clientPartnerId)
+          .eq("socios_cliente_id", clientPartnerId)
           .maybeSingle();
         if (accErr) throw accErr;
 
@@ -679,7 +679,7 @@ export function useAddDeposit(showToast = true) {
             .from("partner_accounts")
             .insert({
               clientes_id: data.clientId,
-              socios_id: clientPartnerId,
+              socios_cliente_id: clientPartnerId,
               socio_cpf: data.partnerCpf,
               socio_nome: data.partnerName,
               saldo_atual: balanceAfter,

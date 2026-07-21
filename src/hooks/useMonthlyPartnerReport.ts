@@ -105,7 +105,7 @@ export interface TravelReportEntry {
   crew_member_id2: string | null;
   aircraft_registration: string | null;
   observations: string | null;
-  url_pdf: string | null;
+  pdf_url: string | null;
 }
 
 export interface AeronaveInfo {
@@ -164,7 +164,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
     queryKey: ["monthly-partner-report", clientId, month],
     queryFn: async (): Promise<MonthlyReportData> => {
       if (!clientId || !month) {
-        return { partners: [], flights: [], fuels: [], expenses: [], sharedExpenses: [], bankControlExpenses: [], travelReports: [], aircraft: null, clientName: "", clientCnpj: "", dateRange: { startDate: "", endDate: "", firstEntryDate: null, lastEntryDate: null }, hourlyRate: null };
+        return { partners: [], flights: [], fuels: [], expenses: [], sharedExpenses: [], bankControlExpenses: [], rateioDespesas: [], travelReports: [], aircraft: null, clientName: "", clientCnpj: "", dateRange: { startDate: "", endDate: "", firstEntryDate: null, lastEntryDate: null }, hourlyRate: null };
       }
 
       const [year, mon] = month.split("-");
@@ -188,7 +188,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
             is_equal_split, is_loan, loan_recipient_partner_id,
             socios_nome
           `)
-          .eq("cliente_id", clientId)
+          .eq("clientes_id", clientId)
           .gte("entry_date", startDate)
           .lte("entry_date", endDate)
           .order("entry_date"),
@@ -228,7 +228,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
         supabase
           .from("travel_expense_reports")
-          .select('id, numero_relatorio, data_inicio, data_fim, rota, dias_count, status, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, socios_id, nome_tripulante, nome_tripulante_2, crew_member_id, crew_member_id2, aeronave_matricula, observacoes, url_pdf')
+          .select('id, numero_relatorio, data_inicio, data_fim, rota, dias_count, status, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, socios_id, nome_tripulante, nome_tripulante_2, crew_member_id, crew_member_id2, aeronave_matricula, observacoes, pdf_url')
           .eq("clientes_id", clientId)
           .gte("data_inicio", startDate)
           .lte("data_inicio", endDate)
@@ -238,7 +238,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         supabase
           .from("controle_bancario")
           .select("id, data, tipo_movimento, descricao, valor, conta_banco, numero_documento, status, socios_id, aeronave_id, aeronave_registro, categoria_id, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url")
-          .eq("clientes_id", clientId)
+          .eq("cliente_id", clientId)
           .gte("data", startDate)
           .lte("data", endDate)
           .not("socios_id", "is", null)
@@ -323,11 +323,11 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         partners,
         flights,
         fuels,
-        expenses: (expensesRes.data || []) as ExpenseEntry[],
-        sharedExpenses: (sharedExpensesRes.data || []) as ExpenseEntry[],
-        bankControlExpenses: (bankControlRes.data || []) as BankControlEntry[],
+        expenses: (expensesRes.data || []) as unknown as ExpenseEntry[],
+        sharedExpenses: (sharedExpensesRes.data || []) as unknown as ExpenseEntry[],
+        bankControlExpenses: (bankControlRes.data || []) as unknown as BankControlEntry[],
         rateioDespesas: rateioRes.data || [],
-        travelReports: (travelRes.data || []) as TravelReportEntry[],
+        travelReports: (travelRes.data || []) as unknown as TravelReportEntry[],
         aircraft,
         clientName: clientRes.data?.razao_social || clientRes.data?.proprietario || "",
         clientCnpj: clientRes.data?.cnpj || "",

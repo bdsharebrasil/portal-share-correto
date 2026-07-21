@@ -8,18 +8,21 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/layout/Layout";
 import { DocumentViewer } from "@/components/DocumentViewer";
-import { ReceiptForm } from "@/components/dashboard/financeiro/recibos/ReceiptForm";
+import ReceiptWizardUI from "@/components/dashboard/financeiro/recibos/ReceiptWizardUI";
 import { ReceiptPreview } from "@/components/dashboard/financeiro/recibos/ReceiptPreview";
+import { ReceiptHistory } from "@/components/dashboard/financeiro/recibos/ReceiptHistory";
 import { DescriptionManager } from "@/components/dashboard/financeiro/recibos/DescriptionManager";
 import { generateSequentialReceiptNumber, GeneratedReceipt, ReceiptType } from "@/lib/receiptUtils";
 import { handleReceiptSubmit } from "@/services/receiptSubmitHandler";
 import { toast } from "@/hooks/use-toast";
+import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 import { FileText, Clock, Star } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import { ReciboDocument } from "@/lib/reciboGenerator";
 import { syncClientExpenseMirror } from "@/lib/clientExpenseMirrorSync";
 
 interface Cliente {
+  nome?: string | null;
   id: string;
   razao_social?: string | null;
   cnpj?: string | null;
@@ -93,9 +96,9 @@ const buildReceiptPdfData = ({
   max_payment_date: receiptData.data_max_pagamento,
   payment_method: receiptData.forma_pagamento,
   boleto_url: boletoUrl,
-  url_boleto: boletoUrl,
+  
   nf_url: notaFiscalUrl,
-  url_nf: notaFiscalUrl,
+ 
   data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
   numero_documento_decea: originalForm.numeroDocumentoDecea || null,
   competencia_decea: originalForm.competenciaDecea || null,
@@ -128,6 +131,8 @@ export default function EmissaoRecibo() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [pendingReceiptData, setPendingReceiptData] = useState<any>(null);
+  const [solicitacaoPagamentoOpen, setSolicitacaoPagamentoOpen] = useState(false);
+  const [solicitacaoInitialData, setSolicitacaoInitialData] = useState<any>(null);
   const [editReceipt, setEditReceipt] = useState<any>(null);
   const [editNumero, setEditNumero] = useState("");
   const [editDescricao, setEditDescricao] = useState("");
@@ -194,10 +199,10 @@ export default function EmissaoRecibo() {
       setFavoritePayers(
         (data || []).map((d) => ({
           id: d.id,
-          name: d.nome,
-          document: d.documento, 
-          address: d.endereco,
-          city: d.cidade,
+          name: d.name,
+          document: d.document,
+          address: d.address,
+          city: d.city,
           uf: d.uf,
         }))
       );
@@ -215,8 +220,18 @@ export default function EmissaoRecibo() {
         .limit(200);
 
       if (error) throw error;
+      // Normalize DB rows to GeneratedReceipt-compatible shape
       setRecentReceipts(
-        (data || []).map((d: any) => ({ ...d, receipt_type: d.tipo_recibo as ReceiptType }))
+        (data || []).map((d: any) => ({
+          ...d,
+          receipt_type: d.tipo_recibo as ReceiptType,
+          // backward-compatible aliases expected by ReceiptHistory
+          issue_date: d.data_emissao || d.data || d.criado_em || d.created_at || null,
+          payer_name: d.nome_pagador || d.payer_name || null,
+          receipt_number: d.numero_recibo || d.receipt_number || null,
+          amount: d.valor ?? d.amount ?? null,
+          pdf_url: d.pdf_url || d.recibo_url || d.pdf || null,
+        }))
       );
     } catch (err) {
       console.error("Erro ao carregar recibos:", err);
@@ -240,6 +255,12 @@ export default function EmissaoRecibo() {
 
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
+      let sendToProgramacao = false;
+      if (isReembolso) {
+        sendToProgramacao = confirm("deseja enviar esse recibo para programação de pagamento?");
+        // sinaliza para uso posterior
+        originalForm.__sendToProgramacao = sendToProgramacao;
+      }
       const isRateado = originalForm.reembolsoRateado === true;
       const selectedAircraftId = getSelectedAircraftId(originalForm);
       const expectedReceiptType: ReceiptType = isReembolso ? "reembolso" : "pagamento";
@@ -301,10 +322,21 @@ export default function EmissaoRecibo() {
         return publicUrlData.publicUrl;
       };
 
-      if (formData.files?.boleto instanceof File)
-        boletoUrl = await uploadFile(formData.files.boleto, "boleto", "n.f-boletos-clients");
-      if (formData.files?.notaFiscal instanceof File)
-        notaFiscalUrl = await uploadFile(formData.files.notaFiscal, "nf", "n.f-boletos-clients");
+      const boletoFile =
+        formData.files?.boleto instanceof File
+          ? formData.files.boleto
+          : originalForm.reembolsoBoletoFile instanceof File
+          ? originalForm.reembolsoBoletoFile
+          : null;
+      const notaFiscalFile =
+        formData.files?.notaFiscal instanceof File
+          ? formData.files.notaFiscal
+          : originalForm.reembolsoNotaFiscalFile instanceof File
+          ? originalForm.reembolsoNotaFiscalFile
+          : null;
+
+      if (boletoFile) boletoUrl = await uploadFile(boletoFile, "boleto", "n.f-boletos-clients");
+      if (notaFiscalFile) notaFiscalUrl = await uploadFile(notaFiscalFile, "nf", "n.f-boletos-clients");
       if (originalForm.decealFile instanceof File)
         deceeaUrl = await uploadFile(originalForm.decealFile, "decea", "n.f-boletos-clients");
       if (originalForm.infraeroFile instanceof File)
@@ -327,21 +359,19 @@ export default function EmissaoRecibo() {
         data_max_pagamento: originalForm.prazoMaximoQuitacao || null,                       // max_payment_date
         forma_pagamento: originalForm.formaPagamento?.trim() || null,                      // payment_method
         cliente_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,       // client_id
-        url_boleto: boletoUrl,                                                              // boleto_url (legacy)
-        url_nf: notaFiscalUrl,                                                             // nf_url (legacy)
-        boleto_url: boletoUrl,                                                              // recibos.boleto_url
+        boleto_url: boletoUrl,                                                              // boleto_url (legacy) / recibos.boleto_url
         nf_url: notaFiscalUrl,                                                              // recibos.nf_url
         demonstrativo_url: deceeaUrl || infraeroUrl || null,                                // recibos.demonstrativo_url
         data_vencimento: originalForm.dataVencimentoBoleto || null,                         // recibos.data_vencimento
         competencia_decea: formData.isDecea ? (originalForm.competenciaDecea || null) : null,
         competencia_infraero: formData.isInfraero ? (originalForm.competenciaInfraero || null) : null,
-        subcategoria_1: originalForm.reembolsoSubcategoria || null,
+        nome_categoria: formData.categoriaNome || originalForm.categoriaNome || null,      // category_name
+        subcategoria_1: originalForm.subcategoriaSel || originalForm.reembolsoSubcategoria || null,
         numero_documento: originalForm.reembolsoNumeroDocumento                            // doc_number
           || originalForm.numeroDocumentoDecea
           || originalForm.numeroDocumentoInfraero
           || null,
         aeronave_id: selectedAircraftId || null,
-        nome_categoria: formData.categoriaNome || null,                                    // category_name
         compartilhado: originalForm.reembolsoRateado || false,                             // is_shared
         percentual: originalForm.reembolsoPorcentagem                                      // percentage
           ? parseFloat(originalForm.reembolsoPorcentagem)
@@ -686,7 +716,8 @@ export default function EmissaoRecibo() {
 
                 const { error: rateioErr } = await supabase
                   .from("rateio_despesas")
-                  .insert(rateioPayload);
+                  // Cast to any to avoid TypeScript strict insert payload checking for dynamic payloads
+                  .insert(rateioPayload as any);
                 if (rateioErr)
                   console.error(`❌ Erro ao criar rateio para ${clientData?.razao_social}:`, rateioErr);
                 else
@@ -724,7 +755,8 @@ export default function EmissaoRecibo() {
           receiptType: expectedReceiptType,
           boletoUrl,
           notaFiscalUrl,
-          originalForm,
+        originalForm,
+        sendToProgramacao: Boolean(originalForm.__sendToProgramacao),
           companySettings,
           currentUserId,
         });
@@ -752,8 +784,8 @@ export default function EmissaoRecibo() {
     setIsLoadingPdf(true);
     try {
       const receipt = recentReceipts.find((r) => r.id === receiptId);
-      if (!receipt || !receipt.url_pdf) throw new Error("PDF não disponível"); // corrigido: usa url_pdf
-      setViewPdfUrl(receipt.url_pdf);
+      if (!receipt || !receipt.pdf_url) throw new Error("PDF não disponível"); // corrigido: usa pdf_url
+      setViewPdfUrl(receipt.pdf_url);
       setViewingReceiptId(receiptId);
       setIsPdfViewerOpen(true);
     } catch (err) {
@@ -852,7 +884,7 @@ export default function EmissaoRecibo() {
       // Atualizar sem filtro de usuario_id para evitar RLS bloqueando
       const { error: updatePdfError } = await supabase
         .from("recibos")
-        .update({ url_pdf: urlData.publicUrl })
+        .update({ pdf_url: urlData.publicUrl })
         .eq("id", receiptData.id);
 
       if (updatePdfError) {
@@ -864,6 +896,58 @@ export default function EmissaoRecibo() {
 
       await loadRecentReceipts(currentUserId);
       setIsPreviewOpen(false);
+
+      // Se o usuário optou por enviar para programação de pagamento, abrir o modal com dados pré-preenchidos
+      if (pendingReceiptData.sendToProgramacao) {
+        try {
+          const r = receiptData;
+          const orig = pendingReceiptData.originalForm || {};
+          const cliente = clientesAtivos.find((c) => c.id === (orig.clienteId || r.cliente_id));
+          const socioId = orig.socioId || orig.selectedPartnerId || null;
+          const socioNome = orig.socioNome || null;
+          // Buscar registro da aeronave
+          let aeronaveRegistro = "";
+          if (r.aeronave_id) {
+            try {
+              const { data: acData } = await supabase.from("aeronave").select("matricula").eq("id", r.aeronave_id).single();
+              if (acData) aeronaveRegistro = acData.matricula;
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          const initial = {
+            data_emissao: r.data_emissao || orig.dataEmissao || null,
+            data_vencimento: r.data_vencimento || orig.prazoMaximoQuitacao || orig.dataVencimentoBoleto || null,
+            numero_doc: r.numero_documento || orig.reembolsoNumeroDocumento || null,
+            descricao_despesa: r.descricao_servico || orig.servicoDescricao || null,
+            cliente_id: r.cliente_id || orig.clienteId || null,
+            clientes_nome: cliente?.razao_social || cliente?.nome || null,
+            socio_id: socioId,
+            socios_nome: socioNome,
+            aeronave_id: r.aeronave_id || orig.aircraftId || orig.aeronaveId || null,
+            aeronave_registro: aeronaveRegistro || null,
+            numero_recibo: r.numero_recibo || receiptNumber,
+            anexos: [
+              { tipo: "boleto", url: r.boleto_url || pendingReceiptData.boletoUrl || null },
+              { tipo: "nf", url: r.nf_url || pendingReceiptData.notaFiscalUrl || null },
+              { tipo: "demonstrativo", url: r.demonstrativo_url || null },
+              { tipo: "recibo", url: r.pdf_url || null },
+            ].filter((a) => a.url),
+            boleto_url: r.boleto_url || pendingReceiptData.boletoUrl || null,
+            nf_url: r.nf_url || pendingReceiptData.notaFiscalUrl || null,
+            demonstrativo_url: r.demonstrativo_url || null,
+            competencia_infraero: r.competencia_infraero || orig.competenciaInfraero || orig.competencia_infraero || null,
+            competencia_decea: r.competencia_decea || orig.competenciaDecea || orig.competencia_decea || null,
+          };
+
+          setSolicitacaoInitialData(initial);
+          setSolicitacaoPagamentoOpen(true);
+        } catch (e) {
+          console.warn("Falha ao preparar solicitação de pagamento:", e);
+        }
+      }
+
       setPendingReceiptData(null);
       toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso!` });
     } catch (pdfErr) {
@@ -929,8 +1013,8 @@ export default function EmissaoRecibo() {
   const handleDownloadReceipt = async (receiptId: string) => {
     try {
       const receipt = recentReceipts.find((r) => r.id === receiptId);
-      if (!receipt || !receipt.url_pdf) throw new Error("PDF não disponível"); // corrigido: usa url_pdf
-      const response = await fetch(receipt.url_pdf);
+      if (!receipt || !receipt.pdf_url) throw new Error("PDF não disponível"); // corrigido: usa pdf_url
+      const response = await fetch(receipt.pdf_url);
       if (!response.ok) throw new Error(`Erro ao baixar: ${response.statusText}`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -1028,8 +1112,8 @@ export default function EmissaoRecibo() {
             descricao_servico: newDescricao,
           },
           receiptType: (fullReceipt?.tipo_recibo || "pagamento") as ReceiptType,
-          boletoUrl: fullReceipt?.url_boleto || null,
-          notaFiscalUrl: fullReceipt?.url_nf || null,
+          boletoUrl: fullReceipt?.boleto_url || null,
+          notaFiscalUrl: fullReceipt?.nf_url || null,
           originalForm: {},
           companySettings,
         });
@@ -1045,7 +1129,7 @@ export default function EmissaoRecibo() {
 
         const { error: pdfUpdateError } = await supabase
           .from("recibos")
-          .update({ url_pdf: urlData.publicUrl })
+          .update({ pdf_url: urlData.publicUrl })
           .eq("id", editReceipt.id)
           .eq("usuario_id", currentUserId);
         if (pdfUpdateError) throw pdfUpdateError;
@@ -1114,7 +1198,7 @@ export default function EmissaoRecibo() {
             {/* Tab Content - Emitir */}
             <TabsContent value="emitir" className="mt-6">
               <div className="rounded-[19px] bg-card/30 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
-                <ReceiptForm
+                <ReceiptWizardUI
                   clientesAtivos={clientesAtivos}
                   favoritePayers={favoritePayers}
                   isGenerating={isGenerating}
@@ -1125,88 +1209,15 @@ export default function EmissaoRecibo() {
 
             {/* Tab Content - Histórico */}
             <TabsContent value="historico" className="mt-6">
-              <div className="space-y-4">
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleClearHistory}
-                    className="px-4 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-lg transition-colors text-sm font-medium"
-                  >
-                    Limpar Histórico
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {recentReceipts.length > 0 ? (
-                    recentReceipts.map((r) => (
-                      <div
-                        key={r.id}
-                        className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-5 hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
-                      >
-                        <div className="space-y-3 mb-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-muted-foreground">Recibo</p>
-                              <p className="text-primary font-bold truncate group-hover:text-primary/80">
-                                {r.numero_recibo}  {/* corrigido: era receipt_number */}
-                              </p>
-                            </div>
-                            <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full whitespace-nowrap">
-                              {r.tipo_recibo === "reembolso" ? "Reembolso" : "Pagamento"} {/* corrigido: era receipt_type */}
-                            </span>
-                          </div>
-
-                          <div>
-                            <p className="text-sm text-muted-foreground mb-1">Pagador</p>
-                            <p className="font-medium text-foreground truncate">
-                              {r.nome_pagador}  {/* corrigido: era payer_name */}
-                            </p>
-                          </div>
-
-                          {r.documento_pagador && ( // corrigido: era payer_document
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Documento</p>
-                              <p className="text-sm font-mono text-foreground">{r.documento_pagador}</p>
-                            </div>
-                          )}
-
-                          <div className="pt-2 border-t border-border/30">
-                            <p className="text-sm text-muted-foreground mb-1">Valor</p>
-                            <p className="text-lg font-bold text-primary">
-                              R$ {r.valor?.toFixed(2).replace(".", ",") || "0,00"} {/* corrigido: era r.valor já existia */}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewReceipt(r.id)}
-                            disabled={isLoadingPdf}
-                            className="flex-1 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
-                          >
-                            Visualizar
-                          </button>
-                          <button
-                            onClick={() => handleOpenEditReceipt(r.id)}
-                            className="flex-1 px-3 py-2 border border-[#ca8f25] bg-[rgba(161,142,62,0.216)] hover:bg-accent/30 text-[#ffd200] rounded-lg transition-colors text-sm font-medium"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDeleteReceipt(r.id)}
-                            className="flex-1 px-3 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-lg transition-colors text-sm font-medium"
-                          >
-                            Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-12 text-center">
-                      <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                      <p className="text-muted-foreground">Nenhum recibo gerado ainda</p>
-                    </div>
-                  )}
-                </div>
+              <div className="rounded-[19px] bg-card/30 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg">
+                <ReceiptHistory
+                  receipts={recentReceipts}
+                  onView={handleViewReceipt}
+                  onDelete={handleDeleteReceipt}
+                  onEdit={handleOpenEditReceipt}
+                  onClearAll={handleClearHistory}
+                  isLoading={isLoadingPdf}
+                />
               </div>
             </TabsContent>
 
@@ -1293,6 +1304,7 @@ export default function EmissaoRecibo() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <SolicitacaoPagamentoModal open={solicitacaoPagamentoOpen} onOpenChange={setSolicitacaoPagamentoOpen} initialData={solicitacaoInitialData} />
     </Layout>
   );
 }

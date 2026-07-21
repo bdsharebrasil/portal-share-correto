@@ -66,7 +66,7 @@ type TravelReport = {
   total_sharebrasil: number;
 
   status: 'Rascunho' | 'Ag. Conferência' | 'Enviado' | 'Assinado' | 'Finalizado';
-  url_pdf?: string;
+  pdf_url?: string;
   pdf_path?: string;
   approval_token?: string;
   requires_client_approval?: boolean;
@@ -345,7 +345,7 @@ export default function RelatorioViagem() {
   };
 
   const ensureReportPdf = async (report: any) => {
-    if (report.url_pdf) return null;
+    if (report.pdf_url) return null;
 
     const clientName = await getReportClientName(report);
     const pdfData = buildPdfPayload(report, clientName);
@@ -369,7 +369,7 @@ export default function RelatorioViagem() {
     const { data: publicUrlData } = supabase.storage.from('travel-reports').getPublicUrl(pdfPath);
     if (!publicUrlData?.publicUrl) throw new Error('Não foi possível obter publicUrl do storage');
 
-    const { error: updateError } = await supabase.from('travel_expense_reports').update({ url_pdf: publicUrlData.publicUrl, pdf_path: pdfPath }).eq('id', report.id);
+    const { error: updateError } = await supabase.from('travel_expense_reports').update({ pdf_url: publicUrlData.publicUrl, pdf_path: pdfPath }).eq('id', report.id);
     if (updateError) throw updateError;
 
     return report.id;
@@ -381,7 +381,7 @@ export default function RelatorioViagem() {
       const { data: reportsToFill, error } = await supabase
         .from('travel_expense_reports')
         .select('*')
-        .or('url_pdf.is.null,url_pdf.eq.')
+        .or('pdf_url.is.null,pdf_url.eq.')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -934,7 +934,7 @@ export default function RelatorioViagem() {
 
           const { data: { publicUrl } } = supabase.storage.from('travel-reports').getPublicUrl(pdfPath);
           await supabase.from('travel_expense_reports').update({
-            url_pdf: publicUrl,
+            pdf_url: publicUrl,
             pdf_path: pdfPath,
           } as any).eq('id', savedReport.id);
           savedReport.pdf_path = pdfPath;

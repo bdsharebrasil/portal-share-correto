@@ -73,8 +73,8 @@ export default function AprovarRelatorioViagem() {
           .from('travel-reports')
           .createSignedUrl(report.pdf_path, 60 * 60);
         if (signed?.signedUrl) setPdfUrl(signed.signedUrl);
-      } else if (report.url_pdf) {
-        setPdfUrl(report.url_pdf);
+      } else if (report.pdf_url) {
+        setPdfUrl(report.pdf_url);
       }
     })();
   }, [report, user, role]);

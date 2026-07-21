@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 
 type TravelReport = {
+  matricula_aeronave: string;
   observacoes: string;
   id?: string;
   numero_relatorio: string;
@@ -51,7 +52,7 @@ type TravelReport = {
   total_client: number;
   total_sharebrasil: number;
   status: 'Rascunho' | 'Finalizado' | 'Enviado';
-  url_pdf?: string;
+  pdf_url?: string;
   created_at?: string;
   updated_at?: string;
 };
