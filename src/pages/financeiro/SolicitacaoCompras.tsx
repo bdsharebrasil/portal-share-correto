@@ -305,7 +305,6 @@ export default function SolicitacaoCompras() {
       const payload: Record<string, string | number | null> = {
         numero_solicitacao: numeroSolicitacao,
         tipo,
-        tipo_de_servico: tipoDeServico || null,
         descricao,
         user_id: currentUserId,
         priority: prioridade,
@@ -313,6 +312,9 @@ export default function SolicitacaoCompras() {
         status: 'rascunho',
         valor_total: 0
       };
+
+      // Corrige inserção em tabela que usa coluna com nome literal "tipo_ de_servico"
+      payload['tipo_ de_servico'] = tipoDeServico || null;
 
       const { error } = await supabase.from('purchase_requests').insert(payload);
 
