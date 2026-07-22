@@ -686,7 +686,7 @@ export function InformacoesCotistasTab({ aeronaveId, matricula, cotistas, ano }:
       {/* ── Ano em números ───────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-3">
-          <Sparkles className="h-3.5 w-3.5" /> {anoAtual} em números
+      
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
