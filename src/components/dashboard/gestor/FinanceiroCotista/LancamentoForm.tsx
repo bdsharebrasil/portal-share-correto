@@ -33,8 +33,7 @@ import { Label } from "@/components/ui/label";
 import { syncCotistaReembolsoMirror, deleteCotistaReembolsoMirror } from "@/lib/cotistaFinanceSync";
 import { useEffect, useMemo, useState } from "react";
 
-// Bate com o check constraint rateio_tipo_check (usa underscore, não espaço)
-type GrupoCusto = "FIXO" |  "EXTRA" | "VARIAVEL_POR_VOO" | "VARIAVEL_POR_HORA";
+type GrupoCusto = "FIXO" |  "EXTRA" | "VARIAVEL POR VOO" | "VARIAVEL POR HORA";
 
 type Socio = {
   id: string;

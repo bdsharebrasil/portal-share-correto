@@ -725,57 +725,59 @@ export default function ImportarDemonstrativoIA({
                 </Table>
               )}
 
-              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleAcao("recibo")}
-                  disabled={
-                    isGenerating ||
-                    consolidado.rows.length === 0 ||
-                    consolidado.semAtribuicao > 0
-                  }
-                  className="gap-2"
-                >
-                  {generatingMode === "recibo" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Receipt className="h-4 w-4" />
-                  )}
-                  Apenas gerar recibo
-                </Button>
-                <Button
-                  onClick={() => handleAcao("recibo_pgto")}
-                  disabled={
-                    isGenerating ||
-                    consolidado.rows.length === 0 ||
-                    consolidado.semAtribuicao > 0
-                  }
-                  className="gap-2"
-                >
-                  {generatingMode === "recibo_pgto" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4" />
-                  )}
-                  Gerar recibo e enviar para pagamento
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => handleAcao("pgto")}
-                  disabled={
-                    isGenerating ||
-                    consolidado.rows.length === 0 ||
-                    consolidado.semAtribuicao > 0
-                  }
-                  className="gap-2"
-                >
-                  {generatingMode === "pgto" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                  Apenas enviar para pagamento
-                </Button>
+<div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">                <Button
+    size="sm"
+    onClick={() => handleAcao("recibo")}
+    disabled={
+      isGenerating ||
+      consolidado.rows.length === 0 ||
+      consolidado.semAtribuicao > 0
+    }
+    className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
+  >
+    {generatingMode === "recibo" ? (
+      <Loader2 className="h-3 w-3 animate-spin" />
+    ) : (
+      <Receipt className="h-3 w-3" />
+    )}
+    APENAS GERAR RECIBO
+  </Button>
+
+  <Button
+    size="sm"
+    onClick={() => handleAcao("recibo_pgto")}
+    disabled={
+      isGenerating ||
+      consolidado.rows.length === 0 ||
+      consolidado.semAtribuicao > 0
+    }
+    className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
+  >
+    {generatingMode === "recibo_pgto" ? (
+      <Loader2 className="h-3 w-3 animate-spin" />
+    ) : (
+      <Receipt className="h-3 w-3" />
+    )}
+    GERAR RECIBO E ENVIAR PARA PAGAMENTO
+  </Button>
+
+  <Button
+    size="sm"
+    onClick={() => handleAcao("pgto")}
+    disabled={
+      isGenerating ||
+      consolidado.rows.length === 0 ||
+      consolidado.semAtribuicao > 0
+    }
+    className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
+  >
+    {generatingMode === "pgto" ? (
+      <Loader2 className="h-3 w-3 animate-spin" />
+    ) : (
+      <Send className="h-3 w-3" />
+    )}
+    APENAS ENVIAR PARA PAGAMENTO
+  </Button>
               </div>
             </CardContent>
           </Card>

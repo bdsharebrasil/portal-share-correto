@@ -4,7 +4,6 @@ import {
   useFinanceiroCotistaDetalhe,
   calcularBalanco,
 } from "@/hooks/useFinanceiroCotista";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -28,10 +27,7 @@ import {
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
 
-import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
 import { InformacoesCotistasTab } from "./InformacoesCotistasTab";
-import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
-import { RateioCotistas } from "./RateioCotistas";
 import BalancoNovo from "./BalancoNovo";
 import VisaoGeralNova from "./VisaoGeralNova";
 import { AbastecimentosTab } from "./AbastecimentosTab";
