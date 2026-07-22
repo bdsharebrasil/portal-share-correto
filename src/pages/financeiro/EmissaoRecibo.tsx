@@ -1234,7 +1234,7 @@ export default function EmissaoRecibo() {
                   className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all"
                 >
                  
-                  Leitura automatica demonstrativos 
+                  LEITURA AUTOMATICA DEMONSTRATIVOS
                 </TabsTrigger>
                 <TabsTrigger
                   value="descricoes"

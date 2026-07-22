@@ -6,13 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, Sparkles, FileImage, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Upload, Sparkles, FileImage, Trash2, AlertCircle, CheckCircle2, Receipt, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
 import { useReceiptPdfGenerator } from "@/hooks/useReceiptPdfGenerator";
 import { buildCotistaOptions, normalizeTextForMatching } from "./demonstrativoUtils";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 
 type TipoDemonstrativo = "INFRAERO" | "DECEA";
 
@@ -43,6 +44,7 @@ interface Aeronave {
 interface CotistaOption {
   id: string;
   cliente_id?: string | null;
+  socio_id?: string | null;
   nome: string;
   documento: string | null;
   endereco: string | null;
@@ -52,9 +54,9 @@ interface CotistaOption {
 }
 
 interface LinhaItem extends DemonstrativoItem {
-  cotistaNome: string; // texto livre ou nome escolhido
-  sugeridoDoDiario?: boolean; // true se pré-preenchido a partir do diário de bordo
-  naoIdentificado?: boolean; // true se nenhum lançamento correspondente foi encontrado
+  cotistaNome: string;
+  sugeridoDoDiario?: boolean;
+  naoIdentificado?: boolean;
 }
 
 const brl = (v: number) =>
@@ -73,6 +75,26 @@ const fileToBase64 = (file: File): Promise<{ base64: string; mimeType: string }>
     reader.readAsDataURL(file);
   });
 
+const STORAGE_BUCKET = "n.f-boletos-clients";
+
+async function uploadDemonstrativo(file: File, tipo: TipoDemonstrativo): Promise<string | null> {
+  try {
+    const timestamp = Date.now();
+    const suffix = Math.random().toString(36).substring(2, 8);
+    const sanitized = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_").substring(0, 80);
+    const path = `demonstrativo_${tipo.toLowerCase()}_${timestamp}_${suffix}_${sanitized}`;
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    if (error) throw error;
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    return data?.publicUrl || null;
+  } catch (err) {
+    console.error("Erro no upload do demonstrativo:", err);
+    return null;
+  }
+}
+
 export default function ImportarDemonstrativoIA({
   onGenerated,
 }: {
@@ -85,11 +107,15 @@ export default function ImportarDemonstrativoIA({
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingMode, setGeneratingMode] = useState<null | "recibo" | "recibo_pgto" | "pgto">(null);
   const [result, setResult] = useState<DemonstrativoResult | null>(null);
   const [linhas, setLinhas] = useState<LinhaItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { generateAndUploadPdf } = useReceiptPdfGenerator();
+
+  // Modal de solicitação de pagamento
+  const [solicitacaoOpen, setSolicitacaoOpen] = useState(false);
+  const [solicitacaoInitialData, setSolicitacaoInitialData] = useState<any>(null);
 
   useEffect(() => {
     supabase
@@ -104,12 +130,11 @@ export default function ImportarDemonstrativoIA({
       setCotistas([]);
       return;
     }
-
     Promise.all([
       supabase
         .from("cotistas_aeronave")
         .select(
-          "id_clientes, percentual_sociedade, clientes:id_clientes(id, razao_social, cnpj, endereco, cidade, uf)"
+          "id_clientes, socios_id, percentual_sociedade, clientes:id_clientes(id, razao_social, cnpj, endereco, cidade, uf)"
         )
         .eq("id_aeronave", aeronaveId),
       supabase.from("socios").select("id, nome, cpf, cliente_id, endereco, cidade, uf").order("nome"),
@@ -122,9 +147,11 @@ export default function ImportarDemonstrativoIA({
         console.error(sociosResponse.error);
         return;
       }
-
-      const opts = buildCotistaOptions(cotistasResponse.data || [], sociosResponse.data || []);
-      setCotistas(opts);
+      const opts = buildCotistaOptions(
+        (cotistasResponse.data as any[]) || [],
+        (sociosResponse.data as any[]) || []
+      );
+      setCotistas(opts as CotistaOption[]);
     });
   }, [aeronaveId]);
 
@@ -154,7 +181,6 @@ export default function ImportarDemonstrativoIA({
       if (error) throw error;
       const res = data as DemonstrativoResult;
 
-      // Converter "dd/mm/yyyy" -> "yyyy-mm-dd"
       const toIso = (d: string): string | null => {
         const m = (d || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
         return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
@@ -164,7 +190,6 @@ export default function ImportarDemonstrativoIA({
         new Set(res.itens.map((i) => toIso(i.data)).filter(Boolean) as string[])
       );
 
-      // Buscar lançamentos do diário de bordo para sugerir o sócio/cliente
       let diarioRows: Array<{
         data_registro: string;
         aerodromo_partida: string | null;
@@ -190,13 +215,11 @@ export default function ImportarDemonstrativoIA({
         const iso = toIso(item.data);
         if (!iso) return null;
         const op = (item.operacao || "").trim().toUpperCase();
-        // Match preferencial: mesma data + aerodromo_partida == operação
         let match = diarioRows.find(
           (r) =>
             r.data_registro === iso &&
             (r.aerodromo_partida || "").trim().toUpperCase() === op
         );
-        // Fallback: mesma data + aerodromo_chegada == operação
         if (!match) {
           match = diarioRows.find(
             (r) =>
@@ -204,7 +227,6 @@ export default function ImportarDemonstrativoIA({
               (r.aerodromo_chegada || "").trim().toUpperCase() === op
           );
         }
-        // Último fallback: apenas data (se só houver um voo naquele dia)
         if (!match) {
           const doDia = diarioRows.filter((r) => r.data_registro === iso);
           if (doDia.length === 1) match = doDia[0];
@@ -236,11 +258,7 @@ export default function ImportarDemonstrativoIA({
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Falha ao processar a imagem";
-      toast({
-        title: "Erro na análise",
-        description: message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro na análise", description: message, variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
     }
@@ -264,10 +282,10 @@ export default function ImportarDemonstrativoIA({
     return { total, rows, semAtribuicao: linhas.filter((l) => !l.cotistaNome.trim()).length };
   }, [linhas]);
 
-  const handleGerarRecibos = async () => {
+  const validarAntesDeGerar = (): boolean => {
     if (!result || consolidado.rows.length === 0) {
       toast({ title: "Nenhum sócio atribuído às linhas", variant: "destructive" });
-      return;
+      return false;
     }
     if (consolidado.semAtribuicao > 0) {
       toast({
@@ -275,106 +293,215 @@ export default function ImportarDemonstrativoIA({
         description: `${consolidado.semAtribuicao} linha(s) sem atribuição.`,
         variant: "destructive",
       });
+      return false;
+    }
+    return true;
+  };
+
+  const resetForm = () => {
+    setFile(null);
+    setResult(null);
+    setLinhas([]);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const criarRecibos = async (demonstrativoUrl: string | null): Promise<number> => {
+    if (!result) return 0;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) throw new Error("Usuário não autenticado");
+
+    const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
+    const descBase = `${tipoLabel} - Doc ${result.numero_documento || "?"}${
+      result.competencia ? " - Comp " + result.competencia : ""
+    } - Aeronave ${result.aeronave_matricula || ""}`;
+
+    let sucesso = 0;
+    for (const row of consolidado.rows) {
+      const normalizedRowName = normalizeTextForMatching(row.nome);
+      const cotistaMatch = cotistas.find(
+        (c) => normalizeTextForMatching(c.nome) === normalizedRowName
+      );
+      const numeroRecibo = await generateSequentialReceiptNumber(
+        row.nome,
+        supabase,
+        cotistaMatch?.cliente_id || cotistaMatch?.id || null
+      );
+      const payload: Record<string, unknown> = {
+        usuario_id: userId,
+        nome_pagador: row.nome,
+        documento_pagador: cotistaMatch?.documento || "",
+        endereco_pagador: cotistaMatch?.endereco || null,
+        cidade_pagador: cotistaMatch?.cidade || null,
+        uf_pagador: cotistaMatch?.uf || null,
+        valor: Number(row.valor.toFixed(2)),
+        descricao_servico: `${descBase} - Rateio ${row.percentual.toFixed(2)}% (${row.itens} op.)`,
+        tipo_recibo: "reembolso",
+        data_emissao: new Date().toISOString().split("T")[0],
+        numero_recibo: numeroRecibo,
+        cliente_id: cotistaMatch?.id || null,
+        aeronave_id: aeronaveId || null,
+        compartilhado: true,
+        percentual: Number(row.percentual.toFixed(2)),
+        valor_total: Number(consolidado.total.toFixed(2)),
+        numero_documento: result.numero_documento || null,
+        [tipo === "DECEA" ? "competencia_decea" : "competencia_infraero"]:
+          result.competencia || null,
+        demonstrativo_url: demonstrativoUrl || null,
+        [tipo === "DECEA" ? "decea_url" : "infraero_url"]: demonstrativoUrl || null,
+      };
+
+      const { data: inserted, error } = await (supabase as any)
+        .from("recibos")
+        .insert(payload)
+        .select()
+        .single();
+      if (error) throw error;
+
+      try {
+        await generateAndUploadPdf({
+          receiptData: { ...(inserted || {}), ...payload } as any,
+          userId,
+        });
+      } catch (pdfErr) {
+        console.error("Falha ao gerar PDF do recibo", pdfErr);
+      }
+      sucesso++;
+    }
+    return sucesso;
+  };
+
+  const abrirSolicitacaoPagamento = (demonstrativoUrl: string | null) => {
+    if (!result) return;
+    const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
+    const subcategoria =
+      tipo === "INFRAERO"
+        ? "TARIFA INFRAERO"
+        : "TARIFA DE NAVEGAÇÃO AÉREA - DECEA";
+
+    // Agrupar rows por clienteId (cotista pode compartilhar cliente com socio diferente)
+    const grupos = new Map<
+      string,
+      {
+        cliente_id: string;
+        valor_total_cliente: number;
+        percentual_uso: number;
+        valorOverridesSocio: Record<string, string>;
+      }
+    >();
+
+    for (const row of consolidado.rows) {
+      const normalizedRowName = normalizeTextForMatching(row.nome);
+      const cotistaMatch = cotistas.find(
+        (c) => normalizeTextForMatching(c.nome) === normalizedRowName
+      );
+      const clienteId = cotistaMatch?.cliente_id || cotistaMatch?.id || null;
+      const socioId = (cotistaMatch as any)?.socio_id || null;
+      if (!clienteId) continue;
+
+      const g =
+        grupos.get(clienteId) ||
+        ({
+          cliente_id: clienteId,
+          valor_total_cliente: 0,
+          percentual_uso: 0,
+          valorOverridesSocio: {},
+        } as any);
+      g.valor_total_cliente += row.valor;
+      g.percentual_uso += row.percentual;
+      if (socioId) {
+        g.valorOverridesSocio[socioId] = row.valor.toFixed(2);
+      }
+      grupos.set(clienteId, g);
+    }
+
+    const rateio_cliente = Array.from(grupos.values()).map((g) => ({
+      cliente_id: g.cliente_id,
+      valor_total_cliente: Number(g.valor_total_cliente.toFixed(2)),
+      percentual_uso: Number(g.percentual_uso.toFixed(2)),
+      valorOverridesSocio: g.valorOverridesSocio,
+    }));
+
+    const initial = {
+      aeronave_id: aeronaveId,
+      tipo_despesa_label: "TAXAS AEROPORTUARIAS E NAVEGAÇÃO AEREA",
+      subcategoria,
+      nome_categoria: tipoLabel,
+      tipo_rateio: "VARIAVEL POR VOO",
+      periodicidade: "MENSAL",
+      taxa_origem: tipo,
+      numero_doc: result.numero_documento || null,
+      valor_total: Number(consolidado.total.toFixed(2)),
+      valor: Number(consolidado.total.toFixed(2)),
+      descricao_despesa: `${tipoLabel} - Doc ${result.numero_documento || "?"}${
+        result.competencia ? " - Comp " + result.competencia : ""
+      }`,
+      competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
+      competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
+      demonstrativo_url: demonstrativoUrl,
+      anexos: demonstrativoUrl
+        ? [{ tipo: "demonstrativo", url: demonstrativoUrl, numero: result.numero_documento || "" }]
+        : [],
+      rateio_cliente,
+    };
+
+    setSolicitacaoInitialData(initial);
+    setSolicitacaoOpen(true);
+  };
+
+  const handleAcao = async (modo: "recibo" | "recibo_pgto" | "pgto") => {
+    if (!validarAntesDeGerar()) return;
+    if (!file) {
+      toast({ title: "Imagem do demonstrativo não encontrada", variant: "destructive" });
       return;
     }
-    setIsGenerating(true);
+    setGeneratingMode(modo);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-      if (!userId) throw new Error("Usuário não autenticado");
-
-      const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
-      const descBase = `${tipoLabel} - Doc ${result.numero_documento || "?"}${
-        result.competencia ? " - Comp " + result.competencia : ""
-      } - Aeronave ${result.aeronave_matricula || ""}`;
-
-      let sucesso = 0;
-      for (const row of consolidado.rows) {
-        const normalizedRowName = normalizeTextForMatching(row.nome);
-        const cotistaMatch = cotistas.find((c) => {
-          const normalizedCotistaName = normalizeTextForMatching(c.nome);
-          return normalizedCotistaName === normalizedRowName;
+      const demonstrativoUrl = await uploadDemonstrativo(file, tipo);
+      if (!demonstrativoUrl) {
+        toast({
+          title: "Aviso",
+          description: "Falha ao salvar imagem no storage — seguindo sem URL.",
         });
-        const numeroRecibo = await generateSequentialReceiptNumber(
-          row.nome,
-          supabase,
-          cotistaMatch?.cliente_id || cotistaMatch?.id || null
-        );
-        const payload = {
-          usuario_id: userId,
-          nome_pagador: row.nome,
-          documento_pagador: cotistaMatch?.documento || "",
-          endereco_pagador: cotistaMatch?.endereco || null,
-          cidade_pagador: cotistaMatch?.cidade || null,
-          uf_pagador: cotistaMatch?.uf || null,
-          valor: Number(row.valor.toFixed(2)),
-          descricao_servico: `${descBase} - Rateio ${row.percentual.toFixed(2)}% (${row.itens} op.)`,
-          tipo_recibo: "reembolso",
-          data_emissao: new Date().toISOString().split("T")[0],
-          numero_recibo: numeroRecibo,
-          cliente_id: cotistaMatch?.id || null,
-          aeronave_id: aeronaveId || null,
-          compartilhado: true,
-          percentual: Number(row.percentual.toFixed(2)),
-          valor_total: Number(consolidado.total.toFixed(2)),
-          numero_documento: result.numero_documento || null,
-          [tipo === "DECEA" ? "competencia_decea" : "competencia_infraero"]:
-            result.competencia || null,
-        } as Record<string, unknown>;
-
-        const { data: inserted, error } = await supabase
-          .from("recibos")
-          .insert(payload)
-          .select()
-          .single();
-        if (error) throw error;
-
-        // Gerar PDF e salvar pdf_url
-        try {
-          await generateAndUploadPdf({
-            receiptData: { ...inserted, ...payload },
-            userId,
-          });
-        } catch (pdfErr) {
-          console.error("Falha ao gerar PDF do recibo", pdfErr);
-        }
-        sucesso++;
       }
 
+      if (modo === "recibo") {
+        const n = await criarRecibos(demonstrativoUrl);
+        toast({ title: "Recibos gerados", description: `${n} recibo(s) criado(s).` });
+        onGenerated?.();
+        resetForm();
+        return;
+      }
 
+      if (modo === "recibo_pgto") {
+        const n = await criarRecibos(demonstrativoUrl);
+        toast({ title: "Recibos gerados", description: `${n} recibo(s) criado(s). Abrindo solicitação de pagamento…` });
+        onGenerated?.();
+        abrirSolicitacaoPagamento(demonstrativoUrl);
+        return;
+      }
 
-      toast({
-        title: "Recibos gerados",
-        description: `${sucesso} recibo(s) criado(s) com sucesso.`,
-      });
-      onGenerated?.();
-      // reset
-      setFile(null);
-      setResult(null);
-      setLinhas([]);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      // modo === "pgto"
+      abrirSolicitacaoPagamento(demonstrativoUrl);
+      toast({ title: "Solicitação de pagamento", description: "Preencha os dados e confirme." });
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Falha desconhecida";
-      toast({
-        title: "Erro ao gerar recibos",
-        description: message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: message, variant: "destructive" });
     } finally {
-      setIsGenerating(false);
+      setGeneratingMode(null);
     }
   };
 
+  const isGenerating = generatingMode !== null;
+
   return (
     <div className="space-y-6">
-      {/* Configuração */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-           
             Reconhecimento Automatico — Demonstrativos
           </CardTitle>
         </CardHeader>
@@ -434,18 +561,13 @@ export default function ImportarDemonstrativoIA({
             </div>
             {previewUrl && (
               <div className="mt-3 rounded-lg border border-border/50 p-2 bg-muted/30 inline-block">
-                <img
-                  src={previewUrl}
-                  alt="Prévia demonstrativo"
-                  className="max-h-48 rounded"
-                />
+                <img src={previewUrl} alt="Prévia demonstrativo" className="max-h-48 rounded" />
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Resultado da IA */}
       {result && (
         <>
           <Card>
@@ -603,9 +725,10 @@ export default function ImportarDemonstrativoIA({
                 </Table>
               )}
 
-              <div className="flex justify-end">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
                 <Button
-                  onClick={handleGerarRecibos}
+                  variant="outline"
+                  onClick={() => handleAcao("recibo")}
                   disabled={
                     isGenerating ||
                     consolidado.rows.length === 0 ||
@@ -613,18 +736,64 @@ export default function ImportarDemonstrativoIA({
                   }
                   className="gap-2"
                 >
-                  {isGenerating ? (
+                  {generatingMode === "recibo" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Receipt className="h-4 w-4" />
+                  )}
+                  Apenas gerar recibo
+                </Button>
+                <Button
+                  onClick={() => handleAcao("recibo_pgto")}
+                  disabled={
+                    isGenerating ||
+                    consolidado.rows.length === 0 ||
+                    consolidado.semAtribuicao > 0
+                  }
+                  className="gap-2"
+                >
+                  {generatingMode === "recibo_pgto" ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Sparkles className="h-4 w-4" />
                   )}
-                  Gerar recibos por sócio
+                  Gerar recibo e enviar para pagamento
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleAcao("pgto")}
+                  disabled={
+                    isGenerating ||
+                    consolidado.rows.length === 0 ||
+                    consolidado.semAtribuicao > 0
+                  }
+                  className="gap-2"
+                >
+                  {generatingMode === "pgto" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  Apenas enviar para pagamento
                 </Button>
               </div>
             </CardContent>
           </Card>
         </>
       )}
+
+      <SolicitacaoPagamentoModal
+        open={solicitacaoOpen}
+        onOpenChange={(v) => {
+          setSolicitacaoOpen(v);
+          if (!v) {
+            // ao fechar, se veio de fluxo "pgto only" ou "recibo_pgto" - resetar
+            resetForm();
+            onGenerated?.();
+          }
+        }}
+        initialData={solicitacaoInitialData}
+      />
     </div>
   );
 }

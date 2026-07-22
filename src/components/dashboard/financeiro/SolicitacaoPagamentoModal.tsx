@@ -337,10 +337,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
           uid: crypto.randomUUID(),
           clienteId: rc.cliente_id || "",
           percentualUsoCliente: rc.percentual_uso != null ? String(rc.percentual_uso) : "",
-          overridesSocio: {},
-          valorOverridesSocio: rc.socio_id && rc.valor_rateado != null
-            ? { [rc.socio_id]: String(rc.valor_rateado) }
-            : {},
+          valorClienteOverride: rc.valor_total_cliente != null ? String(rc.valor_total_cliente) : undefined,
+          overridesSocio: rc.overridesSocio || {},
+          valorOverridesSocio:
+            rc.valorOverridesSocio ||
+            (rc.socio_id && rc.valor_rateado != null
+              ? { [rc.socio_id]: String(rc.valor_rateado) }
+              : {}),
           numeroDocumentoRecibo: initialData.numero_recibo || initialData.numero_doc || undefined,
           urlBoleto: initialData.boleto_url || undefined,
           urlDemonstrativo: initialData.demonstrativo_url || undefined,
@@ -363,24 +366,50 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
         const possible = [] as AnexoDoc[];
         if (initialData.boleto_url) possible.push({ id: "prefill-boleto", tipo: "boleto", numero: "", arquivo: null, url: initialData.boleto_url, socioId: null });
         if (initialData.nf_url) possible.push({ id: "prefill-nf", tipo: "nf", numero: "", arquivo: null, url: initialData.nf_url, socioId: null });
-        if (initialData.demonstrativo_url) possible.push({ id: "prefill-dem", tipo: "demonstrativo", numero: "", arquivo: null, url: initialData.demonstrativo_url, socioId: null });
+        if (initialData.demonstrativo_url) possible.push({ id: "prefill-dem", tipo: "demonstrativo", numero: initialData.numero_doc || "", arquivo: null, url: initialData.demonstrativo_url, socioId: null });
         if (initialData.pdf_url || initialData.recibo_url) possible.push({ id: "prefill-recibo", tipo: "recibo", numero: initialData.numero_recibo || "", arquivo: null, url: initialData.pdf_url || initialData.recibo_url, socioId: null });
         if (possible.length) setAnexos(possible);
       }
 
-      // competencia
+      // taxa origem + competencia
+      if (initialData.taxa_origem === "INFRAERO" || initialData.taxa_origem === "DECEA") {
+        setTaxaOrigem(initialData.taxa_origem);
+      }
       if (initialData.competencia_infraero) {
-        setTaxaOrigem("INFRAERO");
+        setTaxaOrigem((prev) => prev || "INFRAERO");
         setDescricao((prev) => prev || `Competência ${initialData.competencia_infraero}`);
       }
       if (initialData.competencia_decea) {
-        setTaxaOrigem("DECEA");
+        setTaxaOrigem((prev) => prev || "DECEA");
         setDescricao((prev) => prev || `Competência ${initialData.competencia_decea}`);
       }
     } catch (e) {
       console.warn("Erro ao pré-preencher SolicitacaoPagamentoModal:", e);
     }
   }, [open, initialData]);
+
+  // Prefill do tipo de despesa/subcategoria — depende de tiposDespesa já carregado
+  useEffect(() => {
+    if (!open || !initialData || tiposDespesa.length === 0) return;
+    const label: string | undefined =
+      initialData.tipo_despesa_label || initialData.nome_categoria || undefined;
+    if (label && !tipoDespesa) {
+      const norm = String(label).toUpperCase();
+      const match =
+        tiposDespesa.find((t) => (t.expense_type || "").toUpperCase() === norm) ||
+        tiposDespesa.find((t) => (t.expense_type || "").toUpperCase().includes(norm)) ||
+        tiposDespesa.find((t) => norm.includes((t.expense_type || "").toUpperCase()));
+      if (match) {
+        setTipoDespesa(match.id);
+        setTipoDespesaBase(match.expense_type);
+        setTipoDespesaLabel(match.expense_type);
+      }
+    }
+    if (initialData.subcategoria && !subcategoriaSel) {
+      setSubcategoriaSel(String(initialData.subcategoria));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialData, tiposDespesa]);
 
   useEffect(() => {
     setClienteLinhas([]);
