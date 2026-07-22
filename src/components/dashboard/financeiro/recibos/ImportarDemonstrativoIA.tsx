@@ -1,0 +1,551 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Upload, Sparkles, FileImage, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
+import { useReceiptPdfGenerator } from "@/hooks/useReceiptPdfGenerator";
+import { buildCotistaOptions, normalizeTextForMatching } from "./demonstrativoUtils";
+
+type TipoDemonstrativo = "INFRAERO" | "DECEA";
+
+interface DemonstrativoItem {
+  data: string;
+  hora?: string;
+  operacao?: string;
+  matricula?: string;
+  valor: number;
+}
+
+interface DemonstrativoResult {
+  tipo: TipoDemonstrativo;
+  numero_documento: string | null;
+  competencia: string | null;
+  data_faturamento: string | null;
+  aeronave_matricula: string | null;
+  cliente_nome: string | null;
+  valor_total: number | null;
+  itens: DemonstrativoItem[];
+}
+
+interface Aeronave {
+  id: string;
+  matricula: string;
+}
+
+interface CotistaOption {
+  id: string;
+  cliente_id?: string | null;
+  nome: string;
+  documento: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  uf: string | null;
+  percentual: number;
+}
+
+interface LinhaItem extends DemonstrativoItem {
+  cotistaNome: string; // texto livre ou nome escolhido
+}
+
+const brl = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
+
+const fileToBase64 = (file: File): Promise<{ base64: string; mimeType: string }> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const [, mime, b64] = result.match(/^data:(.+);base64,(.+)$/) || [];
+      if (!b64) reject(new Error("Falha ao ler arquivo"));
+      else resolve({ base64: b64, mimeType: mime || file.type || "image/png" });
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+export default function ImportarDemonstrativoIA({
+  onGenerated,
+}: {
+  onGenerated?: () => void;
+}) {
+  const [tipo, setTipo] = useState<TipoDemonstrativo>("INFRAERO");
+  const [aeronaves, setAeronaves] = useState<Aeronave[]>([]);
+  const [aeronaveId, setAeronaveId] = useState<string>("");
+  const [cotistas, setCotistas] = useState<CotistaOption[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [result, setResult] = useState<DemonstrativoResult | null>(null);
+  const [linhas, setLinhas] = useState<LinhaItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { generateAndUploadPdf } = useReceiptPdfGenerator();
+
+  useEffect(() => {
+    supabase
+      .from("aeronave")
+      .select("id, matricula")
+      .order("matricula")
+      .then(({ data }) => setAeronaves((data || []) as Aeronave[]));
+  }, []);
+
+  useEffect(() => {
+    if (!aeronaveId) {
+      setCotistas([]);
+      return;
+    }
+
+    Promise.all([
+      supabase
+        .from("cotistas_aeronave")
+        .select(
+          "id_clientes, percentual_sociedade, clientes:id_clientes(id, razao_social, cnpj, endereco, cidade, uf)"
+        )
+        .eq("id_aeronave", aeronaveId),
+      supabase.from("socios").select("id, nome, cpf, cliente_id, endereco, cidade, uf").order("nome"),
+    ]).then(([cotistasResponse, sociosResponse]) => {
+      if (cotistasResponse.error) {
+        console.error(cotistasResponse.error);
+        return;
+      }
+      if (sociosResponse.error) {
+        console.error(sociosResponse.error);
+        return;
+      }
+
+      const opts = buildCotistaOptions(cotistasResponse.data || [], sociosResponse.data || []);
+      setCotistas(opts);
+    });
+  }, [aeronaveId]);
+
+  const handleFileChange = (f: File | null) => {
+    setFile(f);
+    setResult(null);
+    setLinhas([]);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(f ? URL.createObjectURL(f) : null);
+  };
+
+  const handleAnalyze = async () => {
+    if (!file) {
+      toast({ title: "Selecione uma imagem", variant: "destructive" });
+      return;
+    }
+    setIsAnalyzing(true);
+    try {
+      const { base64, mimeType } = await fileToBase64(file);
+      const { data, error } = await supabase.functions.invoke("demonstrativo-ocr", {
+        body: { imageBase64: base64, mimeType, tipo },
+      });
+      if (error) throw error;
+      const res = data as DemonstrativoResult;
+      setResult(res);
+      setLinhas(res.itens.map((it) => ({ ...it, cotistaNome: "" })));
+      toast({ title: "Análise concluída", description: `${res.itens.length} operações detectadas` });
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "Falha ao processar a imagem";
+      toast({
+        title: "Erro na análise",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const consolidado = useMemo(() => {
+    const total = linhas.reduce((s, l) => s + (l.valor || 0), 0);
+    const map = new Map<string, { nome: string; valor: number; itens: number }>();
+    for (const l of linhas) {
+      const nome = (l.cotistaNome || "").trim();
+      if (!nome) continue;
+      const cur = map.get(nome) || { nome, valor: 0, itens: 0 };
+      cur.valor += l.valor || 0;
+      cur.itens += 1;
+      map.set(nome, cur);
+    }
+    const rows = Array.from(map.values()).map((r) => ({
+      ...r,
+      percentual: total > 0 ? (r.valor / total) * 100 : 0,
+    }));
+    return { total, rows, semAtribuicao: linhas.filter((l) => !l.cotistaNome.trim()).length };
+  }, [linhas]);
+
+  const handleGerarRecibos = async () => {
+    if (!result || consolidado.rows.length === 0) {
+      toast({ title: "Nenhum sócio atribuído às linhas", variant: "destructive" });
+      return;
+    }
+    if (consolidado.semAtribuicao > 0) {
+      toast({
+        title: "Existem linhas sem sócio",
+        description: `${consolidado.semAtribuicao} linha(s) sem atribuição.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) throw new Error("Usuário não autenticado");
+
+      const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
+      const descBase = `${tipoLabel} - Doc ${result.numero_documento || "?"}${
+        result.competencia ? " - Comp " + result.competencia : ""
+      } - Aeronave ${result.aeronave_matricula || ""}`;
+
+      let sucesso = 0;
+      for (const row of consolidado.rows) {
+        const normalizedRowName = normalizeTextForMatching(row.nome);
+        const cotistaMatch = cotistas.find((c) => {
+          const normalizedCotistaName = normalizeTextForMatching(c.nome);
+          return normalizedCotistaName === normalizedRowName;
+        });
+        const numeroRecibo = await generateSequentialReceiptNumber(
+          row.nome,
+          supabase,
+          cotistaMatch?.cliente_id || cotistaMatch?.id || null
+        );
+        const payload = {
+          usuario_id: userId,
+          nome_pagador: row.nome,
+          documento_pagador: cotistaMatch?.documento || "",
+          endereco_pagador: cotistaMatch?.endereco || null,
+          cidade_pagador: cotistaMatch?.cidade || null,
+          uf_pagador: cotistaMatch?.uf || null,
+          valor: Number(row.valor.toFixed(2)),
+          descricao_servico: `${descBase} - Rateio ${row.percentual.toFixed(2)}% (${row.itens} op.)`,
+          tipo_recibo: "reembolso",
+          data_emissao: new Date().toISOString().split("T")[0],
+          numero_recibo: numeroRecibo,
+          cliente_id: cotistaMatch?.id || null,
+          aeronave_id: aeronaveId || null,
+          compartilhado: true,
+          percentual: Number(row.percentual.toFixed(2)),
+          valor_total: Number(consolidado.total.toFixed(2)),
+          numero_documento: result.numero_documento || null,
+          [tipo === "DECEA" ? "competencia_decea" : "competencia_infraero"]:
+            result.competencia || null,
+        } as Record<string, unknown>;
+
+        const { data: inserted, error } = await supabase
+          .from("recibos")
+          .insert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+
+        // Gerar PDF e salvar pdf_url
+        try {
+          await generateAndUploadPdf({
+            receiptData: { ...inserted, ...payload },
+            userId,
+          });
+        } catch (pdfErr) {
+          console.error("Falha ao gerar PDF do recibo", pdfErr);
+        }
+        sucesso++;
+      }
+
+
+
+      toast({
+        title: "Recibos gerados",
+        description: `${sucesso} recibo(s) criado(s) com sucesso.`,
+      });
+      onGenerated?.();
+      // reset
+      setFile(null);
+      setResult(null);
+      setLinhas([]);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "Falha desconhecida";
+      toast({
+        title: "Erro ao gerar recibos",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Configuração */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+           
+            Reconhecimento Automatico — Demonstrativos
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Tipo de demonstrativo</Label>
+              <Select value={tipo} onValueChange={(v) => setTipo(v as TipoDemonstrativo)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INFRAERO">TARIFA INFRAERO</SelectItem>
+                  <SelectItem value="DECEA">TARIFA DE NAVEGAÇÃO AÉREA - DECEA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Matrícula da aeronave</Label>
+              <Select value={aeronaveId} onValueChange={setAeronaveId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a aeronave" />
+                </SelectTrigger>
+                <SelectContent>
+                  {aeronaves.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.matricula}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label>Imagem do demonstrativo</Label>
+            <div className="mt-1 flex items-center gap-3">
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+              />
+              <Button
+                type="button"
+                onClick={handleAnalyze}
+                disabled={!file || isAnalyzing}
+                className="gap-2"
+              >
+                {isAnalyzing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                Analisar demonstrativo
+              </Button>
+            </div>
+            {previewUrl && (
+              <div className="mt-3 rounded-lg border border-border/50 p-2 bg-muted/30 inline-block">
+                <img
+                  src={previewUrl}
+                  alt="Prévia demonstrativo"
+                  className="max-h-48 rounded"
+                />
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Resultado da IA */}
+      {result && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileImage className="h-4 w-4" /> Dados extraídos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Nº Documento</div>
+                  <div className="font-medium">{result.numero_documento || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Competência</div>
+                  <div className="font-medium">{result.competencia || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Matrícula</div>
+                  <div className="font-medium">{result.aeronave_matricula || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Valor total</div>
+                  <div className="font-medium">
+                    {result.valor_total != null ? brl(result.valor_total) : brl(consolidado.total)}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Operações — atribua o sócio/cliente por linha
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Hora</TableHead>
+                      <TableHead>Operação</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="min-w-[240px]">Sócio / Cliente</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {linhas.map((l, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{l.data}</TableCell>
+                        <TableCell>{l.hora || "—"}</TableCell>
+                        <TableCell className="text-xs">{l.operacao || "—"}</TableCell>
+                        <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            {cotistas.length > 0 && (
+                              <Select
+                                value={
+                                  cotistas.find(
+                                    (c) => c.nome.toLowerCase() === l.cotistaNome.toLowerCase()
+                                  )?.id || ""
+                                }
+                                onValueChange={(v) => {
+                                  const c = cotistas.find((x) => x.id === v);
+                                  setLinhas((prev) =>
+                                    prev.map((it, i) =>
+                                      i === idx ? { ...it, cotistaNome: c?.nome || "" } : it
+                                    )
+                                  );
+                                }}
+                              >
+                                <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Cotista" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {cotistas.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                      {c.nome}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            <Input
+                              placeholder="Ou digite (ex: POSTO 10)"
+                              value={l.cotistaNome}
+                              onChange={(e) =>
+                                setLinhas((prev) =>
+                                  prev.map((it, i) =>
+                                    i === idx ? { ...it, cotistaNome: e.target.value } : it
+                                  )
+                                )
+                              }
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setLinhas((prev) => prev.filter((_, i) => i !== idx))
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Rateio consolidado</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {consolidado.rows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Atribua os sócios nas linhas acima para ver o rateio.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sócio / Cliente</TableHead>
+                      <TableHead className="text-center">Operações</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-right">%</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {consolidado.rows.map((r) => (
+                      <TableRow key={r.nome}>
+                        <TableCell className="font-medium">{r.nome}</TableCell>
+                        <TableCell className="text-center">{r.itens}</TableCell>
+                        <TableCell className="text-right">{brl(r.valor)}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="secondary">{r.percentual.toFixed(2)}%</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell className="font-bold">Total</TableCell>
+                      <TableCell />
+                      <TableCell className="text-right font-bold">
+                        {brl(consolidado.total)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold">100%</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleGerarRecibos}
+                  disabled={
+                    isGenerating ||
+                    consolidado.rows.length === 0 ||
+                    consolidado.semAtribuicao > 0
+                  }
+                  className="gap-2"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Gerar recibos por sócio
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}

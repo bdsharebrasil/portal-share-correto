@@ -309,7 +309,7 @@ export function ReceiptForm({
       }));
     }
     setSelectedPartnerId("");
-  }, [formData.clienteId]);
+  }, [formData.clienteId, clientesAtivos]);
 
   useEffect(() => {
     if (!selectedPartnerId || selectedPartnerId === "__client__") {
@@ -334,7 +334,7 @@ export function ReceiptForm({
         pagadorDocumento: partner.cpf || "",
       }));
     }
-  }, [selectedPartnerId]);
+  }, [selectedPartnerId, formData.clienteId, clientesAtivos, clientPartners]);
 
   // ─── Load ALL aircrafts (no client filter) ────────────────────────────────
   const loadAllAircrafts = async () => {

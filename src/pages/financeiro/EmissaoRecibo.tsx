@@ -16,7 +16,8 @@ import { generateSequentialReceiptNumber, GeneratedReceipt, ReceiptType } from "
 import { handleReceiptSubmit } from "@/services/receiptSubmitHandler";
 import { toast } from "@/hooks/use-toast";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
-import { FileText, Clock, Star } from "lucide-react";
+import { FileText, Clock, Star, Sparkles } from "lucide-react";
+import ImportarDemonstrativoIA from "@/components/dashboard/financeiro/recibos/ImportarDemonstrativoIA";
 import { pdf } from "@react-pdf/renderer";
 import { ReciboDocument } from "@/lib/reciboGenerator";
 import { syncClientExpenseMirror } from "@/lib/clientExpenseMirrorSync";
@@ -1229,6 +1230,13 @@ export default function EmissaoRecibo() {
                   Histórico
                 </TabsTrigger>
                 <TabsTrigger
+                  value="ia"
+                  className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all"
+                >
+                 
+                  Leitura automatica demonstrativos 
+                </TabsTrigger>
+                <TabsTrigger
                   value="descricoes"
                   className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all"
                 >
@@ -1261,6 +1269,13 @@ export default function EmissaoRecibo() {
                   onClearAll={handleClearHistory}
                   isLoading={isLoadingPdf}
                 />
+              </div>
+            </TabsContent>
+
+            {/* Tab Content - Importar por IA */}
+            <TabsContent value="ia" className="mt-6">
+              <div className="rounded-[19px] bg-card/30 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg">
+                <ImportarDemonstrativoIA onGenerated={() => loadRecentReceipts(userId)} />
               </div>
             </TabsContent>
 

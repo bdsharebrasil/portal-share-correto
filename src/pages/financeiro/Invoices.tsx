@@ -360,7 +360,7 @@ export default function Invoices() {
                 <Textarea
                   id="observacoes"
                   placeholder="Observações adicionais..."
-                  value={formData.observacoes}
+                  value={formData.observations}
                   onChange={(e) => setFormData(prev => ({ ...prev, observations: e.target.value }))}
                   rows={2}
                 />

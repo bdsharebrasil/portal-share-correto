@@ -208,7 +208,7 @@ export default function SolicitacaoCompras() {
       toast({ title: "Erro", description: "Erro ao carregar solicitações", variant: "destructive" });
       return;
     }
-    setRequests((data || []) as PurchaseRequest[]);
+    setRequests((data || []) as unknown as PurchaseRequest[]);
   };
 
   const loadPaymentRequests = async () => {
@@ -302,7 +302,7 @@ export default function SolicitacaoCompras() {
     setLoading(true);
     try {
       const numeroSolicitacao = await gerarNumeroSolicitacao();
-      const { error } = await supabase.from('purchase_requests').insert({
+      const payload: Record<string, string | number | null> = {
         numero_solicitacao: numeroSolicitacao,
         tipo,
         tipo_de_servico: tipoDeServico || null,
@@ -312,7 +312,9 @@ export default function SolicitacaoCompras() {
         data_necessaria: dataNecessaria || null,
         status: 'rascunho',
         valor_total: 0
-      } satisfies Record<string, string | number | null>);
+      };
+
+      const { error } = await supabase.from('purchase_requests').insert(payload);
 
       if (error) throw error;
 

@@ -2,15 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import {
-  FileText, Star, Calendar, ChevronRight, ChevronLeft,
-  Check, User, Plane, DollarSign, FileCheck, Building2,
-  Percent, Upload, X, AlertCircle, RefreshCw, Search,
-  ChevronDown, ClipboardList
+  FileText, Star, Calendar, ChevronRight,
+  Check, User, DollarSign, FileCheck, Building2,
+  Upload, X, AlertCircle, Search,
+  ChevronDown, ClipboardList, Plus, Users
 } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-
-import { Button } from "@/components/ui/button";
 
 // --- Primitives ---
 function Input({ className = "", ...props }: any) {
@@ -72,76 +70,7 @@ function Checkbox({ id, checked, onCheckedChange, label }: any) {
   );
 }
 
-function Select({ value, onValueChange, children, placeholder = "Selecione..." }: any) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const options: { value: string; label: string }[] = [];
-
-  const traverse = (nodes: any) => {
-    if (!nodes) return;
-    const arr = Array.isArray(nodes) ? nodes : [nodes];
-    arr.forEach((node: any) => {
-      if (!node) return;
-      // FIX: quando o filho é um array puro (ex: resultado de .map()),
-      // ele precisa ser percorrido recursivamente — antes era ignorado
-      // silenciosamente porque arrays não têm .type nem .props.
-      if (Array.isArray(node)) {
-        traverse(node);
-        return;
-      }
-      if (node.type === SelectItem) {
-        options.push({ value: node.props.value, label: node.props.children });
-      } else if (node.props?.children) {
-        traverse(node.props.children);
-      }
-    });
-  };
-  traverse(children);
-  const selected = options.find((o) => o.value === value);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full px-3 py-2.5 bg-[#0f1623] border border-[#1e2d45] rounded-lg text-sm text-left flex items-center justify-between focus:outline-none focus:border-[#3b82f6] transition-colors"
-      >
-        <span className={selected ? "text-slate-100" : "text-slate-500"}>
-          {selected ? selected.label : placeholder}
-        </span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute z-50 top-full mt-1 w-full bg-[#111827] border border-[#1e2d45] rounded-lg shadow-2xl overflow-hidden">
-          <div className="max-h-52 overflow-y-auto">
-            {options.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { onValueChange(opt.value); setOpen(false); }}
-                className={`w-full px-3 py-2.5 text-sm text-left hover:bg-[#1e2d45] transition-colors ${
-                  opt.value === value ? "text-[#3b82f6] bg-[#3b82f6]/10" : "text-slate-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-function SelectItem({ value, children }: any) { return null; }
-
+// --- Universal selector: usado em TODOS os campos de seleção do formulário ---
 function SearchableCombobox({ items, value, onChange, placeholder, searchPlaceholder, emptyMessage }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -188,6 +117,7 @@ function SearchableCombobox({ items, value, onChange, placeholder, searchPlaceho
   );
 }
 
+// Calendário moderno (digitar ou selecionar) — inalterado
 function DateInput({ value, onChange, placeholder = "DD/MM/AAAA", required, className = "" }: any) {
   const displayValue = value ? (() => { try { const [y,m,d] = value.split("-").map(Number); return format(new Date(y,m-1,d), "dd/MM/yyyy"); } catch { return ""; } })() : "";
   return (
@@ -217,7 +147,7 @@ function FileUpload({ label, value, onChange, accept }: any) {
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div>
-      <Label>{label}</Label>
+      {label ? <Label>{label}</Label> : null}
       <div onClick={() => ref.current?.click()} className={`relative flex items-center gap-3 px-3 py-2.5 bg-[#0f1623] border border-dashed rounded-lg cursor-pointer hover:border-[#3b82f6]/60 transition-colors ${ value ? "border-[#3b82f6]/40 bg-[#3b82f6]/5" : "border-[#1e2d45]" }`}>
         <Upload className={`w-4 h-4 flex-shrink-0 ${value ? "text-[#3b82f6]" : "text-slate-500"}`} />
         <span className="text-sm truncate text-slate-400">{value ? value.name : "Selecionar arquivo (opcional)"}</span>
@@ -289,6 +219,55 @@ function ReviewItem({ label, value }: { label: string; value: any }) {
   );
 }
 
+// --- Helpers ---
+function uid() {
+  return Math.random().toString(36).slice(2, 10);
+}
+// Busca o primeiro campo existente num objeto vindo do Supabase — protege contra
+// nomes de coluna que eu não tenho certeza (ex: "razao_social" vs "nome").
+// AJUSTE os nomes de coluna abaixo conforme o schema real da tabela "clientes".
+function pick(obj: any, keys: string[]) {
+  for (const k of keys) {
+    if (obj && obj[k]) return obj[k];
+  }
+  return "";
+}
+
+const ANEXO_TIPOS = [
+  { id: "boleto", label: "Boleto" },
+  { id: "nota_fiscal", label: "Nota Fiscal" },
+  { id: "demonstrativo", label: "Demonstrativo" },
+  { id: "recibo", label: "Recibo" },
+];
+
+const FORMA_PAGAMENTO_ITEMS = [
+  { id: "pix", label: "PIX" },
+  { id: "boleto", label: "Boleto" },
+  { id: "transferencia", label: "Transferência" },
+];
+
+function makeEmptyPagador() {
+  return {
+    id: uid(),
+    clienteId: "",
+    socioId: "",
+    socioNome: "",
+    pagadorNome: "",
+    pagadorDocumento: "",
+    pagadorEndereco: "",
+    pagadorCidade: "",
+    pagadorUF: "",
+    percentual: "",
+    valor: "",
+    valorManual: false,
+    gerarRecibo: true,
+  };
+}
+
+function makeEmptyAnexo() {
+  return { id: uid(), tipo: "", numeroDocumento: "", file: null as File | null };
+}
+
 // --- Main Wizard UI Component ---
 interface Props {
   clientesAtivos?: any[];
@@ -303,63 +282,37 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
 
   const [formData, setFormData] = useState<any>({
     receiptType: "pagamento",
-    pagadorNome: "",
-    pagadorDocumento: "",
-    pagadorEndereco: "",
-    pagadorCidade: "",
-    pagadorUF: "",
-    valor: "",
-    servicoDescricao: "",
-    dataEmissao: new Date().toISOString().split("T")[0],
-    prazoMaximoQuitacao: "",
-    formaPagamento: "",
-    clienteId: "",
-    aircraftId: "",
+    multiCliente: false,
 
-    // Reembolso fields
-    reembolsoValorTotal: "",
-    reembolsoPorcentagem: "",
+    aircraftId: "",
     reembolsoCategoriaId: "",
     reembolsoCategoriaNome: "",
     reembolsoSubcategoria: "",
-    reembolsoNumeroDocumento: "",
-    reembolsoRateado: false,
-    reembolsoBoletoFile: null,
-    reembolsoNotaFiscalFile: null,
+    competencia: "",
 
-    // Decea/Infraero
-    numeroDocumentoDecea: "",
-    competenciaDecea: "",
-    decealFile: null,
-    numeroDocumentoInfraero: "",
-    competenciaInfraero: "",
-    infraeroFile: null,
-    dataVencimentoBoleto: "",
-    valorTotalBoleto: "",
+    valorTotalRecibo: "",
+    valor: "",
+    formaPagamento: "",
 
-    socioId: "",
-    socioNome: "",
+    servicoDescricao: "",
+    dataEmissao: new Date().toISOString().split("T")[0],
+    prazoMaximoQuitacao: "",
   });
 
+  const [pagadores, setPagadores] = useState<any[]>([makeEmptyPagador()]);
+  const [anexos, setAnexos] = useState<any[]>([makeEmptyAnexo()]);
+  const [enviarParaProgramacao, setEnviarParaProgramacao] = useState(false);
+
   const [aircrafts, setAircrafts] = useState<any[]>([]);
-  const [clientPartners, setClientPartners] = useState<any[]>([]);
   const [expenseConfigs, setExpenseConfigs] = useState<any[]>([]);
   const [favoriteDescriptions, setFavoriteDescriptions] = useState<any[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showFavoritePayers, setShowFavoritePayers] = useState(false);
-  const [valorEditadoManualmente, setValorEditadoManualmente] = useState(false);
+  const [clientPartnersMap, setClientPartnersMap] = useState<Record<string, any[]>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  const [enviarParaProgramacao, setEnviarParaProgramacao] = useState(false);
-
-  const normalizeId = (value: any): string | null => {
-    if (typeof value !== "string") return value ?? null;
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    return trimmed.startsWith("__") ? null : trimmed;
-  };
-
   const isReembolso = formData.receiptType === "reembolso";
+  const isMulti = isReembolso && formData.multiCliente;
 
   const selectedExpenseConfig = expenseConfigs.find((c: any) => c.id === formData.reembolsoCategoriaId);
   const subcategoriaOptions = selectedExpenseConfig
@@ -375,57 +328,19 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
 
   useEffect(() => {
     loadExpenseConfigs();
-    (async () => {
-      const { data: airData } = await supabase.from("aeronave").select("id, matricula, modelo").eq("status", "ativa").order("matricula");
-      setAircrafts((airData || []).map((a: any) => ({ ...a, isClient: false })));
-
-      const { data: favData } = await supabase.from("receipt_descriptions").select("*").order("criado_em", { ascending: false });
-      setFavoriteDescriptions(favData || []);
-    })();
+    loadAircrafts();
+    loadFavoriteDescriptions();
   }, []);
 
-  useEffect(() => {
-    if (!formData.reembolsoRateado) return;
+  const loadAircrafts = async () => {
+    const { data: airData } = await supabase.from("aeronave").select("id, matricula, modelo").eq("status", "ativa").order("matricula");
+    setAircrafts(airData || []);
+  };
 
-    const total = parseFloat(String(formData.reembolsoValorTotal).replace(",", "."));
-    const porcentagem = parseFloat(String(formData.reembolsoPorcentagem).replace(",", "."));
-    if (Number.isNaN(total) || Number.isNaN(porcentagem)) return;
-
-    const valorCalculado = ((total * porcentagem) / 100).toFixed(2);
-    if (!valorEditadoManualmente) {
-      setFormData((prev: any) => ({ ...prev, valor: valorCalculado }));
-    }
-  }, [formData.reembolsoValorTotal, formData.reembolsoPorcentagem, formData.reembolsoRateado, valorEditadoManualmente]);
-
-  useEffect(() => {
-    if (!formData.clienteId) {
-      setClientPartners([]);
-      setFormData((prev: any) => ({ ...prev, socioId: "", socioNome: "" }));
-      return;
-    }
-
-    setFormData((prev: any) => ({ ...prev, socioId: "", socioNome: "" }));
-
-    const loadClientPartners = async (clientId: string) => {
-      try {
-        const { data } = await supabase
-          .from("socios")
-          .select("id, nome, cpf")
-          .eq("cliente_id", clientId)
-          .order("nome");
-
-        setClientPartners((data || []).map((item: any) => ({
-          id: item.id,
-          nome: item.nome,
-          cpf: item.cpf,
-        })));
-      } catch (err) {
-        console.error("Erro ao carregar sócios do cliente", err);
-      }
-    };
-
-    loadClientPartners(formData.clienteId);
-  }, [formData.clienteId]);
+  const loadFavoriteDescriptions = async () => {
+    const { data: favData } = await supabase.from("receipt_descriptions").select("*").order("criado_em", { ascending: false });
+    setFavoriteDescriptions(favData || []);
+  };
 
   const loadExpenseConfigs = async () => {
     try {
@@ -433,25 +348,140 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
         .from("expense_configu")
         .select("id, expense_type, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4")
         .order("expense_type");
-      const list = expData || [];
-      setExpenseConfigs(list);
+      setExpenseConfigs(expData || []);
     } catch (err) {
       console.error("Erro ao carregar expense_configu", err);
     }
   };
 
+  // --- Pagadores (lista) ---
+  const updatePagador = (rowId: string, field: string, value: any) => {
+    setPagadores((prev) => prev.map((p) => (p.id === rowId ? { ...p, [field]: value } : p)));
+  };
+
+  const addPagador = () => setPagadores((prev) => [...prev, makeEmptyPagador()]);
+  const removePagador = (rowId: string) => setPagadores((prev) => (prev.length > 1 ? prev.filter((p) => p.id !== rowId) : prev));
+
+  // Ao selecionar um cliente na linha do pagador: busca dados completos no Supabase
+  // (tabela "clientes") e carrega os sócios daquele cliente para autopreenchimento.
+  const handleSelecionaCliente = async (rowId: string, clienteId: string) => {
+    updatePagador(rowId, "clienteId", clienteId);
+    updatePagador(rowId, "socioId", "");
+    updatePagador(rowId, "socioNome", "");
+    if (!clienteId) return;
+
+    try {
+      const { data: clienteData } = await supabase.from("clientes").select("*").eq("id", clienteId).maybeSingle();
+      if (clienteData) {
+        updatePagador(rowId, "pagadorNome", pick(clienteData, ["razao_social", "nome"]));
+        updatePagador(rowId, "pagadorDocumento", pick(clienteData, ["cnpj", "cpf", "documento"]));
+        updatePagador(rowId, "pagadorEndereco", pick(clienteData, ["endereco", "address"]));
+        updatePagador(rowId, "pagadorCidade", pick(clienteData, ["cidade", "city"]));
+        updatePagador(rowId, "pagadorUF", pick(clienteData, ["uf", "estado"]));
+      } else {
+        // fallback: usa ao menos o nome já disponível na lista recebida por prop
+        const fallback = clientesAtivos.find((c) => c.id === clienteId);
+        if (fallback) updatePagador(rowId, "pagadorNome", fallback.razao_social || fallback.nome || "");
+      }
+    } catch (err) {
+      console.error("Erro ao buscar dados do cliente", err);
+    }
+
+    if (!clientPartnersMap[clienteId]) {
+      try {
+        const { data } = await supabase.from("socios").select("id, nome, cpf").eq("cliente_id", clienteId).order("nome");
+        setClientPartnersMap((prev) => ({ ...prev, [clienteId]: data || [] }));
+      } catch (err) {
+        console.error("Erro ao carregar sócios do cliente", err);
+      }
+    }
+  };
+
+  const handleSelecionaSocio = (rowId: string, socioId: string) => {
+    const row = pagadores.find((p) => p.id === rowId);
+    const partners = clientPartnersMap[row?.clienteId] || [];
+    if (!socioId) {
+      updatePagador(rowId, "socioId", "");
+      updatePagador(rowId, "socioNome", "");
+      return;
+    }
+    const partner = partners.find((p) => p.id === socioId);
+    updatePagador(rowId, "socioId", socioId);
+    updatePagador(rowId, "socioNome", partner?.nome || "");
+    if (partner?.nome) updatePagador(rowId, "pagadorNome", partner.nome);
+    if (partner?.cpf) updatePagador(rowId, "pagadorDocumento", partner.cpf);
+  };
+
+  const selectFavoritePayer = (payer: any) => {
+    const firstRowId = pagadores[0]?.id;
+    if (!firstRowId) return;
+    updatePagador(firstRowId, "pagadorNome", payer.name || payer.nome || "");
+    updatePagador(firstRowId, "pagadorDocumento", payer.document || payer.cpf || "");
+    updatePagador(firstRowId, "pagadorEndereco", payer.address || payer.endereco || "");
+    updatePagador(firstRowId, "pagadorCidade", payer.city || payer.cidade || "");
+    updatePagador(firstRowId, "pagadorUF", payer.uf || "");
+    setShowFavoritePayers(false);
+  };
+
+  // Liga/desliga o rateio entre múltiplos clientes
+  const setMultiCliente = (value: boolean) => {
+    setFormData((prev: any) => ({ ...prev, multiCliente: value }));
+    if (value && pagadores.length < 2) {
+      setPagadores((prev) => [...prev, makeEmptyPagador()]);
+    }
+    if (!value) {
+      setPagadores((prev) => [prev[0] || makeEmptyPagador()]);
+    }
+  };
+
+  // Recalcula o valor de cada linha (total * percentual) quando o valor total muda,
+  // preservando linhas cujo valor foi editado manualmente.
+  useEffect(() => {
+    if (!isMulti) return;
+    const total = parseFloat(String(formData.valorTotalRecibo).replace(",", "."));
+    if (Number.isNaN(total)) return;
+    setPagadores((prev) =>
+      prev.map((row) => {
+        if (row.valorManual) return row;
+        const pct = parseFloat(String(row.percentual).replace(",", "."));
+        if (Number.isNaN(pct)) return row;
+        return { ...row, valor: ((total * pct) / 100).toFixed(2) };
+      })
+    );
+  }, [formData.valorTotalRecibo, isMulti]);
+
+  const updateRowPercentual = (rowId: string, percentual: string) => {
+    const total = parseFloat(String(formData.valorTotalRecibo).replace(",", "."));
+    const pct = parseFloat(String(percentual).replace(",", "."));
+    setPagadores((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+        const valor = !Number.isNaN(total) && !Number.isNaN(pct) ? ((total * pct) / 100).toFixed(2) : row.valor;
+        return { ...row, percentual, valor, valorManual: false };
+      })
+    );
+  };
+
+  // --- Anexos (lista) ---
+  const updateAnexo = (rowId: string, field: string, value: any) => setAnexos((prev) => prev.map((a) => (a.id === rowId ? { ...a, [field]: value } : a)));
+  const addAnexo = () => setAnexos((prev) => [...prev, makeEmptyAnexo()]);
+  const removeAnexo = (rowId: string) => setAnexos((prev) => (prev.length > 1 ? prev.filter((a) => a.id !== rowId) : prev));
+
+  // Auto-geração da descrição (DECEA / INFRAERO / demais categorias)
   useEffect(() => {
     if (!isReembolso || !selectedExpenseConfig) return;
     const aer = aircrafts.find((a) => a.id === formData.aircraftId);
     const aerStr = aer?.matricula ? ` AERONAVE ${aer.matricula}` : "";
+    const demonstrativo = anexos.find((a) => a.tipo === "demonstrativo");
+    const docNum = demonstrativo?.numeroDocumento ? demonstrativo.numeroDocumento.toUpperCase() : "";
 
     if (isInfraero) {
-      const c = formData.competenciaInfraero ? ` COMPETÊNCIA ${formData.competenciaInfraero.toUpperCase()}` : "";
-      const d = formData.numeroDocumentoInfraero ? ` DEMONSTRATIVO ${formData.numeroDocumentoInfraero.toUpperCase()}` : "";
+      const c = formData.competencia ? ` COMPETÊNCIA ${formData.competencia.toUpperCase()}` : "";
+      const d = docNum ? ` DEMONSTRATIVO ${docNum}` : "";
       setFormData((prev: any) => ({ ...prev, servicoDescricao: `REFERENTE A INFRAERO${aerStr}${c}${d}`.trim() }));
     } else if (isDecea) {
-      const c = formData.competenciaDecea ? ` COMPETÊNCIA ${formData.competenciaDecea.toUpperCase()}` : "";
-      const d = formData.numeroDocumentoDecea ? ` DEMONSTRATIVO ${formData.numeroDocumentoDecea.toUpperCase()}` : "";
+      const c = formData.competencia ? ` COMPETÊNCIA ${formData.competencia.toUpperCase()}` : "";
+      const d = docNum ? ` DEMONSTRATIVO ${docNum}` : "";
       setFormData((prev: any) => ({ ...prev, servicoDescricao: `REFERENTE A DECEA${aerStr}${c}${d}`.trim() }));
     } else {
       const s = formData.reembolsoSubcategoria ? ` / ${formData.reembolsoSubcategoria}` : "";
@@ -461,116 +491,83 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
     formData.reembolsoCategoriaId,
     formData.reembolsoSubcategoria,
     formData.aircraftId,
-    formData.competenciaInfraero,
-    formData.numeroDocumentoInfraero,
-    formData.competenciaDecea,
-    formData.numeroDocumentoDecea,
+    formData.competencia,
     isInfraero,
     isDecea,
     isReembolso,
     selectedExpenseConfig,
     aircrafts,
+    anexos,
   ]);
 
   const clienteItems = clientesAtivos.map((c: any) => ({ id: c.id, label: c.razao_social || c.nome || "Sem nome" }));
-  const aeronaveItems = aircrafts.map((a: any) => ({ id: a.id, label: `${a.matricula} – ${a.modelo}${a.isClient ? " ★" : ""}` }));
+  const aeronaveItems = aircrafts.map((a: any) => ({ id: a.id, label: `${a.matricula} – ${a.modelo}` }));
   const categoriaItems = expenseConfigs.map((c: any) => ({ id: c.id, label: c.expense_type }));
-  const subcategoriasDisponiveis = subcategoriaOptions;
+  const subcategoriaItems = subcategoriaOptions.map((s: string) => ({ id: s, label: s }));
 
   const submitting = isGenerating || isSaving;
 
   const goNext = () => {
-    setCompletedSteps((prev) => prev.includes(step) ? prev : [...prev, step]);
+    setCompletedSteps((prev) => (prev.includes(step) ? prev : [...prev, step]));
     setStep((s) => Math.min(s + 1, STEPS.length));
   };
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   const selectReceiptType = (type: string) => {
     setFormData((p: any) => {
-      const nextState: any = {
-        ...p,
-        receiptType: type,
-      };
-
+      const next: any = { ...p, receiptType: type };
       if (type === "pagamento") {
         return {
-          ...nextState,
-          valor: "",
-          reembolsoValorTotal: "",
-          reembolsoPorcentagem: "",
+          ...next,
+          multiCliente: false,
           reembolsoCategoriaId: "",
           reembolsoCategoriaNome: "",
           reembolsoSubcategoria: "",
-          reembolsoNumeroDocumento: "",
-          reembolsoRateado: false,
-          reembolsoBoletoFile: null,
-          reembolsoNotaFiscalFile: null,
-          numeroDocumentoDecea: "",
-          competenciaDecea: "",
-          decealFile: null,
-          numeroDocumentoInfraero: "",
-          competenciaInfraero: "",
-          infraeroFile: null,
-          dataVencimentoBoleto: "",
-          valorTotalBoleto: "",
+          competencia: "",
+          valorTotalRecibo: "",
           prazoMaximoQuitacao: "",
-          enviarParaProgramacao: false,
         };
       }
-
-      return nextState;
+      return next;
     });
+    if (type === "pagamento") setPagadores((prev) => [prev[0] || makeEmptyPagador()]);
   };
 
-  const selectFavoriteDescription = (description: string) => { setFormData((prev: any) => ({ ...prev, servicoDescricao: description })); setShowFavorites(false); };
-  const selectFavoritePayer = (payer: any) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      pagadorNome: payer.name || payer.nome || "",
-      pagadorDocumento: payer.document || payer.cpf || "",
-      pagadorEndereco: payer.address || payer.endereco || "",
-      pagadorCidade: payer.city || payer.cidade || "",
-      pagadorUF: payer.uf || "",
-    }));
-    setShowFavoritePayers(false);
+  const selectFavoriteDescription = (description: string) => {
+    setFormData((prev: any) => ({ ...prev, servicoDescricao: description }));
+    setShowFavorites(false);
   };
-  const handleFileChange = (field: string, file: File | null) => { setFormData((prev: any) => ({ ...prev, [field]: file })); };
+
+  const totalPercentual = pagadores.reduce((sum, p) => sum + (parseFloat(String(p.percentual).replace(",", ".")) || 0), 0);
+  const totalValorAlocado = pagadores.reduce((sum, p) => sum + (parseFloat(String(p.valor).replace(",", ".")) || 0), 0);
 
   const handleSubmit = async () => {
     setIsSaving(true);
     try {
-      let docNum = null;
-      if (isReembolso) {
-        if (isDecea) docNum = formData.numeroDocumentoDecea;
-        else if (isInfraero) docNum = formData.numeroDocumentoInfraero;
-        else docNum = formData.reembolsoNumeroDocumento;
-      }
-
-      const dataMaxPagamento = formData.prazoMaximoQuitacao || (isDECEAorINFRAERO && formData.dataVencimentoBoleto ? formData.dataVencimentoBoleto : null);
-
-      const sanitizedClienteId = normalizeId(formData.clienteId);
-      const sanitizedSocioId = normalizeId(formData.socioId);
+      const demonstrativo = anexos.find((a) => a.tipo === "demonstrativo");
+      const notaFiscal = anexos.find((a) => a.tipo === "nota_fiscal");
+      const docNum = isDECEAorINFRAERO ? demonstrativo?.numeroDocumento || null : notaFiscal?.numeroDocumento || null;
 
       const payload = {
         ...formData,
-        clienteId: sanitizedClienteId,
-        enviarParaProgramacao,
-        selectedPartnerId: sanitizedSocioId,
+        isDecea,
+        isInfraero,
         nome_categoria: categoriaNome,
         subcategoria_1: selectedExpenseConfig?.subcategoria_1 || null,
         subcategoria_2: selectedExpenseConfig?.subcategoria_2 || null,
         subcategoria_3: selectedExpenseConfig?.subcategoria_3 || null,
         subcategoria_4: selectedExpenseConfig?.subcategoria_4 || null,
         subcategoria_selecionada: formData.reembolsoSubcategoria || null,
-        isDecea,
-        isInfraero,
         numeroDocumento: docNum,
-        dataMaxPagamento,
-        originalFormData: formData
+        dataMaxPagamento: formData.prazoMaximoQuitacao || null,
+        pagadores: pagadores.map((p) => ({ ...p })),
+        anexos: anexos.filter((a) => a.tipo).map((a) => ({ tipo: a.tipo, numeroDocumento: a.numeroDocumento, file: a.file })),
+        enviarParaProgramacao,
+        originalFormData: { formData, pagadores, anexos },
       };
 
-      const result = await onSubmit(payload);
-    } catch(err) {
+      await onSubmit(payload);
+    } catch (err) {
       console.error(err);
     } finally {
       setIsSaving(false);
@@ -589,80 +586,65 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
             </div>
           </div>
         );
+
       case 2:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div><h3 className="text-lg font-semibold text-white mb-1">Identificação</h3><p className="text-sm text-slate-500">Vincule o cliente, aeronave e categorize a operação</p></div>
-            <Row>
-              <Field>
-                <Label>Cliente</Label>
-                <SearchableCombobox items={clienteItems} value={formData.clienteId} onChange={(id: string) => setFormData((p: any) => ({ ...p, clienteId: id }))} placeholder="Selecione o cliente" searchPlaceholder="Buscar cliente..." emptyMessage="Nenhum cliente" />
-              </Field>
-              <Field>
-                <Label>Aeronave</Label>
-                <SearchableCombobox items={aeronaveItems} value={formData.aircraftId} onChange={(id: string) => setFormData((p: any) => ({ ...p, aircraftId: id, socioId: "", socioNome: "" }))} placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave" />
-              </Field>
-            </Row>
+            <div><h3 className="text-lg font-semibold text-white mb-1">Identificação</h3><p className="text-sm text-slate-500">Vincule a aeronave e categorize a operação{isReembolso ? ", e defina os clientes envolvidos" : ""}</p></div>
 
             {isReembolso && (
-              <Row>
+              <SectionCard title="Clientes Envolvidos" icon={Users}>
+                <p className="text-sm text-slate-400 mb-3">Deseja associar esse recibo para mais de um cliente?</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button type="button" onClick={() => setMultiCliente(false)} className={`p-3 rounded-xl w-full text-left transition-all text-sm ${!formData.multiCliente ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2 text-slate-100' : 'border-[#1e2d45] bg-[#111827] border text-slate-400 hover:border-[#3b82f6]/50'}`}>Não, apenas um cliente</button>
+                  <button type="button" onClick={() => setMultiCliente(true)} className={`p-3 rounded-xl w-full text-left transition-all text-sm ${formData.multiCliente ? 'border-[#3b82f6] bg-[#3b82f6]/10 border-2 text-slate-100' : 'border-[#1e2d45] bg-[#111827] border text-slate-400 hover:border-[#3b82f6]/50'}`}>Sim, ratear entre clientes</button>
+                </div>
+              </SectionCard>
+            )}
+
+            <Row>
+              <Field>
+                <Label>Aeronave</Label>
+                <SearchableCombobox items={aeronaveItems} value={formData.aircraftId} onChange={(id: string) => setFormData((p: any) => ({ ...p, aircraftId: id }))} placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave" />
+              </Field>
+              {isReembolso && (
                 <Field>
                   <Label>Categoria (Despesas Reembolsáveis)</Label>
                   <SearchableCombobox
                     items={categoriaItems}
                     value={formData.reembolsoCategoriaId}
-                    onChange={(id: string, label: string) => {
-                      setFormData((p: any) => ({ ...p, reembolsoCategoriaId: id, reembolsoCategoriaNome: label, reembolsoSubcategoria: "", numeroDocumentoDecea: "", competenciaDecea: "", numeroDocumentoInfraero: "", competenciaInfraero: "" }));
-                    }}
+                    onChange={(id: string, label: string) => setFormData((p: any) => ({ ...p, reembolsoCategoriaId: id, reembolsoCategoriaNome: label, reembolsoSubcategoria: "", competencia: "" }))}
                     placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria"
                   />
-                    <div className="mt-2">
-                      <button type="button" onClick={loadExpenseConfigs} className="text-xs text-slate-400 hover:text-slate-200">Atualizar categorias</button>
-                    </div>
                 </Field>
-                {subcategoriasDisponiveis.length > 0 && (
+              )}
+            </Row>
+
+            {isReembolso && (subcategoriaItems.length > 0 || isDECEAorINFRAERO) && (
+              <Row>
+                {subcategoriaItems.length > 0 && (
                   <Field>
                     <Label>Subcategoria</Label>
-                    <Select value={formData.reembolsoSubcategoria} onValueChange={(v: string) => setFormData((p: any) => ({ ...p, reembolsoSubcategoria: v === "__none__" ? "" : v }))}>
-                       <SelectItem value="__none__">— Nenhuma —</SelectItem>
-                      {subcategoriasDisponiveis.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </Select>
+                    <SearchableCombobox items={subcategoriaItems} value={formData.reembolsoSubcategoria} onChange={(id: string) => setFormData((p: any) => ({ ...p, reembolsoSubcategoria: id }))} placeholder="Selecione a subcategoria" searchPlaceholder="Buscar subcategoria..." emptyMessage="Nenhuma subcategoria" />
+                  </Field>
+                )}
+                {isDECEAorINFRAERO && (
+                  <Field>
+                    <Label>Competência</Label>
+                    <Input value={formData.competencia} placeholder="MM/AAAA" onChange={(e: any) => setFormData((p: any) => ({ ...p, competencia: e.target.value }))} />
                   </Field>
                 )}
               </Row>
             )}
-
-            {formData.clienteId && clientPartners.length > 0 && (
-              <Field>
-                <div className="p-3 bg-[#1e2d45]/30 border border-[#1e2d45] rounded-xl mt-2">
-                  <Label className="text-slate-300">Sócio responsável pelo Pagamento (Opcional)</Label>
-                  <Select value={formData.socioId} onValueChange={(v: string) => {
-                      if (v === "__client__") {
-                        const cliente = clientesAtivos.find((c) => c.id === formData.clienteId);
-                        setFormData((p: any) => ({
-                          ...p,
-                          socioId: "",
-                          socioNome: cliente?.razao_social || cliente?.nome || "",
-                        }));
-                        return;
-                      }
-
-                      const partner = clientPartners.find((p: any) => p.id === v);
-                      setFormData((p: any) => ({ ...p, socioId: v, socioNome: partner?.nome || "" }));
-                  }}>
-                    <SelectItem value="__client__">Cliente Principal ({clientesAtivos.find(c => c.id === formData.clienteId)?.razao_social})</SelectItem>
-                    {clientPartners.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nome} {p.cpf ? `(${p.cpf})` : ""}</SelectItem>)}
-                  </Select>
-                </div>
-              </Field>
-            )}
           </div>
         );
+
       case 3:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div><h3 className="text-lg font-semibold text-white mb-1">Dados do Pagador</h3><p className="text-xs text-slate-500">Informações que sairão impressas no documento</p></div>
-            {favoritePayers.length > 0 && (
+            <div><h3 className="text-lg font-semibold text-white mb-1">Dados do Pagador</h3><p className="text-xs text-slate-500">Informações que sairão impressas no documento{isMulti ? " — uma linha por cliente" : ""}</p></div>
+
+            {!isMulti && favoritePayers.length > 0 && (
               <div className="rounded-xl border border-[#1e2d45] p-4 bg-[#0f1623]">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-xs text-slate-400">Pagadores favoritos</span>
@@ -680,65 +662,97 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
                 )}
               </div>
             )}
-            <Row>
-              <Field><Label>Nome / Razão Social *</Label><Input value={formData.pagadorNome} onChange={(e: any) => setFormData((p:any)=>({...p,pagadorNome:e.target.value}))} required /></Field>
-              <Field><Label>CPF / CNPJ *</Label><Input value={formData.pagadorDocumento} onChange={(e:any)=>setFormData((p:any)=>({...p,pagadorDocumento:e.target.value}))} required /></Field>
-            </Row>
-            <Field><Label>Endereço</Label><Input value={formData.pagadorEndereco} onChange={(e:any)=>setFormData((p:any)=>({...p,pagadorEndereco:e.target.value}))} /></Field>
-            <Row>
-              <Field><Label>Cidade</Label><Input value={formData.pagadorCidade} onChange={(e:any)=>setFormData((p:any)=>({...p,pagadorCidade:e.target.value}))} /></Field>
-              <Field><Label>UF</Label><Input value={formData.pagadorUF} onChange={(e:any)=>setFormData((p:any)=>({...p,pagadorUF:e.target.value}))} maxLength={2} className="uppercase" /></Field>
-            </Row>
+
+            {pagadores.map((row, idx) => {
+              const partners = clientPartnersMap[row.clienteId] || [];
+              const partnerItems = partners.map((p: any) => ({ id: p.id, label: `${p.nome}${p.cpf ? ` (${p.cpf})` : ""}` }));
+              return (
+                <SectionCard key={row.id} title={isMulti ? `Cliente ${idx + 1}` : undefined}>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 space-y-4">
+                      <Row>
+                        <Field>
+                          <Label>Cliente</Label>
+                          <SearchableCombobox items={clienteItems} value={row.clienteId} onChange={(id: string) => handleSelecionaCliente(row.id, id)} placeholder="Selecione o cliente" searchPlaceholder="Buscar cliente..." emptyMessage="Nenhum cliente" />
+                        </Field>
+                        {partnerItems.length > 0 && (
+                          <Field>
+                            <Label>Sócio responsável (opcional)</Label>
+                            <SearchableCombobox items={partnerItems} value={row.socioId} onChange={(id: string) => handleSelecionaSocio(row.id, id)} placeholder="Cliente principal" searchPlaceholder="Buscar sócio..." emptyMessage="Nenhum sócio" />
+                          </Field>
+                        )}
+                      </Row>
+                      <Row>
+                        <Field><Label>Nome / Razão Social *</Label><Input value={row.pagadorNome} onChange={(e: any) => updatePagador(row.id, "pagadorNome", e.target.value)} required /></Field>
+                        <Field><Label>CPF / CNPJ *</Label><Input value={row.pagadorDocumento} onChange={(e: any) => updatePagador(row.id, "pagadorDocumento", e.target.value)} required /></Field>
+                      </Row>
+                      <Field><Label>Endereço</Label><Input value={row.pagadorEndereco} onChange={(e: any) => updatePagador(row.id, "pagadorEndereco", e.target.value)} /></Field>
+                      <Row>
+                        <Field><Label>Cidade</Label><Input value={row.pagadorCidade} onChange={(e: any) => updatePagador(row.id, "pagadorCidade", e.target.value)} /></Field>
+                        <Field><Label>UF</Label><Input value={row.pagadorUF} onChange={(e: any) => updatePagador(row.id, "pagadorUF", e.target.value)} maxLength={2} className="uppercase" /></Field>
+                      </Row>
+                    </div>
+                    {isMulti && pagadores.length > 1 && (
+                      <button type="button" onClick={() => removePagador(row.id)} className="text-slate-500 hover:text-red-400 mt-1"><X className="w-4 h-4" /></button>
+                    )}
+                  </div>
+                </SectionCard>
+              );
+            })}
+
+            {isMulti && (
+              <button type="button" onClick={addPagador} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#1e2d45] text-slate-400 hover:border-[#3b82f6]/60 hover:text-[#3b82f6] transition-colors text-sm">
+                <Plus className="w-4 h-4" /> Adicionar outro cliente
+              </button>
+            )}
           </div>
         );
+
       case 4:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div><h3 className="text-lg font-semibold text-white mb-1">Valores & Detalhes Financeiros</h3></div>
 
-            {isReembolso && (
-              <div className="mb-4">
-                <Checkbox id="rateio" checked={formData.reembolsoRateado} label="Despesa será rateada entre sócios" onCheckedChange={(checked: boolean) => {
-                  setFormData((p: any) => ({ ...p, reembolsoRateado: checked, ...( !checked && { reembolsoValorTotal: "", reembolsoPorcentagem: "" } ) }));
-                  setValorEditadoManualmente(false);
-                }} />
-              </div>
-            )}
+            {isMulti ? (
+              <>
+                <Field><Label>Valor Total do Recibo *</Label><MoneyInput value={formData.valorTotalRecibo} onChange={(e: any) => setFormData((p: any) => ({ ...p, valorTotalRecibo: e.target.value }))} required /></Field>
 
-            {isReembolso && formData.reembolsoRateado ? (
-              <SectionCard accent="border-[#3b82f6]/30 bg-[#3b82f6]/5">
-                <Row className="grid-cols-1 sm:grid-cols-3">
-                  <Field><Label>Valor Total (NF) *</Label><MoneyInput value={formData.reembolsoValorTotal} onChange={(e:any)=>setFormData((p:any)=>({...p,reembolsoValorTotal:e.target.value}))} required /></Field>
-                  <Field><Label>% Cliente *</Label><Input type="number" step="0.001" value={formData.reembolsoPorcentagem} placeholder="Ex: 33.333" onChange={(e:any)=> { setFormData((p:any)=>({...p,reembolsoPorcentagem:e.target.value})); setValorEditadoManualmente(false); }} required /></Field>
-                  <Field>
-                    <Label>Valor a Cobrar *</Label>
-                    <MoneyInput value={formData.valor} onChange={(e:any)=>{ setFormData((p:any)=>({...p,valor:e.target.value})); setValorEditadoManualmente(true); }} required />
-                  </Field>
-                </Row>
-              </SectionCard>
+                <div className="space-y-3">
+                  {pagadores.map((row, idx) => (
+                    <SectionCard key={row.id} accent="border-[#3b82f6]/20 bg-[#3b82f6]/5">
+                      <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                        <span className="text-sm font-medium text-slate-200">{row.pagadorNome || `Cliente ${idx + 1}`}</span>
+                        <Checkbox id={`gerar-${row.id}`} checked={row.gerarRecibo} label="Gerar recibo" onCheckedChange={(v: boolean) => updatePagador(row.id, "gerarRecibo", v)} />
+                      </div>
+                      <Row className="grid-cols-1 sm:grid-cols-2">
+                        <Field><Label>% de Uso</Label><Input type="number" step="0.001" value={row.percentual} placeholder="Ex: 33.333" onChange={(e: any) => updateRowPercentual(row.id, e.target.value)} /></Field>
+                        <Field><Label>Valor</Label><MoneyInput value={row.valor} onChange={(e: any) => { updatePagador(row.id, "valor", e.target.value); updatePagador(row.id, "valorManual", true); }} /></Field>
+                      </Row>
+                      {!row.gerarRecibo && (
+                        <p className="text-xs text-amber-400/80 mt-2 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Apenas rateio para balanço — nenhum recibo de pagamento será gerado para este cliente.</p>
+                      )}
+                    </SectionCard>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+                  <span>% total alocado: {totalPercentual.toFixed(2)}%</span>
+                  <span>Valor total alocado: R$ {totalValorAlocado.toFixed(2)}</span>
+                </div>
+              </>
             ) : (
-              <Field><Label>Valor do Recibo *</Label><MoneyInput value={formData.valor} onChange={(e:any)=>setFormData((p:any)=>({...p,valor:e.target.value}))} required /></Field>
+              <Field><Label>Valor do Recibo *</Label><MoneyInput value={formData.valor} onChange={(e: any) => setFormData((p: any) => ({ ...p, valor: e.target.value }))} required /></Field>
             )}
 
             {!isReembolso && (
               <Field>
                 <Label>Forma de Pagamento</Label>
-                <Select value={formData.formaPagamento} onValueChange={(v: string)=>setFormData((p:any)=>({...p,formaPagamento:v}))}>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
-                  <SelectItem value="transferencia">Transferência</SelectItem>
-                </Select>
-              </Field>
-            )}
-
-            {isReembolso && (
-              <Field>
-                <Label>Prazo Máximo Quitação</Label>
-                <DateInput value={formData.prazoMaximoQuitacao} onChange={(v:string)=>setFormData((p:any)=>({...p,prazoMaximoQuitacao:v}))} />
+                <SearchableCombobox items={FORMA_PAGAMENTO_ITEMS} value={formData.formaPagamento} onChange={(id: string) => setFormData((p: any) => ({ ...p, formaPagamento: id }))} placeholder="Selecione" searchPlaceholder="Buscar..." emptyMessage="Nenhuma opção" />
               </Field>
             )}
           </div>
         );
+
       case 5:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -747,77 +761,84 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
             <Field>
               <div className="flex items-center justify-between mb-1.5">
                 <Label className="mb-0">Descrição do Serviço *</Label>
-                {favoriteDescriptions.length>0 && (
-                  <button type="button" onClick={()=>setShowFavorites(!showFavorites)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors ${showFavorites?"bg-[#f59e0b]/20 border-[#f59e0b]/30 text-[#f59e0b]":"border-[#1e2d45] text-slate-400 hover:text-slate-200"}`}><Star className="w-3 h-3"/>Favoritas</button>
+                {favoriteDescriptions.length > 0 && (
+                  <button type="button" onClick={() => setShowFavorites(!showFavorites)} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors ${showFavorites ? "bg-[#f59e0b]/20 border-[#f59e0b]/30 text-[#f59e0b]" : "border-[#1e2d45] text-slate-400 hover:text-slate-200"}`}><Star className="w-3 h-3" />Favoritas</button>
                 )}
               </div>
-              {showFavorites && favoriteDescriptions.length>0 && (
+              {showFavorites && favoriteDescriptions.length > 0 && (
                 <div className="border border-[#1e2d45] rounded-lg overflow-hidden mb-3 bg-[#0f1623] shadow-inner">
                   <div className="max-h-36 overflow-y-auto">
-                    {favoriteDescriptions.map((desc:any)=>{
-                      const text = desc.descricao||desc.description||"";
-                      return (<button key={desc.id} type="button" onClick={()=>selectFavoriteDescription(text)} className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:bg-[#1e2d45] transition-colors border-b border-[#1e2d45] last:border-0">{text}</button>);
+                    {favoriteDescriptions.map((desc: any) => {
+                      const text = desc.descricao || desc.description || "";
+                      return (<button key={desc.id} type="button" onClick={() => selectFavoriteDescription(text)} className="w-full text-left px-3 py-2.5 text-sm text-slate-300 hover:bg-[#1e2d45] transition-colors border-b border-[#1e2d45] last:border-0">{text}</button>);
                     })}
                   </div>
                 </div>
               )}
-              <Textarea value={formData.servicoDescricao} onChange={(e:any)=>setFormData((p:any)=>({...p,servicoDescricao:e.target.value}))} rows={3} required />
+              <Textarea value={formData.servicoDescricao} onChange={(e: any) => setFormData((p: any) => ({ ...p, servicoDescricao: e.target.value }))} rows={3} required />
             </Field>
 
             <Row>
-              <Field><Label>Data Emissão</Label><DateInput value={formData.dataEmissao} onChange={(v:string)=>setFormData((p:any)=>({...p,dataEmissao:v}))} /></Field>
-              {isReembolso && !isDECEAorINFRAERO && (
-                <Field><Label>Número do Documento (N.F)</Label><Input value={formData.reembolsoNumeroDocumento} onChange={(e:any)=>setFormData((p:any)=>({...p,reembolsoNumeroDocumento:e.target.value}))} placeholder="Ex: 12345" /></Field>
-              )}
+              <Field><Label>Data Emissão</Label><DateInput value={formData.dataEmissao} onChange={(v: string) => setFormData((p: any) => ({ ...p, dataEmissao: v }))} /></Field>
+              <Field><Label>Prazo Máximo para Pagamento</Label><DateInput value={formData.prazoMaximoQuitacao} onChange={(v: string) => setFormData((p: any) => ({ ...p, prazoMaximoQuitacao: v }))} /></Field>
             </Row>
 
-            {isReembolso && isDecea && (
-              <SectionCard title="Dados DECEA" accent="border-amber-500/30 bg-amber-500/5">
-                <Row>
-                  <Field><Label>Número Doc *</Label><Input value={formData.numeroDocumentoDecea} onChange={(e:any)=>setFormData((p:any)=>({...p,numeroDocumentoDecea:e.target.value}))} required/></Field>
-                  <Field><Label>Competência *</Label><Input value={formData.competenciaDecea} onChange={(e:any)=>setFormData((p:any)=>({...p,competenciaDecea:e.target.value}))} placeholder="MM/AAAA" required/></Field>
-                </Row>
-                <Row>
-                  <Field><Label>Vencimento Boleto *</Label><DateInput value={formData.dataVencimentoBoleto} onChange={(v:string)=>setFormData((p:any)=>({...p,dataVencimentoBoleto:v}))} required/></Field>
-                  <Field><Label>Valor Boleto *</Label><MoneyInput value={formData.valorTotalBoleto} onChange={(e:any)=>setFormData((p:any)=>({...p,valorTotalBoleto:e.target.value}))} required/></Field>
-                </Row>
-                <FileUpload label="Demonstrativo DECEA" value={formData.decealFile} onChange={(f:File|null)=>handleFileChange('decealFile',f)} accept=".pdf,.jpg,.png"/>
-              </SectionCard>
-            )}
-
-            {isReembolso && isInfraero && (
-              <SectionCard title="Dados INFRAERO" accent="border-blue-500/30 bg-blue-500/5">
-                <Row>
-                  <Field><Label>Número Doc *</Label><Input value={formData.numeroDocumentoInfraero} onChange={(e:any)=>setFormData((p:any)=>({...p,numeroDocumentoInfraero:e.target.value}))} required/></Field>
-                  <Field><Label>Competência *</Label><Input value={formData.competenciaInfraero} onChange={(e:any)=>setFormData((p:any)=>({...p,competenciaInfraero:e.target.value}))} placeholder="MM/AAAA" required/></Field>
-                </Row>
-                <Row>
-                  <Field><Label>Vencimento Boleto *</Label><DateInput value={formData.dataVencimentoBoleto} onChange={(v:string)=>setFormData((p:any)=>({...p,dataVencimentoBoleto:v}))} required/></Field>
-                  <Field><Label>Valor Boleto *</Label><MoneyInput value={formData.valorTotalBoleto} onChange={(e:any)=>setFormData((p:any)=>({...p,valorTotalBoleto:e.target.value}))} required/></Field>
-                </Row>
-                <FileUpload label="Demonstrativo INFRAERO" value={formData.infraeroFile} onChange={(f:File|null)=>handleFileChange('infraeroFile',f)} accept=".pdf,.jpg,.png"/>
-              </SectionCard>
-            )}
-
-            {isReembolso && !isDECEAorINFRAERO && (
-              <Row>
-                <FileUpload label="Boleto" value={formData.reembolsoBoletoFile} onChange={(f:File|null)=>handleFileChange('reembolsoBoletoFile',f)} accept=".pdf,.jpg,.png"/>
-                <FileUpload label="N.F / Demonstrativo" value={formData.reembolsoNotaFiscalFile} onChange={(f:File|null)=>handleFileChange('reembolsoNotaFiscalFile',f)} accept=".pdf,.jpg,.png"/>
-              </Row>
-            )}
+            <div className="space-y-3">
+              <Label>Anexos</Label>
+              {anexos.map((row) => (
+                <div key={row.id} className="flex items-start gap-2 p-3 rounded-xl border border-[#1e2d45] bg-[#0f1623]/60">
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <SearchableCombobox items={ANEXO_TIPOS} value={row.tipo} onChange={(id: string) => updateAnexo(row.id, "tipo", id)} placeholder="Tipo do documento" searchPlaceholder="Buscar tipo..." emptyMessage="Nenhum tipo" />
+                    <Input value={row.numeroDocumento} placeholder="Número do documento" onChange={(e: any) => updateAnexo(row.id, "numeroDocumento", e.target.value)} />
+                    <FileUpload value={row.file} onChange={(f: File | null) => updateAnexo(row.id, "file", f)} accept=".pdf,.jpg,.png" />
+                  </div>
+                  {anexos.length > 1 && (
+                    <button type="button" onClick={() => removeAnexo(row.id)} className="text-slate-500 hover:text-red-400 mt-2.5"><X className="w-4 h-4" /></button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={addAnexo} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-[#1e2d45] text-slate-400 hover:border-[#3b82f6]/60 hover:text-[#3b82f6] transition-colors text-sm">
+                <Plus className="w-4 h-4" /> Adicionar documento
+              </button>
+            </div>
           </div>
         );
+
       case 6:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div><h3 className="text-lg font-semibold text-white mb-1">Revisão Final</h3></div>
 
             <SectionCard title="Resumo">
-              <ReviewItem label="Tipo" value={formData.receiptType==='reembolso'?'Reembolso':'Pagamento'} />
-              <ReviewItem label="Pagador" value={formData.pagadorNome} />
-              <ReviewItem label="Valor" value={formData.valor?`R$ ${formData.valor}`:''} />
+              <ReviewItem label="Tipo" value={isReembolso ? 'Reembolso' : 'Pagamento'} />
+              <ReviewItem label="Aeronave" value={aircrafts.find((a) => a.id === formData.aircraftId)?.matricula} />
+              {isReembolso && <ReviewItem label="Categoria" value={categoriaNome} />}
               <ReviewItem label="Emissão" value={format(new Date(formData.dataEmissao + "T00:00:00"), "dd/MM/yyyy")} />
+              <ReviewItem label="Valor" value={isMulti ? `R$ ${totalValorAlocado.toFixed(2)}` : (formData.valor ? `R$ ${formData.valor}` : '')} />
             </SectionCard>
+
+            <SectionCard title={isMulti ? "Clientes / Rateio" : "Pagador"}>
+              {pagadores.map((row, idx) => (
+                <div key={row.id} className="py-2 border-b border-[#1e2d45] last:border-0">
+                  <div className="flex items-center justify-between flex-wrap gap-1">
+                    <span className="text-sm text-slate-200">{row.pagadorNome || `Cliente ${idx + 1}`}</span>
+                    {isMulti && (
+                      <span className="text-xs text-slate-500">
+                        {row.percentual ? `${row.percentual}%` : ''} {row.valor ? `— R$ ${row.valor}` : ''} {row.gerarRecibo ? '' : '(sem recibo)'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </SectionCard>
+
+            {anexos.some((a) => a.tipo) && (
+              <SectionCard title="Anexos">
+                {anexos.filter((a) => a.tipo).map((a) => (
+                  <ReviewItem key={a.id} label={ANEXO_TIPOS.find((t) => t.id === a.tipo)?.label || a.tipo} value={a.numeroDocumento || (a.file ? a.file.name : '')} />
+                ))}
+              </SectionCard>
+            )}
 
             {isReembolso && (
               <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 mt-4">
