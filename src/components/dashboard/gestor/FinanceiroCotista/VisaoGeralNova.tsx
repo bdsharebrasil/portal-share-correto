@@ -568,7 +568,7 @@ function DashboardPage() {
       <main className="mx-auto max-w-[1400px] space-y-8 px-4 pb-24 pt-8 sm:px-6 lg:px-8">
     {/* ── 1. Cabeçalho Executivo ── */}
         <section
-          className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-[oklch(0.24_0.05_255)] via-background to-background p-6 shadow-md sm:p-10"
+          className="relative overflow-hidden rounded-3xl border-2 border-border bg-gradient-to-br from-[oklch(0.24_0.05_255)] via-background to-background p-6 shadow-md sm:p-10"
           style={{ animation: "fadeUp 0.5s ease-out" }}
         >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -584,7 +584,7 @@ function DashboardPage() {
             </div>
             
             {/* Filtro de Período Customizado */}
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/50 bg-background/50 p-2 shadow-sm backdrop-blur-md">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-background/50 p-2 shadow-sm backdrop-blur-md">
               <div className="flex items-center gap-2">
                 <span className="pl-2 text-xs font-medium text-muted-foreground">Mês inicial:</span>
                 <input
@@ -1421,7 +1421,7 @@ function FichaModule({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card/40 p-4">
+    <div className="rounded-2xl border-2 border-border bg-card/40 p-4">
       <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
         <span className="text-primary">{icon}</span> {title}
       </div>
