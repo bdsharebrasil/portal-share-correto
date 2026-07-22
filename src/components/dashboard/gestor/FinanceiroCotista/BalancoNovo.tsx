@@ -42,6 +42,15 @@ import {
 import { formatBRL, formatHours, monthLabel } from "@/lib/dashboard-utils";
 import { useAircraft } from "@/lib/dashboard-data";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+/* Aviation vibrant palette for charts */
+const CHART = {
+  primary: "#3b82f6",
+  success: "#10b981",
+  amber: "#f59e0b",
+  danger: "#ef4444",
+};
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
@@ -503,7 +512,7 @@ function BalancoPage() {
 
       <main className="mx-auto max-w-[1400px] space-y-12 px-4 pb-24 pt-10 sm:px-6 lg:px-8">
         {/* ── Hero ─────────────────────────────────────────── */}
-        <section className="rounded-3xl border border-border/60 bg-gradient-to-br from-[oklch(0.22_0.05_255)] via-background to-background p-8 sm:p-12">
+        <section className="rounded-3xl border-2 border-border bg-gradient-to-br from-[oklch(0.22_0.05_255)] via-background to-background p-8 sm:p-12">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -513,7 +522,7 @@ function BalancoPage() {
                 Balanço da <span className="text-primary">{activeAircraft?.matricula || "Aeronave"}</span>
               </h1>
             </div>
-            <div className="flex items-center gap-7 rounded-2xl border border-border/60 bg-card/50 px-6 py-5">
+            <div className="flex items-center gap-7 rounded-2xl border-2 border-border bg-card/50 px-6 py-5">
               <StatMini label="Custo total" value={formatBRL(custoTotal)} tone="primary" />
               <div className="h-9 w-px bg-border" />
               <StatMini label="Horas voadas" value={formatHours(horasMes)} />
@@ -524,11 +533,17 @@ function BalancoPage() {
         </section>
 
         {isLoading ? (
-          <div className="rounded-2xl border border-border/60 bg-card/40 p-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl border-2 border-border bg-card/40 p-10 text-center text-sm text-muted-foreground">
             Carregando balanço…
           </div>
         ) : (
-          <>
+          <Tabs defaultValue="tabelas" className="space-y-8">
+            <TabsList className="grid w-full max-w-md grid-cols-2 border-2 border-border">
+              <TabsTrigger value="tabelas">Tabelas</TabsTrigger>
+              <TabsTrigger value="graficos">Gráficos</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="tabelas" className="space-y-8">
             {/* ── Executive summary ─────────────────────────── */}
             <div>
               <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
@@ -554,7 +569,7 @@ function BalancoPage() {
                 style={{ gridTemplateRows: showEntradas ? "1fr" : "0fr" }}
               >
                 <div className="overflow-hidden">
-                  <div className="mt-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-6">
+                  <div className="mt-4 rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/[0.05] p-6">
                     <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-emerald-400">
                       <HandCoins className="h-3.5 w-3.5" /> Entradas de {MESES[mes - 1]} por cotista
                     </div>
@@ -589,10 +604,10 @@ function BalancoPage() {
 
             {/* ── Regularização ─────────────────────────── */}
             <div className={cn(
-              "flex items-start gap-4 rounded-2xl border p-6 transition-colors",
+              "flex items-start gap-4 rounded-2xl border-2 p-6 transition-colors",
               equilibrado
-                ? "border-emerald-500/30 bg-emerald-500/[0.06]"
-                : "border-amber-500/30 bg-amber-500/[0.06]",
+                ? "border-emerald-500/40 bg-emerald-500/[0.06]"
+                : "border-amber-500/40 bg-amber-500/[0.06]",
             )}>
               {equilibrado
                 ? <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-400" />
@@ -614,53 +629,6 @@ function BalancoPage() {
             {/* ── Resumo Geral & Projeção de Custo/Hora ─────────── */}
             <ResumoGeralAno rateios={rateios} voos={voos} ano={ano} matricula={activeAircraft?.matricula} />
 
-            {/* ── Evolução mensal ─────────────────────────── */}
-            <section className="motion-safe:animate-[fadeUp_0.6s_ease-out_both] rounded-2xl border border-border/60 bg-card/40 p-6">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground">Evolução do ano</div>
-                  <h2 className="mt-1 text-lg font-semibold">Custo mensal — {ano}</h2>
-                </div>
-              </div>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={serieMensal}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="key" tickFormatter={monthLabel} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)"
-                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip
-                      contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: any) => formatBRL(Number(v))}
-                      labelFormatter={(k: any) => monthLabel(String(k))}
-                    />
-                    <Bar dataKey="custo" fill="var(--primary)" radius={[6, 6, 0, 0]} animationDuration={900} animationEasing="ease-out" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-8 h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={serieMensal}>
-                    <defs>
-                      <linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--chart-2)" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="var(--chart-2)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="key" tickFormatter={monthLabel} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-                    <Tooltip
-                      contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: any) => `${Number(v).toFixed(1)} h`}
-                      labelFormatter={(k: any) => monthLabel(String(k))}
-                    />
-                    <Area type="monotone" dataKey="horas" stroke="var(--chart-2)" fill="url(#hg)" strokeWidth={2} animationDuration={900} animationEasing="ease-out" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-
             {/* ── Cotistas ─────────────────────────── */}
             <section>
               <div className="mb-5">
@@ -681,7 +649,7 @@ function BalancoPage() {
                   />
                 ))}
                 {linhasMes.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 p-8 text-center text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+                  <div className="rounded-2xl border-2 border-dashed border-border bg-card/30 p-8 text-center text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
                     Nenhum cotista cadastrado para esta aeronave.
                   </div>
                 )}
@@ -708,7 +676,91 @@ function BalancoPage() {
                 />
               </CotistaTabsWrap>
             </div>
-          </>
+            </TabsContent>
+
+            <TabsContent value="graficos" className="space-y-8">
+              {/* ── Evolução mensal ─────────────────────────── */}
+              <section className="motion-safe:animate-[fadeUp_0.6s_ease-out_both] rounded-2xl border-2 border-border bg-card/40 p-6">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs uppercase tracking-widest text-muted-foreground">Evolução do ano</div>
+                    <h2 className="mt-1 text-lg font-semibold">Custo mensal — {ano}</h2>
+                  </div>
+                </div>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={serieMensal}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="key" tickFormatter={monthLabel} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)"
+                        tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip
+                        contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                        formatter={(v: any) => formatBRL(Number(v))}
+                        labelFormatter={(k: any) => monthLabel(String(k))}
+                      />
+                      <Bar dataKey="custo" fill={CHART.primary} radius={[6, 6, 0, 0]} animationDuration={900} animationEasing="ease-out" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+
+              <section className="motion-safe:animate-[fadeUp_0.6s_ease-out_both] rounded-2xl border-2 border-border bg-card/40 p-6">
+                <div className="mb-5">
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground">Horas voadas</div>
+                  <h2 className="mt-1 text-lg font-semibold">Evolução mensal — {ano}</h2>
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={serieMensal}>
+                      <defs>
+                        <linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={CHART.success} stopOpacity={0.55} />
+                          <stop offset="100%" stopColor={CHART.success} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="key" tickFormatter={monthLabel} tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+                      <Tooltip
+                        contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                        formatter={(v: any) => `${Number(v).toFixed(1)} h`}
+                        labelFormatter={(k: any) => monthLabel(String(k))}
+                      />
+                      <Area type="monotone" dataKey="horas" stroke={CHART.success} fill="url(#hg)" strokeWidth={2.5} animationDuration={900} animationEasing="ease-out" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+
+              {/* ── Composição Fixo × Variável ────────────── */}
+              <section className="rounded-2xl border-2 border-border bg-card/40 p-6">
+                <div className="mb-5">
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground">Composição do mês</div>
+                  <h2 className="mt-1 text-lg font-semibold">Fixos × Variáveis — {MESES[mes - 1]}</h2>
+                </div>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { nome: "Custos fixos", valor: custoFixo, fill: CHART.amber },
+                      { nome: "Custos variáveis", valor: custoVariavel, fill: CHART.danger },
+                      { nome: "Entradas", valor: entradasMes, fill: CHART.success },
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="nome" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)"
+                        tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip
+                        contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                        formatter={(v: any) => formatBRL(Number(v))}
+                      />
+                      <Bar dataKey="valor" radius={[8, 8, 0, 0]} animationDuration={900} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+            </TabsContent>
+          </Tabs>
         )}
       </main>
     </div>
@@ -835,7 +887,7 @@ function MetricCard({
           : undefined
       }
       className={cn(
-        "rounded-2xl border border-border/60 bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.015] hover:border-primary/30 hover:shadow-[0_8px_30px_-12px_var(--primary)]",
+        "rounded-2xl border-2 border-border bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.015] hover:border-primary/30 hover:shadow-[0_8px_30px_-12px_var(--primary)]",
         clickable && "cursor-pointer select-none",
         clickable && expanded && "border-primary/40 ring-1 ring-primary/20",
       )}
@@ -892,7 +944,7 @@ function CotistaCard({
         }
       }}
       className={cn(
-        "group cursor-pointer select-none rounded-2xl border border-border/60 bg-card/60 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.015] hover:border-primary/30 hover:shadow-[0_8px_30px_-12px_var(--primary)]",
+        "group cursor-pointer select-none rounded-2xl border-2 border-border bg-card/60 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:scale-[1.015] hover:border-primary/30 hover:shadow-[0_8px_30px_-12px_var(--primary)]",
         selected && "border-primary/50 bg-primary/[0.05] ring-1 ring-primary/30",
       )}
     >
@@ -1035,18 +1087,27 @@ function ExtratoMes({
   const showCotista = filtroCotista !== "todos";
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/40 p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Extrato do mês</div>
-          <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold">
-            <ReceiptText className="h-4 w-4" /> {filtrados.length} lançamento(s)
-            {showCotista && (
-              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-primary">
-                {cotistas.find((c) => c.id === filtroCotista)?.nome}
-              </span>
-            )}
-          </h2>
+    <section className="rounded-2xl border-2 border-border bg-card/40 p-6">
+      {/* Header no estilo do Centro de Lançamentos */}
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b-2 border-border pb-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-1 h-8 w-1 rounded-full bg-primary" aria-hidden />
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-primary">
+              Centro de lançamentos
+            </div>
+            <h2 className="mt-0.5 flex items-center gap-2 text-xl font-bold">
+              <ReceiptText className="h-5 w-5" /> Extrato do mês
+              {showCotista && (
+                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-primary">
+                  {cotistas.find((c) => c.id === filtroCotista)?.nome}
+                </span>
+              )}
+            </h2>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {filtrados.length} lançamento(s) · Saída {formatBRL(totalSaida)} · Entrada {formatBRL(totalEntrada)}
+            </div>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <SelectField value={filtroCotista} onChange={onFiltroCotistaChange}>
@@ -1059,7 +1120,7 @@ function ExtratoMes({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar por descrição, fornecedor, NF…"
-            className="h-10 w-64 rounded-lg border border-input bg-background px-3.5 text-xs transition-colors duration-150 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="h-10 w-64 rounded-lg border-2 border-border bg-background px-3.5 text-xs transition-colors duration-150 hover:border-primary/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
@@ -1343,7 +1404,7 @@ function ForecastCard({
 
 function ForecastItem({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-background/60 p-5 backdrop-blur transition-all duration-300 hover:scale-[1.03] hover:-translate-y-0.5 hover:border-primary/40">
+    <div className="rounded-2xl border-2 border-border bg-background/60 p-5 backdrop-blur transition-all duration-300 hover:scale-[1.03] hover:-translate-y-0.5 hover:border-primary/40">
       <IconBadge icon={icon} tone="success" size="sm" />
       <div className="mt-3.5 text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
       <div className="mt-1.5 font-display text-2xl tabular-nums text-foreground">{value}</div>
@@ -1383,7 +1444,7 @@ function CotistaTabsWrap({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-card/40 p-1 w-fit">
+      <div className="flex items-center gap-1 rounded-xl border-2 border-border/80 bg-card/40 p-1 w-fit">
         {(
           [
             ["extrato", "Extrato do mês"],
@@ -1529,7 +1590,7 @@ function EstatisticasCotista({
     stats.adimplencia >= 95 ? "success" : stats.adimplencia >= 60 ? "warning" : "danger";
 
   return (
-    <section className="space-y-5 rounded-2xl border border-border/60 bg-card/40 p-6">
+    <section className="space-y-5 rounded-2xl border-2 border-border bg-card/40 p-6">
       <header>
         <div className="text-xs uppercase tracking-widest text-muted-foreground">
           Estatísticas · {MESES[mes - 1]}/{ano}
@@ -1768,7 +1829,7 @@ function ResumoGeralAno({
   const mediaTotal = data.media.fixo + data.media.varHora + data.media.varVoo + data.media.extra;
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/40 p-6">
+    <section className="rounded-2xl border-2 border-border bg-card/40 p-6">
       <header className="mb-5">
         <div className="text-xs uppercase tracking-widest text-muted-foreground">Resumo geral · {matricula || ""} · {ano}</div>
         <h2 className="mt-1 text-lg font-semibold">Custos fixos, variáveis, extras e projeção de custo/hora</h2>
