@@ -11,7 +11,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
 import { useReceiptPdfGenerator } from "@/hooks/useReceiptPdfGenerator";
-import { buildCotistaOptions, normalizeTextForMatching } from "./demonstrativoUtils";
+import {
+  buildCotistaOptions,
+  normalizeTextForMatching,
+  CotistaOption,
+  SPECIAL_RATEIO_OPTIONS,
+  expandSpecialRateioLine,
+  isSpecialRateio,
+} from "./demonstrativoUtils";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 
@@ -41,18 +48,6 @@ interface Aeronave {
   matricula: string;
 }
 
-interface CotistaOption {
-  id: string;
-  cliente_id?: string | null;
-  socio_id?: string | null;
-  nome: string;
-  documento: string | null;
-  endereco: string | null;
-  cidade: string | null;
-  uf: string | null;
-  percentual: number;
-}
-
 interface LinhaItem extends DemonstrativoItem {
   cotistaNome: string;
   sugeridoDoDiario?: boolean;
@@ -61,6 +56,7 @@ interface LinhaItem extends DemonstrativoItem {
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
+
 
 const fileToBase64 = (file: File): Promise<{ base64: string; mimeType: string }> =>
   new Promise((resolve, reject) => {
@@ -130,29 +126,51 @@ export default function ImportarDemonstrativoIA({
       setCotistas([]);
       return;
     }
-    Promise.all([
-      supabase
+
+    const fetchCotistas = async () => {
+      const { data: cotistasData, error: cotistasError } = await supabase
         .from("cotistas_aeronave")
         .select(
           "id_clientes, socios_id, percentual_sociedade, clientes:id_clientes(id, razao_social, cnpj, endereco, cidade, uf)"
         )
-        .eq("id_aeronave", aeronaveId),
-      supabase.from("socios").select("id, nome, cpf, cliente_id, endereco, cidade, uf").order("nome"),
-    ]).then(([cotistasResponse, sociosResponse]) => {
-      if (cotistasResponse.error) {
-        console.error(cotistasResponse.error);
+        .eq("id_aeronave", aeronaveId);
+
+      if (cotistasError) {
+        console.error(cotistasError);
         return;
       }
-      if (sociosResponse.error) {
-        console.error(sociosResponse.error);
-        return;
+
+      const socioIds = Array.from(
+        new Set(
+          (cotistasData || [])
+            .map((row: any) => row.socios_id)
+            .filter(Boolean)
+        )
+      );
+
+      let sociosData: any[] = [];
+      if (socioIds.length > 0) {
+        const { data: sociosRows, error: sociosError } = await supabase
+          .from("socios")
+          .select("id, nome, cpf, cliente_id, endereco, cidade, uf")
+          .in("id", socioIds)
+          .order("nome");
+
+        if (sociosError) {
+          console.error(sociosError);
+          return;
+        }
+        sociosData = sociosRows || [];
       }
+
       const opts = buildCotistaOptions(
-        (cotistasResponse.data as any[]) || [],
-        (sociosResponse.data as any[]) || []
+        (cotistasData as any[]) || [],
+        sociosData
       );
       setCotistas(opts as CotistaOption[]);
-    });
+    };
+
+    fetchCotistas();
   }, [aeronaveId]);
 
   const handleFileChange = (f: File | null) => {
@@ -234,15 +252,18 @@ export default function ImportarDemonstrativoIA({
         return match?.socios_nome?.trim() || null;
       };
 
-      const novasLinhas: LinhaItem[] = res.itens.map((it) => {
+      let novasLinhas: LinhaItem[] = res.itens.flatMap((it) => {
         const sugestao = findSugestao(it);
-        return {
+        return [{
           ...it,
           cotistaNome: sugestao || "",
           sugeridoDoDiario: !!sugestao,
           naoIdentificado: !sugestao,
-        };
+        }];
       });
+
+      // Expande linhas especiais de voo translado / voo de check em rateio igualitário entre sócios
+      novasLinhas = novasLinhas.flatMap((linha) => expandSpecialRateioLine(linha, cotistas));
 
       const naoIdent = novasLinhas.filter((l) => l.naoIdentificado).length;
       setResult(res);
@@ -347,10 +368,9 @@ export default function ImportarDemonstrativoIA({
         percentual: Number(row.percentual.toFixed(2)),
         valor_total: Number(consolidado.total.toFixed(2)),
         numero_documento: result.numero_documento || null,
-        [tipo === "DECEA" ? "competencia_decea" : "competencia_infraero"]:
-          result.competencia || null,
+        competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
+        competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
         demonstrativo_url: demonstrativoUrl || null,
-        [tipo === "DECEA" ? "decea_url" : "infraero_url"]: demonstrativoUrl || null,
       };
 
       const { data: inserted, error } = await (supabase as any)
@@ -426,20 +446,22 @@ export default function ImportarDemonstrativoIA({
 
     const initial = {
       aeronave_id: aeronaveId,
-      tipo_despesa_label: "TAXAS AEROPORTUARIAS E NAVEGAÇÃO AEREA",
+      tipo_despesa_label: "Taxas Aeroportuárias",
       subcategoria,
-      nome_categoria: tipoLabel,
+      nome_categoria: "Taxas Aeroportuárias",
       tipo_rateio: "VARIAVEL POR VOO",
       periodicidade: "MENSAL",
       taxa_origem: tipo,
       numero_doc: result.numero_documento || null,
+      numero_documento_infraero: tipo === "INFRAERO" ? result.numero_documento || null : null,
+      numero_documento_decea: tipo === "DECEA" ? result.numero_documento || null : null,
+      competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
+      competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
       valor_total: Number(consolidado.total.toFixed(2)),
       valor: Number(consolidado.total.toFixed(2)),
       descricao_despesa: `${tipoLabel} - Doc ${result.numero_documento || "?"}${
         result.competencia ? " - Comp " + result.competencia : ""
       }`,
-      competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
-      competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
       demonstrativo_url: demonstrativoUrl,
       anexos: demonstrativoUrl
         ? [{ tipo: "demonstrativo", url: demonstrativoUrl, numero: result.numero_documento || "" }]
@@ -629,21 +651,40 @@ export default function ImportarDemonstrativoIA({
                         <TableCell>
                           <div className="space-y-1.5">
                             <SearchableCombobox
-                              items={cotistas.map((c) => ({ id: c.nome, label: c.nome }))}
+                              items={[
+                                ...SPECIAL_RATEIO_OPTIONS,
+                                ...cotistas.map((c) => ({ id: c.nome, label: c.nome })),
+                              ]}
                               value={l.cotistaNome}
                               onChange={(_id, label) => {
-                                setLinhas((prev) =>
-                                  prev.map((it, i) =>
+                                setLinhas((prev) => {
+                                  if (!isSpecialRateio(label)) {
+                                    return prev.map((it, i) =>
+                                      i === idx
+                                        ? {
+                                            ...it,
+                                            cotistaNome: label,
+                                            sugeridoDoDiario: false,
+                                            naoIdentificado: false,
+                                          }
+                                        : it
+                                    );
+                                  }
+
+                                  return prev.flatMap((it, i) =>
                                     i === idx
-                                      ? {
-                                          ...it,
-                                          cotistaNome: label,
-                                          sugeridoDoDiario: false,
-                                          naoIdentificado: false,
-                                        }
-                                      : it
-                                  )
-                                );
+                                      ? expandSpecialRateioLine(
+                                          {
+                                            ...it,
+                                            cotistaNome: label,
+                                            sugeridoDoDiario: false,
+                                            naoIdentificado: false,
+                                          },
+                                          cotistas
+                                        )
+                                      : [it]
+                                  );
+                                });
                               }}
                               placeholder="Selecione o sócio/cliente"
                               searchPlaceholder="Buscar cotista ou digitar novo..."

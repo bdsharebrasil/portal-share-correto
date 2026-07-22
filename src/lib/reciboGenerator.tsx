@@ -526,12 +526,12 @@ export const ReciboDocument = ({ data }: { data: any }) => {
         <View style={styles.separator} />
 
         {/* DESCRIÇÃO */}
-        <View style={styles.descricaoHeader}>
-          <Text style={styles.descricaoHeaderText}>DESCRIÇÃO</Text>
+        <View style={styles.descriptionHeader}>
+          <Text style={styles.descriptionHeaderText}>DESCRIÇÃO</Text>
         </View>
         <View style={{ flexDirection: 'row' }}>
-          <View style={{ ...styles.descricaoContent, flex: 1 }}>
-            <Text style={styles.descricaoText}>{data.service_description || '—'}</Text>
+          <View style={{ ...styles.descriptionContent, flex: 1 }}>
+            <Text style={styles.descriptionText}>{data.service_description || '—'}</Text>
           </View>
           <View style={{ alignItems: 'flex-end', paddingLeft: 10 }}>
             <View style={styles.totalBox}>

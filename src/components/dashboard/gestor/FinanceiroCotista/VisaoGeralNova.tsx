@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -204,7 +204,24 @@ function resolveCategoria(raw: string | null | undefined, map: Map<string, strin
 
 type PeriodPreset = "mes-atual" | "mes-passado" | "3m" | "6m" | "ytd" | "12m";
 
+function useAircraftIdsDoCliente(clienteId?: string) {
+  return useQuery({
+    enabled: !!clienteId,
+    queryKey: ["dash", "aircraft-ids-cliente", clienteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cotistas_aeronave")
+        .select("id_aeronave")
+        .eq("id_clientes", clienteId!);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => r.id_aeronave).filter(Boolean) as string[];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 function DashboardPage() {
+  const { clienteId } = useParams<{ clienteId: string }>();
   const hoje = new Date();
   const [aircraftId, setAircraftId] = useState<string | null>(null);
   const [preset, setPreset] = useState<PeriodPreset>("mes-atual");
@@ -218,11 +235,20 @@ function DashboardPage() {
   const [fCotista, setFCotista] = useState("todos");
   const [ordem, setOrdem] = useState<"data-desc" | "data-asc" | "valor-desc" | "valor-asc">("data-desc");
   const [savedName, setSavedName] = useState<string | null>(null);
+  const [startMonth, setStartMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [endMonth, setEndMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const detailsRef = useRef<HTMLDivElement | null>(null);
 
   const aircraftQ = useAircraft();
-  const activeId = aircraftId ?? aircraftQ.data?.[0]?.id ?? null;
-  const activeAircraft = aircraftQ.data?.find((a) => a.id === activeId) ?? null;
+  const clienteAircraftIdsQ = useAircraftIdsDoCliente(clienteId);
+  const aeronavesDoCliente = useMemo(() => {
+    const all = aircraftQ.data ?? [];
+    if (!clienteId) return all;
+    const allow = new Set(clienteAircraftIdsQ.data ?? []);
+    return all.filter((a) => allow.has(a.id));
+  }, [aircraftQ.data, clienteAircraftIdsQ.data, clienteId]);
+  const activeId = aircraftId ?? aeronavesDoCliente[0]?.id ?? null;
+  const activeAircraft = aeronavesDoCliente.find((a) => a.id === activeId) ?? null;
 
   const { start, end, prevStart, prevEnd, label } = useMemo(() => {
     const d = new Date();
@@ -389,8 +415,7 @@ function DashboardPage() {
       { key: "manutencao", label: "Manutenção", icon: "🔧", color: "#e07a5f", match: /(MANUT|PEÇAS|PECAS|REVIS|OFICINA|MOTOR|HÉLICE|HELICE)/i, total: 0, count: 0 },
       { key: "hangaragem", label: "Hangaragem", icon: "🏠", color: "#4c9be8", match: /(HANGAR)/i, total: 0, count: 0 },
       { key: "taxas", label: "Taxas aeroportuárias", icon: "🛫", color: "#c67ad4", match: /(INFRAERO|DECEA|TARIFA|TAXA|NAV)/i, total: 0, count: 0 },
-      { key: "adm-share", label: "ADM Share Brasil", icon: "🏢", color: "#5c7d3a", match: /^ADM SHARE(?! - RECIBO)/i, total: 0, count: 0 },
-      { key: "adm-trip", label: "ADM e Trip Share Brasil (NF)", icon: "📄", color: "#3fa998", match: /(ADM E TRIP SHARE|N\.F ADM|ADM E PILOTAGEM - N\.F)/i, total: 0, count: 0 },
+      { key: "adm-share", label: "ADM e Trip ", icon: "🏢", color: "#5c7d3a", match: /^ADM SHARE(?! - RECIBO)/i, total: 0, count: 0 },
     ];
     for (const r of uniqueDespesas) {
       if (!isSaida(r.fluxo)) continue;
@@ -527,15 +552,10 @@ function DashboardPage() {
           <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
             <Wallet className="h-3.5 w-3.5" /> Painel Financeiro
           </div>
-          <Link
-            to="/balanco"
-            className="ml-1 rounded-md px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-          >
-            Balanço mensal →
-          </Link>
+         
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <SelectField value={activeId ?? ""} onChange={(v) => setAircraftId(v)}>
-              {(aircraftQ.data ?? []).map((a) => (
+              {aeronavesDoCliente.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.matricula} — {a.modelo || ""}
                 </option>
@@ -546,12 +566,12 @@ function DashboardPage() {
       </div>
 
       <main className="mx-auto max-w-[1400px] space-y-8 px-4 pb-24 pt-8 sm:px-6 lg:px-8">
-        {/* ── 1. Cabeçalho Executivo ── */}
+    {/* ── 1. Cabeçalho Executivo ── */}
         <section
-          className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-[oklch(0.24_0.05_255)] via-background to-background p-6 sm:p-10"
+          className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-[oklch(0.24_0.05_255)] via-background to-background p-6 shadow-md sm:p-10"
           style={{ animation: "fadeUp 0.5s ease-out" }}
         >
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                 Visão executiva · {label}
@@ -560,35 +580,29 @@ function DashboardPage() {
                 Financeiro{" "}
                 <span className="text-primary">{activeAircraft?.matricula || "—"}</span>
               </h1>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Situação consolidada do período: saldo, movimentações, comparativo com o período
-                anterior e ficha detalhada de cada lançamento.
-              </p>
+          
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {(
-                [
-                  ["mes-atual", "Mês atual"],
-                  ["mes-passado", "Mês passado"],
-                  ["3m", "3M"],
-                  ["6m", "6M"],
-                  ["ytd", "Ano"],
-                  ["12m", "12M"],
-                ] as [PeriodPreset, string][]
-              ).map(([k, lbl]) => (
-                <button
-                  key={k}
-                  onClick={() => setPreset(k)}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-                    preset === k
-                      ? "border-primary/60 bg-primary/15 text-primary"
-                      : "border-border/60 bg-card/40 text-muted-foreground hover:border-border hover:text-foreground",
-                  )}
-                >
-                  {lbl}
-                </button>
-              ))}
+            
+            {/* Filtro de Período Customizado */}
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/50 bg-background/50 p-2 shadow-sm backdrop-blur-md">
+              <div className="flex items-center gap-2">
+                <span className="pl-2 text-xs font-medium text-muted-foreground">Mês inicial:</span>
+                <input
+                  type="month"
+                  value={startMonth}
+                  onChange={(e) => setStartMonth(e.target.value)}
+                  className="cursor-pointer appearance-none rounded-lg border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:border-primary/50 focus:border-primary"
+                />
+              </div>
+              <span className="text-xs text-muted-foreground">até</span>
+              <div className="flex items-center gap-2 pr-2">
+                <input
+                  type="month"
+                  value={endMonth}
+                  onChange={(e) => setEndMonth(e.target.value)}
+                  className="cursor-pointer appearance-none rounded-lg border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:border-primary/50 focus:border-primary"
+                />
+              </div>
             </div>
           </div>
         </section>

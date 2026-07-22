@@ -1,12 +1,45 @@
 export interface CotistaOption {
   id: string;
   cliente_id?: string | null;
+  socio_id?: string | null;
   nome: string;
   documento: string | null;
   endereco: string | null;
   cidade: string | null;
   uf: string | null;
   percentual: number;
+}
+
+export const SPECIAL_RATEIO_OPTIONS = [
+  { id: "VOO TRANSLADO", label: "VOO TRANSLADO" },
+  { id: "VOO DE CHECK", label: "VOO DE CHECK" },
+] as const;
+
+export const isSpecialRateio = (value: string | null | undefined) =>
+  SPECIAL_RATEIO_OPTIONS.some((option) => option.id === (value || "").toUpperCase());
+
+export function expandSpecialRateioLine<T extends { cotistaNome: string; valor: number }>(
+  line: T,
+  socios: CotistaOption[]
+): T[] {
+  if (!isSpecialRateio(line.cotistaNome)) return [line];
+  const socioNames = socios
+    .filter((c) => c.socio_id)
+    .map((c) => c.nome)
+    .filter(Boolean);
+
+  if (socioNames.length === 0) return [line];
+
+  const count = socioNames.length;
+  const totalCents = Math.round((line.valor || 0) * 100);
+  const baseCents = Math.floor(totalCents / count);
+  const remainderCents = totalCents - baseCents * (count - 1);
+
+  return socioNames.map((nome, index) => ({
+    ...line,
+    cotistaNome: nome,
+    valor: index === count - 1 ? remainderCents / 100 : baseCents / 100,
+  }));
 }
 
 interface CotistaAeronaveRow {
@@ -54,6 +87,7 @@ export function buildCotistaOptions(
       return {
         id,
         cliente_id: id,
+        socio_id: null,
         nome,
         documento: cliente?.cnpj || null,
         endereco: cliente?.endereco || null,
@@ -92,6 +126,7 @@ export function buildCotistaOptions(
         ...existing,
         id: socio.id,
         cliente_id: socio.cliente_id || existing.cliente_id,
+        socio_id: socio.id,
         nome: socio.nome,
         documento: socio.documento,
         endereco: socio.endereco,
@@ -101,7 +136,7 @@ export function buildCotistaOptions(
       };
       map.set(socio.id, duplicate);
     } else {
-      map.set(socio.id, socio);
+      map.set(socio.id, { ...socio, socio_id: socio.id });
     }
   }
 
