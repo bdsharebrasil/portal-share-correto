@@ -32,7 +32,7 @@ export function useLogbookEntryValidation(
       if (!isValidFlightNature(entry.natureza_voo)) {
         errors.push({
           field: 'natureza_voo',
-          message: `Natureza de voo inválida: "${entry.natureza_voo}". Valores permitidos: AE, CQ, EX, NR, RE, PV, SA, TN, TR, VOO_CHECK, TRANSLADO, VOO_TESTE, EP`,
+          message: `Natureza de voo inválida: "${entry.natureza_voo}". Valores permitidos: AE, CQ, EX, NR, RE, PV, SA, TN, TR,  VOO TESTE, EP`,
           severity: 'error',
         });
       }
@@ -61,7 +61,7 @@ export function useLogbookEntryValidation(
     }
 
     // Validação: entrada de SIC (CHECK constraint)
-    if (!isValidSICEntry(entry.sic_canac, entry.sic_name)) {
+    if (!isValidSICEntry(entry.sic_canac, entry.sic_name ?? undefined)) {
       errors.push({
         field: 'sic_entry',
         message: 'SIC inválido: deve ter CANAC ou nome preenchido, ou ambos vazios',
@@ -144,12 +144,15 @@ export function useLogbookEntryValidation(
     }
 
     // Validação: consumo de combustível não pode ser negativo
-    if (entry.consumo_combustivel_voo !== undefined && entry.consumo_combustivel_voo !== null && entry.consumo_combustivel_voo < 0) {
-      errors.push({
-        field: 'consumo_combustivel_voo',
-        message: 'Consumo de combustível não pode ser negativo',
-        severity: 'error',
-      });
+    if (entry.consumo_combustivel !== undefined && entry.consumo_combustivel !== null) {
+      const consumoCombustivel = Number(entry.consumo_combustivel);
+      if (!Number.isNaN(consumoCombustivel) && consumoCombustivel < 0) {
+        errors.push({
+          field: 'consumo_combustivel_voo',
+          message: 'Consumo de combustível não pode ser negativo',
+          severity: 'error',
+        });
+      }
     }
 
     // Validação: empréstimo requer cliente tomador

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -149,7 +150,7 @@ const NATUREZAS = [
   "SA - Serviço Aéreo",
   "TN - Transporte Não Regular/Táxi Aéreo",
   "TR - Traslado",
-  "VOO_TESTE",
+  "VOO TESTE",
 ];
 const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -383,7 +384,7 @@ function DiarioBordoDetalhes() {
     return m;
   }, [tripulantes]);
 
-  const naturezasRateio = ["TR - Traslado", "CQ - Cheque", "VOO_TESTE", "NR - Não Remunerado"];
+  const naturezasRateio = ["TR - Traslado", "CQ - Cheque", "VOO TESTE", "NR - Não Remunerado"];
   const labelVooPara = useCallback((l: Lanc): string => {
     const nat = (l.natureza_voo ?? "").trim();
     if (naturezasRateio.some((n) => nat.toLowerCase() === n.toLowerCase())) {
@@ -730,7 +731,7 @@ function DiarioBordoDetalhes() {
           for (const l of lancamentosData) {
             const horas = Number((modoCelula === "tvoo" ? l.tempo_voo : l.tempo_total) ?? 0);
             const nat = (l.natureza_voo ?? "").trim();
-            const naturezasRateio = ["TR - Traslado", "CQ - Cheque", "VOO_TESTE", "NR - Não Remunerado"];
+            const naturezasRateio = ["TR - Traslado", "CQ - Cheque", "VOO TESTE", "NR - Não Remunerado"];
             let label: string;
             if (naturezasRateio.some((n) => nat.toLowerCase() === n.toLowerCase())) label = nat.toUpperCase();
             else if (l.socios_id) { const s = sociosData.find((x) => x.id === l.socios_id); label = s?.nome ?? l.socios_nome ?? "Sócio"; }
@@ -824,6 +825,28 @@ function DiarioBordoDetalhes() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/70 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 rounded-full bg-blue-400" />
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-400">Período</span>
+                </div>
+                <div className="flex gap-1">
+                  <select value={mes!} onChange={(e) => setMes(Number(e.target.value))}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                    {monthNames.map((m, i) => {
+                      const hasData = availableMeses.some(am => am.ano === ano && am.mes === i + 1);
+                      if (!hasData) return null;
+                      return <option key={i} value={i + 1}>{m.slice(0, 3).toUpperCase()}</option>;
+                    })}
+                  </select>
+                  <select value={ano!} onChange={(e) => setAno(Number(e.target.value))}
+                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
+                    {Array.from(new Set(availableMeses.map(am => am.ano)))
+                      .sort((a, b) => b - a)
+                      .map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
               <button onClick={handleOpenCreateMonth}
                 className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-400/50 text-emerald-400 font-medium rounded-lg px-3 py-1.5 text-xs transition-all">
                 <Calendar className="w-3.5 h-3.5" /> Novo Mês
@@ -1013,45 +1036,6 @@ function DiarioBordoDetalhes() {
                   <EditableCell label="Inicial" value={diarioMes?.horimetro_inicio ?? 0} fieldName="horimetro_inicio" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
                   <EditableCell label="Final" value={diarioMes?.horimetro_final ?? 0} fieldName="horimetro_final" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
                   <EditableCell label="Ativo" value={diarioMes?.horimetro_ativo ?? 0} fieldName="horimetro_ativo" onSave={saveDiarioMesField} unit="h" accentColor="amber" hint="clique para editar" labelColor="text-amber-400" />
-                </div>
-              </div>
-
-              <div className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-4 flex-1">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 rounded-full bg-blue-400" />
-                    <span className="text-xs font-semibold uppercase tracking-widest text-blue-400">Período</span>
-                  </div>
-                  <div className="flex gap-1">
-                    <select value={mes!} onChange={(e) => setMes(Number(e.target.value))}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {monthNames.map((m, i) => {
-                        const hasData = availableMeses.some(am => am.ano === ano && am.mes === i + 1);
-                        if (!hasData) return null;
-                        return <option key={i} value={i + 1}>{m.slice(0, 3).toUpperCase()}</option>;
-                      })}
-                    </select>
-                    <select value={ano!} onChange={(e) => setAno(Number(e.target.value))}
-                      className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-white focus:border-cyan-500/50 focus:outline-none">
-                      {Array.from(new Set(availableMeses.map(am => am.ano)))
-                        .sort((a, b) => b - a)
-                        .map((y) => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
-                    <p className="text-[10px] text-slate-500 mb-1">{modoCelula === "tvoo" ? "T. Voo" : "T. Total"}</p>
-                    <p className="text-sm font-bold text-cyan-300">{modoCelula === "tvoo" ? decimalToHHMM(totals.tVoo) : decimalToHHMM(totals.tTotal)}</p>
-                  </div>
-                  <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
-                    <p className="text-[10px] text-slate-500 mb-1">Pousos</p>
-                    <p className="text-sm font-bold text-emerald-300">{totals.pousos}</p>
-                  </div>
-                  <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700/40">
-                    <p className="text-[10px] text-slate-500 mb-1">Voos</p>
-                    <p className="text-sm font-bold text-white">{lancamentos.length}</p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -2115,60 +2099,250 @@ function AbastecimentoModal({
   onSelectAbastecimento: (abast: any) => void; onCreateNew: () => void; onClose: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ data: new Date().toISOString().slice(0, 10), trecho: "", local: "", litros: 0, valor_unitario: 0, tipo_combustivel: "", abastecedor: "" });
+  const [formData, setFormData] = useState({
+    data: new Date().toISOString().slice(0, 10),
+    trecho: "",
+    local: "",
+    litros: "",
+    valor_unitario: "",
+    tipo_combustivel: "",
+    abastecedor: "",
+    abastecedor_id: "",
+    comanda: "",
+    nf: "",
+    boleto_url: "",
+    comanda_url: "",
+    nota_url: "",
+    logbook_entry_id: "",
+  });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<{ comanda: boolean; nf: boolean }>({ comanda: false, nf: false });
+  const [fuelSuppliers, setFuelSuppliers] = useState<Array<{ id: string; label: string }>>([]);
+  const [lastLogbookEntry, setLastLogbookEntry] = useState<{ id: string; aerodromo_partida: string | null; aerodromo_chegada: string | null } | null>(null);
+
+  useEffect(() => {
+    const loadFuelSuppliers = async () => {
+      const { data, error } = await supabase.from("fornecedores_combustivel").select("id, nome_fornecedor").order("nome_fornecedor", { ascending: true });
+      if (!error && data) {
+        setFuelSuppliers(data.map((item: any) => ({ id: item.id, label: item.nome_fornecedor || "Sem nome" })));
+      }
+    };
+    loadFuelSuppliers();
+  }, []);
+
+  useEffect(() => {
+    const loadLastLogbookEntry = async () => {
+      const { data, error } = await supabase
+        .from("lancamentos_diario_bordo")
+        .select("id, aerodromo_partida, aerodromo_chegada")
+        .eq("aeronave_id", aeronaveId)
+        .order("data_registro", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        setLastLogbookEntry(data as { id: string; aerodromo_partida: string | null; aerodromo_chegada: string | null });
+      }
+    };
+
+    if (aeronaveId) {
+      loadLastLogbookEntry();
+    }
+  }, [aeronaveId]);
+
+  useEffect(() => {
+    if (!lastLogbookEntry) return;
+    const suggestion = [lastLogbookEntry.aerodromo_partida, lastLogbookEntry.aerodromo_chegada].filter(Boolean).join(" X ");
+    setFormData((prev) => ({
+      ...prev,
+      trecho: prev.trecho || suggestion,
+      logbook_entry_id: prev.logbook_entry_id || lastLogbookEntry.id,
+    }));
+  }, [lastLogbookEntry]);
+
+  const formatCurrencyValue = (value: string | number) => {
+    if (value === "" || value === null || value === undefined) return "";
+    const numericValue = typeof value === "number" ? value : Number(String(value).replace(/[R$\s.]/g, "").replace(",", "."));
+    if (!Number.isFinite(numericValue)) return "";
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numericValue);
+  };
+
+  const parseCurrencyValue = (value: string) => {
+    if (!value) return 0;
+    const normalized = value.replace(/[R$\s.]/g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const uploadAttachment = async (file: File | null, target: "comanda_url" | "nota_url") => {
+    if (!file) return;
+    setUploading((prev) => ({ ...prev, [target === "comanda_url" ? "comanda" : "nf"]: true }));
+    try {
+      const fileName = `abastecimentos/${aeronaveId || "sem-aeronave"}/${target}/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+      const { error } = await supabase.storage.from("abastecimento").upload(fileName, file);
+      if (error) throw error;
+      const { data } = supabase.storage.from("abastecimento").getPublicUrl(fileName);
+      setFormData((prev) => ({ ...prev, [target]: data.publicUrl }));
+      toast.success("Arquivo enviado com sucesso.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Erro ao enviar arquivo: ${msg}`);
+    } finally {
+      setUploading((prev) => ({ ...prev, [target === "comanda_url" ? "comanda" : "nf"]: false }));
+    }
+  };
 
   const handleSaveNew = async () => {
-    if (!formData.local || !formData.litros || formData.litros <= 0) { alert("Preencha todos os campos obrigatórios"); return; }
+    if (!formData.local.trim() || !formData.litros || Number(formData.litros) <= 0) {
+      toast.error("Preencha o local e os litros do abastecimento.");
+      return;
+    }
     setSaving(true);
     try {
-      const { data: newAbast, error } = await supabase.from("abastecimentos").insert({ id_clientes: clienteId, aeronave_id: aeronaveId, ...formData }).select().single();
+      const payload = {
+        id_clientes: clienteId,
+        aeronave_id: aeronaveId,
+        data: formData.data || new Date().toISOString().slice(0, 10),
+        trecho: formData.trecho.trim() || null,
+        local: formData.local.trim(),
+        comanda: formData.comanda.trim() || null,
+        litros: Number(formData.litros),
+        valor_unitario: parseCurrencyValue(formData.valor_unitario),
+        abastecimento_galoes: null,
+        abastecedor: formData.abastecedor.trim() || null,
+        abastecedor_id: formData.abastecedor_id || null,
+        tipo_combustivel: formData.tipo_combustivel || null,
+        comanda_url: formData.comanda_url || null,
+        nota_url: formData.nota_url || null,
+        boleto_url: formData.boleto_url.trim() || null,
+        logbook_entry_id: formData.logbook_entry_id || null,
+        nf: formData.nf.trim() || null,
+      };
+
+      const { data: newAbast, error } = await supabase.from("abastecimentos").insert(payload).select().single();
       if (error) throw error;
       onSelectAbastecimento(newAbast);
       setShowForm(false);
+      toast.success("Abastecimento criado com sucesso.");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      alert("Erro ao salvar: " + msg);
-    } finally { setSaving(false); }
+      toast.error(`Erro ao salvar: ${msg}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (showForm) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+    return createPortal(
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-3 sm:p-4 backdrop-blur-sm">
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-          className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
+          className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
           <div className="flex items-center justify-between border-b border-slate-700/50 p-4">
-            <h3 className="text-sm font-bold text-white">Novo Abastecimento</h3>
+            <div>
+              <h3 className="text-sm font-bold text-white">Novo Abastecimento</h3>
+              <p className="text-[11px] text-slate-400">Formulário responsivo com seleção pesquisável e anexos.</p>
+            </div>
             <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><X className="w-4 h-4" /></button>
           </div>
-          <div className="p-4 space-y-3">
-            {[
-              { label: "Data", key: "data", type: "date" }, { label: "Trecho", key: "trecho", type: "text" },
-              { label: "Local *", key: "local", type: "text", placeholder: "Ex: Jacarepaguá" },
-              { label: "Litros *", key: "litros", type: "number" }, { label: "Valor Unitário (R$/L)", key: "valor_unitario", type: "number" },
-              { label: "Tipo de Combustível", key: "tipo_combustivel", type: "text", placeholder: "Ex: Avgas 100LL" },
-              { label: "Abastecedor", key: "abastecedor", type: "text" },
-            ].map(({ label, key, type, placeholder }) => (
-              <div key={key}>
-                <label className="block text-xs font-medium text-slate-400 mb-1">{label}</label>
-                <input type={type} value={(formData as any)[key]} onChange={(e) => setFormData({ ...formData, [key]: type === "number" ? Number(e.target.value) : e.target.value })}
-                  placeholder={placeholder} className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
-              </div>
-            ))}
+          <div className="overflow-y-auto p-4 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Data</span>
+                <input type="date" value={formData.data} onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Local *</span>
+                <input type="text" value={formData.local} onChange={(e) => setFormData({ ...formData, local: e.target.value })}
+                  placeholder="Ex: Jacarepaguá" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Trecho</span>
+                <input type="text" value={formData.trecho} onChange={(e) => setFormData({ ...formData, trecho: e.target.value })}
+                  placeholder="Ex: SBGR X SBRJ" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                {lastLogbookEntry && !formData.trecho && (
+                  <p className="mt-1 text-[11px] text-slate-500">Sugestão: {[
+                    lastLogbookEntry.aerodromo_partida,
+                    lastLogbookEntry.aerodromo_chegada,
+                  ].filter(Boolean).join(" X ") || "—"}</p>
+                )}
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Litros *</span>
+                <input type="number" min="0" step="0.01" value={formData.litros} onChange={(e) => setFormData({ ...formData, litros: e.target.value })}
+                  placeholder="0" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Valor Unitário (R$/L)</span>
+                <input type="text" inputMode="decimal" value={formData.valor_unitario ? formatCurrencyValue(formData.valor_unitario) : ""} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })}
+                  placeholder="R$ 0,00" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Tipo de Combustível</span>
+                <SearchableCombobox
+                  items={[{ id: "JET A1", label: "JET A1" }, { id: "AVGAS", label: "AVGAS" }]}
+                  value={formData.tipo_combustivel}
+                  onChange={(value) => setFormData({ ...formData, tipo_combustivel: value })}
+                  placeholder="Selecione o combustível"
+                  searchPlaceholder="Buscar combustível..."
+                  emptyMessage="Nenhuma opção encontrada"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Abastecedor</span>
+                <SearchableCombobox
+                  items={fuelSuppliers}
+                  value={formData.abastecedor_id}
+                  onChange={(value, label) => setFormData({ ...formData, abastecedor_id: value, abastecedor: label })}
+                  placeholder="Selecione o abastecedor"
+                  searchPlaceholder="Buscar fornecedor..."
+                  emptyMessage="Nenhum fornecedor encontrado"
+                />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Comanda</span>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input type="text" value={formData.comanda} onChange={(e) => setFormData({ ...formData, comanda: e.target.value })}
+                    placeholder="Número da comanda" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  <label className="flex min-w-[220px] items-center justify-center rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 py-2 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors">
+                    <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "comanda_url")} />
+                    {uploading.comanda ? "Enviando..." : formData.comanda_url ? "Arquivo anexado" : "Upload comanda"}
+                  </label>
+                </div>
+              </label>
+              <label className="block md:col-span-2">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">NF</span>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input type="text" value={formData.nf} onChange={(e) => setFormData({ ...formData, nf: e.target.value })}
+                    placeholder="Número da NF" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  <label className="flex min-w-[220px] items-center justify-center rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 py-2 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors">
+                    <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "nota_url")} />
+                    {uploading.nf ? "Enviando..." : formData.nota_url ? "Arquivo anexado" : "Upload NF"}
+                  </label>
+                </div>
+              </label>
+              <label className="block md:col-span-2">
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Boleto URL</span>
+                <input type="text" value={formData.boleto_url} onChange={(e) => setFormData({ ...formData, boleto_url: e.target.value })}
+                  placeholder="https://..." className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+              </label>
+            </div>
           </div>
-          <div className="flex justify-end gap-2 border-t border-slate-700/50 p-4">
+          <div className="flex flex-col-reverse gap-2 border-t border-slate-700/50 p-4 sm:flex-row sm:justify-end">
             <button onClick={() => setShowForm(false)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Cancelar</button>
-            <button onClick={handleSaveNew} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-600 disabled:opacity-60">
+            <button onClick={handleSaveNew} disabled={saving} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-600 disabled:opacity-60">
               <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Salvar"}
             </button>
           </div>
         </motion.div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
         className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-700/50 p-4">
@@ -2202,8 +2376,10 @@ function AbastecimentoModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
+
 
 export default DiarioBordoDetalhes;

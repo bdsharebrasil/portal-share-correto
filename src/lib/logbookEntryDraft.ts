@@ -64,9 +64,10 @@ export interface LancamentoDiarioBordoDraftData {
   discrepancias: string | null;
   acoes_corretivas: string | null;
 
-  // Tripulação
+// Tripulação
   pic_canac: string;
   sic_canac: string | null;
+  sic_name: string | null;
   socios_nome: string | null;
   origem_pic: string;
   origem_sic: string | null;

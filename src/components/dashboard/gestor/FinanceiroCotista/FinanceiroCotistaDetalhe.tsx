@@ -32,6 +32,8 @@ import { FechamentoBalancoTab } from "./FechamentoBalancoTab";
 import { InformacoesCotistasTab } from "./InformacoesCotistasTab";
 import { MatrizFinanceiraMensal } from "./MatrizFinanceiraMensal";
 import { RateioCotistas } from "./RateioCotistas";
+import BalancoNovo from "./BalancoNovo";
+import VisaoGeralNova from "./VisaoGeralNova";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { CentroLancamentos } from "./CentroLancamentos";
@@ -391,23 +393,7 @@ export default function FinanceiroCotistaDetalhe() {
           <div className="mt-8">
             {/* Visão Geral */}
             <TabsContent value="visao" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {aeronaveAtual ? (
-                <>
-                  <MatrizFinanceiraMensal
-                    aeronaveId={aeronaveAtual}
-                    matricula={aeronaveInfo?.matricula}
-                  />
-                  <RateioCotistas
-                    aeronaveId={aeronaveAtual}
-                    matricula={aeronaveInfo?.matricula}
-                    cotistas={cotistasDaAeronave}
-                  />
-                </>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  Selecione uma aeronave para visualizar a matriz financeira.
-                </div>
-              )}
+              <VisaoGeralNova />
             </TabsContent>
 
 
@@ -469,15 +455,7 @@ export default function FinanceiroCotistaDetalhe() {
 
             {/* Fechamento de Balanço */}
             <TabsContent value="balanco" className="mt-4">
-              <FechamentoBalancoTab
-                aeronaveId={aeronaveAtual}
-                aeronaveLabel={aeronaveInfo?.matricula}
-                cotistas={cotistasDaAeronave}
-                clienteEmFoco={clienteId}
-                clienteId={clienteId}
-                abastecimentos={abastecimentosDaAeronave}
-                relatorios={relatoriosDaAeronave}
-              />
+              <BalancoNovo />
             </TabsContent>
 
             {/* Informações Cotistas */}

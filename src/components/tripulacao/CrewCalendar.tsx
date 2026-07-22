@@ -31,10 +31,8 @@ const naturezaLabel: Record<string, string> = {
   "SA - Serviço Aéreo": "Serviço Aéreo",
   "TN - Transporte Não Regular/Táxi Aéreo": "Táxi Aéreo",
   "TR - Traslado": "Traslado",
-  VOO_CHECK: "Voo Check",
-  TRANSLADO: "Translado",
-  VOO_TESTE: "Voo Teste",
-  EP: "EP",
+  "VOO TESTE": "Voo Teste",
+  "EP": "EP",
 };
 
 export default function CrewCalendar({ crewMemberId }: Props) {

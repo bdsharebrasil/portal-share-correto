@@ -6,12 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, Sparkles, FileImage, Trash2 } from "lucide-react";
+import { Loader2, Upload, Sparkles, FileImage, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
 import { useReceiptPdfGenerator } from "@/hooks/useReceiptPdfGenerator";
 import { buildCotistaOptions, normalizeTextForMatching } from "./demonstrativoUtils";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 
 type TipoDemonstrativo = "INFRAERO" | "DECEA";
 
@@ -52,6 +53,8 @@ interface CotistaOption {
 
 interface LinhaItem extends DemonstrativoItem {
   cotistaNome: string; // texto livre ou nome escolhido
+  sugeridoDoDiario?: boolean; // true se pré-preenchido a partir do diário de bordo
+  naoIdentificado?: boolean; // true se nenhum lançamento correspondente foi encontrado
 }
 
 const brl = (v: number) =>
@@ -138,6 +141,10 @@ export default function ImportarDemonstrativoIA({
       toast({ title: "Selecione uma imagem", variant: "destructive" });
       return;
     }
+    if (!aeronaveId) {
+      toast({ title: "Selecione a aeronave antes de analisar", variant: "destructive" });
+      return;
+    }
     setIsAnalyzing(true);
     try {
       const { base64, mimeType } = await fileToBase64(file);
@@ -146,9 +153,86 @@ export default function ImportarDemonstrativoIA({
       });
       if (error) throw error;
       const res = data as DemonstrativoResult;
+
+      // Converter "dd/mm/yyyy" -> "yyyy-mm-dd"
+      const toIso = (d: string): string | null => {
+        const m = (d || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+      };
+
+      const datasIso = Array.from(
+        new Set(res.itens.map((i) => toIso(i.data)).filter(Boolean) as string[])
+      );
+
+      // Buscar lançamentos do diário de bordo para sugerir o sócio/cliente
+      let diarioRows: Array<{
+        data_registro: string;
+        aerodromo_partida: string | null;
+        aerodromo_chegada: string | null;
+        socios_nome: string | null;
+        socios_id: string | null;
+        clientes_id: string | null;
+      }> = [];
+
+      if (datasIso.length > 0) {
+        const { data: diarioData, error: diarioErr } = await (supabase as any)
+          .from("lancamentos_diario_bordo")
+          .select(
+            "data_registro, aerodromo_partida, aerodromo_chegada, socios_nome, socios_id, clientes_id"
+          )
+          .eq("aeronave_id", aeronaveId)
+          .in("data_registro", datasIso);
+        if (diarioErr) console.warn("Falha ao consultar diário:", diarioErr.message);
+        diarioRows = (diarioData || []) as typeof diarioRows;
+      }
+
+      const findSugestao = (item: DemonstrativoItem): string | null => {
+        const iso = toIso(item.data);
+        if (!iso) return null;
+        const op = (item.operacao || "").trim().toUpperCase();
+        // Match preferencial: mesma data + aerodromo_partida == operação
+        let match = diarioRows.find(
+          (r) =>
+            r.data_registro === iso &&
+            (r.aerodromo_partida || "").trim().toUpperCase() === op
+        );
+        // Fallback: mesma data + aerodromo_chegada == operação
+        if (!match) {
+          match = diarioRows.find(
+            (r) =>
+              r.data_registro === iso &&
+              (r.aerodromo_chegada || "").trim().toUpperCase() === op
+          );
+        }
+        // Último fallback: apenas data (se só houver um voo naquele dia)
+        if (!match) {
+          const doDia = diarioRows.filter((r) => r.data_registro === iso);
+          if (doDia.length === 1) match = doDia[0];
+        }
+        return match?.socios_nome?.trim() || null;
+      };
+
+      const novasLinhas: LinhaItem[] = res.itens.map((it) => {
+        const sugestao = findSugestao(it);
+        return {
+          ...it,
+          cotistaNome: sugestao || "",
+          sugeridoDoDiario: !!sugestao,
+          naoIdentificado: !sugestao,
+        };
+      });
+
+      const naoIdent = novasLinhas.filter((l) => l.naoIdentificado).length;
       setResult(res);
-      setLinhas(res.itens.map((it) => ({ ...it, cotistaNome: "" })));
-      toast({ title: "Análise concluída", description: `${res.itens.length} operações detectadas` });
+      setLinhas(novasLinhas);
+      toast({
+        title: "Análise concluída",
+        description:
+          `${res.itens.length} operações detectadas` +
+          (naoIdent > 0
+            ? ` — ${naoIdent} sem correspondência no diário de bordo`
+            : " — todos os sócios sugeridos a partir do diário"),
+      });
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Falha ao processar a imagem";
@@ -421,46 +505,41 @@ export default function ImportarDemonstrativoIA({
                         <TableCell className="text-xs">{l.operacao || "—"}</TableCell>
                         <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
-                            {cotistas.length > 0 && (
-                              <Select
-                                value={
-                                  cotistas.find(
-                                    (c) => c.nome.toLowerCase() === l.cotistaNome.toLowerCase()
-                                  )?.id || ""
-                                }
-                                onValueChange={(v) => {
-                                  const c = cotistas.find((x) => x.id === v);
-                                  setLinhas((prev) =>
-                                    prev.map((it, i) =>
-                                      i === idx ? { ...it, cotistaNome: c?.nome || "" } : it
-                                    )
-                                  );
-                                }}
-                              >
-                                <SelectTrigger className="w-[180px]">
-                                  <SelectValue placeholder="Cotista" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {cotistas.map((c) => (
-                                    <SelectItem key={c.id} value={c.id}>
-                                      {c.nome}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                            <Input
-                              placeholder="Ou digite (ex: POSTO 10)"
+                          <div className="space-y-1.5">
+                            <SearchableCombobox
+                              items={cotistas.map((c) => ({ id: c.nome, label: c.nome }))}
                               value={l.cotistaNome}
-                              onChange={(e) =>
+                              onChange={(_id, label) => {
                                 setLinhas((prev) =>
                                   prev.map((it, i) =>
-                                    i === idx ? { ...it, cotistaNome: e.target.value } : it
+                                    i === idx
+                                      ? {
+                                          ...it,
+                                          cotistaNome: label,
+                                          sugeridoDoDiario: false,
+                                          naoIdentificado: false,
+                                        }
+                                      : it
                                   )
-                                )
-                              }
+                                );
+                              }}
+                              placeholder="Selecione o sócio/cliente"
+                              searchPlaceholder="Buscar cotista ou digitar novo..."
+                              emptyMessage="Nenhum cotista cadastrado"
+                              allowFreeText
                             />
+                            {l.sugeridoDoDiario && l.cotistaNome && (
+                              <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Sugerido a partir do diário de bordo
+                              </div>
+                            )}
+                            {l.naoIdentificado && !l.cotistaNome && (
+                              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
+                                <AlertCircle className="h-3 w-3" />
+                                Não identificado no diário — informe manualmente
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

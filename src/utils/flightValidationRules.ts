@@ -17,9 +17,7 @@ export const ALLOWED_FLIGHT_NATURES = [
   'SA - Serviço Aéreo',
   'TN - Transporte Não Regular/Táxi Aéreo',
   'TR - Traslado',
-  'VOO_CHECK',
-  'TRANSLADO',
-  'VOO_TESTE',
+  'VOO TESTE',
   'EP',
 ] as const;
 

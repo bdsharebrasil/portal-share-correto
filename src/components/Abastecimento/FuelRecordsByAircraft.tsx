@@ -285,7 +285,7 @@ export function FuelRecordsByAircraft({
       // Get flights with fuel_added > 0 for this aircraft
       let query = (supabase as any)
         .from('lancamentos_diario_bordo')
-        .select('id, data_registro, departure_aerodrome, arrival_aerodrome, trecho, fuel_added, fuel_liters, clientes_id, tempo_total')
+        .select('id, data_registro, departure_aerodrome:aerodromo_partida, arrival_aerodrome:aerodromo_chegada, trecho, fuel_added, fuel_liters, clientes_id, tempo_total')
         .eq('aeronave_id', aircraft.id)
         .gt('fuel_added', 0)
         .order('data_registro', { ascending: false })
@@ -337,7 +337,7 @@ export function FuelRecordsByAircraft({
       try {
         const { data: previousFlights, error } = await (supabase as any)
           .from('lancamentos_diario_bordo')
-          .select('id, data_registro, departure_aerodrome, arrival_aerodrome, trecho')
+          .select('id, data_registro, departure_aerodrome:aerodromo_partida, arrival_aerodrome:aerodromo_chegada, trecho')
           .eq('aeronave_id', aircraft.id)
           .lt('data_registro', flight.data_registro)
           .order('data_registro', { ascending: false })
@@ -404,7 +404,7 @@ export function FuelRecordsByAircraft({
       try {
         const { data: previousFlights, error } = await (supabase as any)
           .from('lancamentos_diario_bordo')
-          .select('id, data_registro, departure_aerodrome, arrival_aerodrome, trecho')
+          .select('id, data_registro, departure_aerodrome:aerodromo_partida, arrival_aerodrome:aerodromo_chegada, trecho')
           .eq('aeronave_id', aircraft.id)
           .lt('data_registro', formData.data)
           .order('data_registro', { ascending: false })
@@ -860,7 +860,7 @@ export function FuelRecordsByAircraft({
       }
 
       const recordData: any = {
-        client_id: client.id,
+        id_clientes: client.id,
         aeronave_id: aircraft.id,
         data: isoDateString,
         trecho: formData.trecho || "",
@@ -986,7 +986,7 @@ export function FuelRecordsByAircraft({
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       abastecedor_id: supplierRecord?.id || "",
       combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
-      client_id: record.client_id || client.id,
+      client_id: (record as any).id_clientes || record.client_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
       status_pagamento: record.status_pagamento || "em aberto",
       tipo_faturamento: record.tipo_faturamento || "",
@@ -1352,7 +1352,7 @@ export function FuelRecordsByAircraft({
             Novo Registro
           </Button>
         </DialogTrigger>
-        <DialogContent className="flex flex-col max-w-2xl" style={{zIndex: 1001}}>
+        <DialogContent className="flex flex-col max-w-2xl w-[95vw] max-h-[90vh]" style={{zIndex: 1001}}>
           <DialogHeader>
             <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
           </DialogHeader>
