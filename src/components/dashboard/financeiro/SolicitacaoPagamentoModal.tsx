@@ -1360,6 +1360,26 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
           ...taxasSubcatFields,
         });
 
+        // Movimentação SHARE: despesa total que a Share Brasil vai pagar ao fornecedor
+        let movShareId: string | null = null;
+        try {
+          movShareId = await insertAndGetId("movimentacoes", {
+            descricao, tipo: "despesa", tipo_caixa: "share",
+            categoria_id: categoriaContaId, valor: valorNumericoFinal, valor_original: valorNumericoFinal,
+            data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
+            aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
+            numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: docNum,
+            nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
+            observacoes: obsFinal || null, contas_apagar_id: capId,
+            reference_type: referenciaTipo || "solicitacao_pagamento",
+            reference_id: referenciaTipo && referenciaId ? referenciaId : null,
+            criado_por: userId,
+          });
+        } catch (shareErr) {
+          await supabase.from("contas_apagar").delete().eq("id", capId);
+          throw shareErr;
+        }
+
         const movimentacaoIdsPorCliente: Record<string, string> = {};
         try {
           for (const linha of clienteLinhas) {
