@@ -473,7 +473,7 @@ export function InformacoesCotistasTab({ aeronaveId, matricula, cotistas, ano }:
           />
           <KpiCard
             icon={<Flame className="h-5 w-5" />}
-            label="Endurance (máx.)"
+            label="Voo mais longo"
             value={stats.vooMaisLongo}
             formatted={fmtHoras}
             accent="#f59e0b"
@@ -659,7 +659,7 @@ export function InformacoesCotistasTab({ aeronaveId, matricula, cotistas, ano }:
         <Card className="border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-              <Sparkles className="h-3.5 w-3.5" /> Previsão · baseado no histórico
+            
             </div>
             <h3 className="text-lg font-bold mb-1">
               Se o ritmo continuar, {anoAtual} deve fechar com…
