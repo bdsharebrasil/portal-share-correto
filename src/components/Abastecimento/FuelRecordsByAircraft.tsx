@@ -289,12 +289,12 @@ export function FuelRecordsByAircraft({
 
       const linkedIds = (linkedAbast || []).map(a => a.logbook_entry_id).filter(Boolean);
 
-      // Get flights with fuel_added > 0 for this aircraft
+      // Get flights with combustivel_adicionado > 0 for this aircraft
       let query = (supabase as any)
         .from('lancamentos_diario_bordo')
-        .select('id, data_registro, departure_aerodrome:aerodromo_partida, arrival_aerodrome:aerodromo_chegada, trecho, fuel_added, fuel_liters, clientes_id, tempo_total')
+        .select('id, data_registro, departure_aerodrome:aerodromo_partida, arrival_aerodrome:aerodromo_chegada, trecho, combustivel_adicionado, fuel_liters, clientes_id, tempo_total')
         .eq('aeronave_id', aircraft.id)
-        .gt('fuel_added', 0)
+        .gt('combustivel_adicionado', 0)
         .order('data_registro', { ascending: false })
         .limit(50);
 
@@ -335,7 +335,7 @@ export function FuelRecordsByAircraft({
         ...prev,
         trecho,
         data: flight.data_registro,
-        litros: flight.fuel_added?.toString() || prev.litros,
+        litros: flight.combustivel_adicionado?.toString() || prev.litros,
         origem_aerodromo: flight.departure_aerodrome || "",
         destino_aerodromo: flight.arrival_aerodrome || "",
       }));
@@ -1558,8 +1558,8 @@ export function FuelRecordsByAircraft({
                               <span className="font-medium">{formatDateBrazil(flight.data_registro, "dd/MM/yy")}</span>
                               {' · '}
                               <span>{`${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
-                              {flight.fuel_added && (
-                                <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
+                              {flight.combustivel_adicionado && (
+                                <span className="text-muted-foreground"> · {flight.combustivel_adicionado}L</span>
                               )}
                             </div>
                           </SelectItem>
