@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   Legend,
@@ -18,14 +16,16 @@ import {
 } from "recharts";
 import {
   Activity,
+  AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
-  Banknote,
   BookmarkPlus,
-  Calendar,
+  CalendarDays,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Clock,
   Download,
   Eye,
   FileText,
@@ -39,6 +39,7 @@ import {
   Receipt,
   Scale,
   Search,
+  ShieldAlert,
   StickyNote,
   Tag,
   TrendingDown,
@@ -48,13 +49,20 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { format as formatDateFn } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/dashboard-utils";
 import { useAircraft } from "@/lib/dashboard-data";
 import { cn } from "@/lib/utils";
+import { useInadimplencia } from "@/hooks/useInadimplencia";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 
-/* ─────────────────────────── types ─────────────────────────── */
+/* ─────────────────────────── constants & helpers ─────────────────────────── */
 
 const MESES = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
@@ -82,6 +90,7 @@ interface Rateio {
   despesa_id: string | null;
   fluxo: string | null;
   periodicidade: string | null;
+  tipo_rateio: string | null;
   descricao_despesa: string | null;
   fornecedor_nome: string | null;
   categoria_custo: string | null;
@@ -131,7 +140,7 @@ function statusOf(r: Rateio): { label: string; tone: "success" | "warning" | "da
   return { label: "Pendente", tone: "warning" };
 }
 
-/* ─────────────────────────── hooks ─────────────────────────── */
+/* ─────────────────────────── data hooks ─────────────────────────── */
 
 function useCotistas(aeronaveId: string | null) {
   return useQuery({
@@ -163,7 +172,7 @@ function useRateiosPeriodo(aeronaveId: string | null, start: string, end: string
       const { data, error } = await supabase
         .from("rateio_despesas")
         .select(
-          "id, despesa_id, fluxo, periodicidade, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_emissao, data_pagamento, data_vencimento, valor_total_despesa, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc",
+          "id, despesa_id, fluxo, periodicidade, tipo_rateio, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_emissao, data_pagamento, data_vencimento, valor_total_despesa, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc",
         )
         .eq("aeronave_id", aeronaveId!)
         .or(
@@ -200,10 +209,6 @@ function resolveCategoria(raw: string | null | undefined, map: Map<string, strin
   return v;
 }
 
-/* ─────────────────────────── page ─────────────────────────── */
-
-type PeriodPreset = "mes-atual" | "mes-passado" | "3m" | "6m" | "ytd" | "12m";
-
 function useAircraftIdsDoCliente(clienteId?: string) {
   return useQuery({
     enabled: !!clienteId,
@@ -220,23 +225,32 @@ function useAircraftIdsDoCliente(clienteId?: string) {
   });
 }
 
-function DashboardPage() {
+/* ─────────────────────────── page ─────────────────────────── */
+
+type TipoRateio = "todos" | "FIXO" | "VARIAVEL_POR_VOO" | "VARIAVEL_POR_HORA" | "EXTRA";
+
+// Palette — instrument-panel inspired: deep aviation navy + brass/gold accent.
+const PALETTE = ["#c9932f", "#3b6fa0", "#5c7d3a", "#8a5cd6", "#d16b53", "#2fa39c"];
+
+function VisaoGeralNova() {
   const { clienteId } = useParams<{ clienteId: string }>();
-  const hoje = new Date();
   const [aircraftId, setAircraftId] = useState<string | null>(null);
-  const [preset, setPreset] = useState<PeriodPreset>("mes-atual");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const d = new Date();
+    return {
+      from: new Date(d.getFullYear(), d.getMonth(), 1),
+      to: new Date(d.getFullYear(), d.getMonth() + 1, 0),
+    };
+  });
   const [search, setSearch] = useState("");
   const [fFluxo, setFFluxo] = useState<"todos" | "entrada" | "saida">("todos");
   const [fCategoria, setFCategoria] = useState("todas");
   const [fFornecedor, setFFornecedor] = useState("todos");
   const [fStatus, setFStatus] = useState<"todos" | "pago" | "pendente" | "atrasado">("todos");
-  const [fTipoRateio, setFTipoRateio] = useState<"todos" | "uso" | "sociedade">("todos");
-  const [fForma, setFForma] = useState("todas");
+  const [fTipoRateio, setFTipoRateio] = useState<TipoRateio>("todos");
   const [fCotista, setFCotista] = useState("todos");
   const [ordem, setOrdem] = useState<"data-desc" | "data-asc" | "valor-desc" | "valor-asc">("data-desc");
   const [savedName, setSavedName] = useState<string | null>(null);
-  const [startMonth, setStartMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [endMonth, setEndMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const detailsRef = useRef<HTMLDivElement | null>(null);
 
   const aircraftQ = useAircraft();
@@ -251,43 +265,17 @@ function DashboardPage() {
   const activeAircraft = aeronavesDoCliente.find((a) => a.id === activeId) ?? null;
 
   const { start, end, prevStart, prevEnd, label } = useMemo(() => {
-    const d = new Date();
-    let s = new Date(d);
-    let e = new Date(d);
-    let l = "";
-    if (preset === "mes-atual") {
-      s = new Date(d.getFullYear(), d.getMonth(), 1);
-      e = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      l = `${MESES[d.getMonth()]}/${d.getFullYear()}`;
-    } else if (preset === "mes-passado") {
-      s = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-      e = new Date(d.getFullYear(), d.getMonth(), 0);
-      l = `${MESES[s.getMonth()]}/${s.getFullYear()}`;
-    } else if (preset === "3m") {
-      s = new Date(d.getFullYear(), d.getMonth() - 2, 1);
-      e = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      l = "Últimos 3 meses";
-    } else if (preset === "6m") {
-      s = new Date(d.getFullYear(), d.getMonth() - 5, 1);
-      e = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      l = "Últimos 6 meses";
-    } else if (preset === "ytd") {
-      s = new Date(d.getFullYear(), 0, 1);
-      e = d;
-      l = `Ano de ${d.getFullYear()}`;
-    } else {
-      s = new Date(d.getFullYear(), d.getMonth() - 11, 1);
-      e = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      l = "Últimos 12 meses";
-    }
+    const today = new Date();
+    const s = dateRange?.from ?? new Date(today.getFullYear(), today.getMonth(), 1);
+    const e = dateRange?.to ?? dateRange?.from ?? new Date(today.getFullYear(), today.getMonth() + 1, 0);
     const spanMs = e.getTime() - s.getTime();
     const ps = new Date(s.getTime() - spanMs - 86_400_000);
     const pe = new Date(s.getTime() - 86_400_000);
     const fmt = (dd: Date) => dd.toISOString().slice(0, 10);
+    const l = `${formatDateFn(s, "dd/MM/yy", { locale: ptBR })} — ${formatDateFn(e, "dd/MM/yy", { locale: ptBR })}`;
     return { start: fmt(s), end: fmt(e), prevStart: fmt(ps), prevEnd: fmt(pe), label: l };
-  }, [preset]);
+  }, [dateRange]);
 
-  // fetch a wide window (last 24 months) so we can render trends + period comparison
   const wideStart = useMemo(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth() - 23, 1).toISOString().slice(0, 10);
@@ -300,13 +288,13 @@ function DashboardPage() {
   const cotistasQ = useCotistas(activeId);
   const rateiosQ = useRateiosPeriodo(activeId, wideStart, wideEnd);
   const categoriasMapQ = useCategoriasMap();
+  const inadimplencia = useInadimplencia({ clienteId });
 
   const cotistas = cotistasQ.data ?? [];
   const rateios = rateiosQ.data ?? [];
   const catMap = categoriasMapQ.data ?? new Map<string, string>();
   const catNameOf = (r: Rateio) => resolveCategoria(r.categoria_custo, catMap);
 
-  // dedupe by despesa_id for aggregate calculations
   const uniqueDespesas = useMemo(() => {
     const map = new Map<string, Rateio>();
     for (const r of rateios) {
@@ -343,7 +331,6 @@ function DashboardPage() {
     };
     const cur = acc(curPeriodDespesas);
     const prev = acc(prevPeriodDespesas);
-    // saldo geral = acumulado até `end` (todos os despesas <= end)
     const saldoAte = (limit: string) => {
       let s = 0;
       for (const r of uniqueDespesas) {
@@ -362,12 +349,6 @@ function DashboardPage() {
     };
   }, [curPeriodDespesas, prevPeriodDespesas, uniqueDespesas, end, prevEnd]);
 
-  const pct = (cur: number, prev: number) => {
-    if (prev === 0) return cur === 0 ? 0 : 100;
-    return ((cur - prev) / Math.abs(prev)) * 100;
-  };
-
-  // Monthly series (last 12 months of window)
   const monthly = useMemo(() => {
     const months: { key: string; label: string; entradas: number; saidas: number }[] = [];
     const d = new Date();
@@ -392,7 +373,6 @@ function DashboardPage() {
     return months;
   }, [uniqueDespesas]);
 
-  // Category distribution for period
   const categorias = useMemo(() => {
     const map = new Map<string, number>();
     for (const r of curPeriodDespesas) {
@@ -406,53 +386,67 @@ function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curPeriodDespesas, catMap]);
 
-  // Aircraft cost buckets for the current month (independent of `preset`)
   const custoAeronaveMes = useMemo(() => {
-    const now = new Date();
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const buckets = [
-      { key: "combustivel", label: "Combustível", icon: "⛽", color: "#e8b939", match: /(COMBUST|AVGAS|JET\s?A|QAV)/i, total: 0, count: 0 },
-      { key: "manutencao", label: "Manutenção", icon: "🔧", color: "#e07a5f", match: /(MANUT|PEÇAS|PECAS|REVIS|OFICINA|MOTOR|HÉLICE|HELICE)/i, total: 0, count: 0 },
-      { key: "hangaragem", label: "Hangaragem", icon: "🏠", color: "#4c9be8", match: /(HANGAR)/i, total: 0, count: 0 },
-      { key: "taxas", label: "Taxas aeroportuárias", icon: "🛫", color: "#c67ad4", match: /(INFRAERO|DECEA|TARIFA|TAXA|NAV)/i, total: 0, count: 0 },
-      { key: "adm-share", label: "ADM e Trip ", icon: "🏢", color: "#5c7d3a", match: /^ADM SHARE(?! - RECIBO)/i, total: 0, count: 0 },
-    ];
-    for (const r of uniqueDespesas) {
+    // Show ALL categories that appear in the selected period, ordered by total.
+    const palette = ["#c9932f", "#3b6fa0", "#5c7d3a", "#8a5cd6", "#d16b53", "#2fa39c", "#e0b64a", "#4a86c9", "#c96f9f", "#6bbf6b"];
+    const iconFor = (name: string) => {
+      const n = norm(name);
+      if (/combust|avgas|jet|qav/.test(n)) return "⛽";
+      if (/manut|peca|revis|oficina|motor|helice/.test(n)) return "🔧";
+      if (/hangar/.test(n)) return "🏠";
+      if (/tarifa|taxa|infraero|decea|nav/.test(n)) return "🛫";
+      if (/adm|trip|share/.test(n)) return "🏢";
+      if (/seguro/.test(n)) return "🛡️";
+      if (/imposto|tributo|fistel|darf|das|fgts/.test(n)) return "🏛️";
+      if (/viagem|hotel|hoteis|alim/.test(n)) return "🧳";
+      if (/salar|folha|freela/.test(n)) return "💼";
+      if (/banc|iof/.test(n)) return "🏦";
+      return "💰";
+    };
+    const acc = new Map<string, { total: number; count: number }>();
+    for (const r of curPeriodDespesas) {
       if (!isSaida(r.fluxo)) continue;
-      const d = (r.data_pagamento || r.data_vencimento || r.data_emissao || "").slice(0, 7);
-      if (d !== ym) continue;
-      const nome = catNameOf(r);
-      const b = buckets.find((x) => x.match.test(nome));
-      if (!b) continue;
-      b.total += Number(r.valor_total_despesa) || 0;
-      b.count += 1;
+      const nome = catNameOf(r) || "Sem categoria";
+      const cur = acc.get(nome) || { total: 0, count: 0 };
+      cur.total += Number(r.valor_total_despesa) || 0;
+      cur.count += 1;
+      acc.set(nome, cur);
     }
+    const buckets = Array.from(acc.entries())
+      .map(([nome, v], i) => ({
+        key: nome,
+        label: nome,
+        icon: iconFor(nome),
+        color: palette[i % palette.length],
+        total: v.total,
+        count: v.count,
+      }))
+      .sort((a, b) => b.total - a.total);
     const totalGeral = buckets.reduce((s, b) => s + b.total, 0);
-    return { buckets, totalGeral, ym };
+    return { buckets, totalGeral };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uniqueDespesas, catMap]);
+  }, [curPeriodDespesas, catMap]);
 
-  // Cotistas participation
-  const cotistaColors = ["#e8b939", "#5c7d3a", "#4c9be8", "#c67ad4", "#e07a5f", "#3fa998"];
   const cotistaColor = (id: string) => {
     const i = Math.max(0, cotistas.findIndex((c) => c.id === id));
-    return cotistaColors[i % cotistaColors.length];
+    return PALETTE[i % PALETTE.length];
   };
 
   const cotistaStats = useMemo(() => {
-    const perCotista = new Map<string, { debito: number; count: number }>();
-    cotistas.forEach((c) => perCotista.set(c.id, { debito: 0, count: 0 }));
+    const perCotista = new Map<string, { debito: number; pago: number; count: number }>();
+    cotistas.forEach((c) => perCotista.set(c.id, { debito: 0, pago: 0, count: 0 }));
     for (const r of rateios) {
       if (!inRange(r, start, end)) continue;
       if (!isSaida(r.fluxo)) continue;
       const k = findCotistaKey(cotistas, r);
-      if (!k) continue;
+      if (!k || !perCotista.has(k)) continue;
       const rateado = Number(r.valor_rateado) || 0;
       const pctu = Number(r.percentual_uso ?? r.percentual_sociedade ?? 0);
       const total = Number(r.valor_total_despesa) || 0;
       const base = rateado > 0 ? rateado : pctu > 0 ? total * (pctu / 100) : 0;
       const cur = perCotista.get(k)!;
       cur.debito += base;
+      cur.pago += Number(r.valor_pago_real) || 0;
       cur.count += 1;
     }
     const totalDeb = Array.from(perCotista.values()).reduce((s, v) => s + v.debito, 0);
@@ -463,6 +457,8 @@ function DashboardPage() {
           ...c,
           color: cotistaColor(c.id),
           debito: s.debito,
+          pago: s.pago,
+          saldo: s.debito - s.pago,
           lancamentos: s.count,
           pct: totalDeb > 0 ? (s.debito / totalDeb) * 100 : 0,
         };
@@ -471,7 +467,6 @@ function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rateios, cotistas, start, end]);
 
-  // Filters — apply to rateios in current period
   const categoriasOpts = useMemo(
     () => Array.from(new Set(rateios.map((r) => catNameOf(r)).filter((x) => x && x !== "Sem categoria"))).sort() as string[],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -487,7 +482,6 @@ function DashboardPage() {
   );
 
   const filtered = useMemo(() => {
-    // Show unique despesas in current period, then apply filters
     let list = curPeriodDespesas.slice();
     if (fFluxo !== "todos") {
       list = list.filter((r) => (fFluxo === "entrada" ? !isSaida(r.fluxo) : isSaida(r.fluxo)));
@@ -495,12 +489,8 @@ function DashboardPage() {
     if (fCategoria !== "todas") list = list.filter((r) => catNameOf(r) === fCategoria);
     if (fFornecedor !== "todos") list = list.filter((r) => r.fornecedor_nome === fFornecedor);
     if (fStatus !== "todos") list = list.filter((r) => norm(statusOf(r).label).startsWith(fStatus));
-    if (fTipoRateio === "uso") list = list.filter((r) => (Number(r.percentual_uso) || 0) > 0);
-    if (fTipoRateio === "sociedade")
-      list = list.filter((r) => !(Number(r.percentual_uso) || 0) && (Number(r.percentual_sociedade) || 0) > 0);
-    if (fForma !== "todas") list = list.filter((r) => r.forma_pagamento === fForma);
+    if (fTipoRateio !== "todos") list = list.filter((r) => (r.tipo_rateio || "").toUpperCase() === fTipoRateio);
     if (fCotista !== "todos") {
-      // find all despesa_ids where any rateio row matches cotista
       const ids = new Set(
         rateios.filter((r) => findCotistaKey(cotistas, r) === fCotista).map((r) => r.despesa_id || r.id),
       );
@@ -527,7 +517,7 @@ function DashboardPage() {
       return va - vb;
     });
     return list;
-  }, [curPeriodDespesas, fFluxo, fCategoria, fFornecedor, fStatus, fTipoRateio, fForma, fCotista, search, ordem, rateios, cotistas]);
+  }, [curPeriodDespesas, fFluxo, fCategoria, fFornecedor, fStatus, fTipoRateio, fCotista, search, ordem, rateios, cotistas]);
 
   const clearFilters = () => {
     setSearch("");
@@ -536,13 +526,31 @@ function DashboardPage() {
     setFFornecedor("todos");
     setFStatus("todos");
     setFTipoRateio("todos");
-    setFForma("todas");
     setFCotista("todos");
     setOrdem("data-desc");
     setSavedName(null);
   };
 
   const isLoading = aircraftQ.isLoading || cotistasQ.isLoading || rateiosQ.isLoading;
+
+  // ── Health status: readable in under 10 seconds ──
+  const overdueTotal = inadimplencia?.resumo?.totalEmAtraso ?? 0;
+  const health: { label: string; tone: "success" | "warning" | "danger"; note: string } = useMemo(() => {
+    if (totals.saldoAtual < 0) {
+      return { label: "Crítico", tone: "danger", note: "Saldo negativo no período" };
+    }
+    if (overdueTotal > 0) {
+      return { label: "Atenção", tone: "warning", note: `${formatBRL(overdueTotal)} em atraso` };
+    }
+    if (totals.cur.resultado < 0) {
+      return { label: "Atenção", tone: "warning", note: "Saídas maiores que entradas no mês" };
+    }
+    return { label: "Saudável", tone: "success", note: "Sem pendências relevantes" };
+  }, [totals, overdueTotal]);
+
+  const gaugeShare = totals.cur.entradas + totals.cur.saidas > 0
+    ? totals.cur.entradas / (totals.cur.entradas + totals.cur.saidas)
+    : 0.5;
 
   return (
     <div className="min-h-screen">
@@ -552,7 +560,6 @@ function DashboardPage() {
           <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
             <Wallet className="h-3.5 w-3.5" /> Painel Financeiro
           </div>
-         
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <SelectField value={activeId ?? ""} onChange={(v) => setAircraftId(v)}>
               {aeronavesDoCliente.map((a) => (
@@ -566,44 +573,100 @@ function DashboardPage() {
       </div>
 
       <main className="mx-auto max-w-[1400px] space-y-8 px-4 pb-24 pt-8 sm:px-6 lg:px-8">
-    {/* ── 1. Cabeçalho Executivo ── */}
+        {/* ── 1. Hero — Saúde financeira em 10 segundos ── */}
         <section
           className="relative overflow-hidden rounded-3xl border-2 border-border bg-gradient-to-br from-[oklch(0.24_0.05_255)] via-background to-background p-6 shadow-md sm:p-10"
           style={{ animation: "fadeUp 0.5s ease-out" }}
         >
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Visão executiva · {label}
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Painel do cotista · {label}
+                </span>
+                <HealthPill health={health} />
               </div>
               <h1 className="mt-2 truncate font-display text-3xl sm:text-4xl">
-                Financeiro{" "}
                 <span className="text-primary">{activeAircraft?.matricula || "—"}</span>
+                {activeAircraft?.modelo ? (
+                  <span className="ml-2 text-xl text-muted-foreground sm:text-2xl">{activeAircraft.modelo}</span>
+                ) : null}
               </h1>
-          
-            </div>
-            
-            {/* Filtro de Período Customizado */}
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-background/50 p-2 shadow-sm backdrop-blur-md">
-              <div className="flex items-center gap-2">
-                <span className="pl-2 text-xs font-medium text-muted-foreground">Mês inicial:</span>
-                <input
-                  type="month"
-                  value={startMonth}
-                  onChange={(e) => setStartMonth(e.target.value)}
-                  className="cursor-pointer appearance-none rounded-lg border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:border-primary/50 focus:border-primary"
-                />
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">{health.note}</p>
+
+              <div className="mt-6 flex flex-wrap items-end gap-8">
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Saldo geral</div>
+                  <div
+                    className={cn(
+                      "number-hero mt-1 text-4xl sm:text-5xl",
+                      totals.saldoAtual < 0 ? "text-rose-400" : "text-emerald-400",
+                    )}
+                  >
+                    <CountUp value={totals.saldoAtual} format="brl" signed />
+                  </div>
+                </div>
+                <div className="hidden h-14 w-px bg-border/60 sm:block" />
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Resultado do período</div>
+                  <div
+                    className={cn(
+                      "mt-1 text-lg font-semibold tabular-nums",
+                      totals.cur.resultado < 0 ? "text-rose-400" : "text-emerald-400",
+                    )}
+                  >
+                    {totals.cur.resultado >= 0 ? "+ " : "- "}
+                    {formatBRL(Math.abs(totals.cur.resultado))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Em atraso</div>
+                  <div className={cn("mt-1 text-lg font-semibold tabular-nums", overdueTotal > 0 ? "text-amber-400" : "text-muted-foreground")}>
+                    {formatBRL(overdueTotal)}
+                  </div>
+                </div>
               </div>
-              <span className="text-xs text-muted-foreground">até</span>
-              <div className="flex items-center gap-2 pr-2">
-                <input
-                  type="month"
-                  value={endMonth}
-                  onChange={(e) => setEndMonth(e.target.value)}
-                  className="cursor-pointer appearance-none rounded-lg border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:border-primary/50 focus:border-primary"
-                />
-              </div>
             </div>
+
+            {/* Instrument gauge — entradas × saídas at a glance */}
+            <InstrumentGauge share={gaugeShare} entradas={totals.cur.entradas} saidas={totals.cur.saidas} />
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-background/40 p-2 backdrop-blur-md">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-border/60 bg-background/60 text-xs font-normal"
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {formatDateFn(dateRange.from, "dd MMM yyyy", { locale: ptBR })} —{" "}
+                        {formatDateFn(dateRange.to, "dd MMM yyyy", { locale: ptBR })}
+                      </>
+                    ) : (
+                      formatDateFn(dateRange.from, "dd MMM yyyy", { locale: ptBR })
+                    )
+                  ) : (
+                    "Selecionar período"
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarUI
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <span className="text-xs text-muted-foreground">Comparando com o período anterior equivalente</span>
           </div>
         </section>
 
@@ -665,77 +728,14 @@ function DashboardPage() {
           )}
         </section>
 
-        {/* ── 3. Gráficos ── */}
-        <section>
-          <SectionTitle icon={<TrendingUp className="h-4 w-4" />} title="Movimentação" />
-          <div className="grid gap-4 xl:grid-cols-3">
-            <ChartCard title="Entradas × Saídas — últimos 12 meses" className="xl:col-span-2">
-              <div className="h-72" style={{ animation: "fadeUp 0.6s ease-out" }}>
-                <ResponsiveContainer>
-                  <AreaChart data={monthly}>
-                    <defs>
-                      <linearGradient id="gEnt" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--success)" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="var(--success)" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="gSai" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--destructive)" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="var(--destructive)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
-                    <XAxis dataKey="label" tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${((v as number) / 1000).toFixed(0)}k`} />
-                    <Tooltip content={<DarkTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 12, color: "var(--color-muted-foreground)" }} />
-                    <Area type="monotone" dataKey="entradas" name="Entradas" stroke="var(--success)" fill="url(#gEnt)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="saidas" name="Saídas" stroke="var(--destructive)" fill="url(#gSai)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartCard>
-            <ChartCard title="Distribuição por categoria">
-              <div className="h-56" style={{ animation: "fadeUp 0.7s ease-out" }}>
-                <ResponsiveContainer>
-                  <PieChart>
-                    <Pie data={categorias} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80} paddingAngle={2} stroke="none">
-                      {categorias.map((c, i) => (
-                        <Cell key={c.name} fill={cotistaColors[i % cotistaColors.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<DarkTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="mt-2 space-y-1.5 text-xs">
-                {categorias.slice(0, 6).map((c, i) => {
-                  const total = categorias.reduce((s, x) => s + x.value, 0);
-                  const p = total ? (c.value / total) * 100 : 0;
-                  return (
-                    <li key={c.name} className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ background: cotistaColors[i % cotistaColors.length] }} />
-                      <span className="flex-1 truncate">{c.name}</span>
-                      <span className="tabular-nums text-muted-foreground">{p.toFixed(0)}%</span>
-                    </li>
-                  );
-                })}
-                {categorias.length === 0 && (
-                  <li className="text-muted-foreground">Sem despesas no período.</li>
-                )}
-              </ul>
-            </ChartCard>
-          </div>
-        </section>
+        {/* Movimentação chart removed per request */}
 
         {/* ── 4. Quanto essa aeronave custou este mês ── */}
         <section>
           <SectionTitle
             icon={<Plane className="h-4 w-4" />}
-            title="Quanto essa aeronave custou este mês"
-            subtitle={(() => {
-              const [y, m] = custoAeronaveMes.ym.split("-");
-              return `${MESES[Number(m) - 1]}/${y} · total ${formatBRL(custoAeronaveMes.totalGeral)}`;
-            })()}
+            title="Quanto essa aeronave custou no período"
+            subtitle={`Total ${formatBRL(custoAeronaveMes.totalGeral)}`}
           />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {custoAeronaveMes.buckets.map((b) => {
@@ -779,8 +779,80 @@ function DashboardPage() {
           </div>
         </section>
 
+        {/* ── 5. Sociedade — saldo por cotista + pendências ── */}
+        <section>
+          <SectionTitle icon={<User className="h-4 w-4" />} title="Participação e saldo por cotista" subtitle={label} />
+          <div className="grid gap-4 xl:grid-cols-3">
+            <div className="card-glow rounded-2xl p-5 xl:col-span-2">
+              <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Participação e saldo por cotista
+              </div>
+              {cotistaStats.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">Nenhum cotista cadastrado para esta aeronave.</div>
+              ) : (
+                <ul className="space-y-3">
+                  {cotistaStats.map((c) => (
+                    <li key={c.id} className="rounded-xl border border-border/40 bg-background/30 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+                          <span className="truncate text-sm font-medium">{c.nome}</span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground">({c.percentual.toFixed(1)}% da soc.)</span>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-sm font-semibold tabular-nums">{formatBRL(c.debito)}</div>
+                          <div className={cn("text-[11px] tabular-nums", c.saldo > 0 ? "text-amber-400" : "text-emerald-400")}>
+                            {c.saldo > 0 ? `${formatBRL(c.saldo)} em aberto` : "Em dia"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/40">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${Math.min(100, c.pct)}%`, background: c.color }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-        {/* ── 5. Toolbar de filtros ── */}
+            <div className="card-glow rounded-2xl p-5">
+              <div className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <ShieldAlert className="h-3.5 w-3.5 text-amber-400" /> Pendências em atraso
+              </div>
+              {inadimplencia?.isLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/30" />
+                  ))}
+                </div>
+              ) : (inadimplencia?.data?.length ?? 0) === 0 ? (
+                <div className="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                  Nenhuma pendência em atraso.
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {(inadimplencia?.data ?? []).slice(0, 6).map((item) => (
+                    <li key={`${item.origem}-${item.id}`} className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-xs font-medium">{item.cliente_nome}</span>
+                        <span className="shrink-0 text-xs font-semibold tabular-nums text-amber-400">{formatBRL(item.valor)}</span>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Clock className="h-3 w-3" /> {item.dias_atraso} dia{item.dias_atraso === 1 ? "" : "s"} de atraso · {item.descricao || "Sem descrição"}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ── 6. Toolbar de filtros ── */}
         <section ref={detailsRef}>
           <SectionTitle icon={<Filter className="h-4 w-4" />} title="Filtros" />
           <div className="card-glow rounded-2xl p-3">
@@ -794,14 +866,6 @@ function DashboardPage() {
                   className="w-full rounded-lg border border-border/60 bg-background/60 py-2 pl-9 pr-3 text-xs outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/60"
                 />
               </div>
-              <ToolbarSelect value={preset} onChange={(v) => setPreset(v as PeriodPreset)} icon={<Calendar className="h-3 w-3" />}>
-                <option value="mes-atual">Mês atual</option>
-                <option value="mes-passado">Mês passado</option>
-                <option value="3m">3 meses</option>
-                <option value="6m">6 meses</option>
-                <option value="ytd">Ano</option>
-                <option value="12m">12 meses</option>
-              </ToolbarSelect>
               <ToolbarSelect value={fFluxo} onChange={(v) => setFFluxo(v as any)} icon={<TrendingUp className="h-3 w-3" />}>
                 <option value="todos">Fluxo: todos</option>
                 <option value="entrada">Entradas</option>
@@ -827,14 +891,10 @@ function DashboardPage() {
               </ToolbarSelect>
               <ToolbarSelect value={fTipoRateio} onChange={(v) => setFTipoRateio(v as any)} icon={<Scale className="h-3 w-3" />}>
                 <option value="todos">Rateio: todos</option>
-                <option value="uso">Por uso</option>
-                <option value="sociedade">Por sociedade</option>
-              </ToolbarSelect>
-              <ToolbarSelect value={fForma} onChange={setFForma} icon={<Banknote className="h-3 w-3" />}>
-                <option value="todas">Pagamento: todos</option>
-                {formasOpts.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
+                <option value="FIXO">Fixo</option>
+                <option value="VARIAVEL_POR_VOO">Variável por voo</option>
+                <option value="VARIAVEL_POR_HORA">Variável por hora</option>
+                <option value="EXTRA">Extra</option>
               </ToolbarSelect>
               <ToolbarSelect value={fCotista} onChange={setFCotista} icon={<User className="h-3 w-3" />}>
                 <option value="todos">Cotista: todos</option>
@@ -872,7 +932,7 @@ function DashboardPage() {
           </div>
         </section>
 
-        {/* ── 6. Painel de Detalhes ── */}
+        {/* ── 7. Painel de Detalhes ── */}
         <section>
           <SectionTitle
             icon={<ClipboardList className="h-4 w-4" />}
@@ -916,6 +976,57 @@ function DashboardPage() {
 }
 
 /* ─────────────────────────── UI parts ─────────────────────────── */
+
+function HealthPill({ health }: { health: { label: string; tone: "success" | "warning" | "danger" } }) {
+  const tone: Record<string, string> = {
+    success: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    warning: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    danger: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+  };
+  const Icon = health.tone === "success" ? CheckCircle2 : health.tone === "warning" ? AlertTriangle : ShieldAlert;
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider", tone[health.tone])}>
+      <Icon className="h-3 w-3" /> {health.label}
+    </span>
+  );
+}
+
+/** Signature element: instrument-style gauge, echoing an aircraft cockpit dial, showing entradas × saídas at a glance. */
+function InstrumentGauge({ share, entradas, saidas }: { share: number; entradas: number; saidas: number }) {
+  const size = 168;
+  const stroke = 14;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(1, share));
+  const dash = c * pct;
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-2">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="oklch(1 0 0 / 0.08)" strokeWidth={stroke} />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="#c9932f"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${c - dash}`}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="text-2xl font-semibold tabular-nums">{Math.round(pct * 100)}%</div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">entradas</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#c9932f]" /> {formatBRL(entradas)}</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-white/15" /> {formatBRL(saidas)}</span>
+      </div>
+    </div>
+  );
+}
 
 function SectionTitle({
   icon,
@@ -1262,7 +1373,6 @@ function ExpandedFicha({
       style={{ animation: "fadeUp 0.25s ease-out" }}
     >
       <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-        {/* Informações Gerais */}
         <FichaModule icon={<StickyNote className="h-4 w-4" />} title="Informações gerais">
           <Field label="Fornecedor" value={r.fornecedor_nome} />
           <Field label="Descrição" value={r.descricao_despesa} />
@@ -1281,7 +1391,6 @@ function ExpandedFicha({
           <Field label="Periodicidade" value={r.periodicidade} />
         </FichaModule>
 
-        {/* Financeiro */}
         <FichaModule icon={<Wallet className="h-4 w-4" />} title="Financeiro">
           <Field label="Valor total" value={formatBRL(Number(r.valor_total_despesa) || 0)} strong />
           <Field label="Data de emissão" value={formatDate(r.data_emissao)} />
@@ -1294,7 +1403,6 @@ function ExpandedFicha({
           </div>
         </FichaModule>
 
-        {/* Cotistas */}
         <FichaModule icon={<User className="h-4 w-4" />} title="Cotistas envolvidos">
           {linhasCot.length === 0 ? (
             <div className="text-xs text-muted-foreground">Sem rateio por cotista.</div>
@@ -1324,7 +1432,6 @@ function ExpandedFicha({
           )}
         </FichaModule>
 
-        {/* Documentos */}
         <FichaModule icon={<Paperclip className="h-4 w-4" />} title="Documentos">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {anexos.map((a) => {
@@ -1382,14 +1489,12 @@ function ExpandedFicha({
           </div>
         </FichaModule>
 
-        {/* Observações */}
         <FichaModule icon={<StickyNote className="h-4 w-4" />} title="Observações">
           <p className="whitespace-pre-line rounded-lg bg-muted/20 p-3 text-xs leading-relaxed">
             {r.observacoes || "Nenhuma observação registrada para este lançamento."}
           </p>
         </FichaModule>
 
-        {/* Histórico */}
         <FichaModule icon={<History className="h-4 w-4" />} title="Histórico">
           <ul className="space-y-2 text-xs">
             {r.data_emissao && (
@@ -1455,5 +1560,4 @@ function HistItem({ when, who, what }: { when: string; who: string; what: string
   );
 }
 
-
-export default DashboardPage;
+export default VisaoGeralNova;
