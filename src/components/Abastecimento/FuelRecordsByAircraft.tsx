@@ -432,7 +432,7 @@ export function FuelRecordsByAircraft({
       const { data, error } = await (supabase as any)
         .from("contas_bancarias")
         .select("id, rotulo")
-        .order("ordem", { ascending: true });
+        .order("nome", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar instituições bancárias:", error);
