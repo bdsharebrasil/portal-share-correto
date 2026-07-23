@@ -26,6 +26,7 @@ import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocuments
 import { TimeClockTab } from "@/components/profile/TimeClockTab";
 import EmployeeBankStatement from "@/components/profile/ExtratoBancarioFuncionario";
 import { TravelReportApprovalsTab } from "@/components/profile/TravelReportApprovalsTab";
+
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;
@@ -41,6 +42,7 @@ type FormState = {
   bank_account: string;
   bank_pix: string;
 };
+
 const contactTypeOptions: {
   value: ContactType;
   label: string;
@@ -73,12 +75,15 @@ const getInitials = (input: string | null | undefined) => {
   }
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 };
+
 const sanitizePhone = (value: string) => value.replace(/\D/g, "");
+
 const buildAvatarPath = (userId: string, fileName: string) => {
   const extension = fileName.split(".").pop();
   const uniqueId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return extension ? `${userId}/${uniqueId}.${extension}` : `${userId}/${uniqueId}`;
 };
+
 const formatTimestamp = (isoDate: string | null | undefined) => {
   if (!isoDate) {
     return null;
@@ -93,9 +98,11 @@ const formatTimestamp = (isoDate: string | null | undefined) => {
     return null;
   }
 };
+
 const AVATAR_CROP_BOX_SIZE = 256;
 const AVATAR_OUTPUT_SIZE = 512;
 const DEFAULT_CROP_SCALE = 1;
+
 export default function Perfil() {
   const {
     user,
@@ -168,6 +175,7 @@ export default function Perfil() {
     y: number;
   } | null>(null);
   const [isCropDragging, setIsCropDragging] = useState(false);
+
   useEffect(() => {
     if (profile) {
       const p: any = profile as any;
@@ -187,9 +195,11 @@ export default function Perfil() {
       });
     }
   }, [profile]);
+
   useEffect(() => {
     setAvatarPosition(50);
   }, [profile?.avatar_url]);
+
   useEffect(() => {
     return () => {
       if (cropImage) {
@@ -197,6 +207,7 @@ export default function Perfil() {
       }
     };
   }, [cropImage]);
+
   const displayName = useMemo(() => formState.display_name || formState.full_name || profile?.full_name || user?.email || "Usuário", [formState.display_name, formState.full_name, profile?.full_name, user?.email]);
   const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
   const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.atualizado_em), [profile?.atualizado_em]);
@@ -217,6 +228,7 @@ export default function Perfil() {
       return !!data;
     },
   });
+
   const {
     data: salaryPayments = []
   } = useQuery({
@@ -234,6 +246,7 @@ export default function Perfil() {
     },
     enabled: !!userId
   });
+
   // Payslips são agora carregados da tabela pagamento_salario_funcionario acima
   const {
     data: vacationRequests = [],
@@ -253,6 +266,7 @@ export default function Perfil() {
     },
     enabled: !!userId
   });
+
   const [absences, setAbsences] = useState<number>(0);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -284,6 +298,7 @@ export default function Perfil() {
     const start = new Date(admission);
     return new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
   };
+
   const handleVacationRequest = async () => {
     if (workingMonths < 12) {
       const eligibilityDate = getEligibilityDateForVacation();
@@ -429,6 +444,7 @@ export default function Perfil() {
       setIsChangingPassword(false);
     }
   };
+
   const resetCropState = useCallback(() => {
     setCropDialogOpen(false);
     setCropImage(null);
@@ -442,6 +458,7 @@ export default function Perfil() {
     cropDragStart.current = null;
     cropImageRef.current = null;
   }, []);
+
   const clampPosition = useCallback((position: {
     x: number;
     y: number;
@@ -459,6 +476,7 @@ export default function Perfil() {
       y: Math.min(Math.max(position.y, -maxOffsetY), maxOffsetY)
     };
   }, [cropMeta, cropScale]);
+
   const handleCropPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (!cropMeta) {
       return;
@@ -471,6 +489,7 @@ export default function Perfil() {
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }, [cropMeta]);
+
   const handleCropPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (!isCropDragging || !cropDragStart.current) {
       return;
@@ -487,6 +506,7 @@ export default function Perfil() {
       y: prev.y + deltaY
     }));
   }, [clampPosition, isCropDragging]);
+
   const handleCropPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -494,11 +514,13 @@ export default function Perfil() {
     setIsCropDragging(false);
     cropDragStart.current = null;
   }, []);
+
   const handleScaleChange = useCallback((value: number[]) => {
     const newScale = value[0] ?? DEFAULT_CROP_SCALE;
     setCropScale(newScale);
     setCropPosition(prev => clampPosition(prev, newScale));
   }, [clampPosition]);
+
   const handleCropImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
     const {
       naturalWidth,
@@ -519,6 +541,7 @@ export default function Perfil() {
       y: 0
     });
   }, []);
+
   const uploadAvatarFile = useCallback(async (file: File) => {
     if (!user?.id) {
       toast({
@@ -530,7 +553,8 @@ export default function Perfil() {
     }
     setAvatarUploading(true);
     try {
-      const path = buildAvatarPath(user.id, file.nome);
+      // CORREÇÃO: file.nome alterado para file.name
+      const path = buildAvatarPath(user.id, file.name);
       const {
         error: uploadError
       } = await supabase.storage.from("avatar-profile").upload(path, file, {
@@ -566,6 +590,7 @@ export default function Perfil() {
       setAvatarUploading(false);
     }
   }, [toast, updateProfile, user?.id]);
+
   const handleConfirmCrop = useCallback(async () => {
     if (!cropImage || !cropMeta) {
       return;
@@ -596,7 +621,10 @@ export default function Perfil() {
     const drawHeight = cropMeta.height * scaleMultiplier * ratio;
     const drawX = (AVATAR_OUTPUT_SIZE - drawWidth) / 2 + x * ratio;
     const drawY = (AVATAR_OUTPUT_SIZE - drawHeight) / 2 + y * ratio;
-    const preferredMime = cropImage.file.tipo === "image/png" ? "image/png" : "image/jpeg";
+    
+    // CORREÇÃO: cropImage.file.tipo alterado para cropImage.file.type
+    const preferredMime = cropImage.file.type === "image/png" ? "image/png" : "image/jpeg";
+    
     context.clearRect(0, 0, AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE);
     if (preferredMime === "image/jpeg") {
       context.fillStyle = "#ffffff";
@@ -613,7 +641,10 @@ export default function Perfil() {
       return;
     }
     const extension = preferredMime === "image/png" ? "png" : "jpg";
-    const baseName = cropImage.file.nome.replace(/\.[^.]+$/, "");
+    
+    // CORREÇÃO: cropImage.file.nome alterado para cropImage.file.name
+    const baseName = cropImage.file.name.replace(/\.[^.]+$/, "");
+    
     const croppedFile = new File([blob], `${baseName}.${extension}`, {
       type: preferredMime
     });
@@ -622,12 +653,14 @@ export default function Perfil() {
       resetCropState();
     }
   }, [cropImage, cropMeta, cropPosition, cropScale, resetCropState, toast, uploadAvatarFile]);
+
   const handleCancelCrop = useCallback(() => {
     if (avatarUploading) {
       return;
     }
     resetCropState();
   }, [avatarUploading, resetCropState]);
+
   const handleCropDialogOpenChange = useCallback((open: boolean) => {
     if (!open) {
       if (avatarUploading) {
@@ -638,6 +671,7 @@ export default function Perfil() {
       setCropDialogOpen(true);
     }
   }, [avatarUploading, resetCropState]);
+
   const handleInputChange = (field: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = event.target.value;
     setFormState(prev => ({
@@ -645,12 +679,14 @@ export default function Perfil() {
       [field]: field === "telefone" ? sanitizePhone(value) : value
     }));
   };
+
   const handleSelectChange = (value: ContactType) => {
     setFormState(prev => ({
       ...prev,
       tipo: value
     }));
   };
+
   const handleSave = async () => {
     const trimmedFullName = formState.full_name.trim();
     if (!trimmedFullName) {
@@ -702,6 +738,7 @@ export default function Perfil() {
       });
     }
   };
+
   const handleSaveEditableFields = async () => {
     try {
       const payload = {
@@ -728,6 +765,7 @@ export default function Perfil() {
       });
     }
   };
+
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -748,11 +786,13 @@ export default function Perfil() {
     });
     setIsCropDragging(false);
   };
+
   const triggerFileDialog = () => {
     if (!isProfileBusy) {
       fileInputRef.current?.click();
     }
   };
+
   if (!user) {
     return <Layout>
         <div className="p-6">
@@ -764,6 +804,7 @@ export default function Perfil() {
         </div>
       </Layout>;
   }
+
   return <Layout>
       <Dialog open={cropDialogOpen} onOpenChange={handleCropDialogOpenChange}>
         <DialogContent className="sm:max-w-xl">
