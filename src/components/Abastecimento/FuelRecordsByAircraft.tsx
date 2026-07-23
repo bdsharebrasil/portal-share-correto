@@ -18,7 +18,6 @@ import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ModernFileUpload } from "@/components/ui/modern-file-upload";
 import { ExportFuelRecordsModal } from "./ExportFuelRecordsModal";
 import { resolveFuelRecordPartnerName } from "./fuelRecordsUtils";
 interface Client {
@@ -72,6 +71,12 @@ interface FuelSupplier {
   codigo_icao: string;
   preco_avgas?: number | null;
   preco_jet?: number | null;
+}
+interface BankInstitution {
+  id: string;
+  banco: string;
+  numero_conta: string | null;
+  tipo_conta: string | null;
 }
 interface Props {
   client: Client;
@@ -195,9 +200,11 @@ export function FuelRecordsByAircraft({
   const [loadingFlights, setLoadingFlights] = useState(false);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [paymentDateCalendarOpen, setPaymentDateCalendarOpen] = useState(false);
+  const [dueDateCalendarOpen, setDueDateCalendarOpen] = useState(false);
 
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
-  const [bankInstitutions, setBankInstitutions] = useState<{id:string;rotulo:string;}[]>([]);
+  const [bankInstitutions, setBankInstitutions] = useState<BankInstitution[]>([]);
 
   // State para rastrear informações do voo selecionado e do dia anterior
   const [selectedFlightInfo, setSelectedFlightInfo] = useState<any>(null);
@@ -431,14 +438,15 @@ export function FuelRecordsByAircraft({
     try {
       const { data, error } = await (supabase as any)
         .from("contas_bancarias")
-        .select("id, rotulo")
-        .order("nome", { ascending: true });
+        .select("id, banco, numero_conta, tipo_conta")
+        .eq("ativo", true)
+        .order("banco", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar instituições bancárias:", error);
         return;
       }
-      setBankInstitutions((data || []) as any as { id: string; rotulo: string }[]);
+      setBankInstitutions((data || []) as BankInstitution[]);
     } catch (err) {
       console.error("Erro ao carregar instituições bancárias:", err);
     }
@@ -653,7 +661,7 @@ export function FuelRecordsByAircraft({
     // Filter by month/year
     if (filterMonth !== "all" && filterYear) {
       filtered = filtered.filter(record => {
-        // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
+        // Use data_pagamento se status é "pago", senão usa data (data do abastecimento)
         const dateToUse = (record.status_pagamento === "pago" && record.data_pagamento)
           ? record.data_pagamento
           : record.data;
@@ -746,6 +754,16 @@ export function FuelRecordsByAircraft({
   const getFileType = (extension: string): 'pdf' | 'image' => {
     return ['pdf'].includes(extension) ? 'pdf' : 'image';
   };
+
+  // Limpa um anexo (arquivo local + url já persistida)
+  const clearAttachment = (
+    fileKey: 'comanda_file' | 'nota_file' | 'boleto_file' | 'comprovante_file',
+    urlKey: 'comanda_url' | 'nota_url' | 'boleto_url' | 'comprovante_url'
+  ) => {
+    setFormData(prev => ({ ...prev, [fileKey]: null, [urlKey]: "" }));
+    setUploadedFiles(prev => ({ ...prev, [urlKey]: "" }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -757,6 +775,146 @@ export function FuelRecordsByAircraft({
     // Mostrar resumo antes de salvar
     setShowConfirmationSummary(true);
   };
+
+  /**
+   * Gera, na criação de um abastecimento, o contas a pagar (em nome do cliente),
+   * uma movimentação (tipo_caixa = 'cliente') por sócio e um rateio_despesas
+   * pendente por sócio, linkados ao abastecimento via abastecimento_id.
+   * Se o "Cliente" principal foi selecionado, o valor é dividido igualmente
+   * entre todos os sócios; se um sócio específico foi selecionado, 100% vai
+   * pra ele.
+   */
+  const criarLancamentosRateio = async (
+    abastecimentoId: string,
+    valorTotal: number,
+    notaUrl: string,
+    boletoUrl: string,
+    comprovanteUrl: string
+  ) => {
+    try {
+      const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
+      if (!selectedPartner) return;
+
+      const mainClientEntry = clientPartners.find(p => p.isMainClient);
+      const clienteIdParaRateio = mainClientEntry?.id || client.id;
+
+      const sociosParaRateio = selectedPartner.isMainClient
+        ? clientPartners.filter(p => !p.isMainClient)
+        : [selectedPartner];
+
+      if (sociosParaRateio.length === 0) {
+        toast.warning("Cliente sem sócios cadastrados — nenhum rateio foi gerado, apenas o abastecimento.");
+        return;
+      }
+
+      const descricao = `Abastecimento ${formData.trecho || ""}`.trim();
+      const fornecedorNome = formData.abastecedor_id
+        ? suppliers.find(s => s.id === formData.abastecedor_id)?.nome_fornecedor || null
+        : null;
+      const dataVencimento = formData.status_pagamento === "em aberto"
+        ? (formData.data_vencimento_boleto || formData.data)
+        : formData.data;
+      const pago = formData.status_pagamento === "pago";
+
+      // 1) Conta a pagar única, em nome do cliente
+      const { data: contaApagar, error: capError } = await (supabase as any)
+        .from("contas_apagar")
+        .insert({
+          cliente_id: clienteIdParaRateio,
+          aeronave_registro: aircraft.matricula,
+          descricao,
+          valor: valorTotal,
+          categoria: "Combustível",
+          status: pago ? "pago" : "pendente",
+          data_vencimento: dataVencimento,
+          data_pagamento: pago ? formData.data_pagamento : null,
+          fornecedor_nome: fornecedorNome,
+          nf_numero: formData.nf || null,
+          possui_nf: !!formData.nf,
+          nf_url: notaUrl || null,
+          possui_boleto: !!boletoUrl,
+          boleto_url: boletoUrl || null,
+          comprovante_pagamento_url: comprovanteUrl || null,
+          criado_por: user?.id || null,
+        })
+        .select("id")
+        .single();
+
+      if (capError || !contaApagar) {
+        console.error("Erro ao criar contas a pagar:", capError);
+        toast.error("Abastecimento salvo, mas houve erro ao gerar o contas a pagar");
+        return;
+      }
+
+      const valorPorSocio = valorTotal / sociosParaRateio.length;
+
+      for (const socio of sociosParaRateio) {
+        // 2) Movimentação (caixa cliente) por sócio
+        const { data: movimentacao, error: movError } = await (supabase as any)
+          .from("movimentacoes")
+          .insert({
+            descricao,
+            tipo: "despesa",
+            tipo_caixa: "cliente",
+            valor: valorPorSocio,
+            data_competencia: formData.data,
+            data_vencimento: dataVencimento,
+            data_pagamento: pago ? formData.data_pagamento : null,
+            aeronave_id: aircraft.id,
+            clientes_id: clienteIdParaRateio,
+            socio_id: socio.id,
+            contas_apagar_id: contaApagar.id,
+            status: pago ? "pago" : "pendente",
+            forma_pagamento: formData.tipo_faturamento || null,
+            fornecedor_nome: fornecedorNome,
+            numero_nf: formData.nf || null,
+            nf_url: notaUrl || null,
+            boleto_url: boletoUrl || null,
+            comprovante_url: comprovanteUrl || null,
+            criado_por: user?.id || null,
+          })
+          .select("id")
+          .single();
+
+        if (movError || !movimentacao) {
+          console.error("Erro ao criar movimentação:", movError);
+          continue;
+        }
+
+        // 3) Rateio pendente por sócio, linkado ao abastecimento
+        const { error: ratError } = await (supabase as any)
+          .from("rateio_despesas")
+          .insert({
+            despesa_id: movimentacao.id,
+            fonte_despesa: "abastecimento",
+            tipo_rateio: "VARIAVEL_POR_HORA",
+            fluxo: "SAIDA",
+            data_vencimento: dataVencimento,
+            data_pagamento: pago ? formData.data_pagamento : null,
+            fornecedor_nome: fornecedorNome,
+            cliente_id: clienteIdParaRateio,
+            socio_id: socio.id,
+            aeronave_id: aircraft.id,
+            descricao_despesa: descricao,
+            valor_total_despesa: valorTotal,
+            valor_rateado: valorPorSocio,
+            pago_por: "CLIENTE",
+            status: "pendente",
+            numero_nf: formData.nf || null,
+            nf_url: notaUrl || null,
+            boleto_url: boletoUrl || null,
+            comprovante_url: comprovanteUrl || null,
+            abastecimento_id: abastecimentoId,
+          });
+
+        if (ratError) console.error("Erro ao criar rateio:", ratError);
+      }
+    } catch (err) {
+      console.error("Erro ao gerar rateio do abastecimento:", err);
+      toast.error("Abastecimento salvo, mas houve erro ao gerar o rateio entre os sócios");
+    }
+  };
+
   const saveRecord = async () => {
     setIsUploading(true);
     setShowConfirmation(false);
@@ -901,9 +1059,11 @@ export function FuelRecordsByAircraft({
         }
         toast.success("Registro atualizado com sucesso");
       } else {
-        const {
-          error
-        } = await supabase.from("abastecimentos").insert(recordData);
+        const { data: inserted, error } = await supabase
+          .from("abastecimentos")
+          .insert(recordData)
+          .select("id")
+          .single();
         if (error) {
           const errorMessage = getErrorMessage(error);
           toast.error(`Erro ao salvar: ${errorMessage}`);
@@ -911,6 +1071,9 @@ export function FuelRecordsByAircraft({
           return;
         }
         toast.success("Registro criado com sucesso");
+        if (inserted?.id) {
+          await criarLancamentosRateio(inserted.id, litros * valorUnitario, notaUrl, boletoUrl, comprovanteUrl);
+        }
       }
       resetForm();
       setIsDialogOpen(false);
@@ -1081,7 +1244,7 @@ export function FuelRecordsByAircraft({
     let exportRecords = records;
     if (month !== null) {
       exportRecords = records.filter((r) => {
-        // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
+        // Use data_pagamento se status é "pago", senão usa data (data do abastecimento)
         const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
           ? r.data_pagamento
           : r.data;
@@ -1090,7 +1253,7 @@ export function FuelRecordsByAircraft({
       });
     } else {
       exportRecords = records.filter((r) => {
-        // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
+        // Use data_pagamento se status é "pago", senão usa data (data do abastecimento)
         const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
           ? r.data_pagamento
           : r.data;
@@ -1352,80 +1515,80 @@ export function FuelRecordsByAircraft({
             Novo Registro
           </Button>
         </DialogTrigger>
-        <DialogContent className="flex flex-col max-w-2xl w-[95vw] max-h-[90vh]" style={{zIndex: 1001}}>
+        <DialogContent className="flex flex-col max-w-2xl w-[95vw] max-h-[90vh]" style={{ zIndex: 1001 }}>
           <DialogHeader>
             <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2 sm:pr-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
             {/* ── Vincular ao Diário de Bordo ── */}
             <div className="rounded-lg border border-border/50 p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="link-logbook"
-                    checked={linkToLogbook}
-                    onCheckedChange={(checked) => {
-                      setLinkToLogbook(!!checked);
-                      if (!checked) {
-                        setSelectedFlightId("");
-                        setLogbookFlights([]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="link-logbook" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    Vincular a um registro no Diário de Bordo?
-                  </Label>
-                </div>
-
-                {linkToLogbook && (
-                  <div className="pl-7 space-y-3">
-                    {loadingFlights ? (
-                      <p className="text-xs text-muted-foreground">Carregando voos...</p>
-                    ) : logbookFlights.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Nenhum voo com abastecimento não vinculado encontrado</p>
-                    ) : (
-                      <Select value={selectedFlightId} onValueChange={handleFlightSelect}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Selecione um voo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {logbookFlights.map((flight) => (
-                            <SelectItem key={flight.id} value={flight.id} className="py-2">
-                              <div className="text-sm">
-                                <span className="font-medium">{formatDateBrazil(flight.data_registro, "dd/MM/yy")}</span>
-                                {' · '}
-                                <span>{`${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
-                                {flight.fuel_added && (
-                                  <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-
-                    {selectedFlightInfo && (
-                      <div className="mt-3 p-3 rounded-lg space-y-2" style={{backgroundColor: 'rgba(16, 33, 56, 1)', borderColor: 'rgba(33, 87, 156, 1)', borderWidth: '1px'}}>
-                        <div>
-                          <p className="text-xs font-semibold mb-1" style={{color: 'rgba(155, 182, 239, 1)'}}>📅 Data Selecionada</p>
-                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.data_registro, "dd/MM/yy")}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold mb-1" style={{color: 'rgba(162, 188, 244, 1)'}}>✈️ Trecho Selecionado</p>
-                          <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} x ${selectedFlightInfo.arrival_aerodrome}`}</p>
-                        </div>
-                        {previousDayFlightInfo && (
-                          <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2 bg-green-500/10 border-l-4 border-l-green-500 p-3 rounded">
-                            <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">✓ Rota anterior</p>
-                            <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} x {previousDayFlightInfo.arrival_aerodrome}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="link-logbook"
+                  checked={linkToLogbook}
+                  onCheckedChange={(checked) => {
+                    setLinkToLogbook(!!checked);
+                    if (!checked) {
+                      setSelectedFlightId("");
+                      setLogbookFlights([]);
+                    }
+                  }}
+                />
+                <Label htmlFor="link-logbook" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" />
+                  Vincular a um registro no Diário de Bordo?
+                </Label>
               </div>
+
+              {linkToLogbook && (
+                <div className="pl-7 space-y-3">
+                  {loadingFlights ? (
+                    <p className="text-xs text-muted-foreground">Carregando voos...</p>
+                  ) : logbookFlights.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhum voo com abastecimento não vinculado encontrado</p>
+                  ) : (
+                    <Select value={selectedFlightId} onValueChange={handleFlightSelect}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Selecione um voo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {logbookFlights.map((flight) => (
+                          <SelectItem key={flight.id} value={flight.id} className="py-2">
+                            <div className="text-sm">
+                              <span className="font-medium">{formatDateBrazil(flight.data_registro, "dd/MM/yy")}</span>
+                              {' · '}
+                              <span>{`${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
+                              {flight.fuel_added && (
+                                <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {selectedFlightInfo && (
+                    <div className="mt-3 p-3 rounded-lg space-y-2" style={{ backgroundColor: 'rgba(16, 33, 56, 1)', borderColor: 'rgba(33, 87, 156, 1)', borderWidth: '1px' }}>
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(155, 182, 239, 1)' }}>📅 Data Selecionada</p>
+                        <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.data_registro, "dd/MM/yy")}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(162, 188, 244, 1)' }}>✈️ Trecho Selecionado</p>
+                        <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} x ${selectedFlightInfo.arrival_aerodrome}`}</p>
+                      </div>
+                      {previousDayFlightInfo && (
+                        <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2 bg-green-500/10 border-l-4 border-l-green-500 p-3 rounded">
+                          <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">✓ Rota anterior</p>
+                          <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} x {previousDayFlightInfo.arrival_aerodrome}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {!linkToLogbook && (
               <div>
@@ -1433,7 +1596,7 @@ export function FuelRecordsByAircraft({
                 <div className="flex gap-2">
                   <Input
                     type="text"
-                    value={formData.data ? formatDateBrazil(formData.data, "dd/MM/yyyy") : ""}                    readOnly
+                    value={formData.data ? formatDateBrazil(formData.data, "dd/MM/yyyy") : ""} readOnly
                     placeholder="dd/mm/aaaa"
                     className="mt-1 h-9 text-sm"
                   />
@@ -1467,16 +1630,35 @@ export function FuelRecordsByAircraft({
               <div className="space-y-2">
                 {clientPartners.length > 0 && <div className="space-y-2 border-l-2 border-primary/30 pl-3">
                   <p className="text-xs font-semibold text-muted-foreground uppercase">Cliente</p>
-                  {clientPartners.filter(p => p.isMainClient).map(partner => <div key={partner.id} className="w-full p-3 rounded-lg border-2 bg-primary-foreground border-primary-dark">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-foreground">
-                        {partner.nome}
-                      </p>
-                      {partner.percentual_sociedade !== undefined && partner.percentual_sociedade > 0 && <span className="text-xs font-semibold px-2 py-1 rounded bg-primary/20 text-primary">
-                        {partner.percentual_sociedade}%
-                      </span>}
-                    </div>
-                  </div>)}
+                  {clientPartners.filter(p => p.isMainClient).map(partner => {
+                    const isSelected = formData.client_id === partner.id;
+                    return (
+                      <button
+                        key={partner.id}
+                        type="button"
+                        onClick={() => setFormData({
+                          ...formData,
+                          client_id: partner.id,
+                          partner_selected: ""
+                        })}
+                        className={`w-full p-3 rounded-lg text-left transition-all ${isSelected ? 'border-[3px] border-emerald-500 bg-emerald-500/15 shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-500/30' : 'border-2 bg-primary-foreground border-primary-dark hover:border-emerald-500/50'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {isSelected && <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />}
+                            <p className={`text-sm font-medium ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                              {partner.nome}
+                            </p>
+                          </div>
+                          {partner.percentual_sociedade !== undefined && partner.percentual_sociedade > 0 && (
+                            <span className={`text-xs font-semibold px-2 py-1 rounded ${isSelected ? 'bg-emerald-500/30 text-emerald-700 dark:text-emerald-300' : 'bg-primary/20 text-primary'}`}>
+                              {partner.percentual_sociedade}%
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>}
 
                 {clientPartners.length > 1 && <div className="space-y-2 border-l-2 border-accent/30 pl-3">
@@ -1707,10 +1889,33 @@ export function FuelRecordsByAircraft({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Data do Pagamento <span className="text-red-500">*</span></Label>
-                  <Input type="data" value={formData.data_pagamento} onChange={e => setFormData({
-                    ...formData,
-                    data_pagamento: e.target.value
-                  })} className="mt-1 h-9 text-sm" required />
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="text"
+                      readOnly
+                      placeholder="dd/mm/aaaa"
+                      value={formData.data_pagamento ? formatDateBrazil(formData.data_pagamento, "dd/MM/yyyy") : ""}
+                      className="h-9 text-sm"
+                    />
+                    <Popover open={paymentDateCalendarOpen} onOpenChange={setPaymentDateCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" size="icon">
+                          <CalendarIcon className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <UICalendar
+                          mode="single"
+                          selected={formData.data_pagamento ? new Date(formData.data_pagamento) : undefined}
+                          onSelect={(date) => {
+                            if (!date) return;
+                            setFormData(prev => ({ ...prev, data_pagamento: format(date, "yyyy-MM-dd") }));
+                            setPaymentDateCalendarOpen(false);
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 <div>
@@ -1723,9 +1928,10 @@ export function FuelRecordsByAircraft({
                       <SelectValue placeholder="Selecione banco" />
                     </SelectTrigger>
                     <SelectContent>
-                      {bankInstitutions.map(bank => (
-                        <SelectItem key={bank.id} value={bank.rotulo}>{bank.rotulo}</SelectItem>
-                      ))}
+                      {bankInstitutions.map(bank => {
+                        const label = `${bank.banco}${bank.numero_conta ? ` • ${bank.numero_conta.trim()}` : ""}`;
+                        return <SelectItem key={bank.id} value={label}>{label}</SelectItem>;
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1735,10 +1941,33 @@ export function FuelRecordsByAircraft({
             {formData.status_pagamento === "em aberto" && (
               <div>
                 <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
-                <Input type="data" value={formData.data_vencimento_boleto} onChange={e => setFormData({
-                  ...formData,
-                  data_vencimento_boleto: e.target.value
-                })} className="mt-1 h-9 text-sm" />
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    type="text"
+                    readOnly
+                    placeholder="dd/mm/aaaa"
+                    value={formData.data_vencimento_boleto ? formatDateBrazil(formData.data_vencimento_boleto, "dd/MM/yyyy") : ""}
+                    className="h-9 text-sm"
+                  />
+                  <Popover open={dueDateCalendarOpen} onOpenChange={setDueDateCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="icon">
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <UICalendar
+                        mode="single"
+                        selected={formData.data_vencimento_boleto ? new Date(formData.data_vencimento_boleto) : undefined}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          setFormData(prev => ({ ...prev, data_vencimento_boleto: format(date, "yyyy-MM-dd") }));
+                          setDueDateCalendarOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             )}
 
@@ -1747,27 +1976,54 @@ export function FuelRecordsByAircraft({
                 <Label className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2 block">
                   ⚠️ Para marcar como pago, é obrigatório anexar o comprovante de pagamento e informar a data.
                 </Label>
-                <ModernFileUpload
-                  label="Comprovante de Pagamento"
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
-                  onChange={file => {
-                    setFormData({
-                      ...formData,
-                      comprovante_file: file,
-                      comprovante_url: file ? formData.comprovante_url : ""
-                    });
-                    if (!file) {
-                      setUploadedFiles({
-                        ...uploadedFiles,
-                        comprovante_url: ""
-                      });
-                    }
-                  }}
-                  currentFile={formData.comprovante_file}
-                  uploadedUrl={formData.comprovante_url}
-                  disabled={isUploading}
-                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
-                />
+                <div className="rounded-lg border border-white/10 bg-background/40 p-3 space-y-2 transition hover:bg-background/60">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                    <div className="sm:col-span-3 text-xs font-semibold text-muted-foreground uppercase">Comprovante</div>
+                    <div className="sm:col-span-9">
+                      <label className="cursor-pointer block">
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                          onChange={e => {
+                            const file = e.target.files?.[0] || null;
+                            setFormData(prev => ({ ...prev, comprovante_file: file, comprovante_url: file ? prev.comprovante_url : "" }));
+                            if (!file) setUploadedFiles(prev => ({ ...prev, comprovante_url: "" }));
+                          }}
+                        />
+                        <div className="flex items-center gap-2 rounded-md border border-input bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
+                          {formData.comprovante_file || formData.comprovante_url
+                            ? <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+                            : <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />}
+                          <span className="truncate flex-1">
+                            {formData.comprovante_file?.name || (formData.comprovante_url ? "Arquivo anexado" : "Procurar arquivo...")}
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  {formData.comprovante_url && (
+                    <div className="flex items-center gap-3 pl-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const parsed = parseFileUrl(formData.comprovante_url, 'comprovante');
+                          setViewingAttachment({ url: parsed.url, type: getFileType(parsed.extension), name: 'Comprovante' });
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Visualizar anexo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => clearAttachment('comprovante_file', 'comprovante_url')}
+                        className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" /> Remover
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1817,99 +2073,165 @@ export function FuelRecordsByAircraft({
             </div>
 
             {/* Comanda */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">Nº Comanda</Label>
-                <Input value={formData.comanda} onChange={e => setFormData({
-                  ...formData,
-                  comanda: e.target.value
-                })} placeholder="Comanda" className="mt-1 h-9 text-sm" />
-              </div>
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">Anexo da Comanda</Label>
-                <ModernFileUpload
-                  label=""
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
-                  onChange={file => {
-                    setFormData({
-                      ...formData,
-                      comanda_file: file,
-                      comanda_url: file ? formData.comanda_url : ""
-                    });
-                    if (!file) {
-                      setUploadedFiles({
-                        ...uploadedFiles,
-                        comanda_url: ""
-                      });
-                    }
-                  }}
-                  currentFile={formData.comanda_file}
-                  uploadedUrl={formData.comanda_url}
-                  disabled={isUploading}
-                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+            <div className="rounded-lg border border-white/10 bg-background/40 p-3 space-y-2 transition hover:bg-background/60">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                <div className="sm:col-span-2 text-xs font-semibold text-muted-foreground uppercase">Comanda</div>
+                <Input
+                  className="sm:col-span-4 h-9 text-sm"
+                  placeholder="Nº Comanda (opcional)"
+                  value={formData.comanda}
+                  onChange={e => setFormData({ ...formData, comanda: e.target.value })}
                 />
+                <div className="sm:col-span-6">
+                  <label className="cursor-pointer block">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                      onChange={e => {
+                        const file = e.target.files?.[0] || null;
+                        setFormData(prev => ({ ...prev, comanda_file: file, comanda_url: file ? prev.comanda_url : "" }));
+                        if (!file) setUploadedFiles(prev => ({ ...prev, comanda_url: "" }));
+                      }}
+                    />
+                    <div className="flex items-center gap-2 rounded-md border border-input bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
+                      {formData.comanda_file || formData.comanda_url
+                        ? <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+                        : <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      <span className="truncate flex-1">
+                        {formData.comanda_file?.name || (formData.comanda_url ? "Arquivo anexado" : "Procurar arquivo...")}
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
+              {formData.comanda_url && (
+                <div className="flex items-center gap-3 pl-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const parsed = parseFileUrl(formData.comanda_url, 'comanda');
+                      setViewingAttachment({ url: parsed.url, type: getFileType(parsed.extension), name: 'Comanda' });
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Visualizar anexo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => clearAttachment('comanda_file', 'comanda_url')}
+                    className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" /> Remover
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Nota Fiscal */}
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">Nº NF</Label>
-                <Input type="text" value={formData.nf} onChange={e => setFormData({
-                  ...formData,
-                  nf: e.target.value
-                })} placeholder="NF" className="mt-1 h-9 text-sm" />
-              </div>
-              <div>
-                <Label className="text-sm font-semibold mb-2 block">Anexo da NF</Label>
-                <ModernFileUpload
-                  label=""
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
-                  onChange={file => {
-                    setFormData({
-                      ...formData,
-                      nota_file: file,
-                      nota_url: file ? formData.nota_url : ""
-                    });
-                    if (!file) {
-                      setUploadedFiles({
-                        ...uploadedFiles,
-                        nota_url: ""
-                      });
-                    }
-                  }}
-                  currentFile={formData.nota_file}
-                  uploadedUrl={formData.nota_url}
-                  disabled={isUploading}
-                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+            <div className="rounded-lg border border-white/10 bg-background/40 p-3 space-y-2 transition hover:bg-background/60">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                <div className="sm:col-span-2 text-xs font-semibold text-muted-foreground uppercase">Nota Fiscal</div>
+                <Input
+                  className="sm:col-span-4 h-9 text-sm"
+                  placeholder="Nº NF (opcional)"
+                  value={formData.nf}
+                  onChange={e => setFormData({ ...formData, nf: e.target.value })}
                 />
+                <div className="sm:col-span-6">
+                  <label className="cursor-pointer block">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                      onChange={e => {
+                        const file = e.target.files?.[0] || null;
+                        setFormData(prev => ({ ...prev, nota_file: file, nota_url: file ? prev.nota_url : "" }));
+                        if (!file) setUploadedFiles(prev => ({ ...prev, nota_url: "" }));
+                      }}
+                    />
+                    <div className="flex items-center gap-2 rounded-md border border-input bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
+                      {formData.nota_file || formData.nota_url
+                        ? <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+                        : <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      <span className="truncate flex-1">
+                        {formData.nota_file?.name || (formData.nota_url ? "Arquivo anexado" : "Procurar arquivo...")}
+                      </span>
+                    </div>
+                  </label>
+                </div>
               </div>
+              {formData.nota_url && (
+                <div className="flex items-center gap-3 pl-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const parsed = parseFileUrl(formData.nota_url, 'nota');
+                      setViewingAttachment({ url: parsed.url, type: getFileType(parsed.extension), name: 'Nota Fiscal' });
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Visualizar anexo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => clearAttachment('nota_file', 'nota_url')}
+                    className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" /> Remover
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Boleto */}
-            <div>
-              <Label className="text-xs text-muted-foreground">Boleto (Opcional)</Label>
-              <ModernFileUpload
-                label=""
-                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
-                onChange={file => {
-                  setFormData({
-                    ...formData,
-                    boleto_file: file,
-                    boleto_url: file ? formData.boleto_url : ""
-                  });
-                  if (!file) {
-                    setUploadedFiles({
-                      ...uploadedFiles,
-                      boleto_url: ""
-                    });
-                  }
-                }}
-                currentFile={formData.boleto_file}
-                uploadedUrl={formData.boleto_url}
-                disabled={isUploading}
-                allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
-              />
+            <div className="rounded-lg border border-white/10 bg-background/40 p-3 space-y-2 transition hover:bg-background/60">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                <div className="sm:col-span-2 text-xs font-semibold text-muted-foreground uppercase">Boleto</div>
+                <div className="sm:col-span-10">
+                  <label className="cursor-pointer block">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                      onChange={e => {
+                        const file = e.target.files?.[0] || null;
+                        setFormData(prev => ({ ...prev, boleto_file: file, boleto_url: file ? prev.boleto_url : "" }));
+                        if (!file) setUploadedFiles(prev => ({ ...prev, boleto_url: "" }));
+                      }}
+                    />
+                    <div className="flex items-center gap-2 rounded-md border border-input bg-white/[0.03] px-3 py-2 text-sm hover:bg-white/[0.08] transition">
+                      {formData.boleto_file || formData.boleto_url
+                        ? <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+                        : <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      <span className="truncate flex-1">
+                        {formData.boleto_file?.name || (formData.boleto_url ? "Arquivo anexado" : "Procurar arquivo... (opcional)")}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              {formData.boleto_url && (
+                <div className="flex items-center gap-3 pl-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const parsed = parseFileUrl(formData.boleto_url, 'boleto');
+                      setViewingAttachment({ url: parsed.url, type: getFileType(parsed.extension), name: 'Boleto' });
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Visualizar anexo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => clearAttachment('boleto_file', 'boleto_url')}
+                    className="inline-flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" /> Remover
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Observações */}
@@ -1939,7 +2261,7 @@ export function FuelRecordsByAircraft({
       </Dialog>
 
       <AlertDialog open={showConfirmationSummary} onOpenChange={setShowConfirmationSummary}>
-        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{zIndex: 9999}}>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{ zIndex: 9999 }}>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl">Resumo do Abastecimento</AlertDialogTitle>
             <AlertDialogDescription>
@@ -2071,7 +2393,7 @@ export function FuelRecordsByAircraft({
       </AlertDialog>
 
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent style={{zIndex: 9999}}>
+        <AlertDialogContent style={{ zIndex: 9999 }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Comanda não preenchida</AlertDialogTitle>
             <AlertDialogDescription>
@@ -2101,7 +2423,7 @@ export function FuelRecordsByAircraft({
 
       <Button
         onClick={() => setIsExportModalOpen(true)}
-        className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+        className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
       >
         <Download className="h-5 w-5" />
         Exportar PDF
@@ -2128,7 +2450,7 @@ export function FuelRecordsByAircraft({
                 <TableHead className="text-right font-semibold text-foreground">Valor Total</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Galões</TableHead>
                 <TableHead className="font-semibold text-foreground">Observações</TableHead>
-                
+
                 <TableHead className="text-right font-semibold text-foreground">Anexos</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
               </TableRow>
@@ -2138,11 +2460,10 @@ export function FuelRecordsByAircraft({
                 <TableRow
                   key={record.id}
                   id={`fuel-record-${record.id}`}
-                  className={`border-b border-border/50 transition-all duration-300 ${
-                    selectedAbastecimentoId === record.id
+                  className={`border-b border-border/50 transition-all duration-300 ${selectedAbastecimentoId === record.id
                       ? 'bg-primary/25 dark:bg-primary/20 border-l-4 border-l-primary ring-2 ring-primary/60 ring-offset-0 hover:bg-primary/30 dark:hover:bg-primary/25 shadow-lg relative'
                       : 'hover:bg-muted/30'
-                  }`}
+                    }`}
                 >
                   <TableCell className="font-medium text-foreground">
                     {formatDateBrazil(record.data, "dd/MM/yyyy")}
@@ -2292,7 +2613,7 @@ export function FuelRecordsByAircraft({
     </Card>
 
     {viewingAttachment && <Dialog open={!!viewingAttachment} onOpenChange={open => !open && setViewingAttachment(null)}>
-      <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col" style={{zIndex: 1001}}>
+      <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col" style={{ zIndex: 1001 }}>
         <DialogHeader className="border-b pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {viewingAttachment.name === 'Comanda' && <FileText className="h-5 w-5 text-blue-600" />}
