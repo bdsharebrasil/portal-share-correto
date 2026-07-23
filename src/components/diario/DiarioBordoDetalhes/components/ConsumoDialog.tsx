@@ -391,15 +391,25 @@ export function ConsumoDialog({
         </p>
 
         {/* Explicação */}
-        <div className="mb-4 rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3 text-xs text-slate-400 leading-relaxed">
-          <span className="text-slate-300 font-medium">Como é calculado: </span>
-          o consumo (L/H) de cada voo é medido comparando o nível real de combustível no tanque
-          no início deste voo com o início do voo seguinte, somando o que foi abastecido nesse intervalo.
-          Os totais do período são a <span className="text-slate-300 font-medium">média ponderada pelas horas</span> de
-          cada voo — não uma simples divisão de litros abastecidos pelas horas do mês, o que
-          distorceria o resultado em meses sem reabastecimento registrado.{" "}
-          <span className="text-blue-400 font-medium">L/H por T. voo</span> considera apenas o tempo de voo efetivo;{" "}
-          <span className="text-amber-400 font-medium">L/H por T. total</span> inclui táxi e solo (mais conservador).
+        <div className="mb-4 rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3 text-xs text-slate-400 leading-relaxed space-y-2">
+          <p>
+            <span className="text-slate-300 font-medium">Como é calculado: </span>
+            o consumo (L/H) de cada voo é medido comparando o nível real de combustível no tanque
+            no início deste voo com o início do voo seguinte, somando o que foi abastecido nesse intervalo.
+            Os totais do período são a <span className="text-slate-300 font-medium">média ponderada pelas horas</span> de
+            cada voo.{" "}
+            <span className="text-blue-400 font-medium">L/H por T. voo</span> considera apenas o tempo de voo efetivo;{" "}
+            <span className="text-amber-400 font-medium">L/H por T. total</span> inclui táxi e solo (mais conservador).
+          </p>
+          <p className="text-slate-500 border-t border-slate-700/30 pt-2">
+            <span className="text-slate-400 font-medium">Por que pode diferir de planilhas antigas: </span>
+            controles anteriores costumavam calcular "combustível abastecido no mês ÷ horas voadas no mês".
+            Esse método distorce o resultado sempre que um voo usa combustível de um abastecimento feito
+            fora daquele mês (ex.: voo no início do mês voando com sobra do mês anterior) — as horas entram
+            na conta, mas os litros correspondentes não. O cálculo aqui evita essa distorção medindo o
+            tanque voo a voo, por isso os números podem não bater com relatórios antigos, especialmente
+            em meses isolados — a diferença tende a diminuir quando se olha o ano fechado.
+          </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
