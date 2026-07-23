@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +79,7 @@ const decimalToHM = (decimal?: number | null): string => {
 
 export default function PortalCliente() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedPartner, setSelectedPartner] = useState<PartnerInfo | null | undefined>(undefined);
@@ -102,6 +103,19 @@ export default function PortalCliente() {
       setSelectedAircraft(selectedClient.cotistas_aeronave[0]);
     }
   }, [selectedClient]);
+
+  useEffect(() => {
+    const clientId = (location.state as { clientId?: string } | null)?.clientId;
+    if (!clientId || !clients.length || selectedClient) return;
+
+    const client = clients.find((item) => item.id === clientId);
+    const aircraftRelation = client?.cotistas_aeronave?.[0];
+    if (!client || !aircraftRelation) return;
+
+    setSelectedClient(client);
+    setSelectedAircraft(aircraftRelation);
+    setSelectedPartner(null);
+  }, [clients, location.state, selectedClient]);
 
   useEffect(() => {
     if (selectedClient && selectedAeronave) {
