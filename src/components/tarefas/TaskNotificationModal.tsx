@@ -5,10 +5,10 @@ import { Bell, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface UserOption {
   id: string;
@@ -116,7 +116,6 @@ export default function TaskNotificationModal({
       if (error) {
         console.error("Erro ao carregar notificações:", error);
       } else {
-        // Enriquecer notificações com dados das tarefas
         const enriched = await Promise.all(
           (data || []).map(async (notif) => {
             const tarefasRes = await supabase
@@ -125,7 +124,7 @@ export default function TaskNotificationModal({
               .eq("id", notif.id_da_tarefa)
               .single();
 
-            const tarefa = tarefasRes.data as Tarefa | null;
+            const tarefa = tarefasRes.data as unknown as Tarefa | null;
             const criador = tarefa?.criado_por
               ? userById.get(tarefa.criado_por)
               : undefined;
@@ -148,7 +147,7 @@ export default function TaskNotificationModal({
     };
   }, [meId, userById]);
 
-  // Realtime subscription para novas notificações
+  // Realtime subscription
   useEffect(() => {
     if (!meId) return;
 
@@ -190,7 +189,6 @@ export default function TaskNotificationModal({
 
     setNotifications((prev) => prev.filter((n) => n.id !== notifId));
 
-    // Notificar o criador
     const notif = notifications.find((n) => n.id === notifId);
     if (notif?.tarefa?.criado_por) {
       await supabase.from("tarefas_notificacoes").insert({
@@ -223,55 +221,70 @@ export default function TaskNotificationModal({
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>
-      <DialogContent className="max-w-sm border-blue-200">
-        <div className="space-y-4">
+      {/* 
+        A mágica do visual "Apple" acontece nesta className do DialogContent:
+        - bg-[#1c1c1e]/80 : fundo escuro muito parecido com os modais do iOS
+        - backdrop-blur-xl : efeito de vidro borrado (glassmorphism)
+        - border-white/10 : borda super fina e levemente translúcida
+        - rounded-[32px] : curvas super acentuadas
+        - [&>button]:hidden : oculta o 'X' padrão do componente Dialog do Shadcn para usar o nosso
+      */}
+      <DialogContent className="max-w-sm sm:max-w-md !bg-[#1c1c1e]/80 backdrop-blur-xl border-white/10 shadow-2xl !rounded-[32px] p-6 text-white [&>button]:hidden">
+        <VisuallyHidden>
+          <DialogTitle>Nova Tarefa</DialogTitle>
+          <DialogDescription>Notificação de nova tarefa atribuída</DialogDescription>
+        </VisuallyHidden>
+        <div className="space-y-6 relative">
+          
           {/* Header */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100">
-              <Bell className="w-6 h-6 text-blue-600" />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/20 border border-blue-500/30 shrink-0">
+              <Bell className="w-5 h-5 text-blue-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-gray-700">
-                Nova Tarefa Recebida!
+              <h3 className="font-semibold text-lg text-white tracking-tight">
+                Nova Tarefa
               </h3>
-              <p className="text-sm text-gray-600">
-                {currentIndex + 1} de {notifications.length}
+              <p className="text-sm text-white/50 font-medium">
+                {currentIndex + 1} de {notifications.length} notificações
               </p>
             </div>
             <button
               onClick={() => {
-                // Marcar todas como lidas e fechar
                 notifications.forEach((n) => {
                   void handleMarkAsRead(n.id);
                 });
               }}
-              className="flex items-center justify-center w-8 h-8 rounded transition-colors hover:bg-red-500 hover:text-white"
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all"
               title="Fechar todas"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
 
-          {/* Message */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-gray-600 font-medium text-sm">
-              {current.criador?.full_name || current.criador?.display_name || "Alguém"} delegou uma tarefa para você:
-            </p>
-            <h4 className="text-lg font-bold text-gray-800 mt-2">
-              {current.tarefa?.titulo || "Tarefa"}
+          {/* Message Area */}
+          <div className="mt-2">
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar user={current.criador} size={26} />
+              <p className="text-white/60 font-medium text-sm">
+                <span className="text-white">{current.criador?.full_name || current.criador?.display_name || "Alguém"}</span> delegou a você:
+              </p>
+            </div>
+            <h4 className="text-xl font-semibold text-white tracking-tight leading-tight">
+              {current.tarefa?.titulo || "Tarefa sem título"}
             </h4>
             {current.tarefa?.descricao && (
-              <p className="text-sm text-gray-600 mt-2 line-clamp-3">
+              <p className="text-sm text-white/50 mt-2 line-clamp-3 leading-relaxed">
                 {current.tarefa.descricao}
               </p>
             )}
           </div>
 
-          {/* Details */}
-          <div className="space-y-2 text-xs text-gray-600 bg-slate-50 p-3 rounded">
-            <div className="flex justify-between">
-              <span>Prioridade:</span>
-              <span className="font-medium">
+          {/* Details (Glass Panel) */}
+          <div className="space-y-3 text-sm bg-white/5 border border-white/5 p-4 rounded-2xl">
+            <div className="flex justify-between items-center">
+              <span className="text-white/50">Prioridade</span>
+              <span className="font-medium text-white bg-white/10 px-2.5 py-1 rounded-md text-xs">
                 {current.tarefa?.prioridade
                   ? current.tarefa.prioridade.charAt(0).toUpperCase() +
                     current.tarefa.prioridade.slice(1)
@@ -279,9 +292,9 @@ export default function TaskNotificationModal({
               </span>
             </div>
             {current.tarefa?.prazo && (
-              <div className="flex justify-between">
-                <span>Prazo:</span>
-                <span className="font-medium">
+              <div className="flex justify-between items-center">
+                <span className="text-white/50">Prazo</span>
+                <span className="font-medium text-white bg-white/10 px-2.5 py-1 rounded-md text-xs">
                   {new Date(current.tarefa.prazo).toLocaleDateString("pt-BR")}
                 </span>
               </div>
@@ -289,25 +302,23 @@ export default function TaskNotificationModal({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => void handleDismiss()}
-              className="flex-1 px-4 py-3 rounded-lg bg-white border border-gray-300 text-gray-700 font-bold text-sm hover:bg-gray-100 transition-all"
-            >
-              Próxima
-            </button>
+          <div className="flex gap-3 pt-2">
+            {notifications.length > 1 && (
+              <button
+                onClick={() => void handleDismiss()}
+                className="flex-1 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-medium text-sm transition-all"
+              >
+                Pular
+              </button>
+            )}
             <button
               onClick={() => void handleMarkAsRead(current.id)}
-              className="flex-1 px-4 py-3 rounded-lg bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all"
+              className="flex-[2] py-3.5 rounded-2xl bg-blue-500 text-white font-semibold text-sm transition-all shadow-[0_4px_20px_rgba(59,130,246,0.25)]"
             >
-              Marcar como Ciente
+              Ciente
             </button>
           </div>
 
-          {/* Info */}
-          <p className="text-xs text-gray-500 text-center">
-            Você receberá mais notificações conforme novas tarefas forem delegadas
-          </p>
         </div>
       </DialogContent>
     </Dialog>

@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-import { Plus, Trash2, Send, MessageSquare } from "lucide-react";
+import { Plus, Trash2, Send, MessageSquare, Users2 } from "lucide-react";
+import { EQUIPES, getEquipe, equipesDoUsuario, type Equipe } from "@/lib/tarefas-teams";
 import {
   Dialog,
   DialogContent,
@@ -284,6 +285,8 @@ interface Tarefa {
   publico: boolean | null;
   criado_em: string | null;
   origem?: string | null;
+  equipes?: string[] | null;
+  progresso?: number | null;
 }
 
 interface Comentario {
@@ -355,10 +358,24 @@ function Avatar({
   size?: number;
 }) {
   const color = userColor(user?.id);
+  if (user?.avatar_url) {
+    return (
+      <img
+        src={user.avatar_url}
+        alt={userName(user)}
+        title={userName(user)}
+        className="rounded-full object-cover shrink-0 ring-2 ring-[#0f1115]"
+        style={{ width: size, height: size }}
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = "none";
+        }}
+      />
+    );
+  }
   return (
     <div
       title={userName(user)}
-      className="flex items-center justify-center rounded-full font-bold text-[#0f1115] shrink-0 shadow-sm ring-2 ring-background"
+      className="flex items-center justify-center rounded-full font-bold text-[#0f1115] shrink-0 shadow-sm ring-2 ring-[#0f1115]"
       style={{
         width: size,
         height: size,
@@ -378,8 +395,9 @@ interface Props {
 }
 
 export default function TarefasLista({ myView = false, isManager = false }: Props) {
-  const { isAdmin, isGestorMaster, isLoading: roleLoading } = useUserRole();
+  const { isAdmin, isGestorMaster, userRoles, isLoading: roleLoading } = useUserRole();
   const actualIsManager = isManager || isAdmin || isGestorMaster;
+  const myTeams = useMemo(() => equipesDoUsuario(userRoles || []), [userRoles]);
 
   const [me, setMe] = useState<string | null>(null);
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
@@ -388,6 +406,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
   const [createOpen, setCreateOpen] = useState(false);
   const [detailTask, setDetailTask] = useState<Tarefa | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
   // Load data
   useEffect(() => {
@@ -420,10 +439,20 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
         console.error(tarefasRes.error);
         toast.error("Erro ao carregar tarefas");
       } else {
-        setTarefas((tarefasRes.data || []) as Tarefa[]);
+        setTarefas((tarefasRes.data || []) as unknown as Tarefa[]);
       }
       if (!usersRes.error) {
         setUsers((usersRes.data || []) as UserOption[]);
+      }
+      const { data: commentsData } = await supabase
+        .from("tarefas_comentarios")
+        .select("tarefa_id");
+      if (!cancelled && commentsData) {
+        const counts: Record<string, number> = {};
+        for (const c of commentsData as { tarefa_id: string }[]) {
+          counts[c.tarefa_id] = (counts[c.tarefa_id] || 0) + 1;
+        }
+        setCommentCounts(counts);
       }
       setLoading(false);
     })();
@@ -487,9 +516,13 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
       );
     }
     // Usuário comum
-    return tarefas.filter(
-      (t) => (t.criado_por === me && t.publico === false) || (t.atribuido_para === me && t.publico === true),
-    );
+    return tarefas.filter((t) => {
+      if (t.criado_por === me && t.publico === false) return true;
+      if (t.atribuido_para === me && t.publico === true) return true;
+      const eq = (t.equipes || []) as string[];
+      if (eq.length && eq.some((id) => myTeams.includes(id as Equipe))) return true;
+      return false;
+    });
   }, [tarefas, me, myView, actualIsManager]);
 
   // Separa tarefas pendentes e concluídas
@@ -573,19 +606,25 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     prazo: string;
     prioridade: string;
     publico: boolean;
+    equipes: string[];
+    progresso: number;
   }) => {
     if (!me) return;
-    const payload: Database["public"]["Tables"]["tarefas"]["Insert"] = {
+    const assignedRaw = form.atribuido_para || me;
+    const assignedId = Array.isArray(assignedRaw) ? (assignedRaw[0] as string) : assignedRaw;
+    const payload = {
       titulo: form.titulo,
       descricao: form.descricao || null,
-      atribuido_para: form.atribuido_para || me,
+      atribuido_para: assignedId ? [assignedId] : [me],
       criado_por: me,
       prioridade: form.prioridade,
       status: "a-fazer",
       prazo: form.prazo || null,
-      publico: form.publico,
+      publico: form.publico || (form.equipes && form.equipes.length > 0),
       origem: "lista",
-    } as Database["public"]["Tables"]["tarefas"]["Insert"];
+      equipes: form.equipes || [],
+      progresso: Math.max(0, Math.min(100, form.progresso || 0)),
+    } as unknown as Database["public"]["Tables"]["tarefas"]["Insert"];
     const { data, error } = await supabase.from("tarefas").insert(payload).select().single();
     if (error) {
       console.error(error);
@@ -594,18 +633,18 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     }
 
     // Criar notificação para o usuário atribuído (se diferente do criador)
-    if (data && form.atribuido_para && form.atribuido_para !== me) {
-      const atribuidoPara = form.atribuido_para;
-      const usuario = users.find((u) => u.id === atribuidoPara);
+    if (data && assignedId && assignedId !== me) {
+      const usuario = users.find((u) => u.id === assignedId);
       const nomeCriador = users.find((u) => u.id === me)?.full_name || me;
 
       await supabase.from("tarefas_notificacoes").insert({
         id_da_tarefa: data.id,
-        user_id: atribuidoPara,
+        user_id: assignedId,
         mensagem: `${nomeCriador} delegou uma nova tarefa: "${form.titulo}"`,
         lido: false,
       });
     }
+
 
     toast.success("Tarefa criada");
     setCreateOpen(false);
@@ -623,14 +662,14 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     <>
       <style>{checklistStyles}</style>
       
-      <div className="bg-slate-50 rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+      <div className="bg-[#0f1115] text-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="border-b border-slate-200 px-6 py-5 flex items-center justify-between flex-wrap gap-4 bg-slate-950">
+        <div className="border-b border-white/5 px-6 py-5 flex items-center justify-between flex-wrap gap-4 bg-white/[0.02] backdrop-blur-md">
           <div>
-            <h1 className="text-xl font-bold text-slate-50">
+            <h1 className="text-xl font-bold tracking-tight text-white">
               {myView ? "Minhas Tarefas" : "Tarefas em Lista"}
             </h1>
-            <p className="text-sm text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 mt-1 font-medium">
               {myView
                 ? "Tarefas privadas criadas por você"
                 : actualIsManager
@@ -641,9 +680,9 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
 
           <button
             onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="group flex items-center gap-2 bg-gradient-to-br from-cyan-500 to-blue-600 text-white rounded-xl px-5 py-2.5 text-sm font-bold hover:scale-105 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all"
           >
-            <Plus size={18} />
+            <Plus size={18} className="transition-transform group-hover:rotate-90" />
             Nova Tarefa
           </button>
         </div>
@@ -653,8 +692,8 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
           {/* Tarefas Pendentes */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+              <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-400/15 text-amber-400 text-xs font-bold border border-amber-400/30">
                   {pending.length}
                 </span>
                 Pendentes
@@ -663,7 +702,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
 
             <div className="space-y-2">
               {pending.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-slate-500 border-2 border-dashed border-white/5 rounded-xl">
                   Nenhuma tarefa pendente
                 </div>
               ) : (
@@ -677,7 +716,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-md transition-all group"
+                      className="flex items-center gap-3 p-4 bg-[#15181e] border border-white/5 rounded-xl hover:border-white/10 hover:-translate-y-0.5 hover:shadow-xl transition-all group"
                     >
                       <input
                         type="checkbox"
@@ -685,26 +724,54 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                         onChange={(e) =>
                           void handleToggleTask(task.id, e.target.checked)
                         }
-                        className="w-5 h-5 rounded border-slate-300 text-blue-600 cursor-pointer"
+                        className="w-5 h-5 rounded border-white/20 accent-cyan-500 cursor-pointer"
                       />
 
                       <div
-                        className="flex-1 cursor-pointer hover:text-blue-600 transition-colors"
+                        className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => setDetailTask(task)}
                       >
-                        <div className="font-medium text-foreground">
+                        <div className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors">
                           {task.titulo}
                         </div>
                         {task.descricao && (
-                          <div className="text-sm text-muted-foreground line-clamp-1">
+                          <div className="text-sm text-slate-400 line-clamp-1">
                             {task.descricao}
+                          </div>
+                        )}
+                        {(task.equipes && task.equipes.length > 0) && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {task.equipes.map((id) => {
+                              const e = getEquipe(id);
+                              if (!e) return null;
+                              return (
+                                <span
+                                  key={id}
+                                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                                  style={{ color: e.color, background: e.bg, borderColor: e.border }}
+                                >
+                                  <Users2 size={9} /> {e.short}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {(task.progresso ?? 0) > 0 && (
+                          <div className="mt-2 max-w-xs">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Progresso</span>
+                              <span className="text-[10px] font-bold text-slate-300">{task.progresso}%</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                              <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400" style={{ width: `${task.progresso}%` }} />
+                            </div>
                           </div>
                         )}
                       </div>
 
                       <div className="flex flex-col items-end gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-300 bg-white/5 border border-white/10 px-2 py-1 rounded-full">
                             {taskStatusLabel(task.status)}
                           </span>
                           {canEditTaskStatus(task) ? (
@@ -713,7 +780,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                               onChange={(e) =>
                                 void handleChangeStatus(task.id, e.target.value)
                               }
-                              className="text-xs bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              className="text-xs bg-black/40 text-slate-200 border border-white/10 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                             >
                               <option value="a-fazer">A Fazer</option>
                               <option value="em-andamento">Em Andamento</option>
@@ -725,10 +792,13 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
 
                         <div className="flex items-center gap-3">
                           {task.prazo && (
-                            <div className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">
+                            <div className="text-xs text-slate-400 bg-white/5 border border-white/5 px-2 py-1 rounded">
                               📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                             </div>
                           )}
+                          <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/5 border border-white/5 px-2 py-1 rounded" title={`${commentCounts[task.id] || 0} comentário(s)`}>
+                            <MessageSquare size={12} /> {commentCounts[task.id] || 0}
+                          </div>
                           <Avatar user={assigned} size={28} />
                         </div>
                       </div>
@@ -736,7 +806,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => void setDetailTask(task)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 transition-colors"
+                          className="p-1.5 text-slate-500 hover:text-cyan-400 transition-colors"
                           title="Abrir"
                         >
                           <MessageSquare size={16} />
@@ -744,7 +814,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                         {canDelete && (
                           <button
                             onClick={() => void handleDelete(task.id)}
-                            className="p-1.5 text-slate-500 hover:text-red-600 transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors"
                             title="Excluir"
                           >
                             <Trash2 size={16} />
@@ -762,8 +832,8 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
           {completed.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-400/15 text-emerald-400 text-xs font-bold border border-emerald-400/30">
                     {completed.length}
                   </span>
                   Concluídas
@@ -781,7 +851,7 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg hover:shadow-md transition-all group line-through text-muted-foreground"
+                      className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl hover:shadow-md transition-all group line-through text-slate-500"
                     >
                       <input
                         type="checkbox"
@@ -884,6 +954,8 @@ function CreateListaModal({
     prazo: string;
     prioridade: string;
     publico: boolean;
+    equipes: string[];
+    progresso: number;
   }) => Promise<void>;
   users: UserOption[];
   canAssignOthers: boolean;
@@ -896,6 +968,8 @@ function CreateListaModal({
     prazo: "",
     prioridade: "media",
     publico: canAssignOthers,
+    equipes: [] as string[],
+    progresso: 0,
   });
 
   useEffect(() => {
@@ -907,13 +981,24 @@ function CreateListaModal({
         prazo: "",
         prioridade: "media",
         publico: canAssignOthers,
+        equipes: [],
+        progresso: 0,
       });
     }
   }, [open, meId, canAssignOthers]);
 
+  const toggleEquipe = (id: string) => {
+    setForm((p) => ({
+      ...p,
+      equipes: p.equipes.includes(id)
+        ? p.equipes.filter((e) => e !== id)
+        : [...p.equipes, id],
+    }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Nova Tarefa em Lista</DialogTitle>
         </DialogHeader>
@@ -1014,9 +1099,58 @@ function CreateListaModal({
               Tornar visível para administradores
             </label>
           )}
+
+          <div>
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+              Atribuir para equipes
+            </label>
+            <div className="grid grid-cols-1 gap-2 mt-1">
+              {EQUIPES.map((e) => {
+                const active = form.equipes.includes(e.id);
+                return (
+                  <label
+                    key={e.id}
+                    className="flex items-center gap-2 rounded-md border border-border bg-background/50 px-3 py-2 cursor-pointer hover:bg-background transition"
+                    style={active ? { borderColor: e.border, background: e.bg } : undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={() => toggleEquipe(e.id)}
+                      className="w-4 h-4"
+                    />
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border"
+                      style={{ color: e.color, background: e.bg, borderColor: e.border }}
+                    >
+                      {e.label}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                Progresso
+              </label>
+              <span className="text-xs font-bold text-foreground">{form.progresso}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={form.progresso}
+              onChange={(e) => setForm((p) => ({ ...p, progresso: Number(e.target.value) }))}
+              className="w-full mt-2 accent-cyan-500"
+            />
+          </div>
         </div>
 
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
@@ -1146,7 +1280,7 @@ function DetailDialog({
 
   return (
     <Dialog open={!!task} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="truncate">{task.titulo}</DialogTitle>
         </DialogHeader>
@@ -1243,7 +1377,7 @@ function DetailDialog({
               )}
             </div>
 
-            <div className="flex gap-2 mt-2">
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -1256,7 +1390,7 @@ function DetailDialog({
                 placeholder="Escreva um comentário..."
                 className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
               />
-              <Button onClick={() => void handleSend()} size="icon">
+              <Button onClick={() => void handleSend()} size="icon" className="self-end sm:self-auto">
                 <Send size={14} />
               </Button>
             </div>

@@ -36,13 +36,13 @@ interface TimeEntry {
   id: string;
   user_id: string;
   date: string;
-  clock_in: string;
-  clock_out: string | null;
-  lunch_start: string | null;
-  lunch_end: string | null;
-  total_hours: number | null;
+  entrada_hora: string;
+  saida_hora: string | null;
+  inicio_almoco: string | null;
+  fim_almoco: string | null;
+  horas_totais: number | null;
   status: "ativo" | "concluido" | "incompleto";
-  created_at: string;
+  criado_em: string;
 }
 
 export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryModalProps) {
@@ -101,8 +101,8 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     let completedDays = 0;
 
     data.forEach((entry) => {
-      if (entry.total_hours) {
-        totalHours += entry.total_hours;
+      if (entry.horas_totais) {
+        totalHours += entry.horas_totais;
       }
       if (entry.status === "concluido") {
         completedDays += 1;
@@ -177,9 +177,9 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                     )}
                   </div>
                 )}
-                {entry && entry.total_hours && (
+                {entry && entry.horas_totais && (
                   <span className="text-[10px] text-slate-400 mt-0.5">
-                    {entry.total_hours.toFixed(1)}h
+                    {entry.horas_totais.toFixed(1)}h
                   </span>
                 )}
               </div>
@@ -229,54 +229,54 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   </div>
 
                   <div className="space-y-2 text-sm">
-                    {entry.clock_in && (
+                    {entry.entrada_hora && (
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5">
                           <Play className="h-3 w-3 text-emerald-400" />
                           <span className="text-slate-400">Entrada:</span>
                           <span className="font-mono font-semibold text-white">
-                            {format(new Date(entry.clock_in), "HH:mm")}
+                            {format(new Date(entry.entrada_hora), "HH:mm")}
                           </span>
                         </div>
 
-                        {entry.lunch_start && (
+                        {entry.inicio_almoco && (
                           <div className="flex items-center gap-1.5">
                             <Coffee className="h-3 w-3 text-amber-400" />
                             <span className="text-slate-400">Almoço:</span>
                             <span className="font-mono font-semibold text-white">
-                              {format(new Date(entry.lunch_start), "HH:mm")}
+                              {format(new Date(entry.inicio_almoco), "HH:mm")}
                             </span>
                           </div>
                         )}
 
-                        {entry.lunch_end && (
+                        {entry.fim_almoco && (
                           <div className="flex items-center gap-1.5">
                             <Play className="h-3 w-3 text-blue-400" />
                             <span className="text-slate-400">Retorno:</span>
                             <span className="font-mono font-semibold text-white">
-                              {format(new Date(entry.lunch_end), "HH:mm")}
+                              {format(new Date(entry.fim_almoco), "HH:mm")}
                             </span>
                           </div>
                         )}
 
-                        {entry.clock_out && (
+                        {entry.saida_hora && (
                           <div className="flex items-center gap-1.5">
                             <LogOut className="h-3 w-3 text-red-400" />
                             <span className="text-slate-400">Saída:</span>
                             <span className="font-mono font-semibold text-white">
-                              {format(new Date(entry.clock_out), "HH:mm")}
+                              {format(new Date(entry.saida_hora), "HH:mm")}
                             </span>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {entry.total_hours && (
+                    {entry.horas_totais && (
                       <div className="flex items-center gap-2 pt-2 border-t border-slate-700/50">
                         <Clock className="h-4 w-4 text-cyan-400" />
                         <span className="text-slate-400">Total de horas:</span>
                         <span className="font-mono font-semibold text-cyan-400">
-                          {entry.total_hours.toFixed(2)}h
+                          {entry.horas_totais.toFixed(2)}h
                         </span>
                       </div>
                     )}

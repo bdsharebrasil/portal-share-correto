@@ -5,86 +5,63 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export const useMessageNotifications = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
   const { roles, user } = useAuth();
 
   useEffect(() => {
-    if (!user) return;
-
-    // Prefer user from AuthContext, fallback to Supabase if available
-    if (user) {
-      setCurrentUserId(user.id);
-      return;
-    }
-
-    // Get current user from supabase if supported
-    const getCurrentUser = async () => {
-      try {
-        if (!supabase || !supabase.auth || typeof supabase.auth.getUser !== 'function') return;
-        const result = await supabase.auth.getUser();
-        const userData = (result && (result as any).data && (result as any).data.user) || null;
-        if (userData) setCurrentUserId(userData.id);
-      } catch (e) {
-        // ignore
-      }
-    };
-
-    void getCurrentUser();
+    if (user) setCurrentUserId(user.id);
   }, [user]);
 
   useEffect(() => {
     if (!currentUserId) return;
-
     if (!supabase || typeof supabase.channel !== 'function') return;
 
-    // Messages table disabled - table does not exist in Supabase
-    // Subscribe to new messages - disabled
-    // const channel = supabase
-    //   .channel('new-messages-notifications')
-    //   .on(
-    //     'postgres_changes',
-    //     {
-    //       event: 'INSERT',
-    //       schema: 'public',
-    //       table: 'messages'
-    //     },
-    //     async (payload) => {
-    //       const newMessage = payload.new as any;
-    //       if (newMessage.author_id === currentUserId) return;
-    //       const isForMe = await checkIfMessageIsForUser(newMessage, currentUserId, roles ?? []);
-    //       if (isForMe) {
-    //         toast.info(newMessage.author_name, {
-    //           description: newMessage.content,
-    //           duration: 5000,
-    //           action: {
-    //             label: 'Ver',
-    //             onClick: () => window.location.href = '/recados'
-    //           }
-    //         });
-    //       }
-    //     }
-    //   )
-    //   .subscribe();
+    const channel = supabase
+      .channel('recados-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'recados' },
+        async (payload) => {
+          const recado = payload.new as any;
+          if (!recado) return;
+          // Skip pinned messages — those live on the mural and don't ping
+          if (recado.fixado) return;
+          // Skip own posts
+          if (recado.autor_id === currentUserId) return;
+
+          const dept = (recado.departamento || 'todos').toLowerCase();
+          const isForMe =
+            dept === 'todos' ||
+            dept.split(',').some((r: string) => (roles ?? []).includes(r.trim() as any));
+          if (!isForMe) return;
+
+          // Fetch author name
+          let autorNome = 'Novo recado';
+          try {
+            const { data } = await (supabase as any)
+              .from('user_profiles')
+              .select('nome_completo, full_name')
+              .eq('id', recado.autor_id)
+              .single();
+            const nome = data?.nome_completo || data?.full_name;
+            if (nome) autorNome = nome;
+          } catch {
+            /* ignore */
+          }
+
+          toast.info(autorNome, {
+            description: recado.mensagem?.substring(0, 140) ?? '',
+            duration: 6000,
+            action: {
+              label: 'Ver',
+              onClick: () => (window.location.hash = '#/recados'),
+            },
+          });
+        }
+      )
+      .subscribe();
 
     return () => {
-      // cleanup disabled
+      supabase.removeChannel(channel);
     };
   }, [currentUserId, roles]);
 };
-
-async function checkIfMessageIsForUser(message: any, userId: string, userRolesList: string[]): Promise<boolean> {
-  // Message for all users
-  if (message.target_type === 'all') return true;
-
-  // Message for specific user
-  if (message.target_type === 'user' && message.target_user_id === userId) {
-    return true;
-  }
-
-  // Message for specific roles
-  if (message.target_type === 'role' && message.target_roles && message.target_roles.length > 0) {
-    return message.target_roles.some((role: any) => userRolesList.includes(role));
-  }
-
-  return false;
-}

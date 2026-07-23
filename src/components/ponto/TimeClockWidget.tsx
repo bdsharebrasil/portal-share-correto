@@ -8,12 +8,12 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 interface TimeEntry {
   id: string;
-  clock_in: string | null;
-  lunch_start: string | null;
-  lunch_end: string | null;
-  clock_out: string | null;
+  entrada_hora: string | null;
+  inicio_almoco: string | null;
+  fim_almoco: string | null;
+  saida_hora: string | null;
   status: string;
-  total_hours?: number;
+  horas_totais?: number;
 }
 export function TimeClockWidget() {
   const [todayEntry, setTodayEntry] = useState<TimeEntry | null>(null);
@@ -36,7 +36,7 @@ export function TimeClockWidget() {
       const {
         data,
         error
-      } = await supabase.from('time_entries').select('*').eq('user_id', user.id).eq('entry_date', today).maybeSingle();
+      } = await supabase.from('lancamento_ponto').select('*').eq('user_id', user.id).eq('data_entrada', today).maybeSingle();
       if (error && error.code !== 'PGRST116') {
         console.error('Erro ao carregar ponto:', error);
         return;
@@ -63,10 +63,10 @@ export function TimeClockWidget() {
       const {
         data,
         error
-      } = await supabase.from('time_entries').insert({
+      } = await supabase.from('lancamento_ponto').insert({
         user_id: user.id,
-        entry_date: today,
-        clock_in: now,
+        data_entrada: today,
+        entrada_hora: now,
         status: 'em_andamento'
       }).select().single();
       if (error) throw error;
@@ -87,8 +87,8 @@ export function TimeClockWidget() {
       const now = new Date().toISOString();
       const {
         error
-      } = await supabase.from('time_entries').update({
-        lunch_start: now
+      } = await supabase.from('lancamento_ponto').update({
+        inicio_almoco: now
       }).eq('id', todayEntry.id);
       if (error) throw error;
       toast.success("Início do almoço registrado!");
@@ -107,8 +107,8 @@ export function TimeClockWidget() {
       const now = new Date().toISOString();
       const {
         error
-      } = await supabase.from('time_entries').update({
-        lunch_end: now
+      } = await supabase.from('lancamento_ponto').update({
+        fim_almoco: now
       }).eq('id', todayEntry.id);
       if (error) throw error;
       toast.success("Retorno do almoço registrado!");
@@ -125,23 +125,23 @@ export function TimeClockWidget() {
     setLoading(true);
     try {
       const now = new Date().toISOString();
-      const clockIn = new Date(todayEntry.clock_in!);
+      const clockIn = new Date(todayEntry.entrada_hora!);
       const clockOut = new Date(now);
       let totalMinutes = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60);
 
       // Subtrai tempo de almoço se houver
-      if (todayEntry.lunch_start && todayEntry.lunch_end) {
-        const lunchStart = new Date(todayEntry.lunch_start);
-        const lunchEnd = new Date(todayEntry.lunch_end);
+      if (todayEntry.inicio_almoco && todayEntry.fim_almoco) {
+        const lunchStart = new Date(todayEntry.inicio_almoco);
+        const lunchEnd = new Date(todayEntry.fim_almoco);
         const lunchMinutes = (lunchEnd.getTime() - lunchStart.getTime()) / (1000 * 60);
         totalMinutes -= lunchMinutes;
       }
       const totalHours = Number((totalMinutes / 60).toFixed(2));
       const {
         error
-      } = await supabase.from('time_entries').update({
-        clock_out: now,
-        total_hours: totalHours,
+      } = await supabase.from('lancamento_ponto').update({
+        saida_hora: now,
+        horas_totais: totalHours,
         status: 'concluido'
       }).eq('id', todayEntry.id);
       if (error) throw error;
@@ -154,9 +154,9 @@ export function TimeClockWidget() {
       setLoading(false);
     }
   };
-  const canStartLunch = todayEntry && todayEntry.clock_in && !todayEntry.lunch_start;
-  const canEndLunch = todayEntry && todayEntry.lunch_start && !todayEntry.lunch_end;
-  const canClockOut = todayEntry && todayEntry.clock_in && !todayEntry.clock_out && (!todayEntry.lunch_start || todayEntry.lunch_end);
+  const canStartLunch = todayEntry && todayEntry.entrada_hora && !todayEntry.inicio_almoco;
+  const canEndLunch = todayEntry && todayEntry.inicio_almoco && !todayEntry.fim_almoco;
+  const canClockOut = todayEntry && todayEntry.entrada_hora && !todayEntry.saida_hora && (!todayEntry.inicio_almoco || todayEntry.fim_almoco);
   
   return (
     <Card className="w-full">
@@ -180,7 +180,7 @@ export function TimeClockWidget() {
           <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
             <p className="text-green-600 font-medium">Ponto encerrado</p>
             <p className="text-sm text-muted-foreground">
-              Total: {todayEntry.total_hours?.toFixed(2)}h
+              Total: {todayEntry.horas_totais?.toFixed(2)}h
             </p>
           </div>
         ) : (
@@ -232,14 +232,14 @@ export function TimeClockWidget() {
           </div>
         )}
 
-        {todayEntry && todayEntry.clock_in && (
+        {todayEntry && todayEntry.entrada_hora && (
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>Entrada: {format(new Date(todayEntry.clock_in), "HH:mm")}</p>
-            {todayEntry.lunch_start && (
-              <p>Almoço: {format(new Date(todayEntry.lunch_start), "HH:mm")}</p>
+            <p>Entrada: {format(new Date(todayEntry.entrada_hora), "HH:mm")}</p>
+            {todayEntry.inicio_almoco && (
+              <p>Almoço: {format(new Date(todayEntry.inicio_almoco), "HH:mm")}</p>
             )}
-            {todayEntry.lunch_end && (
-              <p>Retorno: {format(new Date(todayEntry.lunch_end), "HH:mm")}</p>
+            {todayEntry.fim_almoco && (
+              <p>Retorno: {format(new Date(todayEntry.fim_almoco), "HH:mm")}</p>
             )}
           </div>
         )}

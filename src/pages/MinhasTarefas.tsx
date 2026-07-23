@@ -132,11 +132,13 @@ export default function MinhasTarefas() {
         </div>
 
         {/* Renderizar com base no layout selecionado */}
-        {layout === "kanban" ? (
-          <TarefasKanban myView={isManager && view === "minhas"} isManager={isManager} />
-        ) : (
-          <TarefasLista myView={isManager && view === "minhas"} isManager={isManager} />
-        )}
+        <div className="rounded-2xl bg-[#0b0d12] border border-white/5 shadow-2xl overflow-hidden">
+          {layout === "kanban" ? (
+            <TarefasKanban myView={isManager && view === "minhas"} isManager={isManager} />
+          ) : (
+            <TarefasLista myView={isManager && view === "minhas"} isManager={isManager} />
+          )}
+        </div>
       </div>
 
       {/* Modal de notificações de tarefas recebidas */}

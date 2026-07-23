@@ -55,7 +55,13 @@ export function GestorDashboard() {
         .eq("status", "submitted")
         .order("submitted_at", { ascending: false });
 
-      // Combinar e formatar os dados
+      // Buscar solicitações de compra enviadas para aprovação
+      const { data: purchaseData } = await (supabase as any)
+        .from("purchase_requests")
+        .select("*")
+        .in("status", ["enviado", "em_analise"])
+        .order("data_solicitacao", { ascending: false });
+
       const flights = (flightData || []).map(f => ({
         ...f,
         type: 'flight',
@@ -71,9 +77,18 @@ export function GestorDashboard() {
         total: b.valor_total,
       }));
 
-      return [...flights, ...budgets];
+      const purchases = (purchaseData || []).map((p: any) => ({
+        ...p,
+        type: 'purchase',
+        title: `${p.numero_solicitacao} — ${p.descricao?.substring(0, 50) || ''}`,
+        date: p.data_solicitacao,
+        total: p.valor_total,
+      }));
+
+      return [...flights, ...budgets, ...purchases];
     },
   });
+
 
   const allQuickTools = [
     {
@@ -290,6 +305,8 @@ export function GestorDashboard() {
                     onClick={() => {
                       if (item.type === 'budget') {
                         navigate(`/manutencao/orcamentos?budgetId=${item.id}`);
+                      } else if (item.type === 'purchase') {
+                        navigate(`/financeiro/compras?requestId=${item.id}`);
                       }
                     }}
                     className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-primary/50 hover:bg-white/[0.04] transition-all cursor-pointer group"
@@ -302,7 +319,9 @@ export function GestorDashboard() {
                         <p className="text-xs text-muted-foreground">
                         {item.type === 'flight'
                           ? 'Voo Agendado'
-                          : 'Orçamento de Manutenção'
+                          : item.type === 'budget'
+                            ? 'Orçamento de Manutenção'
+                            : 'Solicitação de Compra/serviço'
                         }
                       </p>
                         <span className="text-muted-foreground/30 text-xs">•</span>
@@ -319,11 +338,14 @@ export function GestorDashboard() {
                     <Badge
                       className={`ml-4 shrink-0 ${item.type === 'budget'
                           ? "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
-                          : "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20"
+                          : item.type === 'purchase'
+                            ? "bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-500/20"
+                            : "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20"
                         }`}
                     >
-                      {item.type === 'budget' ? 'Orçamento' : 'Voo'}
+                      {item.type === 'budget' ? 'Orçamento' : item.type === 'purchase' ? 'Compra/Serviço' : 'Voo'}
                     </Badge>
+
                   </div>
                 ))}
               </div>

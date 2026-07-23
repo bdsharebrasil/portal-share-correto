@@ -5719,6 +5719,107 @@ export type Database = {
         }
         Relationships: []
       }
+      lancamento_ponto: {
+        Row: {
+          atualizado_em: string | null
+          ausencia_aprovada: boolean | null
+          ausencia_aprovada_em: string | null
+          ausencia_aprovada_por: string | null
+          criado_em: string | null
+          data_entrada: string
+          entrada_hora: string | null
+          fim_almoco: string | null
+          horas_totais: number | null
+          id: string
+          inicio_almoco: string | null
+          motivo_da_ausencia: string | null
+          saida_hora: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          ausencia_aprovada?: boolean | null
+          ausencia_aprovada_em?: string | null
+          ausencia_aprovada_por?: string | null
+          criado_em?: string | null
+          data_entrada?: string
+          entrada_hora?: string | null
+          fim_almoco?: string | null
+          horas_totais?: number | null
+          id?: string
+          inicio_almoco?: string | null
+          motivo_da_ausencia?: string | null
+          saida_hora?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          ausencia_aprovada?: boolean | null
+          ausencia_aprovada_em?: string | null
+          ausencia_aprovada_por?: string | null
+          criado_em?: string | null
+          data_entrada?: string
+          entrada_hora?: string | null
+          fim_almoco?: string | null
+          horas_totais?: number | null
+          id?: string
+          inicio_almoco?: string | null
+          motivo_da_ausencia?: string | null
+          saida_hora?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lancamento_ponto_anexos: {
+        Row: {
+          caminho_arquivo: string
+          criado_em: string | null
+          data_entrada: string
+          id: string
+          lancamento_ponto_id: string | null
+          nome_arquivo: string
+          observacoes: string | null
+          tipo_arquivo: string | null
+          tipo_justificativa: string
+          user_id: string
+        }
+        Insert: {
+          caminho_arquivo: string
+          criado_em?: string | null
+          data_entrada: string
+          id?: string
+          lancamento_ponto_id?: string | null
+          nome_arquivo: string
+          observacoes?: string | null
+          tipo_arquivo?: string | null
+          tipo_justificativa?: string
+          user_id: string
+        }
+        Update: {
+          caminho_arquivo?: string
+          criado_em?: string | null
+          data_entrada?: string
+          id?: string
+          lancamento_ponto_id?: string | null
+          nome_arquivo?: string
+          observacoes?: string | null
+          tipo_arquivo?: string | null
+          tipo_justificativa?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entry_anexos_lancamento_ponto_id_fkey"
+            columns: ["lancamento_ponto_id"]
+            isOneToOne: false
+            referencedRelation: "lancamento_ponto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lancamentos_diario_bordo: {
         Row: {
           abastecido: boolean | null
@@ -6883,11 +6984,12 @@ export type Database = {
       }
       pagamento_salario_funcionario: {
         Row: {
+          atualizado_em: string | null
           banco: string | null
           base_salary_holerite: number | null
           benefit: string | null
           comprovante_url: string | null
-          created_at: string | null
+          criado_em: string | null
           data_pagamento: string | null
           decimo_terceiro_parcela1: number | null
           decimo_terceiro_parcela2: number | null
@@ -6898,15 +7000,15 @@ export type Database = {
           id: string
           obs: string | null
           obs2: string | null
-          updated_at: string | null
           user_profile: string | null
         }
         Insert: {
+          atualizado_em?: string | null
           banco?: string | null
           base_salary_holerite?: number | null
           benefit?: string | null
           comprovante_url?: string | null
-          created_at?: string | null
+          criado_em?: string | null
           data_pagamento?: string | null
           decimo_terceiro_parcela1?: number | null
           decimo_terceiro_parcela2?: number | null
@@ -6917,15 +7019,15 @@ export type Database = {
           id?: string
           obs?: string | null
           obs2?: string | null
-          updated_at?: string | null
           user_profile?: string | null
         }
         Update: {
+          atualizado_em?: string | null
           banco?: string | null
           base_salary_holerite?: number | null
           benefit?: string | null
           comprovante_url?: string | null
-          created_at?: string | null
+          criado_em?: string | null
           data_pagamento?: string | null
           decimo_terceiro_parcela1?: number | null
           decimo_terceiro_parcela2?: number | null
@@ -6936,7 +7038,6 @@ export type Database = {
           id?: string
           obs?: string | null
           obs2?: string | null
-          updated_at?: string | null
           user_profile?: string | null
         }
         Relationships: [
@@ -7729,7 +7830,6 @@ export type Database = {
           quantidade: number
           unidade: string
           updated_at: string | null
-          valor_total: number | null
           valor_unitario: number
         }
         Insert: {
@@ -7743,7 +7843,6 @@ export type Database = {
           quantidade: number
           unidade: string
           updated_at?: string | null
-          valor_total?: number | null
           valor_unitario: number
         }
         Update: {
@@ -7757,7 +7856,6 @@ export type Database = {
           quantidade?: number
           unidade?: string
           updated_at?: string | null
-          valor_total?: number | null
           valor_unitario?: number
         }
         Relationships: [
@@ -7826,58 +7924,73 @@ export type Database = {
       purchase_requests: {
         Row: {
           aprovador_1_id: string | null
+          aprovador_2_id: string | null
+          centro_custo: string | null
           created_at: string | null
           data_aprovacao_1: string | null
+          data_aprovacao_2: string | null
           data_necessaria: string | null
           data_solicitacao: string | null
+          departamento: string | null
           descricao: string
           id: string
           motivo_rejeicao_1: string | null
+          motivo_rejeicao_2: string | null
           numero_solicitacao: string
           observacoes: string | null
           priority: string | null
           solicitante_nome: string | null
           status: string
           tipo: string
-          "tipo_ de_servico": string | null
+          tipo_de_servico: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           aprovador_1_id?: string | null
+          aprovador_2_id?: string | null
+          centro_custo?: string | null
           created_at?: string | null
           data_aprovacao_1?: string | null
+          data_aprovacao_2?: string | null
           data_necessaria?: string | null
           data_solicitacao?: string | null
+          departamento?: string | null
           descricao: string
           id?: string
           motivo_rejeicao_1?: string | null
+          motivo_rejeicao_2?: string | null
           numero_solicitacao: string
           observacoes?: string | null
           priority?: string | null
           solicitante_nome?: string | null
           status?: string
           tipo: string
-          "tipo_ de_servico"?: string | null
+          tipo_de_servico?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           aprovador_1_id?: string | null
+          aprovador_2_id?: string | null
+          centro_custo?: string | null
           created_at?: string | null
           data_aprovacao_1?: string | null
+          data_aprovacao_2?: string | null
           data_necessaria?: string | null
           data_solicitacao?: string | null
+          departamento?: string | null
           descricao?: string
           id?: string
           motivo_rejeicao_1?: string | null
+          motivo_rejeicao_2?: string | null
           numero_solicitacao?: string
           observacoes?: string | null
           priority?: string | null
           solicitante_nome?: string | null
           status?: string
           tipo?: string
-          "tipo_ de_servico"?: string | null
+          tipo_de_servico?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -8100,34 +8213,34 @@ export type Database = {
       }
       recados: {
         Row: {
+          atualizado_em: string | null
           autor_id: string
-          created_at: string | null
+          criado_em: string | null
           departamento: string | null
           fixado: boolean | null
           id: string
           lido_por: string[] | null
           mensagem: string
-          updated_at: string | null
         }
         Insert: {
+          atualizado_em?: string | null
           autor_id: string
-          created_at?: string | null
+          criado_em?: string | null
           departamento?: string | null
           fixado?: boolean | null
           id?: string
           lido_por?: string[] | null
           mensagem: string
-          updated_at?: string | null
         }
         Update: {
+          atualizado_em?: string | null
           autor_id?: string
-          created_at?: string | null
+          criado_em?: string | null
           departamento?: string | null
           fixado?: boolean | null
           id?: string
           lido_por?: string[] | null
           mensagem?: string
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -8507,6 +8620,65 @@ export type Database = {
           },
         ]
       }
+      solicitacoes_correcao_ponto: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          atualizado_em: string
+          criado_em: string
+          data_entrada: string
+          id: string
+          justificativa: string
+          lancamento_ponto_id: string | null
+          motivo_rejeicao: string | null
+          status: string
+          tempo_corrigido: string
+          tempo_original: string | null
+          tipo_correcao: string
+          user_id: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          data_entrada: string
+          id?: string
+          justificativa: string
+          lancamento_ponto_id?: string | null
+          motivo_rejeicao?: string | null
+          status?: string
+          tempo_corrigido: string
+          tempo_original?: string | null
+          tipo_correcao: string
+          user_id: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          data_entrada?: string
+          id?: string
+          justificativa?: string
+          lancamento_ponto_id?: string | null
+          motivo_rejeicao?: string | null
+          status?: string
+          tempo_corrigido?: string
+          tempo_original?: string | null
+          tipo_correcao?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_correcao_ponto_lancamento_ponto_id_fkey"
+            columns: ["lancamento_ponto_id"]
+            isOneToOne: false
+            referencedRelation: "lancamento_ponto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitacoes_reserva_voo: {
         Row: {
           aeronave_id: string
@@ -8667,43 +8839,49 @@ export type Database = {
       }
       tarefas: {
         Row: {
-          atribuido_para: string | null
+          atribuido_para: string[] | null
           atualizado_em: string | null
           criado_em: string | null
           criado_por: string | null
           descricao: string | null
+          equipes: string[]
           id: string
           origem: string
           prazo: string | null
           prioridade: string | null
+          progresso: number
           publico: boolean | null
           status: string | null
           titulo: string
         }
         Insert: {
-          atribuido_para?: string | null
+          atribuido_para?: string[] | null
           atualizado_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
           descricao?: string | null
+          equipes?: string[]
           id?: string
           origem?: string
           prazo?: string | null
           prioridade?: string | null
+          progresso?: number
           publico?: boolean | null
           status?: string | null
           titulo: string
         }
         Update: {
-          atribuido_para?: string | null
+          atribuido_para?: string[] | null
           atualizado_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
           descricao?: string | null
+          equipes?: string[]
           id?: string
           origem?: string
           prazo?: string | null
           prioridade?: string | null
+          progresso?: number
           publico?: boolean | null
           status?: string | null
           titulo?: string
@@ -8843,166 +9021,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-        ]
-      }
-      time_correction_requests: {
-        Row: {
-          approved_at: string | null
-          approved_by: string | null
-          corrected_time: string
-          correction_type: string
-          created_at: string
-          entry_date: string
-          id: string
-          original_time: string | null
-          reason: string
-          rejection_reason: string | null
-          status: string
-          time_entry_id: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
-          corrected_time: string
-          correction_type: string
-          created_at?: string
-          entry_date: string
-          id?: string
-          original_time?: string | null
-          reason: string
-          rejection_reason?: string | null
-          status?: string
-          time_entry_id?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          approved_at?: string | null
-          approved_by?: string | null
-          corrected_time?: string
-          correction_type?: string
-          created_at?: string
-          entry_date?: string
-          id?: string
-          original_time?: string | null
-          reason?: string
-          rejection_reason?: string | null
-          status?: string
-          time_entry_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_correction_requests_time_entry_id_fkey"
-            columns: ["time_entry_id"]
-            isOneToOne: false
-            referencedRelation: "time_entries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      time_entries: {
-        Row: {
-          absence_approved: boolean | null
-          absence_approved_at: string | null
-          absence_approved_by: string | null
-          absence_rejection_reason: string | null
-          clock_in: string | null
-          clock_out: string | null
-          created_at: string | null
-          entry_date: string
-          id: string
-          lunch_end: string | null
-          lunch_start: string | null
-          status: string
-          total_hours: number | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          absence_approved?: boolean | null
-          absence_approved_at?: string | null
-          absence_approved_by?: string | null
-          absence_rejection_reason?: string | null
-          clock_in?: string | null
-          clock_out?: string | null
-          created_at?: string | null
-          entry_date?: string
-          id?: string
-          lunch_end?: string | null
-          lunch_start?: string | null
-          status?: string
-          total_hours?: number | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          absence_approved?: boolean | null
-          absence_approved_at?: string | null
-          absence_approved_by?: string | null
-          absence_rejection_reason?: string | null
-          clock_in?: string | null
-          clock_out?: string | null
-          created_at?: string | null
-          entry_date?: string
-          id?: string
-          lunch_end?: string | null
-          lunch_start?: string | null
-          status?: string
-          total_hours?: number | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      time_entry_attachments: {
-        Row: {
-          created_at: string | null
-          entry_date: string
-          file_name: string
-          file_path: string
-          file_type: string | null
-          id: string
-          justification_type: string
-          notes: string | null
-          time_entry_id: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          entry_date: string
-          file_name: string
-          file_path: string
-          file_type?: string | null
-          id?: string
-          justification_type?: string
-          notes?: string | null
-          time_entry_id?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          entry_date?: string
-          file_name?: string
-          file_path?: string
-          file_type?: string | null
-          id?: string
-          justification_type?: string
-          notes?: string | null
-          time_entry_id?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "time_entry_attachments_time_entry_id_fkey"
-            columns: ["time_entry_id"]
-            isOneToOne: false
-            referencedRelation: "time_entries"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -9701,7 +9719,7 @@ export type Database = {
       vacation_requests: {
         Row: {
           approver_id: string | null
-          created_at: string
+          criado_em: string
           days: number
           end_date: string
           id: string
@@ -9713,7 +9731,7 @@ export type Database = {
         }
         Insert: {
           approver_id?: string | null
-          created_at?: string
+          criado_em?: string
           days: number
           end_date: string
           id?: string
@@ -9725,7 +9743,7 @@ export type Database = {
         }
         Update: {
           approver_id?: string | null
-          created_at?: string
+          criado_em?: string
           days?: number
           end_date?: string
           id?: string

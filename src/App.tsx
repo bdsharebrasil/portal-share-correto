@@ -75,6 +75,7 @@ import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 import { CostSimulator } from "./components/dashboard/CostSimulator";
+import AprovacoesOrcamentos from "./pages/gestor/AprovacoesOrcamentos";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -176,7 +177,10 @@ const App = () => {
                           } />
                           <Route path="/gestor/aprovacoes-orcamentos" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children="">
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <Layout>
+                                  <AprovacoesOrcamentos />
+                                </Layout>
                               </RoleProtected>
                             )
                           } />

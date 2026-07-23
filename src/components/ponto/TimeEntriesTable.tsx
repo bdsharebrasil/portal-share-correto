@@ -22,19 +22,19 @@ import { cn } from "@/lib/utils";
 interface TimeEntry {
   id: string;
   user_id: string;
-  entry_date: string;
-  clock_in: string | null;
-  lunch_start: string | null;
-  lunch_end: string | null;
-  clock_out: string | null;
-  total_hours: number | null;
+  data_entrada: string;
+  entrada_hora: string | null;
+  inicio_almoco: string | null;
+  fim_almoco: string | null;
+  saida_hora: string | null;
+  horas_totais: number | null;
   status: string;
   absence_reason: string | null;
   absence_document_path: string | null;
-  absence_approved: boolean | null;
-  absence_approved_by: string | null;
-  absence_approved_at: string | null;
-  absence_rejection_reason: string | null;
+  ausencia_aprovada: boolean | null;
+  ausencia_aprovada_por: string | null;
+  ausencia_aprovada_em: string | null;
+  motivo_rejeicao_ausencia: string | null;
   user_profiles?: {
     full_name: string;
   } | null;
@@ -120,11 +120,11 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       const endDate = endOfMonth(new Date(year, month - 1));
 
       let query = supabase
-        .from('time_entries' as any)
+        .from('lancamento_ponto' as any)
         .select('*')
-        .gte('entry_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('entry_date', format(endDate, 'yyyy-MM-dd'))
-        .order('entry_date', { ascending: false });
+        .gte('data_entrada', format(startDate, 'yyyy-MM-dd'))
+        .lte('data_entrada', format(endDate, 'yyyy-MM-dd'))
+        .order('data_entrada', { ascending: false });
 
       if (!viewAll || (!isAdmin && !isGestorMaster)) {
         query = query.eq('user_id', user.id);
@@ -205,12 +205,12 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       }
 
       const { error } = await supabase
-        .from('time_entries' as any)
+        .from('lancamento_ponto' as any)
         .update({
           absence_reason: absenceReason,
           absence_document_path: documentPath,
           status: 'falta',
-          absence_approved: null
+          ausencia_aprovada: null
         })
         .eq('id', selectedEntry.id);
 
@@ -232,11 +232,11 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       if (!user) return;
 
       const { error } = await supabase
-        .from('time_entries' as any)
+        .from('lancamento_ponto' as any)
         .update({
-          absence_approved: true,
-          absence_approved_by: user.id,
-          absence_approved_at: new Date().toISOString()
+          ausencia_aprovada: true,
+          ausencia_aprovada_por: user.id,
+          ausencia_aprovada_em: new Date().toISOString()
         })
         .eq('id', entryId);
 
@@ -260,12 +260,12 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       if (!user) return;
 
       const { error } = await supabase
-        .from('time_entries' as any)
+        .from('lancamento_ponto' as any)
         .update({
-          absence_approved: false,
-          absence_approved_by: user.id,
-          absence_approved_at: new Date().toISOString(),
-          absence_rejection_reason: rejectionReason
+          ausencia_aprovada: false,
+          ausencia_aprovada_por: user.id,
+          ausencia_aprovada_em: new Date().toISOString(),
+          motivo_rejeicao_ausencia: rejectionReason
         })
         .eq('id', entryId);
 
@@ -281,9 +281,9 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
 
   const getStatusBadge = (entry: TimeEntry) => {
     if (entry.status === 'falta' && entry.absence_reason) {
-      if (entry.absence_approved === true) {
+      if (entry.ausencia_aprovada === true) {
         return <Badge className="bg-green-600">Falta Justificada</Badge>;
-      } else if (entry.absence_approved === false) {
+      } else if (entry.ausencia_aprovada === false) {
         return <Badge className="bg-red-600">Justificativa Rejeitada</Badge>;
       } else {
         return <Badge className="bg-yellow-600">Aguardando Aprovação</Badge>;
@@ -425,23 +425,23 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
                   <TableCell>{entry.user_profiles?.full_name || '-'}</TableCell>
                 )}
                 <TableCell>
-                  {format(new Date(entry.entry_date), 'dd/MM/yyyy', { locale: ptBR })}
+                  {format(new Date(entry.data_entrada), 'dd/MM/yyyy', { locale: ptBR })}
                 </TableCell>
                 <TableCell>
-                  {entry.clock_in ? format(new Date(entry.clock_in), 'HH:mm') : '-'}
+                  {entry.entrada_hora ? format(new Date(entry.entrada_hora), 'HH:mm') : '-'}
                 </TableCell>
                 <TableCell>
-                  {entry.lunch_start && entry.lunch_end
-                    ? `${format(new Date(entry.lunch_start), 'HH:mm')} - ${format(new Date(entry.lunch_end), 'HH:mm')}`
+                  {entry.inicio_almoco && entry.fim_almoco
+                    ? `${format(new Date(entry.inicio_almoco), 'HH:mm')} - ${format(new Date(entry.fim_almoco), 'HH:mm')}`
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  {entry.clock_out ? format(new Date(entry.clock_out), 'HH:mm') : '-'}
+                  {entry.saida_hora ? format(new Date(entry.saida_hora), 'HH:mm') : '-'}
                 </TableCell>
-                <TableCell>{entry.total_hours ? `${entry.total_hours}h` : '-'}</TableCell>
+                <TableCell>{entry.horas_totais ? `${entry.horas_totais}h` : '-'}</TableCell>
                 <TableCell>{getStatusBadge(entry)}</TableCell>
                 <TableCell>
-                  {!entry.clock_in && entry.status !== 'falta' && (
+                  {!entry.entrada_hora && entry.status !== 'falta' && (
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
@@ -503,12 +503,12 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
                           Ver Atestado
                         </Button>
                       )}
-                      {entry.absence_rejection_reason && (
+                      {entry.motivo_rejeicao_ausencia && (
                         <div className="text-xs text-red-600">
-                          Motivo da rejeição: {entry.absence_rejection_reason}
+                          Motivo da rejeição: {entry.motivo_rejeicao_ausencia}
                         </div>
                       )}
-                      {(isAdmin || isGestorMaster) && entry.absence_approved === null && (
+                      {(isAdmin || isGestorMaster) && entry.ausencia_aprovada === null && (
                         <div className="flex gap-2">
                           <Button
                             size="sm"

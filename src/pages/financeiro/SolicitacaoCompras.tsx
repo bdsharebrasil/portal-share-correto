@@ -27,15 +27,17 @@ interface PurchaseRequest {
   id: string;
   numero_solicitacao: string;
   tipo: string;
+  tipo_de_servico: string | null;
   descricao: string;
   observacoes: string | null;
   user_id: string;
+  solicitante_nome: string | null;
   departamento: string | null;
   centro_custo: string | null;
   data_solicitacao: string;
   data_necessaria: string | null;
-  valor_total: number;
-  moeda: string;
+ 
+ 
   status: string;
   aprovador_1_id: string | null;
   data_aprovacao_1: string | null;
@@ -307,20 +309,21 @@ export default function SolicitacaoCompras() {
         tipo,
         descricao,
         user_id: currentUserId,
+        solicitante_nome: currentUserName,
         priority: prioridade,
+        departamento: departamento || null,
+        tipo_de_servico: tipoDeServico || null,
         data_necessaria: dataNecessaria || null,
-        status: 'rascunho',
-        valor_total: 0
+        status: 'enviado',
+       
       };
 
-      // Corrige inserção em tabela que usa coluna com nome literal "tipo_ de_servico"
-      payload['tipo_ de_servico'] = tipoDeServico || null;
+      const { error } = await supabase.from('purchase_requests' as any).insert(payload as any);
 
-      const { error } = await supabase.from('purchase_requests').insert(payload);
 
       if (error) throw error;
 
-      toast({ title: "Sucesso", description: `Solicitação ${numeroSolicitacao} criada com sucesso!` });
+      toast({ title: "Sucesso", description: `Solicitação ${numeroSolicitacao} enviada para aprovação!` });
       setTipo("compra"); setDescricao(""); setDataNecessaria(""); setDataNecessariaDate(undefined);
       setDepartamento(""); setPrioridade("normal"); setTipoDeServico(""); setFormExpanded(false);
       loadRequests();
@@ -340,8 +343,7 @@ export default function SolicitacaoCompras() {
       else if (editStatus === 'reprovado' && editAprovador === 'nivel1') { updateData.motivo_rejeicao_1 = editMotivo; }
       else if (editStatus === 'reprovado' && editAprovador === 'nivel2') { updateData.motivo_rejeicao_2 = editMotivo; }
 
-      const { error } = await supabase.from('purchase_requests').update(updateData).eq('id', editingRequest.id);
-      if (error) throw error;
+    
 
       toast({ title: "Sucesso", description: "Solicitação atualizada com sucesso!" });
       setEditingRequest(null);
@@ -698,8 +700,11 @@ export default function SolicitacaoCompras() {
                       <div className="border-t my-3"></div>
                       <div className="space-y-2 mb-4 text-xs">
                         <div className="flex justify-between"><span className="text-muted-foreground">Tipo:</span><span className="capitalize">{request.tipo}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Valor:</span><span className="font-semibold text-primary">{formatCurrency(request.valor_total)}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Data:</span><span>{formatDistanceToNow(new Date(request.data_solicitacao), { addSuffix: true, locale: ptBR })}</span></div>
+                        {request.tipo_de_servico && request.tipo === 'servico' && (
+                          <div className="flex justify-between"><span className="text-muted-foreground">Tipo de Serviço:</span><span className="capitalize">{request.tipo_de_servico.replace(/_/g, ' ')}</span></div>
+                        )}
+                        <div className="flex justify-between"><span className="text-muted-foreground">Solicitante:</span><span className="max-w-[60%] truncate text-right">{request.solicitante_nome || 'N/A'}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Data:</span><span>{format(new Date(request.data_solicitacao), 'dd/MM/yy')}</span></div>
                       </div>
                       <div className="space-y-3 mt-auto">
                         <div>{getStatusBadge(request.status)}</div>
