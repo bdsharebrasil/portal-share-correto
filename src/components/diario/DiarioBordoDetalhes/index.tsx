@@ -1210,9 +1210,9 @@ function DiarioBordoDetalhes() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        onClick={() => {
-                                          navigate('/controle-abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
-                                        }}
+                                    onClick={() => {
+  navigate('/abastecimento', { state: { selectedAbastecimentoId: abastVinculados[0].id } });
+}}
                                         className="text-blue-400 font-semibold hover:text-blue-300 hover:underline"
                                       >
                                         {totalAbast}
