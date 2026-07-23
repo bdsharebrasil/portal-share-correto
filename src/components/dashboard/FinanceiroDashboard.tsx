@@ -167,13 +167,24 @@ export function FinanceiroDashboard() {
       const today = format(new Date(), 'yyyy-MM-dd');
 
       if (action === 'entrada_hora') {
-        const { error } = await supabase.from('lancamento_ponto').insert({
-          user_id: user.id,
-          data_entrada: today,
-          entrada_hora: now,
-          status: 'em_andamento'
-        });
+        if (todayEntry) {
+          toast.error("Já existe um ponto registrado para hoje");
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('lancamento_ponto')
+          .insert({
+            user_id: user.id,
+            data_entrada: today,
+            entrada_hora: now,
+            status: 'em_andamento'
+          })
+          .select()
+          .single();
+
         if (error) throw error;
+        setTodayEntry(data);
         toast.success("Ponto iniciado!");
 
       } else if (action === 'inicio_almoco') {
@@ -213,6 +224,7 @@ export function FinanceiroDashboard() {
       }
       await loadTodayEntry();
     } catch (error) {
+      console.error('Erro ao registrar ponto:', error);
       toast.error("Erro ao registrar ponto");
     } finally {
       setLoading(false);
