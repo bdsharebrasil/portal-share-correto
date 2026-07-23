@@ -430,7 +430,7 @@ export function FuelRecordsByAircraft({
   const loadBankInstitutions = async () => {
     try {
       const { data, error } = await (supabase as any)
-        .from("instituicoes_bancarias")
+        .from("contas_bancarias")
         .select("id, rotulo")
         .order("ordem", { ascending: true });
 
