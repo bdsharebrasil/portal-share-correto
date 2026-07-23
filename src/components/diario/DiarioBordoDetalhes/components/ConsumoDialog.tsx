@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { X, Droplets, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { num } from "@/lib/formatters";
@@ -15,8 +15,8 @@ type Lanc = {
   tempo_total: number | string | null;
   litros_combustivel_inicio_voo: number | string | null;
   combustivel_adicionado: number | string | null;
-  consumo_combustivel_voo: number | string | null;
-  consumo_combustivel_total: number | string | null;
+  consumo_combustivel_voo: number | string | null;   // já em L/H, calculado por trigger no banco
+  consumo_combustivel_total: number | string | null;  // já em L/H, calculado por trigger no banco
   natureza_voo: string | null;
   clientes_id: string | null;
   socios_id: string | null;
@@ -36,7 +36,8 @@ type MesAnual = {
   abast: number;
   lhVoo: number;
   lhTotal: number;
-  lhEst: number;
+  voosComDado: number;
+  voosTotal: number;
 };
 
 type ClienteConsumo = {
@@ -47,6 +48,7 @@ type ClienteConsumo = {
   lhVoo: number;
   lhTotal: number;
   voos: number;
+  voosComDado: number;
 };
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -74,9 +76,46 @@ const MONTH_NAMES = [
   "jul", "ago", "set", "out", "nov", "dez",
 ];
 
-function calcLH(litros: number, horas: number): number {
-  if (horas <= 0 || litros <= 0) return 0;
-  return litros / horas;
+/**
+ * Média de L/H ponderada pelas horas de cada voo.
+ *
+ * IMPORTANTE: `consumo_combustivel_voo` / `consumo_combustivel_total` já vêm
+ * calculados pelo banco (função `calcular_consumo_combustivel`), comparando o
+ * nível real de combustível no tanque entre voos consecutivos — é a medição
+ * mais confiável que existe, pois não depende de "quando" o abastecimento
+ * caiu dentro do período analisado.
+ *
+ * Por isso, NUNCA recalculamos consumo a partir de `combustivel_adicionado ÷
+ * horas do período` — esse método distorce o resultado sempre que há voos no
+ * período sem abastecimento registrado nele (a aeronave voou com combustível
+ * de um abastecimento anterior, fora da janela). Em vez disso, agregamos a
+ * taxa L/H que já veio pronta de cada linha, ponderando pelas horas do
+ * próprio voo.
+ *
+ * Voos sem consumo calculado (tipicamente o lançamento mais recente da
+ * aeronave, que ainda não tem um "próximo" voo para comparação) são
+ * simplesmente ignorados na média — não têm dado, não entram na conta.
+ */
+function mediaLHPonderada(
+  linhas: Lanc[],
+  campoConsumo: "consumo_combustivel_voo" | "consumo_combustivel_total",
+  campoTempo: "tempo_voo" | "tempo_total"
+): { lh: number; voosComDado: number } {
+  let litros = 0;
+  let horas = 0;
+  let voosComDado = 0;
+
+  for (const l of linhas) {
+    const taxa = Number(l[campoConsumo] ?? 0);
+    const tempo = Number(l[campoTempo] ?? 0);
+    if (taxa > 0 && tempo > 0) {
+      litros += taxa * tempo;
+      horas += tempo;
+      voosComDado += 1;
+    }
+  }
+
+  return { lh: horas > 0 ? litros / horas : 0, voosComDado };
 }
 
 /** Variação % em relação ao histórico */
@@ -129,6 +168,19 @@ function LHCell({ val, ref }: { val: number; ref: number }) {
   return (
     <span className={`font-mono text-sm font-semibold ${COLOR_MAP[cls].text}`}>
       {val.toFixed(1)}
+    </span>
+  );
+}
+
+function CoberturaBadge({ comDado, total }: { comDado: number; total: number }) {
+  if (total === 0) return null;
+  if (comDado === total) return null; // cobertura completa, não precisa avisar
+  return (
+    <span
+      className="inline-flex items-center rounded-full bg-slate-700/40 px-2 py-0.5 text-[10px] text-slate-500"
+      title="Alguns voos ainda não têm consumo calculado (geralmente o lançamento mais recente da aeronave, que aguarda o próximo voo para comparação de tanque)."
+    >
+      {comDado}/{total} voos com dado
     </span>
   );
 }
@@ -221,75 +273,103 @@ export function ConsumoDialog({
   const historico = aeronave.consumo_combustivel ?? 0;
 
   // ── Totais do mês ──
+  // L/H calculado como média ponderada das taxas por voo (já vindas do banco),
+  // NÃO como "combustível adicionado no mês ÷ horas do mês" — ver mediaLHPonderada().
   const mesTotals = useMemo(() => {
     const tVoo   = sumDecimal(lancamentos.map(l => l.tempo_voo));
     const tTotal = sumDecimal(lancamentos.map(l => l.tempo_total));
     const abast  = sumDecimal(lancamentos.map(l => l.combustivel_adicionado));
+
+    const { lh: lhVoo, voosComDado: comDadoVoo } = mediaLHPonderada(lancamentos, "consumo_combustivel_voo", "tempo_voo");
+    const { lh: lhTotal, voosComDado: comDadoTotal } = mediaLHPonderada(lancamentos, "consumo_combustivel_total", "tempo_total");
+
     return {
       tVoo,
       tTotal,
       abast,
-      lhVoo:   calcLH(abast, tVoo),
-      lhTotal: calcLH(abast, tTotal),
+      lhVoo,
+      lhTotal,
+      voosComDado: Math.min(comDadoVoo, comDadoTotal),
+      voosTotal: lancamentos.length,
     };
   }, [lancamentos]);
 
   // ── Tabela anual (agrupa por mês) ──
   const anuais = useMemo<MesAnual[]>(() => {
-    const map = new Map<number, { tVoo: number; tTotal: number; abast: number }>();
+    const map = new Map<number, Lanc[]>();
 
     for (const l of lancamentosAno) {
       const m = new Date(l.data_registro + "T00:00").getMonth() + 1;
-      const cur = map.get(m) ?? { tVoo: 0, tTotal: 0, abast: 0 };
-      cur.tVoo   += Number(l.tempo_voo ?? 0);
-      cur.tTotal += Number(l.tempo_total ?? 0);
-      cur.abast  += Number(l.combustivel_adicionado ?? 0);
+      const cur = map.get(m) ?? [];
+      cur.push(l);
       map.set(m, cur);
     }
 
     return Array.from(map.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([m, v]) => ({
-        mes: m,
-        nomeMes: MONTH_NAMES[m - 1],
-        tVoo:    v.tVoo,
-        tTotal:  v.tTotal,
-        abast:   v.abast,
-        lhVoo:   calcLH(v.abast, v.tVoo),
-        lhTotal: calcLH(v.abast, v.tTotal),
-        lhEst:   historico,
-      }));
-  }, [lancamentosAno, historico]);
+      .map(([m, linhas]) => {
+        const tVoo   = sumDecimal(linhas.map(l => l.tempo_voo));
+        const tTotal = sumDecimal(linhas.map(l => l.tempo_total));
+        const abast  = sumDecimal(linhas.map(l => l.combustivel_adicionado));
+        const { lh: lhVoo, voosComDado: comDadoVoo } = mediaLHPonderada(linhas, "consumo_combustivel_voo", "tempo_voo");
+        const { lh: lhTotal, voosComDado: comDadoTotal } = mediaLHPonderada(linhas, "consumo_combustivel_total", "tempo_total");
 
-  // ── Totais anuais ──
+        return {
+          mes: m,
+          nomeMes: MONTH_NAMES[m - 1],
+          tVoo,
+          tTotal,
+          abast,
+          lhVoo,
+          lhTotal,
+          voosComDado: Math.min(comDadoVoo, comDadoTotal),
+          voosTotal: linhas.length,
+        };
+      });
+  }, [lancamentosAno]);
+
+  // ── Totais anuais (também ponderado pelas horas, não pela média simples dos meses) ──
   const anoTotals = useMemo(() => {
     const tVoo   = anuais.reduce((s, r) => s + r.tVoo, 0);
     const tTotal = anuais.reduce((s, r) => s + r.tTotal, 0);
     const abast  = anuais.reduce((s, r) => s + r.abast, 0);
-    return { tVoo, tTotal, abast, lhVoo: calcLH(abast, tVoo), lhTotal: calcLH(abast, tTotal) };
-  }, [anuais]);
+    const { lh: lhVoo, voosComDado: comDadoVoo } = mediaLHPonderada(lancamentosAno, "consumo_combustivel_voo", "tempo_voo");
+    const { lh: lhTotal, voosComDado: comDadoTotal } = mediaLHPonderada(lancamentosAno, "consumo_combustivel_total", "tempo_total");
+    return {
+      tVoo, tTotal, abast, lhVoo, lhTotal,
+      voosComDado: Math.min(comDadoVoo, comDadoTotal),
+      voosTotal: lancamentosAno.length,
+    };
+  }, [anuais, lancamentosAno]);
 
   // ── Por cliente (mês atual) ──
   const porCliente = useMemo<ClienteConsumo[]>(() => {
-    const map = new Map<string, ClienteConsumo>();
+    const map = new Map<string, Lanc[]>();
     for (const l of lancamentos) {
-      const key   = labelVooPara(l);
-      const tVoo  = Number(l.tempo_voo ?? 0);
-      const tTot  = Number(l.tempo_total ?? 0);
-      const abast = Number(l.combustivel_adicionado ?? 0);
-      const cur   = map.get(key) ?? { label: key, tVoo: 0, tTotal: 0, abast: 0, lhVoo: 0, lhTotal: 0, voos: 0 };
-      cur.tVoo   += tVoo;
-      cur.tTotal += tTot;
-      cur.abast  += abast;
-      cur.voos   += 1;
+      const key = labelVooPara(l);
+      const cur = map.get(key) ?? [];
+      cur.push(l);
       map.set(key, cur);
     }
-    return Array.from(map.values())
-      .map(c => ({ ...c, lhVoo: calcLH(c.abast, c.tVoo), lhTotal: calcLH(c.abast, c.tTotal) }))
+    return Array.from(map.entries())
+      .map(([label, linhas]) => {
+        const tVoo   = sumDecimal(linhas.map(l => l.tempo_voo));
+        const tTotal = sumDecimal(linhas.map(l => l.tempo_total));
+        const abast  = sumDecimal(linhas.map(l => l.combustivel_adicionado));
+        const { lh: lhVoo, voosComDado: comDadoVoo } = mediaLHPonderada(linhas, "consumo_combustivel_voo", "tempo_voo");
+        const { lh: lhTotal, voosComDado: comDadoTotal } = mediaLHPonderada(linhas, "consumo_combustivel_total", "tempo_total");
+        return {
+          label, tVoo, tTotal, abast, lhVoo, lhTotal,
+          voos: linhas.length,
+          voosComDado: Math.min(comDadoVoo, comDadoTotal),
+        };
+      })
       .sort((a, b) => b.abast - a.abast);
   }, [lancamentos, labelVooPara]);
 
   // ── Por voo (mês atual) ──
+  // consumo_combustivel_voo / consumo_combustivel_total JÁ vêm em L/H, calculados
+  // pelo banco a partir do nível real do tanque entre voos consecutivos — usar direto.
   const porVoo = useMemo(() => lancamentos.map(l => ({
     l,
     tVoo:     Number(l.tempo_voo ?? 0),
@@ -313,9 +393,13 @@ export function ConsumoDialog({
         {/* Explicação */}
         <div className="mb-4 rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3 text-xs text-slate-400 leading-relaxed">
           <span className="text-slate-300 font-medium">Como é calculado: </span>
-          <span className="text-blue-400 font-medium">L/H por T. voo</span> = litros abastecidos ÷ horas de voo efetivo (decolagem → pouso).{" "}
-          <span className="text-amber-400 font-medium">L/H por T. total</span> = litros ÷ tempo total do motor ligado (acionamento → corte), incluindo táxi e solo.
-          O T. voo dá um consumo maior porque o denominador é menor. O T. total é mais conservador e reflete o consumo real operacional.
+          o consumo (L/H) de cada voo é medido comparando o nível real de combustível no tanque
+          no início deste voo com o início do voo seguinte, somando o que foi abastecido nesse intervalo.
+          Os totais do período são a <span className="text-slate-300 font-medium">média ponderada pelas horas</span> de
+          cada voo — não uma simples divisão de litros abastecidos pelas horas do mês, o que
+          distorceria o resultado em meses sem reabastecimento registrado.{" "}
+          <span className="text-blue-400 font-medium">L/H por T. voo</span> considera apenas o tempo de voo efetivo;{" "}
+          <span className="text-amber-400 font-medium">L/H por T. total</span> inclui táxi e solo (mais conservador).
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -324,8 +408,9 @@ export function ConsumoDialog({
             <p className="text-xs text-slate-500 mb-1">L/H por T. voo</p>
             <LHCell val={mesTotals.lhVoo} ref={historico} />
             <p className="text-xs text-slate-600 mt-1">base: horas efetivas</p>
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
               <DiffBadge val={mesTotals.lhVoo} ref={historico} />
+              <CoberturaBadge comDado={mesTotals.voosComDado} total={mesTotals.voosTotal} />
             </div>
           </div>
 
@@ -396,6 +481,7 @@ export function ConsumoDialog({
                   <th className="px-4 py-2.5 text-right font-medium text-blue-400">L/H (voo)</th>
                   <th className="px-4 py-2.5 text-right font-medium text-amber-400">L/H (total)</th>
                   <th className="px-4 py-2.5 text-right font-medium text-slate-600">vs histórico</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-slate-600">cobertura</th>
                 </tr>
               </thead>
               <tbody>
@@ -423,6 +509,9 @@ export function ConsumoDialog({
                     <td className="px-4 py-2.5 text-right">
                       <DiffBadge val={r.lhVoo} ref={historico} />
                     </td>
+                    <td className="px-4 py-2.5 text-right text-xs text-slate-500 font-mono">
+                      {r.voosComDado}/{r.voosTotal}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -442,6 +531,9 @@ export function ConsumoDialog({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <DiffBadge val={anoTotals.lhVoo} ref={historico} />
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-slate-500 font-mono">
+                    {anoTotals.voosComDado}/{anoTotals.voosTotal}
                   </td>
                 </tr>
               </tfoot>
@@ -579,11 +671,9 @@ export function ConsumoDialog({
 
   // ── Renderização: inline vs modal ──
   if (inline) {
-    // Modo inline: renderiza sem o modal
     return <div className="space-y-8">{contentJSX}</div>;
   }
 
-  // Modo modal: renderiza com dialog
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-2 backdrop-blur-sm">
       <motion.div
