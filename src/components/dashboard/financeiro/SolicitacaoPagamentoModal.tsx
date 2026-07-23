@@ -105,7 +105,14 @@ const BUCKET = "n.f-boletos-clients";
 const TIPOS_COMBUSTIVEL = ["AVGAS", "JET A-1"] as const;
 
 type SocioOption = { id: string; nome: string; percentual_participacao?: number | null };
-type TipoDespesaOption = { id: string; expense_type: string; subcategoria_1?: string | null; subcategoria_2?: string | null };
+type TipoDespesaOption = { 
+  id: string; 
+  expense_type: string; 
+  subcategoria_1?: string | null; 
+  subcategoria_2?: string | null; 
+  subcategoria_3?: string | null; 
+  subcategoria_4?: string | null; 
+};
 type FornecedorOption = { id: string; label: string; source: "favorito" | "combustivel" };
 type AeronaveOption = { id: string; matricula: string; modelo: string };
 type ReciboOption = { id: string; numero_recibo?: string | null; numero?: string | null; numero_documento?: string | null; pdf_url?: string | null; arquivo_url?: string | null; valor_total?: number | null; created_at?: string | null; criado_em?: string | null; cliente_id?: string | null; clientes_id?: string | null; aeronave_id?: string | null; data_emissao?: string | null };
@@ -252,7 +259,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
     if (!open) return;
     (async () => {
       const [tip, ff, fc, aer, rec] = await Promise.all([
-        supabase.from("expense_configu").select("id, expense_type, subcategoria_1, subcategoria_2").order("expense_type"),
+        supabase.from("expense_configu").select("id, expense_type, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4").order("expense_type"),
         supabase.from("fornecedores_favoritos").select("id, nome_completo, apelido").order("nome_completo"),
         supabase.from("fornecedores_combustivel").select("id, nome_fornecedor, nome_cidade").order("nome_fornecedor"),
         supabase.from("aeronave").select("id, matricula, modelo").order("matricula"),
@@ -447,15 +454,15 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
     const arr: string[] = [];
     if (tipoDespesaSel?.subcategoria_1) arr.push(tipoDespesaSel.subcategoria_1);
     if (tipoDespesaSel?.subcategoria_2) arr.push(tipoDespesaSel.subcategoria_2);
+    if (tipoDespesaSel?.subcategoria_3) arr.push(tipoDespesaSel.subcategoria_3);
+    if (tipoDespesaSel?.subcategoria_4) arr.push(tipoDespesaSel.subcategoria_4);
     return arr;
   }, [tipoDespesaSel]);
+  
   const isSubcat1Sel = !!(tipoDespesaSel?.subcategoria_1 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_1);
   const isSubcat2Sel = !!(tipoDespesaSel?.subcategoria_2 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_2);
-  const subcategoriaSelecionadaParaPayload = useMemo(() => resolverSubcategoriaSelecionadaParaPayload({
-    subcategoriaSelecionada: subcategoriaSel || null,
-    subcategoria1: tipoDespesaSel?.subcategoria_1 || null,
-    subcategoria2: tipoDespesaSel?.subcategoria_2 || null,
-  }), [subcategoriaSel, tipoDespesaSel?.subcategoria_1, tipoDespesaSel?.subcategoria_2]);
+  const isSubcat3Sel = !!(tipoDespesaSel?.subcategoria_3 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_3);
+  const isSubcat4Sel = !!(tipoDespesaSel?.subcategoria_4 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_4);
 
   useEffect(() => {
     if (!open || !isReciboFirstMode || !aeronaveId) {
@@ -1014,7 +1021,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
   const resetForm = () => {
     setEtapaAtual(1); // Wizard volta para a etapa inicial
-    setAeronaveId(""); setReembolsavel(false);
+    setAeronaveId(""); 
     setTipoDespesa(""); setTipoDespesaLabel(""); setDescricao(""); setValorTotal("");
     setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio("FIXO"); setObservacoes("");
     setFornecedorId(""); setFornecedorNome("");
@@ -1219,10 +1226,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
       const reciboNum = pickNumero(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.numero : null) || (isTaxasMode ? taxaReciboSelecionado?.numero_recibo || taxaReciboSelecionado?.numero_documento || null : null) || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
       const docNum = pickNumero(anexosProc, "doc") || (isRelatorioViagemMode && travelReportSel ? travelReportSel.numero_relatorio : null) || (isReciboViagemMode ? referenciaNumero : null);
-      const subcategoria1Val = subcategoriaSelecionadaParaPayload;
-      const subcategoria2Val = null;
-      const subcategoria3Val = null;
-      const subcategoria4Val = null;
+      const subcategoria1Val = isSubcat1Sel ? subcategoriaSel : null;
+      const subcategoria2Val = isSubcat2Sel ? subcategoriaSel : null;
+      const subcategoria3Val = isSubcat3Sel ? subcategoriaSel : null;
+      const subcategoria4Val = isSubcat4Sel ? subcategoriaSel : null;
       const fornecedorNomeFinal = resolverFornecedorSolicitacao({ isViagemMode, fornecedorNome });
 
       if (!rascunho && referenciaTipo && referenciaId) {
@@ -1270,7 +1277,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
               descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, tipo: "despesa", tipo_caixa: "cliente",
               categoria_id: categoriaContaId, valor: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
-              clientes_id: clienteParaPersistencia, socio_id: socioId || null, reembolsavel, fornecedor_nome: fornecedorNomeFinal,
+              clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: travelReportNumeroDoc,
               nf_url: nfUrl, recibo_url: reciboUrl, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
               observacoes: obsFinal || null, contas_apagar_id: capId,
@@ -1293,7 +1300,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                 percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
-                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
+                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
                 relatorio_url: travelReportSel.pdf_url || docUrl || null,
                 pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length }),
               }))
@@ -1305,7 +1312,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                 percentual_sociedade: socioSel?.percentual_participacao ?? 0, percentual_uso: percNumerico,
                 descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
-                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val,
+                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
                 relatorio_url: travelReportSel.pdf_url || docUrl || null,
                 pago_por: resolverPagoPorSolicitacao({ socioNome: socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length || (socioId ? 1 : 0) }),
               }];
@@ -1393,7 +1400,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
             const movId = await insertAndGetId("movimentacoes", {
               descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
               categoria_id: categoriaContaId, valor: valorCliente, valor_original: valorNumericoFinal, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
-              aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, reembolsavel, fornecedor_nome: fornecedorNomeFinal,
+              aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum, nf_url: nfUrl, recibo_url: reciboUrlLinha, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
               observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
             });
