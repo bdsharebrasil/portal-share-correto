@@ -104,6 +104,32 @@ const BUCKET = "n.f-boletos-clients";
 // para evitar variações de digitação ("JET-A1", "Jet A1", "jet a-1"...) chegando ao banco.
 const TIPOS_COMBUSTIVEL = ["AVGAS", "JET A-1"] as const;
 
+// Sanitiza o nome do arquivo antes de virar "key" no Supabase Storage.
+// O Storage rejeita (InvalidKey) nomes com acentos, cedilha, espaços colados na
+// extensão, ou outros caracteres fora de [a-zA-Z0-9_-.]. Aqui: remove acentos,
+// troca espaços por "_", remove qualquer caractere não seguro e preserva a extensão.
+function sanitizeFileName(name: string): string {
+  const dotIndex = name.lastIndexOf(".");
+  const base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
+  const ext = dotIndex > 0 ? name.slice(dotIndex + 1) : "";
+
+  const cleanBase = base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos (á, ã, ç, é, etc.)
+    .trim()
+    .replace(/\s+/g, "_") // espaços -> underscore
+    .replace(/[^a-zA-Z0-9_-]/g, "") // remove qualquer outro caractere não seguro
+    .slice(0, 100); // evita nomes gigantes
+
+  const cleanExt = ext.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const finalBase = cleanBase || "arquivo";
+  return cleanExt ? `${finalBase}.${cleanExt}` : finalBase;
+}
+
+// Uppercase automático para campos de texto livre preenchidos pelo usuário.
+// Mantido em uma função utilitária única para garantir consistência em todo o form.
+const up = (value: string) => (value || "").toUpperCase();
+
 type SocioOption = { id: string; nome: string; percentual_participacao?: number | null };
 type TipoDespesaOption = { 
   id: string; 
@@ -635,7 +661,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
   const uploadAbastFile = async (file: File | null, folder: string): Promise<string | null> => {
     if (!file) return null;
-    const path = `abastecimentos/${aeronaveId || "sem-aeronave"}/${folder}/${Date.now()}-${file.name}`;
+    const path = `abastecimentos/${aeronaveId || "sem-aeronave"}/${folder}/${Date.now()}-${sanitizeFileName(file.name)}`;
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false });
     if (error) throw error;
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -1084,7 +1110,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
     const out: AnexoDoc[] = [];
     for (const a of anexos) {
       if (a.arquivo) {
-        const path = `solicitacoes/${aeronaveId || "sem-aeronave"}/${Date.now()}-${a.arquivo.name}`;
+        const path = `solicitacoes/${aeronaveId || "sem-aeronave"}/${Date.now()}-${sanitizeFileName(a.arquivo.name)}`;
         const { error } = await supabase.storage.from(BUCKET).upload(path, a.arquivo, { upsert: false });
         if (error) throw error;
         const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -1132,12 +1158,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
   const criarTipoDespesa = async (label: string) => {
     const supabaseClient = supabase as unknown as SupabaseClientLike;
-    const { data, error } = await supabaseClient.from("expense_configu").insert({ expense_type: label }).select("id, expense_type").single();
+    const { data, error } = await supabaseClient.from("expense_configu").insert({ expense_type: up(label) }).select("id, expense_type").single();
     if (error) { toast.error("Falha ao criar tipo"); return; }
     setTiposDespesa((prev) => [...prev, data as TipoDespesaOption]);
     setTipoDespesa(data.id);
     setTipoDespesaLabel(data.expense_type);
-    toast.success(`Tipo "${label}" adicionado`);
+    toast.success(`Tipo "${data.expense_type}" adicionado`);
   };
 
   const normalizeClienteId = (value: string | null | undefined): string | null => {
@@ -1570,7 +1596,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                         setTipoDespesaLabel(existente.expense_type);
                         setSubcategoriaSel("");
                       }
-                      else if (label) { if (window.confirm(`Adicionar novo tipo "${label}"?`)) criarTipoDespesa(label); }
+                      else if (label) { const labelUpper = up(label); if (window.confirm(`Adicionar novo tipo "${labelUpper}"?`)) criarTipoDespesa(labelUpper); }
                     }}
                     placeholder="Selecione o tipo" allowFreeText
                   />
@@ -2134,11 +2160,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <Label>Comanda</Label>
-                      <Input value={fuelComanda} onChange={(e) => setFuelComanda(e.target.value)} placeholder="Nº da comanda" />
+                      <Input value={fuelComanda} onChange={(e) => setFuelComanda(up(e.target.value))} placeholder="Nº da comanda" />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Nº da NF</Label>
-                      <Input value={fuelNf} onChange={(e) => setFuelNf(e.target.value)} placeholder="Nº da nota fiscal" />
+                      <Input value={fuelNf} onChange={(e) => setFuelNf(up(e.target.value))} placeholder="Nº da nota fiscal" />
                     </div>
                     <div className="flex items-end">
                       <Button type="button" variant="outline" className="w-full border-amber-500/30 hover:bg-amber-500/10" onClick={buscarAbastecimento} disabled={fuelLookupLoading}>
@@ -2183,7 +2209,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                 {!isViagemMode && !(isCombustivelMode && fuelLookupResult) && (
                   <div className="space-y-1.5">
                     <Label>Fornecedor</Label>
-                    <SearchableCombobox items={fornecedores} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedorNome(fornecedores.find((f) => f.id === id)?.label || label || ""); }} placeholder="Selecione ou digite" allowFreeText />
+                    <SearchableCombobox items={fornecedores} value={fornecedorId} onChange={(id, label) => { setFornecedorId(id); setFornecedorNome(fornecedores.find((f) => f.id === id)?.label || up(label || "")); }} placeholder="Selecione ou digite" allowFreeText />
                   </div>
                 )}
 
@@ -2201,7 +2227,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
                 <div className="space-y-1.5">
                   <Label>Descrição da Despesa *</Label>
-                  <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} maxLength={500} placeholder="Ex: Manutenção de rotina" />
+                  <Textarea value={descricao} onChange={(e) => setDescricao(up(e.target.value))} rows={2} maxLength={500} placeholder="Ex: Manutenção de rotina" />
                 </div>
 
                 {(isRelatorioViagemMode || isReciboViagemMode) && (
@@ -2226,7 +2252,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
                 <div className="space-y-1.5">
                   <Label>Observações Adicionais</Label>
-                  <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} maxLength={1000} />
+                  <Textarea value={observacoes} onChange={(e) => setObservacoes(up(e.target.value))} rows={2} maxLength={1000} />
                 </div>
               </section>
 
@@ -2357,7 +2383,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                               </Select>
                             </div>
                           )}
-                          <Input className="md:col-span-3" placeholder="Nº Documento (Opcional)" value={a.numero} onChange={(e) => updateAnexo(a.id, { numero: e.target.value })} />
+                          <Input className="md:col-span-3" placeholder="Nº Documento (Opcional)" value={a.numero} onChange={(e) => updateAnexo(a.id, { numero: up(e.target.value) })} />
                           <div className="md:col-span-3">
                             <label className="flex-1 cursor-pointer block">
                               <input type="file" className="hidden" accept="application/pdf,image/*" onChange={(e) => updateAnexo(a.id, { arquivo: e.target.files?.[0] || null })} />
@@ -2445,11 +2471,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Comanda</Label>
-                <Input value={fuelComanda} onChange={(e) => setFuelComanda(e.target.value)} placeholder="Nº da comanda" />
+                <Input value={fuelComanda} onChange={(e) => setFuelComanda(up(e.target.value))} placeholder="Nº da comanda" />
               </div>
               <div className="space-y-1.5">
                 <Label>Nº da NF</Label>
-                <Input value={fuelNf} onChange={(e) => setFuelNf(e.target.value)} placeholder="Nº da nota fiscal" />
+                <Input value={fuelNf} onChange={(e) => setFuelNf(up(e.target.value))} placeholder="Nº da nota fiscal" />
               </div>
               <div className="space-y-1.5">
                 <Label>Data *</Label>
@@ -2472,11 +2498,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
               </div>
               <div className="space-y-1.5">
                 <Label>Local</Label>
-                <Input value={novoAbast.local} onChange={(e) => setNovoAbast((p) => ({ ...p, local: e.target.value }))} placeholder="Ex: SBSP" />
+                <Input value={novoAbast.local} onChange={(e) => setNovoAbast((p) => ({ ...p, local: up(e.target.value) }))} placeholder="Ex: SBSP" />
               </div>
               <div className="space-y-1.5">
                 <Label>Trecho</Label>
-                <Input value={novoAbast.trecho} onChange={(e) => setNovoAbast((p) => ({ ...p, trecho: e.target.value }))} placeholder="Ex: SBSP-SBRJ" />
+                <Input value={novoAbast.trecho} onChange={(e) => setNovoAbast((p) => ({ ...p, trecho: up(e.target.value) }))} placeholder="Ex: SBSP-SBRJ" />
               </div>
               <div className="space-y-1.5">
                 <Label>Litros</Label>
@@ -2514,7 +2540,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
               </div>
               <div className="space-y-1.5 md:col-span-2">
                 <Label>Observação</Label>
-                <Textarea rows={2} value={novoAbast.observacao} onChange={(e) => setNovoAbast((p) => ({ ...p, observacao: e.target.value }))} />
+                <Textarea rows={2} value={novoAbast.observacao} onChange={(e) => setNovoAbast((p) => ({ ...p, observacao: up(e.target.value) }))} />
               </div>
             </div>
 

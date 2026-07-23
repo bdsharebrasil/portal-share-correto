@@ -108,8 +108,7 @@ export function InadimplenciaPanel() {
                   {topVencidos.map((item) => (
                     <button
                       key={`${item.origem}-${item.id}`}
-                      // Nova rota apontando para o portal do cliente
-                      onClick={() => navigate("/portal-cliente")}
+                      onClick={() => navigate("/portal-cliente", { state: { clientId: item.cliente_id } })}
                       className="w-full flex items-center justify-between gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-red-500/10 hover:border-red-500/30 hover:bg-red-500/[0.03] transition-all text-left"
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
