@@ -88,6 +88,7 @@ type Lanc = {
   assinado_por: string | null;
   data_assinatura_piloto: string | null;
   trecho: string | null;
+  numero_sequencial: number | null;
 };
 type Tripulante = { id: string; nome_completo: string | null; canac: string | null; status: string | null };
 type DiarioMesRow = {
@@ -172,6 +173,7 @@ function DiarioBordoDetalhes() {
   const [diarioMes, setDiarioMes] = useState<DiarioMesRow | null>(null);
   const [lancamentos, setLancamentos] = useState<Lanc[]>([]);
   const [lancamentosAno, setLancamentosAno] = useState<Lanc[]>([]);
+  const [ultimaDataLancamento, setUltimaDataLancamento] = useState<string | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [tripulantes, setTripulantes] = useState<Tripulante[]>([]);
@@ -237,15 +239,21 @@ function DiarioBordoDetalhes() {
     const anoIni = `${ano}-01-01`;
     const anoFim = `${ano}-12-31`;
 
-    const [aRes, dmRes, lRes, lAnoRes, cRes, sRes, tRes, abRes, logbookIdsRes, aeroRes] = await Promise.all([
+    const [aRes, dmRes, lRes, lAnoRes, ultimaDataRes, cRes, sRes, tRes, abRes, logbookIdsRes, aeroRes] = await Promise.all([
       supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
         .gte("data_registro", ini).lte("data_registro", fim)
-        .order("data_registro", { ascending: true }),
+        .order("data_registro", { ascending: true })
+        .order("numero_sequencial", { ascending: true }),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
         .gte("data_registro", anoIni).lte("data_registro", anoFim)
-        .order("data_registro", { ascending: true }),
+        .order("data_registro", { ascending: true })
+        .order("numero_sequencial", { ascending: true }),
+      supabase.from("lancamentos_diario_bordo").select("data_registro").eq("aeronave_id", aircraftId)
+        .order("data_registro", { ascending: false })
+        .order("numero_sequencial", { ascending: false })
+        .limit(1),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
       (supabase as any).from("socios").select("id,nome,cliente_id").order("nome"),
       supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
@@ -263,6 +271,7 @@ function DiarioBordoDetalhes() {
     setDiarioMes((dmRes.data ?? null) as DiarioMesRow | null);
     setLancamentos((lRes.data ?? []) as unknown as Lanc[]);
     setLancamentosAno((lAnoRes.data ?? []) as unknown as Lanc[]);
+    setUltimaDataLancamento(ultimaDataRes.data?.[0]?.data_registro ?? null);
     setClientes((cRes.data ?? []) as Cliente[]);
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
     setTripulantes((tRes.data ?? []) as Tripulante[]);
@@ -523,7 +532,11 @@ function DiarioBordoDetalhes() {
   }, [abastecimentos]);
 
   const displayLancamentos = useMemo(() => {
-    let list = [...lancamentos];
+    let list = [...lancamentos].sort((a, b) => {
+      const dateOrder = a.data_registro.localeCompare(b.data_registro);
+      if (dateOrder !== 0) return dateOrder;
+      return Number(a.numero_sequencial ?? 0) - Number(b.numero_sequencial ?? 0);
+    });
     if (cotistaFiltro) list = list.filter((l) => labelVooPara(l) === cotistaFiltro);
     if (sortDir === "desc") list = list.reverse();
     if (!searchQuery.trim()) return list.map(l => ({ l, match: false }));
@@ -886,6 +899,7 @@ function DiarioBordoDetalhes() {
                     ultimaCelula={diarioMes?.celula_atual_ttotal ?? 0}
                     ultimaCelulaTvoo={diarioMes?.celula_atual_tvoo ?? 0}
                     temDiaria={temDiaria}
+                    ultimaDataLancamento={ultimaDataLancamento}
                     onClose={() => setActivePanel("none")}
                     onSaved={async () => { setActivePanel("none"); await new Promise(r => setTimeout(r, 300)); await reload(); }}
                   />
@@ -1172,7 +1186,7 @@ function DiarioBordoDetalhes() {
                           <Td className="text-center">
                             <Popover open={rowActionOpen === l.id} onOpenChange={(o) => setRowActionOpen(o ? l.id : null)}>
                               <PopoverTrigger asChild>
-                                <button className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors underline">{idx + 1}</button>
+                                <button className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 transition-colors underline">{l.numero_sequencial ?? idx + 1}</button>
                               </PopoverTrigger>
                               <PopoverContent side="right" align="start" className="w-40 p-1 bg-slate-900 border-slate-700 rounded-xl shadow-xl">
                                 <button
@@ -1330,7 +1344,7 @@ function DiarioBordoDetalhes() {
                             isHighlight ? "bg-cyan-500/10" : idx % 2 === 0 ? "bg-slate-800/20" : "",
                             "hover:bg-slate-800/50",
                           ].join(" ")}>
-                          <Td className="text-center font-mono text-slate-500">{idx + 1}</Td>
+                          <Td className="text-center font-mono text-slate-500">{l.numero_sequencial ?? idx + 1}</Td>
                           <Td>{new Date(l.data_registro + "T00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</Td>
                           <Td className="font-mono font-medium text-white">{trecho}</Td>
                           <Td className="font-mono text-slate-400">{pgTimeToHHMM(l.tempo_dep)}</Td>
@@ -1632,19 +1646,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ─── NovoVooInline ────────────────────────────────────────────────────────── */
 function NovoVooInline({
   aeronave, mes, ano, modoCelula, clientes, socios, tripulantes,
-  aerodromes, ultimaCelula, ultimaCelulaTvoo, temDiaria, onClose, onSaved,
+  aerodromes, ultimaCelula, ultimaCelulaTvoo, temDiaria, ultimaDataLancamento, onClose, onSaved,
 }: {
   aeronave: Aeronave; mes: number; ano: number;
   modoCelula: "tvoo" | "tempo_total";
   clientes: Cliente[]; socios: Socio[]; tripulantes: Tripulante[];
   aerodromes: Array<{ id: string; designativo: string; name: string; coordenadas: string | null }>;
   ultimaCelula: number; ultimaCelulaTvoo: number;
-  temDiaria: boolean; onClose: () => void; onSaved: () => void;
+  temDiaria: boolean; ultimaDataLancamento: string | null; onClose: () => void; onSaved: () => void;
 }) {
   const today = new Date();
-  const defaultDate = today.getMonth() + 1 === mes && today.getFullYear() === ano
+  const defaultDate = ultimaDataLancamento ?? (today.getMonth() + 1 === mes && today.getFullYear() === ano
     ? today.toISOString().slice(0, 10)
-    : `${ano}-${String(mes).padStart(2, "0")}-01`;
+    : `${ano}-${String(mes).padStart(2, "0")}-01`);
 
   const [data, setData] = useState(defaultDate);
   const [origem, setOrigem] = useState("");
