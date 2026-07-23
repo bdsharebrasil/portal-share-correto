@@ -737,19 +737,15 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
       return;
     }
 
-    const info = clientesDaAeronave.find((c) => c.clienteId === clienteId);
-    const sociosVisiveis = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
-    const overridesSocio: Record<string, string> = {};
-    if (info) {
-      for (const s of sociosVisiveis) {
-        overridesSocio[s.id] = "100";
-      }
-    }
+    // Overrides de sócio começam VAZIOS de propósito: a UI calcula o % proporcional
+    // à participação societária (percentual_participacao) de cada sócio visível
+    // automaticamente (ver bloco "Rateio Interno (Por Sócio)" abaixo), garantindo que
+    // a soma sempre feche em 100% — inclusive depois de excluir algum sócio do rateio.
     setClienteLinhas([{
       uid: crypto.randomUUID(),
       clienteId,
       percentualUsoCliente: "100",
-      overridesSocio,
+      overridesSocio: {},
       valorOverridesSocio: {},
     }]);
   }, [isViagemMode, aeronaveId, clienteId, socioId, clientesDaAeronave]);
@@ -907,7 +903,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
   const valorNumerico = Number(String(valorTotal).replace(",", ".")) || 0;
   const percNumerico = Number(String(percentualUso).replace(",", ".")) || 0;
-  
+
   const linhasRateioPreview = useMemo(() => montarLinhasRateio({
     valorTotal: valorNumerico,
     percentualUso: percNumerico,
@@ -1940,6 +1936,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                     {clienteLinhas.map((linha) => {
                       const info = getClienteAeronaveInfo(linha.clienteId);
                       const sociosVisiveis = getSociosVisiveisParaCliente(info);
+                      const temSocios = !!(info && info.socios.length > 0);
                       const itensDisponiveis = clientesDaAeronave.filter((c) => c.clienteId === linha.clienteId || !clientesJaUsados.has(c.clienteId));
                       const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
                       const overrideNum = linha.valorClienteOverride !== undefined && linha.valorClienteOverride !== ""
@@ -1952,15 +1949,21 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                       return (
                         <div key={linha.uid} className="rounded-lg border border-white/10 bg-background/60 p-4 space-y-4">
                           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
-                            <div className="lg:col-span-6 space-y-1.5">
-                              <Label className="text-xs text-muted-foreground">Cliente</Label>
-                              <Input value={info?.razaoSocial || "—"} readOnly className="bg-muted/30 font-medium" />
-                            </div>
-                            <div className="lg:col-span-3 space-y-1.5">
+                            {/* Cliente só aparece quando ele NÃO tem sócios cadastrados.
+                                Quando há sócios, o rateio interno abaixo já identifica a despesa
+                                por nome de sócio — mostrar o cliente aqui seria redundante e
+                                confuso, já que o valor por sócio é o que de fato importa. */}
+                            {!temSocios && (
+                              <div className="lg:col-span-6 space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Cliente</Label>
+                                <Input value={info?.razaoSocial || "—"} readOnly className="bg-muted/30 font-medium" />
+                              </div>
+                            )}
+                            <div className={cn("space-y-1.5", temSocios ? "lg:col-span-6" : "lg:col-span-3")}>
                               <Label className="text-xs text-muted-foreground">% da Nota</Label>
                               <Input type="text" inputMode="decimal" value={linha.percentualUsoCliente} onChange={(e) => updateClienteLinha(linha.uid, { percentualUsoCliente: e.target.value, valorClienteOverride: undefined })} placeholder="100" />
                             </div>
-                            <div className="lg:col-span-3 space-y-1.5">
+                            <div className={cn("space-y-1.5", temSocios ? "lg:col-span-6" : "lg:col-span-3")}>
                               <Label className="text-xs text-muted-foreground">Valor a Pagar (R$)</Label>
                               <Input
                                 type="text"
@@ -2006,10 +2009,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                           )}
 
                           {info && sociosVisiveis.length > 0 && (
-                            <div className="space-y-2 mt-4 pt-4 border-t border-white/5">
+                            <div className="space-y-3 mt-4 pt-4 border-t border-white/5">
                               <div className="flex items-center justify-between">
                                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rateio Interno (Por Sócio)</Label>
-                                <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{sociosVisiveis.length} linha(s)</Badge>
+                                <Badge variant="outline" className="bg-white/5 text-[10px] border-white/10">{sociosVisiveis.length} de {info.socios.length} sócio(s)</Badge>
                               </div>
 
                               <div className="flex flex-wrap gap-2">
@@ -2020,7 +2023,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                                       key={socio.id}
                                       type="button"
                                       onClick={() => toggleSocioExcluido(socio.id)}
-                                      className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${isExcluded ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"}`}
+                                      className={cn(
+                                        "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
+                                        isExcluded
+                                          ? "border-red-500/30 bg-red-500/10 text-red-300 line-through opacity-70"
+                                          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                                      )}
+                                      title={isExcluded ? "Sócio excluído do rateio — clique para incluir novamente" : "Clique para excluir este sócio do rateio"}
                                     >
                                       {isExcluded ? <span className="flex items-center gap-1"><Trash2 className="h-3 w-3" /> {socio.nome}</span> : socio.nome}
                                     </button>
@@ -2031,10 +2040,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                               <div className="grid gap-2">
                                 {(() => {
                                   const totalPctSocios = sociosVisiveis.reduce((s, so) => s + (Number(so.percentual_participacao ?? 0) || 0), 0);
-                                  return sociosVisiveis.map((s) => {
+                                  const linhasSocios = sociosVisiveis.map((s) => {
                                     const overrideVal = linha.overridesSocio[s.id];
                                     const valorOverrideVal = linha.valorOverridesSocio?.[s.id];
-                                    const autoPct = totalPctSocios > 0 ? (Number(s.percentual_participacao ?? 0) / totalPctSocios) * 100 : 100 / info.socios.length;
+                                    // Fallback divide pelos sócios VISÍVEIS (não excluídos), nunca pelo total
+                                    // original do cliente — assim, excluir um sócio redistribui de verdade.
+                                    const autoPct = totalPctSocios > 0 ? (Number(s.percentual_participacao ?? 0) / totalPctSocios) * 100 : 100 / sociosVisiveis.length;
                                     const hasValorOverride = valorOverrideVal !== undefined && valorOverrideVal !== "" && !Number.isNaN(Number(String(valorOverrideVal).replace(",", ".")));
                                     const pctEfetivo = hasValorOverride
                                       ? (valorNumerico > 0 ? (Number(String(valorOverrideVal).replace(",", ".")) / valorNumerico) * 100 : 0)
@@ -2042,24 +2053,37 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                                     const valorSocio = hasValorOverride
                                       ? Number(String(valorOverrideVal).replace(",", "."))
                                       : +(valorCliente * (pctEfetivo / 100)).toFixed(2);
-
-                                    return (
-                                      <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-md border border-white/5 bg-black/20 p-2 text-sm">
-                                        <div className="font-medium text-foreground min-w-[140px] flex-1">{s.nome}</div>
-                                        <div className="flex items-center gap-1 text-muted-foreground">
-                                          <span className="text-xs whitespace-nowrap">%:</span>
-                                          <Input type="text" inputMode="decimal" className="h-7 w-20 text-xs text-center" placeholder={`${autoPct.toFixed(2)}`} value={hasValorOverride ? pctEfetivo.toFixed(2) : (overrideVal ?? "")} onChange={(e) => { updateOverrideSocio(linha.uid, s.id, e.target.value); updateValorOverrideSocio(linha.uid, s.id, ""); }} />
-                                        </div>
-                                        <div className="flex items-center gap-1 text-emerald-300">
-                                          <span className="text-xs whitespace-nowrap">R$:</span>
-                                          <Input type="text" inputMode="decimal" className="h-7 w-28 text-xs text-right" placeholder={valorSocio.toFixed(2)} value={valorOverrideVal ?? ""} onChange={(e) => updateValorOverrideSocio(linha.uid, s.id, e.target.value)} />
-                                          <span className="text-[10px] opacity-60 whitespace-nowrap">
-                                            = {valorSocio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    );
+                                    return { socio: s, overrideVal, valorOverrideVal, autoPct, hasValorOverride, pctEfetivo, valorSocio };
                                   });
+                                  const somaPctSocios = linhasSocios.reduce((sum, l) => sum + l.pctEfetivo, 0);
+                                  const somaSociosForaDoEsperado = Math.abs(somaPctSocios - 100) > 0.5;
+
+                                  return (
+                                    <>
+                                      {linhasSocios.map(({ socio: s, overrideVal, valorOverrideVal, autoPct, hasValorOverride, pctEfetivo, valorSocio }) => (
+                                        <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-md border border-white/5 bg-black/20 p-2 text-sm transition-colors hover:bg-black/30">
+                                          <div className="font-medium text-foreground min-w-[140px] flex-1">{s.nome}</div>
+                                          <div className="flex items-center gap-1 text-muted-foreground">
+                                            <span className="text-xs whitespace-nowrap">%:</span>
+                                            <Input type="text" inputMode="decimal" className="h-7 w-20 text-xs text-center" placeholder={autoPct.toFixed(2)} value={hasValorOverride ? pctEfetivo.toFixed(2) : (overrideVal ?? "")} onChange={(e) => { updateOverrideSocio(linha.uid, s.id, e.target.value); updateValorOverrideSocio(linha.uid, s.id, ""); }} />
+                                          </div>
+                                          <div className="flex items-center gap-1 text-emerald-300">
+                                            <span className="text-xs whitespace-nowrap">R$:</span>
+                                            <Input type="text" inputMode="decimal" className="h-7 w-28 text-xs text-right" placeholder={valorSocio.toFixed(2)} value={valorOverrideVal ?? ""} onChange={(e) => updateValorOverrideSocio(linha.uid, s.id, e.target.value)} />
+                                            <span className="text-[10px] opacity-60 whitespace-nowrap">
+                                              = {valorSocio.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      <div className={cn(
+                                        "text-xs rounded-md p-2 border font-medium",
+                                        somaSociosForaDoEsperado ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                                      )}>
+                                        Soma dos sócios: {somaPctSocios.toFixed(2)}% {somaSociosForaDoEsperado ? "— ajuste os percentuais para fechar 100%" : "— OK"}
+                                      </div>
+                                    </>
+                                  );
                                 })()}
                               </div>
                             </div>
