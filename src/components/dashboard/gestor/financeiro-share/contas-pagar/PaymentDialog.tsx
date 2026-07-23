@@ -74,6 +74,10 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
   const [travelReport, setTravelReport] = useState<TravelReportSummary | null>(null);
   // NOVO: indica se a despesa precisa ser reembolsada para o caixa share
   const [necessitaReembolso, setNecessitaReembolso] = useState(false);
+  // NOVO: modo de pagamento informado manualmente pelo usuário no momento do
+  // registro — permite corrigir/confirmar se foi um rateio entre clientes ou
+  // um pagamento único, independente do que o sistema detectou automaticamente.
+  const [modoPagamento, setModoPagamento] = useState<"rateio" | "unico">("unico");
 
   const normalizeRateioValue = (value: string | number | null | undefined) => {
     const numberValue = Number(String(value ?? "").replace(",", "."));
@@ -101,7 +105,30 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     }
 
     (async () => {
-      const despesaIds = [conta.id, conta.movimentacao_id].filter(Boolean) as string[];
+      // Uma conta a pagar pode ter gerado VÁRIAS linhas em "movimentacoes"
+      // (uma por cliente/sócio do rateio, além de uma possível linha
+      // agregada de caixa share). "contas_apagar.movimentacao_id" guarda
+      // só UMA dessas linhas, então usá-lo sozinho faz o rateio aparecer
+      // incompleto (só o último cliente vinculado). O vínculo confiável
+      // com TODAS as linhas é "movimentacoes.contas_apagar_id = conta.id".
+      const { data: movsVinculadas, error: movsError } = await (supabase as any)
+        .from("movimentacoes")
+        .select("id")
+        .eq("contas_apagar_id", conta.id);
+      if (movsError) {
+        console.error("Erro ao buscar movimentações vinculadas à conta:", movsError);
+      }
+
+      const despesaIds = Array.from(
+        new Set(
+          [
+            conta.id,
+            conta.movimentacao_id,
+            ...(movsVinculadas || []).map((m: any) => m.id),
+          ].filter(Boolean) as string[]
+        )
+      );
+
       const { data: rateioData, error: rateioError } = await (supabase as any)
         .from("rateio_despesas")
         .select("id, cliente_id, clientes_nome, socio_id, socios_nome, valor_rateado, valor_pago_real")
@@ -117,6 +144,9 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           defaults[r.id] = normalizeRateioValue(r.valor_pago_real ?? r.valor_rateado ?? 0);
         });
         setRateioValues(defaults);
+        // Preenche o modo automaticamente com o que foi detectado, mas o
+        // usuário pode mudar manualmente na tela antes de confirmar.
+        setModoPagamento(rows.length > 0 ? "rateio" : "unico");
       }
 
       const reportReferenceId = conta?.reference_id?.trim() || null;
@@ -231,30 +261,12 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     }
   };
 
-  /**
-   * Gera os registros de "contas a receber" (reembolso) e a movimentação
-   * do tipo caixa share correspondente, um para cada cliente envolvido na
-   * despesa.
-   *
-   * - Se a despesa foi rateada, é gerado um reembolso por cliente com o
-   *   valor efetivamente pago por ele (linhas de sócio são ignoradas, pois
-   *   o reembolso é sempre cobrado do cliente).
-   * - Se não houve rateio, é gerado um único reembolso no valor integral
-   *   pago, vinculado ao cliente da despesa original.
-   *
-   * OBS: como "contas_areceber" exige cliente_cnpj (NOT NULL), o CNPJ é
-   * buscado na tabela "clientes". Ajuste o nome da coluna se for diferente
-   * no seu schema.
-   */
   const gerarReembolsosCaixaShare = async (categoriaId: string | null) => {
     const hoje = format(new Date(), "yyyy-MM-dd");
 
-    // Mapa: cliente_id -> valor acumulado a reembolsar
     const valoresPorCliente = new Map<string, number>();
 
     if (rateioRows.length > 0) {
-      // Linhas de rateio de sócio sem cliente_id direto: resolve o cliente_id
-      // do sócio através da tabela "socios" (todo sócio pertence a um cliente).
       const socioIdsParaResolver = Array.from(
         new Set(
           rateioRows
@@ -280,7 +292,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         const valorRow = Number(normalizeRateioValue(rateioValues[row.id] ?? "0")) || 0;
         if (!valorRow) return;
         const clienteId = row.cliente_id || (row.socio_id ? socioParaCliente.get(row.socio_id) : null);
-        if (!clienteId) return; // linha sem cliente identificável, não gera reembolso para ela
+        if (!clienteId) return;
         valoresPorCliente.set(
           clienteId,
           Number(((valoresPorCliente.get(clienteId) || 0) + valorRow).toFixed(2))
@@ -295,7 +307,6 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       return;
     }
 
-    // Busca nome e CNPJ de todos os clientes envolvidos numa única consulta
     const clienteIds = Array.from(valoresPorCliente.keys());
     const { data: clientesData, error: clientesError } = await supabase
       .from("clientes")
@@ -313,7 +324,6 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       if (!valor || valor <= 0) continue;
 
       const info = clienteInfo.get(clienteId);
-      // cliente_cnpj é obrigatório em contas_areceber; sem CNPJ cadastrado, não dá para gerar o registro
       if (!info?.cnpj) {
         toast.warning(`Reembolso não gerado para ${info?.razao_social || "cliente"}: CNPJ não cadastrado.`);
         continue;
@@ -378,13 +388,12 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     if (!metodoPagamento) return toast.error("Selecione o método de pagamento");
     if (!dataPagamento) return toast.error("Informe a data do pagamento");
 
-    const hasRateio = rateioRows.length > 0;
+    const hasRateio = modoPagamento === "rateio" && rateioRows.length > 0;
     const valorNum = hasRateio ? rateioTotal : parseFloat(valorPago);
     if (!valorNum || valorNum <= 0) return toast.error("Informe um valor válido");
 
     setSaving(true);
     try {
-      // 1) Atualiza conta a pagar
       const { error: updErr } = await (supabase.from("contas_apagar") as unknown as SupabaseQuery)
         .update({
           status: "paga",
@@ -397,15 +406,14 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         .eq("id", conta!.id);
       if (updErr) throw updErr;
 
-      // 2) Movimentação vinculada
       if (conta!.movimentacao_id) {
         await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
           .update({ status: "pago", data_pagamento: dataPagamento, valor: valorNum })
           .eq("id", conta!.movimentacao_id);
       }
 
-      // 3) Atualiza cada linha do rateio com seu próprio valor
       if (hasRateio) {
+        // Rateio: cada participante paga a sua parte (valores editados na tela).
         for (const row of rateioRows) {
           const valorRow = Number(normalizeRateioValue(rateioValues[row.id] ?? "0")) || 0;
           const pagador = row.socios_nome || row.clientes_nome || pagoPor || null;
@@ -417,6 +425,24 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
               valor_pago_real: Number(valorRow.toFixed(2)),
               comprovante_url: comprovanteUrl || null,
               pago_por: pagador,
+              atualizado_em: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+        }
+      } else if (rateioRows.length > 0) {
+        // Existia rateio, mas o usuário informou que foi um único pagador
+        // cobrindo o valor total. Fecha as linhas de rateio mantendo o
+        // valor original de cada uma, mas atribuindo o pagador único.
+        for (const row of rateioRows) {
+          const valorRow = Number(normalizeRateioValue(row.valor_pago_real ?? row.valor_rateado ?? 0)) || 0;
+          await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
+            .update({
+              status: "pago",
+              data_pagamento: dataPagamento,
+              forma_pagamento: metodoPagamento || null,
+              valor_pago_real: Number(valorRow.toFixed(2)),
+              comprovante_url: comprovanteUrl || null,
+              pago_por: pagoPor || null,
               atualizado_em: new Date().toISOString(),
             })
             .eq("id", row.id);
@@ -438,7 +464,6 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           .eq("id", conta.reference_id);
       }
 
-      // 4) Controle bancário
       let categoriaId = conta!.categoria_id || null;
       if (!categoriaId && conta!.categoria) {
         const { data: catData } = await supabase
@@ -469,7 +494,6 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         }]);
       }
 
-      // 5) Gera reembolso (contas a receber + movimentação caixa share), se marcado
       if (necessitaReembolso) {
         try {
           await gerarReembolsosCaixaShare(categoriaId);
@@ -521,7 +545,33 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
                 </div>
               </div>
             ) : null}
-            {rateioRows.length > 0 ? (
+            {rateioRows.length > 0 && (
+              <div>
+                <label className="text-sm font-semibold mb-1 block">Como esta conta foi paga? *</label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={modoPagamento === "rateio" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setModoPagamento("rateio")}
+                    className="flex-1"
+                  >
+                    Rateio entre clientes
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={modoPagamento === "unico" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setModoPagamento("unico")}
+                    className="flex-1"
+                  >
+                    Pago por um só
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {modoPagamento === "rateio" && rateioRows.length > 0 ? (
               <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase text-primary">
                   <Users className="h-3.5 w-3.5" />
@@ -613,7 +663,6 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
                 </RegularSelect>
               </div>
 
-              {/* NOVO: pergunta sobre reembolso para o caixa share, ao lado do Método */}
               <div>
                 <label className="text-sm font-semibold mb-1 block flex items-center gap-1">
                   <RefreshCcw className="h-3.5 w-3.5" />
@@ -648,7 +697,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
                 )}
               </div>
 
-              {rateioRows.length === 0 && (
+              {modoPagamento === "unico" && (
                 <div>
                   <label className="text-sm font-semibold mb-1 block">Pago por</label>
                   <RegularSelect value={pagoPor} onValueChange={setPagoPor}>
