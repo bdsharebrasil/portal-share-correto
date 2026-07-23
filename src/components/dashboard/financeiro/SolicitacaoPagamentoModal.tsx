@@ -180,7 +180,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
   const [clientesDaAeronave, setClientesDaAeronave] = useState<ClienteAeronaveOption[]>([]);
 
   const [aeronaveId, setAeronaveId] = useState("");
-  const [reembolsavel, setReembolsavel] = useState(false);
   const [tipoDespesa, setTipoDespesa] = useState("");
   const [tipoDespesaLabel, setTipoDespesaLabel] = useState("");
   const [tipoDespesaBase, setTipoDespesaBase] = useState("");
@@ -1425,26 +1424,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
         await supabaseClient.from("rateio_despesas").insert(rateioPayloads as any);
 
-        if (reembolsavel && !rascunho) {
-          for (const linha of clienteLinhas) {
-            const info = getClienteAeronaveInfo(linha.clienteId);
-            const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
-            const overrideStr = linha.valorClienteOverride;
-            const overrideNum = overrideStr !== undefined && overrideStr !== ""
-              ? Number(String(overrideStr).replace(/\./g, "").replace(",", "."))
-              : NaN;
-            const valorCliente = Number.isFinite(overrideNum)
-              ? +overrideNum.toFixed(2)
-              : +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
-            const movIdCliente = movimentacaoIdsPorCliente[linha.clienteId];
-
-            await supabaseClient.from("contas_areceber").insert({
-              numero: `SP-${capId.slice(0, 8)}-${linha.clienteId.slice(0, 4)}`, cliente_id: linha.clienteId, cliente_nome: info?.razaoSocial || "", cliente_cnpj: info?.cnpj || null,
-              data_criacao: dataComp, data_vencimento: dataVenc, valor: valorCliente, categoria: "REEMBOLSO", descricao: `Reembolso: ${descricao}`, status: "pendente",
-              aeronave: aeronaveSel?.matricula || null, reference_type: "solicitacao_pagamento", reference_id: movIdCliente,
-            });
-          }
-        }
       }
 
       if (!rascunho && referenciaTipo === "abastecimento" && referenciaId) {
@@ -1573,19 +1552,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
               {aeronaveId && tipoRateio && periodicidade && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <Label>4. Esta despesa é reembolsável? *</Label>
-                  <div className="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 px-4 py-3 rounded-xl">
-                    <Switch id="reembolsavel" checked={reembolsavel} onCheckedChange={setReembolsavel} />
-                    <Label htmlFor="reembolsavel" className="cursor-pointer text-sm font-medium text-emerald-200">
-                      {reembolsavel ? "Sim — gerar cobrança ao cliente" : "Não — despesa da empresa"}
-                    </Label>
-                  </div>
-                </div>
-              )}
-
-              {aeronaveId && tipoRateio && periodicidade && (
-                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <Label>5. Tipo de despesa *</Label>
+                  <Label>4. Tipo de despesa *</Label>
                   <SearchableCombobox
                     items={tiposDespesa.map((t) => ({ id: t.id, label: t.expense_type }))}
                     value={tipoDespesa} onChange={(id, label) => {
@@ -1605,7 +1572,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
 
               {tipoDespesa && subcategoriasDisponiveis.length > 0 && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <Label>5.1 Subcategoria *</Label>
+                  <Label>4.1 Subcategoria *</Label>
                   <Select
                     value={subcategoriaSel || "__none__"}
                     onValueChange={(v) => {
