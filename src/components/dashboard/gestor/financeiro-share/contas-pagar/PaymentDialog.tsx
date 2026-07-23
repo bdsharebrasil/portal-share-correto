@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { toast } from "sonner";
-import { Upload, FileText, X, Users } from "lucide-react";
+import { Upload, FileText, X, Users, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
 
 interface PaymentContaLike {
@@ -72,6 +72,8 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
   const [rateioRows, setRateioRows] = useState<RateioRow[]>([]);
   const [rateioValues, setRateioValues] = useState<Record<string, string>>({});
   const [travelReport, setTravelReport] = useState<TravelReportSummary | null>(null);
+  // NOVO: indica se a despesa precisa ser reembolsada para o caixa share
+  const [necessitaReembolso, setNecessitaReembolso] = useState(false);
 
   const normalizeRateioValue = (value: string | number | null | undefined) => {
     const numberValue = Number(String(value ?? "").replace(",", "."));
@@ -94,6 +96,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       setRateioRows([]);
       setRateioValues({});
       setTravelReport(null);
+      setNecessitaReembolso(false);
       return;
     }
 
@@ -228,6 +231,148 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
     }
   };
 
+  /**
+   * Gera os registros de "contas a receber" (reembolso) e a movimentação
+   * do tipo caixa share correspondente, um para cada cliente envolvido na
+   * despesa.
+   *
+   * - Se a despesa foi rateada, é gerado um reembolso por cliente com o
+   *   valor efetivamente pago por ele (linhas de sócio são ignoradas, pois
+   *   o reembolso é sempre cobrado do cliente).
+   * - Se não houve rateio, é gerado um único reembolso no valor integral
+   *   pago, vinculado ao cliente da despesa original.
+   *
+   * OBS: como "contas_areceber" exige cliente_cnpj (NOT NULL), o CNPJ é
+   * buscado na tabela "clientes". Ajuste o nome da coluna se for diferente
+   * no seu schema.
+   */
+  const gerarReembolsosCaixaShare = async (categoriaId: string | null) => {
+    const hoje = format(new Date(), "yyyy-MM-dd");
+
+    // Mapa: cliente_id -> valor acumulado a reembolsar
+    const valoresPorCliente = new Map<string, number>();
+
+    if (rateioRows.length > 0) {
+      // Linhas de rateio de sócio sem cliente_id direto: resolve o cliente_id
+      // do sócio através da tabela "socios" (todo sócio pertence a um cliente).
+      const socioIdsParaResolver = Array.from(
+        new Set(
+          rateioRows
+            .filter((row) => !row.cliente_id && row.socio_id)
+            .map((row) => row.socio_id as string)
+        )
+      );
+
+      const socioParaCliente = new Map<string, string>();
+      if (socioIdsParaResolver.length > 0) {
+        const { data: sociosData, error: sociosError } = await supabase
+          .from("socios")
+          .select("id, cliente_id")
+          .in("id", socioIdsParaResolver);
+        if (sociosError) {
+          console.error("Erro ao resolver cliente do sócio:", sociosError);
+        } else {
+          (sociosData || []).forEach((s: any) => socioParaCliente.set(s.id, s.cliente_id));
+        }
+      }
+
+      rateioRows.forEach((row) => {
+        const valorRow = Number(normalizeRateioValue(rateioValues[row.id] ?? "0")) || 0;
+        if (!valorRow) return;
+        const clienteId = row.cliente_id || (row.socio_id ? socioParaCliente.get(row.socio_id) : null);
+        if (!clienteId) return; // linha sem cliente identificável, não gera reembolso para ela
+        valoresPorCliente.set(
+          clienteId,
+          Number(((valoresPorCliente.get(clienteId) || 0) + valorRow).toFixed(2))
+        );
+      });
+    } else if (conta?.cliente_id) {
+      valoresPorCliente.set(conta.cliente_id, Number((parseFloat(valorPago) || 0).toFixed(2)));
+    }
+
+    if (valoresPorCliente.size === 0) {
+      toast.warning("Reembolso não gerado: nenhum cliente vinculado a esta despesa.");
+      return;
+    }
+
+    // Busca nome e CNPJ de todos os clientes envolvidos numa única consulta
+    const clienteIds = Array.from(valoresPorCliente.keys());
+    const { data: clientesData, error: clientesError } = await supabase
+      .from("clientes")
+      .select("id, razao_social, cnpj")
+      .in("id", clienteIds);
+    if (clientesError) {
+      console.error("Erro ao buscar dados dos clientes:", clientesError);
+    }
+    const clienteInfo = new Map<string, { razao_social: string | null; cnpj: string | null }>();
+    (clientesData || []).forEach((c: any) => clienteInfo.set(c.id, { razao_social: c.razao_social, cnpj: c.cnpj }));
+
+    let algumGerado = false;
+
+    for (const [clienteId, valor] of valoresPorCliente.entries()) {
+      if (!valor || valor <= 0) continue;
+
+      const info = clienteInfo.get(clienteId);
+      // cliente_cnpj é obrigatório em contas_areceber; sem CNPJ cadastrado, não dá para gerar o registro
+      if (!info?.cnpj) {
+        toast.warning(`Reembolso não gerado para ${info?.razao_social || "cliente"}: CNPJ não cadastrado.`);
+        continue;
+      }
+
+      const numeroReembolso = `REEMB-${(conta!.id || "").slice(0, 8)}-${clienteId.slice(0, 8)}-${Date.now()}`;
+
+      const { data: novaContaReceber, error: errContaReceber } = await (supabase.from("contas_areceber") as unknown as SupabaseQuery)
+        .insert([{
+          numero: numeroReembolso,
+          cliente_nome: info.razao_social || "Cliente",
+          cliente_cnpj: info.cnpj,
+          data_criacao: hoje,
+          data_vencimento: hoje,
+          valor,
+          categoria: "Reembolso Caixa Share",
+          categoria_id: categoriaId,
+          descricao: `Reembolso caixa share - ${conta!.fornecedor_nome || conta!.descricao || ""}`,
+          status: "pendente",
+          cliente_id: clienteId,
+          reference_type: "reembolso_caixa_share",
+          reference_id: conta!.id,
+          criado_por: user?.id,
+        }])
+        .select("id")
+        .single();
+
+      if (errContaReceber || !novaContaReceber) {
+        console.error("Erro ao gerar conta a receber de reembolso:", errContaReceber);
+        toast.error(`Erro ao gerar reembolso para ${info.razao_social || "cliente"}`);
+        continue;
+      }
+
+      const { error: errMov } = await (supabase.from("movimentacoes") as unknown as SupabaseQuery).insert([{
+        descricao: `Reembolso caixa share - ${conta!.fornecedor_nome || conta!.descricao || ""}`,
+        tipo: "receita",
+        categoria_id: categoriaId,
+        valor,
+        data_competencia: hoje,
+        data_vencimento: hoje,
+        clientes_id: clienteId,
+        status: "pendente",
+        contas_areceber_id: (novaContaReceber as any).id,
+        tipo_caixa: "share",
+        criado_por: user?.id,
+      }]);
+
+      if (errMov) {
+        console.error("Erro ao gerar movimentação de reembolso:", errMov);
+      } else {
+        algumGerado = true;
+      }
+    }
+
+    if (algumGerado) {
+      toast.success("Reembolso(s) gerado(s) no contas a receber do caixa share!");
+    }
+  };
+
   const handleConfirm = async () => {
     if (!banco) return toast.error("Selecione um banco");
     if (!metodoPagamento) return toast.error("Selecione o método de pagamento");
@@ -322,6 +467,16 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           numero_documento: conta!.numero || null,
           referencia: conta!.id,
         }]);
+      }
+
+      // 5) Gera reembolso (contas a receber + movimentação caixa share), se marcado
+      if (necessitaReembolso) {
+        try {
+          await gerarReembolsosCaixaShare(categoriaId);
+        } catch (reembolsoErr: any) {
+          console.error("Erro ao gerar reembolso do caixa share:", reembolsoErr);
+          toast.error("Pagamento registrado, mas houve erro ao gerar o reembolso do caixa share.");
+        }
       }
 
       toast.success("Pagamento registrado com sucesso!");
@@ -457,6 +612,42 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
                   </SelectContent>
                 </RegularSelect>
               </div>
+
+              {/* NOVO: pergunta sobre reembolso para o caixa share, ao lado do Método */}
+              <div>
+                <label className="text-sm font-semibold mb-1 block flex items-center gap-1">
+                  <RefreshCcw className="h-3.5 w-3.5" />
+                  Necessita de reembolso para o caixa share?
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={necessitaReembolso ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setNecessitaReembolso(true)}
+                    className="flex-1"
+                  >
+                    Sim
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={!necessitaReembolso ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setNecessitaReembolso(false)}
+                    className="flex-1"
+                  >
+                    Não
+                  </Button>
+                </div>
+                {necessitaReembolso && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {rateioRows.length > 0
+                      ? "Será gerado um contas a receber por cliente, no valor rateado pago por cada um."
+                      : "Será gerado um contas a receber no valor integral pago, para o cliente desta despesa."}
+                  </p>
+                )}
+              </div>
+
               {rateioRows.length === 0 && (
                 <div>
                   <label className="text-sm font-semibold mb-1 block">Pago por</label>

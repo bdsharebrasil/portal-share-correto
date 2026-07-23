@@ -21,6 +21,7 @@ import {
   pgTimeToHHMM, subtractMinutesHHMM, sumDecimal,
 } from "@/lib/time";
 import { calculateCelulaDisponivel } from "@/utils/flightTime";
+import { calculateDistanceNM, parseDMSCoordinate } from "@/utils/geoUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -1722,6 +1723,34 @@ function NovoVooInline({
       }
       const socio = socioId ? socios.find((s) => s.id === socioId) : null;
       const socioNome = socio?.nome || (socioId ? socioId : null);
+      // Aeródromos: buscar dados completos p/ distância e nome do trecho
+      const depAero = aerodromes.find(a => a.designativo === origem.toUpperCase());
+      const arrAero = aerodromes.find(a => a.designativo === destino.toUpperCase());
+      let distanciaNm: number | null = null;
+      try {
+        if (depAero?.coordenadas && arrAero?.coordenadas) {
+          const c1 = parseDMSCoordinate(depAero.coordenadas);
+          const c2 = parseDMSCoordinate(arrAero.coordenadas);
+          if (c1 && c2) distanciaNm = Math.round(calculateDistanceNM(c1.lat, c1.lng, c2.lat, c2.lng) * 100) / 100;
+        }
+      } catch (err) { console.warn("Falha ao calcular distância:", err); }
+      const nomeOrigem = depAero?.name || origem.toUpperCase();
+      const nomeDestino = arrAero?.name || destino.toUpperCase();
+      const trechoTexto = `${nomeOrigem} x ${nomeDestino}`;
+      // Divisão igual automática para voos de traslado (TR), check (CQ), teste (TN/VOO_TESTE)
+      const natUpper = (natureza || "").toUpperCase();
+      const divisaoIgualAuto = /^TR\b|TRASLADO|^CQ\b|CHEQUE|^TN\b|TESTE|VOO_TESTE/.test(natUpper);
+      // Consumo de combustível (fallback para horário da aeronave)
+      const consumoHora = Number(aeronave.consumo_combustivel ?? 0);
+      const consumoVoo = consumoCombustivelVoo && consumoCombustivelVoo > 0
+        ? consumoCombustivelVoo
+        : Number((tVoo * consumoHora).toFixed(2));
+      const consumoTotal = Number((tTotal * consumoHora).toFixed(2));
+      // Numero sequencial dentro do mês
+      const seqRes = await supabase.from("lancamentos_diario_bordo")
+        .select("numero_sequencial").eq("diario_mes", dmId)
+        .order("numero_sequencial", { ascending: false }).limit(1).maybeSingle();
+      const proxSeq = (Number(seqRes.data?.numero_sequencial ?? 0) || 0) + 1;
       const payload = {
         diario_mes: dmId, aeronave_id: aeronave.id, data_registro: data,
         aerodromo_partida: origem.toUpperCase(), aerodromo_chegada: destino.toUpperCase(),
@@ -1737,9 +1766,17 @@ function NovoVooInline({
         clientes_id: clienteId || null, socios_id: socioId || null, socios_nome: socioNome,
         emprestimo, cliente_tomador_emprestimo_id: emprestimo ? (clienteTomadorId || null) : null,
         socio_tomador_emprestimo_id: emprestimo ? (socioTomadorId || null) : null,
-        ocorrencias: obs || null, consumo_combustivel_voo: consumoCombustivelVoo || null,
+        ocorrencias: obs || null,
+        consumo_combustivel_voo: consumoVoo || null,
+        consumo_combustivel_total: consumoTotal || null,
         preco_combustivel_litro: precoCombustivel || null, local_combustivel: localCombustivel || null,
         tipo_combustivel: tipoCombustivel || null,
+        distancia_nm: distanciaNm,
+        trecho: trechoTexto,
+        abastecido: Number(abast) > 0,
+        carga_kg: "5",
+        numero_sequencial: proxSeq,
+        divisao_igual: divisaoIgualAuto,
         // TODO: origem_pic e origem_sic deixados como null para evitar constraint de tabela inexistente (crew_members)
         origem_pic: null,
         origem_sic: null,

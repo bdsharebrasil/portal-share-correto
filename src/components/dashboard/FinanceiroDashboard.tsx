@@ -5,7 +5,7 @@ import {
   Plane, BookOpen, MessageSquare, Plus, AlertTriangle, AlertCircle, Clock, Send
 } from "lucide-react";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
-import { OverdueExpensesPanel } from "@/components/dashboard/financeiro/OverdueExpensesPanel";
+import { InadimplenciaPanel } from "@/components/dashboard/financeiro/InadimplenciaPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
@@ -412,7 +412,7 @@ export function FinanceiroDashboard() {
       </div>
 
       {/* Painel de Vencimentos - Mapa + Aeronaves */}
-      <OverdueExpensesPanel />
+      <InadimplenciaPanel />
 
 
       {/* Modais */}
