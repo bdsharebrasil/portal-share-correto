@@ -70,22 +70,20 @@ function OperacoesKPIs() {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-      {kpis.map((k) => (
-        <Card key={k.label} className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
-          <CardContent className="pt-4 md:pt-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs md:text-sm font-medium text-muted-foreground/80">{k.label}</p>
-                <p className="text-2xl md:text-3xl font-bold text-foreground mt-1">{k.value}</p>
+    <div className="flex justify-center">
+      <div className="grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3 md:gap-4">
+        {kpis.map((k) => (
+          <Card key={k.label} className="border-white/[0.05] bg-white/[0.02] backdrop-blur-md transition-colors hover:bg-white/[0.04]">
+            <CardContent className="flex flex-col items-center p-4 text-center">
+              <div className={`mb-2 rounded-xl border p-2 ${k.bg} ${k.border}`}>
+                <k.icon className={`h-4 w-4 ${k.color}`} />
               </div>
-              <div className={`p-2.5 md:p-3.5 rounded-xl border ${k.bg} ${k.border} flex-shrink-0`}>
-                <k.icon className={`h-5 md:h-6 w-5 md:w-6 ${k.color}`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              <p className="text-xs font-medium text-muted-foreground/80">{k.label}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{k.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

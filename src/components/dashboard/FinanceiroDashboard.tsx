@@ -336,27 +336,26 @@ export function FinanceiroDashboard() {
         </div>
       )}
 
-      {/* Ferramentas Rápidas + Ponto (Tamanhos Padronizados) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 md:gap-4">
-        {quickTools.map(tool => (
-          <button
-            key={tool.label}
-            onClick={() => tool.action ? tool.action() : tool.route && navigate(tool.route)}
-            className={`h-28 md:h-32 flex flex-col items-center justify-center gap-2 p-3 bg-white/[0.02] hover:bg-white/[0.045] backdrop-blur-md rounded-2xl border border-white/[0.06] transition-transform duration-300 group shadow-md hover:shadow-lg transform-gpu hover:-translate-y-1 ${tool.hoverGlow}`}
-          >
-            <div className={`w-11 h-11 flex items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg}`}>
-              <tool.icon className={`h-4 w-4 ${tool.iconColor}`} strokeWidth={1.5} />
-            </div>
-            <span className="text-[11px] md:text-xs font-medium text-foreground group-hover:text-primary transition-colors text-center leading-tight uppercase tracking-wide">
-              {tool.label}
-            </span>
-          </button>
-        ))}
+      <div className="flex justify-center">
+        <div className="grid w-full max-w-5xl grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          {quickTools.map(tool => (
+            <button
+              key={tool.label}
+              onClick={() => tool.action ? tool.action() : tool.route && navigate(tool.route)}
+              className={`group flex flex-col items-center justify-center gap-3 rounded-2xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:scale-[1.03] hover:border-primary/70 hover:bg-card/90 active:scale-95 ${tool.hoverGlow}`}
+            >
+              <div className={`flex h-14 w-14 items-center justify-center rounded-2xl border border-border/40 bg-background/50 transition-all duration-300 group-hover:scale-110 group-hover:border-primary/40 ${tool.iconBg}`}>
+                <tool.icon className={`h-7 w-7 ${tool.iconColor}`} strokeWidth={1.7} />
+              </div>
+              <span className="text-center text-sm font-semibold leading-tight text-foreground">
+                {tool.label}
+              </span>
+            </button>
+          ))}
 
-        {/* Card do Ponto ajustado */}
-        <div
-          className={cn(
-            "h-28 md:h-32 flex flex-col items-center justify-center gap-2 p-3 bg-white/[0.02] backdrop-blur-md rounded-2xl border transition-all duration-300 shadow-md relative overflow-hidden",
+          <div
+            className={cn(
+              "relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-card/60 p-5 backdrop-blur-sm transition-all duration-300 hover:scale-[1.03] hover:border-primary/70 hover:bg-card/90 active:scale-95",
             todayEntry?.status === 'concluido' ? "border-emerald-500/30 bg-emerald-500/[0.02]" :
             todayEntry?.inicio_almoco && !todayEntry?.fim_almoco ? "border-amber-500/30 bg-amber-500/[0.02]" :
             todayEntry ? "border-blue-500/30 bg-blue-500/[0.02]" : "border-white/[0.06]"
@@ -400,6 +399,7 @@ export function FinanceiroDashboard() {
           >
             <CalendarDays className="h-3 w-3" />
           </button>
+          </div>
         </div>
       </div>
 
