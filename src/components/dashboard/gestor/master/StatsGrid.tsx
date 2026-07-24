@@ -36,14 +36,16 @@ export function StatsGrid() {
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
       const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("valor")
-        .eq("tipo_movimento", "entrada")
-        .gte("data", firstDay)
-        .lte("data", lastDay);
+        .from("movimentacoes")
+        .select("valor, tipo, status, data_pagamento, data_competencia, tipo_caixa")
+        .eq("tipo_caixa", "share")
+        .gte("data_competencia", firstDay)
+        .lte("data_competencia", lastDay)
+        .neq("status", "cancelado");
       
       if (error) throw error;
-      return data?.reduce((sum, item) => sum + Number(item.valor), 0) || 0;
+      return data?.filter((item) => ["entrada", "receita"].includes(item.tipo) && (item.status === "pago" || item.data_pagamento))
+        .reduce((sum, item) => sum + Number(item.valor), 0) || 0;
     },
   });
 
@@ -55,14 +57,16 @@ export function StatsGrid() {
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
       const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("valor")
-        .eq("tipo_movimento", "saida")
-        .gte("data", firstDay)
-        .lte("data", lastDay);
+        .from("movimentacoes")
+        .select("valor, tipo, status, data_pagamento, data_competencia, tipo_caixa")
+        .eq("tipo_caixa", "share")
+        .gte("data_competencia", firstDay)
+        .lte("data_competencia", lastDay)
+        .neq("status", "cancelado");
       
       if (error) throw error;
-      return data?.reduce((sum, item) => sum + Number(item.valor), 0) || 0;
+      return data?.filter((item) => ["saida", "despesa"].includes(item.tipo) && (item.status === "pago" || item.data_pagamento))
+        .reduce((sum, item) => sum + Number(item.valor), 0) || 0;
     },
   });
 

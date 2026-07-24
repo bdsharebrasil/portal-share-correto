@@ -6,7 +6,7 @@ import { MessagesPanel } from "./operador/MessagesPanel";
 import { FinanceiroDashboard } from "./FinanceiroDashboard";
 import { GestorDashboard } from "./GestorDashboard";
 
-import PortalClienteDashboard from "@/pages/PortalClienteDashboard";
+import { PortalClienteDashboard } from "@/pages/PortalCliente";
 
 export function MainContent() {
   const { viewMode } = useViewMode();

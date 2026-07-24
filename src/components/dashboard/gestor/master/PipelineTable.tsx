@@ -21,9 +21,10 @@ export function PipelineTable() {
     queryKey: ["pipeline-recente"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("id, descricao, valor, status, data, tipo_movimento")
-        .order("data", { ascending: false })
+        .from("movimentacoes")
+        .select("id, descricao, valor, status, data_competencia, tipo, clientes_id, fornecedor_nome")
+        .eq("tipo_caixa", "share")
+        .order("data_competencia", { ascending: false })
         .limit(8);
 
       if (error) throw error;
@@ -33,8 +34,8 @@ export function PipelineTable() {
         descricao: item.descricao,
         valor: Number(item.valor),
         status: item.status || "pendente",
-        data: item.data,
-        tipo: item.tipo_movimento,
+        data: item.data_competencia,
+        tipo: item.tipo,
       })) || [];
     },
   });

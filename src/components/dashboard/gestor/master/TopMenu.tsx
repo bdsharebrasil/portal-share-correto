@@ -6,17 +6,14 @@ export function TopMenu() {
   const navigate = useNavigate();
 
   const menuItems = [
-    {
-      label: "Financeiro",
-      path: "/financeiro/master",
-    },
+    
     {
       label: "Colaboradores",
       path: "/financeiro/master/colaboradores",
     },
     {
       label: "Relatórios",
-      path: "/relatorios",
+      path: "/financeiro/master/relatorios",
     },
   ];
 

@@ -49,7 +49,7 @@ import TripulanteDetalhes from "./pages/TripulanteDetalhes";
 import ValeAlimentacao from "./pages/ValeAlimentacao";
 import ValeCombustivel from "./pages/ValeCombustivel";
 import PortalCliente from "./pages/PortalCliente";
-import PortalClienteDashboard from "./pages/PortalClienteDashboard";
+import PortalClienteDashboard from "./pages/PortalCliente";
 import Aerodromos from "./pages/Aerodromos";
 import Aeronaves from "./pages/Aeronaves";
 import AeronaveDetalhes from "./pages/AeronaveDetalhes";
@@ -60,6 +60,7 @@ import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
 import GestaoFiscal from "./components/dashboard/gestor/financeiro-share/Index";
+import MasterRelatorios from "./components/dashboard/gestor/master/MasterRelatorios";
 
 import ConfiguracoesFiscais from "./components/dashboard/gestor/financeiro-share/ConfiguracoesFiscais";
 import Master from "./components/dashboard/gestor/master/Master";
@@ -75,7 +76,6 @@ import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 import { CostSimulator } from "./components/dashboard/CostSimulator";
-import AprovacoesOrcamentos from "./pages/gestor/AprovacoesOrcamentos";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -177,10 +177,7 @@ const App = () => {
                           } />
                           <Route path="/gestor/aprovacoes-orcamentos" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <Layout>
-                                  <AprovacoesOrcamentos />
-                                </Layout>
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]} children="">
                               </RoleProtected>
                             )
                           } />
@@ -218,6 +215,13 @@ const App = () => {
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master"]}>
                                 <MasterColaboradores />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/master/relatorios" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <MasterRelatorios />
                               </RoleProtected>
                             )
                           } />
