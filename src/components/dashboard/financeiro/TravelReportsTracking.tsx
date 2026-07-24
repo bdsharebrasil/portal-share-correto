@@ -106,9 +106,11 @@ export default function TravelReportsTracking() {
     return c;
   }, [reports]);
 
+  const buildLink = (token: string) =>
+    `${window.location.origin}/#/aprovar-relatorio/${token}`;
+
   const copyLink = async (token: string) => {
-    const url = `${window.location.origin}/aprovar-relatorio/${token}`;
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(buildLink(token));
     toast.success("Link copiado!");
   };
 
@@ -258,6 +260,19 @@ export default function TravelReportsTracking() {
                           <div className="mt-2 p-2 rounded bg-red-500/10 border border-red-500/20 text-sm text-red-300">
                             <strong>Justificativa do tripulante:</strong>{" "}
                             {r.crew_approval_notes}
+                          </div>
+                        )}
+                        {r.approval_token && (
+                          <div className="mt-2 flex items-center gap-2 p-2 rounded bg-background/50 border border-border">
+                            <span className="text-xs text-muted-foreground shrink-0">Link do tripulante:</span>
+                            <a
+                              href={buildLink(r.approval_token)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary underline truncate flex-1"
+                            >
+                              {buildLink(r.approval_token)}
+                            </a>
                           </div>
                         )}
                       </div>
