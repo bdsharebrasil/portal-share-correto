@@ -26,6 +26,11 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { FileText } from "lucide-react";
 
 interface TimeClockHistoryModalProps {
   open: boolean;
@@ -55,6 +60,16 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     workDays: 0,
     completedDays: 0,
   });
+
+  // Day action dialogs
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [dayAction, setDayAction] = useState<"none" | "absence" | "correction">("none");
+  const [justification, setJustification] = useState("");
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [correctionType, setCorrectionType] = useState("entrada_hora");
+  const [correctedTime, setCorrectedTime] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -120,6 +135,84 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     return entries.find((entry) => entry.data === format(date, "yyyy-MM-dd"));
   };
 
+  const openDay = (date: Date) => {
+    setSelectedDay(date);
+    setDayAction("none");
+    setJustification("");
+    setDocumentFile(null);
+    setCorrectionType("entrada_hora");
+    setCorrectedTime("");
+    setCorrectionReason("");
+  };
+
+  const submitAbsence = async () => {
+    if (!selectedDay || !justification.trim()) {
+      toast.error("Preencha a justificativa");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+      let documentUrl: string | null = null;
+      if (documentFile) {
+        const ext = documentFile.name.split(".").pop();
+        const path = `${user.id}/${format(selectedDay, "yyyy-MM-dd")}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("documents_colaborador")
+          .upload(path, documentFile);
+        if (upErr) throw upErr;
+        documentUrl = supabase.storage.from("documents_colaborador").getPublicUrl(path).data.publicUrl;
+      }
+      const { error } = await (supabase as any).from("absence_justifications").insert({
+        user_id: user.id,
+        entry_date: format(selectedDay, "yyyy-MM-dd"),
+        justification,
+        document_url: documentUrl,
+        status: "pending",
+      });
+      if (error) throw error;
+      toast.success("Justificativa enviada para aprovação!");
+      setSelectedDay(null);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao enviar justificativa");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitCorrection = async () => {
+    if (!selectedDay || !correctedTime || !correctionReason.trim()) {
+      toast.error("Preencha os campos obrigatórios");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Não autenticado");
+      const entry = getEntryForDate(selectedDay);
+      const original = entry?.[correctionType as keyof TimeEntry] as string | null | undefined;
+      const originalTime = original ? format(new Date(original), "HH:mm") : null;
+      const { error } = await (supabase as any).from("solicitacoes_correcao_ponto").insert({
+        user_id: user.id,
+        data_entrada: format(selectedDay, "yyyy-MM-dd"),
+        lancamento_ponto_id: entry?.id || null,
+        tipo_correcao: correctionType,
+        tempo_original: originalTime,
+        tempo_corrigido: correctedTime,
+        justificativa: correctionReason,
+        status: "pending",
+      });
+      if (error) throw error;
+      toast.success("Solicitação de correção enviada!");
+      setSelectedDay(null);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao enviar solicitação");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const previousMonth = () => {
     setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1));
   };
@@ -157,8 +250,9 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
             return (
               <div
                 key={date.toISOString()}
+                onClick={() => openDay(date)}
                 className={cn(
-                  "aspect-square p-2 rounded-lg border text-center flex flex-col items-center justify-center text-xs cursor-pointer transition-all",
+                  "aspect-square p-2 rounded-lg border text-center flex flex-col items-center justify-center text-xs cursor-pointer transition-all hover:ring-2 hover:ring-primary/40",
                   isToday && "border-primary/50 bg-primary/10",
                   !entry && "border-slate-700/50 bg-slate-800/30",
                   entry && entry.status === "concluido" && "border-emerald-500/50 bg-emerald-500/10",
@@ -409,6 +503,104 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
           </div>
         </div>
       </DialogContent>
+
+      {/* Day action dialog */}
+      <Dialog open={!!selectedDay} onOpenChange={(v) => !v && setSelectedDay(null)}>
+        <DialogContent className="max-w-md bg-slate-900 border-slate-700/50">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {selectedDay ? format(selectedDay, "EEEE, dd/MM/yyyy", { locale: ptBR }) : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          {dayAction === "none" && (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-400">O que deseja fazer neste dia?</p>
+              <div className="grid grid-cols-1 gap-2">
+                <Button variant="outline" className="justify-start gap-2 border-slate-700/50" onClick={() => setDayAction("absence")}>
+                  <FileText className="h-4 w-4" /> Justificar falta (enviar atestado)
+                </Button>
+                <Button variant="outline" className="justify-start gap-2 border-slate-700/50" onClick={() => setDayAction("correction")}>
+                  <Clock className="h-4 w-4" /> Solicitar ajuste de ponto
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {dayAction === "absence" && (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-slate-300">Justificativa *</Label>
+                <Textarea
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  placeholder="Descreva o motivo da falta..."
+                  rows={4}
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-300">Atestado / documento</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setDayAction("none")} className="border-slate-700/50">Voltar</Button>
+                <Button onClick={submitAbsence} disabled={submitting || !justification.trim()}>
+                  {submitting ? "Enviando..." : "Enviar"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {dayAction === "correction" && (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-slate-300">Tipo de Registro *</Label>
+                <select
+                  value={correctionType}
+                  onChange={(e) => setCorrectionType(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-slate-700 bg-slate-800 text-white"
+                >
+                  <option value="entrada_hora">Entrada</option>
+                  <option value="inicio_almoco">Início Almoço</option>
+                  <option value="fim_almoco">Fim Almoço</option>
+                  <option value="saida_hora">Saída</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-slate-300">Horário Correto *</Label>
+                <Input
+                  type="time"
+                  value={correctedTime}
+                  onChange={(e) => setCorrectedTime(e.target.value)}
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-300">Motivo *</Label>
+                <Textarea
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  placeholder="Descreva o motivo da correção..."
+                  rows={3}
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setDayAction("none")} className="border-slate-700/50">Voltar</Button>
+                <Button onClick={submitCorrection} disabled={submitting || !correctedTime || !correctionReason.trim()}>
+                  {submitting ? "Enviando..." : "Enviar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
