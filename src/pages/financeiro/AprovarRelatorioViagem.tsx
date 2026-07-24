@@ -430,43 +430,69 @@ export default function AprovarRelatorioViagem() {
               </Card>
             )}
 
-            {/* Mostrar PDF (token já autoriza visualização) */}
-            {pdfUrl ? (
+            {/* Relatório em tela — sempre visível, sem depender de PDF */}
+            <Card className="border-border bg-card/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Resumo do Relatório</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div><p className="text-xs text-muted-foreground">Nº Relatório</p><p className="font-semibold">{report.numero_relatorio || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Rota</p><p className="font-semibold">{report.rota || '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Data Início</p><p className="font-semibold">{report.data_inicio ? new Date(report.data_inicio).toLocaleDateString('pt-BR') : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Data Fim</p><p className="font-semibold">{report.data_fim ? new Date(report.data_fim).toLocaleDateString('pt-BR') : '—'}</p></div>
+                </div>
 
+                <div className="pt-3 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">DESPESAS POR CATEGORIA</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      ['Combustível', report.total_combustivel],
+                      ['Hospedagem', report.total_hospedagem],
+                      ['Alimentação', report.total_alimentacao],
+                      ['Transporte', report.total_transporte],
+                      ['Outros', report.total_outros],
+                    ].map(([label, val]) => (
+                      <div key={label as string} className="p-3 rounded-lg bg-muted/50">
+                        <p className="text-xs text-muted-foreground">{label}</p>
+                        <p className="font-bold text-primary">R$ {Number(val || 0).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                    ))}
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="font-bold text-primary text-lg">R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-border grid grid-cols-3 gap-3">
+                  <div><p className="text-xs text-muted-foreground">Tripulante</p><p className="font-semibold text-emerald-600">R$ {Number(report.total_tripulacao || 0).toFixed(2).replace('.', ',')}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Cliente</p><p className="font-semibold text-blue-600">R$ {Number(report.total_clientes || 0).toFixed(2).replace('.', ',')}</p></div>
+                  <div><p className="text-xs text-muted-foreground">ShareBrasil</p><p className="font-semibold text-orange-600">R$ {Number(report.total_sharebrasil || 0).toFixed(2).replace('.', ',')}</p></div>
+                </div>
+
+                {report.observacoes && (
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-xs font-semibold text-muted-foreground mb-1">OBSERVAÇÕES</p>
+                    <p className="whitespace-pre-wrap">{report.observacoes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* PDF opcional — só aparece se existir */}
+            {pdfUrl && (
               <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">DOCUMENTO PDF (opcional)</p>
                 <iframe
                   src={pdfUrl}
                   className="w-full h-[60vh] rounded-lg border"
                   title="Relatório PDF"
-                  onError={() => {
-                    toast.error('❌ Erro ao carregar o PDF');
-                  }}
                 />
                 <p className="text-xs text-muted-foreground">
                   Se o PDF não aparecer, <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">clique aqui para abrir em nova aba</a>
                 </p>
               </div>
-            ) : (
-              <Card className="border-amber-200 bg-amber-50 p-6">
-                <div className="flex gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-amber-900">PDF não disponível</h3>
-                    <p className="text-sm text-amber-800 mt-1">
-                      O PDF do relatório ainda não foi gerado. Por favor, aguarde alguns momentos e recarregue a página.
-                    </p>
-                    <p className="text-xs text-amber-700 mt-2">
-                      Se o problema persistir, entre em contato com o gerenciador do sistema.
-                    </p>
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="mt-3 text-amber-700 font-semibold hover:underline"
-                    >
-                      ↻ Recarregar página
-                    </button>
-                  </div>
-                </div>
-              </Card>
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -476,7 +502,7 @@ export default function AprovarRelatorioViagem() {
               <div><strong>Total:</strong><br />R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</div>
             </div>
 
-            {!alreadyDecided && (user || role === 'client') && role && (
+            {!alreadyDecided && role && !showClientLogin && (
               <div className="space-y-2 pt-4 border-t">
                 <Label htmlFor="notes">Observações (opcional — obrigatório se discordar)</Label>
                 <Textarea
