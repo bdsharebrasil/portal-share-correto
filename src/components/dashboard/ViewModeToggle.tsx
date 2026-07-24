@@ -27,14 +27,14 @@ export function ViewModeToggle() {
   });
 
   return (
-    <div className="flex items-center bg-background/50 rounded-lg p-1 border border-border gap-1">
+    <div className="flex w-max min-w-max items-center bg-background/50 rounded-lg p-1 border border-border gap-1">
       {availableModes.map((mode, index) => (
         <div key={mode.id} className="flex items-center gap-1">
           {mode.separator && <div className="h-6 w-px bg-border mx-1" />}
           <button
             onClick={() => handleModeChange(mode.id, mode.path)}
             className={cn(
-              "px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200",
+              "whitespace-nowrap px-2.5 py-1.5 text-xs md:px-4 md:text-sm font-medium rounded-md transition-all duration-200",
               viewMode === mode.id
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"

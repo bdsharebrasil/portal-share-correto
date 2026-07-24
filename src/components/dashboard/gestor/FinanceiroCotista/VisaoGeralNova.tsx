@@ -109,8 +109,13 @@ interface Rateio {
   numero_nf: string | null;
   numero_doc: string | null;
   forma_pagamento?: string | null;
+  status?: string | null;
   status_pagamento?: string | null;
   observacoes?: string | null;
+  comprovante_url?: string | null;
+  recibo_url?: string | null;
+  nf_url?: string | null;
+  boleto_url?: string | null;
 }
 
 const cotistaKey = (cid: string | null, sid: string | null) => `${cid || ""}|${sid || ""}`;
@@ -129,11 +134,12 @@ function findCotistaKey(
 }
 
 function statusOf(r: Rateio): { label: string; tone: "success" | "warning" | "danger" | "muted" } {
-  if (r.status_pagamento) {
-    const n = norm(r.status_pagamento);
-    if (n.startsWith("pago")) return { label: r.status_pagamento, tone: "success" };
-    if (n.startsWith("atras")) return { label: r.status_pagamento, tone: "danger" };
-    return { label: r.status_pagamento, tone: "warning" };
+  const explicitStatus = r.status ?? r.status_pagamento;
+  if (explicitStatus) {
+    const n = norm(explicitStatus);
+    if (n.startsWith("pago")) return { label: explicitStatus, tone: "success" };
+    if (n.startsWith("atras")) return { label: explicitStatus, tone: "danger" };
+    return { label: explicitStatus, tone: "warning" };
   }
   if ((Number(r.valor_pago_real) || 0) > 0 || r.data_pagamento) return { label: "Pago", tone: "success" };
   if (r.data_vencimento && new Date(r.data_vencimento) < new Date()) return { label: "Atrasado", tone: "danger" };
@@ -172,14 +178,14 @@ function useRateiosPeriodo(aeronaveId: string | null, start: string, end: string
       const { data, error } = await supabase
         .from("rateio_despesas")
         .select(
-          "id, despesa_id, fluxo, periodicidade, tipo_rateio, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_emissao, data_pagamento, data_vencimento, valor_total_despesa, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc",
+          "id, despesa_id, fluxo, periodicidade, tipo_rateio, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_emissao, data_pagamento, data_vencimento, valor_total_despesa, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc, forma_pagamento, status, status_pagamento, observacoes, comprovante_url, recibo_url, nf_url, boleto_url",
         )
         .eq("aeronave_id", aeronaveId!)
         .or(
           `and(data_pagamento.gte.${start},data_pagamento.lte.${end}),and(data_pagamento.is.null,data_vencimento.gte.${start},data_vencimento.lte.${end})`,
         );
       if (error) throw error;
-      return (data ?? []) as Rateio[];
+      return (data ?? []) as unknown as Rateio[];
     },
     staleTime: 60_000,
   });

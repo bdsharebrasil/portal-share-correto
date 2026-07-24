@@ -103,6 +103,10 @@ export const Header: React.FC<HeaderProps> = ({
         <Menu className="h-5 w-5" />
       </Button>
 
+      <div className="md:hidden flex-1 min-w-0 mx-1 overflow-x-auto">
+        <ViewModeToggle />
+      </div>
+
       {/* Seção Esquerda - vazia */}
       <div className="hidden md:flex items-center gap-4">
       </div>
