@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle, AlertCircle, ExternalLink, Paperclip } from 'lucide-react';
 import { syncTravelReportToFinance } from '@/lib/travelReportFinanceSync';
 
 
@@ -26,6 +26,8 @@ export default function AprovarRelatorioViagem() {
   const [clientPassword, setClientPassword] = useState('');
   const [showClientLogin, setShowClientLogin] = useState(false);
   const [clientAuthenticating, setClientAuthenticating] = useState(false);
+  const [attachments, setAttachments] = useState<Array<{ id: string; expense_index: number; nome_arquivo: string; url_arquivo: string; tipo_arquivo: string | null }>>([]);
+  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -87,6 +89,28 @@ export default function AprovarRelatorioViagem() {
       if (report.pdf_url) setPdfUrl(report.pdf_url);
     })();
   }, [report]);
+
+  useEffect(() => {
+    if (!report?.id) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from('travel_report_attachments')
+        .select('id, expense_index, nome_arquivo, url_arquivo, tipo_arquivo')
+        .eq('travel_report_id', report.id)
+        .order('expense_index');
+
+      if (error) {
+        console.error('Erro ao carregar anexos do relatório:', error);
+        return;
+      }
+
+      const pdfAttachments = (data || []).filter((attachment) =>
+        attachment.tipo_arquivo === 'application/pdf' || attachment.nome_arquivo.toLowerCase().endsWith('.pdf')
+      );
+      setAttachments(pdfAttachments);
+      setSelectedAttachmentId(pdfAttachments[0]?.id || null);
+    })();
+  }, [report?.id]);
 
 
   const handleClientLogin = async (e: React.FormEvent) => {
@@ -493,6 +517,49 @@ export default function AprovarRelatorioViagem() {
                   Se o PDF não aparecer, <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">clique aqui para abrir em nova aba</a>
                 </p>
               </div>
+            )}
+
+            {attachments.length > 0 && (
+              <Card className="border-border bg-card/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Paperclip className="h-4 w-4 text-primary" />
+                    Comprovantes em PDF
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {attachments.map((attachment) => (
+                      <Button
+                        key={attachment.id}
+                        type="button"
+                        variant={selectedAttachmentId === attachment.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedAttachmentId(attachment.id)}
+                      >
+                        Despesa {attachment.expense_index + 1}: {attachment.nome_arquivo}
+                      </Button>
+                    ))}
+                  </div>
+                  {attachments.map((attachment) => selectedAttachmentId === attachment.id && (
+                    <div key={attachment.id} className="space-y-2">
+                      <iframe
+                        src={attachment.url_arquivo}
+                        className="h-[60vh] w-full rounded-lg border"
+                        title={`Comprovante ${attachment.nome_arquivo}`}
+                      />
+                      <a
+                        href={attachment.url_arquivo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary underline hover:text-primary/80"
+                      >
+                        Abrir {attachment.nome_arquivo} em nova aba <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
