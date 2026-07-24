@@ -1303,15 +1303,6 @@ export default function RelatorioViagem() {
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                       <h3 className="text-lg font-semibold">Pastas de Clientes</h3>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={backfillMissingPdf}
-                        disabled={isBackfillingPdf}
-                        className="rounded-lg"
-                      >
-                        {isBackfillingPdf ? 'Preenchendo PDFs...' : 'Preencher PDFs ausentes'}
-                      </Button>
                     </div>
                     {reportsWithClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
