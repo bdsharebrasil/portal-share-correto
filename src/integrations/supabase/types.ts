@@ -9024,6 +9024,105 @@ export type Database = {
           },
         ]
       }
+      transacoes_horas: {
+        Row: {
+          criado_em: string | null
+          criado_por: string | null
+          descricao: string | null
+          horas: number
+          id: string
+          id_aeronave: string
+          id_cotista_destino: string
+          id_cotista_origem: string
+          id_lancamento_diario_bordo: string | null
+          metadados: Json | null
+          tipo: string | null
+        }
+        Insert: {
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          horas: number
+          id?: string
+          id_aeronave: string
+          id_cotista_destino: string
+          id_cotista_origem: string
+          id_lancamento_diario_bordo?: string | null
+          metadados?: Json | null
+          tipo?: string | null
+        }
+        Update: {
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          horas?: number
+          id?: string
+          id_aeronave?: string
+          id_cotista_destino?: string
+          id_cotista_origem?: string
+          id_lancamento_diario_bordo?: string | null
+          metadados?: Json | null
+          tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transacoes_horas_aeronave_fkey"
+            columns: ["id_aeronave"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_horas_aeronave_fkey"
+            columns: ["id_aeronave"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_horas_aeronave_fkey"
+            columns: ["id_aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "transacoes_horas_aeronave_fkey"
+            columns: ["id_aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "transacoes_horas_cotista_destino_fkey"
+            columns: ["id_cotista_destino"]
+            isOneToOne: false
+            referencedRelation: "cotistas_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_horas_cotista_origem_fkey"
+            columns: ["id_cotista_origem"]
+            isOneToOne: false
+            referencedRelation: "cotistas_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_horas_lancamento_fkey"
+            columns: ["id_lancamento_diario_bordo"]
+            isOneToOne: false
+            referencedRelation: "historico_voo_tripulante"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_horas_lancamento_fkey"
+            columns: ["id_lancamento_diario_bordo"]
+            isOneToOne: false
+            referencedRelation: "lancamentos_diario_bordo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       travel_expense_reports: {
         Row: {
           aeronave_id: string | null
@@ -10417,6 +10516,10 @@ export type Database = {
           tipo_pagamento: string
           valor: number
         }[]
+      }
+      fn_renumerar_diario: {
+        Args: { p_diario_mes: string }
+        Returns: undefined
       }
       generate_report_number:
         | { Args: { client_id_param: string }; Returns: string }
