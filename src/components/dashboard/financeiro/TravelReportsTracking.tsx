@@ -52,6 +52,12 @@ const STATUS_META: Record<
 };
 
 const TRACKED_STATUSES = Object.keys(STATUS_META);
+const SOURCE_STATUSES = [...TRACKED_STATUSES, "Finalizado", "Enviado"];
+
+const isAwaitingCrewApproval = (report: Report) =>
+  (report.status === "Finalizado" || report.status === "Enviado") &&
+  report.crew_approval_status === "pending" &&
+  Boolean(report.approval_token);
 
 export default function TravelReportsTracking() {
   const [reports, setReports] = useState<Report[]>([]);
@@ -67,10 +73,22 @@ export default function TravelReportsTracking() {
         .select(
           "id, numero_relatorio, nome_tripulante, nome_tripulante_2, matricula_aeronave, total_valor, total_trip, total_trip2, status, crew_approval_status, crew_approval_notes, crew_approved_at, enviado_tripulante_em, enviado_cliente_em, approval_token, clientes_id, clientes_id_rel:clientes_id(razao_social), created_at"
         )
-        .in("status", TRACKED_STATUSES)
+        .in("status", SOURCE_STATUSES)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setReports(data || []);
+      setReports(
+        (data || [])
+          .filter(
+            (report) =>
+              TRACKED_STATUSES.includes(report.status) ||
+              isAwaitingCrewApproval(report)
+          )
+          .map((report) =>
+            isAwaitingCrewApproval(report)
+              ? { ...report, status: "aguardando_aprovacao_tripulante" }
+              : report
+          )
+      );
     } catch (e: any) {
       toast.error(e.message || "Erro ao carregar relatórios");
     } finally {
@@ -256,6 +274,11 @@ export default function TravelReportsTracking() {
                             ? format(new Date(r.enviado_tripulante_em), "dd/MM/yyyy HH:mm", { locale: ptBR })
                             : "—"}
                         </p>
+                        {r.status === "aguardando_aprovacao_tripulante" && (
+                          <p className="mt-1 text-xs font-medium text-amber-400">
+                            Link enviado para o tripulante {r.nome_tripulante}; aguardando aprovação.
+                          </p>
+                        )}
                         {r.status === "em_revisao" && r.crew_approval_notes && (
                           <div className="mt-2 p-2 rounded bg-red-500/10 border border-red-500/20 text-sm text-red-300">
                             <strong>Justificativa do tripulante:</strong>{" "}

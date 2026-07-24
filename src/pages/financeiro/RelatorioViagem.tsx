@@ -674,6 +674,7 @@ export default function RelatorioViagem() {
       // Ao finalizar/enviar: marcar aprovação pendente do tripulante e (opcional) cliente
       if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         payload.crew_approval_status = 'pending';
+        payload.enviado_tripulante_em = new Date().toISOString();
         payload.requires_client_approval = !!requireClientApproval;
         if (requireClientApproval) payload.client_approval_status = 'pending';
         if (user?.id) payload.generated_by_user_id = user.id;
