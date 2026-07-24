@@ -14,6 +14,8 @@ import { format, isBefore, isWithinInterval, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendamentoPagamentoForm } from "./AgendamentoPagamentoForm";
 import { syncAgendamentoPagamentoToControle, removeAgendamentoPagamentoFromControle } from "@/services/syncSalariesToBankingControl";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Send } from "lucide-react";
 
 export default function AgendamentoPagamentos() {
   const { user } = useAuth();
@@ -225,6 +227,14 @@ export default function AgendamentoPagamentos() {
           </Alert>
         )}
 
+        <Tabs defaultValue="envio" className="w-full">
+          <TabsList className="bg-card border border-border">
+            <TabsTrigger value="envio" className="gap-2">
+              <Send className="w-4 h-4" /> Envio de Pagamentos
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="envio" className="mt-4 space-y-6">
         {/* Cards de estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-card border-border">
@@ -388,6 +398,11 @@ export default function AgendamentoPagamentos() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+        </Tabs>
+
+
 
         {/* Dialog de confirmação de exclusão */}
         <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>

@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
+import { syncTravelReportToFinance } from '@/lib/travelReportFinanceSync';
+
 
 export default function AprovarRelatorioViagem() {
   const { token } = useParams();
@@ -45,39 +47,47 @@ export default function AprovarRelatorioViagem() {
 
         setReport(data);
 
-        // Detectar papel: tripulante (auth.users) ou cliente (portal)
-        const isCrew = authUser?.id === data.tripulacao_id || authUser?.id === data.tripulante_id2;
-
-        if (isCrew) {
-          setRole('crew');
-        } else if (data.requires_client_approval && !authUser) {
-          // Se cliente precisa de aprovação e não há usuário autenticado, mostrar formulário de login
-          setShowClientLogin(true);
+        // Buscar user_ids reais dos tripulantes vinculados
+        const crewIds: string[] = [];
+        for (const cid of [data.tripulacao_id, data.tripulante_id2].filter(Boolean)) {
+          const { data: m } = await supabase
+            .from('membros_tripulacao')
+            .select('user_id')
+            .eq('id', cid)
+            .maybeSingle();
+          if (m?.user_id) crewIds.push(m.user_id);
         }
 
+        // Token único autoriza visualização. Se logado como tripulante, marca papel 'crew'.
+        // Sem login: assumimos papel 'crew' baseado no token (link privado) — ele poderá aprovar.
+        if (authUser && crewIds.includes(authUser.id)) {
+          setRole('crew');
+        } else if (data.requires_client_approval && !authUser) {
+          setShowClientLogin(true);
+        } else {
+          // Acesso via token sem cliente: tratamos como crew (token é a credencial)
+          setRole('crew');
+        }
       } finally {
         setLoading(false);
       }
     })();
   }, [token]);
 
-  // Carrega o PDF apenas quando o usuário está autenticado
+  // Carrega o PDF sempre que houver relatório (token já é a credencial)
   useEffect(() => {
-    if (!report || (!user && role !== 'client')) {
-      return;
-    }
-
+    if (!report) return;
     (async () => {
       if (report.pdf_path) {
         const { data: signed } = await supabase.storage
           .from('travel-reports')
           .createSignedUrl(report.pdf_path, 60 * 60);
-        if (signed?.signedUrl) setPdfUrl(signed.signedUrl);
-      } else if (report.pdf_url) {
-        setPdfUrl(report.pdf_url);
+        if (signed?.signedUrl) { setPdfUrl(signed.signedUrl); return; }
       }
+      if (report.pdf_url) setPdfUrl(report.pdf_url);
     })();
-  }, [report, user, role]);
+  }, [report]);
+
 
   const handleClientLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,10 +144,11 @@ export default function AprovarRelatorioViagem() {
 
   const submitDecision = async (decision: 'approved' | 'rejected') => {
     if (!report) return;
-    if (!user && role !== 'client') {
-      toast.error('Você precisa estar logado para aprovar');
+    if (!role) {
+      toast.error('Não foi possível identificar seu papel neste relatório');
       return;
     }
+
     setSubmitting(true);
     try {
       const isCrew = role === 'crew';
@@ -152,6 +163,8 @@ export default function AprovarRelatorioViagem() {
         updates.client_approval_notes = notes || null;
       }
       if (decision === 'rejected') updates.status = 'em_revisao';
+      if (decision === 'approved' && isCrew) updates.status = 'aprovado_tripulante';
+
 
       const { error } = await supabase
         .from('travel_expense_reports')
@@ -167,6 +180,54 @@ export default function AprovarRelatorioViagem() {
         decision,
         notes: notes || null,
       });
+
+      // Aprovação do tripulante → notificar admins + financeiro_master e sincronizar com financeiro (contas a pagar Share)
+      if (decision === 'approved' && isCrew) {
+        try {
+          const { data: adminRoles } = await supabase
+            .from('user_roles')
+            .select('user_id, role')
+            .in('role', ['admin', 'financeiro_master']);
+          const uniqUserIds = Array.from(new Set((adminRoles || []).map((r: any) => r.user_id).filter(Boolean)));
+          if (uniqUserIds.length > 0) {
+            await supabase.from('notifications').insert(
+              uniqUserIds.map((uid: string) => ({
+                user_id: uid,
+                title: '✅ Relatório aprovado pelo tripulante',
+                message: `${report.nome_tripulante} aprovou o relatório nº ${report.numero_relatorio}. Pronto para envio ao cliente.`,
+                type: 'success',
+                read: false,
+              }))
+            );
+          }
+        } catch (e) {
+          console.warn('Erro ao notificar admins:', e);
+        }
+
+        try {
+          await syncTravelReportToFinance({
+            reportId: report.id,
+            numeroRelatorio: report.numero_relatorio,
+            clientesId: report.clientes_id,
+            clienteNome: report.clientes_id_rel?.razao_social || '',
+            aeronaveId: report.aeronave_id,
+            matriculaAeronave: report.matricula_aeronave,
+            tripulacaoId: report.tripulacao_id,
+            nomeTripulante: report.nome_tripulante,
+            tripulanteId2: report.tripulante_id2,
+            nomeTripulante2: report.nome_tripulante_2,
+            totalCrew1: Number(report.total_trip || 0),
+            totalCrew2: Number(report.total_trip2 || 0),
+            totalSharebrasil: Number(report.total_sharebrasil || 0),
+            dataReferencia: report.data_fim || report.data_inicio || new Date().toISOString().slice(0, 10),
+            userId: user?.id || report.generated_by_user_id || null,
+          });
+        } catch (e) {
+          console.warn('Erro ao sincronizar financeiro:', e);
+        }
+      }
+
+
 
       // Se discordância (rejected), enviar notificações
       if (decision === 'rejected') {
@@ -369,14 +430,9 @@ export default function AprovarRelatorioViagem() {
               </Card>
             )}
 
-            {!user && role !== 'client' && !showClientLogin && (
-              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
-                Você precisa estar autenticado para aprovar. <a className="underline font-semibold" href={`/#/login?redirect=/aprovar-relatorio/${token}`}>Fazer login</a>
-              </div>
-            )}
+            {/* Mostrar PDF (token já autoriza visualização) */}
+            {pdfUrl ? (
 
-            {/* Mostrar PDF apenas se usuário está autenticado (crew ou cliente) */}
-            {(user || role === 'client') && pdfUrl ? (
               <div className="space-y-2">
                 <iframe
                   src={pdfUrl}

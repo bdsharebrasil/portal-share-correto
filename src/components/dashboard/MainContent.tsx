@@ -1,4 +1,9 @@
 import { useViewMode } from "@/contexts/ViewModeContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { Plane, CalendarCheck, AlertCircle, Users } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { DashboardHero } from "./operador/DashboardHero";
 import { FleetStatusCards } from "./operador/FleetStatusCards";
 import { OperationsTools } from "./operador/OperationsTools";
@@ -7,6 +12,83 @@ import { FinanceiroDashboard } from "./FinanceiroDashboard";
 import { GestorDashboard } from "./GestorDashboard";
 
 import { PortalClienteDashboard } from "@/pages/PortalCliente";
+
+function OperacoesKPIs() {
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  const { data: voosHoje = 0 } = useQuery({
+    queryKey: ["kpi-voos-hoje", today],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from("flight_schedules")
+        .select("id", { count: "exact", head: true })
+        .eq("flight_date", today);
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: frotaAtiva = 0 } = useQuery({
+    queryKey: ["kpi-frota-ativa"],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from("aeronave")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "ativa");
+      return count ?? 0;
+    },
+  });
+
+  const { data: agendamentos = 0 } = useQuery({
+    queryKey: ["kpi-agendamentos"],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from("flight_schedules")
+        .select("id", { count: "exact", head: true })
+        .gte("flight_date", today);
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
+  const { data: pendencias = 0 } = useQuery({
+    queryKey: ["kpi-pendencias"],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from("flight_schedules")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "Pendente");
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
+  const kpis = [
+    { label: "Voos Hoje", value: voosHoje, icon: Plane, color: "text-primary", bg: "bg-primary/10", border: "border-primary/20" },
+    { label: "Agendamentos", value: agendamentos, icon: CalendarCheck, color: "text-cyan-400", bg: "bg-cyan-500/10", border: "border-cyan-500/20" },
+    { label: "Pendências", value: pendencias, icon: AlertCircle, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      {kpis.map((k) => (
+        <Card key={k.label} className="bg-white/[0.02] backdrop-blur-md border-white/[0.05] hover:bg-white/[0.04] transition-colors">
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs md:text-sm font-medium text-muted-foreground/80">{k.label}</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground mt-1">{k.value}</p>
+              </div>
+              <div className={`p-2.5 md:p-3.5 rounded-xl border ${k.bg} ${k.border} flex-shrink-0`}>
+                <k.icon className={`h-5 md:h-6 w-5 md:w-6 ${k.color}`} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export function MainContent() {
   const { viewMode } = useViewMode();
@@ -31,24 +113,19 @@ export function MainContent() {
       {/* Hero Section */}
       <DashboardHero />
 
-      {/* Bento Grid Layout - Responsivo para mobile */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 auto-rows-max">
-        {/* Operations Tools - Full Width */}
-        <div className="md:col-span-2 lg:col-span-4">
-          <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Ferramentas de Operações</h3>
-          <OperationsTools />
-        </div>
+      {/* KPIs em tempo real */}
+      <OperacoesKPIs />
 
-        {/* Fleet Status Cards - Takes 2 columns on lg */}
-        <div className="md:col-span-2 lg:col-span-2">
-          <FleetStatusCards />
+      {/* Ferramentas centralizadas */}
+      <div>
+        <div className="mb-4 text-center">
         </div>
+        <OperationsTools />
+      </div>
 
-        {/* Messages Panel - Takes 2 columns on lg */}
-        <div className="md:col-span-2 lg:col-span-2">
-          <MessagesPanel />
-        </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
+        <FleetStatusCards />
+        <MessagesPanel />
       </div>
     </main>
   );

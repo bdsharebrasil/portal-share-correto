@@ -5,6 +5,7 @@ import {
   Plane, BookOpen, MessageSquare, Plus, AlertTriangle, AlertCircle, Clock, Send
 } from "lucide-react";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
+import TravelReportsTracking from "@/components/dashboard/financeiro/TravelReportsTracking";
 import { InadimplenciaPanel } from "@/components/dashboard/financeiro/InadimplenciaPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +35,6 @@ interface Note {
   updated_at: string;
 }
 
-
-
-
 export function FinanceiroDashboard() {
   const navigate = useNavigate();
   const [todayEntry, setTodayEntry] = useState<TimeEntry | null>(null);
@@ -49,6 +47,7 @@ export function FinanceiroDashboard() {
   const [reportDiscordances, setReportDiscordances] = useState<any[]>([]);
   const [discordancesLoading, setDiscordancesLoading] = useState(true);
   const [solicitacaoPagamentoOpen, setSolicitacaoPagamentoOpen] = useState(false);
+  const [travelReportsOpen, setTravelReportsOpen] = useState(false);
 
   useEffect(() => {
     loadTodayEntry();
@@ -57,7 +56,6 @@ export function FinanceiroDashboard() {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
-
 
   const loadTodayEntry = async () => {
     try {
@@ -122,9 +120,6 @@ export function FinanceiroDashboard() {
       setDiscordancesLoading(false);
     }
   };
-
-
-
 
   const handleClockAction = async (action: 'entrada_hora' | 'inicio_almoco' | 'fim_almoco' | 'saida_hora') => {
     setLoading(true);
@@ -212,7 +207,7 @@ export function FinanceiroDashboard() {
       iconBg: "bg-blue-500/10",
       hoverGlow: "hover:border-blue-500/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]",
     },
-    
+
     {
       icon: Plane,
       label: "Ciclo de Voo",
@@ -264,19 +259,16 @@ export function FinanceiroDashboard() {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value ?? 0);
 
-
-
-
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 md:space-y-8 overflow-auto">
       {/* Hero Header */}
       <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-white/[0.06] shadow-2xl h-32 md:h-40 lg:h-48">
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 mix-blend-overlay"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60"
           style={{ backgroundImage: `url(${aviationHero})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/85 via-background/55 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
           <div className="relative z-10 flex flex-col gap-2">
             <div className="flex items-center gap-2 mb-0.5">
@@ -284,11 +276,11 @@ export function FinanceiroDashboard() {
                 <Plane className="h-3 md:h-4 w-3 md:w-4 text-primary" />
               </div>
               <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md">
-                Dashboard Financeiro
+                DASHBOARD FINANCEIRO
               </span>
             </div>
-            <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
-              {currentTime.getHours() < 12 ? 'Bom dia' : currentTime.getHours() < 18 ? 'Boa tarde' : 'Boa noite'}!
+            <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight uppercase drop-shadow-md">
+              {currentTime.getHours() < 12 ? 'BOM DIA' : currentTime.getHours() < 18 ? 'BOA TARDE' : 'BOA NOITE'}!
             </h1>
             <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed hidden sm:block">
               Gerencie suas finanças, registre o ponto e acompanhe suas tarefas diárias.
@@ -305,7 +297,7 @@ export function FinanceiroDashboard() {
               <AlertTriangle className="h-5 w-5 text-red-400" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-red-400 mb-1 text-base">Relatórios com Discordâncias</h3>
+              <h3 className="font-semibold text-red-400 mb-1 text-base uppercase tracking-wide">RELATÓRIOS COM DISCORDÂNCIAS</h3>
               <p className="text-sm text-muted-foreground mb-4">Existem {reportDiscordances.length} relatório(s) de viagem que precisam de ajuste:</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -317,12 +309,12 @@ export function FinanceiroDashboard() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground text-sm group-hover:text-red-400 transition-colors truncate">
+                        <p className="font-medium text-foreground text-sm group-hover:text-red-400 transition-colors truncate uppercase">
                           {report.numero_relatorio}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1 truncate">{report.cliente?.razao_social}</p>
                       </div>
-                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20 flex-shrink-0">
+                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20 flex-shrink-0 uppercase">
                         Devolvido
                       </Badge>
                     </div>
@@ -333,7 +325,7 @@ export function FinanceiroDashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-4 text-xs md:text-sm text-red-400 border-red-500/20 hover:bg-red-500/10 hover:text-red-300"
+                className="mt-4 text-xs md:text-sm text-red-400 border-red-500/20 hover:bg-red-500/10 hover:text-red-300 uppercase"
                 onClick={() => navigate('/financeiro/relatorio-viagem')}
               >
                 Ver todos
@@ -344,7 +336,7 @@ export function FinanceiroDashboard() {
         </div>
       )}
 
-      {/* Ferramentas Rápidas + Ponto (Tamanhos Padronizados) movido para cima */}
+      {/* Ferramentas Rápidas + Ponto (Tamanhos Padronizados) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 md:gap-4">
         {quickTools.map(tool => (
           <button
@@ -352,10 +344,10 @@ export function FinanceiroDashboard() {
             onClick={() => tool.action ? tool.action() : tool.route && navigate(tool.route)}
             className={`h-28 md:h-32 flex flex-col items-center justify-center gap-2 p-3 bg-white/[0.02] hover:bg-white/[0.045] backdrop-blur-md rounded-2xl border border-white/[0.06] transition-transform duration-300 group shadow-md hover:shadow-lg transform-gpu hover:-translate-y-1 ${tool.hoverGlow}`}
           >
-            <div className={`p-2.5 rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg}`}>
+            <div className={`w-11 h-11 flex items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg}`}>
               <tool.icon className={`h-4 w-4 ${tool.iconColor}`} strokeWidth={1.5} />
             </div>
-            <span className="text-[11px] md:text-xs font-medium text-foreground group-hover:text-primary transition-colors text-center leading-tight">
+            <span className="text-[11px] md:text-xs font-medium text-foreground group-hover:text-primary transition-colors text-center leading-tight uppercase tracking-wide">
               {tool.label}
             </span>
           </button>
@@ -386,7 +378,7 @@ export function FinanceiroDashboard() {
               onClick={nextPontoAction.action}
               disabled={loading}
               className={cn(
-                "w-full h-8 rounded-lg text-[10px] md:text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm",
+                "w-full h-8 rounded-lg text-[10px] md:text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm uppercase",
                 nextPontoAction.color
               )}
             >
@@ -414,7 +406,6 @@ export function FinanceiroDashboard() {
       {/* Painel de Vencimentos - Mapa + Aeronaves */}
       <InadimplenciaPanel />
 
-
       {/* Modais */}
       <TimeClockHistoryModal open={timeClockHistoryOpen} onOpenChange={setTimeClockHistoryOpen} />
 
@@ -422,7 +413,7 @@ export function FinanceiroDashboard() {
         <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md overflow-auto">
           <div className="container mx-auto py-6 px-4 md:px-8">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/[0.05]">
-              <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 uppercase tracking-wide">
                 <div className="p-2 bg-orange-500/10 rounded-lg border border-orange-500/20">
                   <Plane className="h-6 w-6 text-orange-400" />
                 </div>
@@ -440,7 +431,24 @@ export function FinanceiroDashboard() {
           </div>
         </div>
       )}
-      <SolicitacaoPagamentoModal open={solicitacaoPagamentoOpen} onOpenChange={setSolicitacaoPagamentoOpen} />
+      {travelReportsOpen ? (
+        <section className="fixed inset-0 z-40 overflow-auto bg-background p-4 md:p-6 lg:p-8">
+          <div className="mx-auto max-w-7xl space-y-6">
+            <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
+              <h2 className="text-xl font-semibold text-foreground uppercase tracking-wide">Relatórios de Viagem em Fluxo</h2>
+              <Button variant="outline" onClick={() => setTravelReportsOpen(false)}>
+                Voltar ao Dashboard
+              </Button>
+            </div>
+            <TravelReportsTracking />
+          </div>
+        </section>
+      ) : null}
+      <SolicitacaoPagamentoModal
+        open={solicitacaoPagamentoOpen}
+        onOpenChange={setSolicitacaoPagamentoOpen}
+        onOpenTravelReports={() => setTravelReportsOpen(true)}
+      />
     </main>
   );
 }

@@ -38,6 +38,7 @@ interface SolicitacaoPagamentoModalProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initialData?: any;
+  onOpenTravelReports?: () => void;
 }
 
 type Periodicidade = "MENSAL" | "SEMESTRAL" | "ANUAL" | "EVENTUAL";
@@ -202,9 +203,13 @@ async function insertAndGetId(table: string, payload: Record<string, unknown>) {
   return row.id;
 }
 
-export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: SolicitacaoPagamentoModalProps) {
+export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onOpenTravelReports }: SolicitacaoPagamentoModalProps) {
   // === ESTADO DO WIZARD ===
-  const [etapaAtual, setEtapaAtual] = useState(1);
+  const [etapaAtual, setEtapaAtual] = useState(initialData ? 1 : 0);
+
+  useEffect(() => {
+    if (open) setEtapaAtual(initialData ? 1 : 0);
+  }, [open, initialData]);
 
   const [tiposDespesa, setTiposDespesa] = useState<TipoDespesaOption[]>([]);
   const [fornecedores, setFornecedores] = useState<FornecedorOption[]>([]);
@@ -1496,11 +1501,36 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
             Programar Pagamento — Cliente
           </DialogTitle>
           <DialogDescription>
-            Etapa {etapaAtual} de 3 — {etapaAtual === 1 ? "Classificação Básica" : etapaAtual === 2 ? "Rateio e Contexto" : "Dados Finais da Fatura"}
+            {etapaAtual === 0
+              ? "Escolha o fluxo financeiro que deseja abrir"
+              : `Etapa ${etapaAtual} de 3 — ${etapaAtual === 1 ? "Classificação Básica" : etapaAtual === 2 ? "Rateio e Contexto" : "Dados Finais da Fatura"}`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
+          {etapaAtual === 0 && (
+            <section className="grid gap-4 sm:grid-cols-2 py-4">
+              <Button
+                variant="outline"
+                className="h-auto min-h-32 flex-col items-center justify-center gap-3 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/60"
+                onClick={() => setEtapaAtual(1)}
+              >
+                <Send className="h-8 w-8 text-emerald-400" />
+                <span className="text-base">Enviar solicitação de pagamento</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-auto min-h-32 flex-col items-center justify-center gap-3 border-blue-500/30 hover:bg-blue-500/10 hover:border-blue-500/60"
+                onClick={() => {
+                  onOpenChange(false);
+                  onOpenTravelReports?.();
+                }}
+              >
+                <FileText className="h-8 w-8 text-blue-400" />
+                <span className="text-base">Abrir Relatórios de Viagem em fluxo</span>
+              </Button>
+            </section>
+          )}
           
           {/* =========================================
               ETAPA 1: Classificação Básica (Progressiva)
@@ -2434,7 +2464,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
               Cancelar
             </Button>
 
-            {etapaAtual < 3 ? (
+            {etapaAtual > 0 && (etapaAtual < 3 ? (
               <Button 
                 onClick={() => setEtapaAtual((prev) => prev + 1)} 
                 disabled={!podeAvancar() || saving}
@@ -2451,7 +2481,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData }: S
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />} Solicitar Pagamento
                 </Button>
               </>
-            )}
+            ))}
           </div>
         </DialogFooter>
       </DialogContent>

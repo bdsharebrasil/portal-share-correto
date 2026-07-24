@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Plane } from "lucide-react";
 import aviationHero from "@/assets/aviation-hero.jpg";
 
 export function DashboardHero() {
@@ -28,26 +29,29 @@ export function DashboardHero() {
   };
 
   return (
-    <div className="relative mb-6 rounded-xl overflow-hidden">
+    <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-white/[0.06] shadow-2xl h-32 md:h-40 lg:h-48">
       <div
-        className="h-40 bg-cover bg-center bg-no-repeat relative"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 mix-blend-overlay"
         style={{ backgroundImage: `url(${aviationHero})` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/50" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-
-        <div className="relative h-full flex items-center px-6">
-          <div>
-            <p className="text-xs text-primary font-medium uppercase tracking-widest mb-1">
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
+        <div className="relative z-10 flex flex-col gap-2">
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className="p-1.5 md:p-2 rounded-md bg-primary/10 border border-primary/20">
+              <Plane className="h-3 md:h-4 w-3 md:w-4 text-primary" />
+            </div>
+            <span className="text-xs md:text-sm font-semibold text-primary uppercase tracking-wider drop-shadow-md">
               Dashboard Operacional
-            </p>
-            <h1 className="text-3xl font-bold text-foreground">
-              {getGreeting()}, {displayName || "Comandante"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-              Resumo do dia: Confira o status da frota, vencimentos próximos e agendamentos pendentes.
-            </p>
+            </span>
           </div>
+          <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
+            {getGreeting()}, {displayName || "Comandante"}
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed hidden sm:block">
+            Resumo do dia: status da frota, vencimentos próximos e agendamentos pendentes.
+          </p>
         </div>
       </div>
     </div>
