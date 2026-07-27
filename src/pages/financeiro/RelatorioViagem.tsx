@@ -674,7 +674,6 @@ export default function RelatorioViagem() {
       // Ao finalizar/enviar: marcar aprovação pendente do tripulante e (opcional) cliente
       if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         payload.crew_approval_status = 'pending';
-        payload.enviado_tripulante_em = new Date().toISOString();
         payload.requires_client_approval = !!requireClientApproval;
         if (requireClientApproval) payload.client_approval_status = 'pending';
         if (user?.id) payload.generated_by_user_id = user.id;
@@ -1304,6 +1303,15 @@ export default function RelatorioViagem() {
                   <div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                       <h3 className="text-lg font-semibold">Pastas de Clientes</h3>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={backfillMissingPdf}
+                        disabled={isBackfillingPdf}
+                        className="rounded-lg"
+                      >
+                        {isBackfillingPdf ? 'Preenchendo PDFs...' : 'Preencher PDFs ausentes'}
+                      </Button>
                     </div>
                     {reportsWithClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
@@ -1326,6 +1334,7 @@ export default function RelatorioViagem() {
                           criado_por: r.criado_por,
                           numero_relatorio_modificado_por: r.criado_por,
                           numero_relatorio_modificado_em: r.updated_at,
+                          crew_approval_status: (r as any).crew_approval_status ?? null,
                         }))}
                         onView={handleViewPDF}
                         onEdit={editReport}

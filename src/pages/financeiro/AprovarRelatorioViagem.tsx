@@ -9,15 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle, AlertCircle, ExternalLink, Paperclip } from 'lucide-react';
-import { syncTravelReportToFinance } from '@/lib/travelReportFinanceSync';
-
+import { CheckCircle2, XCircle, FileText, Loader2, AlertTriangle, AlertCircle } from 'lucide-react';
 
 export default function AprovarRelatorioViagem() {
   const { token } = useParams();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState<any>(null);
-  const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -26,8 +24,6 @@ export default function AprovarRelatorioViagem() {
   const [clientPassword, setClientPassword] = useState('');
   const [showClientLogin, setShowClientLogin] = useState(false);
   const [clientAuthenticating, setClientAuthenticating] = useState(false);
-  const [attachments, setAttachments] = useState<Array<{ id: string; expense_index: number; nome_arquivo: string; url_arquivo: string; tipo_arquivo: string | null }>>([]);
-  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -49,69 +45,52 @@ export default function AprovarRelatorioViagem() {
 
         setReport(data);
 
-        // Buscar user_ids reais dos tripulantes vinculados
-        const crewIds: string[] = [];
-        for (const cid of [data.tripulacao_id, data.tripulante_id2].filter(Boolean)) {
-          const { data: m } = await supabase
-            .from('membros_tripulacao')
-            .select('user_id')
-            .eq('id', cid)
-            .maybeSingle();
-          if (m?.user_id) crewIds.push(m.user_id);
-        }
+        // Detectar papel: tripulante (auth.users) ou cliente (portal)
+        const isCrew = authUser?.id === data.tripulacao_id || authUser?.id === data.tripulante_id2;
 
-        // Token único autoriza visualização. Se logado como tripulante, marca papel 'crew'.
-        // Sem login: assumimos papel 'crew' baseado no token (link privado) — ele poderá aprovar.
-        if (authUser && crewIds.includes(authUser.id)) {
+        if (isCrew) {
           setRole('crew');
         } else if (data.requires_client_approval && !authUser) {
+          // Se cliente precisa de aprovação e não há usuário autenticado, mostrar formulário de login
           setShowClientLogin(true);
-        } else {
-          // Acesso via token sem cliente: tratamos como crew (token é a credencial)
-          setRole('crew');
         }
+
       } finally {
         setLoading(false);
       }
     })();
   }, [token]);
 
-  // Carrega o PDF sempre que houver relatório (token já é a credencial)
+  // Carrega URLs assinadas dos comprovantes (se necessário)
   useEffect(() => {
-    if (!report) return;
+    if (!report || (!user && role !== 'client')) return;
+
     (async () => {
-      if (report.pdf_path) {
-        const { data: signed } = await supabase.storage
-          .from('travel-reports')
-          .createSignedUrl(report.pdf_path, 60 * 60);
-        if (signed?.signedUrl) { setPdfUrl(signed.signedUrl); return; }
+      const despesas = (() => {
+        try {
+          return typeof report.despesas === 'string' ? JSON.parse(report.despesas) : report.despesas || [];
+        } catch {
+          return [];
+        }
+      })();
+      const urls: Record<string, string> = {};
+      for (let i = 0; i < despesas.length; i++) {
+        const raw = despesas[i]?.receipt_url;
+        if (!raw) continue;
+        // Se é URL pública do bucket, extrai o path e gera signed URL
+        const match = String(raw).match(/\/travel-reports\/(.+)$/);
+        if (match) {
+          const { data: signed } = await supabase.storage
+            .from('travel-reports')
+            .createSignedUrl(match[1], 60 * 60);
+          urls[String(i)] = signed?.signedUrl || raw;
+        } else {
+          urls[String(i)] = raw;
+        }
       }
-      if (report.pdf_url) setPdfUrl(report.pdf_url);
+      setReceiptUrls(urls);
     })();
-  }, [report]);
-
-  useEffect(() => {
-    if (!report?.id) return;
-    (async () => {
-      const { data, error } = await supabase
-        .from('travel_report_attachments')
-        .select('id, expense_index, nome_arquivo, url_arquivo, tipo_arquivo')
-        .eq('travel_report_id', report.id)
-        .order('expense_index');
-
-      if (error) {
-        console.error('Erro ao carregar anexos do relatório:', error);
-        return;
-      }
-
-      const pdfAttachments = (data || []).filter((attachment) =>
-        attachment.tipo_arquivo === 'application/pdf' || attachment.nome_arquivo.toLowerCase().endsWith('.pdf')
-      );
-      setAttachments(pdfAttachments);
-      setSelectedAttachmentId(pdfAttachments[0]?.id || null);
-    })();
-  }, [report?.id]);
-
+  }, [report, user, role]);
 
   const handleClientLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,11 +147,10 @@ export default function AprovarRelatorioViagem() {
 
   const submitDecision = async (decision: 'approved' | 'rejected') => {
     if (!report) return;
-    if (!role) {
-      toast.error('Não foi possível identificar seu papel neste relatório');
+    if (!user && role !== 'client') {
+      toast.error('Você precisa estar logado para aprovar');
       return;
     }
-
     setSubmitting(true);
     try {
       const isCrew = role === 'crew';
@@ -187,8 +165,6 @@ export default function AprovarRelatorioViagem() {
         updates.client_approval_notes = notes || null;
       }
       if (decision === 'rejected') updates.status = 'em_revisao';
-      if (decision === 'approved' && isCrew) updates.status = 'aprovado_tripulante';
-
 
       const { error } = await supabase
         .from('travel_expense_reports')
@@ -204,54 +180,6 @@ export default function AprovarRelatorioViagem() {
         decision,
         notes: notes || null,
       });
-
-      // Aprovação do tripulante → notificar admins + financeiro_master e sincronizar com financeiro (contas a pagar Share)
-      if (decision === 'approved' && isCrew) {
-        try {
-          const { data: adminRoles } = await supabase
-            .from('user_roles')
-            .select('user_id, role')
-            .in('role', ['admin', 'financeiro_master']);
-          const uniqUserIds = Array.from(new Set((adminRoles || []).map((r: any) => r.user_id).filter(Boolean)));
-          if (uniqUserIds.length > 0) {
-            await supabase.from('notifications').insert(
-              uniqUserIds.map((uid: string) => ({
-                user_id: uid,
-                title: '✅ Relatório aprovado pelo tripulante',
-                message: `${report.nome_tripulante} aprovou o relatório nº ${report.numero_relatorio}. Pronto para envio ao cliente.`,
-                type: 'success',
-                read: false,
-              }))
-            );
-          }
-        } catch (e) {
-          console.warn('Erro ao notificar admins:', e);
-        }
-
-        try {
-          await syncTravelReportToFinance({
-            reportId: report.id,
-            numeroRelatorio: report.numero_relatorio,
-            clientesId: report.clientes_id,
-            clienteNome: report.clientes_id_rel?.razao_social || '',
-            aeronaveId: report.aeronave_id,
-            matriculaAeronave: report.matricula_aeronave,
-            tripulacaoId: report.tripulacao_id,
-            nomeTripulante: report.nome_tripulante,
-            tripulanteId2: report.tripulante_id2,
-            nomeTripulante2: report.nome_tripulante_2,
-            totalCrew1: Number(report.total_trip || 0),
-            totalCrew2: Number(report.total_trip2 || 0),
-            totalSharebrasil: Number(report.total_sharebrasil || 0),
-            dataReferencia: report.data_fim || report.data_inicio || new Date().toISOString().slice(0, 10),
-            userId: user?.id || report.generated_by_user_id || null,
-          });
-        } catch (e) {
-          console.warn('Erro ao sincronizar financeiro:', e);
-        }
-      }
-
-
 
       // Se discordância (rejected), enviar notificações
       if (decision === 'rejected') {
@@ -454,122 +382,99 @@ export default function AprovarRelatorioViagem() {
               </Card>
             )}
 
-            {/* Relatório em tela — sempre visível, sem depender de PDF */}
-            <Card className="border-border bg-card/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Resumo do Relatório</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div><p className="text-xs text-muted-foreground">Nº Relatório</p><p className="font-semibold">{report.numero_relatorio || '—'}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Rota</p><p className="font-semibold">{report.rota || '—'}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Data Início</p><p className="font-semibold">{report.data_inicio ? new Date(report.data_inicio).toLocaleDateString('pt-BR') : '—'}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Data Fim</p><p className="font-semibold">{report.data_fim ? new Date(report.data_fim).toLocaleDateString('pt-BR') : '—'}</p></div>
-                </div>
-
-                <div className="pt-3 border-t border-border">
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">DESPESAS POR CATEGORIA</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {[
-                      ['Combustível', report.total_combustivel],
-                      ['Hospedagem', report.total_hospedagem],
-                      ['Alimentação', report.total_alimentacao],
-                      ['Transporte', report.total_transporte],
-                      ['Outros', report.total_outros],
-                    ].map(([label, val]) => (
-                      <div key={label as string} className="p-3 rounded-lg bg-muted/50">
-                        <p className="text-xs text-muted-foreground">{label}</p>
-                        <p className="font-bold text-primary">R$ {Number(val || 0).toFixed(2).replace('.', ',')}</p>
-                      </div>
-                    ))}
-                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
-                      <p className="text-xs text-muted-foreground">Total</p>
-                      <p className="font-bold text-primary text-lg">R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-border grid grid-cols-3 gap-3">
-                  <div><p className="text-xs text-muted-foreground">Tripulante</p><p className="font-semibold text-emerald-600">R$ {Number(report.total_tripulacao || 0).toFixed(2).replace('.', ',')}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Cliente</p><p className="font-semibold text-blue-600">R$ {Number(report.total_clientes || 0).toFixed(2).replace('.', ',')}</p></div>
-                  <div><p className="text-xs text-muted-foreground">ShareBrasil</p><p className="font-semibold text-orange-600">R$ {Number(report.total_sharebrasil || 0).toFixed(2).replace('.', ',')}</p></div>
-                </div>
-
-                {report.observacoes && (
-                  <div className="pt-3 border-t border-border">
-                    <p className="text-xs font-semibold text-muted-foreground mb-1">OBSERVAÇÕES</p>
-                    <p className="whitespace-pre-wrap">{report.observacoes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* PDF opcional — só aparece se existir */}
-            {pdfUrl && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground">DOCUMENTO PDF (opcional)</p>
-                <iframe
-                  src={pdfUrl}
-                  className="w-full h-[60vh] rounded-lg border"
-                  title="Relatório PDF"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Se o PDF não aparecer, <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="underline text-primary hover:text-primary/80">clique aqui para abrir em nova aba</a>
-                </p>
+            {!user && role !== 'client' && !showClientLogin && (
+              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
+                Você precisa estar autenticado para aprovar. <a className="underline font-semibold" href={`/#/login?redirect=/aprovar-relatorio/${token}`}>Fazer login</a>
               </div>
             )}
 
-            {attachments.length > 0 && (
-              <Card className="border-border bg-card/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Paperclip className="h-4 w-4 text-primary" />
-                    Comprovantes em PDF
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {attachments.map((attachment) => (
-                      <Button
-                        key={attachment.id}
-                        type="button"
-                        variant={selectedAttachmentId === attachment.id ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSelectedAttachmentId(attachment.id)}
-                      >
-                        Despesa {attachment.expense_index + 1}: {attachment.nome_arquivo}
-                      </Button>
-                    ))}
-                  </div>
-                  {attachments.map((attachment) => selectedAttachmentId === attachment.id && (
-                    <div key={attachment.id} className="space-y-2">
-                      <iframe
-                        src={attachment.url_arquivo}
-                        className="h-[60vh] w-full rounded-lg border"
-                        title={`Comprovante ${attachment.nome_arquivo}`}
-                      />
-                      <a
-                        href={attachment.url_arquivo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary underline hover:text-primary/80"
-                      >
-                        Abrir {attachment.nome_arquivo} em nova aba <ExternalLink className="h-3 w-3" />
-                      </a>
+            {/* Resumo do Relatório + Comprovantes (sem PDF do relatório) */}
+            {(user || role === 'client') && (() => {
+              const despesas = (() => {
+                try {
+                  return typeof report.despesas === 'string' ? JSON.parse(report.despesas) : report.despesas || [];
+                } catch { return []; }
+              })();
+              const fmt = (v: any) => `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
+              return (
+                <div className="space-y-4">
+                  {/* Resumo do Relatório */}
+                  <div className="rounded-lg border bg-card p-4">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" /> Resumo do Relatório
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div><span className="text-muted-foreground">Tripulante</span><br /><strong>{report.nome_tripulante}</strong></div>
+                      {report.nome_tripulante_2 && (
+                        <div><span className="text-muted-foreground">Tripulante 2</span><br /><strong>{report.nome_tripulante_2}</strong></div>
+                      )}
+                      <div><span className="text-muted-foreground">Aeronave</span><br /><strong>{report.matricula_aeronave}</strong></div>
+                      <div><span className="text-muted-foreground">Rota</span><br /><strong>{report.rota || '—'}</strong></div>
+                      <div><span className="text-muted-foreground">Período</span><br /><strong>{report.data_inicio} → {report.data_fim}</strong></div>
+                      <div><span className="text-muted-foreground">Combustível</span><br /><strong>{fmt(report.total_combustivel)}</strong></div>
+                      <div><span className="text-muted-foreground">Hospedagem</span><br /><strong>{fmt(report.total_hospedagem)}</strong></div>
+                      <div><span className="text-muted-foreground">Alimentação</span><br /><strong>{fmt(report.total_alimentacao)}</strong></div>
+                      <div><span className="text-muted-foreground">Transporte</span><br /><strong>{fmt(report.total_transporte)}</strong></div>
+                      <div><span className="text-muted-foreground">Outros</span><br /><strong>{fmt(report.total_outros)}</strong></div>
+                      <div className="col-span-2"><span className="text-muted-foreground">Total do Relatório</span><br /><strong className="text-lg text-primary">{fmt(report.total_valor)}</strong></div>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+                    {report.observacoes && (
+                      <div className="mt-3 pt-3 border-t text-sm">
+                        <span className="text-muted-foreground">Observações:</span>
+                        <p className="mt-1 whitespace-pre-wrap">{report.observacoes}</p>
+                      </div>
+                    )}
+                  </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div><strong>Tripulante:</strong><br />{report.nome_tripulante}</div>
-              {report.nome_tripulante_2 && <div><strong>Tripulante 2:</strong><br />{report.nome_tripulante_2}</div>}
-              <div><strong>Aeronave:</strong><br />{report.matricula_aeronave}</div>
-              <div><strong>Total:</strong><br />R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</div>
-            </div>
+                  {/* Comprovantes em PDF */}
+                  <div className="rounded-lg border bg-card p-4">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" /> Comprovantes em PDF
+                      <span className="text-xs text-muted-foreground font-normal">({despesas.length} {despesas.length === 1 ? 'item' : 'itens'})</span>
+                    </h3>
+                    {despesas.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nenhum comprovante anexado.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {despesas.map((d: any, i: number) => {
+                          const url = receiptUrls[String(i)];
+                          return (
+                            <div key={i} className="flex flex-col md:flex-row md:items-center gap-3 p-3 rounded-md border bg-muted/30 hover:bg-muted/60 transition-colors">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap gap-2 items-center text-sm">
+                                  <Badge variant="secondary" className="text-xs">{d.category || d.categoria || '—'}</Badge>
+                                  <span className="text-xs text-muted-foreground">{d.expense_date || d.data || ''}</span>
+                                  <span className="text-xs text-muted-foreground">· Pago por: <strong>{d.paid_by || d.pago_por || '—'}</strong></span>
+                                </div>
+                                <p className="mt-1 text-sm truncate">{d.description || d.descricao || 'Sem descrição'}</p>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <span className="font-mono font-semibold">{fmt(d.amount ?? d.valor)}</span>
+                                {url ? (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
+                                  >
+                                    Ver PDF ↗
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">sem anexo</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
-            {!alreadyDecided && role && !showClientLogin && (
+
+            {!alreadyDecided && (user || role === 'client') && role && (
               <div className="space-y-2 pt-4 border-t">
                 <Label htmlFor="notes">Observações (opcional — obrigatório se discordar)</Label>
                 <Textarea
