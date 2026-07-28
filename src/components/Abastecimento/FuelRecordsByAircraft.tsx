@@ -58,7 +58,7 @@ interface FuelRecord {
   abastecedor_id?: string | null;
   client_id?: string | null;
   id_clientes?: string | null;
-  status_pagamento?: string | null;
+  status?: string | null;
   tipo_faturamento?: string | null;
   observacao?: string | null;
   nf?: string | null;
@@ -206,7 +206,7 @@ export function FuelRecordsByAircraft({
     combustivel_tipo: "",
     client_id: "",
     partner_selected: "",
-    status_pagamento: "em aberto",
+    status: "em aberto",
     tipo_faturamento: "",
     banco: "",
     data_vencimento_boleto: "",
@@ -567,7 +567,7 @@ export function FuelRecordsByAircraft({
 
     if (filterMonth !== "all" && filterYear) {
       filtered = filtered.filter(record => {
-        const dateToUse = (record.status_pagamento === "pago" && record.data_pagamento)
+        const dateToUse = (record.status === "pago" && record.data_pagamento)
           ? record.data_pagamento
           : record.data;
         const recordDate = new Date(dateToUse);
@@ -695,10 +695,10 @@ export function FuelRecordsByAircraft({
       const fornecedorNome = formData.abastecedor_id
         ? suppliers.find(s => s.id === formData.abastecedor_id)?.nome_fornecedor || null
         : null;
-      const dataVencimento = formData.status_pagamento === "em aberto"
+      const dataVencimento = formData.status === "em aberto"
         ? (formData.data_vencimento_boleto || formData.data)
         : formData.data;
-      const pago = formData.status_pagamento === "pago";
+      const pago = formData.status === "pago";
 
       const { data: contaApagar, error: capError } = await (supabase as any)
         .from("contas_apagar")
@@ -860,7 +860,7 @@ export function FuelRecordsByAircraft({
         comprovanteUrl = (await uploadFile(formData.comprovante_file, "comprovante-pagamento")) || "";
       }
 
-      let statusFinal = formData.status_pagamento || "em aberto";
+      let statusFinal = formData.status || "em aberto";
       if (statusFinal === "pago") {
         const temComprovante = comprovanteUrl || (editingRecord as any)?.comprovante_pagamento || (editingRecord as any)?.comprovante_url;
         const temDataPagamento = formData.data_pagamento;
@@ -903,7 +903,7 @@ export function FuelRecordsByAircraft({
         valor_unitario: valorUnitario,
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
         abastecedor: supplierName,
-        status_pagamento: statusFinal,
+        status: statusFinal,
         tipo_faturamento: formData.tipo_faturamento || null,
         forma_pagamento: formData.tipo_faturamento || null,
         banco: formData.banco || null,
@@ -1013,7 +1013,7 @@ export function FuelRecordsByAircraft({
       combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
       client_id: record.id_clientes || record.client_id || client.id,
       partner_selected: record.socio_nome || (record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : ""),
-      status_pagamento: record.status_pagamento || "em aberto",
+      status: record.status || "em aberto",
       tipo_faturamento: record.tipo_faturamento || record.forma_pagamento || "",
       banco: record.banco || "",
       data_vencimento_boleto: record.data_vencimento_boleto || "",
@@ -1066,7 +1066,7 @@ export function FuelRecordsByAircraft({
       combustivel_tipo: "",
       client_id: client.id,
       partner_selected: "",
-      status_pagamento: "em aberto",
+      status: "em aberto",
       tipo_faturamento: "",
       banco: "",
       data_vencimento_boleto: "",
@@ -1103,7 +1103,7 @@ export function FuelRecordsByAircraft({
     let exportRecords = records;
     if (month !== null) {
       exportRecords = records.filter((r) => {
-        const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
+        const dateToUse = (r.status === "pago" && r.data_pagamento)
           ? r.data_pagamento
           : r.data;
         const recordDate = new Date(dateToUse + "T00:00:00");
@@ -1111,7 +1111,7 @@ export function FuelRecordsByAircraft({
       });
     } else {
       exportRecords = records.filter((r) => {
-        const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
+        const dateToUse = (r.status === "pago" && r.data_pagamento)
           ? r.data_pagamento
           : r.data;
         const recordDate = new Date(dateToUse + "T00:00:00");
@@ -1604,9 +1604,9 @@ export function FuelRecordsByAircraft({
 
                 <div>
                   <Label className="text-xs text-muted-foreground">Status de Pagamento <span className="text-red-500">*</span></Label>
-                  <Select value={formData.status_pagamento} onValueChange={value => setFormData({
+                  <Select value={formData.status} onValueChange={value => setFormData({
                     ...formData,
-                    status_pagamento: value
+                    status: value
                   })}>
                     <SelectTrigger className="mt-1 h-9 text-sm">
                       <SelectValue />
@@ -1619,7 +1619,7 @@ export function FuelRecordsByAircraft({
                 </div>
               </div>
 
-              {formData.status_pagamento === "pago" && (
+              {formData.status === "pago" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs text-muted-foreground">Data do Pagamento <span className="text-red-500">*</span></Label>
@@ -1772,7 +1772,7 @@ export function FuelRecordsByAircraft({
                     <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
                     <TableCell className="text-muted-foreground font-medium">{resolveFuelRecordPartnerName(record) || "-"}</TableCell>
                     <TableCell>
-                      {record.status_pagamento === "pago" ? (
+                      {record.status === "pago" ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
                           <FileCheck className="h-4 w-4" /> Pago
                         </span>

@@ -771,10 +771,12 @@ export function NotasFiscaisSaida() {
     try {
       const { error } = await supabase
         .from("notas_fiscais_saida")
-        .update({
-          status: newStatus,
-          atualizado_em: new Date().toISOString(),
-        })
+        .update<{ status: "pendente" | "recebido" | "cancelado"; atualizado_em: string }>(
+          {
+            status: newStatus as "pendente" | "recebido" | "cancelado",
+            atualizado_em: new Date().toISOString(),
+          }
+        )
         .eq("id", idLimpo)
         .select();
 
@@ -2463,7 +2465,7 @@ export function NotasFiscaisSaida() {
               <div>
                 <Label className="text-foreground mb-2 block">Data de Recebimento *</Label>
                 <Input
-                  type="data"
+                  type="date"
                   value={recebimentoData.data_recebimento}
                   onChange={(e) => setRecebimentoData({ ...recebimentoData, data_recebimento: e.target.value })}
                   className="bg-background border-border"

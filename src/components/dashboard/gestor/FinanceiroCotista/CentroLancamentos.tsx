@@ -1,4 +1,3 @@
- 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, DollarSign, ExternalLink, Upload, Loader2, FileDigit, ArrowDownCircle, ArrowUpCircle, FileText } from "lucide-react";
+import { CalendarIcon, Search, Paperclip, CheckCircle2, Clock, XCircle, Trash2, DollarSign, ExternalLink, Upload, Loader2, FileDigit, ArrowDownCircle, ArrowUpCircle, FileText, StickyNote, History, Plus, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -19,7 +18,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-interface Cotista { id: string; nome: string; percentual: number; }
+interface Cotista {
+  id: string;
+  nome: string;
+  percentual: number;
+  /** Opcional: se o cotista corresponde a um cliente (PJ). Se omitido, assume-se sócio. */
+  cliente_id?: string | null;
+  /** Opcional: se o cotista corresponde a um sócio. Se nem cliente_id nem socio_id vierem preenchidos, `id` é usado como socio_id (ajuste conforme a modelagem real do seu app). */
+  socio_id?: string | null;
+}
 
 interface CentroLancamentosProps {
   aeronaveId: string;
@@ -31,20 +38,20 @@ const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julh
 const TIPOS_RATEIO = ["FIXO", "VARIAVEL_POR_HORA", "VARIAVEL_POR_VOO", "EXTRA"] as const;
 const PERIODICIDADES = ["MENSAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
 
-const COL_USO_WIDTH = 75;
-const COL_RATEIO_WIDTH = 115;
+const COL_USO_WIDTH = 60;
+const COL_RATEIO_WIDTH = 96;
 const COTISTA_TOTAL_WIDTH = COL_USO_WIDTH + COL_RATEIO_WIDTH;
 
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-  data: 112,
-  doc: 120,
-  valorDespesa: 140,
-  fornecedor: 190,
-  descricao: 200,
-  categoria: 170,
-  tipoRateio: 150,
-  periodicidade: 130,
-  pagoPor: 130,
+  data: 96,
+  doc: 100,
+  valorDespesa: 120,
+  fornecedor: 160,
+  descricao: 170,
+  categoria: 140,
+  tipoRateio: 128,
+  periodicidade: 110,
+  pagoPor: 110,
 };
 
 const formatBRL = (n: number) =>
@@ -136,6 +143,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const [selectedChaves, setSelectedChaves] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
   const [resizing, setResizing] = useState<{ key: string; startX: number; startWidth: number } | null>(null);
+  const [showNovoDialog, setShowNovoDialog] = useState(false);
 
   const topScrollRef = useRef<HTMLDivElement>(null);
   const bottomScrollRef = useRef<HTMLDivElement>(null);
@@ -468,7 +476,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   }, [gruposFiltrados, selectedChaves]);
 
   const totalPeriodo = gruposParaSoma.reduce((s, g) => s + (Number(g.valor_total_despesa) || 0), 0);
-  
+
   const resumoPorFluxo = useMemo(() => {
     const normalizeFluxo = (value?: string | null) => (value || "").toUpperCase();
     const gruposPorFluxo = new Map<string, { total: number; porCotista: Map<string, number> }>([
@@ -638,7 +646,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           />
         </div>
         {selectedChaves.length > 0 && (
-          <div className="flex items-center gap-2 ml-auto rounded-lg border border-primary/25 bg-primary/5 pl-3 pr-1 py-1">
+          <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 pl-3 pr-1 py-1">
             <span className="text-xs font-medium text-foreground">{selectedChaves.length} selecionado(s)</span>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedChaves([])}>Limpar</Button>
           </div>
@@ -718,7 +726,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
                 return (
                   <tr key={fluxo} className={cn("border-b border-border", isEntrada ? "bg-emerald-500/[0.05]" : "bg-rose-500/[0.05]")}>
                     {/* AQUI ESTÁ O COLSPAN EXATO: 10 colunas normais + cotistas * 2 */}
-                    <td colSpan={10 + cotistas.length * 2} className="px-4 py-1.5">
+                    <td colSpan={10 + cotistas.length * 2} className="px-4 py-1">
                       <div className="flex items-center justify-between gap-3">
                         <span className={cn(
                           "text-[10.5px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5",
@@ -734,37 +742,37 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
                 );
               })}
               <tr className="border-b border-border text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                <th className="w-10 px-2 py-2.5 text-center font-semibold">
+                <th className="w-10 px-2 py-2 text-center font-semibold">
                   <Checkbox checked={todosVisiveisSelecionados} onCheckedChange={toggleSelecionarVisiveis} aria-label="Selecionar todos os lançamentos visíveis" />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("data")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("data")}>
                   <button type="button" onClick={() => setSortDirection((v) => (v === "desc" ? "asc" : "desc"))} className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors">
                     <span>Data</span> <span className="text-[10px]">{sortDirection === "desc" ? "↓" : "↑"}</span>
                   </button>
                   <ResizeHandle columnKey="data" startWidth={getColumnWidth("data")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("doc")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("doc")}>
                   Doc <ResizeHandle columnKey="doc" startWidth={getColumnWidth("doc")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold text-right" style={getCellStyles("valorDespesa")}>
+                <th className="relative px-3 py-2 font-semibold text-right" style={getCellStyles("valorDespesa")}>
                   Valor <ResizeHandle columnKey="valorDespesa" startWidth={getColumnWidth("valorDespesa")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("fornecedor")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("fornecedor")}>
                   Fornecedor <ResizeHandle columnKey="fornecedor" startWidth={getColumnWidth("fornecedor")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("descricao")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("descricao")}>
                   Descrição <ResizeHandle columnKey="descricao" startWidth={getColumnWidth("descricao")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("categoria")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("categoria")}>
                   Categoria <ResizeHandle columnKey="categoria" startWidth={getColumnWidth("categoria")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("tipoRateio")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("tipoRateio")}>
                   Tipo de Rateio <ResizeHandle columnKey="tipoRateio" startWidth={getColumnWidth("tipoRateio")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("periodicidade")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("periodicidade")}>
                   Periodicidade <ResizeHandle columnKey="periodicidade" startWidth={getColumnWidth("periodicidade")} onStartResize={startResize} />
                 </th>
-                <th className="relative px-3 py-2.5 font-semibold" style={getCellStyles("pagoPor")}>
+                <th className="relative px-3 py-2 font-semibold" style={getCellStyles("pagoPor")}>
                   Pago Por <ResizeHandle columnKey="pagoPor" startWidth={getColumnWidth("pagoPor")} onStartResize={startResize} />
                 </th>
 
@@ -823,6 +831,20 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           </table>
         </div>
       </div>
+
+      <NovoLancamentoDialog
+        open={showNovoDialog}
+        onOpenChange={setShowNovoDialog}
+        aeronaveId={aeronaveId}
+        cotistas={cotistas}
+        fornecedores={fornecedores}
+        categorias={categorias}
+        pagadores={pagadores}
+        onSaved={() => {
+          setShowNovoDialog(false);
+          qc.invalidateQueries({ queryKey: ["centro-lancamentos", aeronaveId] });
+        }}
+      />
     </div>
   );
 }
@@ -918,16 +940,16 @@ function LinhaGrupo({
   return (
     <>
       <tr className={cn("hover:bg-muted/50 transition-colors cursor-pointer group", expanded && "bg-muted/40 border-b-transparent", selectedChaves.includes(g.chave) && "bg-primary/5") } onClick={handleRowClick}>
-        <td className="px-2 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
+        <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={selectedChaves.includes(g.chave)} onCheckedChange={() => onToggleSelect(g.chave)} aria-label={`Selecionar lançamento ${g.descricao_despesa || g.numero_doc || g.chave}`} />
         </td>
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("data")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("data")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{fmtDate(dataRef)}</div>
+            <div className="h-7 flex items-center text-xs font-medium text-foreground truncate">{fmtDate(dataRef)}</div>
           ) : (
             <Popover open={openDate} onOpenChange={setOpenDate}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 px-2 w-full justify-start font-normal text-xs overflow-hidden">
+                <Button variant="ghost" size="sm" className="h-7 px-2 w-full justify-start font-normal text-xs overflow-hidden">
                   <CalendarIcon className="h-3.5 w-3.5 mr-1.5 shrink-0 opacity-70" />
                   <span className="truncate">{fmtDate(dataRef)}</span>
                 </Button>
@@ -947,17 +969,17 @@ function LinhaGrupo({
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("doc")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("doc")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{g.numero_doc || "—"}</div>
+            <div className="h-7 flex items-center text-xs font-medium text-foreground truncate">{g.numero_doc || "—"}</div>
           ) : (
-            <Input value={doc} onChange={(e) => setDoc(e.target.value)} onBlur={() => { if (doc !== (g.numero_doc || "")) onUpdate({ numero_doc: doc || null }); }} className="h-8 text-xs font-mono w-full" />
+            <Input value={doc} onChange={(e) => setDoc(e.target.value)} onBlur={() => { if (doc !== (g.numero_doc || "")) onUpdate({ numero_doc: doc || null }); }} className="h-7 text-xs font-mono w-full" />
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden text-right" style={getCellStyles("valorDespesa")}>
+        <td className="px-2 py-1 overflow-hidden text-right" style={getCellStyles("valorDespesa")}>
           {isPago ? (
-            <div className={cn("h-8 flex items-center justify-end text-xs font-mono font-bold truncate tabular-nums", isEntrada ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>{formatBRL(g.valor_total_despesa)}</div>
+            <div className={cn("h-7 flex items-center justify-end text-xs font-mono font-bold truncate tabular-nums", isEntrada ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>{formatBRL(g.valor_total_despesa)}</div>
           ) : (
             <div className="relative w-full">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">R$</span>
@@ -985,75 +1007,70 @@ function LinhaGrupo({
                   if (normalized !== Number(g.valor_total_despesa ?? 0)) onUpdate({ valor_total_despesa: normalized });
                   setValorDespesa(formatNumberPTBR(normalized));
                 }}
-                className="h-8 text-xs font-mono pl-7 w-full font-bold text-right"
+                className="h-7 text-xs font-mono pl-7 w-full font-bold text-right"
                 placeholder="0,00"
               />
             </div>
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("fornecedor")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("fornecedor")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{g.fornecedor_nome || "—"}</div>
+            <div className="h-7 flex items-center text-xs font-medium text-foreground truncate">{g.fornecedor_nome || "—"}</div>
           ) : (
-            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
+            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-7 [&>button]:text-xs">
               <SearchableCombobox items={fornecedores} value={g.fornecedor_nome || ""} onChange={(_id, label) => onUpdate({ fornecedor_nome: label })} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
             </div>
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("descricao")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("descricao")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{g.descricao_despesa || "—"}</div>
+            <div className="h-7 flex items-center text-xs font-medium text-foreground truncate">{g.descricao_despesa || "—"}</div>
           ) : (
-            <Input value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => { if (desc !== (g.descricao_despesa || "")) onUpdate({ descricao_despesa: desc }); }} className="h-8 text-xs w-full" />
+            <Input value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => { if (desc !== (g.descricao_despesa || "")) onUpdate({ descricao_despesa: desc }); }} className="h-7 text-xs w-full" />
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("categoria")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("categoria")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{categoriaLabel}</div>
+            <div className="h-7 flex items-center text-xs font-medium text-foreground truncate">{categoriaLabel}</div>
           ) : (
-            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
+            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-7 [&>button]:text-xs">
               <SearchableCombobox items={categorias} value={categoriaSelecionada} onChange={(id) => onUpdate({ categoria_custo: id || null })} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
             </div>
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("tipoRateio")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("tipoRateio")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{(g.tipo_rateio || "—").replace(/_/g, " ")}</div>
+            <div className="h-7 flex items-center text-xs font-medium text-foreground truncate">{(g.tipo_rateio || "—").replace(/_/g, " ")}</div>
           ) : (
             <Select value={g.tipo_rateio || ""} onValueChange={(v) => onUpdate({ tipo_rateio: v })}>
-              <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-7 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>{TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t} className="text-xs">{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
             </Select>
           )}
         </td>
 
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("periodicidade")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("periodicidade")}>
           {isPago ? (
-            <div className="h-8 flex items-center text-xs font-medium text-foreground truncate">{(g.periodicidade || "—").toUpperCase()}</div>
+            <div className="h-7 flex items-center text-xs font-medium text-foreground truncate">{(g.periodicidade || "—").toUpperCase()}</div>
           ) : (
             <Select value={(g.periodicidade || "").toUpperCase()} onValueChange={(v) => onUpdate({ periodicidade: v })}>
-              <SelectTrigger className="h-8 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger className="h-7 text-xs w-full [&>span]:truncate"><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}</SelectContent>
             </Select>
           )}
         </td>
 
-        {/* 
-          A COLUNA FLUXO FOI REMOVIDA DAQUI POIS NÃO EXISTIA MAIS NO CABEÇALHO. 
-          Isso resolveu todo o problema de desalinhamento das células de rateio! 
-        */}
-
-        <td className="px-2 py-1.5 overflow-hidden" style={getCellStyles("pagoPor")}>
+        <td className="px-2 py-1 overflow-hidden" style={getCellStyles("pagoPor")}>
           {isPago ? (
-            <div className="h-8 flex items-center">
+            <div className="h-7 flex items-center">
               <div className="min-w-0 flex-1 text-xs font-medium text-foreground truncate">{g.pago_por || "—"}</div>
             </div>
           ) : (
-            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-8 [&>button]:text-xs">
+            <div className="w-full overflow-hidden [&>button]:w-full [&>button]:truncate [&>button]:h-7 [&>button]:text-xs">
               <SearchableCombobox items={pagadores} value={g.pago_por || ""} onChange={(_id, label) => onUpdate({ pago_por: label })} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
             </div>
           )}
@@ -1065,10 +1082,10 @@ function LinhaGrupo({
           const rateado = r ? Number(r.valor_rateado) || 0 : 0;
           return (
             <Fragment key={c.id}>
-              <td className="px-2 py-1.5 text-center border-l border-border text-[11px] font-medium text-muted-foreground overflow-hidden" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}>
+              <td className="px-2 py-1 text-center border-l border-border text-[11px] font-medium text-muted-foreground overflow-hidden" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }}>
                 {r ? `${pctUso.toFixed(2)}%` : "—"}
               </td>
-              <td className="px-2 py-1.5 text-right font-mono text-[11px] overflow-hidden pr-3 tabular-nums" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}>
+              <td className="px-2 py-1 text-right font-mono text-[11px] overflow-hidden pr-3 tabular-nums" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }}>
                 {r ? (
                   <div className="flex flex-col items-end w-full">
                     <span className="font-semibold text-foreground">{formatBRL(rateado)}</span>
@@ -1088,37 +1105,43 @@ function LinhaGrupo({
       {expanded && (
         <tr className="bg-muted/20">
           <td colSpan={10} className="p-0 border-b border-border border-r align-top">
-            <div className="px-5 py-4 animate-in slide-in-from-top-2 duration-200">
-              <div className="grid gap-5 grid-cols-[minmax(0,1fr)_minmax(300px,1fr)_160px] items-start">
-                <div className="min-w-0 space-y-3">
-                  <div className="flex items-center gap-2">
-                    {isPago ? (
-                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><CheckCircle2 className="h-3.5 w-3.5" /> {isEntrada ? "Recebido" : "Pago"}</Badge>
-                    ) : status === "cancelado" ? (
-                      <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 border-rose-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><XCircle className="h-3.5 w-3.5" /> Cancelado</Badge>
-                    ) : (
-                      <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border-amber-500/30 gap-1.5 px-2.5 py-0.5 rounded-md"><Clock className="h-3.5 w-3.5" /> Pendente</Badge>
-                    )}
-                  </div>
-
-                  {g.observacoes && (
-                    <div className="text-xs bg-background p-2.5 rounded-lg border border-border text-muted-foreground/90 italic">
-                      <span className="font-semibold not-italic mr-1">Obs:</span> {g.observacoes}
+            <div className="px-5 py-5 animate-in slide-in-from-top-2 duration-200">
+              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-2">
+                <FichaModule icon={<StickyNote className="h-4 w-4" />} title="Informações gerais">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-0.5">
+                      <Field label="Fornecedor" value={g.fornecedor_nome} />
+                      <Field label="Descrição" value={g.descricao_despesa} />
+                      <Field label="Documento" value={g.numero_doc} />
+                      <Field label="Categoria" value={categoriaLabel} />
+                      <Field label="Tipo de rateio" value={(g.tipo_rateio || "—").replace(/_/g, " ")} />
+                      <Field label="Periodicidade" value={(g.periodicidade || "—").toUpperCase()} />
+                      <Field label="Pago por" value={g.pago_por} />
                     </div>
-                  )}
-                </div>
-
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5 mb-2.5 pl-1">
-                    <Paperclip className="h-3.5 w-3.5" /> Anexos e documentos
+                    <div className="space-y-0.5">
+                      <Field label="Valor total" value={formatBRL(g.valor_total_despesa)} strong />
+                      <Field label="Data de emissão" value={fmtDate(g.data_emissao)} />
+                      <Field label="Data de vencimento" value={fmtDate(g.data_vencimento)} />
+                      <Field label="Data de pagamento" value={fmtDate(g.data_pagamento)} />
+                      <Field label="Forma de pagamento" value={g.forma_pagamento ? (FORMAS_PAGAMENTO.find((f) => f.value === g.forma_pagamento)?.label || g.forma_pagamento) : null} />
+                      <div className="flex items-center justify-between gap-3 border-b border-border/20 py-1.5 text-xs last:border-b-0">
+                        <span className="text-muted-foreground">Status</span>
+                        {isPago ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 px-2 py-0.5 rounded-md text-[10px]"><CheckCircle2 className="h-3 w-3" /> {isEntrada ? "Recebido" : "Pago"}</Badge>
+                        ) : status === "cancelado" ? (
+                          <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 gap-1 px-2 py-0.5 rounded-md text-[10px]"><XCircle className="h-3 w-3" /> Cancelado</Badge>
+                        ) : (
+                          <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1 px-2 py-0.5 rounded-md text-[10px]"><Clock className="h-3 w-3" /> Pendente</Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                </FichaModule>
+
+                <FichaModule icon={<Paperclip className="h-4 w-4" />} title="Documentos">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {travelReportPdf && (
-                      <AnexoPill label="Relatório de Viagem (PDF)" numero={null} url={travelReportPdf} />
-                    )}
-                    {reciboInfo?.pdf_url && (
-                      <AnexoPill label="Recibo (PDF)" numero={reciboInfo.numero_recibo} url={reciboInfo.pdf_url} />
-                    )}
+                    {travelReportPdf && <AnexoPill label="Relatório de Viagem (PDF)" numero={null} url={travelReportPdf} />}
+                    {reciboInfo?.pdf_url && <AnexoPill label="Recibo (PDF)" numero={reciboInfo.numero_recibo} url={reciboInfo.pdf_url} />}
                     {abastecimentoAnexos && (abastecimentoAnexos.comanda_url || abastecimentoAnexos.nota_url || abastecimentoAnexos.boleto_url) && (
                       <>
                         <AnexoPill label="Comanda" numero={abastecimentoAnexos.comanda || null} url={abastecimentoAnexos.comanda_url} />
@@ -1132,33 +1155,56 @@ function LinhaGrupo({
                     {documentUrls.map((url, index) => (
                       <AnexoPill key={url} label={`Documento ${index + 1} (PDF)`} numero={null} url={url} />
                     ))}
-                    {!documentUrls.length && <AnexoPill label="Documento" numero={g.numero_doc} url={null} />}
                     <AnexoPill label="Comprovante" numero={null} url={g.comprovante_url} />
                   </div>
-                </div>
+                </FichaModule>
 
-                <div className="flex flex-col gap-2 border-t border-border pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Ações</div>
-                  {!isPago ? (
-                    <Button size="sm" onClick={() => setShowPayDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-8 text-[11px] w-full justify-start">
-                      <DollarSign className="h-3.5 w-3.5" /> Quitar Lançamento
+                <FichaModule icon={<StickyNote className="h-4 w-4" />} title="Observações">
+                  <p className="whitespace-pre-line rounded-lg bg-muted/20 p-3 text-xs leading-relaxed">
+                    {g.observacoes || "Nenhuma observação registrada para este lançamento."}
+                  </p>
+                </FichaModule>
+
+                <FichaModule icon={<History className="h-4 w-4" />} title="Histórico">
+                  <ul className="space-y-2 text-xs">
+                    {g.data_emissao && <HistItem when={g.data_emissao} who="Sistema" what="Lançamento criado" />}
+                    {g.data_vencimento && <HistItem when={g.data_vencimento} who="Financeiro" what="Vencimento definido" />}
+                    {g.data_pagamento && (
+                      <HistItem
+                        when={g.data_pagamento}
+                        who="Financeiro"
+                        what={`${isEntrada ? "Recebimento" : "Pagamento"} registrado — ${formatBRL(g.valor_total_despesa)}`}
+                      />
+                    )}
+                    {!g.data_emissao && !g.data_vencimento && !g.data_pagamento && (
+                      <li className="text-muted-foreground">Sem registro de alterações.</li>
+                    )}
+                  </ul>
+                </FichaModule>
+
+                <FichaModule icon={<DollarSign className="h-4 w-4" />} title="Ações">
+                  <div className="flex flex-col gap-2">
+                    {!isPago ? (
+                      <Button size="sm" onClick={() => setShowPayDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-7 text-[11px] w-full justify-start">
+                        <DollarSign className="h-3.5 w-3.5" /> {isEntrada ? "Registrar recebimento" : "Quitar lançamento"}
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="secondary" onClick={() => setShowPayDialog(true)} className="gap-2 h-7 text-[11px] w-full justify-start">
+                        <FileDigit className="h-3.5 w-3.5" /> Editar {isEntrada ? "recebimento" : "pagamento"}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 hover:text-rose-600 h-7 text-[11px] w-full justify-start">
+                      <Trash2 className="h-3.5 w-3.5" /> Excluir lançamento
                     </Button>
-                  ) : (
-                    <Button size="sm" variant="secondary" onClick={() => setShowPayDialog(true)} className="gap-2 h-8 text-[11px] w-full justify-start">
-                      <FileDigit className="h-3.5 w-3.5" /> Editar Pagamento
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 hover:text-rose-600 h-8 text-[11px] w-full justify-start mt-1">
-                    <Trash2 className="h-3.5 w-3.5" /> Excluir
-                  </Button>
-                </div>
+                  </div>
+                </FichaModule>
               </div>
             </div>
           </td>
           {cotistas.map((c) => (
             <Fragment key={c.id}>
-              <td className="px-2 py-1.5 bg-muted/20 border-b border-border" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }} />
-              <td className="px-2 py-1.5 bg-muted/20 border-b border-border" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }} />
+              <td className="px-2 py-1 bg-muted/20 border-b border-border" style={{ width: COL_USO_WIDTH, minWidth: COL_USO_WIDTH, maxWidth: COL_USO_WIDTH }} />
+              <td className="px-2 py-1 bg-muted/20 border-b border-border" style={{ width: COL_RATEIO_WIDTH, minWidth: COL_RATEIO_WIDTH, maxWidth: COL_RATEIO_WIDTH }} />
             </Fragment>
           ))}
         </tr>
@@ -1192,6 +1238,42 @@ function LinhaGrupo({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function FichaModule({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card/40 p-4">
+      <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        <span className="text-primary">{icon}</span> {title}
+      </div>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, value, strong }: { label: string; value?: string | null; strong?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-border/20 py-1.5 text-xs last:border-b-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn("truncate text-right", strong && "font-semibold text-primary")}>
+        {value || "—"}
+      </span>
+    </div>
+  );
+}
+
+function HistItem({ when, who, what }: { when: string; who: string; what: string }) {
+  return (
+    <li className="flex gap-3">
+      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
+      <div className="min-w-0 flex-1">
+        <div className="font-medium">{what}</div>
+        <div className="text-[10px] text-muted-foreground">
+          {fmtDate(when)} · {who}
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -1535,6 +1617,385 @@ function PagamentoDialog({
     </Dialog>
   );
 }
+
+/**
+ * Diálogo de criação de um novo lançamento (entrada ou saída), com o mesmo
+ * card "Rateio por cotista" (% e valor por cotista) usado no painel de detalhes.
+ * Gera um novo despesa_id e insere uma linha em rateio_despesas por cotista
+ * com valor rateado > 0.
+ *
+ * Atenção: como o tipo Cotista usado aqui só garante `id`, assume-se por padrão
+ * que `id` é um `socio_id`. Se os cotistas desta aeronave forem clientes (PJ),
+ * passe `cliente_id` explicitamente em cada item de `cotistas` (veja a interface
+ * Cotista no topo do arquivo).
+ */
+function NovoLancamentoDialog({
+  open, onOpenChange, aeronaveId, cotistas, fornecedores, categorias, pagadores, onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  aeronaveId: string;
+  cotistas: Cotista[];
+  fornecedores: { id: string; label: string }[];
+  categorias: { id: string; label: string }[];
+  pagadores: { id: string; label: string }[];
+  onSaved: () => void;
+}) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const [fluxo, setFluxo] = useState<"ENTRADA" | "SAIDA">("SAIDA");
+  const [status, setStatus] = useState<"pago" | "recebido" | "pendente">("pendente");
+  const [dataEmissao, setDataEmissao] = useState(hoje);
+  const [dataVencimento, setDataVencimento] = useState(hoje);
+  const [dataPagamento, setDataPagamento] = useState("");
+  const [forma, setForma] = useState("pix");
+  const [docNumero, setDocNumero] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [fornecedor, setFornecedor] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [tipoRateio, setTipoRateio] = useState<string>("FIXO");
+  const [periodicidade, setPeriodicidade] = useState<string>("EVENTUAL");
+  const [pagador, setPagador] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+  const [numeroNf, setNumeroNf] = useState("");
+  const [numeroRecibo, setNumeroRecibo] = useState("");
+  const [numeroBoleto, setNumeroBoleto] = useState("");
+  const [valorTotal, setValorTotal] = useState("0,00");
+  const [comprovante, setComprovante] = useState<File | null>(null);
+  const [notaFiscal, setNotaFiscal] = useState<File | null>(null);
+  const [recibo, setRecibo] = useState<File | null>(null);
+  const [boleto, setBoleto] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [rateio, setRateio] = useState<Record<string, { pctUso: string; valor: string }>>({});
+
+  useEffect(() => {
+    if (!open) return;
+    setFluxo("SAIDA");
+    setStatus("pendente");
+    setDataEmissao(hoje);
+    setDataVencimento(hoje);
+    setDataPagamento("");
+    setForma("pix");
+    setDocNumero("");
+    setDescricao("");
+    setFornecedor("");
+    setCategoria("");
+    setTipoRateio("FIXO");
+    setPeriodicidade("EVENTUAL");
+    setPagador("");
+    setObservacoes("");
+    setNumeroNf("");
+    setNumeroRecibo("");
+    setNumeroBoleto("");
+    setValorTotal("0,00");
+    setComprovante(null);
+    setNotaFiscal(null);
+    setRecibo(null);
+    setBoleto(null);
+    const inicial: Record<string, { pctUso: string; valor: string }> = {};
+    cotistas.forEach((c) => { inicial[c.id] = { pctUso: formatNumberPTBR(c.percentual), valor: "0,00" }; });
+    setRateio(inicial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const distribuirAutomaticamente = (valorTotalStr: string) => {
+    const total = parsePTBRNumber(valorTotalStr);
+    setRateio((prev) => {
+      const next = { ...prev };
+      cotistas.forEach((c) => {
+        const pct = parsePTBRNumber(next[c.id]?.pctUso ?? formatNumberPTBR(c.percentual));
+        next[c.id] = { pctUso: formatNumberPTBR(pct), valor: formatNumberPTBR(total * (pct / 100)) };
+      });
+      return next;
+    });
+  };
+
+  const totalRateado = useMemo(
+    () => Object.values(rateio).reduce((s, r) => s + parsePTBRNumber(r.valor), 0),
+    [rateio],
+  );
+  const valorTotalNum = parsePTBRNumber(valorTotal);
+  const diferenca = valorTotalNum - totalRateado;
+
+  const handleSalvar = async () => {
+    if (!aeronaveId) { toast.error("Aeronave não identificada."); return; }
+    if (valorTotalNum <= 0) { toast.error("Informe o valor total do lançamento."); return; }
+    const linhasValidas = cotistas
+      .map((c) => ({ c, valor: parsePTBRNumber(rateio[c.id]?.valor ?? "0"), pct: parsePTBRNumber(rateio[c.id]?.pctUso ?? "0") }))
+      .filter((l) => l.valor > 0);
+    if (linhasValidas.length === 0) { toast.error("Distribua o valor entre ao menos um cotista."); return; }
+
+    setSaving(true);
+    try {
+      const despesaId = crypto.randomUUID();
+      const uploadArquivo = async (file: File | null, tipo: string) => {
+        if (!file) return null;
+        const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+        const path = `rateio-anexos/${despesaId}/${tipo}-${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from("client-documents").upload(path, file, { upsert: true });
+        if (error) throw error;
+        return supabase.storage.from("client-documents").getPublicUrl(path).data.publicUrl;
+      };
+      const [comprovante_url, nf_url, recibo_url, boleto_url] = await Promise.all([
+        uploadArquivo(comprovante, "comprovante"),
+        uploadArquivo(notaFiscal, "nota-fiscal"),
+        uploadArquivo(recibo, "recibo"),
+        uploadArquivo(boleto, "boleto"),
+      ]);
+
+      const linhas = linhasValidas.map(({ c, valor, pct }) => {
+        // Ver observação da função: default assume `id` como socio_id quando
+        // nem cliente_id nem socio_id vierem preenchidos no objeto do cotista.
+        const socioId = c.socio_id ?? (c.cliente_id ? null : c.id);
+        const clienteId = c.cliente_id ?? null;
+        return {
+          aeronave_id: aeronaveId,
+          despesa_id: despesaId,
+          fonte_despesa: "manual",
+          fluxo,
+          tipo_rateio: tipoRateio,
+          periodicidade,
+          descricao_despesa: descricao || null,
+          fornecedor_nome: fornecedor || null,
+          categoria_custo: categoria || null,
+          cliente_id: clienteId,
+          socio_id: socioId,
+          data_emissao: dataEmissao || null,
+          data_pagamento: status !== "pendente" ? (dataPagamento || dataEmissao || null) : null,
+          data_vencimento: dataVencimento || null,
+          valor_total_despesa: valorTotalNum,
+          valor_rateado: valor,
+          valor_pago_real: status !== "pendente" ? valor : null,
+          percentual_uso: pct || null,
+          numero_nf: numeroNf || null,
+          numero_doc: docNumero || null,
+          numero_recibo: numeroRecibo || null,
+          numero_boleto: numeroBoleto || null,
+          forma_pagamento: status !== "pendente" ? forma : null,
+          status,
+          pago_por: pagador || null,
+          observacoes: observacoes || null,
+          comprovante_url,
+          nf_url,
+          recibo_url,
+          boleto_url,
+        };
+      });
+
+      const { error } = await (supabase as any).from("rateio_despesas").insert(linhas);
+      if (error) throw error;
+      toast.success("Lançamento criado com sucesso");
+      onSaved();
+    } catch (e: any) {
+      toast.error("Erro ao criar lançamento: " + (e?.message || String(e)));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Novo lançamento</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>Fluxo</Label>
+              <Select value={fluxo} onValueChange={(v) => setFluxo(v as "ENTRADA" | "SAIDA")}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SAIDA">Saída (despesa)</SelectItem>
+                  <SelectItem value="ENTRADA">Entrada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {fluxo === "ENTRADA" ? (
+                    <>
+                      <SelectItem value="recebido">Recebido</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="pago">Pago</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label>Data de emissão</Label>
+              <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Data de vencimento</Label>
+              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Data de pagamento</Label>
+              <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-9" />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Descrição</Label>
+            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="h-9" placeholder="Ex.: Manutenção preventiva, hangaragem..." />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label>Documento</Label>
+              <Input value={docNumero} onChange={(e) => setDocNumero(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Valor total</Label>
+              <Input
+                type="text"
+                value={valorTotal}
+                onChange={(e) => setValorTotal(maskCurrencyInput(e.target.value))}
+                onBlur={() => {
+                  const normalized = formatNumberPTBR(parsePTBRNumber(valorTotal));
+                  setValorTotal(normalized);
+                  distribuirAutomaticamente(normalized);
+                }}
+                className="h-9 font-mono"
+                placeholder="0,00"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Forma de pagamento</Label>
+              <Select value={forma} onValueChange={setForma} disabled={status === "pendente"}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>{FORMAS_PAGAMENTO.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label>Fornecedor</Label>
+              <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
+            </div>
+            <div className="grid gap-2">
+              <Label>Categoria</Label>
+              <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label>Tipo de rateio</Label>
+              <Select value={tipoRateio} onValueChange={setTipoRateio}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>{TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Periodicidade</Label>
+              <Select value={periodicidade} onValueChange={setPeriodicidade}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Pago por</Label>
+              <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid gap-2">
+              <Label>Número NF</Label>
+              <Input value={numeroNf} onChange={(e) => setNumeroNf(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Número recibo</Label>
+              <Input value={numeroRecibo} onChange={(e) => setNumeroRecibo(e.target.value)} className="h-9" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Número boleto</Label>
+              <Input value={numeroBoleto} onChange={(e) => setNumeroBoleto(e.target.value)} className="h-9" />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Observações</Label>
+            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} />
+          </div>
+
+          <div className="grid gap-3 rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" /> Rateio por cotista
+              </div>
+              <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => distribuirAutomaticamente(valorTotal)}>
+                Distribuir pela cota
+              </Button>
+            </div>
+            {cotistas.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhum cotista cadastrado para esta aeronave.</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,1fr)] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <span>Cotista</span>
+                  <span className="text-right">% Uso</span>
+                  <span className="text-right">Valor</span>
+                </div>
+                {cotistas.map((c) => (
+                  <div key={c.id} className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,1fr)] items-center gap-2">
+                    <span className="truncate text-xs">{c.nome} <span className="text-[10px] text-muted-foreground">({c.percentual}% cota)</span></span>
+                    <Input
+                      value={rateio[c.id]?.pctUso ?? ""}
+                      onChange={(e) => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], pctUso: e.target.value } }))}
+                      onBlur={() => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], pctUso: formatNumberPTBR(parsePTBRNumber(prev[c.id]?.pctUso ?? "0")) } }))}
+                      className="h-7 text-xs text-right font-mono"
+                    />
+                    <Input
+                      value={rateio[c.id]?.valor ?? ""}
+                      onChange={(e) => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], valor: maskCurrencyInput(e.target.value) } }))}
+                      onBlur={() => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], valor: formatNumberPTBR(parsePTBRNumber(prev[c.id]?.valor ?? "0")) } }))}
+                      className="h-7 text-xs text-right font-mono"
+                    />
+                  </div>
+                ))}
+                <div className={cn("flex items-center justify-between rounded-md px-2 py-1 text-[11px]", Math.abs(diferenca) < 0.01 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400")}>
+                  <span>Rateado: {formatBRL(totalRateado)} de {formatBRL(valorTotalNum)}</span>
+                  <span>{Math.abs(diferenca) < 0.01 ? "Confere" : `Diferença: ${formatBRL(diferenca)}`}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-3 rounded-lg border border-border p-3">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+              <Paperclip className="h-3.5 w-3.5" /> Anexos
+            </div>
+            <FileFieldRow label="Comprovante" hint="→ comprovante_url" currentUrl={null} file={comprovante} onChange={setComprovante} />
+            <FileFieldRow label="Nota Fiscal" hint="→ nf_url" currentUrl={null} file={notaFiscal} onChange={setNotaFiscal} />
+            <FileFieldRow label="Recibo" hint="→ recibo_url" currentUrl={null} file={recibo} onChange={setRecibo} />
+            <FileFieldRow label="Boleto" hint="→ boleto_url" currentUrl={null} file={boleto} onChange={setBoleto} />
+          </div>
+        </div>
+        <DialogFooter className="pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-9">Cancelar</Button>
+          <Button onClick={handleSalvar} disabled={saving} className="bg-primary hover:bg-primary/90 h-9">
+            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : <><Plus className="mr-2 h-4 w-4" />Criar lançamento</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function FileFieldRow({
   label, hint, currentUrl, file, onChange,
 }: {

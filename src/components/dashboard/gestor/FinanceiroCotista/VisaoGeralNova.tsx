@@ -110,7 +110,6 @@ interface Rateio {
   numero_doc: string | null;
   forma_pagamento?: string | null;
   status?: string | null;
-  status_pagamento?: string | null;
   observacoes?: string | null;
   comprovante_url?: string | null;
   recibo_url?: string | null;
@@ -134,7 +133,7 @@ function findCotistaKey(
 }
 
 function statusOf(r: Rateio): { label: string; tone: "success" | "warning" | "danger" | "muted" } {
-  const explicitStatus = r.status ?? r.status_pagamento;
+  const explicitStatus = r.status ?? r.status;
   if (explicitStatus) {
     const n = norm(explicitStatus);
     if (n.startsWith("pago")) return { label: explicitStatus, tone: "success" };
@@ -178,7 +177,7 @@ function useRateiosPeriodo(aeronaveId: string | null, start: string, end: string
       const { data, error } = await supabase
         .from("rateio_despesas")
         .select(
-          "id, despesa_id, fluxo, periodicidade, tipo_rateio, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_emissao, data_pagamento, data_vencimento, valor_total_despesa, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc, forma_pagamento, status, status_pagamento, observacoes, comprovante_url, recibo_url, nf_url, boleto_url",
+          "id, despesa_id, fluxo, periodicidade, tipo_rateio, descricao_despesa, fornecedor_nome, categoria_custo, cliente_id, socio_id, clientes_nome, socios_nome, data_emissao, data_pagamento, data_vencimento, valor_total_despesa, valor_rateado, valor_pago_real, percentual_uso, percentual_sociedade, numero_nf, numero_doc, forma_pagamento, status, observacoes, comprovante_url, recibo_url, nf_url, boleto_url",
         )
         .eq("aeronave_id", aeronaveId!)
         .or(
@@ -785,44 +784,9 @@ function VisaoGeralNova() {
           </div>
         </section>
 
-        {/* ── 5. Sociedade — saldo por cotista + pendências ── */}
+        {/* ── 5. Pendências em atraso ── */}
         <section>
-          <SectionTitle icon={<User className="h-4 w-4" />} title="Participação e saldo por cotista" subtitle={label} />
-          <div className="grid gap-4 xl:grid-cols-3">
-            <div className="card-glow rounded-2xl p-5 xl:col-span-2">
-              <div className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Participação e saldo por cotista
-              </div>
-              {cotistaStats.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">Nenhum cotista cadastrado para esta aeronave.</div>
-              ) : (
-                <ul className="space-y-3">
-                  {cotistaStats.map((c) => (
-                    <li key={c.id} className="rounded-xl border border-border/40 bg-background/30 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
-                          <span className="truncate text-sm font-medium">{c.nome}</span>
-                          <span className="shrink-0 text-[11px] text-muted-foreground">({c.percentual.toFixed(1)}% da soc.)</span>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <div className="text-sm font-semibold tabular-nums">{formatBRL(c.debito)}</div>
-                          <div className={cn("text-[11px] tabular-nums", c.saldo > 0 ? "text-amber-400" : "text-emerald-400")}>
-                            {c.saldo > 0 ? `${formatBRL(c.saldo)} em aberto` : "Em dia"}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted/40">
-                        <div
-                          className="h-full rounded-full transition-all duration-700 ease-out"
-                          style={{ width: `${Math.min(100, c.pct)}%`, background: c.color }}
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+          <SectionTitle icon={<ShieldAlert className="h-4 w-4" />} title="Pendências em atraso" />  
 
             <div className="card-glow rounded-2xl p-5">
               <div className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -855,7 +819,7 @@ function VisaoGeralNova() {
                 </ul>
               )}
             </div>
-          </div>
+     
         </section>
 
         {/* ── 6. Toolbar de filtros ── */}

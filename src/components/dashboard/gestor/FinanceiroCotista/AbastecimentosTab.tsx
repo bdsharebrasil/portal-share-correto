@@ -51,7 +51,7 @@ interface Abastecimento {
   litros: number;
   valor_unitario: number;
   valor_total: number;
-  status_pagamento: string | null;
+  status: string | null;
   abastecedor: string | null;
   aeronave_id: string | null;
   id_clientes?: string | null;
@@ -314,12 +314,12 @@ export function AbastecimentosTab({
                         <Badge
                           variant="outline"
                           className={
-                            a.status_pagamento === "pago"
+                            a.status === "pago"
                               ? "border-success/40 text-success text-[10px]"
                               : "border-amber-500/40 text-amber-400 text-[10px]"
                           }
                         >
-                          {a.status_pagamento || "—"}
+                          {a.status || "—"}
                         </Badge>
                       </TableCell>
                     </TableRow>

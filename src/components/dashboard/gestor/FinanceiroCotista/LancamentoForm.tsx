@@ -55,10 +55,12 @@ type AnexoTipo = "comprovante" | "recibo" | "nf" | "boleto";
 type AnexoItem = {
   id: string;
   tipo: AnexoTipo;
+  numero: string;
   url: string | null;
   file: File | null;
   uploading: boolean;
 };
+
 
 const GRUPOS = [
   { id: "FIXO", label: "FIXO" },
@@ -349,19 +351,22 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   const [pagador, setPagador] = useState<string>("EMPRESA");
   const [status, setStatus] = useState<"pago" | "pendente">("pago");
   const [observacoes, setObservacoes] = useState("");
-  const [categoriaId, setCategoriaId] = useState(""); // FK para categorias_movimentacao (usado só em `movimentacoes`)
-  const [categoriaCustoId, setCategoriaCustoId] = useState(""); // FK uuid para expense_configu (usado em `rateio_despesas`)
+  const [categoriaId, setCategoriaId] = useState(""); // (não utilizado na UI — mantido para compat)
+  const [categoriaCustoId, setCategoriaCustoId] = useState(""); // expense_configu.id (expense_type)
+  const [subcategoria, setSubcategoria] = useState<string>(""); // texto da subcategoria escolhida
   const [formaPgto, setFormaPgto] = useState("");
   const [periodicidade, setPeriodicidade] = useState("EVENTUAL");
   const [numeroDoc, setNumeroDoc] = useState("");
   const [numeroNf, setNumeroNf] = useState("");
   const [numeroBoleto, setNumeroBoleto] = useState("");
   const [numeroRecibo, setNumeroRecibo] = useState("");
+  const [fornecedorId, setFornecedorId] = useState("");
   const [fornecedorNome, setFornecedorNome] = useState("");
   const [rateios, setRateios] = useState<RateioInput[]>([]);
   const [anexos, setAnexos] = useState<AnexoItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [aeronaveSelected, setAeronaveSelected] = useState<string>(aeronaveIdParam ?? "");
+
 
   // Aeronaves
   const { data: clienteAeronaves = [] } = useQuery({
@@ -385,34 +390,19 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       const { data } = await supabase
         .from("aeronave")
         .select("id, matricula, modelo")
-        .eq("ativo", true)
+        .eq("ativa", true)
         .order("matricula");
       return (data ?? []) as Array<{ id: string; matricula: string; modelo: string }>;
     },
   });
 
-  // Categorias contábeis (usadas em movimentacoes.categoria_id)
-  const { data: categorias } = useQuery({
-    queryKey: ["categorias-mov-cotista"],
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("categorias_movimentacao")
-        .select("id, nome, tipo, grupo_categoria")
-        .eq("tipo", "despesa")
-        .eq("ativo", true)
-        .not("grupo_categoria", "in", '("FOLHA DE PAGAMENTO","DESPESAS EMPRESA","DESPESAS PARTICULARES","BANCO","TED")')
-        .order("nome");
-      return (data ?? []) as Array<{ id: string; nome: string; grupo_categoria: string | null }>;
-    },
-  });
-
-  // Categorias de custo (expense_configu) — usadas em rateio_despesas.categoria_custo (uuid)
+  // Categorias de custo (expense_configu)
   const { data: expenseConfigs } = useQuery({
-    queryKey: ["expense-configu"],
+    queryKey: ["expense-configu-full"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("expense_configu")
-        .select("id, expense_type, subcategoria_1, subcategoria_2")
+        .select("id, expense_type, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4")
         .order("expense_type");
       if (error) throw error;
       return (data ?? []) as Array<{
@@ -420,16 +410,56 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         expense_type: string;
         subcategoria_1: string | null;
         subcategoria_2: string | null;
+        subcategoria_3: string | null;
+        subcategoria_4: string | null;
       }>;
     },
   });
 
   const expenseConfigOptions = (expenseConfigs ?? []).map((c) => ({
     id: c.id,
-    label: [c.expense_type, c.subcategoria_1, c.subcategoria_2].filter(Boolean).join(" / "),
+    label: c.expense_type,
   }));
 
-  // Init from editing
+  const expenseConfigSelecionado = useMemo(
+    () => (expenseConfigs ?? []).find((c) => c.id === categoriaCustoId),
+    [expenseConfigs, categoriaCustoId]
+  );
+
+  const subcategoriaOptions = useMemo(() => {
+    if (!expenseConfigSelecionado) return [];
+    return [
+      expenseConfigSelecionado.subcategoria_1,
+      expenseConfigSelecionado.subcategoria_2,
+      expenseConfigSelecionado.subcategoria_3,
+      expenseConfigSelecionado.subcategoria_4,
+    ]
+      .filter((s): s is string => !!s && s.trim().length > 0)
+      .map((s) => ({ id: s, label: s }));
+  }, [expenseConfigSelecionado]);
+
+  // Fornecedores: favoritos + combustível
+  const { data: fornecedoresFav } = useQuery({
+    queryKey: ["fornecedores-favoritos-lanc"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("fornecedores_favoritos")
+        .select("id, nome_completo, categoria, cidade")
+        .order("nome_completo");
+      return data ?? [];
+    },
+  });
+  const { data: fornecedoresComb } = useQuery({
+    queryKey: ["fornecedores-combustivel-lanc"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("fornecedores_combustivel")
+        .select("id, nome_fornecedor, nome_cidade")
+        .order("nome_fornecedor");
+      return data ?? [];
+    },
+  });
+
   useEffect(() => {
     if (editingFinal) {
       setDescricao(editingFinal.descricao ?? "");
@@ -451,14 +481,15 @@ export default function LancamentoForm(props: LancamentoFormProps) {
 
       const initialAnexos: AnexoItem[] = [];
       if (editingFinal.comprovante_url)
-        initialAnexos.push({ id: crypto.randomUUID(), tipo: "comprovante", url: editingFinal.comprovante_url, file: null, uploading: false });
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "comprovante", numero: editingFinal.numero_doc ?? "", url: editingFinal.comprovante_url, file: null, uploading: false });
       if (editingFinal.recibo_url)
-        initialAnexos.push({ id: crypto.randomUUID(), tipo: "recibo", url: editingFinal.recibo_url, file: null, uploading: false });
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "recibo", numero: editingFinal.numero_recibo ?? "", url: editingFinal.recibo_url, file: null, uploading: false });
       if (editingFinal.nf_url)
-        initialAnexos.push({ id: crypto.randomUUID(), tipo: "nf", url: editingFinal.nf_url, file: null, uploading: false });
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "nf", numero: editingFinal.numero_nf ?? "", url: editingFinal.nf_url, file: null, uploading: false });
       if (editingFinal.boleto_url)
-        initialAnexos.push({ id: crypto.randomUUID(), tipo: "boleto", url: editingFinal.boleto_url, file: null, uploading: false });
+        initialAnexos.push({ id: crypto.randomUUID(), tipo: "boleto", numero: editingFinal.numero_boleto ?? "", url: editingFinal.boleto_url, file: null, uploading: false });
       setAnexos(initialAnexos);
+
 
       (async () => {
         const { data: rs } = await (supabase as any)
@@ -567,7 +598,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   function addAnexo() {
     setAnexos((a) => [
       ...a,
-      { id: crypto.randomUUID(), tipo: "comprovante", url: null, file: null, uploading: false },
+      { id: crypto.randomUUID(), tipo: "comprovante", numero: "", url: null, file: null, uploading: false },
     ]);
   }
   function removeAnexo(id: string) {
@@ -575,6 +606,9 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   }
   function setAnexoTipo(id: string, tipo: AnexoTipo) {
     setAnexos((a) => a.map((x) => (x.id === id ? { ...x, tipo } : x)));
+  }
+  function setAnexoNumero(id: string, numero: string) {
+    setAnexos((a) => a.map((x) => (x.id === id ? { ...x, numero } : x)));
   }
   async function uploadAnexo(id: string, file: File) {
     setAnexos((a) => a.map((x) => (x.id === id ? { ...x, file, uploading: true } : x)));
@@ -611,6 +645,20 @@ export default function LancamentoForm(props: LancamentoFormProps) {
       boleto_url: map.boleto,
     };
   }
+
+  function getAnexoNumeros() {
+    const map: Record<AnexoTipo, string> = { comprovante: "", recibo: "", nf: "", boleto: "" };
+    anexos.forEach((a) => {
+      if (a.numero && !map[a.tipo]) map[a.tipo] = a.numero;
+    });
+    return {
+      numero_doc: map.comprovante || numeroDoc,
+      numero_recibo: map.recibo || numeroRecibo,
+      numero_nf: map.nf || numeroNf,
+      numero_boleto: map.boleto || numeroBoleto,
+    };
+  }
+
 
   
 
@@ -689,24 +737,32 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         pagador === "CLIENTE" ? "cliente" : "direto";
 
       const anexoUrls = getAnexoUrls();
-      const catId = await ensureCategoria();
+      const anexoNums = getAnexoNumeros();
+      const observacoesFinal = [subcategoria ? `[Subcategoria: ${subcategoria}]` : "", observacoes].filter(Boolean).join(" ").trim();
+
+
+
 
       const movPayload: any = {
         descricao: descricao.trim(),
         tipo: "despesa",
+        tipo_caixa: "cliente",
         grupo_custo: grupo,
         valor: valorNum,
         data_competencia: dataCompetencia,
         data_vencimento: dataVencimento || dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
-        client_id: clienteId,
+        clientes_id: clienteId,
         aeronave_id: aeronaveSelected || aeronaveIdParam,
         fornecedor_nome: fornecedor,
         forma_pagamento: formaPgto || null,
-        numero_doc: numeroDoc || null,
-        numero_nf: numeroNf || null,
-        numero_boleto: numeroBoleto || null,
+        numero_doc: anexoNums.numero_doc || null,
+        numero_nf: anexoNums.numero_nf || null,
+        numero_boleto: anexoNums.numero_boleto || null,
+        numero_recibo: anexoNums.numero_recibo || null,
+
         comprovante_url: anexoUrls.comprovante_url,
+        recibo_url: anexoUrls.recibo_url,
         nf_url: anexoUrls.nf_url,
         boleto_url: anexoUrls.boleto_url,
         status,
@@ -715,9 +771,9 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         reembolso_quitado: false,
         pago_diretamente: pagador !== "EMPRESA",
         criado_por: user?.id ?? null,
-        categoria_id: catId, // válido aqui: coluna existe em `movimentacoes`
         reference_type: "rateio_despesa",
       };
+
 
       let movId: string;
       if (editingFinal) {
@@ -775,10 +831,11 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         fluxo,
         forma_pagamento: formaPgto || null,
         fornecedor_nome: fornecedor,
-        numero_doc: numeroDoc || null,
-        numero_nf: numeroNf || null,
-        numero_boleto: numeroBoleto || null,
-        numero_recibo: numeroRecibo || null,
+        numero_doc: anexoNums.numero_doc || null,
+        numero_nf: anexoNums.numero_nf || null,
+        numero_boleto: anexoNums.numero_boleto || null,
+        numero_recibo: anexoNums.numero_recibo || null,
+
         comprovante_url: anexoUrls.comprovante_url,
         recibo_url: anexoUrls.recibo_url,
         nf_url: anexoUrls.nf_url,
@@ -881,19 +938,29 @@ export default function LancamentoForm(props: LancamentoFormProps) {
   }
 
   const pagadorOptions = [
-    { id: "EMPRESA", label: "Empresa (Share Brasil) — paga e cobra reembolso dos sócios" },
-    { id: "CLIENTE", label: `Cliente (${clienteNomeProp || clienteData?.razao_social}) — rateio igualitário automático entre sócios` },
-    ...socios.map((s) => ({ id: s.id, label: `Sócio: ${s.nome}` })),
+    { id: "EMPRESA", label: "Empresa (Share Brasil) — paga e cobra reembolso dos cotistas" },
+    { id: "CLIENTE", label: `Cliente (${clienteNomeProp || clienteData?.razao_social}) — rateio igualitário automático entre cotistas` },
+    ...socios.map((s) => ({ id: s.id, label: `Cotista: ${s.nome}` })),
   ];
 
-  const categoriaOptions = (categorias ?? []).map((c) => ({
-    id: c.id,
-    label: c.grupo_categoria ? `${c.nome}  ·  ${c.grupo_categoria}` : c.nome,
-  }));
+  const fornecedorOptions = useMemo(() => {
+    const favs = (fornecedoresFav ?? []).map((f: any) => ({
+      id: `fav:${f.id}`,
+      label: `${f.nome_completo}${f.categoria ? " · " + f.categoria : ""}`,
+      nome: f.nome_completo,
+    }));
+    const comb = (fornecedoresComb ?? []).map((f: any) => ({
+      id: `comb:${f.id}`,
+      label: `${f.nome_fornecedor} · ${f.nome_cidade || ""} (Combustível)`.trim(),
+      nome: f.nome_fornecedor,
+    }));
+    return [...favs, ...comb];
+  }, [fornecedoresFav, fornecedoresComb]);
+
 
   const formContent = (
     <div className="space-y-6">
-      <Section title="Identificação" hint="Descrição, grupo de custo e categoria contábil">
+      <Section title="Identificação" hint="Descrição, grupo e categoria de custo">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
             <Field label="Descrição" required>
@@ -915,25 +982,27 @@ export default function LancamentoForm(props: LancamentoFormProps) {
             />
           </Field>
 
-          <Field label="Categoria contábil">
-            <SearchableCombobox
-              items={categoriaOptions}
-              value={categoriaId}
-              onChange={(v) => setCategoriaId(v)}
-              placeholder="Buscar categoria..."
-              searchPlaceholder="Digite para filtrar..."
-            />
-          </Field>
-
           <Field label="Categoria de custo" required>
             <SearchableCombobox
               items={expenseConfigOptions}
               value={categoriaCustoId}
-              onChange={setCategoriaCustoId}
+              onChange={(v) => { setCategoriaCustoId(v); setSubcategoria(""); }}
               placeholder="Buscar categoria de custo..."
-              searchPlaceholder="Ex.: Combustível, Manutenção..."
+              searchPlaceholder="Ex.: ADM SHARE, Combustível..."
             />
           </Field>
+
+          {subcategoriaOptions.length > 0 && (
+            <Field label="Subcategoria">
+              <SearchableCombobox
+                items={subcategoriaOptions}
+                value={subcategoria}
+                onChange={setSubcategoria}
+                placeholder="Selecione a subcategoria..."
+                searchPlaceholder="Buscar..."
+              />
+            </Field>
+          )}
 
           <Field label="Periodicidade">
             <SearchableCombobox
@@ -945,6 +1014,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
           </Field>
         </div>
       </Section>
+
 
       <Section title="Valores e Pagamento">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1000,13 +1070,21 @@ export default function LancamentoForm(props: LancamentoFormProps) {
           </Field>
 
           <Field label="Fornecedor (opcional)">
-            <Input
-              value={fornecedorNome}
-              onChange={(e) => setFornecedorNome(e.target.value)}
-              placeholder="Nome do fornecedor"
-              className="h-11 rounded-xl"
+            <SearchableCombobox
+              items={fornecedorOptions}
+              value={fornecedorId}
+              onChange={(v) => {
+                setFornecedorId(v);
+                const found = fornecedorOptions.find((f: any) => f.id === v);
+                if (found) setFornecedorNome((found as any).nome || found.label);
+                else setFornecedorNome(v);
+              }}
+              placeholder={fornecedorNome || "Buscar fornecedor..."}
+              searchPlaceholder="Digite para buscar em favoritos e combustível..."
+              allowFreeText
             />
           </Field>
+
 
           <Field label="Aeronave" required>
             {clienteAeronaves.length === 0 ? (
@@ -1038,34 +1116,20 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         </div>
       </Section>
 
-      <Section title="Documentos fiscais" hint="Números de documentos, notas fiscais, boletos e recibos relacionados">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Field label="Nº Documento">
-            <Input value={numeroDoc} onChange={(e) => setNumeroDoc(e.target.value)} className="h-11 rounded-xl" />
-          </Field>
-          <Field label="Nº Nota Fiscal">
-            <Input value={numeroNf} onChange={(e) => setNumeroNf(e.target.value)} className="h-11 rounded-xl" />
-          </Field>
-          <Field label="Nº Boleto">
-            <Input value={numeroBoleto} onChange={(e) => setNumeroBoleto(e.target.value)} className="h-11 rounded-xl" />
-          </Field>
-          <Field label="Nº Recibo">
-            <Input value={numeroRecibo} onChange={(e) => setNumeroRecibo(e.target.value)} className="h-11 rounded-xl" />
-          </Field>
-        </div>
-      </Section>
-
-      <Section title="Anexos" hint="Adicione comprovantes, recibos, notas fiscais ou boletos. Cada tipo grava em sua coluna correspondente.">
+      <Section
+        title="Documentos e Anexos"
+        hint="Adicione um documento por vez com tipo, número e arquivo. Cada tipo grava em sua coluna correspondente."
+      >
         <div className="space-y-3">
           {anexos.length === 0 && (
-            <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-xl">
-              Nenhum anexo adicionado.
+            <div className="text-sm text-muted-foreground text-center py-8 border border-dashed border-border/60 rounded-xl bg-muted/10">
+              Nenhum documento adicionado.
             </div>
           )}
           {anexos.map((a) => (
             <div
               key={a.id}
-              className="grid grid-cols-12 gap-3 items-center p-3 rounded-xl border border-border/40 bg-muted/20"
+              className="grid grid-cols-12 gap-3 items-center p-3 rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/20 transition-colors"
             >
               <div className="col-span-12 md:col-span-3">
                 <SearchableCombobox
@@ -1075,19 +1139,27 @@ export default function LancamentoForm(props: LancamentoFormProps) {
                   placeholder="Tipo"
                 />
               </div>
-              <div className="col-span-12 md:col-span-7">
+              <div className="col-span-12 md:col-span-3">
+                <Input
+                  value={a.numero}
+                  onChange={(e) => setAnexoNumero(a.id, e.target.value)}
+                  placeholder="Nº do documento"
+                  className="h-10 rounded-lg"
+                />
+              </div>
+              <div className="col-span-10 md:col-span-5">
                 {a.url ? (
                   <a
                     href={a.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-2"
+                    className="inline-flex items-center gap-2 text-xs text-primary hover:underline px-3 py-2 rounded-lg bg-background border border-border/40 w-full truncate"
                   >
-                    <Paperclip className="h-3.5 w-3.5" />
-                    {a.file?.name ?? a.url.split("/").pop()}
+                    <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="truncate">{a.file?.name ?? a.url.split("/").pop()}</span>
                   </a>
                 ) : (
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                  <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground px-3 py-2 rounded-lg bg-background border border-dashed border-border/60 w-full">
                     <UploadCloud className="h-4 w-4" />
                     {a.uploading ? "Enviando..." : "Selecionar arquivo"}
                     <input
@@ -1101,7 +1173,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
                   </label>
                 )}
               </div>
-              <div className="col-span-12 md:col-span-2 flex justify-end">
+              <div className="col-span-2 md:col-span-1 flex justify-end">
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeAnexo(a.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -1109,10 +1181,11 @@ export default function LancamentoForm(props: LancamentoFormProps) {
             </div>
           ))}
           <Button type="button" variant="outline" onClick={addAnexo} className="w-full gap-2 rounded-xl">
-            <Plus className="h-4 w-4" /> Adicionar anexo
+            <Plus className="h-4 w-4" /> Adicionar documento
           </Button>
         </div>
       </Section>
+
 
       <Section
         title="Rateio por cotista"
