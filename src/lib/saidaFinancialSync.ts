@@ -10,7 +10,32 @@ import { supabase } from "@/integrations/supabase/client";
  *   4. rateio_despesas (fluxo = 'SAIDA')
  *
  * Deve rodar UMA VEZ POR CLIENTE/SÓCIO selecionado — quem chama faz o loop.
- * Idempotente via reference_type + reference_id (ou movimentacao_origem_id para movimentacoes).
+ * Idempotente via reference_type + reference_id (em TODAS as tabelas, incluindo movimentacoes).
+ *
+ * IMPORTANTE (correção): `movimentacoes.movimentacao_origem_id` é uma FK estrita para
+ * `movimentacoes.id` (auto-referência) e possui índice ÚNICO — não serve como campo livre
+ * de rastreabilidade para uma origem externa (NF/Recibo/Invoice/UUID gerado no cliente).
+ * Usar esse campo para isso causa:
+ *   (a) erro 23503 (FK violation) quando o valor não corresponde a um id real já existente
+ *       em movimentacoes, e
+ *   (b) erro 23505 (unique violation) quando duas linhas (mov_share e mov_cliente) tentam
+ *       usar o mesmo valor.
+ * `movimentacoes.reference_id` (text, sem FK, sem unique) é a coluna correta para isso —
+ * mesmo padrão já usado em contas_areceber via upsert().
+ *
+ * IMPORTANTE (correção 2): quando a mesma NF/Recibo/Invoice (mesmo origem_id) é rateada entre
+ * VÁRIOS clientes/sócios, a função é chamada uma vez por cliente/sócio (ver docstring acima) —
+ * cada chamada precisa gerar sua PRÓPRIA linha em contas_areceber. Só que `contas_areceber.numero`
+ * tem constraint UNIQUE no banco (`contas_areceber_numero_key`), e o `numero` (numero_doc/numero_nf/
+ * numero_recibo) é o MESMO documento para todas as iterações do rateio. Resultado: a 1ª iteração
+ * insere normalmente, mas a 2ª+ iteração estoura `duplicate key value violates unique constraint
+ * "contas_areceber_numero_key"` — o erro joga fora do `syncSaidaFinancialLegs` ANTES de criar as
+ * movimentacoes (mov_share/mov_cliente) e o rateio_despesas daquele cliente/sócio, então na prática
+ * só o primeiro cotista do rateio acaba com registros completos e os demais somem silenciosamente.
+ * A correção (`upsertContasAReceber` abaixo) tenta primeiro o `numero` original (mantendo o número
+ * do documento limpo no caso comum de um único destinatário) e, SÓ SE colidir por causa dessa
+ * constraint, refaz o insert sufixando o `numero` com o cliente/sócio da iteração (ex: "2026.002-57545b0b"),
+ * preservando a rastreabilidade ao documento original sem quebrar a unicidade.
  */
 
 // IDs em expense_configu — usados como categoria_id apenas na perna de DESPESA (mov_cliente)
@@ -220,8 +245,89 @@ async function upsert(
 }
 
 /**
- * Upsert específico para `movimentacoes`. Como essa tabela não possui reference_id,
- * utilizamos movimentacao_origem_id para rastreabilidade e idempotência, junto do reference_type.
+ * Upsert específico para `contas_areceber`.
+ *
+ * CORREÇÃO: além do lookup normal por reference_type+reference_id (idempotência), esta
+ * variante trata a colisão da constraint UNIQUE em `contas_areceber.numero`
+ * ("contas_areceber_numero_key"). Isso acontece quando o MESMO documento (mesmo `numero`)
+ * é rateado entre vários clientes/sócios: cada iteração tenta inserir uma linha nova de
+ * contas_areceber com o mesmo `numero`, e a partir da 2ª iteração o insert quebra com
+ * 23505 — o que antes abortava a criação das movimentacoes e do rateio_despesas daquele
+ * cliente/sócio (por isso "sumiam" os demais cotistas do rateio).
+ *
+ * Estratégia: tenta inserir com o `numero` original (mantém o número do documento limpo
+ * quando não há conflito — caso comum de destinatário único). Se colidir especificamente
+ * por causa dessa constraint, refaz o insert sufixando o `numero` com o cliente/sócio
+ * desta iteração, garantindo unicidade sem perder a rastreabilidade ao documento original.
+ */
+async function upsertContasAReceber(
+  refType: string,
+  refId: string,
+  payload: Record<string, any>
+): Promise<string | null> {
+  const client = supabase as any;
+
+  const { data: existing } = await client
+    .from("contas_areceber")
+    .select("id")
+    .eq("reference_type", refType)
+    .eq("reference_id", refId)
+    .maybeSingle();
+
+  if (existing?.id) {
+    const { error } = await client
+      .from("contas_areceber")
+      .update({ ...payload, atualizado_em: new Date().toISOString() })
+      .eq("id", existing.id);
+    if (error) throw error;
+    return existing.id as string;
+  }
+
+  const insertWithNumero = async (numeroValue: string | null) => {
+    const { data: inserted, error } = await client
+      .from("contas_areceber")
+      .insert([{ ...payload, numero: numeroValue, reference_type: refType, reference_id: refId }])
+      .select("id")
+      .single();
+    if (error) throw error;
+    return inserted?.id ?? null;
+  };
+
+  try {
+    return await insertWithNumero(payload.numero ?? null);
+  } catch (err: any) {
+    const message = String(err?.message || "");
+    const details = String(err?.details || "");
+    const isNumeroConflict =
+      err?.code === "23505" &&
+      (message.includes("contas_areceber_numero_key") ||
+        message.includes("numero") ||
+        details.includes("numero"));
+
+    // Se não for exatamente essa colisão (ou não houver numero para sufixar), propaga o erro original.
+    if (!isNumeroConflict || !payload.numero) {
+      throw err;
+    }
+
+    const suffixSource = payload.cliente_id || payload.socio_id || refId;
+    const suffixedNumero = `${payload.numero}-${String(suffixSource).slice(0, 8)}`;
+    return await insertWithNumero(suffixedNumero);
+  }
+}
+
+/**
+ * Upsert específico para `movimentacoes`.
+ *
+ * CORREÇÃO: usa `reference_id` (text, sem FK, sem índice único) para rastreabilidade/
+ * idempotência — igual ao helper `upsert()` acima usa para as demais tabelas.
+ *
+ * Antes, esta função gravava o `origemId` em `movimentacao_origem_id`, mas essa coluna
+ * é uma FK estrita para `movimentacoes.id` (exige que o valor já exista como id de outra
+ * movimentação) e tem índice ÚNICO (só uma linha em toda a tabela pode ter um dado valor).
+ * Como `origemId` normalmente é o id de uma NF/Recibo/Invoice (de outra tabela) ou um UUID
+ * gerado no cliente, ele nunca corresponde a um id real de `movimentacoes` — daí o erro
+ * 23503 "violates foreign key constraint mov_origem_fkey". E mesmo corrigindo isso, usar o
+ * mesmo valor para mov_share e mov_cliente quebraria em seguida com 23505 (unique violation).
  */
 async function upsertMovimentacao(
   refType: string,
@@ -233,7 +339,7 @@ async function upsertMovimentacao(
     .from("movimentacoes")
     .select("id")
     .eq("reference_type", refType)
-    .eq("movimentacao_origem_id", origemId)
+    .eq("reference_id", origemId)
     .maybeSingle();
 
   if (existing?.id) {
@@ -246,7 +352,7 @@ async function upsertMovimentacao(
   }
   const { data: inserted, error } = await client
     .from("movimentacoes")
-    .insert([{ ...payload, reference_type: refType, movimentacao_origem_id: origemId }])
+    .insert([{ ...payload, reference_type: refType, reference_id: origemId }])
     .select("id")
     .single();
   if (error) throw error;
@@ -318,7 +424,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   const numeroDocFinal = numero_doc || numero_nf || numero_recibo || null;
   const descricaoBase = input.descricao || input.categoria_origem_label || `${origem} ${numeroDocFinal ?? ""}`.trim();
 
-  // 1) contas_areceber (Possui colunas reference_type e reference_id normais)
+  // 1) contas_areceber (upsert com tratamento de colisão em `numero` — ver upsertContasAReceber)
   const arPayload = {
     numero: numeroDocFinal,
     cliente_nome: input.cliente_nome || input.socio_nome || "",
@@ -338,7 +444,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     arquivo_pdf_url: input.recibo_url || input.nf_url || null,
     criado_por: input.criado_por || null,
   };
-  const contasAreceberId = await upsert("contas_areceber", `${baseRef}:areceber`, origem_id, arPayload);
+  const contasAreceberId = await upsertContasAReceber(`${baseRef}:areceber`, origem_id, arPayload);
 
   // 2) movimentacao SHARE (receita/entrada) — usa categoria de categorias_movimentacao
   const movComum = {
@@ -458,16 +564,16 @@ export async function deleteSaidaFinancialLegs(
       .from("movimentacoes")
       .select("id")
       .like("reference_type", `${prefix}%:mov_cliente`)
-      .eq("movimentacao_origem_id", origem_id);
+      .eq("reference_id", origem_id);
 
     const despesaIds = (movClientes || []).map((m: any) => m.id);
     if (despesaIds.length > 0) {
       await client.from("rateio_despesas").delete().in("despesa_id", despesaIds);
     }
 
-    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_cliente`).eq("movimentacao_origem_id", origem_id);
-    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_share`).eq("movimentacao_origem_id", origem_id);
-    
+    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_cliente`).eq("reference_id", origem_id);
+    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_share`).eq("reference_id", origem_id);
+
     // contas_areceber tem reference_id de verdade, então continua filtrando por ele
     await client.from("contas_areceber").delete().eq("reference_id", origem_id).like("reference_type", `${prefix}%`);
     return;
@@ -482,14 +588,14 @@ export async function deleteSaidaFinancialLegs(
     .from("movimentacoes")
     .select("id")
     .eq("reference_type", movClienteRefType)
-    .eq("movimentacao_origem_id", origem_id)
+    .eq("reference_id", origem_id)
     .maybeSingle();
 
   if (movCliente?.id) {
     await client.from("rateio_despesas").delete().eq("despesa_id", movCliente.id);
   }
 
-  await client.from("movimentacoes").delete().eq("reference_type", movClienteRefType).eq("movimentacao_origem_id", origem_id);
-  await client.from("movimentacoes").delete().eq("reference_type", movShareRefType).eq("movimentacao_origem_id", origem_id);
+  await client.from("movimentacoes").delete().eq("reference_type", movClienteRefType).eq("reference_id", origem_id);
+  await client.from("movimentacoes").delete().eq("reference_type", movShareRefType).eq("reference_id", origem_id);
   await client.from("contas_areceber").delete().eq("reference_type", `${baseRef}:areceber`).eq("reference_id", origem_id);
 }
