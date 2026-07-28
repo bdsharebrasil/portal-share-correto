@@ -1486,8 +1486,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             ...taxasSubcatFields,
           });
 
+          let shareMovId: string | null = null;
           try {
-            await insertAndGetId("movimentacoes", {
+            shareMovId = await insertAndGetId("movimentacoes", {
               descricao, tipo: "despesa", tipo_caixa: "share",
               categoria_id: categoriaContaId, valor: valorNumericoFinal, valor_original: valorNumericoFinal,
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
@@ -1503,6 +1504,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             await supabase.from("contas_apagar").delete().eq("id", capId);
             throw shareErr;
           }
+
 
           try {
             for (const linha of clienteLinhas) {
@@ -1535,7 +1537,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             throw movErr;
           }
 
-          await supabase.from("contas_apagar").update({ movimentacao_id: Object.values(movimentacaoIdsPorCliente)[0] || null }).eq("id", capId);
+          await supabase.from("contas_apagar").update({ movimentacao_id: shareMovId || Object.values(movimentacaoIdsPorCliente)[0] || null }).eq("id", capId);
 
           const rateioPayloads = linhasRateioMultiCliente.map((linha) => {
             const anexoNf = pickAnexoParaRateio(anexosProc, "nf", linha.cliente_id, linha.socio_id);

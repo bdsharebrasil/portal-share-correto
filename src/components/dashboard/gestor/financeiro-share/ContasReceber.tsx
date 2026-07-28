@@ -567,6 +567,23 @@ export function ContasReceber() {
 
     try {
       console.log("Atualizando status de conta_areceber", { contaId, newStatus });
+
+      // Linha virtual (vinda de movimentacoes/conciliação bancária) não existe em contas_areceber:
+      // atualiza direto a movimentação correspondente.
+      if (conta?.isFromBankReconciliation) {
+        const movId = conta.bankReconciliationId || conta.id;
+        const { error: movErr } = await (supabase.from("movimentacoes") as any)
+          .update({ status: newStatus === "recebido" ? "pago" : newStatus, atualizado_em: new Date().toISOString() })
+          .eq("id", movId);
+        if (movErr) {
+          toast.error(`Erro ao atualizar movimentação: ${movErr.message}`);
+          return;
+        }
+        toast.success("Status atualizado com sucesso!");
+        loadContas();
+        return;
+      }
+
       const { data: changed, error } = await supabase.from("contas_areceber").update({ status: newStatus, atualizado_em: new Date().toISOString() }).eq("id", contaId).select("id,status");
       console.log("contas_areceber.update status result:", { contaId, newStatus, changed, error });
 
@@ -585,6 +602,7 @@ export function ContasReceber() {
       toast.error(error.message || "Erro ao atualizar status");
     }
   };
+
 
   const handleMarkAsReceived = async () => {
     if (!contasReceberData) return;

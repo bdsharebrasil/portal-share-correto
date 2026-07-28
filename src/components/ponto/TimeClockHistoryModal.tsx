@@ -31,24 +31,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { FileText } from "lucide-react";
+import { normalizeTimeEntry, type NormalizedTimeEntry } from "./timeClockHistoryUtils";
 
 interface TimeClockHistoryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface TimeEntry {
-  id: string;
-  user_id: string;
-  date: string;
-  entrada_hora: string;
-  saida_hora: string | null;
-  inicio_almoco: string | null;
-  fim_almoco: string | null;
-  horas_totais: number | null;
-  status: "ativo" | "concluido" | "incompleto";
-  criado_em: string;
-}
+interface TimeEntry extends NormalizedTimeEntry {}
 
 export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryModalProps) {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
@@ -93,17 +83,18 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
       const monthEnd = endOfMonth(selectedMonth);
 
       const { data, error } = await (supabase as any)
-        .from("time_clock")
+        .from("lancamento_ponto")
         .select("*")
         .eq("user_id", user.id)
-        .gte("data", format(monthStart, "yyyy-MM-dd"))
-        .lte("data", format(monthEnd, "yyyy-MM-dd"))
-        .order("data", { ascending: false });
+        .gte("data_entrada", format(monthStart, "yyyy-MM-dd"))
+        .lte("data_entrada", format(monthEnd, "yyyy-MM-dd"))
+        .order("data_entrada", { ascending: false });
 
       if (error) throw error;
 
-      setEntries((data || []) as TimeEntry[]);
-      calculateStats((data || []) as TimeEntry[]);
+      const normalizedEntries = (data || []).map(normalizeTimeEntry) as TimeEntry[];
+      setEntries(normalizedEntries);
+      calculateStats(normalizedEntries);
     } catch (error) {
       console.error("Error fetching time entries:", error);
     } finally {
@@ -132,7 +123,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
   };
 
   const getEntryForDate = (date: Date): TimeEntry | undefined => {
-    return entries.find((entry) => entry.data === format(date, "yyyy-MM-dd"));
+    return entries.find((entry) => entry.date === format(date, "yyyy-MM-dd"));
   };
 
   const openDay = (date: Date) => {
@@ -304,7 +295,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
                     <span className="font-semibold text-white">
-                      {format(new Date(entry.data), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      {format(new Date(entry.date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </span>
                     <Badge
                       className={cn(
