@@ -41,15 +41,23 @@ type Socio = {
   cpf?: string | null;
   percentual_participacao?: number | null;
   percentual?: number;
+  /** Preenchido quando o cotista é realmente um sócio (PF) */
+  socio_id?: string | null;
+  /** Preenchido quando o cotista é um cliente (PJ), sem sócio associado */
+  cliente_id?: string | null;
 };
 
 type RateioInput = {
+  /** id do cotista na UI (pode ser socio_id ou cliente_id) */
   socio_id: string;
   socio_nome: string;
   socio_cpf: string | null;
   percentual: number;
   valor_pago_real: number;
+  /** true quando o cotista é um cliente e não um sócio */
+  is_cliente?: boolean;
 };
+
 
 type AnexoTipo = "comprovante" | "recibo" | "nf" | "boleto";
 type AnexoItem = {
@@ -495,20 +503,23 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         const { data: rs } = await (supabase as any)
           .from("rateio_despesas")
           .select(
-            "socio_id, socios_nome, percentual_sociedade, valor_pago_real, pago_por, fluxo, categoria_custo, periodicidade"
+            "socio_id, socios_nome, cliente_id, percentual_sociedade, valor_pago_real, pago_por, fluxo, categoria_custo, periodicidade"
           )
           .eq("despesa_id", editingFinal.id);
 
         const carregados: RateioInput[] = (rs ?? []).map((r: any) => {
-          const s = socios.find((x) => x.id === r.socio_id);
+          const s = socios.find((x) => x.id === (r.socio_id ?? r.cliente_id));
+          const isCliente = !r.socio_id;
           return {
-            socio_id: r.socio_id,
+            socio_id: r.socio_id ?? r.cliente_id ?? "",
             socio_nome: r.socios_nome ?? s?.nome ?? "",
-            socio_cpf: s?.cpf ?? null,
+            socio_cpf: isCliente ? null : s?.cpf ?? null,
             percentual: Number(r.percentual_sociedade ?? 0),
             valor_pago_real: Number(r.valor_pago_real ?? 0),
+            is_cliente: isCliente,
           };
         });
+
 
         if (carregados.length) {
           setRateios(carregados);
@@ -536,11 +547,14 @@ export default function LancamentoForm(props: LancamentoFormProps) {
           socio_id: s.id,
           socio_nome: s.nome,
           socio_cpf: s.cpf,
-          percentual: Number(s.percentual_participacao ?? 0),
+          percentual: Number(s.percentual_participacao ?? s.percentual ?? 0),
           valor_pago_real: 0,
+          // cotista sem socio_id (ou marcado como cliente) não deve gravar socio_id
+          is_cliente: !!s.cliente_id && !s.socio_id,
         }))
       );
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingFinal, socios]);
 
@@ -790,17 +804,15 @@ export default function LancamentoForm(props: LancamentoFormProps) {
           .eq("tipo_referencia", "movimentacao_rateio");
         await (supabase as any).from("rateio_despesas").delete().eq("despesa_id", movId);
       } else {
+        // tabela `movimentacoes`. O identificador do próprio registro (movId)
+        // é obtido diretamente do insert abaixo.
         const { data: ins, error } = await (supabase as any)
           .from("movimentacoes")
-          .insert({ ...movPayload, reference_id: null })
+          .insert(movPayload)
           .select("id")
           .single();
         if (error) throw error;
         movId = ins.id;
-        await (supabase as any)
-          .from("movimentacoes")
-          .update({ reference_id: movId })
-          .eq("id", movId);
       }
 
       const aeroSelecionada = clienteAeronaves.find((a) => a.id_aeronave === aeronaveSelected)?.aeronave;
@@ -814,8 +826,9 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         clientes_nome: clienteNomeProp || clienteData?.razao_social,
         aeronave_id: aeronaveSelected || aeronaveIdParam,
         aeronave_registro: aeroSelecionada?.matricula || props.aeronaveRegistro,
-        socio_id: r.socio_id,
-        socios_nome: r.socio_nome,
+        // Só grava socio_id quando o cotista é realmente um sócio (PF).
+        socio_id: r.is_cliente ? null : r.socio_id,
+        socios_nome: r.is_cliente ? null : r.socio_nome,
         percentual_sociedade: r.percentual,
         valor_total_despesa: valorNum,
         valor_rateado: +((valorNum * r.percentual) / 100).toFixed(2),

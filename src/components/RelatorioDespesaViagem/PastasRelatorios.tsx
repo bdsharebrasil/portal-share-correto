@@ -40,6 +40,7 @@ export interface PastaReportItem {
   criado_por?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  crew_approval_status?: 'pending' | 'approved' | 'rejected' | 'nao_requerida' | null;
 }
 
 interface PastasRelatoriosProps {
@@ -435,7 +436,7 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumb
       {/* Botões ação (Enviar ao Cliente e Enviar para Tripulante) */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
         {/* Enviar para Tripulante - Finalizado → Ag. Conferência (Laranja) */}
-        {report.status === 'Finalizado' && (
+        {report.status === 'Finalizado' && report.crew_approval_status !== 'approved' && (
           <ActionButton
             onClick={() => onSend(report, 'conferencia')}
             gradient="linear-gradient(135deg, #ff9a56 0%, #ff7f2f 100%)"
@@ -444,6 +445,30 @@ function ReportCard({ report, onSend, onEdit, onView, onDelete, onEditReportNumb
             <Send size={16} style={{ strokeWidth: 2.5 }} />
             <span style={{ fontSize: '14px', fontWeight: 600 }}>Enviar Tripulante</span>
           </ActionButton>
+        )}
+
+        {/* Aprovado pelo Trip - badge estático (sem ação) */}
+        {report.status === 'Finalizado' && report.crew_approval_status === 'approved' && (
+          <div
+            title="Tripulante já aprovou este relatório"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(16,185,129,0.14) 100%)',
+              border: '1px solid rgba(52,211,153,0.35)',
+              color: '#34d399',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'default',
+              userSelect: 'none',
+            }}
+          >
+            <CheckCheck size={16} style={{ strokeWidth: 2.5 }} />
+            <span>Aprovado pelo Trip</span>
+          </div>
         )}
 
         {/* Enviar ao Cliente - sempre disponível (Azul) */}

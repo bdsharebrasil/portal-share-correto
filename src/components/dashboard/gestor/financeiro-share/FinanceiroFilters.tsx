@@ -121,7 +121,7 @@ export const FinanceiroFilters = ({
           <SelectTrigger className="bg-card/50 border-border/50">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[1000000]">
             {SOURCE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
@@ -138,7 +138,7 @@ export const FinanceiroFilters = ({
           <SelectTrigger className="bg-card/50 border-border/50">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[1000000]">
             {TIPO_CAIXA_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
@@ -155,7 +155,7 @@ export const FinanceiroFilters = ({
           <SelectTrigger className="bg-card/50 border-border/50">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[1000000]">
             {STATUS_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
@@ -193,7 +193,7 @@ export const FinanceiroFilters = ({
                 : 'Selecionar período'}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent className="w-auto p-0 z-[1000000]" align="start">
             <Calendar
               mode="range"
               selected={filters.dateRange}

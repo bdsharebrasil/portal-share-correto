@@ -111,6 +111,10 @@ export default function FinanceiroCotistaDetalhe() {
         .filter((c: any) => c.id_aeronave === aeronaveAtual)
         .map((c: any) => ({
           id: c.socios_id || c.id_clientes,
+          // Distingue cotista sócio (PF) de cotista cliente (PJ) para não gravar
+          // um cliente_id na coluna socio_id do rateio.
+          socio_id: c.socios_id || null,
+          cliente_id: c.socios_id ? null : c.id_clientes || null,
           nome:
             c.socio?.nome ||
             c.cliente?.razao_social ||
@@ -121,7 +125,7 @@ export default function FinanceiroCotistaDetalhe() {
 
       // Se não houver cotistas em cotistas_aeronave, extrair de rateio_despesas
       if (cotistasDeAeronave.length === 0) {
-        const cotistasDoRateio = new Map<string, { id: string; nome: string; percentual: number }>();
+        const cotistasDoRateio = new Map<string, { id: string; nome: string; percentual: number; socio_id: string | null; cliente_id: string | null }>();
 
         rateioDespesasComTodosCotistasDetalhado.forEach((despesa: any) => {
           despesa.rateios?.forEach((r: any) => {
@@ -132,6 +136,8 @@ export default function FinanceiroCotistaDetalhe() {
             if (cotista_id && !cotistasDoRateio.has(cotista_id)) {
               cotistasDoRateio.set(cotista_id, {
                 id: cotista_id,
+                socio_id: r.socio_id || null,
+                cliente_id: r.socio_id ? null : r.cliente_id || null,
                 nome: cotista_nome,
                 percentual: Number(r.percentual_sociedade) || 0,
               });
@@ -141,6 +147,7 @@ export default function FinanceiroCotistaDetalhe() {
 
         return Array.from(cotistasDoRateio.values());
       }
+
 
       return cotistasDeAeronave;
     },
@@ -443,7 +450,7 @@ export default function FinanceiroCotistaDetalhe() {
             {/* Abastecimentos */}
             <TabsContent value="abast" className="space-y-4 mt-4">
               <AbastecimentosTab
-                abastecimentos={abastecimentosDaAeronave}
+                abastecimentos={abastecimentosDaAeronave as any}
                 cotistas={cotistasDaAeronave}
                 aeronaveLabel={aeronaveInfo?.matricula}
               />

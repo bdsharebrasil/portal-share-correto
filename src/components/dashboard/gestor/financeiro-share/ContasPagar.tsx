@@ -150,7 +150,9 @@ export function ContasPagar() {
           .in("id", userIds as string[]);
         (profiles || []).forEach((p: any) => userMap.set(p.id, p.full_name || ""));
       }
-      // Detecta relatórios de viagem (via reference_id ou por padrão da descrição/numero_doc)
+
+      // Detecta relatórios de viagem a partir do padrão da descrição/numero_doc,
+      // complementado pela coluna reference_type (que existe na tabela).
       const extractNumeroRelatorio = (c: any): string | null => {
         const desc = String(c.descricao || "");
         const doc = String(c.numero_doc || "");
@@ -168,34 +170,21 @@ export function ContasPagar() {
           .map((c: any) => extractNumeroRelatorio(c))
           .filter(Boolean) as string[]
       ));
-      const referenceIds = Array.from(new Set(
-        (data || [])
-          .filter((c: any) => typeof c.reference_type === "string" && c.reference_type.startsWith("travel_report"))
-          .map((c: any) => c.reference_id)
-          .filter(Boolean) as string[]
-      ));
 
       const relatorioMap = new Map<string, { numero: string; total_valor: number | null }>();
-      const relatorioByIdMap = new Map<string, { numero: string; total_valor: number | null }>();
-      if (numerosRelatorio.length > 0 || referenceIds.length > 0) {
-        const orFilters: string[] = [];
-        if (numerosRelatorio.length > 0) orFilters.push(`numero_relatorio.in.(${numerosRelatorio.map((n) => `"${n}"`).join(",")})`);
-        if (referenceIds.length > 0) orFilters.push(`id.in.(${referenceIds.join(",")})`);
+      if (numerosRelatorio.length > 0) {
         const { data: relatorios } = await (supabase as any)
           .from("travel_expense_reports")
           .select("id, numero_relatorio, total_valor")
-          .or(orFilters.join(","));
+          .in("numero_relatorio", numerosRelatorio);
         (relatorios || []).forEach((r: any) => {
           if (r.numero_relatorio) relatorioMap.set(r.numero_relatorio, { numero: r.numero_relatorio, total_valor: r.total_valor });
-          if (r.id) relatorioByIdMap.set(r.id, { numero: r.numero_relatorio, total_valor: r.total_valor });
         });
       }
 
       const enriched = (data || []).map((c: any) => {
         const numero = extractNumeroRelatorio(c);
-        const info = (c.reference_id && relatorioByIdMap.get(c.reference_id))
-          || (numero && relatorioMap.get(numero))
-          || null;
+        const info = (numero && relatorioMap.get(numero)) || null;
         return {
           ...c,
           solicitante_nome: c.criado_por ? userMap.get(c.criado_por) || null : null,
@@ -327,14 +316,15 @@ export function ContasPagar() {
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
     try {
-      // Buscar conta para pegar movimentacao_id
-      const { data: contaRow } = await (supabase as any)
-        .from("contas_apagar")
-        .select("id, movimentacao_id")
-        .eq("id", deleteConfirmId)
-        .maybeSingle();
+      // Buscar movimentações vinculadas via FK reversa (movimentacoes.contas_apagar_id),
+      // já que contas_apagar não possui coluna movimentacao_id.
+      const { data: movRows } = await (supabase as any)
+        .from("movimentacoes")
+        .select("id")
+        .eq("contas_apagar_id", deleteConfirmId);
 
-      const despesaIds = [deleteConfirmId, contaRow?.movimentacao_id].filter(Boolean) as string[];
+      const movimentacaoIds = (movRows || []).map((m: any) => m.id).filter(Boolean) as string[];
+      const despesaIds = [deleteConfirmId, ...movimentacaoIds];
 
       // 1) Excluir rateio_despesas vinculados
       if (despesaIds.length > 0) {
@@ -344,12 +334,12 @@ export function ContasPagar() {
           .in("despesa_id", despesaIds);
       }
 
-      // 2) Excluir movimentação vinculada
-      if (contaRow?.movimentacao_id) {
+      // 2) Excluir movimentações vinculadas
+      if (movimentacaoIds.length > 0) {
         await (supabase as any)
           .from("movimentacoes")
           .delete()
-          .eq("id", contaRow.movimentacao_id);
+          .in("id", movimentacaoIds);
       }
 
       // 3) Excluir a conta a pagar
@@ -607,7 +597,7 @@ export function ContasPagar() {
                             {isRecorrente && <Repeat className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0 mt-1" />}
                             <div className="min-w-0 space-y-0.5">
                               {(() => {
-                                const isTravelReport = !!conta._is_travel_report || (typeof conta.reference_type === "string" && conta.reference_type.startsWith("travel_report"));
+                                const isTravelReport = !!conta._is_travel_report;
                                 const numeroRV = conta._relatorio_numero || conta.descricao?.match(/RV\s+([A-Z0-9\-\/]+)/i)?.[1] || null;
                                 const totalRelatorio = conta._relatorio_total != null ? Number(conta._relatorio_total) : null;
                                 const tripulanteMatch = conta.descricao?.match(/TRIPULANTE\s+\d+\s*\(([^)]+)\)/i);

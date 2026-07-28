@@ -10,14 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
  *   4. rateio_despesas (fluxo = 'SAIDA')
  *
  * Deve rodar UMA VEZ POR CLIENTE/SÓCIO selecionado — quem chama faz o loop.
- * Idempotente via reference_type + suffix por perna.
- *
- * IMPORTANTE: a tabela `movimentacoes` só tem a coluna `reference_type` (não tem
- * `reference_id` — ver erro PGRST204 "Could not find the 'reference_id' column").
- * Por isso, para `movimentacoes`, o `origem_id` é embutido dentro do próprio
- * `reference_type` (ex: `nf_saida:<clienteOuSocioId>:mov_cliente:<origem_id>`), em vez
- * de usar uma coluna separada. `contas_areceber` continua usando reference_type +
- * reference_id normalmente, pois essa tabela tem as duas colunas.
+ * Idempotente via reference_type + reference_id (ou movimentacao_origem_id para movimentacoes).
  */
 
 // IDs em expense_configu — usados como categoria_id apenas na perna de DESPESA (mov_cliente)
@@ -219,7 +212,7 @@ async function upsert(
   }
   const { data: inserted, error } = await client
     .from(table)
-    .insert([payload])
+    .insert([{ ...payload, reference_type: refType, reference_id: refId }])
     .select("id")
     .single();
   if (error) throw error;
@@ -227,13 +220,12 @@ async function upsert(
 }
 
 /**
- * Upsert específico para `movimentacoes`. Essa tabela só tem `reference_type`
- * (não tem `reference_id` — ver PGRST204), então a idempotência é feita casando
- * SOMENTE por `reference_type`, que já deve vir com o `origem_id` embutido
- * (ex: `nf_saida:<clienteOuSocioId>:mov_cliente:<origem_id>`).
+ * Upsert específico para `movimentacoes`. Como essa tabela não possui reference_id,
+ * utilizamos movimentacao_origem_id para rastreabilidade e idempotência, junto do reference_type.
  */
 async function upsertMovimentacao(
   refType: string,
+  origemId: string,
   payload: Record<string, any>
 ): Promise<string | null> {
   const client = supabase as any;
@@ -241,6 +233,7 @@ async function upsertMovimentacao(
     .from("movimentacoes")
     .select("id")
     .eq("reference_type", refType)
+    .eq("movimentacao_origem_id", origemId)
     .maybeSingle();
 
   if (existing?.id) {
@@ -253,7 +246,7 @@ async function upsertMovimentacao(
   }
   const { data: inserted, error } = await client
     .from("movimentacoes")
-    .insert([{ ...payload, reference_type: refType }])
+    .insert([{ ...payload, reference_type: refType, movimentacao_origem_id: origemId }])
     .select("id")
     .single();
   if (error) throw error;
@@ -325,7 +318,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   const numeroDocFinal = numero_doc || numero_nf || numero_recibo || null;
   const descricaoBase = input.descricao || input.categoria_origem_label || `${origem} ${numeroDocFinal ?? ""}`.trim();
 
-  // 1) contas_areceber
+  // 1) contas_areceber (Possui colunas reference_type e reference_id normais)
   const arPayload = {
     numero: numeroDocFinal,
     cliente_nome: input.cliente_nome || input.socio_nome || "",
@@ -343,11 +336,9 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     nota_fiscal_url: input.nf_url || null,
     boleto_url: input.boleto_url || null,
     arquivo_pdf_url: input.recibo_url || input.nf_url || null,
-    reference_type: `${baseRef}:areceber`,
-    reference_id: origem_id,
     criado_por: input.criado_por || null,
   };
-  const contasAreceberId = await upsert("contas_areceber", arPayload.reference_type, origem_id, arPayload);
+  const contasAreceberId = await upsert("contas_areceber", `${baseRef}:areceber`, origem_id, arPayload);
 
   // 2) movimentacao SHARE (receita/entrada) — usa categoria de categorias_movimentacao
   const movComum = {
@@ -374,9 +365,10 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     criado_por: input.criado_por || null,
   };
 
-  const movShareRefType = `${baseRef}:mov_share:${origem_id}`;
+  const movShareRefType = `${baseRef}:mov_share`;
   const movShareId = await upsertMovimentacao(
     movShareRefType,
+    origem_id,
     {
       ...movComum,
       tipo: tipoShare,          // 'receita' ou 'entrada' (subcat C.M.A)
@@ -386,9 +378,10 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   );
 
   // 3) movimentacao CLIENTE (despesa) — usa categoria de expense_configu
-  const movClienteRefType = `${baseRef}:mov_cliente:${origem_id}`;
+  const movClienteRefType = `${baseRef}:mov_cliente`;
   const movClienteId = await upsertMovimentacao(
     movClienteRefType,
+    origem_id,
     {
       ...movComum,
       tipo: "despesa",
@@ -461,42 +454,42 @@ export async function deleteSaidaFinancialLegs(
     // remove todos os registros dessa origem (todas iterações)
     const prefix = `${origem}:`;
 
-    // `movimentacoes` não tem reference_id — o origem_id está embutido no fim do
-    // reference_type (ex: "nf_saida:<iter>:mov_cliente:<origem_id>"), então casamos
-    // por padrão: começa com o prefixo da origem e termina com ":mov_cliente:<origem_id>"
     const { data: movClientes } = await client
       .from("movimentacoes")
       .select("id")
-      .like("reference_type", `${prefix}%:mov_cliente:${origem_id}`);
+      .like("reference_type", `${prefix}%:mov_cliente`)
+      .eq("movimentacao_origem_id", origem_id);
 
     const despesaIds = (movClientes || []).map((m: any) => m.id);
     if (despesaIds.length > 0) {
       await client.from("rateio_despesas").delete().in("despesa_id", despesaIds);
     }
 
-    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_cliente:${origem_id}`);
-    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_share:${origem_id}`);
+    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_cliente`).eq("movimentacao_origem_id", origem_id);
+    await client.from("movimentacoes").delete().like("reference_type", `${prefix}%:mov_share`).eq("movimentacao_origem_id", origem_id);
+    
     // contas_areceber tem reference_id de verdade, então continua filtrando por ele
     await client.from("contas_areceber").delete().eq("reference_id", origem_id).like("reference_type", `${prefix}%`);
     return;
   }
 
   const baseRef = `${origem}:${suffixIter}`;
-  const movClienteRefType = `${baseRef}:mov_cliente:${origem_id}`;
-  const movShareRefType = `${baseRef}:mov_share:${origem_id}`;
+  const movClienteRefType = `${baseRef}:mov_cliente`;
+  const movShareRefType = `${baseRef}:mov_share`;
 
   // Acha o mov_cliente desta iteração para remover o rateio vinculado por despesa_id
   const { data: movCliente } = await client
     .from("movimentacoes")
     .select("id")
     .eq("reference_type", movClienteRefType)
+    .eq("movimentacao_origem_id", origem_id)
     .maybeSingle();
 
   if (movCliente?.id) {
     await client.from("rateio_despesas").delete().eq("despesa_id", movCliente.id);
   }
 
-  await client.from("movimentacoes").delete().eq("reference_type", movClienteRefType);
-  await client.from("movimentacoes").delete().eq("reference_type", movShareRefType);
+  await client.from("movimentacoes").delete().eq("reference_type", movClienteRefType).eq("movimentacao_origem_id", origem_id);
+  await client.from("movimentacoes").delete().eq("reference_type", movShareRefType).eq("movimentacao_origem_id", origem_id);
   await client.from("contas_areceber").delete().eq("reference_type", `${baseRef}:areceber`).eq("reference_id", origem_id);
 }

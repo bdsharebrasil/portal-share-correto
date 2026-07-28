@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
  * Quando uma NF de Saída, Recibo ou Invoice é gerada para um cotista, o valor é
  * receita para a Share, mas também é uma despesa fixa (ADM SHARE BRASIL) para o
  * cliente/aeronave. Este helper cria essa "segunda perna" em movimentacoes,
- * vinculada à mesma origem via reference_id, mas com reference_type sufixado
+ * vinculada à mesma origem via movimentacao_origem_id, mas com reference_type sufixado
  * com `_espelho` para diferenciar e garantir idempotência.
  */
 
@@ -50,7 +50,7 @@ function mapStatus(s?: string | null): string {
 /**
  * Cria/atualiza a movimentação-espelho de despesa do cliente.
  * Só executa quando cliente_id E aeronave_id estão preenchidos.
- * Idempotente via (reference_type, reference_id).
+ * Idempotente via (reference_type, movimentacao_origem_id).
  */
 export async function syncClientExpenseMirror(input: ClientExpenseMirrorInput) {
   if (!input.cliente_id || !input.aeronave_id) {
@@ -90,7 +90,7 @@ export async function syncClientExpenseMirror(input: ClientExpenseMirrorInput) {
     nf_url: input.nf_url ?? null,
     boleto_url: input.boleto_url ?? null,
     reference_type: refType,
-    reference_id: input.originId,
+    movimentacao_origem_id: input.originId,
     criado_por: input.criado_por ?? null,
   };
 
@@ -98,7 +98,7 @@ export async function syncClientExpenseMirror(input: ClientExpenseMirrorInput) {
     .from("movimentacoes")
     .select("id")
     .eq("reference_type", refType)
-    .eq("reference_id", input.originId)
+    .eq("movimentacao_origem_id", input.originId)
     .maybeSingle();
 
   if (existing?.id) {
@@ -125,5 +125,5 @@ export async function deleteClientExpenseMirror(origin: MirrorOrigin, originId: 
     .from("movimentacoes")
     .delete()
     .eq("reference_type", `${origin}_espelho`)
-    .eq("reference_id", originId);
+    .eq("movimentacao_origem_id", originId);
 }

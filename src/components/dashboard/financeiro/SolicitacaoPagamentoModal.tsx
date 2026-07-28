@@ -237,6 +237,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [anexos, setAnexos] = useState<AnexoDoc[]>([]);
   const [gerarContasAPagar, setGerarContasAPagar] = useState(true);
   const [gerarContasAReceber, setGerarContasAReceber] = useState(false);
+  const [gerarCaixaCliente, setGerarCaixaCliente] = useState(false);
+
   const [usarReciboExistente, setUsarReciboExistente] = useState(false);
   const [reciboExistenteId, setReciboExistenteId] = useState("");
   const [reciboExistentePorCliente, setReciboExistentePorCliente] = useState<Record<string, string>>({});
@@ -1072,8 +1074,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   }, [tipoDespesaLabel]);
 
   useEffect(() => {
-    if (isAdmShareType) setGerarContasAReceber(true);
-  }, [isAdmShareType]);
+    if (isAdmShareType && !gerarCaixaCliente) setGerarContasAReceber(true);
+  }, [isAdmShareType, gerarCaixaCliente]);
+
+  // "ENVIO DESPESA CAIXA CLIENTE" é exclusivo: não passa pelo caixa share, logo não há
+  // contas a pagar / contas a receber nem reembolso.
+  const toggleCaixaCliente = (checked: boolean) => {
+    setGerarCaixaCliente(checked);
+    if (checked) {
+      setGerarContasAPagar(false);
+      setGerarContasAReceber(false);
+    } else {
+      setGerarContasAPagar(true);
+    }
+  };
+
+
 
   const resetForm = () => {
     setEtapaAtual(1); // Wizard volta para a etapa inicial
@@ -1082,7 +1098,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio("FIXO"); setObservacoes("");
     setFornecedorId(""); setFornecedorNome("");
     setDataEmissao(new Date()); setDataVencimento(new Date()); setAnexos([]);
-    setGerarContasAPagar(true); setGerarContasAReceber(false);
+    setGerarContasAPagar(true); setGerarContasAReceber(false); setGerarCaixaCliente(false);
     setUsarReciboExistente(false); setReciboExistenteId(""); setReferenciaDuplicada({ tipo: null, id: null, mensagem: null });
     setTravelReportId(""); setTravelReports([]); setReferenciaNumero("");
     setClienteLinhas([]); setClienteId(""); setSocioId(""); setSociosExcluidos([]);
@@ -1214,7 +1230,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     if (!tipoDespesaLabel) return "Selecione o tipo de despesa";
     if (valorNumerico <= 0) return "Informe um valor válido";
     if (!dataVencimento) return "Data de vencimento é obrigatória";
-    if (!gerarContasAPagar && !gerarContasAReceber) return "Selecione ao menos uma opção: Despesa Share e/ou Conta a Receber do cliente";
+    if (!gerarContasAPagar && !gerarContasAReceber && !gerarCaixaCliente) return "Selecione ao menos uma opção: Despesa Share, Conta a Receber do cliente ou Envio despesa caixa cliente";
 
     if (isViagemMode) {
       if (!clienteId && !socioId) return "Selecione o cliente ou o sócio";
@@ -1413,7 +1429,67 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         let capId: string | null = null;
         const movimentacaoIdsPorCliente: Record<string, string> = {};
 
-        if (gerarContasAPagar) {
+        if (gerarCaixaCliente) {
+          // === ENVIO DESPESA CAIXA CLIENTE ===
+          // Não passa pelo caixa share: sem contas a pagar, sem contas a receber,
+          // sem movimentação share e sem reembolso. Somente movimentação de caixa
+          // do cliente + rateio de despesas.
+          try {
+            for (const linha of clienteLinhas) {
+              const info = getClienteAeronaveInfo(linha.clienteId);
+              const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
+              const overrideStr = linha.valorClienteOverride;
+              const overrideNum = overrideStr !== undefined && overrideStr !== ""
+                ? Number(String(overrideStr).replace(/\./g, "").replace(",", "."))
+                : NaN;
+              const valorCliente = Number.isFinite(overrideNum)
+                ? +overrideNum.toFixed(2)
+                : +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
+              const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId);
+              const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId);
+
+              const movId = await insertAndGetId("movimentacoes", {
+                descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
+                tipo: "despesa", tipo_caixa: "cliente",
+                categoria_id: categoriaContaId, valor: valorCliente, valor_original: valorNumericoFinal,
+                data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
+                aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
+                numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum,
+                nf_url: nfUrl, recibo_url: reciboUrlLinha, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
+                observacoes: obsFinal || null,
+                reembolsavel: false, pago_diretamente: true,
+                reference_type: referenciaTipo || "solicitacao_pagamento",
+                reference_id: referenciaTipo && referenciaId ? referenciaId : null,
+                criado_por: userId,
+              });
+              movimentacaoIdsPorCliente[linha.clienteId] = movId;
+            }
+          } catch (movErr) {
+            for (const movId of Object.values(movimentacaoIdsPorCliente)) await supabase.from("movimentacoes").delete().eq("id", movId);
+            throw movErr;
+          }
+
+          const rateioPayloadsCaixaCliente = linhasRateioMultiCliente.map((linha) => {
+            const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
+            const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
+            return {
+              despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
+              data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
+              cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: true,
+              aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
+              descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
+              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl,
+              subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
+              pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
+              abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
+            };
+          });
+
+          if (rateioPayloadsCaixaCliente.length) {
+            await supabaseClient.from("rateio_despesas").insert(rateioPayloadsCaixaCliente as any);
+          }
+        } else if (gerarContasAPagar) {
+
           capId = await insertAndGetId("contas_apagar", {
             data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumericoFinal, categoria: tipoDespesaLabel || null,
             categoria_id: categoriaContaId || null, descricao, status: statusCP, observacoes: obsFinal || null,
@@ -1494,7 +1570,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         }
 
         // === Gera CONTAS A RECEBER por cliente (Share cobra o cliente) ===
-        if (gerarContasAReceber) {
+        if (gerarContasAReceber && !gerarCaixaCliente) {
           for (const linha of clienteLinhas) {
             const info = getClienteAeronaveInfo(linha.clienteId);
             const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
@@ -1570,7 +1646,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
       if (!rascunho && referenciaTipo === "abastecimento" && referenciaId) {
         const socioNomeParaAbastecimento = (socioSel?.nome || (clienteLinhas.length === 1 ? null : null)).trim() || null;
-        await supabase.from("abastecimentos").update({
+        await (supabase.from("abastecimentos") as any).update({
           status_pagamento: "pago",
           data_pagamento: dataComp,
           socio_nome: socioNomeParaAbastecimento,
@@ -1656,6 +1732,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     <Checkbox
                       checked={gerarContasAPagar}
                       onCheckedChange={(v) => setGerarContasAPagar(!!v)}
+                      disabled={gerarCaixaCliente}
                       className="mt-0.5"
                     />
                     <span className="text-sm">
@@ -1666,7 +1743,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     <Checkbox
                       checked={gerarContasAReceber}
                       onCheckedChange={(v) => setGerarContasAReceber(!!v)}
-                      disabled={isAdmShareType}
+                      disabled={isAdmShareType || gerarCaixaCliente}
                       className="mt-0.5"
                     />
                     <span className="text-sm">
@@ -1676,7 +1753,20 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                       </span>
                     </span>
                   </label>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={gerarCaixaCliente}
+                      onCheckedChange={(v) => toggleCaixaCliente(!!v)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm">
+                      <span className="font-medium">ENVIO DESPESA DIRETO CAIXA CLIENTE</span>
+                      <span className="block text-xs text-muted-foreground">
+                      </span>
+                    </span>
+                  </label>
                 </div>
+
               </div>
 
 

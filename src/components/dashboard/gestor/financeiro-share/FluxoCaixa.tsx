@@ -412,9 +412,14 @@ export function FluxoCaixa() {
   };
 
   // ── Delete ───────────────────────────────────────────────────────────────────
+  const getTabelaOrigem = (id: string) =>
+    (transacoes || []).find((t: any) => t.id === id)?._origem === "movimentacoes"
+      ? "movimentacoes"
+      : "controle_bancario";
+
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("controle_bancario").delete().eq("id", id);
+      const { error } = await supabase.from(getTabelaOrigem(id) as any).delete().eq("id", id);
       if (error) { toast.error(`Erro ao deletar: ${error.message}`); return; }
       toast.success("Movimentação deletada com sucesso!");
       setDeleteConfirmId(null);
@@ -427,8 +432,16 @@ export function FluxoCaixa() {
   const handleDeleteMultiple = async () => {
     if (selectedIds.size === 0) return;
     try {
-      const { error } = await supabase.from("controle_bancario").delete().in("id", Array.from(selectedIds));
-      if (error) { toast.error(`Erro ao deletar: ${error.message}`); return; }
+      const ids = Array.from(selectedIds);
+      const grupos: Record<string, string[]> = {};
+      ids.forEach((id) => {
+        const tabela = getTabelaOrigem(id);
+        (grupos[tabela] ||= []).push(id);
+      });
+      for (const [tabela, grupoIds] of Object.entries(grupos)) {
+        const { error } = await supabase.from(tabela as any).delete().in("id", grupoIds);
+        if (error) { toast.error(`Erro ao deletar: ${error.message}`); return; }
+      }
       toast.success(`${selectedIds.size} movimentação(ões) deletada(s) com sucesso!`);
       setSelectedIds(new Set());
       setCurrentPage(1);
@@ -437,6 +450,7 @@ export function FluxoCaixa() {
       toast.error(error.message || "Erro ao deletar movimentações");
     }
   };
+
 
   // ── Status color ─────────────────────────────────────────────────────────────
   const getStatusColor = (status: string, tipoMovimento?: string) => {

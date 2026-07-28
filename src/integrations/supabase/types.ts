@@ -43,7 +43,7 @@ export type Database = {
           observacao: string | null
           prazo: string | null
           socio_nome: string | null
-          status_pagamento: string | null
+          status: string | null
           tipo_combustivel: string | null
           tipo_faturamento: string | null
           trecho: string
@@ -79,7 +79,7 @@ export type Database = {
           observacao?: string | null
           prazo?: string | null
           socio_nome?: string | null
-          status_pagamento?: string | null
+          status?: string | null
           tipo_combustivel?: string | null
           tipo_faturamento?: string | null
           trecho: string
@@ -115,7 +115,7 @@ export type Database = {
           observacao?: string | null
           prazo?: string | null
           socio_nome?: string | null
-          status_pagamento?: string | null
+          status?: string | null
           tipo_combustivel?: string | null
           tipo_faturamento?: string | null
           trecho?: string
@@ -6689,13 +6689,13 @@ export type Database = {
           aeronave: string | null
           aircraft_id: string | null
           arquivo_pdf_url: string | null
+          atualizado_em: string | null
           categoria: string
           client_id: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em: string | null
           criado_por: string | null
-          data_atualizacao: string | null
           data_criacao: string
           data_vencimento: string
           descricao: string | null
@@ -6708,13 +6708,13 @@ export type Database = {
           aeronave?: string | null
           aircraft_id?: string | null
           arquivo_pdf_url?: string | null
+          atualizado_em?: string | null
           categoria: string
           client_id?: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em?: string | null
           criado_por?: string | null
-          data_atualizacao?: string | null
           data_criacao: string
           data_vencimento: string
           descricao?: string | null
@@ -6727,13 +6727,13 @@ export type Database = {
           aeronave?: string | null
           aircraft_id?: string | null
           arquivo_pdf_url?: string | null
+          atualizado_em?: string | null
           categoria?: string
           client_id?: string | null
           cliente_cnpj?: string
           cliente_nome?: string
           criado_em?: string | null
           criado_por?: string | null
-          data_atualizacao?: string | null
           data_criacao?: string
           data_vencimento?: string
           descricao?: string | null
