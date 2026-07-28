@@ -209,12 +209,17 @@ export function QuadroMensalTab() {
   const { data: transacoes, isLoading } = useQuery({
     queryKey: ["quadro-mensal", mesKey],
     queryFn: async () => {
+      const sIso = format(startDate, "yyyy-MM-dd");
+      const eIso = format(endDate, "yyyy-MM-dd");
+      // Traz lançamentos onde `data` OU (pendentes) `data_vencimento` esteja no mês.
+      // Assim despesas pendentes do cliente sem data efetivada aparecem no fluxo mensal.
       const { data, error } = await supabase
         .from("controle_bancario")
         .select("*")
-        .gte("data", format(startDate, "yyyy-MM-dd"))
-        .lte("data", format(endDate, "yyyy-MM-dd"))
-        .order("data", { ascending: false });
+        .or(
+          `and(data.gte.${sIso},data.lte.${eIso}),and(data.is.null,data_vencimento.gte.${sIso},data_vencimento.lte.${eIso})`,
+        )
+        .order("data", { ascending: false, nullsFirst: false });
       if (error) throw error;
       return (data as Transacao[]) || [];
     },

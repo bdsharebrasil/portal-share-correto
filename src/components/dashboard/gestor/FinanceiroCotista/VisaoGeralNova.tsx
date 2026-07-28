@@ -300,13 +300,53 @@ function VisaoGeralNova() {
   const catMap = categoriasMapQ.data ?? new Map<string, string>();
   const catNameOf = (r: Rateio) => resolveCategoria(r.categoria_custo, catMap);
 
+  // Deduplica despesas: quando o mesmo gasto é rateado entre cotistas
+  // pode haver `despesa_id` diferentes por linha. Além do `despesa_id`,
+  // usamos uma chave composta (fornecedor, descrição, vencimento, valor total,
+  // categoria) para não contar o mesmo gasto múltiplas vezes.
   const uniqueDespesas = useMemo(() => {
-    const map = new Map<string, Rateio>();
+    const mapById = new Map<string, Rateio>();
+    const mapByComposite = new Map<string, Rateio>();
     for (const r of rateios) {
-      const k = r.despesa_id || r.id;
-      if (!map.has(k)) map.set(k, r);
+      if (r.despesa_id) {
+        if (!mapById.has(r.despesa_id)) mapById.set(r.despesa_id, r);
+        continue;
+      }
+      const chave = [
+        (r as any).aeronave_id || "",
+        r.data_vencimento || "",
+        norm(r.descricao_despesa),
+        String(Number(r.valor_total_despesa) || 0),
+        norm(r.categoria_custo),
+        norm(r.fornecedor_nome),
+      ].join("||");
+      if (!mapByComposite.has(chave)) mapByComposite.set(chave, r);
     }
-    return Array.from(map.values());
+    // Também remove duplicidades da mapById que tenham a mesma chave composta
+    const compositeKey = (r: Rateio) =>
+      [
+        (r as any).aeronave_id || "",
+        r.data_vencimento || "",
+        norm(r.descricao_despesa),
+        String(Number(r.valor_total_despesa) || 0),
+        norm(r.categoria_custo),
+        norm(r.fornecedor_nome),
+      ].join("||");
+    const seenComposite = new Set<string>();
+    const result: Rateio[] = [];
+    for (const r of mapById.values()) {
+      const k = compositeKey(r);
+      if (seenComposite.has(k)) continue;
+      seenComposite.add(k);
+      result.push(r);
+    }
+    for (const r of mapByComposite.values()) {
+      const k = compositeKey(r);
+      if (seenComposite.has(k)) continue;
+      seenComposite.add(k);
+      result.push(r);
+    }
+    return result;
   }, [rateios]);
 
   const inRange = (r: Rateio, s: string, e: string) => {

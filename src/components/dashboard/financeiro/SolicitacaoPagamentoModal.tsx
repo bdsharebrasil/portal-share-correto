@@ -1588,9 +1588,14 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               // Para CADA cliente gera 4 pernas transacionais:
               //  1) contas_areceber  2) mov SHARE  3) mov CLIENTE  4) rateio_despesas
               try {
-                await syncSaidaFinancialLegs({
+              await syncSaidaFinancialLegs({
                   origem: "solicitacao_areceber",
-                  origem_id: `${referenciaTipo && referenciaId ? referenciaId : `sp-${Date.now()}`}:${linha.clienteId}`,
+                  // origem_id precisa ser UUID válido (reference_id e movimentacao_origem_id são UUID).
+                  // Cada linha do rateio gera um novo lançamento, então usamos um UUID aleatório.
+                  origem_id:
+                    typeof crypto !== "undefined" && crypto.randomUUID
+                      ? crypto.randomUUID()
+                      : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`,
                   cliente_id: linha.clienteId,
                   cliente_nome: info?.razaoSocial || "",
                   cliente_cnpj: info?.cnpj || null,

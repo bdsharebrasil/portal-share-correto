@@ -416,11 +416,11 @@ function PortalClienteDashboard() {
     [uniqueDespesas, periodStart, periodEnd, inRange],
   );
 
-  /* ── Totals ── */
+  /* ── Totals (usa valor_rateado — parte deste cotista) ── */
   const totals = useMemo(() => {
     let entradas = 0, saidas = 0, entC = 0, saiC = 0;
     for (const r of curPeriodDespesas) {
-      const v = Number(r.valor_total_despesa) || 0;
+      const v = Number(r.valor_rateado) || 0;
       if (isSaida(r.fluxo)) { saidas += v; saiC++; } else { entradas += v; entC++; }
     }
     // Saldo até o fim do período
@@ -428,7 +428,7 @@ function PortalClienteDashboard() {
     for (const r of uniqueDespesas) {
       const d = (r.data_pagamento || r.data_vencimento || r.data_emissao || "").slice(0, 10);
       if (!d || d > periodEnd) continue;
-      const v = Number(r.valor_total_despesa) || 0;
+      const v = Number(r.valor_rateado) || 0;
       saldo += isSaida(r.fluxo) ? -v : v;
     }
     return { entradas, saidas, entC, saiC, resultado: entradas - saidas, total: curPeriodDespesas.length, saldo };
@@ -441,7 +441,7 @@ function PortalClienteDashboard() {
       if (!isSaida(r.fluxo)) continue;
       const nome = catNameOf(r) || "Sem categoria";
       const cur = acc.get(nome) || { total: 0, count: 0 };
-      cur.total += Number(r.valor_total_despesa) || 0;
+      cur.total += Number(r.valor_rateado) || 0;
       cur.count += 1;
       acc.set(nome, cur);
     }
@@ -501,7 +501,7 @@ function PortalClienteDashboard() {
     let fixo = 0, variavel = 0;
     for (const r of curPeriodDespesas) {
       if (!isSaida(r.fluxo)) continue;
-      const v = Number(r.valor_total_despesa) || 0;
+      const v = Number(r.valor_rateado) || 0;
       const tr = norm(r.tipo_rateio);
       if (tr === "fixo" || tr === "fixo_mensal") fixo += v;
       else variavel += v;
@@ -524,7 +524,7 @@ function PortalClienteDashboard() {
           nome: r.clientes_nome || r.socios_nome || "—",
           descricao: r.descricao_despesa || "—",
           aeronave: r.aeronave_registro || "—",
-          valor: Number(r.valor_total_despesa) || 0,
+          valor: Number(r.valor_rateado) || 0,
           vencimento: r.data_vencimento as string,
           dias,
         };
@@ -543,7 +543,7 @@ function PortalClienteDashboard() {
       out.push({
         type: "warning",
         title: "Custo não alocado",
-        desc: `${r.descricao_despesa || "—"} · ${r.aeronave_registro || ""} · ${formatBRL(Number(r.valor_total_despesa) || 0)}`,
+        desc: `${r.descricao_despesa || "—"} · ${r.aeronave_registro || ""} · ${formatBRL(Number(r.valor_rateado) || 0)}`,
       });
     });
     // Info: fechamento
@@ -1210,7 +1210,7 @@ function TransactionsSection({
               {transactions.map((tx: Rateio) => {
                 const status = statusOf(tx);
                 const saida = isSaida(tx.fluxo);
-                const val = Number(tx.valor_total_despesa) || 0;
+                const val = Number(tx.valor_rateado) || 0;
                 const catColor = catColors[catNameOf(tx)] || "#3b7dd8";
                 const isOpen = expandedTx === tx.id;
                 const txId = tx.id.slice(0, 12);
@@ -1266,6 +1266,9 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
     danger: "status-danger",
     muted: "status-muted",
   }[status.tone as string] || "status-muted";
+
+  const [viewer, setViewer] = useState<{ url: string; label: string } | null>(null);
+  const isImage = (u: string) => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u);
 
   const dotColor = status.tone === "danger" || status.tone === "warning" ? "#f59e0b" : "#22c55e";
 
@@ -1366,9 +1369,14 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
                         { url: tx.comprovante_url, label: "Comprovante", icon: <FileText className="h-3.5 w-3.5 text-emerald-400" /> },
                         { url: tx.boleto_url, label: "Boleto", icon: <FileText className="h-3.5 w-3.5 text-amber-400" /> },
                       ].filter((d) => d.url).map((d, i) => (
-                        <a key={i} href={d.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border border-border bg-bg-card text-ink hover:border-primary-accent transition-colors">
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setViewer({ url: d.url as string, label: d.label }); }}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border border-border bg-bg-card text-ink hover:border-primary-accent transition-colors"
+                        >
                           {d.icon} {d.label}
-                        </a>
+                        </button>
                       ))}
                       {docsCount === 0 && <span className="text-xs text-ink-faint">Sem documentos anexados</span>}
                     </div>
@@ -1385,6 +1393,51 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
           </div>
         </td>
       </tr>
+      {viewer && (
+        <tr>
+          <td colSpan={10} className="p-0">
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+              onClick={() => setViewer(null)}
+            >
+              <div
+                className="relative w-full max-w-5xl max-h-[90vh] rounded-2xl border border-border bg-bg-surface overflow-hidden flex flex-col shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-bg-card">
+                  <div className="text-sm font-semibold text-ink">{viewer.label}</div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={viewer.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      download
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border text-ink-muted hover:text-ink hover:border-primary-accent transition-colors"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Baixar
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setViewer(null)}
+                      className="flex items-center justify-center w-8 h-8 rounded-lg border border-border text-ink-muted hover:text-ink hover:border-primary-accent transition-colors"
+                      aria-label="Fechar"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-auto bg-black/40 flex items-center justify-center">
+                  {isImage(viewer.url) ? (
+                    <img src={viewer.url} alt={viewer.label} className="max-w-full max-h-[80vh] object-contain" />
+                  ) : (
+                    <iframe src={viewer.url} title={viewer.label} className="w-full h-[80vh] bg-white" />
+                  )}
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
     </>
   );
 }

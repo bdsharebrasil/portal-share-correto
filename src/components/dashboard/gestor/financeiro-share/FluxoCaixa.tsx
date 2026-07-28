@@ -1006,33 +1006,11 @@ export function FluxoCaixa() {
 
       <TabsContent value="caixa-cliente" className="mt-6 w-full">
         <div className="space-y-6">
-      {/* Nova Movimentação Form */}
-      {showInlineForm && (
-        <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
-          <CardContent className="pt-6">
-            <FluxoCaixaInlineForm
-              onSuccess={() => { setShowInlineForm(false); setEditingMovimentacao(null); window.location.reload(); }}
-              onCancel={() => { setShowInlineForm(false); setEditingMovimentacao(null); }}
-              movimentacao={editingMovimentacao}
-            />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Filtros Avançados */}
       <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
             <CardTitle className="text-lg font-semibold text-foreground">Filtros</CardTitle>
-            {!showInlineForm && (
-              <Button
-                onClick={() => setShowInlineForm(true)}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Nova Movimentação
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent>
