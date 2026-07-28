@@ -1171,6 +1171,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
   const pickUrl = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo)?.url || null;
   const pickNumero = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo)?.numero || null;
+  const pickAnexoParaRateio = (list: AnexoDoc[], tipo: AnexoDoc["tipo"], clienteId: string | null, socioId: string | null) =>
+    list.find((a) => a.tipo === tipo && !!socioId && a.socioId === socioId) ||
+    list.find((a) => a.tipo === tipo && !!clienteId && !a.socioId && a.clienteId === clienteId) ||
+    list.find((a) => a.tipo === tipo && !a.socioId && !a.clienteId) ||
+    null;
 
   const notifyAdminsAboutPaymentRequest = async (requestDescription: string, clientLabel: string | null, value: number, userName: string | null) => {
     try {
@@ -1470,15 +1475,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           }
 
           const rateioPayloadsCaixaCliente = linhasRateioMultiCliente.map((linha) => {
-            const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
-            const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
+            const anexoNf = pickAnexoParaRateio(anexosProc, "nf", linha.cliente_id, linha.socio_id);
+            const anexoDoc = pickAnexoParaRateio(anexosProc, "doc", linha.cliente_id, linha.socio_id);
+            const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.cliente_id, linha.socio_id);
+            const numeroNfLinha = anexoNf?.numero || (anexosProc.some((a) => a.tipo === "nf") ? null : nfNum);
+            const numeroDocLinha = anexoDoc?.numero || (anexosProc.some((a) => a.tipo === "doc") ? null : docNum);
+            const nfUrlLinha = anexoNf?.url || (anexosProc.some((a) => a.tipo === "nf") ? null : nfUrl);
+            const comprovanteUrlLinha = anexoDoc?.url || (anexosProc.some((a) => a.tipo === "doc") ? null : comprovanteUrl);
+            const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
+            const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
             return {
               despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
-              data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
+              data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: true,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
               descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
-              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl,
+              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl,
               subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
@@ -1552,15 +1564,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           await supabase.from("contas_apagar").update({ movimentacao_id: Object.values(movimentacaoIdsPorCliente)[0] || null }).eq("id", capId);
 
           const rateioPayloads = linhasRateioMultiCliente.map((linha) => {
-            const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
-            const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
+            const anexoNf = pickAnexoParaRateio(anexosProc, "nf", linha.cliente_id, linha.socio_id);
+            const anexoDoc = pickAnexoParaRateio(anexosProc, "doc", linha.cliente_id, linha.socio_id);
+            const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.cliente_id, linha.socio_id);
+            const numeroNfLinha = anexoNf?.numero || (anexosProc.some((a) => a.tipo === "nf") ? null : nfNum);
+            const numeroDocLinha = anexoDoc?.numero || (anexosProc.some((a) => a.tipo === "doc") ? null : docNum);
+            const nfUrlLinha = anexoNf?.url || (anexosProc.some((a) => a.tipo === "nf") ? null : nfUrl);
+            const comprovanteUrlLinha = anexoDoc?.url || (anexosProc.some((a) => a.tipo === "doc") ? null : comprovanteUrl);
+            const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
+            const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
             return {
               despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
-              data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: docNum, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
+              data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
               descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
-              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
+              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
             };

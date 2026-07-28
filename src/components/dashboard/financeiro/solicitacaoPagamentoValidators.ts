@@ -292,18 +292,23 @@ export function montarLinhasRateioMultiCliente(params: {
       let valorRateado: number;
       let percentualUsoEfetivo: number;
 
-      if (overrideValor !== undefined && overrideValor !== null && !Number.isNaN(overrideValor)) {
-        valorRateado = +Number(overrideValor).toFixed(2);
-        percentualUsoEfetivo = valorTotal > 0 ? +((valorRateado / valorTotal) * 100).toFixed(2) : 0;
+      const percentualManual = overridePct !== undefined && overridePct !== null && !Number.isNaN(overridePct)
+        ? Number(overridePct)
+        : null;
+      const valorManual = overrideValor !== undefined && overrideValor !== null && !Number.isNaN(overrideValor)
+        ? Number(overrideValor)
+        : null;
+
+      if (valorManual !== null) {
+        valorRateado = +valorManual.toFixed(2);
+        percentualUsoEfetivo = percentualManual ?? (valorTotal > 0 ? +((valorRateado / valorTotal) * 100).toFixed(2) : 0);
+      } else if (percentualManual !== null) {
+        percentualUsoEfetivo = +percentualManual.toFixed(2);
+        valorRateado = +(valorTotal * (percentualUsoEfetivo / 100)).toFixed(2);
       } else {
-        let pctSocioDentroDoCliente: number;
-        if (overridePct !== undefined && overridePct !== null && !Number.isNaN(overridePct)) {
-          pctSocioDentroDoCliente = Number(overridePct) || 0;
-        } else if (totalPctSocios > 0) {
-          pctSocioDentroDoCliente = (percentualOriginal / totalPctSocios) * 100;
-        } else {
-          pctSocioDentroDoCliente = 100 / socios.length;
-        }
+        const pctSocioDentroDoCliente = totalPctSocios > 0
+          ? (percentualOriginal / totalPctSocios) * 100
+          : 100 / socios.length;
         percentualUsoEfetivo = +(pctCliente * (pctSocioDentroDoCliente / 100)).toFixed(2);
         valorRateado = +(valorTotal * (percentualUsoEfetivo / 100)).toFixed(2);
       }
