@@ -31,11 +31,11 @@ export function DashboardHero() {
   return (
     <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-white/[0.06] shadow-2xl h-32 md:h-40 lg:h-48">
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 mix-blend-overlay"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 mix-blend-overlay"
         style={{ backgroundImage: `url(${aviationHero})` }}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-background/70 via-background/45 to-background/15" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/30 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
         <div className="relative z-10 flex flex-col gap-2">
           <div className="flex items-center gap-2 mb-0.5">
@@ -49,9 +49,7 @@ export function DashboardHero() {
           <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
             {getGreeting()}, {displayName || "Comandante"}
           </h1>
-          <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed hidden sm:block">
-            Resumo do dia: status da frota, vencimentos próximos e agendamentos pendentes.
-          </p>
+          
         </div>
       </div>
     </div>

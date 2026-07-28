@@ -15,8 +15,8 @@ import { FlightCycleDashboard } from "@/components/ciclo-voo";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import aviationHero from "@/assets/aviation-hero.jpg";
 
 interface TimeEntry {
@@ -37,8 +37,10 @@ interface Note {
 
 export function FinanceiroDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [todayEntry, setTodayEntry] = useState<TimeEntry | null>(null);
   const [loading, setLoading] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeClockHistoryOpen, setTimeClockHistoryOpen] = useState(false);
   const [showFlightCycle, setShowFlightCycle] = useState(false);
@@ -56,6 +58,20 @@ export function FinanceiroDashboard() {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const fetchName = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .single();
+      setDisplayName(data?.display_name || "");
+    };
+    fetchName();
+  }, [user]);
+
 
   const loadTodayEntry = async () => {
     try {
@@ -193,7 +209,7 @@ export function FinanceiroDashboard() {
   const quickTools = [
     {
       icon: Receipt,
-      label: "Emissão de Recibo",
+      label: "EMISSÃO RECIBO",
       route: "/financeiro/recibo",
       iconColor: "text-emerald-400",
       iconBg: "bg-emerald-500/10",
@@ -201,7 +217,7 @@ export function FinanceiroDashboard() {
     },
     {
       icon: MapPin,
-      label: "Relatório Viagem",
+      label: "RELATÓRIO VIAGEM",
       route: "/financeiro/viagem",
       iconColor: "text-blue-400",
       iconBg: "bg-blue-500/10",
@@ -210,7 +226,7 @@ export function FinanceiroDashboard() {
 
     {
       icon: Plane,
-      label: "Ciclo de Voo",
+      label: "CICLO DE VOO",
       route: undefined,
       iconColor: "text-orange-400",
       iconBg: "bg-orange-500/10",
@@ -219,7 +235,7 @@ export function FinanceiroDashboard() {
     },
     {
       icon: Send,
-      label: "Prog. Pagamento",
+      label: "PROG. PAGAMENTO",
       route: undefined,
       iconColor: "text-emerald-400",
       iconBg: "bg-emerald-500/10",
@@ -228,7 +244,7 @@ export function FinanceiroDashboard() {
     },
     {
       icon: CalendarDays,
-      label: "Histórico Ponto",
+      label: "HISTÓRICO PONTO",
       route: undefined,
       iconColor: "text-cyan-400",
       iconBg: "bg-cyan-500/10",
@@ -245,6 +261,13 @@ export function FinanceiroDashboard() {
   };
 
   const status = getTimeStatus();
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Bom dia";
+    if (hour < 18) return "Boa tarde";
+    return "Boa noite";
+  };
 
   const getNextPontoAction = () => {
     if (todayEntry?.status === 'concluido') return null;
@@ -279,11 +302,10 @@ export function FinanceiroDashboard() {
                 DASHBOARD FINANCEIRO
               </span>
             </div>
-            <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight uppercase drop-shadow-md">
-              {currentTime.getHours() < 12 ? 'BOM DIA' : currentTime.getHours() < 18 ? 'BOA TARDE' : 'BOA NOITE'}!
+            <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight drop-shadow-md">
+              {getGreeting()}, {displayName || "Comandante"}
             </h1>
             <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed hidden sm:block">
-              Gerencie suas finanças, registre o ponto e acompanhe suas tarefas diárias.
             </p>
           </div>
         </div>

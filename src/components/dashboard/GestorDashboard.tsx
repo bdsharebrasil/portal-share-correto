@@ -183,9 +183,7 @@ export function GestorDashboard() {
               <h1 className="text-xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
                 Visão Gerencial
               </h1>
-              <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed hidden sm:block">
-                Equipe, frota e aprovações pendentes em tempo real.
-              </p>
+             
             </div>
           </div>
         </div>

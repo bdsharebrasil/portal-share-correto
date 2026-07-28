@@ -82,33 +82,80 @@ function useMovimentacoesMensal() {
           conta_bancaria,
           grupo_custo,
           categoria_id,
+          clientes_id,
+          aeronave_id,
           numero_parcela,
           quantidade_parcelas,
           nf_url,
           boleto_url,
           recibo_url,
-          comprovante_url,
-          clientes:clientes_id ( nome ),
-          aeronave:aeronave_id ( registro ),
-          categoria:categoria_id ( nome )
+          comprovante_url
         `
         )
         .order("data_competencia", { ascending: false });
 
       if (error) throw error;
 
-      return (data || []).map((row: any) => ({
+      const movimentacoes = data || [];
+      const categoriaIds = Array.from(
+        new Set(movimentacoes.map((row: any) => row.categoria_id).filter(Boolean))
+      );
+      const clienteIds = Array.from(
+        new Set(movimentacoes.map((row: any) => row.clientes_id).filter(Boolean))
+      );
+      const aeronaveIds = Array.from(
+        new Set(movimentacoes.map((row: any) => row.aeronave_id).filter(Boolean))
+      );
+
+      let categoriasById = new Map<string, string>();
+      let clientesById = new Map<string, string>();
+      let aeronavesById = new Map<string, string>();
+
+      if (categoriaIds.length > 0) {
+        const { data: categoriasData } = await supabase
+          .from("categorias_movimentacao")
+          .select("id, nome")
+          .in("id", categoriaIds);
+
+        if (categoriasData) {
+          categoriasById = new Map(categoriasData.map((categoria: any) => [categoria.id, categoria.nome]));
+        }
+      }
+
+      if (clienteIds.length > 0) {
+        const { data: clientesData } = await supabase
+          .from("clientes")
+          .select("id, nome")
+          .in("id", clienteIds);
+
+        if (clientesData) {
+          clientesById = new Map(clientesData.map((cliente: any) => [cliente.id, cliente.nome]));
+        }
+      }
+
+      if (aeronaveIds.length > 0) {
+        const { data: aeronavesData } = await supabase
+          .from("aeronave")
+          .select("id, registro")
+          .in("id", aeronaveIds);
+
+        if (aeronavesData) {
+          aeronavesById = new Map(aeronavesData.map((aeronave: any) => [aeronave.id, aeronave.registro]));
+        }
+      }
+
+      return movimentacoes.map((row: any) => ({
         id: row.id,
         data: row.data_competencia,
         tipo_movimento: row.tipo === "receita" || row.tipo === "entrada" ? "entrada" : "saida",
         descricao: row.descricao,
         categoria_id: row.categoria_id,
-        categoria_nome: row.categoria?.nome ?? null,
+        categoria_nome: categoriasById.get(row.categoria_id) ?? null,
         observacoes: null,
         valor: Number(row.valor),
         numero_documento: row.numero_doc,
-        client_name: row.clientes?.nome ?? null,
-        aeronave_registro: row.aeronave?.registro ?? null,
+        client_name: clientesById.get(row.clientes_id) ?? null,
+        aeronave_registro: aeronavesById.get(row.aeronave_id) ?? null,
         grupo_categoria: row.grupo_custo,
         numero_parcela: row.numero_parcela,
         quantidade_parcelas: row.quantidade_parcelas,

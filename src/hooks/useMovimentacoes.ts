@@ -66,26 +66,74 @@ export function useMovimentacoes() {
           recibo_url,
           conta_bancaria,
           banco_nome,
-          aeronave:aeronave_id ( registro ),
-          clientes:clientes_id ( nome ),
-          categoria:categoria_id ( nome )
+          aeronave_id,
+          clientes_id,
+          categoria_id
         `
         )
         .order("data_competencia", { ascending: false });
 
       if (error) throw error;
 
-      return (data || []).map((row: any) => ({
+      const movimentacoes = data || [];
+      const categoriaIds = Array.from(
+        new Set(movimentacoes.map((row: any) => row.categoria_id).filter(Boolean))
+      );
+      const clienteIds = Array.from(
+        new Set(movimentacoes.map((row: any) => row.clientes_id).filter(Boolean))
+      );
+      const aeronaveIds = Array.from(
+        new Set(movimentacoes.map((row: any) => row.aeronave_id).filter(Boolean))
+      );
+
+      let categoriasById = new Map<string, string>();
+      let clientesById = new Map<string, string>();
+      let aeronavesById = new Map<string, string>();
+
+      if (categoriaIds.length > 0) {
+        const { data: categoriasData } = await supabase
+          .from("categorias_movimentacao")
+          .select("id, nome")
+          .in("id", categoriaIds);
+
+        if (categoriasData) {
+          categoriasById = new Map(categoriasData.map((categoria: any) => [categoria.id, categoria.nome]));
+        }
+      }
+
+      if (clienteIds.length > 0) {
+        const { data: clientesData } = await supabase
+          .from("clientes")
+          .select("id, nome")
+          .in("id", clienteIds);
+
+        if (clientesData) {
+          clientesById = new Map(clientesData.map((cliente: any) => [cliente.id, cliente.nome]));
+        }
+      }
+
+      if (aeronaveIds.length > 0) {
+        const { data: aeronavesData } = await supabase
+          .from("aeronave")
+          .select("id, registro")
+          .in("id", aeronaveIds);
+
+        if (aeronavesData) {
+          aeronavesById = new Map(aeronavesData.map((aeronave: any) => [aeronave.id, aeronave.registro]));
+        }
+      }
+
+      return movimentacoes.map((row: any) => ({
         id: row.id,
         data: row.data_pagamento || row.data_vencimento || row.data_competencia,
         tipo_movimento: normalizeTipoMovimento(row.tipo),
         descricao: row.descricao,
-        categoria_nome: row.categoria?.nome ?? null,
+        categoria_nome: categoriasById.get(row.categoria_id) ?? null,
         tipo_caixa: (row.tipo_caixa || "share") as "share" | "cliente",
-        cliente_nome: row.clientes?.nome ?? null,
+        cliente_nome: clientesById.get(row.clientes_id) ?? null,
         valor: Number(row.valor),
         conta_banco: row.conta_bancaria || row.banco_nome || null,
-        aeronave_registro: row.aeronave?.registro ?? null,
+        aeronave_registro: aeronavesById.get(row.aeronave_id) ?? null,
         numero_documento:
           row.numero_doc || row.numero_nf || row.numero_boleto || row.numero_recibo || null,
         comprovante_url: row.comprovante_url,

@@ -827,72 +827,50 @@ function KpiRow({
 }) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-36 skeleton rounded-card" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-5 justify-items-center">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-36 skeleton rounded-card w-full max-w-[320px]" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-      <KpiCard
-        icon={<TrendingUp className="h-4 w-4" />}
-        iconBg="rgba(239,68,68,0.15)"
-        iconColor="#f87171"
-        badge={{ text: "Saídas", tone: "danger" }}
-        value={totalDespesas}
-        title="Despesas Totais"
-        progress={totalDespesas > 0 ? Math.min(100, (totalDespesas / (custosFixos + custosVariaveis || 1)) * 100) : 0}
-        progressColor="#ef4444"
-        progressLabel="Total do período"
-      />
-      <KpiCard
-        icon={<Scale className="h-4 w-4" />}
-        iconBg="rgba(59,125,216,0.15)"
-        iconColor="#5a9aee"
-        badge={{ text: "Fixo", tone: "info" }}
-        value={custosFixos}
-        title="Custos Fixos"
-        progress={totalDespesas > 0 ? (custosFixos / totalDespesas) * 100 : 0}
-        progressColor="#3b7dd8"
-        progressLabel={`${totalDespesas > 0 ? ((custosFixos / totalDespesas) * 100).toFixed(0) : 0}% do total`}
-      />
-      <KpiCard
-        icon={<Zap className="h-4 w-4" />}
-        iconBg="rgba(245,158,11,0.15)"
-        iconColor="#fbbf24"
-        badge={{ text: "Variável", tone: "warning" }}
-        value={custosVariaveis}
-        title="Custos Variáveis"
-        progress={totalDespesas > 0 ? (custosVariaveis / totalDespesas) * 100 : 0}
-        progressColor="#f59e0b"
-        progressLabel={`${totalDespesas > 0 ? ((custosVariaveis / totalDespesas) * 100).toFixed(0) : 0}% do total`}
-      />
-      {/* Saldo em Caixa — featured */}
-      <div
-        className="rounded-card p-5 fade-up relative overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, #0b1120 0%, #1e3a5f 100%)",
-          border: "1px solid #2a4070",
-          boxShadow: "0 0 20px rgba(59,125,216,0.12), 0 8px 32px rgba(0,0,0,0.4)",
-        }}
-      >
-        <div className="flex items-start justify-between mb-1">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
-            <Wallet className="h-4 w-4 text-white" />
-          </div>
-          <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md" style={{ background: saldoCaixa >= 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", color: saldoCaixa >= 0 ? "#4ade80" : "#f87171" }}>
-            <CheckCircle2 className="h-3 w-3" /> {saldoCaixa >= 0 ? "OK" : "Neg"}
-          </span>
-        </div>
-        <CountUp value={saldoCaixa} className="mt-3 number-hero text-2xl text-white" />
-        <div className="text-xs font-semibold mt-0.5 text-ink-muted">Saldo em Caixa</div>
-        <div className="mt-3 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
-        <div className="text-[11px] mt-2 text-ink-muted">
-          Entradas: <span className="text-white font-bold mono">{formatBRL(0)}</span>
-        </div>
+    <div className="flex justify-center mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 w-full max-w-6xl">
+        <KpiCard
+          icon={<TrendingUp className="h-4 w-4" />}
+          iconBg="rgba(239,68,68,0.15)"
+          iconColor="#f87171"
+          badge={{ text: "Saídas", tone: "danger" }}
+          value={totalDespesas}
+          title="Despesas Totais"
+          progress={totalDespesas > 0 ? Math.min(100, (totalDespesas / (custosFixos + custosVariaveis || 1)) * 100) : 0}
+          progressColor="#ef4444"
+          progressLabel="Total do período"
+        />
+        <KpiCard
+          icon={<Scale className="h-4 w-4" />}
+          iconBg="rgba(59,125,216,0.15)"
+          iconColor="#5a9aee"
+          badge={{ text: "Fixo", tone: "info" }}
+          value={custosFixos}
+          title="Custos Fixos"
+          progress={totalDespesas > 0 ? (custosFixos / totalDespesas) * 100 : 0}
+          progressColor="#3b7dd8"
+          progressLabel={`${totalDespesas > 0 ? ((custosFixos / totalDespesas) * 100).toFixed(0) : 0}% do total`}
+        />
+        <KpiCard
+          icon={<Zap className="h-4 w-4" />}
+          iconBg="rgba(245,158,11,0.15)"
+          iconColor="#fbbf24"
+          badge={{ text: "Variável", tone: "warning" }}
+          value={custosVariaveis}
+          title="Custos Variáveis"
+          progress={totalDespesas > 0 ? (custosVariaveis / totalDespesas) * 100 : 0}
+          progressColor="#f59e0b"
+          progressLabel={`${totalDespesas > 0 ? ((custosVariaveis / totalDespesas) * 100).toFixed(0) : 0}% do total`}
+        />
       </div>
     </div>
   );
