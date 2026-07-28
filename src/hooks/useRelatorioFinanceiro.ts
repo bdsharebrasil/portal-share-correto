@@ -70,8 +70,7 @@ export function useRelatorioFinanceiro() {
       const startDate = startOfMonth(new Date(parseInt(yI), parseInt(mI) - 1));
       const endDate = endOfMonth(new Date(parseInt(yF), parseInt(mF) - 1));
 
-      const { data, error } = await supabase
-        .from("controle_bancario")
+      const { data, error } = await (supabase as any).from("controle_bancario")
         .select("id, data, tipo_movimento, valor, descricao, categoria_id, grupo_categoria, client_id, client_name, aeronave_id, aeronave_registro, status")
         .gte("data", format(startDate, "yyyy-MM-dd"))
         .lte("data", format(endDate, "yyyy-MM-dd"))
