@@ -1125,8 +1125,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   };
 
   // Funções exclusivas para pegar arquivos GLOBAIS (sem cliente/sócio) para fallback:
-  const pickUrl = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo && !a.socioId && !a.clienteId)?.url || null;
-  const pickNumero = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo && !a.socioId && !a.clienteId)?.numero || null;
+  const pickUrl = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) =>
+    list.find((a) => a.tipo === tipo && !a.socioId && !a.clienteId)?.url || null;
+  // Número: se não houver anexo global, usa o número de qualquer anexo do mesmo tipo
+  const pickNumero = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) =>
+    list.find((a) => a.tipo === tipo && !a.socioId && !a.clienteId && a.numero?.trim())?.numero?.trim() ||
+    list.find((a) => a.tipo === tipo && a.numero?.trim())?.numero?.trim() ||
+    null;
   
   const pickAnexoParaRateio = (list: AnexoDoc[], tipo: AnexoDoc["tipo"], clienteId: string | null, socioId: string | null) =>
     list.find((a) => a.tipo === tipo && !!socioId && a.socioId === socioId) ||
