@@ -1545,11 +1545,11 @@ function PagamentoDialog({
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Emissão</Label>
               <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-10 bg-background" />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 px-[19px] -mx-[5px]">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Vencimento</Label>
               <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-10 bg-background" />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 px-4 mx-5">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pagamento</Label>
               <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-10 bg-background" />
             </div>
@@ -1597,19 +1597,19 @@ function PagamentoDialog({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="grid gap-2">
+            <div className="grid gap-2 -mx-[17px]">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Fornecedor</Label>
               <div className="h-10 bg-background rounded-md [&>button]:h-10">
                 <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
               </div>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 px-[34px] mx-[29px]">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Categoria</Label>
               <div className="h-10 bg-background rounded-md [&>button]:h-10">
                 <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
               </div>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 mx-3">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pago por</Label>
               <div className="h-10 bg-background rounded-md [&>button]:h-10">
                 <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
@@ -1618,10 +1618,6 @@ function PagamentoDialog({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="grid gap-2">
-              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Nº Documento</Label>
-              <Input value={docNumero} onChange={(e) => setDocNumero(e.target.value)} className="h-10 bg-background" />
-            </div>
             <div className="grid gap-2">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Forma Pag.</Label>
               <Select value={forma} onValueChange={setForma} disabled={status === "pendente"}>
