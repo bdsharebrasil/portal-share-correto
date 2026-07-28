@@ -2,11 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Sincroniza as 4 pernas financeiras de uma origem de SAÍDA
- * (NF de Saída, Recibo de Saída, Invoice, Despesa Contas a Receber):
+ * (NF de Saída, Recibo de Saída, Invoice, Despesa Contas a Receber). Ordem de criação:
  *
- *   1. contas_areceber
- *   2. movimentacoes (tipo_caixa = 'share')  → receita da Share (ou 'entrada' se subcategoria C.M.A)
- *   3. movimentacoes (tipo_caixa = 'cliente') → despesa do cliente/sócio
+ *   1. movimentacoes (tipo_caixa = 'share')  → receita da Share (ou 'entrada' se subcategoria C.M.A)
+ *   2. contas_areceber → ancorado em movimentacao_id = id da movimentação share acima
+ *   3. movimentacoes (tipo_caixa = 'cliente') → despesa do cliente/sócio, já com contas_areceber_id
  *   4. rateio_despesas (fluxo = 'SAIDA')
  *
  * Deve rodar UMA VEZ POR CLIENTE/SÓCIO selecionado — quem chama faz o loop.
@@ -23,19 +23,16 @@ import { supabase } from "@/integrations/supabase/client";
  * `movimentacoes.reference_id` (text, sem FK, sem unique) é a coluna correta para isso —
  * mesmo padrão já usado em contas_areceber via upsert().
  *
- * IMPORTANTE (correção 2): quando a mesma NF/Recibo/Invoice (mesmo origem_id) é rateada entre
- * VÁRIOS clientes/sócios, a função é chamada uma vez por cliente/sócio (ver docstring acima) —
- * cada chamada precisa gerar sua PRÓPRIA linha em contas_areceber. Só que `contas_areceber.numero`
- * tem constraint UNIQUE no banco (`contas_areceber_numero_key`), e o `numero` (numero_doc/numero_nf/
- * numero_recibo) é o MESMO documento para todas as iterações do rateio. Resultado: a 1ª iteração
- * insere normalmente, mas a 2ª+ iteração estoura `duplicate key value violates unique constraint
- * "contas_areceber_numero_key"` — o erro joga fora do `syncSaidaFinancialLegs` ANTES de criar as
- * movimentacoes (mov_share/mov_cliente) e o rateio_despesas daquele cliente/sócio, então na prática
- * só o primeiro cotista do rateio acaba com registros completos e os demais somem silenciosamente.
- * A correção (`upsertContasAReceber` abaixo) tenta primeiro o `numero` original (mantendo o número
- * do documento limpo no caso comum de um único destinatário) e, SÓ SE colidir por causa dessa
- * constraint, refaz o insert sufixando o `numero` com o cliente/sócio da iteração (ex: "2026.002-57545b0b"),
- * preservando a rastreabilidade ao documento original sem quebrar a unicidade.
+ * IMPORTANTE (correção 2): cada recibo/NF já é lançado com seu PRÓPRIO `numero` distinto por
+ * cotista — `numero` NUNCA deve ser usado como chave de idempotência/identificação de
+ * `contas_areceber`. A chave correta para localizar/ajustar "a mesma despesa de lançamento" é o
+ * vínculo real com a movimentação: `contas_areceber.movimentacao_id` ⇄ `movimentacoes.contas_areceber_id`.
+ * Por isso a ordem de criação mudou: primeiro a movimentação SHARE (receita) é criada/localizada
+ * (ela já é idempotente via reference_type+reference_id), e só então `contas_areceber` é
+ * localizado/criado usando `movimentacao_id = movShareId` como âncora (`upsertContasAReceberByMovimentacao`
+ * abaixo) — com fallback por reference_type+reference_id apenas para linhas antigas que ainda não
+ * tinham `movimentacao_id` preenchido. Depois disso, a movimentação SHARE é atualizada com o
+ * `contas_areceber_id` resultante, fechando o vínculo nos dois sentidos.
  */
 
 // IDs em expense_configu — usados como categoria_id apenas na perna de DESPESA (mov_cliente)
@@ -245,74 +242,83 @@ async function upsert(
 }
 
 /**
- * Upsert específico para `contas_areceber`.
+ * Upsert específico para `contas_areceber`, ancorado em `movimentacao_id`.
  *
- * CORREÇÃO: além do lookup normal por reference_type+reference_id (idempotência), esta
- * variante trata a colisão da constraint UNIQUE em `contas_areceber.numero`
- * ("contas_areceber_numero_key"). Isso acontece quando o MESMO documento (mesmo `numero`)
- * é rateado entre vários clientes/sócios: cada iteração tenta inserir uma linha nova de
- * contas_areceber com o mesmo `numero`, e a partir da 2ª iteração o insert quebra com
- * 23505 — o que antes abortava a criação das movimentacoes e do rateio_despesas daquele
- * cliente/sócio (por isso "sumiam" os demais cotistas do rateio).
+ * CORREÇÃO: a identificação de "é a mesma despesa de lançamento?" deve vir do vínculo real
+ * com a movimentação (`movimentacao_id`), NUNCA do `numero` — cada recibo/NF já tem seu
+ * próprio número distinto por cotista, então usar `numero` para achar/deduplicar linhas
+ * estava simplesmente errado.
  *
- * Estratégia: tenta inserir com o `numero` original (mantém o número do documento limpo
- * quando não há conflito — caso comum de destinatário único). Se colidir especificamente
- * por causa dessa constraint, refaz o insert sufixando o `numero` com o cliente/sócio
- * desta iteração, garantindo unicidade sem perder a rastreabilidade ao documento original.
+ * Lookup em duas etapas:
+ *   1) por `movimentacao_id` (fonte de verdade a partir de agora — sempre que a movimentação
+ *      SHARE já existir, é isso que identifica a linha certa de contas_areceber a atualizar);
+ *   2) fallback por `reference_type + reference_id`, só para compatibilidade com linhas criadas
+ *      antes desta correção (que ainda não têm `movimentacao_id` preenchido).
+ *
+ * Se nenhuma das duas encontrar nada, cria uma linha nova.
  */
-async function upsertContasAReceber(
+async function upsertContasAReceberByMovimentacao(
+  movimentacaoId: string,
   refType: string,
   refId: string,
   payload: Record<string, any>
 ): Promise<string | null> {
   const client = supabase as any;
 
-  const { data: existing } = await client
+  let existingId: string | null = null;
+
+  const { data: byMovimentacao } = await client
     .from("contas_areceber")
     .select("id")
-    .eq("reference_type", refType)
-    .eq("reference_id", refId)
+    .eq("movimentacao_id", movimentacaoId)
     .maybeSingle();
+  if (byMovimentacao?.id) existingId = byMovimentacao.id as string;
 
-  if (existing?.id) {
+  if (!existingId) {
+    const { data: byReference } = await client
+      .from("contas_areceber")
+      .select("id")
+      .eq("reference_type", refType)
+      .eq("reference_id", refId)
+      .maybeSingle();
+    if (byReference?.id) existingId = byReference.id as string;
+  }
+
+  if (existingId) {
     const { error } = await client
       .from("contas_areceber")
-      .update({ ...payload, atualizado_em: new Date().toISOString() })
-      .eq("id", existing.id);
+      .update({
+        ...payload,
+        movimentacao_id: movimentacaoId,
+        reference_type: refType,
+        reference_id: refId,
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq("id", existingId);
     if (error) throw error;
-    return existing.id as string;
+    return existingId;
   }
 
-  const insertWithNumero = async (numeroValue: string | null) => {
-    const { data: inserted, error } = await client
-      .from("contas_areceber")
-      .insert([{ ...payload, numero: numeroValue, reference_type: refType, reference_id: refId }])
-      .select("id")
-      .single();
-    if (error) throw error;
-    return inserted?.id ?? null;
-  };
+  const { data: inserted, error } = await client
+    .from("contas_areceber")
+    .insert([{ ...payload, movimentacao_id: movimentacaoId, reference_type: refType, reference_id: refId }])
+    .select("id")
+    .single();
+  if (error) throw error;
+  return inserted?.id ?? null;
+}
 
-  try {
-    return await insertWithNumero(payload.numero ?? null);
-  } catch (err: any) {
-    const message = String(err?.message || "");
-    const details = String(err?.details || "");
-    const isNumeroConflict =
-      err?.code === "23505" &&
-      (message.includes("contas_areceber_numero_key") ||
-        message.includes("numero") ||
-        details.includes("numero"));
-
-    // Se não for exatamente essa colisão (ou não houver numero para sufixar), propaga o erro original.
-    if (!isNumeroConflict || !payload.numero) {
-      throw err;
-    }
-
-    const suffixSource = payload.cliente_id || payload.socio_id || refId;
-    const suffixedNumero = `${payload.numero}-${String(suffixSource).slice(0, 8)}`;
-    return await insertWithNumero(suffixedNumero);
-  }
+/** Grava o vínculo de volta em `movimentacoes.contas_areceber_id` após o contas_areceber existir. */
+async function linkMovimentacaoAoContasAReceber(
+  movimentacaoId: string,
+  contasAreceberId: string
+): Promise<void> {
+  const client = supabase as any;
+  const { error } = await client
+    .from("movimentacoes")
+    .update({ contas_areceber_id: contasAreceberId, atualizado_em: new Date().toISOString() })
+    .eq("id", movimentacaoId);
+  if (error) throw error;
 }
 
 /**
@@ -424,29 +430,8 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   const numeroDocFinal = numero_doc || numero_nf || numero_recibo || null;
   const descricaoBase = input.descricao || input.categoria_origem_label || `${origem} ${numeroDocFinal ?? ""}`.trim();
 
-  // 1) contas_areceber (upsert com tratamento de colisão em `numero` — ver upsertContasAReceber)
-  const arPayload = {
-    numero: numeroDocFinal,
-    cliente_nome: input.cliente_nome || input.socio_nome || "",
-    cliente_cnpj: input.cliente_cnpj || null,
-    cliente_id: cliente_id || null,
-    socio_id: socio_id || null,
-    data_criacao: data_competencia,
-    data_vencimento,
-    valor,
-    categoria: input.categoria_origem_label || null,
-    categoria_id: categoriaMovimentacaoId,
-    descricao: descricaoBase,
-    status,
-    aeronave: input.aeronave_registro || null,
-    nota_fiscal_url: input.nf_url || null,
-    boleto_url: input.boleto_url || null,
-    arquivo_pdf_url: input.recibo_url || input.nf_url || null,
-    criado_por: input.criado_por || null,
-  };
-  const contasAreceberId = await upsertContasAReceber(`${baseRef}:areceber`, origem_id, arPayload);
-
-  // 2) movimentacao SHARE (receita/entrada) — usa categoria de categorias_movimentacao
+  // Campos comuns às duas movimentações. `contas_areceber_id` ainda não existe neste ponto
+  // (só é conhecido depois do passo 2), então entra depois via spread em cada leg específica.
   const movComum = {
     descricao: descricaoBase,
     valor,
@@ -467,10 +452,11 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     boleto_url: input.boleto_url || null,
     comprovante_url: input.comprovante_url || null,
     observacoes: input.observacoes || null,
-    contas_areceber_id: contasAreceberId,
     criado_por: input.criado_por || null,
   };
 
+  // 1) movimentacao SHARE (receita/entrada) — criada ANTES do contas_areceber, pois é ela
+  // que serve de âncora (movimentacao_id) para localizar/criar a linha certa de contas_areceber.
   const movShareRefType = `${baseRef}:mov_share`;
   const movShareId = await upsertMovimentacao(
     movShareRefType,
@@ -483,7 +469,38 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
     }
   );
 
-  // 3) movimentacao CLIENTE (despesa) — usa categoria de expense_configu
+  // 2) contas_areceber — upsert ancorado em movimentacao_id = movShareId (não em `numero`).
+  const arPayload = {
+    numero: numeroDocFinal,
+    cliente_nome: input.cliente_nome || input.socio_nome || "",
+    cliente_cnpj: input.cliente_cnpj || null,
+    cliente_id: cliente_id || null,
+    socio_id: socio_id || null,
+    data_criacao: data_competencia,
+    data_vencimento,
+    valor,
+    categoria: input.categoria_origem_label || null,
+    categoria_id: categoriaMovimentacaoId,
+    descricao: descricaoBase,
+    status,
+    aeronave: input.aeronave_registro || null,
+    nota_fiscal_url: input.nf_url || null,
+    boleto_url: input.boleto_url || null,
+    arquivo_pdf_url: input.recibo_url || input.nf_url || null,
+    criado_por: input.criado_por || null,
+  };
+  const contasAreceberId = await upsertContasAReceberByMovimentacao(
+    movShareId as string,
+    `${baseRef}:areceber`,
+    origem_id,
+    arPayload
+  );
+
+  // 2b) fecha o vínculo nos dois sentidos: grava contas_areceber_id na movimentacao SHARE.
+  await linkMovimentacaoAoContasAReceber(movShareId as string, contasAreceberId as string);
+
+  // 3) movimentacao CLIENTE (despesa) — usa categoria de expense_configu; já sai criada com
+  // o contas_areceber_id correto, pois o passo 2 já rodou.
   const movClienteRefType = `${baseRef}:mov_cliente`;
   const movClienteId = await upsertMovimentacao(
     movClienteRefType,
@@ -493,6 +510,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
       tipo: "despesa",
       tipo_caixa: "cliente",
       categoria_id: categoriaExpenseId,
+      contas_areceber_id: contasAreceberId,
     }
   );
 
