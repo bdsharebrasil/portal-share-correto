@@ -115,6 +115,8 @@ export function ContasReceber() {
   const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   const [showPdfViewerDialog, setShowPdfViewerDialog] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
   const startXRef = useRef(0);
@@ -511,6 +513,20 @@ export function ContasReceber() {
     });
   }, [contas, filters]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, rowsPerPage]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredContas.length / rowsPerPage));
+  const paginatedContas = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredContas.slice(start, start + rowsPerPage);
+  }, [currentPage, filteredContas, rowsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
   const totals = useMemo(() => {
     return filteredContas.reduce((sum, conta) => sum + parseFloat(conta.valor), 0);
   }, [filteredContas]);
@@ -657,9 +673,33 @@ export function ContasReceber() {
         updateData.comprovante_recebimento_url = comprovanteUrl;
       }
 
-      // Se esta conta veio de movimentacoes (conciliação bancária), vincula pelo campo atual movimentacao_id
-      if (contasReceberData.isFromBankReconciliation && contasReceberData.bankReconciliationId) {
-        updateData.movimentacao_id = contasReceberData.bankReconciliationId;
+      const movimentacaoUpdate = {
+        status: "recebido",
+        data_pagamento: dataRecebimento,
+        banco_nome: nomeBanco,
+        forma_pagamento: metodo_pagamento || null,
+        comprovante_url: comprovanteUrl || null,
+        atualizado_em: new Date().toISOString(),
+      };
+
+      // Registros virtuais são originados apenas de movimentacoes e não possuem
+      // uma linha correspondente em contas_areceber para atualizar.
+      if (contasReceberData.isFromBankReconciliation) {
+        const movId = contasReceberData.bankReconciliationId || contasReceberData.id;
+        const { error: movimentacaoError } = await (supabase.from("movimentacoes") as any)
+          .update(movimentacaoUpdate)
+          .eq("id", movId);
+        if (movimentacaoError) throw movimentacaoError;
+
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["contas-receber"] }),
+          queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }),
+          queryClient.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] }),
+        ]);
+        toast.success("Conta marcada como recebida!");
+        resetBankDialog();
+        await loadContas();
+        return;
       }
 
       const { data: updatedRows, error: updateError } = await supabase
@@ -671,16 +711,7 @@ export function ContasReceber() {
       if (updateError) throw updateError;
       if (!updatedRows?.length) throw new Error("Nenhuma conta a receber foi atualizada.");
 
-      const movimentacaoId = contasReceberData.movimentacao_id || contasReceberData.bankReconciliationId;
-      const movimentacaoUpdate = {
-        status: "pago",
-        data_pagamento: dataRecebimento,
-        banco_nome: nomeBanco,
-        forma_pagamento: metodo_pagamento || null,
-        comprovante_url: comprovanteUrl || null,
-        atualizado_em: new Date().toISOString(),
-      };
-
+      const movimentacaoId = contasReceberData.movimentacao_id;
       let movimentacoesQuery = (supabase.from("movimentacoes") as any).update(movimentacaoUpdate);
       if (movimentacaoId) {
         movimentacoesQuery = movimentacoesQuery.eq("id", movimentacaoId);
@@ -942,7 +973,7 @@ export function ContasReceber() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredContas.map((conta) => (
+                  {paginatedContas.map((conta) => (
                     <TableRow key={conta.id} className="border-border/40 hover:bg-muted/20 transition-colors">
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDateSafe(conta.data_vencimento)}
@@ -1027,6 +1058,31 @@ export function ContasReceber() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {filteredContas.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-border/40">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Page</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={currentPage}
+                  onChange={(e) => setCurrentPage(Math.min(totalPages, Math.max(1, Number(e.target.value) || 1)))}
+                  className="h-8 w-14 text-center"
+                />
+                <span>of {totalPages}</span>
+                <Select value={String(rowsPerPage)} onValueChange={(value) => setRowsPerPage(Number(value))}>
+                  <SelectTrigger className="h-8 w-[108px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100, 200].map((rows) => <SelectItem key={rows} value={String(rows)}>{rows} rows</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {Math.min((currentPage - 1) * rowsPerPage + 1, filteredContas.length)}–{Math.min(currentPage * rowsPerPage, filteredContas.length)} de {filteredContas.length}
+              </div>
             </div>
           )}
         </CardContent>
