@@ -22,9 +22,7 @@ interface Cotista {
   id: string;
   nome: string;
   percentual: number;
-  /** Opcional: se o cotista corresponde a um cliente (PJ). Se omitido, assume-se sócio. */
   cliente_id?: string | null;
-  /** Opcional: se o cotista corresponde a um sócio. Se nem cliente_id nem socio_id vierem preenchidos, `id` é usado como socio_id (ajuste conforme a modelagem real do seu app). */
   socio_id?: string | null;
 }
 
@@ -37,6 +35,22 @@ interface CentroLancamentosProps {
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const TIPOS_RATEIO = ["FIXO", "VARIAVEL_POR_HORA", "VARIAVEL_POR_VOO", "EXTRA"] as const;
 const PERIODICIDADES = ["MENSAL", "SEMESTRAL", "ANUAL", "EVENTUAL"] as const;
+const FORMAS_PAGAMENTO = [
+  { value: "pix", label: "PIX" },
+  { value: "transferencia", label: "Transferência" },
+  { value: "boleto", label: "Boleto" },
+  { value: "cartao_credito", label: "Cartão de Crédito" },
+  { value: "cartao_debito", label: "Cartão de Débito" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "cheque", label: "Cheque" },
+];
+const TIPOS_ANEXO = [
+  { value: "comprovante", label: "Comprovante" },
+  { value: "nf", label: "Nota Fiscal" },
+  { value: "recibo", label: "Recibo" },
+  { value: "boleto", label: "Boleto" },
+  { value: "outro", label: "Outro Documento" }
+];
 
 const COL_USO_WIDTH = 60;
 const COL_RATEIO_WIDTH = 96;
@@ -92,6 +106,14 @@ const normalizeFluxo = (value?: string | null): "ENTRADA" | "SAIDA" => {
 const getDocumentUrls = (observacoes?: string | null) => {
   if (!observacoes) return [];
   return Array.from(new Set(observacoes.match(/https?:\/\/[^\s]+/g) || []));
+};
+
+type AnexoDoc = {
+  id: string;
+  tipo: string;
+  numero: string;
+  file: File | null;
+  currentUrl: string | null;
 };
 
 interface GrupoLancamento {
@@ -272,7 +294,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     },
   });
 
-  // Puxa PDFs de relatórios de viagem cujo id foi utilizado como despesa_id
   const travelReportIds = useMemo(() => {
     const set = new Set<string>();
     (rateios as any[]).forEach((r: any) => {
@@ -300,7 +321,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     return m;
   }, [travelReports]);
 
-  // Puxa PDFs de recibos por numero_recibo
   const reciboNumeros = useMemo(() => {
     const set = new Set<string>();
     (rateios as any[]).forEach((r: any) => {
@@ -433,8 +453,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
     return Array.from(map.values());
   }, [rateios, abastecimentoAnexosMap]);
 
-  // Esta constante define TODOS os grupos que passam pelos filtros do topo (mês, busca, fluxo).
-  // A tabela usa isso para desenhar as linhas.
   const gruposFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return grupos
@@ -468,8 +486,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
       });
   }, [grupos, mes, ano, busca, fluxoFiltro, sortDirection, categorias]);
 
-  // Nova Lógica: Usar gruposParaSoma para alimentar as totalizações.
-  // Se houver seleção, soma só o selecionado. Se não, soma tudo que está filtrado.
   const gruposParaSoma = useMemo(() => {
     if (selectedChaves.length === 0) return gruposFiltrados;
     return gruposFiltrados.filter((g) => selectedChaves.includes(g.chave));
@@ -538,9 +554,14 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
 
     if (g.despesa_id) {
       const movPatch: Record<string, any> = {};
-      if (Object.prototype.hasOwnProperty.call(patch, "valor_total_despesa")) {
+      
+      // Update the original value requested based on rateio or total fallback
+      if (patch.valor_rateado !== undefined && patch.valor_rateado !== null) {
+        movPatch.valor_original = patch.valor_rateado;
+      } else if (patch.valor_total_despesa !== undefined && patch.valor_total_despesa !== null) {
         movPatch.valor_original = patch.valor_total_despesa;
       }
+      
       if (Object.prototype.hasOwnProperty.call(patch, "valor_pago_real")) {
         movPatch.valor = patch.valor_pago_real ?? patch.valor_total_despesa ?? g.valor_total_despesa;
       }
@@ -568,6 +589,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
       if (Object.prototype.hasOwnProperty.call(patch, "data_vencimento")) {
         movPatch.data_vencimento = patch.data_vencimento;
       }
+      
       if (Object.keys(movPatch).length > 0) {
         const { error: movError } = await (supabase as any).from("movimentacoes").update(movPatch).eq("id", g.despesa_id);
         if (movError) console.warn("Erro ao sincronizar movimentacao do rateio:", movError.message);
@@ -610,7 +632,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         }
       `}</style>
 
-      {/* Header — flat, no card wrapper, no blur haze */}
       <div className="flex items-start justify-between gap-6 flex-wrap border-b border-border pb-4">
         <div className="flex items-start gap-3">
           <div className="mt-1 h-9 w-1 rounded-full bg-primary" />
@@ -657,7 +678,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2.5">
         <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
           <SelectTrigger className="w-40 h-9 bg-background border-border rounded-lg text-xs"><SelectValue /></SelectTrigger>
@@ -692,7 +712,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         )}
       </div>
 
-      {/* Resumo por fluxo */}
       <div className="grid gap-3 md:grid-cols-2">
         {resumoPorFluxo.map((item) => {
           const isEntrada = item.fluxo === "ENTRADA";
@@ -734,7 +753,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         })}
       </div>
 
-      {/* Tabela — Ajustada com span dinâmico exato das colunas restritamente alinhadas */}
       <div className="rounded-lg border border-border overflow-hidden w-full">
         <div
           ref={topScrollRef}
@@ -764,7 +782,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
                 const isEntrada = fluxo === "ENTRADA";
                 return (
                   <tr key={fluxo} className={cn("border-b border-border", isEntrada ? "bg-emerald-500/[0.05]" : "bg-rose-500/[0.05]")}>
-                    {/* AQUI ESTÁ O COLSPAN EXATO: 10 colunas normais + cotistas * 2 */}
                     <td colSpan={10 + cotistas.length * 2} className="px-4 py-1">
                       <div className="flex items-center justify-between gap-3">
                         <span className={cn(
@@ -823,7 +840,6 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
                 ))}
               </tr>
               <tr className="bg-muted/20 border-b border-border text-[10px] text-muted-foreground uppercase">
-                {/* 10 Colunas exatas reservadas no layout superior */}
                 <th colSpan={10} />
                 {cotistas.map((c) => (
                   <Fragment key={c.id}>
@@ -1338,16 +1354,6 @@ function AnexoPill({ label, numero, url }: { label: string; numero: string | nul
   );
 }
 
-const FORMAS_PAGAMENTO = [
-  { value: "pix", label: "PIX" },
-  { value: "transferencia", label: "Transferência" },
-  { value: "boleto", label: "Boleto" },
-  { value: "cartao_credito", label: "Cartão de Crédito" },
-  { value: "cartao_debito", label: "Cartão de Débito" },
-  { value: "dinheiro", label: "Dinheiro" },
-  { value: "cheque", label: "Cheque" },
-];
-
 function PagamentoDialog({
   open, onOpenChange, grupo, fornecedores, categorias, pagadores, onSaved, onUpdate,
 }: {
@@ -1360,11 +1366,11 @@ function PagamentoDialog({
   onSaved: (status: "pago" | "recebido" | "pendente") => void;
   onUpdate: (patch: Record<string, any>) => Promise<void> | void;
 }) {
+  const isGrupoEntrada = normalizeFluxo(grupo.fluxo) === "ENTRADA";
   const [dataEmissao, setDataEmissao] = useState(grupo.data_emissao || grupo.data_pagamento || new Date().toISOString().slice(0, 10));
   const [dataPagamento, setDataPagamento] = useState(grupo.data_pagamento || "");
   const [dataVencimento, setDataVencimento] = useState(grupo.data_vencimento || new Date().toISOString().slice(0, 10));
   const [forma, setForma] = useState(grupo.forma_pagamento || "pix");
-  const isGrupoEntrada = normalizeFluxo(grupo.fluxo) === "ENTRADA";
   const [status, setStatus] = useState<"pago" | "recebido" | "pendente">(grupo.status?.toLowerCase() === "pago" || grupo.status?.toLowerCase() === "recebido" ? (grupo.status?.toLowerCase() as any) : "pendente");
   const [docNumero, setDocNumero] = useState(grupo.numero_doc || "");
   const [descricao, setDescricao] = useState(grupo.descricao_despesa || "");
@@ -1375,15 +1381,16 @@ function PagamentoDialog({
   const [fluxo, setFluxo] = useState(grupo.fluxo || "SAIDA");
   const [pagador, setPagador] = useState(grupo.pago_por || "");
   const [observacoes, setObservacoes] = useState(grupo.observacoes || "");
-  const [numeroNf, setNumeroNf] = useState(grupo.numero_nf || "");
-  const [numeroRecibo, setNumeroRecibo] = useState(grupo.numero_recibo || "");
-  const [numeroBoleto, setNumeroBoleto] = useState(grupo.numero_boleto || "");
+  
   const [valorTotal, setValorTotal] = useState(formatNumberPTBR(grupo.valor_total_despesa));
-  const [comprovante, setComprovante] = useState<File | null>(null);
-  const [notaFiscal, setNotaFiscal] = useState<File | null>(null);
-  const [recibo, setRecibo] = useState<File | null>(null);
-  const [boleto, setBoleto] = useState<File | null>(null);
-  const [documento, setDocumento] = useState<File | null>(null);
+  
+  const initialRateado = Array.from(grupo.rateiosPorCotista.values()).reduce((sum, r) => sum + (Number(r.valor_rateado) || 0), 0);
+  const [valorRateado, setValorRateado] = useState(formatNumberPTBR(initialRateado));
+  
+  const initialPago = Array.from(grupo.rateiosPorCotista.values()).reduce((sum, r) => sum + (Number(r.valor_pago_real) || 0), 0);
+  const [valorPagoReal, setValorPagoReal] = useState(formatNumberPTBR(initialPago || initialRateado || grupo.valor_total_despesa));
+  
+  const [anexos, setAnexos] = useState<AnexoDoc[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -1402,17 +1409,26 @@ function PagamentoDialog({
       setFluxo(grupo.fluxo || "SAIDA");
       setPagador(grupo.pago_por || "");
       setObservacoes(grupo.observacoes || "");
-      setNumeroNf(grupo.numero_nf || "");
-      setNumeroRecibo(grupo.numero_recibo || "");
-      setNumeroBoleto(grupo.numero_boleto || "");
+      
       setValorTotal(formatNumberPTBR(grupo.valor_total_despesa));
-      setComprovante(null);
-      setNotaFiscal(null);
-      setRecibo(null);
-      setBoleto(null);
-      setDocumento(null);
+      const iRateado = Array.from(grupo.rateiosPorCotista.values()).reduce((sum, r) => sum + (Number(r.valor_rateado) || 0), 0);
+      setValorRateado(formatNumberPTBR(iRateado));
+      const iPago = Array.from(grupo.rateiosPorCotista.values()).reduce((sum, r) => sum + (Number(r.valor_pago_real) || 0), 0);
+      setValorPagoReal(formatNumberPTBR(iPago || iRateado || grupo.valor_total_despesa));
+
+      const initAnexos: AnexoDoc[] = [];
+      if (grupo.comprovante_url) initAnexos.push({ id: crypto.randomUUID(), tipo: "comprovante", numero: "", file: null, currentUrl: grupo.comprovante_url });
+      if (grupo.nf_url) initAnexos.push({ id: crypto.randomUUID(), tipo: "nf", numero: grupo.numero_nf || "", file: null, currentUrl: grupo.nf_url });
+      if (grupo.recibo_url) initAnexos.push({ id: crypto.randomUUID(), tipo: "recibo", numero: grupo.numero_recibo || "", file: null, currentUrl: grupo.recibo_url });
+      if (grupo.boleto_url) initAnexos.push({ id: crypto.randomUUID(), tipo: "boleto", numero: grupo.numero_boleto || "", file: null, currentUrl: grupo.boleto_url });
+      
+      setAnexos(initAnexos);
     }
-  }, [open, grupo.data_emissao, grupo.data_pagamento, grupo.data_vencimento, grupo.forma_pagamento, grupo.numero_doc, grupo.descricao_despesa, grupo.fornecedor_nome, grupo.categoria_custo, grupo.tipo_rateio, grupo.periodicidade, grupo.fluxo, grupo.pago_por, grupo.observacoes, grupo.numero_nf, grupo.numero_recibo, grupo.numero_boleto, grupo.status, grupo.valor_total_despesa]);
+  }, [open, grupo]);
+
+  const addAnexo = () => setAnexos(prev => [...prev, { id: crypto.randomUUID(), tipo: "comprovante", numero: "", file: null, currentUrl: null }]);
+  const updateAnexo = (id: string, field: keyof AnexoDoc, value: any) => setAnexos(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
+  const removeAnexo = (id: string) => setAnexos(prev => prev.filter(a => a.id !== id));
 
   const handleSalvar = async () => {
     setSaving(true);
@@ -1425,14 +1441,32 @@ function PagamentoDialog({
         if (error) throw error;
         return supabase.storage.from("client-documents").getPublicUrl(path).data.publicUrl;
       };
-      const [comprovante_url, nf_url, recibo_url, boleto_url, documentoUrl] = await Promise.all([
-        uploadArquivo(comprovante, "comprovante", grupo.comprovante_url),
-        uploadArquivo(notaFiscal, "nota-fiscal", grupo.nf_url),
-        uploadArquivo(recibo, "recibo", grupo.recibo_url),
-        uploadArquivo(boleto, "boleto", grupo.boleto_url),
-        uploadArquivo(documento, "documento", null),
-      ]);
+
+      let patchComprovante = grupo.comprovante_url;
+      let patchNfUrl = grupo.nf_url;
+      let patchReciboUrl = grupo.recibo_url;
+      let patchBoletoUrl = grupo.boleto_url;
+      let patchNumeroNf = grupo.numero_nf;
+      let patchNumeroRecibo = grupo.numero_recibo;
+      let patchNumeroBoleto = grupo.numero_boleto;
+      const observacoesExtra: string[] = [];
+
+      for (const anexo of anexos) {
+        let url = anexo.currentUrl;
+        if (anexo.file) {
+          url = await uploadArquivo(anexo.file, anexo.tipo, null);
+        }
+        if (anexo.tipo === "comprovante") patchComprovante = url;
+        if (anexo.tipo === "nf") { patchNfUrl = url; if (anexo.numero) patchNumeroNf = anexo.numero; }
+        if (anexo.tipo === "recibo") { patchReciboUrl = url; if (anexo.numero) patchNumeroRecibo = anexo.numero; }
+        if (anexo.tipo === "boleto") { patchBoletoUrl = url; if (anexo.numero) patchNumeroBoleto = anexo.numero; }
+        if (anexo.tipo === "outro" && url) observacoesExtra.push(`Anexo (${anexo.numero || 'Outro'}): ${url}`);
+      }
+
       const valorTotalNormalizado = parsePTBRNumber(valorTotal);
+      const valorRateadoNormalizado = parsePTBRNumber(valorRateado);
+      const valorPagoNormalizado = parsePTBRNumber(valorPagoReal);
+
       const patch: Record<string, any> = {
         status,
         data_emissao: dataEmissao || null,
@@ -1447,16 +1481,17 @@ function PagamentoDialog({
         periodicidade: periodicidade || null,
         fluxo: fluxo || null,
         pago_por: pagador || null,
-        numero_nf: numeroNf || null,
-        numero_recibo: numeroRecibo || null,
-        numero_boleto: numeroBoleto || null,
+        numero_nf: patchNumeroNf || null,
+        numero_recibo: patchNumeroRecibo || null,
+        numero_boleto: patchNumeroBoleto || null,
         valor_total_despesa: valorTotalNormalizado || null,
-        comprovante_url,
-        nf_url,
-        recibo_url,
-        boleto_url,
-        observacoes: [observacoes, documentoUrl ? `Documento: ${documentoUrl}` : null].filter(Boolean).join("\n") || null,
-        valor_pago_real: status !== "pendente" ? valorTotalNormalizado : null,
+        valor_rateado: valorRateadoNormalizado || null,
+        comprovante_url: patchComprovante,
+        nf_url: patchNfUrl,
+        recibo_url: patchReciboUrl,
+        boleto_url: patchBoletoUrl,
+        observacoes: [observacoes, ...observacoesExtra].filter(Boolean).join("\n") || null,
+        valor_pago_real: status !== "pendente" ? valorPagoNormalizado : null,
       };
       if (status === "pendente") {
         patch.data_pagamento = null;
@@ -1476,180 +1511,189 @@ function PagamentoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{grupo.status === "pago" || grupo.status === "recebido" ? (isGrupoEntrada ? "Editar recebimento" : "Editar pagamento") : (isGrupoEntrada ? "Registrar recebimento" : "Registrar pagamento")}</DialogTitle>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 gap-0 border-0 bg-background/95 backdrop-blur-md shadow-2xl rounded-2xl">
+        <DialogHeader className="px-6 py-5 border-b border-border/50 bg-muted/20">
+          <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+            {grupo.status === "pago" || grupo.status === "recebido" 
+              ? (isGrupoEntrada ? "Editar recebimento" : "Editar pagamento") 
+              : (isGrupoEntrada ? "Registrar recebimento" : "Registrar pagamento")}
+          </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="grid gap-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(value) => setStatus(value as any)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {isGrupoEntrada ? (
-                  <>
-                    <SelectItem value="recebido">Recebido</SelectItem>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                  </>
-                ) : (
-                  <>
-                    <SelectItem value="pago">Pago</SelectItem>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        
+        <div className="p-6 space-y-7">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="grid gap-2">
-              <Label>Data de emissão</Label>
-              <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-9" />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Status</Label>
+              <Select value={status} onValueChange={(value) => setStatus(value as any)}>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {isGrupoEntrada ? (
+                    <>
+                      <SelectItem value="recebido">Recebido</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                    </>
+                  ) : (
+                    <>
+                      <SelectItem value="pago">Pago</SelectItem>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Data de vencimento</Label>
-              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-9" />
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label>Data de pagamento</Label>
-            <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-9" />
-          </div>
-          <div className="grid gap-2">
-            <Label>Forma de pagamento</Label>
-            <Select value={forma} onValueChange={setForma} disabled={status === "pendente"}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label>Descrição</Label>
-            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="h-9" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="grid gap-2">
-              <Label>Documento</Label>
-              <Input value={docNumero} onChange={(e) => setDocNumero(e.target.value)} className="h-9" />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Emissão</Label>
+              <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-10 bg-background" />
             </div>
             <div className="grid gap-2">
-              <Label>Valor total</Label>
-              <Input
-                type="text"
-                value={valorTotal}
-                onChange={(e) => setValorTotal(maskCurrencyInput(e.target.value))}
-                onBlur={() => setValorTotal(formatNumberPTBR(parsePTBRNumber(valorTotal)))}
-                className="h-9 font-mono"
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Vencimento</Label>
+              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-10 bg-background" />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pagamento</Label>
+              <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-10 bg-background" />
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Descrição</Label>
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="h-10 bg-background text-base" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-muted/20 p-5 rounded-2xl border border-border/50 shadow-inner">
+            <div className="grid gap-2">
+              <Label className="text-[11px] uppercase text-muted-foreground font-bold tracking-wider">Valor Total da Despesa</Label>
+              <Input 
+                type="text" 
+                value={valorTotal} 
+                onChange={(e) => setValorTotal(maskCurrencyInput(e.target.value))} 
+                onBlur={() => setValorTotal(formatNumberPTBR(parsePTBRNumber(valorTotal)))} 
+                className="h-11 font-mono text-lg font-bold bg-background shadow-sm" 
               />
             </div>
             <div className="grid gap-2">
-              <Label>Fornecedor</Label>
-              <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
+              <Label className="text-[11px] uppercase text-primary/80 font-bold tracking-wider">Valor Rateado</Label>
+              <Input 
+                type="text" 
+                value={valorRateado} 
+                onChange={(e) => setValorRateado(maskCurrencyInput(e.target.value))} 
+                onBlur={() => setValorRateado(formatNumberPTBR(parsePTBRNumber(valorRateado)))} 
+                className="h-11 font-mono text-lg font-bold bg-primary/5 text-primary border-primary/20 shadow-sm" 
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[11px] uppercase text-emerald-600 dark:text-emerald-400 font-bold tracking-wider">Valor Pago Real</Label>
+              <Input 
+                type="text" 
+                value={valorPagoReal} 
+                onChange={(e) => setValorPagoReal(maskCurrencyInput(e.target.value))} 
+                onBlur={() => setValorPagoReal(formatNumberPTBR(parsePTBRNumber(valorPagoReal)))} 
+                className="h-11 font-mono text-lg font-bold bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 shadow-sm" 
+                disabled={status === "pendente"} 
+              />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label>Categoria</Label>
-              <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Fornecedor</Label>
+              <div className="h-10 bg-background rounded-md [&>button]:h-10">
+                <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
+              </div>
             </div>
             <div className="grid gap-2">
-              <Label>Pago por</Label>
-              <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Categoria</Label>
+              <div className="h-10 bg-background rounded-md [&>button]:h-10">
+                <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pago por</Label>
+              <div className="h-10 bg-background rounded-md [&>button]:h-10">
+                <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="grid gap-2">
-              <Label>Tipo de rateio</Label>
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Nº Documento</Label>
+              <Input value={docNumero} onChange={(e) => setDocNumero(e.target.value)} className="h-10 bg-background" />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Forma Pag.</Label>
+              <Select value={forma} onValueChange={setForma} disabled={status === "pendente"}>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Tipo de Rateio</Label>
               <Select value={tipoRateio} onValueChange={setTipoRateio}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>{TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Periodicidade</Label>
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Periodicidade</Label>
               <Select value={periodicidade} onValueChange={setPeriodicidade}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label>Fluxo</Label>
-              <Select value={fluxo} onValueChange={setFluxo}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ENTRADA">ENTRADA</SelectItem>
-                  <SelectItem value="SAIDA">SAIDA</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="grid gap-2">
-              <Label>Número NF</Label>
-              <Input value={numeroNf} onChange={(e) => setNumeroNf(e.target.value)} className="h-9" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Número recibo</Label>
-              <Input value={numeroRecibo} onChange={(e) => setNumeroRecibo(e.target.value)} className="h-9" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Número boleto</Label>
-              <Input value={numeroBoleto} onChange={(e) => setNumeroBoleto(e.target.value)} className="h-9" />
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label>Observações</Label>
-            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} />
-          </div>
-          <div className="grid gap-3 rounded-lg border border-border p-3">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
-              <Paperclip className="h-3.5 w-3.5" /> Anexos do lançamento
-            </div>
-            <p className="text-[11px] text-muted-foreground -mt-1">
-              Cada campo abaixo é gravado na coluna correspondente do banco. Envie o arquivo certo em cada linha.
-            </p>
 
-            <FileFieldRow
-              label="Comprovante"
-              hint="→ comprovante_url"
-              currentUrl={grupo.comprovante_url}
-              file={comprovante}
-              onChange={setComprovante}
-            />
-            <FileFieldRow
-              label="Nota Fiscal"
-              hint="→ nf_url"
-              currentUrl={grupo.nf_url}
-              file={notaFiscal}
-              onChange={setNotaFiscal}
-            />
-            <FileFieldRow
-              label="Recibo"
-              hint="→ recibo_url"
-              currentUrl={grupo.recibo_url}
-              file={recibo}
-              onChange={setRecibo}
-            />
-            <FileFieldRow
-              label="Boleto"
-              hint="→ boleto_url"
-              currentUrl={grupo.boleto_url}
-              file={boleto}
-              onChange={setBoleto}
-            />
-            <FileFieldRow
-              label="Outro documento"
-              hint="salvo em Observações"
-              currentUrl={null}
-              file={documento}
-              onChange={setDocumento}
-            />
+          <div className="grid gap-2">
+            <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Observações</Label>
+            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className="bg-background" />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border/50">
+               <Label className="text-sm font-semibold flex items-center gap-2">
+                 <Paperclip className="h-4 w-4 text-primary" /> Anexos do Lançamento
+               </Label>
+               <Button type="button" variant="outline" size="sm" onClick={addAnexo} className="h-8 text-xs gap-1.5 bg-background">
+                 <Plus className="h-3 w-3" /> Adicionar
+               </Button>
+            </div>
+            
+            <div className="space-y-3">
+               {anexos.length === 0 && (
+                  <div className="text-center py-6 text-sm text-muted-foreground border border-dashed border-border/70 rounded-xl bg-muted/10">Nenhum anexo adicionado.</div>
+               )}
+               {anexos.map((anexo) => (
+                  <div key={anexo.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-muted/10 p-3 rounded-xl border border-border/60 hover:border-border transition-colors group">
+                     <Select value={anexo.tipo} onValueChange={(v) => updateAnexo(anexo.id, "tipo", v)}>
+                        <SelectTrigger className="w-full sm:w-[150px] h-9 bg-background"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                           {TIPOS_ANEXO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                     </Select>
+                     <Input placeholder="Nº do doc..." value={anexo.numero} onChange={e => updateAnexo(anexo.id, "numero", e.target.value)} className="w-full sm:w-[130px] h-9 bg-background" />
+                     <div className="flex-1 min-w-[200px] flex items-center gap-3 w-full">
+                       <Input type="file" accept="image/*,.pdf" onChange={e => updateAnexo(anexo.id, "file", e.target.files?.[0] || null)} className="h-9 file:h-full file:bg-transparent file:text-xs file:font-medium text-xs bg-background" />
+                       {anexo.currentUrl && !anexo.file && (
+                         <a href={anexo.currentUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-primary whitespace-nowrap hover:underline"><ExternalLink className="w-3.5 h-3.5 inline mr-1"/>Atual</a>
+                       )}
+                     </div>
+                     <Button variant="ghost" size="icon" className="text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 w-9 h-9 shrink-0" onClick={() => removeAnexo(anexo.id)}>
+                        <Trash2 className="w-4 h-4" />
+                     </Button>
+                  </div>
+               ))}
+            </div>
           </div>
         </div>
-        <DialogFooter className="pt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-9">Cancelar</Button>
-          <Button onClick={handleSalvar} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 h-9">
-            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processando...</> : <><Upload className="mr-2 h-4 w-4" />Confirmar</>}
+        
+        <DialogFooter className="px-6 py-5 border-t border-border/50 bg-muted/20 rounded-b-2xl">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-10 px-5">Cancelar</Button>
+          <Button onClick={handleSalvar} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 h-10 px-5">
+            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processando...</> : <><Upload className="mr-2 h-4 w-4" />Confirmar Pagamento</>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1657,17 +1701,6 @@ function PagamentoDialog({
   );
 }
 
-/**
- * Diálogo de criação de um novo lançamento (entrada ou saída), com o mesmo
- * card "Rateio por cotista" (% e valor por cotista) usado no painel de detalhes.
- * Gera um novo despesa_id e insere uma linha em rateio_despesas por cotista
- * com valor rateado > 0.
- *
- * Atenção: como o tipo Cotista usado aqui só garante `id`, assume-se por padrão
- * que `id` é um `socio_id`. Se os cotistas desta aeronave forem clientes (PJ),
- * passe `cliente_id` explicitamente em cada item de `cotistas` (veja a interface
- * Cotista no topo do arquivo).
- */
 function NovoLancamentoDialog({
   open, onOpenChange, aeronaveId, cotistas, fornecedores, categorias, pagadores, onSaved,
 }: {
@@ -1695,14 +1728,9 @@ function NovoLancamentoDialog({
   const [periodicidade, setPeriodicidade] = useState<string>("EVENTUAL");
   const [pagador, setPagador] = useState("");
   const [observacoes, setObservacoes] = useState("");
-  const [numeroNf, setNumeroNf] = useState("");
-  const [numeroRecibo, setNumeroRecibo] = useState("");
-  const [numeroBoleto, setNumeroBoleto] = useState("");
+  
   const [valorTotal, setValorTotal] = useState("0,00");
-  const [comprovante, setComprovante] = useState<File | null>(null);
-  const [notaFiscal, setNotaFiscal] = useState<File | null>(null);
-  const [recibo, setRecibo] = useState<File | null>(null);
-  const [boleto, setBoleto] = useState<File | null>(null);
+  const [anexos, setAnexos] = useState<AnexoDoc[]>([]);
   const [saving, setSaving] = useState(false);
   const [rateio, setRateio] = useState<Record<string, { pctUso: string; valor: string }>>({});
 
@@ -1722,19 +1750,17 @@ function NovoLancamentoDialog({
     setPeriodicidade("EVENTUAL");
     setPagador("");
     setObservacoes("");
-    setNumeroNf("");
-    setNumeroRecibo("");
-    setNumeroBoleto("");
     setValorTotal("0,00");
-    setComprovante(null);
-    setNotaFiscal(null);
-    setRecibo(null);
-    setBoleto(null);
+    setAnexos([{ id: crypto.randomUUID(), tipo: "comprovante", numero: "", file: null, currentUrl: null }]);
+    
     const inicial: Record<string, { pctUso: string; valor: string }> = {};
     cotistas.forEach((c) => { inicial[c.id] = { pctUso: formatNumberPTBR(c.percentual), valor: "0,00" }; });
     setRateio(inicial);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, cotistas, hoje]);
+
+  const addAnexo = () => setAnexos(prev => [...prev, { id: crypto.randomUUID(), tipo: "comprovante", numero: "", file: null, currentUrl: null }]);
+  const updateAnexo = (id: string, field: keyof AnexoDoc, value: any) => setAnexos(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
+  const removeAnexo = (id: string) => setAnexos(prev => prev.filter(a => a.id !== id));
 
   const distribuirAutomaticamente = (valorTotalStr: string) => {
     const total = parsePTBRNumber(valorTotalStr);
@@ -1774,16 +1800,25 @@ function NovoLancamentoDialog({
         if (error) throw error;
         return supabase.storage.from("client-documents").getPublicUrl(path).data.publicUrl;
       };
-      const [comprovante_url, nf_url, recibo_url, boleto_url] = await Promise.all([
-        uploadArquivo(comprovante, "comprovante"),
-        uploadArquivo(notaFiscal, "nota-fiscal"),
-        uploadArquivo(recibo, "recibo"),
-        uploadArquivo(boleto, "boleto"),
-      ]);
+
+      let patchComprovante = null, patchNfUrl = null, patchReciboUrl = null, patchBoletoUrl = null;
+      let patchNumeroNf = "", patchNumeroRecibo = "", patchNumeroBoleto = "";
+      const observacoesExtra: string[] = [];
+
+      for (const anexo of anexos) {
+        if (anexo.file) {
+          const url = await uploadArquivo(anexo.file, anexo.tipo);
+          if (anexo.tipo === "comprovante") patchComprovante = url;
+          if (anexo.tipo === "nf") { patchNfUrl = url; patchNumeroNf = anexo.numero; }
+          if (anexo.tipo === "recibo") { patchReciboUrl = url; patchNumeroRecibo = anexo.numero; }
+          if (anexo.tipo === "boleto") { patchBoletoUrl = url; patchNumeroBoleto = anexo.numero; }
+          if (anexo.tipo === "outro") observacoesExtra.push(`Anexo (${anexo.numero || 'Outro'}): ${url}`);
+        }
+      }
+
+      const finalObservacoes = [observacoes, ...observacoesExtra].filter(Boolean).join("\n");
 
       const linhas = linhasValidas.map(({ c, valor, pct }) => {
-        // Ver observação da função: default assume `id` como socio_id quando
-        // nem cliente_id nem socio_id vierem preenchidos no objeto do cotista.
         const socioId = c.socio_id ?? (c.cliente_id ? null : c.id);
         const clienteId = c.cliente_id ?? null;
         return {
@@ -1805,18 +1840,18 @@ function NovoLancamentoDialog({
           valor_rateado: valor,
           valor_pago_real: status !== "pendente" ? valor : null,
           percentual_uso: pct || null,
-          numero_nf: numeroNf || null,
+          numero_nf: patchNumeroNf || null,
           numero_doc: docNumero || null,
-          numero_recibo: numeroRecibo || null,
-          numero_boleto: numeroBoleto || null,
+          numero_recibo: patchNumeroRecibo || null,
+          numero_boleto: patchNumeroBoleto || null,
           forma_pagamento: status !== "pendente" ? forma : null,
           status,
           pago_por: pagador || null,
-          observacoes: observacoes || null,
-          comprovante_url,
-          nf_url,
-          recibo_url,
-          boleto_url,
+          observacoes: finalObservacoes || null,
+          comprovante_url: patchComprovante,
+          nf_url: patchNfUrl,
+          recibo_url: patchReciboUrl,
+          boleto_url: patchBoletoUrl,
         };
       });
 
@@ -1833,16 +1868,17 @@ function NovoLancamentoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Novo lançamento</DialogTitle>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 gap-0 border-0 bg-background/95 backdrop-blur-md shadow-2xl rounded-2xl">
+        <DialogHeader className="px-6 py-5 border-b border-border/50 bg-muted/20">
+          <DialogTitle className="flex items-center gap-2 text-xl font-bold">Novo Lançamento</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
+        
+        <div className="p-6 space-y-7">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label>Fluxo</Label>
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Fluxo</Label>
               <Select value={fluxo} onValueChange={(v) => setFluxo(v as "ENTRADA" | "SAIDA")}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SAIDA">Saída (despesa)</SelectItem>
                   <SelectItem value="ENTRADA">Entrada</SelectItem>
@@ -1850,9 +1886,9 @@ function NovoLancamentoDialog({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Status</Label>
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Status</Label>
               <Select value={status} onValueChange={(v) => setStatus(v as any)}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {fluxo === "ENTRADA" ? (
                     <>
@@ -1870,33 +1906,33 @@ function NovoLancamentoDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label>Data de emissão</Label>
-              <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-9" />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Emissão</Label>
+              <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-10 bg-background" />
             </div>
             <div className="grid gap-2">
-              <Label>Data de vencimento</Label>
-              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-9" />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Vencimento</Label>
+              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-10 bg-background" />
             </div>
             <div className="grid gap-2">
-              <Label>Data de pagamento</Label>
-              <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-9" />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pagamento</Label>
+              <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-10 bg-background" />
             </div>
           </div>
 
           <div className="grid gap-2">
-            <Label>Descrição</Label>
-            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="h-9" placeholder="Ex.: Manutenção preventiva, hangaragem..." />
+            <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Descrição</Label>
+            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="h-10 bg-background text-base" placeholder="Ex.: Manutenção preventiva, hangaragem..." />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label>Documento</Label>
-              <Input value={docNumero} onChange={(e) => setDocNumero(e.target.value)} className="h-9" />
+              <Label className="text-[11px] uppercase text-muted-foreground font-bold tracking-wider">Nº Documento</Label>
+              <Input value={docNumero} onChange={(e) => setDocNumero(e.target.value)} className="h-11 bg-background" />
             </div>
             <div className="grid gap-2">
-              <Label>Valor total</Label>
+              <Label className="text-[11px] uppercase text-primary font-bold tracking-wider">Valor Total</Label>
               <Input
                 type="text"
                 value={valorTotal}
@@ -1906,107 +1942,98 @@ function NovoLancamentoDialog({
                   setValorTotal(normalized);
                   distribuirAutomaticamente(normalized);
                 }}
-                className="h-9 font-mono"
+                className="h-11 font-mono text-lg font-bold bg-primary/5 text-primary border-primary/20 shadow-sm"
                 placeholder="0,00"
               />
             </div>
             <div className="grid gap-2">
-              <Label>Forma de pagamento</Label>
+              <Label className="text-[11px] uppercase text-muted-foreground font-bold tracking-wider">Forma de pagamento</Label>
               <Select value={forma} onValueChange={setForma} disabled={status === "pendente"}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-11 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>{FORMAS_PAGAMENTO.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label>Fornecedor</Label>
-              <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Fornecedor</Label>
+              <div className="h-10 bg-background rounded-md [&>button]:h-10">
+                <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
+              </div>
             </div>
             <div className="grid gap-2">
-              <Label>Categoria</Label>
-              <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Categoria</Label>
+              <div className="h-10 bg-background rounded-md [&>button]:h-10">
+                <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pago por</Label>
+              <div className="h-10 bg-background rounded-md [&>button]:h-10">
+                <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label>Tipo de rateio</Label>
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Tipo de rateio</Label>
               <Select value={tipoRateio} onValueChange={setTipoRateio}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>{TIPOS_RATEIO.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Periodicidade</Label>
+              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Periodicidade</Label>
               <Select value={periodicidade} onValueChange={setPeriodicidade}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>{PERIODICIDADES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
               </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Pago por</Label>
-              <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="grid gap-2">
-              <Label>Número NF</Label>
-              <Input value={numeroNf} onChange={(e) => setNumeroNf(e.target.value)} className="h-9" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Número recibo</Label>
-              <Input value={numeroRecibo} onChange={(e) => setNumeroRecibo(e.target.value)} className="h-9" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Número boleto</Label>
-              <Input value={numeroBoleto} onChange={(e) => setNumeroBoleto(e.target.value)} className="h-9" />
             </div>
           </div>
 
           <div className="grid gap-2">
-            <Label>Observações</Label>
-            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} />
+            <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Observações</Label>
+            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} className="bg-background" />
           </div>
 
-          <div className="grid gap-3 rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between">
+          <div className="grid gap-3 rounded-2xl border border-border/50 p-5 bg-muted/10 shadow-inner">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" /> Rateio por cotista
+                <User className="h-4 w-4 text-primary" /> Rateio por cotista
               </div>
-              <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => distribuirAutomaticamente(valorTotal)}>
+              <Button type="button" variant="outline" size="sm" className="h-8 text-xs bg-background" onClick={() => distribuirAutomaticamente(valorTotal)}>
                 Distribuir pela cota
               </Button>
             </div>
             {cotistas.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Nenhum cotista cadastrado para esta aeronave.</p>
+              <p className="text-xs text-muted-foreground text-center py-4">Nenhum cotista cadastrado para esta aeronave.</p>
             ) : (
-              <div className="space-y-2">
-                <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,1fr)] gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="space-y-3">
+                <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,1fr)] gap-3 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold px-2">
                   <span>Cotista</span>
                   <span className="text-right">% Uso</span>
                   <span className="text-right">Valor</span>
                 </div>
                 {cotistas.map((c) => (
-                  <div key={c.id} className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,1fr)] items-center gap-2">
-                    <span className="truncate text-xs">{c.nome} <span className="text-[10px] text-muted-foreground">({c.percentual}% cota)</span></span>
+                  <div key={c.id} className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.7fr)_minmax(0,1fr)] items-center gap-3">
+                    <span className="truncate text-xs font-medium">{c.nome} <span className="text-[10px] text-muted-foreground font-normal">({c.percentual}%)</span></span>
                     <Input
                       value={rateio[c.id]?.pctUso ?? ""}
                       onChange={(e) => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], pctUso: e.target.value } }))}
                       onBlur={() => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], pctUso: formatNumberPTBR(parsePTBRNumber(prev[c.id]?.pctUso ?? "0")) } }))}
-                      className="h-7 text-xs text-right font-mono"
+                      className="h-9 text-xs text-right font-mono bg-background"
                     />
                     <Input
                       value={rateio[c.id]?.valor ?? ""}
                       onChange={(e) => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], valor: maskCurrencyInput(e.target.value) } }))}
                       onBlur={() => setRateio((prev) => ({ ...prev, [c.id]: { ...prev[c.id], valor: formatNumberPTBR(parsePTBRNumber(prev[c.id]?.valor ?? "0")) } }))}
-                      className="h-7 text-xs text-right font-mono"
+                      className="h-9 text-xs text-right font-mono bg-background"
                     />
                   </div>
                 ))}
-                <div className={cn("flex items-center justify-between rounded-md px-2 py-1 text-[11px]", Math.abs(diferenca) < 0.01 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400")}>
+                <div className={cn("flex items-center justify-between rounded-lg px-3 py-2 text-[11px] font-medium mt-2 shadow-sm", Math.abs(diferenca) < 0.01 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20")}>
                   <span>Rateado: {formatBRL(totalRateado)} de {formatBRL(valorTotalNum)}</span>
                   <span>{Math.abs(diferenca) < 0.01 ? "Confere" : `Diferença: ${formatBRL(diferenca)}`}</span>
                 </div>
@@ -2014,65 +2041,48 @@ function NovoLancamentoDialog({
             )}
           </div>
 
-          <div className="grid gap-3 rounded-lg border border-border p-3">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
-              <Paperclip className="h-3.5 w-3.5" /> Anexos
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border/50">
+               <Label className="text-sm font-semibold flex items-center gap-2">
+                 <Paperclip className="h-4 w-4 text-primary" /> Anexos do Lançamento
+               </Label>
+               <Button type="button" variant="outline" size="sm" onClick={addAnexo} className="h-8 text-xs gap-1.5 bg-background">
+                 <Plus className="h-3 w-3" /> Adicionar
+               </Button>
             </div>
-            <FileFieldRow label="Comprovante" hint="→ comprovante_url" currentUrl={null} file={comprovante} onChange={setComprovante} />
-            <FileFieldRow label="Nota Fiscal" hint="→ nf_url" currentUrl={null} file={notaFiscal} onChange={setNotaFiscal} />
-            <FileFieldRow label="Recibo" hint="→ recibo_url" currentUrl={null} file={recibo} onChange={setRecibo} />
-            <FileFieldRow label="Boleto" hint="→ boleto_url" currentUrl={null} file={boleto} onChange={setBoleto} />
+            
+            <div className="space-y-3">
+               {anexos.length === 0 && (
+                  <div className="text-center py-6 text-sm text-muted-foreground border border-dashed border-border/70 rounded-xl bg-muted/10">Nenhum anexo adicionado.</div>
+               )}
+               {anexos.map((anexo) => (
+                  <div key={anexo.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-muted/10 p-3 rounded-xl border border-border/60 hover:border-border transition-colors group">
+                     <Select value={anexo.tipo} onValueChange={(v) => updateAnexo(anexo.id, "tipo", v)}>
+                        <SelectTrigger className="w-full sm:w-[150px] h-9 bg-background"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                           {TIPOS_ANEXO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                     </Select>
+                     <Input placeholder="Nº do doc..." value={anexo.numero} onChange={e => updateAnexo(anexo.id, "numero", e.target.value)} className="w-full sm:w-[130px] h-9 bg-background" />
+                     <div className="flex-1 min-w-[200px] flex items-center gap-3 w-full">
+                       <Input type="file" accept="image/*,.pdf" onChange={e => updateAnexo(anexo.id, "file", e.target.files?.[0] || null)} className="h-9 file:h-full file:bg-transparent file:text-xs file:font-medium text-xs bg-background" />
+                     </div>
+                     <Button variant="ghost" size="icon" className="text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 w-9 h-9 shrink-0" onClick={() => removeAnexo(anexo.id)}>
+                        <Trash2 className="w-4 h-4" />
+                     </Button>
+                  </div>
+               ))}
+            </div>
           </div>
         </div>
-        <DialogFooter className="pt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-9">Cancelar</Button>
-          <Button onClick={handleSalvar} disabled={saving} className="bg-primary hover:bg-primary/90 h-9">
+        
+        <DialogFooter className="px-6 py-5 border-t border-border/50 bg-muted/20 rounded-b-2xl">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-10 px-5">Cancelar</Button>
+          <Button onClick={handleSalvar} disabled={saving} className="bg-primary hover:bg-primary/90 h-10 px-5">
             {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</> : <><Plus className="mr-2 h-4 w-4" />Criar lançamento</>}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function FileFieldRow({
-  label, hint, currentUrl, file, onChange,
-}: {
-  label: string;
-  hint: string;
-  currentUrl: string | null;
-  file: File | null;
-  onChange: (f: File | null) => void;
-}) {
-  return (
-    <div className="grid gap-1">
-      <div className="flex items-center justify-between gap-2">
-        <Label className="text-xs font-semibold text-foreground">
-          {label} <span className="ml-1 text-[10px] font-mono text-muted-foreground/70">{hint}</span>
-        </Label>
-        {currentUrl && !file && (
-          <a
-            href={currentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-primary hover:underline flex items-center gap-1"
-          >
-            <ExternalLink className="h-3 w-3" /> atual
-          </a>
-        )}
-      </div>
-      <Input
-        type="file"
-        accept="image/*,.pdf"
-        onChange={(e) => onChange(e.target.files?.[0] || null)}
-        className="h-9 text-xs file:h-full file:bg-transparent file:text-xs file:font-medium"
-        aria-label={label}
-      />
-      {file && (
-        <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 truncate">
-          Novo arquivo: {file.name}
-        </span>
-      )}
-    </div>
   );
 }
