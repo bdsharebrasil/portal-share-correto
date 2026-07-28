@@ -30,7 +30,6 @@ import {
   resolverClienteParaRateio,
   resolverFornecedorSolicitacao,
   resolverPagoPorSolicitacao,
-  resolverSubcategoriaSelecionadaParaPayload,
   validarSomaPercentualClientes,
   ClienteLinhaRateioInput,
 } from "@/components/dashboard/financeiro/solicitacaoPagamentoValidators";
@@ -104,14 +103,6 @@ const TIPOS_ANEXO: { value: AnexoDoc["tipo"]; label: string }[] = [
 
 const BUCKET = "n.f-boletos-clients";
 
-// Tipos de combustível suportados pelo abastecimento — mantidos como lista fechada
-// para evitar variações de digitação ("JET-A1", "Jet A1", "jet a-1"...) chegando ao banco.
-const TIPOS_COMBUSTIVEL = ["AVGAS", "JET A-1"] as const;
-
-// Sanitiza o nome do arquivo antes de virar "key" no Supabase Storage.
-// O Storage rejeita (InvalidKey) nomes com acentos, cedilha, espaços colados na
-// extensão, ou outros caracteres fora de [a-zA-Z0-9_-.]. Aqui: remove acentos,
-// troca espaços por "_", remove qualquer caractere não seguro e preserva a extensão.
 function sanitizeFileName(name: string): string {
   const dotIndex = name.lastIndexOf(".");
   const base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
@@ -119,19 +110,19 @@ function sanitizeFileName(name: string): string {
 
   const cleanBase = base
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // remove acentos (á, ã, ç, é, etc.)
+    .replace(/[\u0300-\u036f]/g, "") 
     .trim()
-    .replace(/\s+/g, "_") // espaços -> underscore
-    .replace(/[^a-zA-Z0-9_-]/g, "") // remove qualquer outro caractere não seguro
-    .slice(0, 100); // evita nomes gigantes
+    .replace(/\s+/g, "_") 
+    .replace(/[^a-zA-Z0-9_-]/g, "") 
+    .slice(0, 100); 
 
   const cleanExt = ext.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
   const finalBase = cleanBase || "arquivo";
   return cleanExt ? `${finalBase}.${cleanExt}` : finalBase;
 }
 
-// Uppercase automático para campos de texto livre preenchidos pelo usuário.
-// Mantido em uma função utilitária única para garantir consistência em todo o form.
+const TIPOS_COMBUSTIVEL = ["AVGAS", "JET A-1"] as const;
+
 const up = (value: string) => (value || "").toUpperCase();
 
 type SocioOption = { id: string; nome: string; percentual_participacao?: number | null };
@@ -171,7 +162,6 @@ interface ClienteLinhaState {
   valorClienteOverride?: string;
   overridesSocio: Record<string, string>;
   valorOverridesSocio: Record<string, string>;
-  // Dados de recibo de taxa (preenchidos automaticamente)
   numeroDocumentoRecibo?: string | null;
   urlBoleto?: string | null;
   urlDemonstrativo?: string | null;
@@ -207,7 +197,6 @@ async function insertAndGetId(table: string, payload: Record<string, unknown>) {
 }
 
 export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onOpenTravelReports }: SolicitacaoPagamentoModalProps) {
-  // === ESTADO DO WIZARD ===
   const [etapaAtual, setEtapaAtual] = useState(initialData ? 1 : 0);
 
   useEffect(() => {
@@ -255,14 +244,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [referenciaNumero, setReferenciaNumero] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Combustível
   const [fuelComanda, setFuelComanda] = useState("");
   const [fuelNf, setFuelNf] = useState("");
   const [fuelLookupLoading, setFuelLookupLoading] = useState(false);
   const [fuelLookupResult, setFuelLookupResult] = useState<AbastecimentoLookup | null>(null);
   const [fuelLookupSearched, setFuelLookupSearched] = useState(false);
 
-  // Novo Abastecimento (criação inline quando não encontrado)
   const [novoAbastOpen, setNovoAbastOpen] = useState(false);
   const [novoAbastSaving, setNovoAbastSaving] = useState(false);
   const [novoAbast, setNovoAbast] = useState({
@@ -280,13 +267,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [novoAbastNotaFile, setNovoAbastNotaFile] = useState<File | null>(null);
   const [novoAbastBoletoFile, setNovoAbastBoletoFile] = useState<File | null>(null);
 
-  // Valor total do novo abastecimento é sempre derivado de litros × valor unitário.
-  // Nunca é enviado ao banco — "valor_total" é coluna GENERATED ALWAYS AS (litros * valor_unitario) STORED.
   const novoAbastLitrosNum = Number(String(novoAbast.litros).replace(",", ".")) || 0;
   const novoAbastValorUnitarioNum = Number(String(novoAbast.valor_unitario).replace(",", ".")) || 0;
   const novoAbastValorTotalCalculado = +(novoAbastLitrosNum * novoAbastValorUnitarioNum).toFixed(2);
 
-  // Taxas Aeroportuárias
   const [taxaOrigem, setTaxaOrigem] = useState<TaxaOrigem>(null);
   const [taxaRecibos, setTaxaRecibos] = useState<TaxaReciboOption[]>([]);
   const [taxaReciboId, setTaxaReciboId] = useState("");
@@ -355,7 +339,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     })();
   }, [open, aeronaveId]);
 
-  // Prefill fields when opened with initialData
   useEffect(() => {
     if (!open || !initialData) return;
     try {
@@ -375,7 +358,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       if (initialData.tipo_rateio) setTipoRateio(initialData.tipo_rateio);
       if (initialData.percentual_uso != null) setPercentualUso(String(initialData.percentual_uso));
 
-      // rateio_cliente prefill (linhas editáveis)
       if (Array.isArray(initialData.rateio_cliente) && initialData.rateio_cliente.length) {
         const linhas: ClienteLinhaState[] = initialData.rateio_cliente.map((rc: any) => ({
           uid: crypto.randomUUID(),
@@ -395,7 +377,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         setClienteLinhas(linhas);
       }
 
-      // anexos
       if (Array.isArray(initialData.anexos) && initialData.anexos.length) {
         const mapped = initialData.anexos.map((a: any, idx: number) => ({
           id: `prefill-${idx}`,
@@ -415,7 +396,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         if (possible.length) setAnexos(possible);
       }
 
-      // taxa origem + competencia
       if (initialData.taxa_origem === "INFRAERO" || initialData.taxa_origem === "DECEA") {
         setTaxaOrigem(initialData.taxa_origem);
       }
@@ -432,7 +412,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     }
   }, [open, initialData]);
 
-  // Prefill do tipo de despesa/subcategoria — depende de tiposDespesa já carregado
   useEffect(() => {
     if (!open || !initialData || tiposDespesa.length === 0) return;
     const label: string | undefined =
@@ -452,7 +431,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     if (initialData.subcategoria && !subcategoriaSel) {
       setSubcategoriaSel(String(initialData.subcategoria));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialData, tiposDespesa]);
 
   useEffect(() => {
@@ -464,7 +442,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
   useEffect(() => {
     if (!socioId || clienteId || !clientesDaAeronave.length) return;
-
     const clienteInferido = resolverClienteParaRateio({ clienteId, socioId, clientesDaAeronave });
     if (clienteInferido) {
       setClienteId(clienteInferido);
@@ -476,6 +453,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     const base = socioId ? (info?.socios || []).filter((s) => s.id === socioId) : (info?.socios || []);
     return base.filter((s) => !sociosExcluidos.includes(s.id));
   };
+
   const tipoNormalizadoAtual = normalizarTipoDespesa(tipoDespesaBase || tipoDespesaLabel || "");
   const subcategoriaNormalizadaAtual = normalizarSubcategoriaDespesa(subcategoriaSel || "");
   const isViagemMode = tipoNormalizadoAtual === "DESPESAS_DE_VIAGEM";
@@ -508,9 +486,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       setTaxaReciboId("");
       return;
     }
-    // Para TAXAS AEROPORT a origem (INFRAERO/DECEA) é apenas metadado — os recibos
-    // são registrados com categoria "TAXAS AEROPORT..." independente da origem, então
-    // filtramos sempre pelo tipo de despesa base para não devolver lista vazia.
     const filtroCategoria = tipoDespesaBase || tipoDespesaLabel || "";
     if (isTaxasMode && !taxaOrigem) {
       setTaxaRecibos([]);
@@ -529,7 +504,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         setTaxaRecibos([]);
         return;
       }
-      // normaliza para o shape esperado (url_boleto/url_nf legado)
       const rows = ((data || []) as any[]).map((r) => ({
         ...r,
         url_boleto: r.boleto_url ?? r.url_boleto ?? null,
@@ -547,7 +521,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     setDescricao((prev) => prev || `${r.nome_categoria || "Taxa"} - Recibo ${r.numero_recibo || r.numero_documento || ""}`);
   }, [taxaReciboId, taxaRecibos]);
 
-  // Preencher automaticamente dados de taxa nas linhas de rateio quando for modo de taxas
   useEffect(() => {
     if (!isReciboFirstMode || clienteLinhas.length === 0) return;
 
@@ -563,7 +536,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         const recibo = taxaRecibos.find((r) => r.id === reciboId);
         if (!recibo) return linha;
 
-        // Preencher automaticamente os dados do recibo
         const valorReciboEmReais = Number(recibo.valor_total || 0) / 100;
         const pctRecibo = Number(recibo.percentual ?? 0);
         return {
@@ -574,14 +546,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           urlDemonstrativo: recibo.url_nf || undefined,
           urlPdfRecibo: recibo.pdf_url || undefined,
           valorReciboCliente: valorReciboEmReais || undefined,
-          // Se o recibo trouxer percentual, usa como % do cliente; caso contrário mantém o valor atual
           percentualUsoCliente: pctRecibo > 0 ? pctRecibo.toFixed(2) : linha.percentualUsoCliente,
         };
       })
     );
   }, [isReciboFirstMode, taxaReciboId, taxaReciboPorCliente, taxaRecibos, clienteLinhas.length, clienteId]);
 
-  // Quando um recibo único é escolhido (cliente específico) atualiza automaticamente o Valor Total da despesa
   useEffect(() => {
     if (!isReciboFirstMode || !taxaReciboId) return;
     const r = taxaRecibos.find((x) => x.id === taxaReciboId);
@@ -627,7 +597,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     }
   };
 
-  // Autofill dos campos "Informações da Fatura" a partir do abastecimento vinculado
   useEffect(() => {
     if (!isCombustivelMode || !fuelLookupResult) return;
     if (fuelLookupResult.data) {
@@ -709,8 +678,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         trecho: novoAbast.trecho || "",
         litros: litrosNum || null,
         valor_unitario: vuNum || null,
-        // valor_total NÃO entra aqui: é coluna GENERATED ALWAYS AS (litros * valor_unitario) STORED no banco.
-        // Enviar qualquer valor para ela dispara o erro 428C9 (cannot insert a non-DEFAULT value).
         comanda: fuelComanda || null,
         nf: fuelNf || null,
         abastecedor_id: novoAbast.abastecedor_id || null,
@@ -736,8 +703,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         id: inserted.id,
         mensagem: `✓ Novo abastecimento criado (Comanda ${inserted.comanda || "—"} / NF ${inserted.nf || "—"})`,
       });
-      // O valor exibido no restante do wizard usa o total calculado localmente (idêntico ao
-      // gerado pelo banco, já que ambos partem de litros × valor_unitario).
       setValorTotal(valorTotalNum.toFixed(2));
       toast.success("Abastecimento criado e vinculado.");
       setNovoAbastOpen(false);
@@ -781,10 +746,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       return;
     }
 
-    // Overrides de sócio começam VAZIOS de propósito: a UI calcula o % proporcional
-    // à participação societária (percentual_participacao) de cada sócio visível
-    // automaticamente (ver bloco "Rateio Interno (Por Sócio)" abaixo), garantindo que
-    // a soma sempre feche em 100% — inclusive depois de excluir algum sócio do rateio.
     setClienteLinhas([{
       uid: crypto.randomUUID(),
       clienteId,
@@ -824,9 +785,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     const opcoesBase = isViagemMode
       ? sociosParaRateio.map((s) => ({ id: s.id, nome: s.nome }))
       : clienteLinhas.flatMap((linha) => {
-          const info = getClienteAeronaveInfo(linha.clienteId);
-          return (info?.socios || []).map((s) => ({ id: s.id, nome: s.nome }));
-        });
+        const info = getClienteAeronaveInfo(linha.clienteId);
+        return (info?.socios || []).map((s) => ({ id: s.id, nome: s.nome }));
+      });
     return consolidarSociosParaAnexo(opcoesBase);
   }, [clienteLinhas, clientesDaAeronave, isViagemMode, sociosParaRateio]);
 
@@ -1067,7 +1028,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     return () => clearTimeout(timer);
   }, [clienteIdParaDedup, dataEmissao, descricao, tipoDespesaLabel, valorNumerico, reciboExistenteId, usarReciboExistente, recibosExistentes]);
 
-  // Tipos de despesa que SEMPRE geram um contas a receber (ADM SHARE / ADM E TRIP SHARE)
   const isAdmShareType = useMemo(() => {
     const label = (tipoDespesaLabel || "").trim().toUpperCase();
     return label === "ADM SHARE BRASIL" || label === "ADM E TRIP SHARE BRASIL";
@@ -1077,8 +1037,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     if (isAdmShareType && !gerarCaixaCliente) setGerarContasAReceber(true);
   }, [isAdmShareType, gerarCaixaCliente]);
 
-  // "ENVIO DESPESA CAIXA CLIENTE" é exclusivo: não passa pelo caixa share, logo não há
-  // contas a pagar / contas a receber nem reembolso.
   const toggleCaixaCliente = (checked: boolean) => {
     setGerarCaixaCliente(checked);
     if (checked) {
@@ -1089,10 +1047,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     }
   };
 
-
-
   const resetForm = () => {
-    setEtapaAtual(1); // Wizard volta para a etapa inicial
+    setEtapaAtual(1); 
     setAeronaveId(""); 
     setTipoDespesa(""); setTipoDespesaLabel(""); setDescricao(""); setValorTotal("");
     setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio("FIXO"); setObservacoes("");
@@ -1106,7 +1062,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     setTaxaOrigem(null); setTaxaRecibos([]); setTaxaReciboId(""); setTaxaReciboPorCliente({}); setTaxaRecibosMultiplos([]);
   };
 
-  // --- LÓGICA DO WIZARD: Validação por etapa ---
   const podeAvancar = () => {
     if (etapaAtual === 1) {
       const baseOk = !!(aeronaveId && tipoRateio && periodicidade && tipoDespesaLabel);
@@ -1169,8 +1124,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     return out;
   };
 
-  const pickUrl = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo)?.url || null;
-  const pickNumero = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo)?.numero || null;
+  // Funções exclusivas para pegar arquivos GLOBAIS (sem cliente/sócio) para fallback:
+  const pickUrl = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo && !a.socioId && !a.clienteId)?.url || null;
+  const pickNumero = (list: AnexoDoc[], tipo: AnexoDoc["tipo"]) => list.find((a) => a.tipo === tipo && !a.socioId && !a.clienteId)?.numero || null;
+  
   const pickAnexoParaRateio = (list: AnexoDoc[], tipo: AnexoDoc["tipo"], clienteId: string | null, socioId: string | null) =>
     list.find((a) => a.tipo === tipo && !!socioId && a.socioId === socioId) ||
     list.find((a) => a.tipo === tipo && !!clienteId && !a.socioId && a.clienteId === clienteId) ||
@@ -1223,7 +1180,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     if (!trimmed) return null;
     const lower = trimmed.toLowerCase();
     if (lower === "__all__" || lower === "all" || lower === "todos") return null;
-    // Only accept UUID-shaped identifiers to avoid inserting sentinels like "all"
     const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRe.test(trimmed)) return null;
     return trimmed;
@@ -1301,10 +1257,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           : docUrl || null;
       const demonstrativoUrl = pickUrl(anexosProc, "demonstrativo") || null;
       const comprovanteUrl = docUrl || anexosOrigem.comprovante_pagamento || anexosOrigem.comprovante_url || null;
+      
       const nfNum = pickNumero(anexosProc, "nf");
       const reciboNum = pickNumero(anexosProc, "recibo") || (isTaxasMode && taxaRecibosMultiplosData.length > 0 ? taxaRecibosMultiplosData[0]?.numero : null) || (isTaxasMode ? taxaReciboSelecionado?.numero_recibo || taxaReciboSelecionado?.numero_documento || null : null) || reciboNumeroSelecionado;
       const boletoNum = pickNumero(anexosProc, "boleto");
       const docNum = pickNumero(anexosProc, "doc") || (isRelatorioViagemMode && travelReportSel ? travelReportSel.numero_relatorio : null) || (isReciboViagemMode ? referenciaNumero : null);
+      
       const subcategoria1Val = isSubcat1Sel ? subcategoriaSel : null;
       const subcategoria2Val = isSubcat2Sel ? subcategoriaSel : null;
       const subcategoria3Val = isSubcat3Sel ? subcategoriaSel : null;
@@ -1338,9 +1296,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
         for (const [index, entry] of tripValues.entries()) {
           const linhasRateioViagem = montarLinhasRateio({ valorTotal: entry.valor, percentualUso: percNumerico, socios, socioSelecionadoId: socioId || null });
+          const descricaoViagemModo = descricao ? `${descricao} — RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}` : `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`;
+
           const capId = await insertAndGetId("contas_apagar", {
             data_vencimento: dataVenc, data_agendamento: dataVenc, valor: entry.valor, categoria: "REEMBOLSO TRIPULAÇÃO",
-            categoria_id: categoriaContaId || null, descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`,
+            categoria_id: categoriaContaId || null, 
+            descricao: descricaoViagemModo,
             status: statusCP, observacoes: `Reembolso ${entry.label.toLowerCase()} do relatório ${travelReportSel.numero_relatorio}`,
             cliente_id: clienteParaPersistencia, socios_cliente_id: socioId || null, fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
             fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null, fornecedor_nome: fornecedorNomeFinal,
@@ -1353,7 +1314,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           let movId: string;
           try {
             movId = await insertAndGetId("movimentacoes", {
-              descricao: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, tipo: "despesa", tipo_caixa: "cliente",
+              descricao: descricaoViagemModo, 
+              tipo: "despesa", tipo_caixa: "cliente",
               categoria_id: categoriaContaId, valor: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
               clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
@@ -1371,25 +1333,37 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           await supabase.from("contas_apagar").update({ movimentacao_id: movId }).eq("id", capId);
 
           const rateioPayloadsViagem = linhasRateioViagem.length > 0
-            ? linhasRateioViagem.map((linha) => ({
-                despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
-                data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
-                fornecedor_nome: fornecedorNomeFinal, cliente_id: normalizeClienteId(clienteId), clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
-                socios_nome: linha.socio_nome, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
-                percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
-                descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
-                valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
-                boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
-                relatorio_url: travelReportSel.pdf_url || docUrl || null,
-                pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length }),
-              }))
+            ? linhasRateioViagem.map((linha) => {
+                const anexoNf = pickAnexoParaRateio(anexosProc, "nf", normalizeClienteId(clienteId), linha.socio_id);
+                const anexoDoc = pickAnexoParaRateio(anexosProc, "doc", normalizeClienteId(clienteId), linha.socio_id);
+                const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", normalizeClienteId(clienteId), linha.socio_id);
+                const numeroNfLinha = anexoNf?.numero || nfNum;
+                const numeroDocLinha = anexoDoc?.numero || travelReportNumeroDoc;
+                const nfUrlLinha = anexoNf?.url || nfUrl;
+                const comprovanteUrlLinha = anexoDoc?.url || comprovanteUrl;
+                const reciboNumLinha = anexoRecibo?.numero || reciboNum;
+                const reciboUrlLinha = anexoRecibo?.url || reciboUrl;
+
+                return {
+                  despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
+                  data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha,
+                  fornecedor_nome: fornecedorNomeFinal, cliente_id: normalizeClienteId(clienteId), clientes_nome: clienteSel?.razaoSocial || null, socio_id: linha.socio_id,
+                  socios_nome: linha.socio_nome, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
+                  percentual_sociedade: socios.find((socio) => socio.id === linha.socio_id)?.percentual_participacao ?? 0, percentual_uso: linha.percentual_uso,
+                  descricao_despesa: descricaoViagemModo, descricao: descricaoViagemModo, categoria_custo: tipoDespesa || null, periodicidade,
+                  valor_total_despesa: entry.valor, valor_rateado: linha.valor_rateado, status: statusMov, observacoes: obsFinal || null,
+                  boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
+                  relatorio_url: travelReportSel.pdf_url || docUrl || null,
+                  pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || socioSel?.nome || null, clienteNome: clienteSel?.razaoSocial || null, socioCount: linhasRateioViagem.length }),
+                };
+              })
             : [{
                 despesa_id: movId, fonte_despesa: "travel_expense_report", tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
                 data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: nfNum, numero_doc: travelReportNumeroDoc, numero_recibo: reciboNum,
                 fornecedor_nome: fornecedorNomeFinal, cliente_id: normalizeClienteId(clienteId), clientes_nome: clienteSel?.razaoSocial || null, socio_id: socioId || null,
                 socios_nome: socioSel?.nome || null, pago_diretamente: false, aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || travelReportSel.matricula_aeronave || null,
                 percentual_sociedade: socioSel?.percentual_participacao ?? 0, percentual_uso: percNumerico,
-                descricao_despesa: `RV ${travelReportSel.numero_relatorio} — ${entry.nome || entry.label}`, categoria_custo: tipoDespesa || null, periodicidade,
+                descricao_despesa: descricaoViagemModo, descricao: descricaoViagemModo, categoria_custo: tipoDespesa || null, periodicidade,
                 valor_total_despesa: entry.valor, valor_rateado: +(entry.valor * (percNumerico / 100)).toFixed(2), status: statusMov, observacoes: obsFinal || null,
                 boleto_url: boletoUrl, nf_url: nfUrl, recibo_url: reciboUrl, comprovante_url: comprovanteUrl, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
                 relatorio_url: travelReportSel.pdf_url || docUrl || null,
@@ -1430,15 +1404,11 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           taxasSubcatFields.numero_documento_decea = taxaNumeroDocumento;
           taxasSubcatFields.decea_url = taxaDemonstrativoUrl;
         }
-        // === Gera CONTAS A PAGAR (Share paga a despesa integral ao fornecedor) ===
+
         let capId: string | null = null;
         const movimentacaoIdsPorCliente: Record<string, string> = {};
 
         if (gerarCaixaCliente) {
-          // === ENVIO DESPESA CAIXA CLIENTE ===
-          // Não passa pelo caixa share: sem contas a pagar, sem contas a receber,
-          // sem movimentação share e sem reembolso. Somente movimentação de caixa
-          // do cliente + rateio de despesas.
           try {
             for (const linha of clienteLinhas) {
               const info = getClienteAeronaveInfo(linha.clienteId);
@@ -1450,8 +1420,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const valorCliente = Number.isFinite(overrideNum)
                 ? +overrideNum.toFixed(2)
                 : +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
-              const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId);
-              const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId);
+              
+              const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.clienteId, null);
+              const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId) || reciboNum;
+              const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId) || reciboUrl;
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
@@ -1478,18 +1450,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             const anexoNf = pickAnexoParaRateio(anexosProc, "nf", linha.cliente_id, linha.socio_id);
             const anexoDoc = pickAnexoParaRateio(anexosProc, "doc", linha.cliente_id, linha.socio_id);
             const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.cliente_id, linha.socio_id);
-            const numeroNfLinha = anexoNf?.numero || (anexosProc.some((a) => a.tipo === "nf") ? null : nfNum);
-            const numeroDocLinha = anexoDoc?.numero || (anexosProc.some((a) => a.tipo === "doc") ? null : docNum);
-            const nfUrlLinha = anexoNf?.url || (anexosProc.some((a) => a.tipo === "nf") ? null : nfUrl);
-            const comprovanteUrlLinha = anexoDoc?.url || (anexosProc.some((a) => a.tipo === "doc") ? null : comprovanteUrl);
-            const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
-            const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
+            const numeroNfLinha = anexoNf?.numero || nfNum;
+            const numeroDocLinha = anexoDoc?.numero || docNum;
+            const nfUrlLinha = anexoNf?.url || nfUrl;
+            const comprovanteUrlLinha = anexoDoc?.url || comprovanteUrl;
+            const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id) || reciboNum;
+            const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id) || reciboUrl;
+            
             return {
               despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
               data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: true,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
-              descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
+              descricao_despesa: descricao, descricao: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
               status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl,
               subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
@@ -1513,7 +1486,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             ...taxasSubcatFields,
           });
 
-          // Movimentação SHARE: despesa total que a Share Brasil vai pagar ao fornecedor
           try {
             await insertAndGetId("movimentacoes", {
               descricao, tipo: "despesa", tipo_caixa: "share",
@@ -1543,8 +1515,10 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const valorCliente = Number.isFinite(overrideNum)
                 ? +overrideNum.toFixed(2)
                 : +(valorNumericoFinal * (pctCliente / 100)).toFixed(2);
-              const reciboNumLinha = pickNumero(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId);
-              const reciboUrlLinha = pickUrl(anexosProc, "recibo") || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId);
+              
+              const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.clienteId, null);
+              const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId) || reciboNum;
+              const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId) || reciboUrl;
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
@@ -1567,18 +1541,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             const anexoNf = pickAnexoParaRateio(anexosProc, "nf", linha.cliente_id, linha.socio_id);
             const anexoDoc = pickAnexoParaRateio(anexosProc, "doc", linha.cliente_id, linha.socio_id);
             const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.cliente_id, linha.socio_id);
-            const numeroNfLinha = anexoNf?.numero || (anexosProc.some((a) => a.tipo === "nf") ? null : nfNum);
-            const numeroDocLinha = anexoDoc?.numero || (anexosProc.some((a) => a.tipo === "doc") ? null : docNum);
-            const nfUrlLinha = anexoNf?.url || (anexosProc.some((a) => a.tipo === "nf") ? null : nfUrl);
-            const comprovanteUrlLinha = anexoDoc?.url || (anexosProc.some((a) => a.tipo === "doc") ? null : comprovanteUrl);
-            const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id);
-            const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id);
+            const numeroNfLinha = anexoNf?.numero || nfNum;
+            const numeroDocLinha = anexoDoc?.numero || docNum;
+            const nfUrlLinha = anexoNf?.url || nfUrl;
+            const comprovanteUrlLinha = anexoDoc?.url || comprovanteUrl;
+            const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.cliente_id) : null) || getReciboNumeroForCliente(linha.cliente_id) || reciboNum;
+            const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id) || reciboUrl;
+            
             return {
               despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
               data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
-              descricao_despesa: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
+              descricao_despesa: descricao, descricao: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
               status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
@@ -1588,7 +1563,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           await supabaseClient.from("rateio_despesas").insert(rateioPayloads as any);
         }
 
-        // === Gera CONTAS A RECEBER por cliente (Share cobra o cliente) ===
         if (gerarContasAReceber && !gerarCaixaCliente) {
           for (const linha of clienteLinhas) {
             const info = getClienteAeronaveInfo(linha.clienteId);
@@ -1603,14 +1577,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             if (valorCliente <= 0) continue;
 
             if (!gerarContasAPagar) {
-              // Modo puro "Despesa Contas a Receber":
-              // Para CADA cliente gera 4 pernas transacionais:
-              //  1) contas_areceber  2) mov SHARE  3) mov CLIENTE  4) rateio_despesas
               try {
               await syncSaidaFinancialLegs({
                   origem: "solicitacao_areceber",
-                  // origem_id precisa ser UUID válido (reference_id e movimentacao_origem_id são UUID).
-                  // Cada linha do rateio gera um novo lançamento, então usamos um UUID aleatório.
                   origem_id:
                     typeof crypto !== "undefined" && crypto.randomUUID
                       ? crypto.randomUUID()
@@ -1645,8 +1614,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 throw arSyncErr;
               }
             } else {
-              // Modo combinado (contas a pagar + a receber): mantém somente o AR simples,
-              // pois movs e rateios já foram criados no bloco de contas a pagar acima.
               await supabaseClient.from("contas_areceber").insert({
                 numero: docNum || reciboNum || `SP-${Date.now()}`,
                 cliente_id: linha.clienteId,
@@ -1736,9 +1703,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             </section>
           )}
           
-          {/* =========================================
-              ETAPA 1: Classificação Básica (Progressiva)
-              ========================================= */}
           {etapaAtual === 1 && (
             <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="flex items-center justify-between border-b border-white/5 pb-3">
@@ -1747,7 +1711,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 </h3>
               </div>
 
-              {/* Escopo financeiro: Share paga e/ou Cliente paga */}
               <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
                 <Label className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">Escopo financeiro *</Label>
                 <p className="text-xs text-muted-foreground">Selecione o(s) fluxo(s) que esta solicitação deve gerar.</p>
@@ -1907,9 +1870,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             </section>
           )}
 
-          {/* =========================================
-              ETAPA 2: Contexto Específico
-              ========================================= */}
           {etapaAtual === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               
@@ -2114,7 +2074,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                           disabled={!taxaReciboId}
                         >
                           <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Recibo
-                        </Button>
+                        Button>
                       </div>
 
                       {taxaRecibosMultiplos.length === 0 ? (
@@ -2218,7 +2178,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                       const info = getClienteAeronaveInfo(linha.clienteId);
                       const sociosVisiveis = getSociosVisiveisParaCliente(info);
                       const temSocios = !!(info && info.socios.length > 0);
-                      const itensDisponiveis = clientesDaAeronave.filter((c) => c.clienteId === linha.clienteId || !clientesJaUsados.has(c.clienteId));
                       const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
                       const overrideNum = linha.valorClienteOverride !== undefined && linha.valorClienteOverride !== ""
                         ? Number(String(linha.valorClienteOverride).replace(/\./g, "").replace(",", "."))
@@ -2229,9 +2188,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
                       return (
                         <div key={linha.uid} className="rounded-lg border border-white/10 bg-background/60 p-4 space-y-4">
-                          {/* Quando o cliente tem sócios, o valor total já vem do campo Valor Total (R$)
-                              no cabeçalho do card — não repetimos "% da Nota" nem "Valor a Pagar" aqui,
-                              pois o rateio é 100% desse valor entre os sócios abaixo. */}
                           {!temSocios && (
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
                               <div className="lg:col-span-6 space-y-1.5">
@@ -2271,7 +2227,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                             </div>
                           )}
 
-                          {/* Dados de recibo de taxa preenchidos automaticamente */}
                           {isTaxasMode && (linha.numeroDocumentoRecibo || linha.urlBoleto || linha.urlDemonstrativo) && (
                             <div className="rounded-md bg-indigo-500/10 border border-indigo-500/30 p-3 space-y-2">
                               <div className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wide">Dados do Recibo (Preenchidos Automaticamente)</div>
@@ -2339,7 +2294,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                               <div className="grid gap-2">
                                 {(() => {
                                   const totalPctSocios = sociosVisiveis.reduce((s, so) => s + (Number(so.percentual_participacao ?? 0) || 0), 0);
-                                  // Descobre quais sócios têm override manual (% ou R$)
                                   const isManualOverride = (sId: string) => {
                                     const ov = linha.overridesSocio[sId];
                                     const vOv = linha.valorOverridesSocio?.[sId];
@@ -2351,7 +2305,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                     if (!isManualOverride(s.id)) return sum;
                                     const vOv = linha.valorOverridesSocio?.[s.id];
                                     if (vOv !== undefined && vOv !== "" && !Number.isNaN(Number(String(vOv).replace(",", ".")))) {
-                                      return sum + (valorNumerico > 0 ? (Number(String(vOv).replace(",", ".")) / valorNumerico) * 100 : 0);
+                                      return sum + (valorCliente > 0 ? (Number(String(vOv).replace(",", ".")) / valorCliente) * 100 : 0);
                                     }
                                     const ov = linha.overridesSocio[s.id];
                                     return sum + (Number(String(ov).replace(",", ".")) || 0);
@@ -2362,8 +2316,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                   const linhasSocios = sociosVisiveis.map((s) => {
                                     const overrideVal = linha.overridesSocio[s.id];
                                     const valorOverrideVal = linha.valorOverridesSocio?.[s.id];
-                                    // Redistribui o restante entre os sócios sem override manual,
-                                    // proporcionalmente à participação de cada um.
                                     let autoPct: number;
                                     if (isManualOverride(s.id)) {
                                       autoPct = totalPctSocios > 0 ? (Number(s.percentual_participacao ?? 0) / totalPctSocios) * 100 : 100 / sociosVisiveis.length;
@@ -2373,12 +2325,15 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                                       autoPct = naoOverridden.length > 0 ? restantePct / naoOverridden.length : 0;
                                     }
                                     const hasValorOverride = valorOverrideVal !== undefined && valorOverrideVal !== "" && !Number.isNaN(Number(String(valorOverrideVal).replace(",", ".")));
+                                    
                                     const pctEfetivo = hasValorOverride
-                                      ? (valorNumerico > 0 ? (Number(String(valorOverrideVal).replace(",", ".")) / valorNumerico) * 100 : 0)
+                                      ? (valorCliente > 0 ? (Number(String(valorOverrideVal).replace(",", ".")) / valorCliente) * 100 : 0)
                                       : (overrideVal !== undefined && overrideVal !== "" && !Number.isNaN(Number(overrideVal.replace(",", "."))) ? Number(overrideVal.replace(",", ".")) : autoPct);
+                                    
                                     const valorSocio = hasValorOverride
                                       ? Number(String(valorOverrideVal).replace(",", "."))
                                       : +(valorCliente * (pctEfetivo / 100)).toFixed(2);
+                                      
                                     return { socio: s, overrideVal, valorOverrideVal, autoPct, hasValorOverride, pctEfetivo, valorSocio };
                                   });
                                   const somaPctSocios = linhasSocios.reduce((sum, l) => sum + l.pctEfetivo, 0);
@@ -2419,8 +2374,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                     })}
                   </div>
 
-                  {/* Só mostra a soma quando há mais de 1 cliente no rateio — com um único
-                      cliente o valor é sempre 100% e o resumo duplica o "Soma dos sócios". */}
                   {clienteLinhas.length > 1 && (
                     <div className={cn("text-xs rounded-md p-2 border font-medium", erroSomaClientes ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300")}>
                       Soma de clientes: {somaPercentualClientes.toFixed(2)}% {erroSomaClientes ? `— ${erroSomaClientes}` : "— OK"}
@@ -2479,9 +2432,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             </div>
           )}
 
-          {/* =========================================
-              ETAPA 3: Dados Finais e Anexos
-              ========================================= */}
           {etapaAtual === 3 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5">
@@ -2526,8 +2476,34 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
                 {!(isCombustivelMode && fuelLookupResult) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <DateField label="Data de emissão (Competência)" value={dataEmissao} onChange={setDataEmissao} />
-                    <DateField label="Data de vencimento *" value={dataVencimento} onChange={setDataVencimento} />
+                    <div className="space-y-1.5">
+                      <Label>Data de emissão (Competência)</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dataEmissao && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dataEmissao ? format(dataEmissao, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                          <Calendar mode="single" selected={dataEmissao} onSelect={setDataEmissao} initialFocus className={cn("p-3 pointer-events-auto")} />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Data de vencimento *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dataVencimento && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dataVencimento ? format(dataVencimento, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+                          <Calendar mode="single" selected={dataVencimento} onSelect={setDataVencimento} initialFocus className={cn("p-3 pointer-events-auto")} />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                 )}
 
@@ -2709,11 +2685,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           )}
         </div>
 
-        {/* =========================================
-            RODAPÉ DE NAVEGAÇÃO REFEITO
-            ========================================= */}
         <DialogFooter className="gap-3 pt-4 border-t border-white/10 mt-2 flex sm:justify-between w-full">
-          {/* Botão de Voltar (escondido na etapa 1) */}
           <div className="flex-shrink-0">
             {etapaAtual > 1 && (
               <Button variant="ghost" onClick={() => setEtapaAtual((prev) => prev - 1)} disabled={saving}>
@@ -2749,9 +2721,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         </DialogFooter>
       </DialogContent>
 
-      {/* ============================================
-          Modal inline: Novo Abastecimento
-          ============================================ */}
       <Dialog open={novoAbastOpen} onOpenChange={(v) => { setNovoAbastOpen(v); if (!v) resetNovoAbast(); }}>
         <DialogContent className="max-w-2xl" style={{ zIndex: 1100 }}>
           <DialogHeader>
