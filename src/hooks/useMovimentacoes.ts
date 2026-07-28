@@ -22,11 +22,15 @@ export interface MovimentacaoRow {
   descricao: string;
   categoria_nome: string | null;
   tipo_caixa: "share" | "cliente";
+  cliente_id: string | null;
   cliente_nome: string | null;
   valor: number;
   conta_banco: string | null;
   aeronave_registro: string | null;
   numero_documento: string | null;
+  numero_nf: string | null;
+  numero_boleto: string | null;
+  numero_recibo: string | null;
   comprovante_url: string | null;
   nf_url: string | null;
   boleto_url: string | null;
@@ -101,14 +105,37 @@ export function useMovimentacoes() {
         }
       }
 
+      // Nome do cliente: `clientes` não possui coluna `nome` — usamos
+      // razao_social/proprietario e, quando a movimentação não tem cliente
+      // vinculado, resolvemos pelo cotista da aeronave (cotistas_aeronave).
+      const clienteNomeFromRow = (c: any) =>
+        c?.razao_social || c?.proprietario || c?.codigo_cliente || null;
+
+      // cotistas_aeronave: mapeia aeronave -> cliente (fallback)
+      const clientePorAeronave = new Map<string, string>();
+      if (aeronaveIds.length > 0) {
+        const { data: cotistas } = await supabase
+          .from("cotistas_aeronave")
+          .select("id_clientes, id_aeronave")
+          .in("id_aeronave", aeronaveIds);
+        (cotistas || []).forEach((c: any) => {
+          if (c.id_aeronave && c.id_clientes && !clientePorAeronave.has(c.id_aeronave)) {
+            clientePorAeronave.set(c.id_aeronave, c.id_clientes);
+            if (!clienteIds.includes(c.id_clientes)) clienteIds.push(c.id_clientes);
+          }
+        });
+      }
+
       if (clienteIds.length > 0) {
         const { data: clientesData } = await supabase
           .from("clientes")
-          .select("id, nome")
+          .select("id, razao_social, proprietario, codigo_cliente")
           .in("id", clienteIds);
 
         if (clientesData) {
-          clientesById = new Map(clientesData.map((cliente: any) => [cliente.id, cliente.nome]));
+          clientesById = new Map(
+            clientesData.map((cliente: any) => [cliente.id, clienteNomeFromRow(cliente)])
+          );
         }
       }
 
@@ -123,25 +150,32 @@ export function useMovimentacoes() {
         }
       }
 
-      return movimentacoes.map((row: any) => ({
-        id: row.id,
-        data: row.data_pagamento || row.data_vencimento || row.data_competencia,
-        tipo_movimento: normalizeTipoMovimento(row.tipo),
-        descricao: row.descricao,
-        categoria_nome: categoriasById.get(row.categoria_id) ?? null,
-        tipo_caixa: (row.tipo_caixa || "share") as "share" | "cliente",
-        cliente_nome: clientesById.get(row.clientes_id) ?? null,
-        valor: Number(row.valor),
-        conta_banco: row.conta_bancaria || row.banco_nome || null,
-        aeronave_registro: aeronavesById.get(row.aeronave_id) ?? null,
-        numero_documento:
-          row.numero_doc || row.numero_nf || row.numero_boleto || row.numero_recibo || null,
-        comprovante_url: row.comprovante_url,
-        nf_url: row.nf_url,
-        boleto_url: row.boleto_url,
-        recibo_url: row.recibo_url,
-        status: row.status,
-      }));
+      return movimentacoes.map((row: any) => {
+        const clienteId = row.clientes_id || clientePorAeronave.get(row.aeronave_id) || null;
+        return {
+          id: row.id,
+          data: row.data_pagamento || row.data_vencimento || row.data_competencia,
+          tipo_movimento: normalizeTipoMovimento(row.tipo),
+          descricao: row.descricao,
+          categoria_nome: categoriasById.get(row.categoria_id) ?? null,
+          tipo_caixa: (row.tipo_caixa || "share") as "share" | "cliente",
+          cliente_id: clienteId,
+          cliente_nome: (clienteId && clientesById.get(clienteId)) || null,
+          valor: Number(row.valor),
+          conta_banco: row.conta_bancaria || row.banco_nome || null,
+          aeronave_registro: aeronavesById.get(row.aeronave_id) ?? null,
+          numero_documento:
+            row.numero_doc || row.numero_nf || row.numero_boleto || row.numero_recibo || null,
+          numero_nf: row.numero_nf || null,
+          numero_boleto: row.numero_boleto || null,
+          numero_recibo: row.numero_recibo || null,
+          comprovante_url: row.comprovante_url,
+          nf_url: row.nf_url,
+          boleto_url: row.boleto_url,
+          recibo_url: row.recibo_url,
+          status: row.status,
+        };
+      });
     },
   });
 }
