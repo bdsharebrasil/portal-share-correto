@@ -14,6 +14,7 @@ import {
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { toast } from "sonner";
 import { format, parseISO, isBefore } from "date-fns";
@@ -78,6 +79,7 @@ function TableSkeleton() {
 
 export function ContasReceber() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
   const defaultColumnWidths = {
     doc: 80,
@@ -625,7 +627,6 @@ export function ContasReceber() {
 
       // controle_bancario foi removido; atualizamos diretamente `contas_areceber` abaixo.
 
-      // Para as demais contas, atualiza contas_areceber (triggers sincronizam as tabelas relacionadas)
       const updateData: any = {
         status: "recebido",
         data_recebimento: dataRecebimento,
@@ -643,21 +644,49 @@ export function ContasReceber() {
         updateData.movimentacao_id = contasReceberData.bankReconciliationId;
       }
 
-      const { data: updatedRows, error: updateError } = await supabase.from("contas_areceber").update(updateData).eq("id", contasReceberData.id).select("id,status,data_recebimento");
-      console.log("contas_areceber.update result:", { id: contasReceberData.id, updateData, updatedRows, updateError });
+      const { data: updatedRows, error: updateError } = await supabase
+        .from("contas_areceber")
+        .update(updateData)
+        .eq("id", contasReceberData.id)
+        .select("id,status,data_recebimento");
 
-      if (updateError) {
-        toast.error(`Erro ao atualizar: ${updateError.message}`);
-        return;
+      if (updateError) throw updateError;
+      if (!updatedRows?.length) throw new Error("Nenhuma conta a receber foi atualizada.");
+
+      const movimentacaoId = contasReceberData.movimentacao_id || contasReceberData.bankReconciliationId;
+      const movimentacaoUpdate = {
+        status: "pago",
+        data_pagamento: dataRecebimento,
+        banco_nome: nomeBanco,
+        forma_pagamento: metodo_pagamento || null,
+        comprovante_url: comprovanteUrl || null,
+        atualizado_em: new Date().toISOString(),
+      };
+
+      let movimentacoesQuery = (supabase.from("movimentacoes") as any).update(movimentacaoUpdate);
+      if (movimentacaoId) {
+        movimentacoesQuery = movimentacoesQuery.eq("id", movimentacaoId);
+      } else if (contasReceberData.reference_type && contasReceberData.reference_id) {
+        movimentacoesQuery = movimentacoesQuery
+          .eq("contas_areceber_id", contasReceberData.id)
+          .eq("reference_type", contasReceberData.reference_type.replace(":areceber", ":mov_share"))
+          .eq("reference_id", contasReceberData.reference_id);
+      } else {
+        movimentacoesQuery = movimentacoesQuery.eq("contas_areceber_id", contasReceberData.id);
       }
 
-      if (!updatedRows || (Array.isArray(updatedRows) && updatedRows.length === 0)) {
-        toast.warning("Atualização concluída, mas nenhuma linha foi retornada/atualizada. Verifique permissões/RLS ou o id fornecido.");
-      }
+      const { error: movimentacoesError } = await movimentacoesQuery;
+      if (movimentacoesError) throw movimentacoesError;
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contas-receber"] }),
+        queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }),
+        queryClient.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] }),
+      ]);
 
       toast.success("Conta marcada como recebida!");
       resetBankDialog();
-      loadContas();
+      await loadContas();
     } catch (error: any) {
       toast.error(error.message || "Erro ao marcar como recebido");
     } finally {
