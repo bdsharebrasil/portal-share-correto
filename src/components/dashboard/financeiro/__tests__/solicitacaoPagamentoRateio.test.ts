@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filtrarSociosParaRateio, montarLinhasRateio, resolverClienteParaRateio } from "../solicitacaoPagamentoValidators";
+import { filtrarSociosParaRateio, montarLinhasRateio, montarLinhasRateioMultiCliente, resolverClienteParaRateio } from "../solicitacaoPagamentoValidators";
 
 test("divide igualmente o rateio entre todos os sócios quando a seleção é 'todos'", () => {
   const linhas = montarLinhasRateio({
@@ -48,6 +48,26 @@ test("filtra para o único sócio selecionado quando houver um filtro explícito
 
   assert.deepEqual(sociosFiltrados.map((socio) => socio.id), ["s2"]);
   assert.equal(sociosFiltrados[0].nome, "GUAVIRA");
+});
+
+test("preserva valor e percentual ajustados manualmente no rateio", () => {
+  const linhas = montarLinhasRateioMultiCliente({
+    valorTotal: 1_000,
+    linhas: [{
+      clienteId: "c1",
+      clienteNome: "Cliente 1",
+      percentualUsoCliente: 100,
+      socios: [
+        { id: "s1", nome: "Sócio 1", percentual_participacao: 50 },
+        { id: "s2", nome: "Sócio 2", percentual_participacao: 50 },
+      ],
+      overridesSocio: { s1: 37.25 },
+      valorOverridesSocio: { s1: 400 },
+    }],
+  });
+
+  assert.equal(linhas[0].percentual_uso, 37.25);
+  assert.equal(linhas[0].valor_rateado, 400);
 });
 
 test("inferencia o cliente a partir do sócio selecionado quando o cliente não foi escolhido", () => {
