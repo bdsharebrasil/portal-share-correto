@@ -1210,7 +1210,10 @@ function TransactionsSection({
               {transactions.map((tx: Rateio) => {
                 const status = statusOf(tx);
                 const saida = isSaida(tx.fluxo);
-                const val = Number(tx.valor_rateado) || 0;
+                const isPago = status.tone === "success";
+                const val = isPago
+                  ? (Number(tx.valor_pago_real) || Number(tx.valor_rateado) || 0)
+                  : (Number(tx.valor_rateado) || 0);
                 const catColor = catColors[catNameOf(tx)] || "#3b7dd8";
                 const isOpen = expandedTx === tx.id;
                 const txId = tx.id.slice(0, 12);
@@ -1287,6 +1290,11 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
     })
     .filter((l: any) => l.valor > 0);
 
+  const valorTotalDespesa = Number(tx.valor_total_despesa) || 0;
+  const valorRateado = Number(tx.valor_rateado) || 0;
+  const diferencaTotalRateado = valorTotalDespesa - valorRateado;
+  const valorPagoReal = tx.valor_pago_real != null ? Number(tx.valor_pago_real) : null;
+
   return (
     <>
       <tr onClick={onToggle} className="border-b border-border-subtle cursor-pointer hover:bg-bg-hover transition-colors">
@@ -1337,6 +1345,21 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
                       <div className="flex justify-between"><span className="text-ink-muted">Pagamento</span><span className="text-ink">{formatDate(tx.data_pagamento)}</span></div>
                       <div className="flex justify-between"><span className="text-ink-muted">Forma</span><span className="text-ink">{tx.forma_pagamento || "—"}</span></div>
                       <div className="flex justify-between"><span className="text-ink-muted">Periodicidade</span><span className="text-ink">{tx.periodicidade || "—"}</span></div>
+                    </div>
+
+                    <div className="text-[10px] font-semibold uppercase tracking-widest mb-2 mt-3 text-ink-muted">Valores</div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-ink-muted">Valor Total da Despesa</span>
+                        <span className="mono text-ink">{tx.valor_total_despesa != null ? formatBRL(valorTotalDespesa) : "—"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-ink-muted">Valor Pago (real)</span>
+                        <span className="mono text-ink">{valorPagoReal != null ? formatBRL(valorPagoReal) : "—"}</span>
+                      </div>
                     </div>
                   </div>
 

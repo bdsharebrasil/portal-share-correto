@@ -47,7 +47,7 @@ interface RateioRow {
   valor_pago_real: number | null;
 }
 
-type SupabaseQuery = ReturnType<typeof supabase.from>;
+type SupabaseQuery = any;
 
 type TravelReportSummary = {
   numero_relatorio: string | null;
@@ -406,13 +406,31 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         .eq("id", conta!.id);
       if (updErr) throw updErr;
 
-      if (conta!.movimentacao_id) {
+      // Padrão: marca todas as movimentações ligadas a esta conta como pagas.
+      await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
+        .update({ status: "pago", data_pagamento: dataPagamento })
+        .eq("contas_apagar_id", conta!.id);
+
+      // Atualiza o valor apenas na movimentação de share (quando existir) ou
+      // na movimentação diretamente referenciada pela conta.
+      const { data: shareMov, error: shareMovError } = await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
+        .select("id")
+        .eq("contas_apagar_id", conta!.id)
+        .eq("tipo_caixa", "share")
+        .maybeSingle();
+
+      if (!shareMovError && shareMov?.id) {
         await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
-          .update({ status: "pago", data_pagamento: dataPagamento, valor: valorNum })
+          .update({ valor: valorNum })
+          .eq("id", shareMov.id);
+      } else if (conta!.movimentacao_id) {
+        await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
+          .update({ valor: valorNum })
           .eq("id", conta!.movimentacao_id);
       }
 
       if (hasRateio) {
+
         // Rateio: cada participante paga a sua parte (valores editados na tela).
         for (const row of rateioRows) {
           const valorRow = Number(normalizeRateioValue(rateioValues[row.id] ?? "0")) || 0;

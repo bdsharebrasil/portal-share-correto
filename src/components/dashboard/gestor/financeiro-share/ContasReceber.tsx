@@ -27,9 +27,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { ChevronDown } from "lucide-react";
 
-const parseLocalDate = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
+const parseLocalDate = (dateString: string | null | undefined): Date | null => {
+  if (!dateString) return null;
+  // Aceita tanto "2026-01-08" quanto timestamps completos ("2026-01-08T10:12:27+00:00"
+  // ou "2026-01-08 10:12:27") — pega só a parte da data antes de extrair ano/mês/dia.
+  const datePart = dateString.split('T')[0].split(' ')[0];
+  const parts = datePart.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [year, month, day] = parts;
+  const d = new Date(year, month - 1, day);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const formatDateSafe = (dateString: string | null | undefined): string => {
+  const d = parseLocalDate(dateString);
+  return d ? format(d, "dd/MM/yyyy") : "—";
 };
 
 // Skeleton Loading Component
@@ -129,12 +141,16 @@ export function ContasReceber() {
     return new Date().getFullYear().toString();
   };
 
+  // periodo agora aceita: "todos" | "mes" | "ano" | "personalizado"
+  // "todos" é o padrão para garantir que nenhuma conta fique escondida sem o usuário perceber
   const [filters, setFilters] = useState({
     searchTerm: "",
     status: "all",
-    periodo: "mes",
+    periodo: "todos",
     mes: getCurrentMonth(),
-    ano: getCurrentYear()
+    ano: getCurrentYear(),
+    dataInicio: "",
+    dataFim: ""
   });
 
   useEffect(() => {
@@ -350,7 +366,7 @@ export function ContasReceber() {
       const contasVencidas = todasContas.filter((conta) => {
         if (conta.status !== "pendente") return false;
         const vencimento = parseLocalDate(conta.data_vencimento);
-        return vencimento < today;
+        return vencimento !== null && vencimento < today;
       });
 
       for (const conta of contasVencidas) {
@@ -515,10 +531,15 @@ export function ContasReceber() {
 
       let periodoMatch = true;
       if (filters.periodo === "mes") {
-        periodoMatch = conta.data_vencimento.startsWith(filters.mes);
+        periodoMatch = (conta.data_vencimento || "").startsWith(filters.mes);
       } else if (filters.periodo === "ano") {
-        periodoMatch = conta.data_vencimento.startsWith(filters.ano);
+        periodoMatch = (conta.data_vencimento || "").startsWith(filters.ano);
+      } else if (filters.periodo === "personalizado") {
+        const venc = conta.data_vencimento || "";
+        if (filters.dataInicio && venc < filters.dataInicio) periodoMatch = false;
+        if (filters.dataFim && venc > filters.dataFim) periodoMatch = false;
       }
+      // "todos" mantém periodoMatch = true, mostrando todas as contas independente da data
 
       return searchMatch && statusMatch && periodoMatch;
     });
@@ -536,7 +557,10 @@ export function ContasReceber() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const futureContas = filteredContas
-      .filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.status !== "recebido")
+      .filter((conta) => {
+        const d = parseLocalDate(conta.data_vencimento);
+        return d !== null && d >= today && conta.status !== "recebido";
+      })
       .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
 
     return futureContas.length > 0 ? futureContas[0].data_vencimento : null;
@@ -808,7 +832,7 @@ export function ContasReceber() {
                 </div>
               </div>
               <p className="text-lg font-bold text-purple-400">
-                {proximoVencimento ? format(parseLocalDate(proximoVencimento), "dd/MM/yyyy") : "—"}
+                {proximoVencimento ? formatDateSafe(proximoVencimento) : "—"}
               </p>
             </CardContent>
           </Card>
@@ -818,20 +842,10 @@ export function ContasReceber() {
       {/* Filters Card */}
       <Card className="rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm">
         <CardHeader className="pb-4 pt-5 px-5 border-b border-border/40">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <Filter className="w-5 h-5 text-primary" />
-              Filtros
-            </h3>
-            <Button
-              onClick={() => { resetForm(); setShowFormDialog(true); }}
-              size="sm"
-              className="gap-2 bg-primary/80 hover:bg-primary w-full md:w-auto"
-            >
-              <Plus className="w-4 h-4" />
-              Nova Conta
-            </Button>
-          </div>
+          <h3 className="font-semibold text-foreground flex items-center gap-2">
+            <Filter className="w-5 h-5 text-primary" />
+            Filtros
+          </h3>
         </CardHeader>
         <CardContent className="p-5 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
@@ -851,10 +865,62 @@ export function ContasReceber() {
               <SelectContent>
                 <SelectItem value="all">Todos os Status</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="recebido">Recebido</SelectItem>
+                <SelectItem value="inadimplente">Vencida</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+            <Select value={filters.periodo} onValueChange={(value) => setFilters((prev) => ({ ...prev, periodo: value }))}>
+              <SelectTrigger className="w-full md:w-[200px] bg-background/50 border-border/40">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os Períodos</SelectItem>
+                <SelectItem value="mes">Este Mês</SelectItem>
+                <SelectItem value="ano">Este Ano</SelectItem>
+                <SelectItem value="personalizado">Período Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {filters.periodo === "mes" && (
+              <Input
+                type="month"
+                value={filters.mes}
+                onChange={(e) => setFilters((prev) => ({ ...prev, mes: e.target.value }))}
+                className="w-full md:w-[180px] bg-background/50 border-border/40"
+              />
+            )}
+
+            {filters.periodo === "ano" && (
+              <Input
+                type="number"
+                value={filters.ano}
+                onChange={(e) => setFilters((prev) => ({ ...prev, ano: e.target.value }))}
+                className="w-full md:w-[140px] bg-background/50 border-border/40"
+                placeholder="Ano"
+              />
+            )}
+
+            {filters.periodo === "personalizado" && (
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <Input
+                  type="date"
+                  value={filters.dataInicio}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, dataInicio: e.target.value }))}
+                  className="w-full sm:w-[160px] bg-background/50 border-border/40"
+                  placeholder="De"
+                />
+                <Input
+                  type="date"
+                  value={filters.dataFim}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, dataFim: e.target.value }))}
+                  className="w-full sm:w-[160px] bg-background/50 border-border/40"
+                  placeholder="Até"
+                />
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -873,7 +939,7 @@ export function ContasReceber() {
           {filteredContas.length === 0 ? (
             <div className="text-center py-16 px-5">
               <p className="text-muted-foreground font-medium">Nenhuma conta a receber encontrada</p>
-              <p className="text-xs text-muted-foreground mt-2">Registre receitas no Fluxo de Caixa ou crie manualmente</p>
+              <p className="text-xs text-muted-foreground mt-2">Registre receitas no Fluxo de Caixa ou ajuste os filtros acima</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -892,7 +958,7 @@ export function ContasReceber() {
                   {filteredContas.map((conta) => (
                     <TableRow key={conta.id} className="border-border/40 hover:bg-muted/20 transition-colors">
                       <TableCell className="text-muted-foreground text-sm">
-                        {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}
+                        {formatDateSafe(conta.data_vencimento)}
                       </TableCell>
                       <TableCell className="font-medium text-foreground text-sm">{conta.cliente_nome}</TableCell>
                       <TableCell className="text-muted-foreground text-sm max-w-xs truncate">{conta.descricao || "—"}</TableCell>
@@ -981,11 +1047,11 @@ export function ContasReceber() {
         </CardContent>
       </Card>
 
-      {/* Form Dialog */}
+      {/* Form Dialog (mantido apenas para edição de contas manuais) */}
       <Dialog open={showFormDialog} onOpenChange={(open) => { if (!open) { setShowFormDialog(false); resetForm(); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingConta ? "Editar Conta a Receber" : "Nova Conta a Receber"}</DialogTitle>
+            <DialogTitle>Editar Conta a Receber</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1079,7 +1145,7 @@ export function ContasReceber() {
               onClick={handleSaveForm}
               disabled={isSavingForm || isUploadingPDF}
             >
-              {isSavingForm ? "Salvando..." : editingConta ? "Atualizar Conta" : "Salvar Conta"}
+              {isSavingForm ? "Salvando..." : "Atualizar Conta"}
             </Button>
           </DialogFooter>
         </DialogContent>

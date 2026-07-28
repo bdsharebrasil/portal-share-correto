@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useCategorias";
+import { useControleBancario } from "@/hooks/useControleBancario";
 import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
 import React, { useMemo, useState, useRef } from "react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from "date-fns";
@@ -204,41 +204,34 @@ export function QuadroMensalTab() {
   const mesKey = `${mesAtual.year}-${String(mesAtual.month + 1).padStart(2, "0")}`;
   const startDate = startOfMonth(new Date(mesAtual.year, mesAtual.month));
   const endDate = endOfMonth(startDate);
-  const mesAnteriorKey = format(subMonths(startDate, 1), "yyyy-MM");
 
-  const { data: transacoes, isLoading } = useQuery({
-    queryKey: ["quadro-mensal", mesKey],
-    queryFn: async () => {
-      const sIso = format(startDate, "yyyy-MM-dd");
-      const eIso = format(endDate, "yyyy-MM-dd");
-      // Traz lançamentos onde `data` OU (pendentes) `data_vencimento` esteja no mês.
-      // Assim despesas pendentes do cliente sem data efetivada aparecem no fluxo mensal.
-      const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("*")
-        .or(
-          `and(data.gte.${sIso},data.lte.${eIso}),and(data.is.null,data_vencimento.gte.${sIso},data_vencimento.lte.${eIso})`,
-        )
-        .order("data", { ascending: false, nullsFirst: false });
-      if (error) throw error;
-      return (data as Transacao[]) || [];
-    },
-  });
+  const { data: controleTransacoes, isLoading } = useControleBancario();
 
-  const { data: transacoesAnterior } = useQuery({
-    queryKey: ["quadro-mensal", mesAnteriorKey],
-    queryFn: async () => {
-      const start = startOfMonth(subMonths(startDate, 1));
-      const end = endOfMonth(start);
-      const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("*")
-        .gte("data", format(start, "yyyy-MM-dd"))
-        .lte("data", format(end, "yyyy-MM-dd"));
-      if (error) throw error;
-      return (data as Transacao[]) || [];
-    },
-  });
+  const normalizeTransactionDate = (transacao: any) => {
+    if (transacao.data) return new Date(transacao.data);
+    if (transacao.data_vencimento) return new Date(transacao.data_vencimento);
+    if (transacao.data_competencia) return new Date(transacao.data_competencia);
+    if (transacao.criado_em) return new Date(transacao.criado_em);
+    return null;
+  };
+
+  const transacoes = useMemo(() => {
+    if (!controleTransacoes) return [];
+    return (controleTransacoes as any[]).filter((t) => {
+      const transacaoDate = normalizeTransactionDate(t);
+      return transacaoDate && transacaoDate >= startDate && transacaoDate <= endDate;
+    });
+  }, [controleTransacoes, startDate, endDate]);
+
+  const transacoesAnterior = useMemo(() => {
+    if (!controleTransacoes) return [];
+    const start = startOfMonth(subMonths(startDate, 1));
+    const end = endOfMonth(start);
+    return (controleTransacoes as any[]).filter((t) => {
+      const transacaoDate = normalizeTransactionDate(t);
+      return transacaoDate && transacaoDate >= start && transacaoDate <= end;
+    });
+  }, [controleTransacoes, startDate]);
 
   const { data: categoriasData } = useCategorias();
 

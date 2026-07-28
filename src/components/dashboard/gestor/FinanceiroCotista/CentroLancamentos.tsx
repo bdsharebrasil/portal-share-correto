@@ -535,8 +535,47 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   async function updateGrupo(g: GrupoLancamento, patch: Record<string, any>) {
     const { error } = await (supabase as any).from("rateio_despesas").update(patch).in("id", g.ids);
     if (error) { toast.error("Erro ao salvar: " + error.message); return; }
-    toast.success("Atualizado");
+
+    if (g.despesa_id) {
+      const movPatch: Record<string, any> = {};
+      if (Object.prototype.hasOwnProperty.call(patch, "valor_total_despesa")) {
+        movPatch.valor_original = patch.valor_total_despesa;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "valor_pago_real")) {
+        movPatch.valor = patch.valor_pago_real ?? patch.valor_total_despesa ?? g.valor_total_despesa;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "data_pagamento")) {
+        movPatch.data_pagamento = patch.data_pagamento;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "forma_pagamento")) {
+        movPatch.forma_pagamento = patch.forma_pagamento;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "status")) {
+        movPatch.status = patch.status;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "numero_doc")) {
+        movPatch.numero_doc = patch.numero_doc;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "numero_nf")) {
+        movPatch.numero_nf = patch.numero_nf;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "numero_recibo")) {
+        movPatch.numero_recibo = patch.numero_recibo;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "observacoes")) {
+        movPatch.observacoes = patch.observacoes;
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, "data_vencimento")) {
+        movPatch.data_vencimento = patch.data_vencimento;
+      }
+      if (Object.keys(movPatch).length > 0) {
+        const { error: movError } = await (supabase as any).from("movimentacoes").update(movPatch).eq("id", g.despesa_id);
+        if (movError) console.warn("Erro ao sincronizar movimentacao do rateio:", movError.message);
+      }
+    }
+
     qc.invalidateQueries({ queryKey: ["centro-lancamentos", aeronaveId] });
+    toast.success("Atualizado");
   }
 
   const getCellStyles = (key: string) => ({

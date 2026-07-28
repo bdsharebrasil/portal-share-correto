@@ -763,6 +763,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         tipo_caixa: "cliente",
         grupo_custo: grupo,
         valor: valorNum,
+        valor_original: valorNum,
         data_competencia: dataCompetencia,
         data_vencimento: dataVencimento || dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,

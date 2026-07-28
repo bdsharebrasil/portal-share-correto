@@ -3,25 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 export function useControleBancario() {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["controle_bancario"],
+    queryKey: ["movimentacoes"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("controle_bancario")
-        .select("*")
-        .order("data", { ascending: false });
-
-      if (error) throw error;
-
-      const transacoes = data || [];
-
-      // Movimentações que não passam pelo caixa share (ex.: ENVIO DESPESA DIRETO
-      // CAIXA CLIENTE) só existem em `movimentacoes`. Buscamos e normalizamos
-      // para o mesmo formato do controle bancário.
-      const { data: movData } = await (supabase as any)
+      const { data: movData, error } = await (supabase as any)
         .from("movimentacoes")
         .select("*")
-        .is("controle_bancario_id", null)
         .order("data_competencia", { ascending: false });
+
+      if (error) throw error;
 
       const movimentacoes = (movData || []).map((m: any) => ({
         ...m,
@@ -33,14 +22,9 @@ export function useControleBancario() {
         cliente_id: m.clientes_id || null,
         socios_cliente_id: m.socio_id || null,
         tipo_caixa: m.tipo_caixa || "cliente",
-        banco_pagamento: m.banco_nome || null,
-        aeronave_registro: null,
+        banco_pagamento: m.banco_nome || m.conta_bancaria || null,
+        aeronave_registro: m.aeronave_registro || null,
       }));
-
-      const todas = [
-        ...transacoes.map((t: any) => ({ ...t, _origem: "controle_bancario" as const })),
-        ...movimentacoes,
-      ];
 
       const [categoriasRes, clientesRes, sociosRes, fornecedoresRes, colaboradoresRes] = await Promise.all([
         (supabase as any).from("categorias_movimentacao").select("id, nome, tipo, grupo_categoria"),
@@ -57,10 +41,7 @@ export function useControleBancario() {
       const fornecedoresById = byId(fornecedoresRes.data);
       const colaboradoresById = byId(colaboradoresRes.data);
 
-      // Map the data to include categoria_nome, referencia e cliente_nome
-      // Referência pode ser: fornecedor ou colaborador (user_profile)
-      // Cliente é separado para ter sua própria coluna
-      const mapeadas = todas.map((item: any) => {
+      const mapeadas = movimentacoes.map((item: any) => {
         const categoria = categoriasById.get(item.categoria_id);
         const cliente = clientesById.get(item.cliente_id);
         const socio = sociosById.get(item.socios_cliente_id);
@@ -74,21 +55,21 @@ export function useControleBancario() {
           socios: socio,
           fornecedores_favoritos: fornecedor,
           user_profiles: colaborador,
-          categoria_nome: categoria?.nome || item.grupo_categoria || '-',
-          grupo_categoria_nome: categoria?.grupo_categoria || item.grupo_categoria || '-',
-          // Referência: fornecedor favorito ou colaborador
-          referencia: fornecedor?.nome_completo ||
+          categoria_nome: categoria?.nome || item.grupo_categoria || "-",
+          grupo_categoria_nome: categoria?.grupo_categoria || item.grupo_categoria || "-",
+          referencia:
+            fornecedor?.nome_completo ||
             colaborador?.full_name ||
             colaborador?.display_name ||
             item.fornecedor_nome ||
-            '-',
-          // Cliente: se houver partner use o nome do partner, senão empresa/proprietário
-          cliente_nome: socio?.nome ||
+            "-",
+          cliente_nome:
+            socio?.nome ||
             cliente?.razao_social ||
             cliente?.proprietario ||
             item.clientes_nome ||
             item.client_name ||
-            '-'
+            "-",
         };
       });
 
