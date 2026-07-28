@@ -6,7 +6,6 @@ import {
   Building2,
   ArrowUp,
   Settings,
-  CircleDollarSign,
 } from "lucide-react";
 import FluxoCaixaTab from "./FluxoCaixaTab";
 import ContasRecorrentesTab from "./ContasRecorrentesTab";
@@ -45,20 +44,11 @@ export default function GestaoFiscal() {
     >
       {/* Header */}
       <header
-        className="sticky top-0 z-40 px-6 py-3 flex items-center justify-between gap-4 border-b backdrop-blur-xl"
+        className="sticky top-0 z-40 -my-[13px] px-4 py-[7px] flex items-center justify-between gap-4 border-b backdrop-blur-xl"
         style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.7)", boxShadow: "0 10px 40px rgba(2,6,23,0.35)" }}
       >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center ring-1"
-            style={{ background: "rgba(6,182,212,0.15)", color: "#67e8f9", boxShadow: "inset 0 0 0 1px rgba(6,182,212,0.2)" }}
-          >
-            <CircleDollarSign className="h-4 w-4" />
-          </div>
-          <div>
-            <span className="font-bold text-sm text-slate-100 block leading-none mb-1">Financeiro</span>
-            <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Gestão e Controle Fiscal</span>
-          </div>
+        <div>
+          <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Gestão e Controle Fiscal</span>
         </div>
       </header>
 
@@ -87,7 +77,7 @@ export default function GestaoFiscal() {
       </div>
 
       {/* Tab content */}
-      <main className="p-5 lg:p-6 max-w-[1600px] mx-auto">
+      <main className="px-[5px] py-5 lg:py-6 max-w-[1600px] mx-auto">
         {activeTab === "fluxo" && <FluxoCaixaTab />}
         {activeTab === "contas-recorrentes" && <ContasRecorrentesTab />}
         {activeTab === "salarios" && <SalariosTab />}
