@@ -9,6 +9,7 @@ import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { toast } from "sonner";
 import { Upload, FileText, X, Users, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface PaymentContaLike {
   id?: string;
@@ -60,6 +61,7 @@ type TravelReportSummary = {
 
 export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDialogProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: contasBancarias = [] } = useContasBancarias();
   const [dataPagamento, setDataPagamento] = useState(format(new Date(), "yyyy-MM-dd"));
   const [banco, setBanco] = useState("");
@@ -72,8 +74,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
   const [rateioRows, setRateioRows] = useState<RateioRow[]>([]);
   const [rateioValues, setRateioValues] = useState<Record<string, string>>({});
   const [travelReport, setTravelReport] = useState<TravelReportSummary | null>(null);
-  // NOVO: indica se a despesa precisa ser reembolsada para o caixa share
-  const [necessitaReembolso, setNecessitaReembolso] = useState(false);
+  const [origemCaixa, setOrigemCaixa] = useState<"share" | "cliente">("share");
   // NOVO: modo de pagamento informado manualmente pelo usuário no momento do
   // registro — permite corrigir/confirmar se foi um rateio entre clientes ou
   // um pagamento único, independente do que o sistema detectou automaticamente.
@@ -100,7 +101,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
       setRateioRows([]);
       setRateioValues({});
       setTravelReport(null);
-      setNecessitaReembolso(false);
+      setOrigemCaixa("share");
       return;
     }
 
@@ -406,9 +407,15 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         .eq("id", conta!.id);
       if (updErr) throw updErr;
 
-      // Padrão: marca todas as movimentações ligadas a esta conta como pagas.
       await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
-        .update({ status: "pago", data_pagamento: dataPagamento })
+        .update({
+          status: "pago",
+          data_pagamento: dataPagamento,
+          banco_nome: banco,
+          forma_pagamento: metodoPagamento,
+          comprovante_url: comprovanteUrl || null,
+          atualizado_em: new Date().toISOString(),
+        })
         .eq("contas_apagar_id", conta!.id);
 
       // Atualiza o valor apenas na movimentação de share (quando existir) ou
@@ -437,12 +444,13 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           const pagador = row.socios_nome || row.clientes_nome || pagoPor || null;
           await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
             .update({
-              status: "pago",
+              status: origemCaixa === "cliente" ? "pago" : "parcial",
               data_pagamento: dataPagamento,
-              forma_pagamento: metodoPagamento || null,
+              forma_pagamento: metodoPagamento,
               valor_pago_real: Number(valorRow.toFixed(2)),
               comprovante_url: comprovanteUrl || null,
-              pago_por: pagador,
+              pago_por: origemCaixa === "cliente" ? pagador : "Share Brasil",
+              pago_diretamente: origemCaixa === "cliente",
               atualizado_em: new Date().toISOString(),
             })
             .eq("id", row.id);
@@ -455,12 +463,13 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           const valorRow = Number(normalizeRateioValue(row.valor_pago_real ?? row.valor_rateado ?? 0)) || 0;
           await (supabase.from("rateio_despesas") as unknown as SupabaseQuery)
             .update({
-              status: "pago",
+              status: origemCaixa === "cliente" ? "pago" : "parcial",
               data_pagamento: dataPagamento,
-              forma_pagamento: metodoPagamento || null,
+              forma_pagamento: metodoPagamento,
               valor_pago_real: Number(valorRow.toFixed(2)),
               comprovante_url: comprovanteUrl || null,
-              pago_por: pagoPor || null,
+              pago_por: origemCaixa === "cliente" ? pagoPor || null : "Share Brasil",
+              pago_diretamente: origemCaixa === "cliente",
               atualizado_em: new Date().toISOString(),
             })
             .eq("id", row.id);
@@ -512,14 +521,16 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         }]);
       }
 
-      if (necessitaReembolso) {
-        try {
-          await gerarReembolsosCaixaShare(categoriaId);
-        } catch (reembolsoErr: any) {
-          console.error("Erro ao gerar reembolso do caixa share:", reembolsoErr);
-          toast.error("Pagamento registrado, mas houve erro ao gerar o reembolso do caixa share.");
-        }
+      if (origemCaixa === "share") {
+        await gerarReembolsosCaixaShare(categoriaId);
       }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contas-pagar"] }),
+        queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }),
+        queryClient.invalidateQueries({ queryKey: ["rateio-despesas"] }),
+        queryClient.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] }),
+      ]);
 
       toast.success("Pagamento registrado com sucesso!");
       onPaid();
@@ -684,35 +695,31 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
               <div>
                 <label className="text-sm font-semibold mb-1 block flex items-center gap-1">
                   <RefreshCcw className="h-3.5 w-3.5" />
-                  Necessita de reembolso para o caixa share?
+                  Pago por
                 </label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Button
                     type="button"
-                    variant={necessitaReembolso ? "default" : "outline"}
+                    variant={origemCaixa === "share" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setNecessitaReembolso(true)}
-                    className="flex-1"
+                    onClick={() => setOrigemCaixa("share")}
                   >
-                    Sim
+                    Share Brasil
                   </Button>
                   <Button
                     type="button"
-                    variant={!necessitaReembolso ? "default" : "outline"}
+                    variant={origemCaixa === "cliente" ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setNecessitaReembolso(false)}
-                    className="flex-1"
+                    onClick={() => setOrigemCaixa("cliente")}
                   >
-                    Não
+                    Cliente
                   </Button>
                 </div>
-                {necessitaReembolso && (
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {rateioRows.length > 0
-                      ? "Será gerado um contas a receber por cliente, no valor rateado pago por cada um."
-                      : "Será gerado um contas a receber no valor integral pago, para o cliente desta despesa."}
-                  </p>
-                )}
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {origemCaixa === "share"
+                    ? "O rateio ficará parcial e será gerado o reembolso para cada cliente vinculado."
+                    : "O rateio será liquidado como pagamento direto do cotista."}
+                </p>
               </div>
 
               {modoPagamento === "unico" && (

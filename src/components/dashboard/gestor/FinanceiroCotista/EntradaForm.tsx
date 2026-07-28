@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
+import AnexosDinamicosField, { type AnexoLinha } from "./AnexosDinamicosField";
 
 type Socio = {
   id: string;
@@ -232,6 +233,7 @@ export default function EntradaForm(props: EntradaFormProps) {
   const [status, setStatus] = useState<"pago" | "pendente">("pago");
   const [observacoes, setObservacoes] = useState("");
   const [formaPgto, setFormaPgto] = useState("");
+  const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Aeronaves
@@ -266,6 +268,7 @@ export default function EntradaForm(props: EntradaFormProps) {
   const valorNum = Number(valor.replace(",", ".")) || 0;
 
   async function handleSave() {
+    if (anexos.some((anexo) => anexo.uploading)) return toast.error("Aguarde o envio dos anexos");
     if (!descricao.trim()) return toast.error("Informe a descrição");
     if (valorNum <= 0) return toast.error("Valor deve ser maior que zero");
     if (!cotistaPagador) return toast.error("Selecione o cotista que pagou");
@@ -293,6 +296,7 @@ export default function EntradaForm(props: EntradaFormProps) {
         status: rateioStatus,
         observacoes: observacoes || null,
         forma_pagamento: formaPgto || null,
+        comprovante_url: anexos.find((anexo) => anexo.tipo === "comprovante")?.url || anexos[0]?.url || null,
         criado_por: user?.id ?? null,
         reference_type: "entrada_cotista",
       };
@@ -329,6 +333,7 @@ export default function EntradaForm(props: EntradaFormProps) {
         pago_por_id: cotistaPagador,
         pago_diretamente: true,
         forma_pagamento: formaPgto || null,
+        comprovante_url: anexos.find((anexo) => anexo.tipo === "comprovante")?.url || anexos[0]?.url || null,
         periodicidade: "EVENTUAL",
         observacoes: observacoes || null,
       };
@@ -448,7 +453,8 @@ export default function EntradaForm(props: EntradaFormProps) {
         </div>
       </Section>
 
-      <Section title="Observações">
+      <Section title="Documentos e observações" hint="Anexe comprovantes, recibos ou documentos de apoio.">
+        <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`entradas-cotista/${clienteId || "novo"}`} />
         <Textarea
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
