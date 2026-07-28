@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowUpCircle,
   ArrowDownCircle,
@@ -130,6 +132,7 @@ export function FluxoCaixa() {
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<"lista" | "visualizacao-mensal" | "caixa-cliente">("lista");
   const [showReport, setShowReport] = useState(false);
@@ -393,10 +396,13 @@ export function FluxoCaixa() {
     return sortedTransacoes;
   }, [activeTab, sortedTransacoes]);
 
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(transacoesForTab.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(transacoesForTab.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedTransacoes = transacoesForTab.slice(startIndex, startIndex + itemsPerPage);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   // ── Relatório agrupado ───────────────────────────────────────────────────────
   const selectedTransacoes = transacoesForTab.filter((t: any) => selectedIds.has(t.id));
@@ -900,7 +906,23 @@ export function FluxoCaixa() {
               <div className="text-sm text-foreground/60">
                 Exibindo {startIndex + 1} a {Math.min(startIndex + itemsPerPage, transacoesForTab.length)} de {transacoesForTab.length}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-foreground/70">Page</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={currentPage}
+                  onChange={(event) => setCurrentPage(Math.min(totalPages, Math.max(1, Number(event.target.value) || 1)))}
+                  className="h-9 w-14 text-center bg-muted/30 border-border/60"
+                />
+                <span className="text-sm text-foreground/70">of {totalPages}</span>
+                <Select value={String(itemsPerPage)} onValueChange={(value) => { setItemsPerPage(Number(value)); setCurrentPage(1); }}>
+                  <SelectTrigger className="h-9 w-[112px] bg-muted/30 border-border/60"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[10, 25, 50, 100, 200].map((count) => <SelectItem key={count} value={String(count)}>{count} rows</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <Button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
@@ -909,9 +931,6 @@ export function FluxoCaixa() {
                 >
                   Anterior
                 </Button>
-                <div className="flex items-center gap-2 px-4 py-2 text-foreground/80">
-                  Página {currentPage} de {totalPages}
-                </div>
                 <Button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage >= totalPages}
@@ -927,133 +946,6 @@ export function FluxoCaixa() {
       </Card>
     </div>
   );
-
-  // ── Nova aba: Rateio de Cotistas (rateio_despesas) ───────────────────────────
-  const renderRateioCotistasTab = () => {
-    if (isLoadingRateio) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      );
-    }
-
-    if (errorRateio) {
-      return (
-        <div className="text-center text-red-400 p-8">
-          Erro ao carregar rateio de despesas. Verifique suas permissões.
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        {/* Resumo por cotista */}
-        <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Resumo por Cotista
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/40">
-                  <TableHead className="text-foreground/70">Cotista</TableHead>
-                  <TableHead className="text-foreground/70">Nº de Itens</TableHead>
-                  <TableHead className="text-foreground/70">Total Rateado</TableHead>
-                  <TableHead className="text-foreground/70">Total Pago</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rateioAgrupado.map((r) => (
-                  <TableRow key={r.socio_id} className="border-border/40">
-                    <TableCell className="text-white font-medium">{r.socios_nome}</TableCell>
-                    <TableCell className="text-foreground/80">{r.count}</TableCell>
-                    <TableCell className="text-foreground/80">
-                      R$ {r.total_rateado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-green-400 font-semibold">
-                      R$ {r.total_pago.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {rateioAgrupado.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-foreground/40 py-8">
-                      Nenhum rateio encontrado
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Detalhamento do rateio por despesa */}
-        <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Detalhamento do Rateio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/40">
-                  <TableHead className="text-foreground/70">Vencimento</TableHead>
-                  <TableHead className="text-foreground/70">Despesa</TableHead>
-                  <TableHead className="text-foreground/70">Cotista</TableHead>
-                  <TableHead className="text-foreground/70">Aeronave</TableHead>
-                  <TableHead className="text-foreground/70">% Sociedade</TableHead>
-                  <TableHead className="text-foreground/70">Valor Rateado</TableHead>
-                  <TableHead className="text-foreground/70">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(rateioDespesas || []).map((r) => (
-                  <TableRow key={r.id} className="border-border/40">
-                    <TableCell className="text-foreground/80 whitespace-nowrap">
-                      {r.data_vencimento
-                        ? format(new Date(r.data_vencimento), "dd/MM/yyyy", { locale: ptBR })
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="text-white font-medium">
-                      {r.descricao_despesa || "-"}
-                    </TableCell>
-                    <TableCell className="text-foreground/80">{r.socios_nome || "-"}</TableCell>
-                    <TableCell className="text-foreground/80">{r.aeronave_registro || "-"}</TableCell>
-                    <TableCell className="text-foreground/80">
-                      {r.percentual_sociedade != null ? `${r.percentual_sociedade}%` : "-"}
-                    </TableCell>
-                    <TableCell className="font-semibold text-foreground">
-                      R$ {Number(r.valor_rateado || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      {r.status ? (
-                        <Badge variant="outline" className={getStatusColor(r.status)}>
-                          {r.status}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {(!rateioDespesas || rateioDespesas.length === 0) && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-foreground/40 py-8">
-                      Nenhum rateio encontrado
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
