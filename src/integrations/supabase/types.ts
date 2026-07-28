@@ -2363,27 +2363,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "controle_bancario_despesa_original_id_fkey"
-            columns: ["despesa_original_id"]
-            isOneToOne: false
-            referencedRelation: "controle_bancario"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_despesa_original_id_fkey"
-            columns: ["despesa_original_id"]
-            isOneToOne: false
-            referencedRelation: "v_folha_pagamento_completa"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_despesa_original_id_fkey"
-            columns: ["despesa_original_id"]
-            isOneToOne: false
-            referencedRelation: "vw_financeiro_caixa"
-            referencedColumns: ["lancamento_caixa_id"]
-          },
-          {
             foreignKeyName: "controle_bancario_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
@@ -2396,27 +2375,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "fornecedores_favoritos"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_lancamento_reembolso_id_fkey"
-            columns: ["lancamento_reembolso_id"]
-            isOneToOne: false
-            referencedRelation: "controle_bancario"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_lancamento_reembolso_id_fkey"
-            columns: ["lancamento_reembolso_id"]
-            isOneToOne: false
-            referencedRelation: "v_folha_pagamento_completa"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_lancamento_reembolso_id_fkey"
-            columns: ["lancamento_reembolso_id"]
-            isOneToOne: false
-            referencedRelation: "vw_financeiro_caixa"
-            referencedColumns: ["lancamento_caixa_id"]
           },
           {
             foreignKeyName: "controle_bancario_socios_cliente_id_fkey"
@@ -8431,6 +8389,132 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
         ]
+      }
+      recibos_saida: {
+        Row: {
+          aeronave_id: string | null
+          atualizado_em: string
+          boleto_url: string | null
+          categoria_id: string | null
+          cidade_pagador: string | null
+          cliente_id: string | null
+          compartilhado: boolean | null
+          competencia_decea: string | null
+          competencia_infraero: string | null
+          criado_em: string
+          data_emissao: string
+          data_max_pagamento: string | null
+          data_vencimento: string | null
+          demonstrativo_url: string | null
+          descricao_servico: string
+          documento_pagador: string | null
+          endereco_pagador: string | null
+          forma_pagamento: string | null
+          id: string
+          nf_url: string | null
+          nome_categoria: string | null
+          nome_pagador: string
+          numero_documento: string | null
+          numero_recibo: string
+          observacoes: string | null
+          pdf_url: string | null
+          percentual: number | null
+          socio_id: string | null
+          socios_cliente: string | null
+          status: string | null
+          subcategoria_1: string | null
+          subcategoria_2: string | null
+          subcategoria_3: string | null
+          subcategoria_4: string | null
+          tipo_recibo: string | null
+          uf_pagador: string | null
+          usuario_id: string | null
+          valor: number
+          valor_total: number | null
+        }
+        Insert: {
+          aeronave_id?: string | null
+          atualizado_em?: string
+          boleto_url?: string | null
+          categoria_id?: string | null
+          cidade_pagador?: string | null
+          cliente_id?: string | null
+          compartilhado?: boolean | null
+          competencia_decea?: string | null
+          competencia_infraero?: string | null
+          criado_em?: string
+          data_emissao: string
+          data_max_pagamento?: string | null
+          data_vencimento?: string | null
+          demonstrativo_url?: string | null
+          descricao_servico: string
+          documento_pagador?: string | null
+          endereco_pagador?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          nf_url?: string | null
+          nome_categoria?: string | null
+          nome_pagador: string
+          numero_documento?: string | null
+          numero_recibo: string
+          observacoes?: string | null
+          pdf_url?: string | null
+          percentual?: number | null
+          socio_id?: string | null
+          socios_cliente?: string | null
+          status?: string | null
+          subcategoria_1?: string | null
+          subcategoria_2?: string | null
+          subcategoria_3?: string | null
+          subcategoria_4?: string | null
+          tipo_recibo?: string | null
+          uf_pagador?: string | null
+          usuario_id?: string | null
+          valor: number
+          valor_total?: number | null
+        }
+        Update: {
+          aeronave_id?: string | null
+          atualizado_em?: string
+          boleto_url?: string | null
+          categoria_id?: string | null
+          cidade_pagador?: string | null
+          cliente_id?: string | null
+          compartilhado?: boolean | null
+          competencia_decea?: string | null
+          competencia_infraero?: string | null
+          criado_em?: string
+          data_emissao?: string
+          data_max_pagamento?: string | null
+          data_vencimento?: string | null
+          demonstrativo_url?: string | null
+          descricao_servico?: string
+          documento_pagador?: string | null
+          endereco_pagador?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          nf_url?: string | null
+          nome_categoria?: string | null
+          nome_pagador?: string
+          numero_documento?: string | null
+          numero_recibo?: string
+          observacoes?: string | null
+          pdf_url?: string | null
+          percentual?: number | null
+          socio_id?: string | null
+          socios_cliente?: string | null
+          status?: string | null
+          subcategoria_1?: string | null
+          subcategoria_2?: string | null
+          subcategoria_3?: string | null
+          subcategoria_4?: string | null
+          tipo_recibo?: string | null
+          uf_pagador?: string | null
+          usuario_id?: string | null
+          valor?: number
+          valor_total?: number | null
+        }
+        Relationships: []
       }
       salaries: {
         Row: {

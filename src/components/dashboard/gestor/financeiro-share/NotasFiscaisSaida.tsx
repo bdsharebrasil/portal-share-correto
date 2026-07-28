@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { syncNFSaidaFinance, deleteNFSaidaFinanceMirror } from "@/lib/nfSaidaFinanceSync";
+import { syncSaidaFinancialLegs, deleteSaidaFinancialLegs } from "@/lib/saidaFinancialSync";
 import { generateSequentialReceiptNumber, parseLocalDate } from "@/lib/receiptUtils";
 import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 
@@ -552,7 +553,9 @@ export function NotasFiscaisSaida() {
             cliente_cnpj: notaData.cliente_cnpj,
             cliente_id: clientId,
             aeronave_id: aircraftId,
+            aeronave_registro: formData.aeronave_registro || null,
             categoria_id: categoriaId,
+            categoria_label: categoriaNome,
             valor: notaData.valor,
             descricao: notaData.descricao,
             data_criacao: notaData.data_criacao,
@@ -886,27 +889,63 @@ export function NotasFiscaisSaida() {
       const { data: aeroData } = await supabase.from('aeronave').select("id").eq('matricula', reciboData.aeronave_registro).single();
       aeronaveId = aeroData?.id || null;
 
-      // Insert into movimentacoes to populate the receipts history
-      const { error: movimentacaoError } = await supabase
-        .from("movimentacoes")
+      // Grava o Recibo de Saída na sua tabela dedicada
+      const { data: reciboSaida, error: reciboSaidaError } = await (supabase as any)
+        .from("recibos_saida")
         .insert({
-          descricao: reciboData.descricao || "Recibo de Saída - Serviços",
-          tipo: "receita",
-          categoria_id: CATEGORIA_ID,
+          numero_recibo: numeroRecibo,
+          tipo_recibo: reciboData.categoriaRecibo,
+          cliente_id: clientId,
+          aeronave_id: aeronaveId,
           valor: parseFloat(reciboData.valor),
+          valor_total: parseFloat(reciboData.valor),
+          descricao_servico: reciboData.descricao || "Recibo de Saída - Serviços",
+          nome_categoria: reciboData.categoriaRecibo,
+          data_emissao: new Date().toISOString().split("T")[0],
+          data_vencimento: reciboData.data_vencimento,
+          status: "pendente",
+          pdf_url: reciboUrl,
+          nome_pagador: reciboData.cliente_nome,
+          documento_pagador: reciboData.cliente_cnpj,
+          usuario_id: currentUser.id,
+        })
+        .select("id")
+        .single();
+
+      if (reciboSaidaError) {
+        console.error("Erro ao inserir em recibos_saida:", reciboSaidaError);
+        throw reciboSaidaError;
+      }
+
+      // Dispara as 4 pernas financeiras (AR + mov share + mov cliente + rateio)
+      try {
+        await syncSaidaFinancialLegs({
+          origem: "recibo_saida",
+          origem_id: reciboSaida.id,
+          cliente_id: clientId,
+          cliente_nome: reciboData.cliente_nome,
+          cliente_cnpj: reciboData.cliente_cnpj,
+          aeronave_id: aeronaveId,
+          aeronave_registro: reciboData.aeronave_registro,
+          valor: parseFloat(reciboData.valor),
+          valor_total_despesa: parseFloat(reciboData.valor),
           data_competencia: new Date().toISOString().split("T")[0],
           data_vencimento: reciboData.data_vencimento,
           status: "pendente",
-          clientes_id: clientId,
-          aeronave_id: aeronaveId,
+          categoria_origem_label: reciboData.categoriaRecibo,
           numero_recibo: numeroRecibo,
+          numero_doc: numeroRecibo,
           recibo_url: reciboUrl,
+          descricao: reciboData.descricao || "Recibo de Saída - Serviços",
           criado_por: currentUser.id,
         });
-
-      if (movimentacaoError) {
-        console.error("Erro ao inserir em movimentacoes:", movimentacaoError);
-        throw movimentacaoError;
+      } catch (syncErr: any) {
+        console.error("Falha no sync das pernas financeiras do recibo:", syncErr);
+        toast({
+          title: "Aviso",
+          description: "Recibo salvo, mas houve erro ao gerar movimentações: " + (syncErr?.message || ""),
+          variant: "destructive",
+        });
       }
 
       setReciboViewUrl(reciboUrl);

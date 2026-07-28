@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -202,7 +201,7 @@ export function ContasReceber() {
 
       const { data: bankRecData, error: bankRecError } = await (supabase as any).from("movimentacoes").select(`
         id, data:criado_em, descricao, valor, status, clientes_id, aeronave_id,
-        data_vencimento as prazo_pagamento, boleto_url, nf_url, comprovante_url, controle_bancario_id,
+        data_vencimento, boleto_url, nf_url, comprovante_url, controle_bancario_id,
         clientes:clientes_id(razao_social),
         aeronave:aeronave_id(matricula)
       `).eq("tipo", "receita").is("controle_bancario_id", null).in("status", ["pendente", "pago", "parcial"]).order("criado_em", { ascending: false });
@@ -271,7 +270,7 @@ export function ContasReceber() {
           cliente_nome: clientName,
           cliente_cnpj: "",
           data_criacao: rec.data,
-          data_vencimento: rec.prazo_pagamento || rec.data,
+          data_vencimento: rec.data_vencimento || rec.data,
           valor: valor,
           categoria: "Receita Cliente",
           descricao: rec.descricao,
@@ -298,12 +297,14 @@ export function ContasReceber() {
         (contasData || []).map(async (conta) => {
           const isAlreadyImported = fluxoIds.has(conta.id) || bankRecIds.has(conta.id);
 
-          let referencia = conta.referencia || "";
+          // "referencia" não existe como coluna em contas_areceber; é derivada aqui a partir
+          // do vínculo com movimentacoes (movimentacao_id), quando existir.
+          let referencia = "";
           let dataVencimentoFromBanco = conta.data_vencimento;
           let isFromBankRec = false;
 
-          if (conta.banco_conciliacao_id) {
-            const { data: bancarioData } = await (supabase as any).from("movimentacoes").select("descricao, data:criado_em").eq("id", conta.banco_conciliacao_id).single();
+          if (conta.movimentacao_id) {
+            const { data: bancarioData } = await (supabase as any).from("movimentacoes").select("descricao, data:criado_em").eq("id", conta.movimentacao_id).single();
 
             if (bancarioData) {
               referencia = bancarioData.descricao || referencia;
@@ -402,6 +403,8 @@ export function ContasReceber() {
     setIsSavingForm(true);
     try {
       if (editingConta) {
+        // Nota: "referencia" não é uma coluna de contas_areceber — ela é derivada em
+        // loadContas() a partir de movimentacao_id, então não é enviada no update.
         const { error } = await supabase.from("contas_areceber").update({
           numero: formData.numero,
           cliente_nome: formData.cliente_nome,
@@ -413,7 +416,6 @@ export function ContasReceber() {
           status: (formData as any).status || formData.status,
           arquivo_pdf_url: pdfUrl || null,
           aeronave: formData.aeronave || null,
-          referencia: formData.referencia || null,
           atualizado_em: new Date().toISOString()
         }).eq("id", editingConta.id);
 
@@ -580,7 +582,7 @@ export function ContasReceber() {
 
     try {
       if (conta?.isFromFluxoCaixa && conta?.fluxoCaixaId) {
-        const { error } = await supabase.from("controle_bancario").update({ status: newStatus, data_atualizacao: new Date().toISOString() }).eq("id", conta.fluxoCaixaId);
+        const { error } = await (supabase as any).from("controle_bancario").update({ status: newStatus, data_atualizacao: new Date().toISOString() }).eq("id", conta.fluxoCaixaId);
 
         if (error) {
           toast.error(`Erro ao atualizar: ${error.message}`);
@@ -641,9 +643,10 @@ export function ContasReceber() {
         }
       }
 
-      // For accounts from fluxo_caixa, update controle_bancario directly
+      // Para contas vindas do fluxo_caixa, atualiza controle_bancario diretamente.
+      // controle_bancario ainda usa "as any" pois seu schema completo não foi confirmado.
       if (contasReceberData.isFromFluxoCaixa && contasReceberData.fluxoCaixaId) {
-        const { error: updateError } = await supabase.from("controle_bancario").update({
+        const { error: updateError } = await (supabase as any).from("controle_bancario").update({
           status: "recebido",
           conta_banco: nomeBanco,
           metodo_pagamento: metodo_pagamento || null,
@@ -663,7 +666,7 @@ export function ContasReceber() {
         return;
       }
 
-      // For other accounts, update contas_areceber (triggers will sync to related tables)
+      // Para as demais contas, atualiza contas_areceber (triggers sincronizam as tabelas relacionadas)
       const updateData: any = {
         status: "recebido",
         data_recebimento: dataRecebimento,
@@ -676,9 +679,9 @@ export function ContasReceber() {
         updateData.comprovante_recebimento_url = comprovanteUrl;
       }
 
-      // If this account came from bank_reconciliations, link it
+      // Se esta conta veio de movimentacoes (conciliação bancária), vincula pelo campo atual movimentacao_id
       if (contasReceberData.isFromBankReconciliation && contasReceberData.bankReconciliationId) {
-        updateData.banco_conciliacao_id = contasReceberData.bankReconciliationId;
+        updateData.movimentacao_id = contasReceberData.bankReconciliationId;
       }
 
       const { error: updateError } = await supabase.from("contas_areceber").update(updateData).eq("id", contasReceberData.id);
@@ -1023,7 +1026,7 @@ export function ContasReceber() {
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">Data Emissão</label>
                 <Input
-                  type="data"
+                  type="date"
                   value={formData.data_criacao}
                   onChange={(e) => setFormData((prev) => ({ ...prev, data_criacao: e.target.value }))}
                   className="bg-background"
@@ -1032,7 +1035,7 @@ export function ContasReceber() {
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">Data Vencimento *</label>
                 <Input
-                  type="data"
+                  type="date"
                   value={formData.data_vencimento}
                   onChange={(e) => setFormData((prev) => ({ ...prev, data_vencimento: e.target.value }))}
                   className="bg-background"
@@ -1149,7 +1152,7 @@ export function ContasReceber() {
                 <div>
                   <label className="text-sm font-semibold text-foreground mb-2 block">Data do Recebimento *</label>
                   <Input
-                    type="data"
+                    type="date"
                     value={dataRecebimento}
                     onChange={(e) => setDataRecebimento(e.target.value)}
                     className="bg-background"
@@ -1162,7 +1165,7 @@ export function ContasReceber() {
                 <div className="flex gap-2">
                   <Input
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.documento,.documentox"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
