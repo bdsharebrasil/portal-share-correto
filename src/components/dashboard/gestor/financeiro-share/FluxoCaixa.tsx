@@ -31,7 +31,6 @@ import {
   GripHorizontal,
 } from "lucide-react";
 import { useMovimentacoes } from "@/hooks/useMovimentacoes";
-import { useRateioDespesas, groupRateioBySocio } from "@/hooks/useRateioDespesas";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -93,13 +92,6 @@ export function FluxoCaixa() {
   const { data: transacoes, isLoading, error } = useMovimentacoes();
   const { categorias: contasData } = useCategoriasFinanceiro();
 
-  // Rateio de despesas dos cotistas (nova aba)
-  const {
-    data: rateioDespesas,
-    isLoading: isLoadingRateio,
-    error: errorRateio,
-  } = useRateioDespesas();
-
   // ── Larguras das colunas ─────────────────────────────────────────────────────
   const defaultColumnWidths = {
     data: 100, tipo: 100, caixa: 100, descricao: 180, categoria: 130, cliente: 130,
@@ -139,9 +131,7 @@ export function FluxoCaixa() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<
-    "lista" | "visualizacao-mensal" | "caixa-cliente" | "rateio-cotistas"
-  >("lista");
+  const [activeTab, setActiveTab] = useState<"lista" | "visualizacao-mensal" | "caixa-cliente">("lista");
   const [showReport, setShowReport] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showInlineForm, setShowInlineForm] = useState(false);
@@ -407,12 +397,6 @@ export function FluxoCaixa() {
   const totalPages = Math.ceil(transacoesForTab.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedTransacoes = transacoesForTab.slice(startIndex, startIndex + itemsPerPage);
-
-  // ── Rateio de cotistas (nova aba) ────────────────────────────────────────────
-  const rateioAgrupado = useMemo(() => {
-    if (!rateioDespesas) return [];
-    return groupRateioBySocio(rateioDespesas);
-  }, [rateioDespesas]);
 
   // ── Relatório agrupado ───────────────────────────────────────────────────────
   const selectedTransacoes = transacoesForTab.filter((t: any) => selectedIds.has(t.id));
@@ -1076,7 +1060,7 @@ export function FluxoCaixa() {
     <Tabs
       value={activeTab}
       onValueChange={(value) =>
-        setActiveTab(value as "lista" | "visualizacao-mensal" | "caixa-cliente" | "rateio-cotistas")
+        setActiveTab(value as "lista" | "visualizacao-mensal" | "caixa-cliente")
       }
       className="w-full"
     >
@@ -1105,14 +1089,6 @@ export function FluxoCaixa() {
         >
           Caixa Cliente
         </TabsTrigger>
-        <TabsTrigger
-          value="rateio-cotistas"
-          className="rounded-md py-2 px-4 text-sm font-medium transition-all duration-300 whitespace-nowrap
-            data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-white/10
-            data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/80 data-[state=active]:text-white data-[state=active]:shadow-md"
-        >
-          Rateio Cotistas
-        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="lista" className="mt-6 w-full">
@@ -1134,9 +1110,6 @@ export function FluxoCaixa() {
         {renderMovimentacoesTable()}
       </TabsContent>
 
-      <TabsContent value="rateio-cotistas" className="mt-6 w-full">
-        {renderRateioCotistasTab()}
-      </TabsContent>
 
       <TabsContent value="visualizacao-mensal" className="mt-6 w-full">
         <QuadroMensalTab />
