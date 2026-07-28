@@ -2074,7 +2074,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                           disabled={!taxaReciboId}
                         >
                           <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Recibo
-                        Button>
+                        </Button>
                       </div>
 
                       {taxaRecibosMultiplos.length === 0 ? (
