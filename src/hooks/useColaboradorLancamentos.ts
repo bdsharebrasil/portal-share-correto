@@ -19,8 +19,7 @@ export function useColaboradorLancamentos(colaboradorId: string | null) {
     queryFn: async () => {
       if (!colaboradorId) return [];
 
-      const { data, error } = await supabase
-        .from("controle_bancario")
+      const { data, error } = await (supabase as any).from("controle_bancario")
         .select(`
           id,
           data,
