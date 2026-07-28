@@ -1,528 +1,525 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Plus, AlertTriangle, Calendar, Clock, Repeat, DollarSign, Trash2, Edit2, CheckCircle, Bell, FileCheck, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  RefreshCw,
+  CalendarClock,
+  Bell,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { format, isBefore, isWithinInterval, addDays, startOfMonth, endOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { ContaRecorrenteForm } from "@/components/dashboard/gestor/financeiro-share/ContaRecorrenteForm";
+import { formatBRL } from "@/lib/format";
 
-const MONTHS = [
-  { value: "01", label: "Janeiro" },
-  { value: "02", label: "Fevereiro" },
-  { value: "03", label: "Março" },
-  { value: "04", label: "Abril" },
-  { value: "05", label: "Maio" },
-  { value: "06", label: "Junho" },
-  { value: "07", label: "Julho" },
-  { value: "08", label: "Agosto" },
-  { value: "09", label: "Setembro" },
-  { value: "10", label: "Outubro" },
-  { value: "11", label: "Novembro" },
-  { value: "12", label: "Dezembro" }
+/* ─────────────────────────── types ─────────────────────────── */
+
+interface ContaRecorrente {
+  id: string;
+  descricao: string | null;
+  fornecedor: string | null;
+  valor: number | string | null;
+  categoria: string | null;
+  frequencia_recorrencia: string | null;
+  dia_recorrencia: number | null;
+  lembrete_antecipado: boolean | null;
+  status: string | null;
+  notas: string | null;
+  data_inicio: string | null;
+  criado_por: string | null;
+  atualizado_por: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  empresa_id: string | null;
+}
+
+interface FormState {
+  descricao: string;
+  fornecedor: string;
+  valor: string;
+  categoria: string;
+  frequencia_recorrencia: string;
+  dia_recorrencia: string;
+  status: string;
+  lembrete_antecipado: boolean;
+  notas: string;
+  data_inicio: string;
+}
+
+const emptyForm: FormState = {
+  descricao: "",
+  fornecedor: "",
+  valor: "",
+  categoria: "",
+  frequencia_recorrencia: "mensal",
+  dia_recorrencia: "1",
+  status: "agendado",
+  lembrete_antecipado: false,
+  notas: "",
+  data_inicio: new Date().toISOString().slice(0, 10),
+};
+
+const FREQUENCIAS = [
+  { value: "semanal", label: "Semanal" },
+  { value: "mensal", label: "Mensal" },
+  { value: "anual", label: "Anual" },
 ];
 
-export function ContasRecorrentesTab() {
-  const { user } = useAuth();
-  const [contas, setContas] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+const STATUS_OPCOES = [
+  { value: "agendado", label: "Agendado" },
+  { value: "cancelado", label: "Cancelado" },
+];
+
+/* ─────────────────────────── helpers ─────────────────────────── */
+
+const num = (v: string | number | null | undefined) => Number(v) || 0;
+
+function StatusBadge({ status }: { status: string | null }) {
+  const s = (status ?? "").toLowerCase();
+  if (s === "cancelado") {
+    return (
+      <span
+        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
+        style={{
+          background: "rgba(239,68,68,0.10)",
+          color: "#f87171",
+          borderColor: "rgba(239,68,68,0.25)",
+        }}
+      >
+        <XCircle className="h-3 w-3 mr-1" /> Cancelado
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
+      style={{
+        background: "rgba(34,197,94,0.10)",
+        color: "#4ade80",
+        borderColor: "rgba(34,197,94,0.25)",
+      }}
+    >
+      <CheckCircle2 className="h-3 w-3 mr-1" /> Agendado
+    </span>
+  );
+}
+
+const freqLabel = (f: string | null) =>
+  FREQUENCIAS.find((x) => x.value === (f ?? "").toLowerCase())?.label || f || "—";
+
+/* ─────────────────────────── main ─────────────────────────── */
+
+export default function ContasRecorrentesTab() {
+  const [contas, setContas] = useState<ContaRecorrente[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingConta, setEditingConta] = useState<any>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-  const [generateMonth, setGenerateMonth] = useState<string>("");
-  const [generateYear, setGenerateYear] = useState<string>("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    loadContas();
-  }, []);
-
-  const loadContas = async () => {
-    setIsLoading(true);
+  const fetchContas = useCallback(async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("contas_recorrentes")
         .select("*")
-        .order("dia_recorrencia", { ascending: true });
-
-      if (error) {
-        toast.error(`Erro ao carregar: ${error.message}`);
-        return;
-      }
-
-      setContas(data || []);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao carregar contas recorrentes");
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setContas((data ?? []) as ContaRecorrente[]);
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao carregar contas recorrentes." });
+    } finally {
+      setLoading(false);
     }
-    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchContas();
+  }, [fetchContas]);
+
+  const openNew = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setShowForm(true);
   };
 
-  const getContasStats = () => {
-    const today = new Date();
-    const next7Days = addDays(today, 7);
-
-    const totalRecorrentes = contas.filter(c => c.status === 'agendado').length;
-    const proximosVencimentos = contas.filter(c => {
-      if (c.status !== 'agendado') return false;
-      const contaDate = new Date();
-      contaDate.setDate(c.dia_recorrencia || 1);
-      return isWithinInterval(contaDate, { start: today, end: next7Days });
-    }).length;
-    const valorTotal = contas
-      .filter(c => c.status === 'agendado' && c.valor)
-      .reduce((sum, c) => sum + parseFloat(c.valor), 0);
-
-    return { totalRecorrentes, proximosVencimentos, valorTotal };
-  };
-
-  const upcomingDueDates = useMemo(() => {
-    const today = new Date();
-    const next7Days = addDays(today, 7);
-    
-    return contas.filter(c => {
-      if (c.status !== 'agendado') return false;
-      const dueDate = new Date();
-      dueDate.setDate(c.dia_recorrencia || 1);
-      return isWithinInterval(dueDate, { start: today, end: next7Days });
+  const openEdit = (c: ContaRecorrente) => {
+    setForm({
+      descricao: c.descricao ?? "",
+      fornecedor: c.fornecedor ?? "",
+      valor: c.valor != null ? String(c.valor) : "",
+      categoria: c.categoria ?? "",
+      frequencia_recorrencia: c.frequencia_recorrencia ?? "mensal",
+      dia_recorrencia: c.dia_recorrencia != null ? String(c.dia_recorrencia) : "1",
+      status: c.status ?? "agendado",
+      lembrete_antecipado: !!c.lembrete_antecipado,
+      notas: c.notas ?? "",
+      data_inicio: c.data_inicio ?? new Date().toISOString().slice(0, 10),
     });
-  }, [contas]);
-
-  const stats = getContasStats();
-
-  const handleEdit = (conta: any) => {
-    setEditingConta(conta);
+    setEditingId(c.id);
     setShowForm(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteConfirmId) return;
-
-    try {
-      const { error } = await supabase
-        .from("contas_recorrentes")
-        .delete()
-        .eq("id", deleteConfirmId);
-
-      if (error) {
-        toast.error(`Erro ao deletar: ${error.message}`);
-        return;
-      }
-
-      toast.success("Conta recorrente deletada com sucesso!");
-      setDeleteConfirmId(null);
-      loadContas();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao deletar");
-    }
-  };
-
-  const handleMarkAsInactive = async (conta: any) => {
-    try {
-      const { error } = await supabase
-        .from("contas_recorrentes")
-        .update({ status: 'cancelado' })
-        .eq("id", conta.id);
-
-      if (error) {
-        toast.error(`Erro ao atualizar: ${error.message}`);
-        return;
-      }
-
-      toast.success("Conta recorrente desativada!");
-      loadContas();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao atualizar");
-    }
-  };
-
-  const handleOpenForm = (conta?: any) => {
-    setEditingConta(conta || null);
-    setShowForm(true);
-  };
-
-  const handleCloseForm = () => {
+  const closeForm = () => {
     setShowForm(false);
-    setEditingConta(null);
+    setEditingId(null);
+    setForm(emptyForm);
   };
 
-  const handleFormSuccess = () => {
-    handleCloseForm();
-    loadContas();
-  };
-
-  const generateContasAPagar = async () => {
-    if (!generateMonth || !generateYear || !user) {
-      toast.error("Selecione mês e ano");
+  const save = async () => {
+    if (!form.descricao.trim()) {
+      setToast({ type: "err", text: "Informe a descrição." });
       return;
     }
-
-    setIsGenerating(true);
+    setSaving(true);
+    setToast(null);
     try {
-      const activeContas = contas.filter(c => c.status === 'agendado');
-      
-      if (activeContas.length === 0) {
-        toast.info("Nenhuma conta recorrente ativa para gerar");
-        setIsGenerating(false);
-        return;
+      const payload = {
+        descricao: form.descricao.trim(),
+        fornecedor: form.fornecedor.trim() || null,
+        valor: form.valor ? Number(form.valor) : 0,
+        categoria: form.categoria.trim() || null,
+        frequencia_recorrencia: form.frequencia_recorrencia,
+        dia_recorrencia: Number(form.dia_recorrencia) || 1,
+        status: form.status,
+        lembrete_antecipado: form.lembrete_antecipado,
+        notas: form.notas.trim() || null,
+        data_inicio: form.data_inicio || null,
+      };
+      if (editingId) {
+        const { error } = await supabase
+          .from("contas_recorrentes")
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq("id", editingId);
+        if (error) throw error;
+        setToast({ type: "ok", text: "Conta recorrente atualizada." });
+      } else {
+        const { error } = await supabase.from("contas_recorrentes").insert(payload);
+        if (error) throw error;
+        setToast({ type: "ok", text: "Conta recorrente criada." });
       }
-
-      let generated = 0;
-      let skipped = 0;
-
-      for (const conta of activeContas) {
-        // Calcular data de vencimento baseada no dia de recorrência
-        const diaVencimento = conta.dia_recorrencia || 1;
-        const dataVencimento = `${generateYear}-${generateMonth}-${String(diaVencimento).padStart(2, '0')}`;
-        const dataRecebimento = new Date().toISOString().split('T')[0];
-
-        // Verificar se já existe uma conta a pagar para este fornecedor/mês
-        const { data: existing } = await (supabase as any)
-          .from("contas_apagar")
-          .select("id")
-          .eq("fornecedor_nome", conta.fornecedor)
-          .eq("descricao", conta.descricao)
-          .gte("data_vencimento", `${generateYear}-${generateMonth}-01`)
-          .lte("data_vencimento", `${generateYear}-${generateMonth}-31`)
-          .maybeSingle();
-
-        if (existing) {
-          skipped++;
-          continue;
-        }
-
-        // Criar conta a pagar
-        const { error } = await (supabase.from("contas_apagar") as any).insert({
-          numero: `REC-${conta.id.slice(0, 6)}-${generateMonth}/${generateYear}`,
-          fornecedor_nome: conta.fornecedor,
-          fornecedor_cnpj: "",
-          data_recebimento: dataRecebimento,
-          data_vencimento: dataVencimento,
-          valor: conta.valor || 0,
-          categoria: conta.categoria || "Despesa Recorrente",
-          descricao: conta.descricao,
-          status: "pendente",
-          aeronave: "N/A",
-          criado_por: user.id
-        });
-
-        if (error) {
-          console.error("Erro ao criar conta a pagar:", error);
-        } else {
-          generated++;
-        }
-      }
-
-      if (generated > 0) {
-        toast.success(`${generated} conta(s) a pagar criada(s) com sucesso!`);
-      }
-      if (skipped > 0) {
-        toast.info(`${skipped} conta(s) já existiam e foram ignoradas`);
-      }
-
-      setShowGenerateDialog(false);
-      setGenerateMonth("");
-      setGenerateYear("");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao gerar contas a pagar");
+      closeForm();
+      fetchContas();
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao salvar." });
     } finally {
-      setIsGenerating(false);
+      setSaving(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pago":
-        return "bg-green-500/20 text-green-400 border-green-500/30";
-      case "agendado":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-      case "cancelado":
-        return "bg-red-500/20 text-red-400 border-red-500/30";
-      default:
-        return "bg-muted text-muted-foreground";
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("contas_recorrentes").delete().eq("id", deleteId);
+      if (error) throw error;
+      setToast({ type: "ok", text: "Conta recorrente excluída." });
+      setDeleteId(null);
+      fetchContas();
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao excluir." });
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "pago": return "Pago";
-      case "agendado": return "Ativo";
-      case "cancelado": return "Inativo";
-      default: return status;
-    }
-  };
-
-  const getFrequencyLabel = (frequency: string, day?: number) => {
-    switch (frequency) {
-      case "semanal": return "Semanal";
-      case "mensal": return day ? `Dia ${day} do mês` : "Mensal";
-      case "anual": return "Anual";
-      default: return frequency;
-    }
-  };
-
-  const years = ["2025", "2026", "2027"];
+  const inputCls =
+    "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
+  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
 
   return (
-    <div className="space-y-6">
-      {/* Alerta de vencimentos próximos */}
-      {upcomingDueDates.length > 0 && (
-        <Alert className="border-amber-500/50 bg-amber-500/10">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <AlertDescription className="text-amber-400">
-            Você tem <strong>{upcomingDueDates.length}</strong> conta(s) recorrente(s) próxima(s) do vencimento nos próximos 7 dias.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Cards de estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total de Contas Recorrentes</p>
-                <p className="text-2xl font-bold text-primary">{stats.totalRecorrentes}</p>
-              </div>
-              <Repeat className="w-8 h-8 text-primary/50" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Vencimentos Próximos</p>
-                <p className="text-2xl font-bold text-amber-500">{stats.proximosVencimentos}</p>
-              </div>
-              <Clock className="w-8 h-8 text-amber-500/50" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Valor Total Recorrente</p>
-                <p className="text-2xl font-bold text-green-500">
-                  R$ {stats.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <DollarSign className="w-8 h-8 text-green-500/50" />
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-5">
+      {/* header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-slate-100">Contas Recorrentes</h2>
+          <p className="text-xs text-slate-400">Despesas e receitas que se repetem automaticamente.</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchContas}
+            className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" /> Atualizar
+          </button>
+          <button
+            onClick={openNew}
+            className="text-slate-950 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2 font-semibold"
+            style={{ background: "#06b6d4" }}
+          >
+            <Plus className="h-4 w-4" /> Nova Conta Recorrente
+          </button>
+        </div>
       </div>
 
-      {/* Formulário Inline */}
-      {showForm && (
-        <ContaRecorrenteForm
-          conta={editingConta}
-          onSuccess={handleFormSuccess}
-          onCancel={handleCloseForm}
-        />
+      {/* toast */}
+      {toast && (
+        <div
+          className="rounded-lg px-4 py-2 text-sm border"
+          style={{
+            background: toast.type === "ok" ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
+            color: toast.type === "ok" ? "#4ade80" : "#f87171",
+            borderColor: toast.type === "ok" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)",
+          }}
+        >
+          {toast.text}
+        </div>
       )}
 
-      {/* Lista de Contas Recorrentes */}
-      <Card className="bg-card border-border">
-        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-foreground">Contas Recorrentes</CardTitle>
-          <div className="flex gap-2 flex-wrap">
-            <Button onClick={() => setShowGenerateDialog(true)} variant="outline" className="border-primary/50 text-primary hover:bg-primary/10">
-              <FileCheck className="w-4 h-4 mr-2" />
-              Gerar Contas a Pagar
-            </Button>
-            {!showForm && (
-              <Button onClick={() => handleOpenForm()} className="bg-primary hover:bg-primary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Conta Recorrente
-              </Button>
-            )}
+      {/* inline form */}
+      {showForm && (
+        <div
+          className="rounded-2xl p-5 space-y-4"
+          style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-100">
+              {editingId ? "Editar Conta Recorrente" : "Nova Conta Recorrente"}
+            </h3>
+            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center h-32">
-              <p className="text-muted-foreground">Carregando...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Descrição *</label>
+              <input
+                className={inputCls}
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                placeholder="Ex.: Aluguel do galpão"
+              />
             </div>
-          ) : contas.length === 0 ? (
-            <div className="text-center py-12">
-              <Repeat className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground text-lg">Nenhuma conta recorrente cadastrada</p>
-              <p className="text-muted-foreground text-sm mt-2">Clique no botão acima para criar uma nova</p>
+            <div>
+              <label className={labelCls}>Fornecedor</label>
+              <input
+                className={inputCls}
+                value={form.fornecedor}
+                onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
+                placeholder="Nome do fornecedor"
+              />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {contas.map((conta) => {
-                const isInactive = conta.status === 'cancelado';
-                const rowClass = isInactive 
-                  ? 'bg-red-500/10 border-l-4 border-l-red-500 opacity-75' 
-                  : 'bg-muted/30 border-l-4 border-l-primary';
+            <div>
+              <label className={labelCls}>Valor (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                className={inputCls}
+                value={form.valor}
+                onChange={(e) => setForm({ ...form, valor: e.target.value })}
+                placeholder="0,00"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Categoria</label>
+              <input
+                className={inputCls}
+                value={form.categoria}
+                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                placeholder="Ex.: Infraestrutura"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Frequência</label>
+              <select
+                className={inputCls + " cursor-pointer"}
+                value={form.frequencia_recorrencia}
+                onChange={(e) => setForm({ ...form, frequencia_recorrencia: e.target.value })}
+              >
+                {FREQUENCIAS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Dia da Recorrência</label>
+              <select
+                className={inputCls + " cursor-pointer"}
+                value={form.dia_recorrencia}
+                onChange={(e) => setForm({ ...form, dia_recorrencia: e.target.value })}
+              >
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>
+                    Dia {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Status</label>
+              <select
+                className={inputCls + " cursor-pointer"}
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+              >
+                {STATUS_OPCOES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Data de Início</label>
+              <input
+                type="date"
+                className={inputCls}
+                value={form.data_inicio}
+                onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+              />
+            </div>
+            <div className="md:col-span-2 flex items-center gap-2 pt-1">
+              <input
+                id="lembrete"
+                type="checkbox"
+                checked={form.lembrete_antecipado}
+                onChange={(e) => setForm({ ...form, lembrete_antecipado: e.target.checked })}
+                className="h-4 w-4 accent-cyan-400"
+              />
+              <label htmlFor="lembrete" className="text-sm text-slate-200 inline-flex items-center gap-1">
+                <Bell className="h-3.5 w-3.5 text-cyan-400" /> Lembrar com antecedência
+              </label>
+            </div>
+            <div className="md:col-span-2">
+              <label className={labelCls}>Notas</label>
+              <textarea
+                className={inputCls}
+                rows={3}
+                value={form.notas}
+                onChange={(e) => setForm({ ...form, notas: e.target.value })}
+                placeholder="Observações adicionais"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              onClick={closeForm}
+              className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              style={{ background: "#06b6d4" }}
+            >
+              {saving ? "Salvando..." : editingId ? "Salvar Alterações" : "Criar Conta"}
+            </button>
+          </div>
+        </div>
+      )}
 
-                return (
-                  <div key={conta.id} className={`p-4 rounded-lg ${rowClass}`}>
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground">{conta.descricao}</h3>
-                        <p className="text-sm text-muted-foreground">Fornecedor: {conta.fornecedor}</p>
-                        <div className="flex items-center gap-4 mt-2 flex-wrap">
-                          <Badge className={getStatusColor(conta.status)}>
-                            {getStatusLabel(conta.status)}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {getFrequencyLabel(conta.frequencia_recorrencia, conta.dia_recorrencia)}
-                          </span>
-                          {conta.categoria && (
-                            <Badge variant="outline" className="text-xs">
-                              {conta.categoria}
-                            </Badge>
-                          )}
-                          {conta.lembrete_antecipado && (
-                            <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
-                              <Bell className="w-3 h-3" />
-                              Com lembrete
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 w-full md:w-auto">
-                        <p className="font-bold text-lg text-foreground">
-                          {conta.valor ? `R$ ${parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'Valor variável'}
-                        </p>
-                        <div className="flex gap-2">
-                          {conta.status === 'agendado' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMarkAsInactive(conta)}
-                              className="hover:bg-red-500/20 hover:text-red-400"
-                            >
-                              <AlertTriangle className="w-4 h-4 mr-1" />
-                              Desativar
-                            </Button>
-                          )}
-                          <Button variant="outline" size="sm" onClick={() => handleEdit(conta)}>
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteConfirmId(conta.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+      {/* list */}
+      {loading ? (
+        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
+      ) : contas.length === 0 ? (
+        <div
+          className="rounded-2xl p-10 text-center text-sm text-slate-400"
+          style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
+        >
+          Nenhuma conta recorrente cadastrada.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {contas.map((c) => (
+            <div
+              key={c.id}
+              className="rounded-2xl p-4 space-y-3"
+              style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-slate-100 truncate">{c.descricao || "—"}</div>
+                  <div className="text-xs text-slate-400 truncate">{c.fornecedor || "Sem fornecedor"}</div>
+                </div>
+                <StatusBadge status={c.status} />
+              </div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor</div>
+                  <div className="text-lg font-bold text-cyan-300">{formatBRL(num(c.valor))}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recorrência</div>
+                  <div className="text-xs text-slate-200 inline-flex items-center gap-1">
+                    <CalendarClock className="h-3.5 w-3.5 text-cyan-400" />
+                    {freqLabel(c.frequencia_recorrencia)} · dia {c.dia_recorrencia ?? "—"}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dialog de confirmação de exclusão */}
-      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground">Deseja realmente deletar esta conta recorrente?</p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Deletar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog para gerar contas a pagar */}
-      <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileCheck className="h-5 w-5 text-primary" />
-              Gerar Contas a Pagar
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Selecione o período para gerar as contas a pagar a partir das contas recorrentes ativas.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Mês</Label>
-                <Select value={generateMonth} onValueChange={setGenerateMonth}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o mês" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map(month => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Ano</Label>
-                <Select value={generateYear} onValueChange={setGenerateYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Ano" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map(year => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <Alert className="border-blue-500/30 bg-blue-500/10">
-              <AlertDescription className="text-blue-400 text-sm">
-                <strong>{contas.filter(c => c.status === 'agendado').length}</strong> conta(s) recorrente(s) ativa(s) serão processadas.
-                Contas já existentes para o período serão ignoradas.
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={generateContasAPagar} disabled={isGenerating || !generateMonth || !generateYear}>
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Gerar Contas
-                </>
+              {c.categoria && (
+                <div className="text-[11px] text-slate-400">
+                  Categoria: <span className="text-slate-200">{c.categoria}</span>
+                </div>
               )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {c.lembrete_antecipado && (
+                <div className="text-[11px] text-cyan-400 inline-flex items-center gap-1">
+                  <Bell className="h-3 w-3" /> Lembrete antecipado ativo
+                </div>
+              )}
+              {c.notas && (
+                <div className="text-[11px] text-slate-400 border-t border-slate-800 pt-2 line-clamp-2">
+                  {c.notas}
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-1 border-t border-slate-800">
+                <button
+                  onClick={() => openEdit(c)}
+                  className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Editar
+                </button>
+                <button
+                  onClick={() => setDeleteId(c.id)}
+                  className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Excluir
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* delete modal */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-red-400" />
+              </div>
+              <h3 className="text-base font-bold text-slate-100">Excluir conta recorrente</h3>
+            </div>
+            <p className="text-sm text-slate-300">
+              Tem certeza que deseja excluir esta conta recorrente? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                style={{ background: "#dc2626" }}
+              >
+                {deleting ? "Excluindo..." : "Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

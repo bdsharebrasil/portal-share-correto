@@ -2,12 +2,25 @@ import React, { useState, useMemo } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, ArrowUp, ArrowDown, Wallet, Calendar, Users, DollarSign, Receipt, Settings, Repeat, ArrowLeft, Building2, Menu, AlertCircle } from "lucide-react";
-import { NotasFiscaisSaida } from "@/components/dashboard/gestor/financeiro-share/NotasFiscaisSaida";
-import { FluxoCaixa } from "@/components/dashboard/gestor/financeiro-share/FluxoCaixa";
-import { ContasRecorrentesTab } from "@/components/dashboard/gestor/financeiro-share/ContasRecorrentesTab";
+import { 
+  ArrowUp, 
+  ArrowDown, 
+  Wallet, 
+  Users, 
+  Settings, 
+  Repeat, 
+  ArrowLeft, 
+  Building2, 
+  Menu, 
+  AlertCircle,
+  LucideIcon,
+  CircleDollarSign
+} from "lucide-react";
+import NFSaidaTab from "@/components/dashboard/gestor/financeiro-share/NFSaidaTab";
+import GestaoFiscal from "@/components/dashboard/gestor/financeiro-share/GestaoFiscal";
+import  ContasRecorrentesTab  from "@/components/dashboard/gestor/financeiro-share/ContasRecorrentesTab";
 import { PagamentoSalarioTab } from "@/components/dashboard/gestor/financeiro-share/PagamentoSalarioTab";
-import { PrestadoresServicoTab } from "@/components/dashboard/gestor/financeiro-share/PrestadoresServicoTab";
+import PrestadoresPJTab  from "@/components/dashboard/gestor/financeiro-share/PrestadoresPJTab";
 import { ConfiguracoesFiscais } from "@/components/dashboard/gestor/financeiro-share/ConfiguracoesFiscais";
 import { ContasPagar } from "@/components/dashboard/gestor/financeiro-share/ContasPagar";
 import { ContasReceber } from "@/components/dashboard/gestor/financeiro-share/ContasReceber";
@@ -20,79 +33,71 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { LucideIcon } from "lucide-react";
 
 interface Tab {
   value: string;
   label: string;
   icon: LucideIcon;
-  color: string;
   adminOnly?: boolean;
 }
 
 const allTabs: Tab[] = [
   {
     value: "fluxo",
-    label: "Fluxo de Caixa",
+    label: "Gestão Fiscal",
     icon: Wallet,
-    color: "from-primary/95 to-primary/85",
   },
   {
     value: "contas-recorrentes",
     label: "Contas Recorrentes",
     icon: Repeat,
-    color: "from-emerald-600/95 to-emerald-500/85",
   },
   {
     value: "pagamento-salario",
     label: "Salários CLT",
     icon: Users,
-    color: "from-emerald-600/95 to-emerald-500/85",
   },
   {
     value: "prestadores-pj",
     label: "Prestadores PJ",
     icon: Building2,
-    color: "from-orange-600/95 to-orange-500/85",
   },
   {
     value: "saida",
     label: "NF Saída",
     icon: ArrowUp,
-    color: "from-sky-600/95 to-sky-500/85",
   },
   {
     value: "contas-pagar",
     label: "Contas a Pagar",
     icon: ArrowUp,
-    color: "from-blue-600/95 to-blue-500/85",
   },
   {
     value: "contas-receber",
     label: "Contas a Receber",
     icon: ArrowDown,
-    color: "from-purple-600/95 to-purple-500/85",
   },
   {
     value: "configuracoes",
     label: "Configurações",
     icon: Settings,
-    color: "from-slate-600/95 to-slate-500/85",
     adminOnly: true,
   },
 ];
 
-export default function GestaoFiscal() {
+export default function GestaoFiscalIndex() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
   const {
     isAdmin,
     isGestorMaster,
     isFinanceiroMaster
   } = useUserRole();
+  
   const isAuthorized = isAdmin || isGestorMaster || isFinanceiroMaster;
 
-  // Filtrar abas baseado em permissões: admin, gestor_master e financeiro_master veem Configurações
+  // Filtrar abas baseado em permissões
   const tabs = useMemo(() => {
     return allTabs.filter(tab => {
       if (tab.adminOnly) {
@@ -103,112 +108,81 @@ export default function GestaoFiscal() {
   }, [isAdmin, isFinanceiroMaster, isGestorMaster]);
 
   if (!isAuthorized) {
-    return <Layout>
+    return (
+      <Layout>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center min-h-[calc(100vh-4rem)]"
+          className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-slate-50"
         >
-          <Card className="border-destructive/50 bg-gradient-to-br from-destructive/10 to-destructive/5 backdrop-blur-sm max-w-md">
-            <CardContent className="pt-8">
-              <div className="space-y-3 text-center">
-                <div className="inline-flex p-3 rounded-xl bg-destructive/20 border border-destructive/30">
-                  <AlertCircle className="w-6 h-6 text-destructive" />
-                </div>
-                <p className="text-lg font-semibold text-destructive">Acesso Negado</p>
-                <p className="text-sm text-muted-foreground">Você não tem permissão para acessar este módulo. Contate um administrador.</p>
+          <Card className="border-red-200 bg-white shadow-sm max-w-md w-full">
+            <CardContent className="pt-8 pb-8 text-center space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center border border-red-100">
+                <AlertCircle className="w-6 h-6 text-red-500" />
               </div>
+              <div>
+                <p className="text-lg font-bold text-slate-800">Acesso Restrito</p>
+                <p className="text-sm text-slate-500 mt-1">Você não tem permissão para acessar este módulo. Contate um administrador.</p>
+              </div>
+              <Button onClick={() => navigate(-1)} variant="outline" className="mt-4 text-xs font-semibold">
+                Voltar
+              </Button>
             </CardContent>
           </Card>
         </motion.div>
-      </Layout>;
+      </Layout>
+    );
   }
 
-  return <Layout>
-    <div className="flex flex-col bg-background w-full min-h-full px-3 sm:px-4 lg:px-6 py-4 lg:py-6 space-y-6">
-      {/* Back Button with Animation */}
-      <motion.button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-foreground/70 hover:text-primary transition-colors group w-fit"
-        whileHover={{ x: -4 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-sm font-medium">Voltar</span>
-      </motion.button>
-
-      {/* Header Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-6 pb-4 w-full"
-      >
-        <div className="flex items-center justify-between w-full flex-wrap gap-4">
-          <div className="flex items-center gap-3 lg:gap-4 flex-1 min-w-0">
-            {/* Icon Badge */}
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex-shrink-0 shadow-lg shadow-primary/10">
-              <DollarSign className="w-6 h-6 lg:w-7 lg:h-7 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
-                Gestão Fiscal
-              </h1>
-              <p className="text-sm text-foreground/60 mt-1 hidden sm:block">
-                Controle completo de caixa, notas fiscais e pagamentos
-              </p>
+  return (
+    <Layout>
+      <div className="flex flex-col bg-[#f1f5f9] w-full min-h-screen px-4 lg:px-8 py-6 font-sans">
+        
+        {/* Top Header Row */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <motion.button
+              onClick={() => navigate(-1)}
+              className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 transition-colors bg-white border border-slate-200 shadow-sm"
+              whileHover={{ x: -2 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </motion.button>
+            
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-600 text-white shadow-sm">
+                <CircleDollarSign className="h-5 w-5" />
+              </div>
+              <div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Tabs Container */}
-        <Tabs defaultValue="fluxo" className="flex flex-col w-full">
-          {/* Desktop Tab Navigation */}
-          <div className="w-full hidden sm:block">
-            <TabsList className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl rounded-xl p-2 border border-white/10 shadow-lg w-full justify-start overflow-x-auto h-auto gap-2">
-              {tabs.map((tab) => {
-                const IconComponent = tab.icon;
-                return (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300 whitespace-nowrap
-                      data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-white/10
-                      data-[state=active]:bg-gradient-to-r data-[state=active]:text-white data-[state=active]:shadow-md"
-                  >
-                    <IconComponent className="w-4 h-4 mr-2" />
-                    {tab.label}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </div>
-
-          {/* Mobile Menu */}
-          <div className="sm:hidden">
+          {/* Mobile Menu Trigger */}
+          <div className="xl:hidden">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 w-full">
+                <Button variant="outline" size="sm" className="gap-2 bg-white border-slate-200 text-slate-600 font-semibold shadow-sm">
                   <Menu className="w-4 h-4" />
-                  Selecionar Seção
+                  Navegação
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[280px]">
-                <div className="space-y-2 mt-6">
+              <SheetContent side="left" className="w-[280px] bg-slate-50">
+                <div className="space-y-1 mt-6">
                   {tabs.map((tab) => {
                     const IconComponent = tab.icon;
                     return (
                       <button
                         key={tab.value}
                         onClick={() => {
-                          const trigger = document.querySelector(
-                            `[data-value="${tab.value}"]`
-                          ) as HTMLElement;
+                          const trigger = document.querySelector(`[data-value="${tab.value}"]`) as HTMLElement;
                           trigger?.click();
                           setMobileMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted/50 transition-colors text-left text-sm font-medium text-foreground/80 hover:text-foreground"
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 transition-all text-left text-sm font-semibold text-slate-600"
                       >
-                        <IconComponent className="w-4 h-4 flex-shrink-0" />
+                        <IconComponent className="w-4 h-4 flex-shrink-0 text-slate-400" />
                         {tab.label}
                       </button>
                     );
@@ -217,49 +191,75 @@ export default function GestaoFiscal() {
               </SheetContent>
             </Sheet>
           </div>
+        </div>
 
-          {/* Tab Content */}
-          <div className="w-full pt-6">
+        {/* Main Tabs Component */}
+        <Tabs defaultValue="fluxo" className="flex flex-col w-full flex-1">
+          
+          {/* Desktop Tab Navigation (Pill Style) */}
+          <div className="w-full hidden xl:block mb-6">
+            <TabsList className="h-auto p-1 bg-slate-200/60 rounded-xl border border-slate-200 flex justify-start gap-1 overflow-x-auto scrollbar-hide shadow-inner">
+              {tabs.map((tab) => {
+                const IconComponent = tab.icon;
+                return (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    className="rounded-lg py-2 px-4 text-[13px] font-semibold transition-all whitespace-nowrap flex items-center gap-2
+                      data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:bg-slate-300/50
+                      data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200"
+                  >
+                    <IconComponent className="w-3.5 h-3.5 opacity-70" />
+                    {tab.label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
+
+          {/* Tab Content Areas */}
+          <div className="w-full flex-1">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
+              className="h-full"
             >
-              <TabsContent value="fluxo" className="mt-0 w-full">
-                <FluxoCaixa />
+              <TabsContent value="fluxo" className="mt-0 h-full focus-visible:outline-none">
+                <GestaoFiscal />
               </TabsContent>
 
-              <TabsContent value="contas-recorrentes" className="mt-0">
+              <TabsContent value="contas-recorrentes" className="mt-0 h-full focus-visible:outline-none">
                 <ContasRecorrentesTab />
               </TabsContent>
 
-              <TabsContent value="pagamento-salario" className="mt-0">
+              <TabsContent value="pagamento-salario" className="mt-0 h-full focus-visible:outline-none">
                 <PagamentoSalarioTab />
               </TabsContent>
 
-              <TabsContent value="prestadores-pj" className="mt-0">
-                <PrestadoresServicoTab />
+              <TabsContent value="prestadores-pj" className="mt-0 h-full focus-visible:outline-none">
+                <PrestadoresPJTab />
               </TabsContent>
 
-              <TabsContent value="saida" className="mt-0">
-                <NotasFiscaisSaida />
+              <TabsContent value="saida" className="mt-0 h-full focus-visible:outline-none">
+                <NFSaidaTab />
               </TabsContent>
 
-              <TabsContent value="contas-pagar" className="mt-0">
+              <TabsContent value="contas-pagar" className="mt-0 h-full focus-visible:outline-none">
                 <ContasPagar />
               </TabsContent>
 
-              <TabsContent value="contas-receber" className="mt-0">
+              <TabsContent value="contas-receber" className="mt-0 h-full focus-visible:outline-none">
                 <ContasReceber />
               </TabsContent>
 
-              <TabsContent value="configuracoes" className="mt-0">
+              <TabsContent value="configuracoes" className="mt-0 h-full focus-visible:outline-none">
                 <ConfiguracoesFiscais />
               </TabsContent>
             </motion.div>
           </div>
         </Tabs>
-      </motion.div>
-    </div>
-  </Layout>;
+      </div>
+    </Layout>
+  );
 }
