@@ -205,75 +205,19 @@ export function ContasReceber() {
   const loadContas = async () => {
     setIsLoading(true);
     try {
-      const { data: despesasReembolso, error: fluxoError } = await (supabase as any).from("controle_bancario").select(`
-        id, data, data_vencimento, descricao, valor, status,
-        aeronave_registro, numero_documento, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url, clientes_nome,
-        fornecedores_favoritos_id, colaborador_id
-      `).eq("status", "aguardando_reembolso").not("data_vencimento", "is", null).order("data_vencimento");
-
-      if (fluxoError) {
-        console.error("Erro ao carregar despesas:", fluxoError);
-      }
-
       const { data: bankRecData, error: bankRecError } = await (supabase as any).from("movimentacoes").select(`
         id, data:criado_em, descricao, valor, status, clientes_id, aeronave_id,
-        data_vencimento, boleto_url, nf_url, comprovante_url, controle_bancario_id,
+        data_vencimento, boleto_url, nf_url, comprovante_url,
         clientes:clientes_id(razao_social),
         aeronave:aeronave_id(matricula)
-      `).eq("tipo", "receita").is("controle_bancario_id", null).in("status", ["pendente", "pago", "parcial"]).order("criado_em", { ascending: false });
+      `).eq("tipo", "receita").in("status", ["pendente", "pago", "parcial"]).order("criado_em", { ascending: false });
 
       if (bankRecError) {
         console.error("Erro ao carregar bank_reconciliations:", bankRecError);
       }
 
-      const fornecedorIds = (despesasReembolso || []).filter((d) => d.fornecedores_favoritos_id).map((d) => d.fornecedores_favoritos_id);
-      const colaboradorIds = (despesasReembolso || []).filter((d) => d.colaborador_id).map((d) => d.colaborador_id);
-
-      let fornecedoresMap: Record<string, string> = {};
-      let colaboradoresMap: Record<string, string> = {};
-
-      if (fornecedorIds.length > 0) {
-        const { data: fornecedores } = await supabase.from("fornecedores_favoritos").select("id, nome_completo").in("id", fornecedorIds);
-        fornecedores?.forEach((f) => {
-          fornecedoresMap[f.id] = f.nome_completo;
-        });
-      }
-
-      if (colaboradorIds.length > 0) {
-        const { data: colaboradores } = await supabase.from("user_profiles").select("id, full_name").in("id", colaboradorIds);
-        colaboradores?.forEach((c) => {
-          colaboradoresMap[c.id] = c.full_name || "";
-        });
-      }
-
-      const contasFromFluxo = (despesasReembolso || []).map((despesa) => {
-        let referencia = "";
-        if (despesa.fornecedores_favoritos_id && fornecedoresMap[despesa.fornecedores_favoritos_id]) {
-          referencia = fornecedoresMap[despesa.fornecedores_favoritos_id];
-        } else if (despesa.colaborador_id && colaboradoresMap[despesa.colaborador_id]) {
-          referencia = colaboradoresMap[despesa.colaborador_id];
-        } else if (despesa.clientes_nome) {
-          referencia = despesa.clientes_nome;
-        }
-
-        return {
-          id: despesa.id,
-          numero: despesa.numero_documento || `FC-${despesa.id.slice(0, 8)}`,
-          cliente_nome: despesa.clientes_nome || "Cliente não especificado",
-          cliente_cnpj: "",
-          data_criacao: despesa.data,
-          data_vencimento: despesa.data_vencimento,
-          valor: despesa.valor,
-          categoria: despesa.grupo_categoria || "Reembolso",
-          descricao: despesa.descricao,
-          status: "pendente",
-          arquivo_pdf_url: despesa.nf_url || despesa.comprovante_url,
-          aeronave: despesa.aeronave_registro,
-          referencia: referencia,
-          isFromFluxoCaixa: true,
-          fluxoCaixaId: despesa.id
-        };
-      });
+      // Nota: `controle_bancario` foi removido do sistema; apenas usamos `movimentacoes` (conciliação)
+      // para gerar contas a receber derivadas.
 
       const contasFromBankRec = (bankRecData || []).map((rec: any) => {
         const clientName = rec.clientes?.razao_social || "Cliente não especificado";
@@ -306,12 +250,21 @@ export function ContasReceber() {
         return;
       }
 
-      const fluxoIds = new Set(contasFromFluxo.map((c) => c.id));
+      const fluxoIds = new Set<string>();
       const bankRecIds = new Set(contasFromBankRec.map((c) => c.id));
 
       const contasManuals = await Promise.all(
         (contasData || []).map(async (conta) => {
-          const isAlreadyImported = fluxoIds.has(conta.id) || bankRecIds.has(conta.id);
+          // Detecta se a conta manual já foi importada a partir do Fluxo de Caixa
+          // ou da Conciliação (movimentacoes). Antes comparávamos apenas o
+          // próprio `conta.id`, mas os registros importados têm ids diferentes
+          // (controle_bancario.id ou movimentacoes.id). Por isso agora verificamos
+          // `movimentacao_id` e `reference_id` contra os sets já carregados.
+          const isAlreadyImported = Boolean(
+            (conta.movimentacao_id && bankRecIds.has(conta.movimentacao_id)) ||
+            // fallback: se a referência vier em reference_id e apontar para movimentacoes
+            (conta.reference_id && bankRecIds.has(conta.reference_id))
+          );
 
           // "referencia" não existe como coluna em contas_areceber; é derivada aqui a partir
           // do vínculo com movimentacoes (movimentacao_id), quando existir.
@@ -350,7 +303,6 @@ export function ContasReceber() {
         allIds.add(id);
       };
 
-      contasFromFluxo.forEach((c) => checkDuplicates(c.id));
       contasFromBankRec.forEach((c) => checkDuplicates(c.id));
       contasManuaisFiltradas.forEach((c) => checkDuplicates(c.id));
 
@@ -358,7 +310,22 @@ export function ContasReceber() {
         toast.warning(`Aviso: ${duplicateIds.size} registro(s) duplicado(s) detectado(s).`);
       }
 
-      const todasContas = [...contasFromFluxo, ...contasFromBankRec, ...contasManuaisFiltradas];
+      const todasContas = (() => {
+        const map = new Map<string, any>();
+        for (const c of [...contasFromBankRec, ...contasManuaisFiltradas]) {
+          if (!map.has(c.id)) {
+            map.set(c.id, c);
+          } else {
+            const existing = map.get(c.id);
+            map.set(c.id, {
+              ...existing,
+              ...c,
+              isFromBankReconciliation: !!existing.isFromBankReconciliation || !!c.isFromBankReconciliation
+            });
+          }
+        }
+        return Array.from(map.values());
+      })();
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -418,6 +385,7 @@ export function ContasReceber() {
 
     setIsSavingForm(true);
     try {
+
       if (editingConta) {
         // Nota: "referencia" não é uma coluna de contas_areceber — ela é derivada em
         // loadContas() a partir de movimentacao_id, então não é enviada no update.
@@ -474,11 +442,7 @@ export function ContasReceber() {
   };
 
   const handleEditConta = (conta: any) => {
-    if (conta.isFromFluxoCaixa) {
-      toast.info("Esta conta foi criada no Fluxo de Caixa. Edite-a lá para atualizar.");
-      return;
-    }
-
+    
     setEditingConta(conta);
     setFormData({
       numero: conta.numero || "",
@@ -570,11 +534,6 @@ export function ContasReceber() {
     if (!deleteConfirmId) return;
 
     const contaToDelete = contas.find((c) => c.id === deleteConfirmId);
-    if (contaToDelete?.isFromFluxoCaixa) {
-      toast.error("Esta conta foi criada no Fluxo de Caixa. Exclua-a lá.");
-      setDeleteConfirmId(null);
-      return;
-    }
 
     try {
       const { error } = await supabase.from("contas_areceber").delete().eq("id", deleteConfirmId);
@@ -605,20 +564,17 @@ export function ContasReceber() {
     }
 
     try {
-      if (conta?.isFromFluxoCaixa && conta?.fluxoCaixaId) {
-        const { error } = await (supabase as any).from("controle_bancario").update({ status: newStatus, data_atualizacao: new Date().toISOString() }).eq("id", conta.fluxoCaixaId);
+      console.log("Atualizando status de conta_areceber", { contaId, newStatus });
+      const { data: changed, error } = await supabase.from("contas_areceber").update({ status: newStatus, atualizado_em: new Date().toISOString() }).eq("id", contaId).select("id,status");
+      console.log("contas_areceber.update status result:", { contaId, newStatus, changed, error });
 
-        if (error) {
-          toast.error(`Erro ao atualizar: ${error.message}`);
-          return;
-        }
-      } else {
-        const { error } = await supabase.from("contas_areceber").update({ status: newStatus, atualizado_em: new Date().toISOString() }).eq("id", contaId);
+      if (error) {
+        toast.error(`Erro ao atualizar: ${error.message}`);
+        return;
+      }
 
-        if (error) {
-          toast.error(`Erro ao atualizar: ${error.message}`);
-          return;
-        }
+      if (!changed || (Array.isArray(changed) && changed.length === 0)) {
+        toast.warning("Status atualizado, mas nenhuma linha retornada. Verifique permissões/RLS ou o id.");
       }
 
       toast.success("Status atualizado com sucesso!");
@@ -667,28 +623,7 @@ export function ContasReceber() {
         }
       }
 
-      // Para contas vindas do fluxo_caixa, atualiza controle_bancario diretamente.
-      // controle_bancario ainda usa "as any" pois seu schema completo não foi confirmado.
-      if (contasReceberData.isFromFluxoCaixa && contasReceberData.fluxoCaixaId) {
-        const { error: updateError } = await (supabase as any).from("controle_bancario").update({
-          status: "recebido",
-          conta_banco: nomeBanco,
-          metodo_pagamento: metodo_pagamento || null,
-          data_reembolso: dataRecebimento,
-          comprovante_url: comprovanteUrl || undefined,
-          data_atualizacao: new Date().toISOString()
-        }).eq("id", contasReceberData.fluxoCaixaId);
-
-        if (updateError) {
-          toast.error(`Erro ao atualizar: ${updateError.message}`);
-          return;
-        }
-
-        toast.success("Receita marcada como recebida!");
-        resetBankDialog();
-        loadContas();
-        return;
-      }
+      // controle_bancario foi removido; atualizamos diretamente `contas_areceber` abaixo.
 
       // Para as demais contas, atualiza contas_areceber (triggers sincronizam as tabelas relacionadas)
       const updateData: any = {
@@ -708,11 +643,16 @@ export function ContasReceber() {
         updateData.movimentacao_id = contasReceberData.bankReconciliationId;
       }
 
-      const { error: updateError } = await supabase.from("contas_areceber").update(updateData).eq("id", contasReceberData.id);
+      const { data: updatedRows, error: updateError } = await supabase.from("contas_areceber").update(updateData).eq("id", contasReceberData.id).select("id,status,data_recebimento");
+      console.log("contas_areceber.update result:", { id: contasReceberData.id, updateData, updatedRows, updateError });
 
       if (updateError) {
         toast.error(`Erro ao atualizar: ${updateError.message}`);
         return;
+      }
+
+      if (!updatedRows || (Array.isArray(updatedRows) && updatedRows.length === 0)) {
+        toast.warning("Atualização concluída, mas nenhuma linha foi retornada/atualizada. Verifique permissões/RLS ou o id fornecido.");
       }
 
       toast.success("Conta marcada como recebida!");
@@ -991,36 +931,34 @@ export function ContasReceber() {
                               </Tooltip>
                             </TooltipProvider>
                           )}
-                          {!conta.isFromFluxoCaixa && (
-                            <>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => handleEditConta(conta)}
-                                      className="text-muted-foreground hover:text-primary p-1 transition-colors"
-                                    >
-                                      <Edit2 className="w-4 h-4" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Editar</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => setDeleteConfirmId(conta.id)}
-                                      className="text-muted-foreground hover:text-destructive p-1 transition-colors"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Excluir</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </>
-                          )}
+                          <>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleEditConta(conta)}
+                                    className="text-muted-foreground hover:text-primary p-1 transition-colors"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => setDeleteConfirmId(conta.id)}
+                                    className="text-muted-foreground hover:text-destructive p-1 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Excluir</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </>
                           {conta.status !== "recebido" && (
                             <TooltipProvider>
                               <Tooltip>
