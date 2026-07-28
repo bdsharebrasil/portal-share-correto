@@ -9,12 +9,9 @@ import {
   Users, 
   Settings, 
   Repeat, 
-  ArrowLeft, 
-  Building2, 
-  Menu, 
+  Building2,
   AlertCircle,
-  LucideIcon,
-  CircleDollarSign
+  LucideIcon
 } from "lucide-react";
 import NFSaidaTab from "@/components/dashboard/gestor/financeiro-share/NFSaidaTab";
 import GestaoFiscal from "@/components/dashboard/gestor/financeiro-share/GestaoFiscal";
@@ -28,11 +25,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 interface Tab {
   value: string;
@@ -87,7 +79,6 @@ const allTabs: Tab[] = [
 
 export default function GestaoFiscalIndex() {
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const {
     isAdmin,
@@ -136,63 +127,7 @@ export default function GestaoFiscalIndex() {
 
   return (
     <Layout>
-      <div className="flex flex-col bg-[#f1f5f9] w-full min-h-screen px-4 lg:px-8 py-6 font-sans">
-        
-        {/* Top Header Row */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <motion.button
-              onClick={() => navigate(-1)}
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 transition-colors bg-white border border-slate-200 shadow-sm"
-              whileHover={{ x: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </motion.button>
-            
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-600 text-white shadow-sm">
-                <CircleDollarSign className="h-5 w-5" />
-              </div>
-              <div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Menu Trigger */}
-          <div className="xl:hidden">
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 bg-white border-slate-200 text-slate-600 font-semibold shadow-sm">
-                  <Menu className="w-4 h-4" />
-                  Navegação
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] bg-slate-50">
-                <div className="space-y-1 mt-6">
-                  {tabs.map((tab) => {
-                    const IconComponent = tab.icon;
-                    return (
-                      <button
-                        key={tab.value}
-                        onClick={() => {
-                          const trigger = document.querySelector(`[data-value="${tab.value}"]`) as HTMLElement;
-                          trigger?.click();
-                          setMobileMenuOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 transition-all text-left text-sm font-semibold text-slate-600"
-                      >
-                        <IconComponent className="w-4 h-4 flex-shrink-0 text-slate-400" />
-                        {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-        </div>
-
+      <div className="flex flex-col w-full min-h-screen bg-[#01050a] mx-[7px] -my-2 px-0 py-0 font-sans">
         {/* Main Tabs Component */}
         <Tabs defaultValue="fluxo" className="flex flex-col w-full flex-1">
           
