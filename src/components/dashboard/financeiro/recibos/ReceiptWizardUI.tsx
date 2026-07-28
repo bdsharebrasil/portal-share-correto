@@ -548,8 +548,33 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
       const notaFiscal = anexos.find((a) => a.tipo === "nota_fiscal");
       const docNum = isDECEAorINFRAERO ? demonstrativo?.numeroDocumento || null : notaFiscal?.numeroDocumento || null;
 
+      const principal = pagadores.find((p) => p.gerarRecibo && String(p.pagadorNome || "").trim()) || pagadores[0] || {};
+
+      // Formato "plano" esperado pelo handler de geração (EmissaoRecibo)
+      const flatOriginalFormData = {
+        ...formData,
+        receiptType: formData.receiptType,
+        aircraftId: formData.aircraftId || "",
+        clienteId: principal.clienteId || "",
+        pagadorNome: principal.pagadorNome || "",
+        pagadorDocumento: principal.pagadorDocumento || "",
+        pagadorEndereco: principal.pagadorEndereco || "",
+        pagadorCidade: principal.pagadorCidade || "",
+        pagadorUF: principal.pagadorUF || "",
+        reembolsoRateado: Boolean(formData.multiCliente),
+        reembolsoValorTotal: formData.valorTotalRecibo || formData.valor || "",
+        reembolsoPorcentagem: principal.percentual || "",
+        reembolsoCategoriaId: formData.reembolsoCategoriaId || "",
+        reembolsoSubcategoria: formData.reembolsoSubcategoria || "",
+        reembolsoNumeroDocumento: docNum,
+        categoriaNome,
+        pagadores: pagadores.map((p) => ({ ...p })),
+        anexos,
+      };
+
       const payload = {
         ...formData,
+        valor: formData.valor || principal.valor || formData.valorTotalRecibo || "",
         isDecea,
         isInfraero,
         nome_categoria: categoriaNome,
@@ -563,8 +588,9 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
         pagadores: pagadores.map((p) => ({ ...p })),
         anexos: anexos.filter((a) => a.tipo).map((a) => ({ tipo: a.tipo, numeroDocumento: a.numeroDocumento, file: a.file })),
         enviarParaProgramacao,
-        originalFormData: { formData, pagadores, anexos },
+        originalFormData: flatOriginalFormData,
       };
+
 
       await onSubmit(payload);
     } catch (err) {
