@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
+import BaixaPagamentoModal from "./BaixaPagamentoModal";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -56,6 +57,13 @@ interface Movimentacao {
   reembolso_quitado: boolean | null;
   observacoes: string | null;
   reference_type: string | null;
+  contas_apagar_id: string | null;
+  contas_areceber_id: string | null;
+  pago_diretamente: boolean | null;
+  percentual_uso: string | number | null;
+  valor_rateado: string | number | null;
+  valor_pago_real: string | number | null;
+  pago_por: string | null;
 }
 
 interface Categoria { id: string; nome: string }
@@ -156,6 +164,15 @@ export default function FluxoCaixaTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [baixaMov, setBaixaMov] = useState<Movimentacao | null>(null);
+  const [sortBy, setSortBy] = useState<"data" | "nome">("data");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "pendente" | "pago" | "vencido">("todos");
+  const [contasCaixa, setContasCaixa] = useState<"share" | "cliente">("share");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
@@ -169,7 +186,7 @@ export default function FluxoCaixaTab() {
         .select("*")
         .order("data_competencia", { ascending: false });
       if (e) throw e;
-      setMovs((data ?? []) as Movimentacao[]);
+      setMovs((data ?? []) as unknown as Movimentacao[]);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -219,8 +236,12 @@ export default function FluxoCaixaTab() {
     switch (activeTab) {
       case "caixa_share":    list = list.filter(isShare); break;
       case "caixa_cliente":  list = list.filter((m) => !isShare(m)); break;
-      case "contas_pagar":   list = list.filter((m) => !isEntrada(m) && !m.data_pagamento); break;
-      case "contas_receber": list = list.filter((m) => isEntrada(m) && !m.data_pagamento); break;
+      case "contas_pagar":   list = list.filter((m) => {
+        const pending = !isEntrada(m) && !m.data_pagamento;
+        if (!pending) return false;
+        return contasCaixa === "share" ? isShare(m) : !isShare(m);
+      }); break;
+      case "contas_receber": list = list.filter((m) => isEntrada(m) && !m.data_pagamento && isShare(m)); break;
     }
     if (flowFilter === "entradas") list = list.filter(isEntrada);
     if (flowFilter === "saidas")   list = list.filter((m) => !isEntrada(m));
@@ -234,8 +255,30 @@ export default function FluxoCaixaTab() {
         norm(categoriaOf(m)).includes(q),
       );
     }
+    if (dateFrom) list = list.filter((m) => (m.data_competencia || m.data_vencimento || "") >= dateFrom);
+    if (dateTo) list = list.filter((m) => (m.data_competencia || m.data_vencimento || "") <= dateTo);
+    if (statusFilter !== "todos") {
+      list = list.filter((m) => {
+        const k = statusOf(m).kind;
+        if (statusFilter === "pendente") return k === "pendente" || k === "vencido";
+        if (statusFilter === "pago") return k === "aprovado" || k === "reembolsado" || k === "deposito";
+        if (statusFilter === "vencido") return k === "vencido";
+        return true;
+      });
+    }
+    list = [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "data") {
+        const da = a.data_competencia || a.data_vencimento || "";
+        const db = b.data_competencia || b.data_vencimento || "";
+        cmp = da.localeCompare(db);
+      } else {
+        cmp = norm(resolveName(a)).localeCompare(norm(resolveName(b)));
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
     return list;
-  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf]);
+  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, sortBy, sortDir, contasCaixa]);
 
   /* ── pagination ── */
   const totalPages = Math.max(1, Math.ceil(filteredMovs.length / itemsPerPage));
@@ -259,22 +302,19 @@ export default function FluxoCaixaTab() {
   }, [filteredMovs]);
 
   /* ── actions ── */
-  const doAction = useCallback(async (m: Movimentacao, action: "aprovar" | "rejeitar") => {
+  const doAction = useCallback(async (m: Movimentacao, action: "baixa" | "rejeitar") => {
+    if (action === "baixa") {
+      setBaixaMov(m);
+      return;
+    }
     setActionLoading(m.id + action);
     setToast(null);
     try {
-      const update =
-        action === "aprovar"
-          ? {
-              data_pagamento: new Date().toISOString().slice(0, 10),
-              status: isEntrada(m) ? "receita paga" : "despesa paga",
-              ...(m.reembolsavel ? { reembolso_quitado: true } : {}),
-            }
-          : { status: "cancelado" };
+      const update = { status: "cancelado" };
       const { error: e } = await supabase.from("movimentacoes").update(update).eq("id", m.id);
       if (e) throw e;
       setMovs((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...update } : x)));
-      setToast({ type: "ok", text: action === "aprovar" ? "Lançamento aprovado com sucesso." : "Lançamento rejeitado." });
+      setToast({ type: "ok", text: "Lançamento rejeitado." });
       setExpandedId(null);
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao processar ação." });
@@ -282,6 +322,14 @@ export default function FluxoCaixaTab() {
       setActionLoading(null);
     }
   }, []);
+
+  const onBaixaSuccess = useCallback((updated: Partial<Movimentacao>) => {
+    if (!baixaMov) return;
+    setMovs((prev) => prev.map((x) => (x.id === baixaMov.id ? { ...x, ...updated } : x)));
+    setToast({ type: "ok", text: "Baixa registrada com sucesso." });
+    setBaixaMov(null);
+    setExpandedId(null);
+  }, [baixaMov]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Deseja realmente excluir esta movimentação?")) return;
@@ -295,6 +343,29 @@ export default function FluxoCaixaTab() {
       setToast({ type: "err", text: e.message || "Erro ao excluir." });
     }
   }, []);
+
+  const exportPDF = useCallback(() => {
+    const win = window.open("", "_blank");
+    if (!win) {
+      setToast({ type: "err", text: "Permita pop-ups para exportar o PDF." });
+      return;
+    }
+    const tabLabel = TABS.find((t) => t.key === activeTab)?.label || "Fluxo de Caixa";
+    const rows = filteredMovs.map((m) => {
+      const entrada = isEntrada(m);
+      const name = resolveName(m);
+      const date = formatDate(m.data_pagamento || m.data_vencimento || m.data_competencia);
+      const status = statusOf(m).label;
+      const valor = formatBRL(num(m.valor));
+      return `<tr><td>${date}</td><td>${entrada ? "Entrada" : "Saída"}</td><td>${m.descricao || "—"}</td><td>${name}</td><td style="text-align:right">${valor}</td><td>${status}</td></tr>`;
+    }).join("");
+    const totalReceita = filteredMovs.filter(isEntrada).reduce((s, m) => s + num(m.valor), 0);
+    const totalDespesa = filteredMovs.filter((m) => !isEntrada(m)).reduce((s, m) => s + num(m.valor), 0);
+    win.document.write(`<!DOCTYPE html><html><head><title>${tabLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.tot{margin-top:16px;font-size:12px;display:flex;gap:24px}.tot span{font-weight:bold}</style></head><body><h1>Relatório — ${tabLabel}</h1><div class="meta">Gerado em ${new Date().toLocaleDateString("pt-BR")} • ${filteredMovs.length} registros</div><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Responsável</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="tot"><span>Receitas: ${formatBRL(totalReceita)}</span><span>Despesas: ${formatBRL(totalDespesa)}</span><span>Saldo: ${formatBRL(totalReceita - totalDespesa)}</span></div></body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 500);
+  }, [filteredMovs, activeTab, resolveName]);
 
   return (
     <div className="space-y-6">
@@ -368,20 +439,89 @@ export default function FluxoCaixaTab() {
             <button onClick={fetchMovs} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Atualizar
             </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
+            <button onClick={() => { setShowFilterPanel(!showFilterPanel); setShowSortMenu(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showFilterPanel ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
               <Filter className="h-3.5 w-3.5" /> Filtros
             </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
-              <SlidersHorizontal className="h-3.5 w-3.5" /> Ordenar
-            </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
-              <Download className="h-3.5 w-3.5" /> Exportar
+            <div className="relative">
+              <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterPanel(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showSortMenu ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Ordenar
+              </button>
+              {showSortMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-slate-700 bg-slate-900 shadow-xl py-1">
+                    {([
+                      { by: "data" as const, dir: "asc" as const, label: "Data — Crescente" },
+                      { by: "data" as const, dir: "desc" as const, label: "Data — Decrescente" },
+                      { by: "nome" as const, dir: "asc" as const, label: "Nome do Cotista — Crescente" },
+                      { by: "nome" as const, dir: "desc" as const, label: "Nome do Cotista — Decrescente" },
+                    ]).map((opt) => {
+                      const active = sortBy === opt.by && sortDir === opt.dir;
+                      return (
+                        <button key={opt.label} onClick={() => { setSortBy(opt.by); setSortDir(opt.dir); setShowSortMenu(false); }}
+                          className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition ${active ? "text-cyan-300 bg-cyan-500/10" : "text-slate-300 hover:bg-slate-800"}`}>
+                          {active ? <Check className="h-3 w-3 shrink-0" /> : <span className="w-3 shrink-0" />}
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+            <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
+              <Download className="h-3.5 w-3.5" /> Exportar PDF
             </button>
             <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-950 transition-colors shadow-sm" style={{ background: "#06b6d4" }}>
               <Plus className="h-3.5 w-3.5" /> Nova
             </button>
           </div>
         </div>
+
+        {/* Contas a pagar caixa sub-toggle */}
+        {activeTab === "contas_pagar" && (
+          <div className="px-5 py-2.5 border-b flex items-center gap-3" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Caixa:</span>
+            <div className="flex bg-slate-800/70 p-0.5 rounded-lg border border-slate-700">
+              {(["share", "cliente"] as const).map((c) => (
+                <button key={c} onClick={() => { setContasCaixa(c); setCurrentPage(1); }}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${contasCaixa === c ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-100"}`}>
+                  {c === "share" ? "Caixa Share" : "Caixa Cliente"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Filter panel */}
+        {showFilterPanel && (
+          <div className="px-5 py-4 border-b space-y-3" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data De</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data Até</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400">
+                  <option value="todos">Todos</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="pago">Pago</option>
+                  <option value="vencido">Vencido</option>
+                </select>
+              </div>
+            </div>
+            {(dateFrom || dateTo || statusFilter !== "todos") && (
+              <button onClick={() => { setDateFrom(""); setDateTo(""); setStatusFilter("todos"); }} className="text-xs text-slate-400 hover:text-slate-200 transition">
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Table */}
         <div className="overflow-x-auto">
@@ -427,7 +567,7 @@ export default function FluxoCaixaTab() {
                     <RowFragment key={m.id} m={m} entrada={entrada} expanded={expanded} name={name} cat={cat}
                       tid={tid} dateStr={dateStr} isPaid={isPaid} docCount={docCount}
                       onToggle={() => setExpandedId(expanded ? null : m.id)}
-                      onApprove={() => doAction(m, "aprovar")}
+                      onApprove={() => doAction(m, "baixa")}
                       onReject={() => doAction(m, "rejeitar")}
                       onDelete={() => handleDelete(m.id)}
                       actionLoading={actionLoading} />
@@ -472,6 +612,13 @@ export default function FluxoCaixaTab() {
           </div>
         </div>
       </div>
+      {baixaMov && (
+        <BaixaPagamentoModal
+          mov={baixaMov}
+          onClose={() => setBaixaMov(null)}
+          onSuccess={onBaixaSuccess}
+        />
+      )}
     </div>
   );
 }
@@ -555,7 +702,7 @@ function RowFragment({ m, entrada, expanded, name, cat, tid, dateStr, isPaid, do
                   <>
                     <button onClick={(e) => { e.stopPropagation(); onApprove(); }} disabled={actionLoading !== null}
                       className="px-6 py-2 rounded-lg text-xs font-bold text-white transition-colors disabled:opacity-50" style={{ background: "#0e7490", minWidth: 90 }}>
-                      {actionLoading === m.id + "aprovar" ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Aprovar"}
+                      {actionLoading === m.id + "baixa" ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Dar Baixa"}
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); onReject(); }} disabled={actionLoading !== null}
                       className="px-6 py-2 rounded-lg text-xs font-bold transition-colors disabled:opacity-50" style={{ border: "1px solid #fca5a5", color: "#f87171", background: "transparent", minWidth: 90 }}>

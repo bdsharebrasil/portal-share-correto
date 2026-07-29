@@ -316,7 +316,10 @@ export type Database = {
           base: string | null
           consumo_combustivel: number | null
           criado_em: string | null
+          data_ultima_revisao: string | null
           fabricante: string
+          horas_celula_atual: number | null
+          horas_ultima_revisao: number | null
           id: string
           matricula: string
           modelo: string
@@ -324,8 +327,11 @@ export type Database = {
           nome_proprietario: string
           numero_serie: string
           preco_hora: string | null
+          proxima_revisao_data: string | null
+          proxima_revisao_horas: number | null
           status: string
           tipo_aeronave: string | null
+          tipo_ultima_revisao: string | null
           url_imagem: string | null
           velocidade_cruzeiro: string | null
         }
@@ -335,7 +341,10 @@ export type Database = {
           base?: string | null
           consumo_combustivel?: number | null
           criado_em?: string | null
+          data_ultima_revisao?: string | null
           fabricante: string
+          horas_celula_atual?: number | null
+          horas_ultima_revisao?: number | null
           id?: string
           matricula: string
           modelo: string
@@ -343,8 +352,11 @@ export type Database = {
           nome_proprietario: string
           numero_serie: string
           preco_hora?: string | null
+          proxima_revisao_data?: string | null
+          proxima_revisao_horas?: number | null
           status?: string
           tipo_aeronave?: string | null
+          tipo_ultima_revisao?: string | null
           url_imagem?: string | null
           velocidade_cruzeiro?: string | null
         }
@@ -354,7 +366,10 @@ export type Database = {
           base?: string | null
           consumo_combustivel?: number | null
           criado_em?: string | null
+          data_ultima_revisao?: string | null
           fabricante?: string
+          horas_celula_atual?: number | null
+          horas_ultima_revisao?: number | null
           id?: string
           matricula?: string
           modelo?: string
@@ -362,8 +377,11 @@ export type Database = {
           nome_proprietario?: string
           numero_serie?: string
           preco_hora?: string | null
+          proxima_revisao_data?: string | null
+          proxima_revisao_horas?: number | null
           status?: string
           tipo_aeronave?: string | null
+          tipo_ultima_revisao?: string | null
           url_imagem?: string | null
           velocidade_cruzeiro?: string | null
         }
@@ -1719,9 +1737,11 @@ export type Database = {
           cliente_id: string | null
           cliente_nome: string
           comprovante_recebimento_url: string | null
+          comprovante_url: string | null
           criado_em: string | null
           criado_por: string | null
           data_criacao: string
+          data_pagamento: string | null
           data_recebimento: string | null
           data_vencimento: string
           descricao: string | null
@@ -1732,6 +1752,7 @@ export type Database = {
           nf_saida_id: string | null
           nota_fiscal_url: string | null
           numero: string | null
+          pago_diretamente: boolean
           reference_id: string | null
           reference_type: string | null
           socio_id: string | null
@@ -1750,9 +1771,11 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome: string
           comprovante_recebimento_url?: string | null
+          comprovante_url?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_criacao: string
+          data_pagamento?: string | null
           data_recebimento?: string | null
           data_vencimento: string
           descricao?: string | null
@@ -1763,6 +1786,7 @@ export type Database = {
           nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero?: string | null
+          pago_diretamente?: boolean
           reference_id?: string | null
           reference_type?: string | null
           socio_id?: string | null
@@ -1781,9 +1805,11 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome?: string
           comprovante_recebimento_url?: string | null
+          comprovante_url?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_criacao?: string
+          data_pagamento?: string | null
           data_recebimento?: string | null
           data_vencimento?: string
           descricao?: string | null
@@ -1794,6 +1820,7 @@ export type Database = {
           nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero?: string | null
+          pago_diretamente?: boolean
           reference_id?: string | null
           reference_type?: string | null
           socio_id?: string | null
@@ -6195,6 +6222,8 @@ export type Database = {
           numero_recibo: string | null
           observacoes: string | null
           pago_diretamente: boolean
+          pago_por: string | null
+          percentual_uso: number | null
           quantidade_parcelas: number
           recibo_url: string | null
           reembolsavel: boolean
@@ -6207,6 +6236,8 @@ export type Database = {
           tipo_caixa: string | null
           valor: number
           valor_original: number | null
+          valor_pago_real: number | null
+          valor_rateado: number | null
         }
         Insert: {
           aeronave_id?: string | null
@@ -6242,6 +6273,8 @@ export type Database = {
           numero_recibo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean
+          pago_por?: string | null
+          percentual_uso?: number | null
           quantidade_parcelas?: number
           recibo_url?: string | null
           reembolsavel?: boolean
@@ -6254,6 +6287,8 @@ export type Database = {
           tipo_caixa?: string | null
           valor: number
           valor_original?: number | null
+          valor_pago_real?: number | null
+          valor_rateado?: number | null
         }
         Update: {
           aeronave_id?: string | null
@@ -6289,6 +6324,8 @@ export type Database = {
           numero_recibo?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean
+          pago_por?: string | null
+          percentual_uso?: number | null
           quantidade_parcelas?: number
           recibo_url?: string | null
           reembolsavel?: boolean
@@ -6301,6 +6338,8 @@ export type Database = {
           tipo_caixa?: string | null
           valor?: number
           valor_original?: number | null
+          valor_pago_real?: number | null
+          valor_rateado?: number | null
         }
         Relationships: [
           {
@@ -7079,6 +7118,41 @@ export type Database = {
             columns: ["pasta_pai_id"]
             isOneToOne: false
             referencedRelation: "pastas_documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_anexos: {
+        Row: {
+          criado_em: string | null
+          file_url: string
+          id: string
+          movimentacao_id: string | null
+          numero_doc: string | null
+          tipo_anexo: string
+        }
+        Insert: {
+          criado_em?: string | null
+          file_url: string
+          id?: string
+          movimentacao_id?: string | null
+          numero_doc?: string | null
+          tipo_anexo: string
+        }
+        Update: {
+          criado_em?: string | null
+          file_url?: string
+          id?: string
+          movimentacao_id?: string | null
+          numero_doc?: string | null
+          tipo_anexo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_anexos_movimentacao_id_fkey"
+            columns: ["movimentacao_id"]
+            isOneToOne: false
+            referencedRelation: "movimentacoes"
             referencedColumns: ["id"]
           },
         ]

@@ -390,7 +390,7 @@ function ContasPanel() {
         if (error) throw error;
         setToast({ type: "ok", text: "Conta atualizada." });
       } else {
-        const { error } = await supabase.from("contas_bancarias").insert(payload);
+        const { error } = await supabase.from("contas_bancarias").insert({ ...payload, criado_por: "00000000-0000-0000-0000-000000000000" });
         if (error) throw error;
         setToast({ type: "ok", text: "Conta criada." });
       }
@@ -556,7 +556,7 @@ function FornecedoresPanel() {
         if (error) throw error;
         setToast({ type: "ok", text: "Fornecedor atualizado." });
       } else {
-        const { error } = await supabase.from("fornecedores_favoritos").insert({ ...payload, criado_em: new Date().toISOString() });
+        const { error } = await supabase.from("fornecedores_favoritos").insert({ ...payload, criado_por: "00000000-0000-0000-0000-000000000000", criado_em: new Date().toISOString() });
         if (error) throw error;
         setToast({ type: "ok", text: "Fornecedor criado." });
       }

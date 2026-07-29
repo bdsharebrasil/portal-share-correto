@@ -1,200 +1,103 @@
-import React, { useState, useMemo } from "react";
-import { Layout } from "@/components/layout/Layout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  ArrowUp, 
-  ArrowDown, 
-  Wallet, 
-  Users, 
-  Settings, 
-  Repeat, 
+import { useState } from "react";
+import {
+  Wallet,
+  Repeat,
+  Users,
   Building2,
-  AlertCircle,
-  LucideIcon
+  ArrowUp,
+  Settings,
+  CircleDollarSign,
 } from "lucide-react";
-import NFSaidaTab from "@/components/dashboard/gestor/financeiro-share/NFSaidaTab";
-import GestaoFiscal from "@/components/dashboard/gestor/financeiro-share/GestaoFiscal";
-import  ContasRecorrentesTab  from "@/components/dashboard/gestor/financeiro-share/ContasRecorrentesTab";
-import { PagamentoSalarioTab } from "@/components/dashboard/gestor/financeiro-share/PagamentoSalarioTab";
-import PrestadoresPJTab  from "@/components/dashboard/gestor/financeiro-share/PrestadoresPJTab";
-import { ConfiguracoesFiscais } from "@/components/dashboard/gestor/financeiro-share/ConfiguracoesFiscais";
-import { ContasPagar } from "@/components/dashboard/gestor/financeiro-share/ContasPagar";
-import { ContasReceber } from "@/components/dashboard/gestor/financeiro-share/ContasReceber";
-import { useUserRole } from "@/hooks/useUserRole";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import FluxoCaixaTab from "./FluxoCaixaTab";
+import ContasRecorrentesTab from "./ContasRecorrentesTab";
+import SalariosTab from "./SalariosTab";
+import PrestadoresPJTab from "./PrestadoresPJTab";
+import NFSaidaTab from "./NFSaidaTab";
+import ConfiguracoesTab from "./ConfiguracoesTab";
+import { Layout } from "@/components/layout/Layout";
 
-interface Tab {
-  value: string;
-  label: string;
-  icon: LucideIcon;
-  adminOnly?: boolean;
-}
+type TabKey =
+  | "fluxo"
+  | "contas-recorrentes"
+  | "salarios"
+  | "prestadores-pj"
+  | "nf-saida"
+  | "configuracoes";
 
-const allTabs: Tab[] = [
-  {
-    value: "fluxo",
-    label: "Gestão Fiscal",
-    icon: Wallet,
-  },
-  {
-    value: "contas-recorrentes",
-    label: "Contas Recorrentes",
-    icon: Repeat,
-  },
-  {
-    value: "pagamento-salario",
-    label: "Salários CLT",
-    icon: Users,
-  },
-  {
-    value: "prestadores-pj",
-    label: "Prestadores PJ",
-    icon: Building2,
-  },
-  {
-    value: "saida",
-    label: "NF Saída",
-    icon: ArrowUp,
-  },
-  {
-    value: "contas-pagar",
-    label: "Contas a Pagar",
-    icon: ArrowUp,
-  },
-  {
-    value: "contas-receber",
-    label: "Contas a Receber",
-    icon: ArrowDown,
-  },
-  {
-    value: "configuracoes",
-    label: "Configurações",
-    icon: Settings,
-    adminOnly: true,
-  },
+const TABS: { key: TabKey; label: string; icon: React.FC<any> }[] = [
+  { key: "fluxo",              label: "Gestão Fiscal",     icon: Wallet },
+  { key: "contas-recorrentes", label: "Contas Recorrentes", icon: Repeat },
+  { key: "salarios",           label: "Salários CLT",      icon: Users },
+  { key: "prestadores-pj",     label: "Prestadores PJ",     icon: Building2 },
+  { key: "nf-saida",           label: "NF Saída",           icon: ArrowUp },
+  { key: "configuracoes",      label: "Configurações",      icon: Settings },
 ];
 
-export default function GestaoFiscalIndex() {
-  const navigate = useNavigate();
-  
-  const {
-    isAdmin,
-    isGestorMaster,
-    isFinanceiroMaster
-  } = useUserRole();
-  
-  const isAuthorized = isAdmin || isGestorMaster || isFinanceiroMaster;
+export default function GestaoFiscal() {
+  const [activeTab, setActiveTab] = useState<TabKey>("fluxo");
 
-  // Filtrar abas baseado em permissões
-  const tabs = useMemo(() => {
-    return allTabs.filter(tab => {
-      if (tab.adminOnly) {
-        return isAdmin || isFinanceiroMaster || isGestorMaster;
-      }
-      return true;
-    });
-  }, [isAdmin, isFinanceiroMaster, isGestorMaster]);
-
-  if (!isAuthorized) {
-    return (
-      <Layout>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center min-h-[calc(100vh-4rem)] bg-slate-50"
-        >
-          <Card className="border-red-200 bg-white shadow-sm max-w-md w-full">
-            <CardContent className="pt-8 pb-8 text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-red-50 flex items-center justify-center border border-red-100">
-                <AlertCircle className="w-6 h-6 text-red-500" />
-              </div>
-              <div>
-                <p className="text-lg font-bold text-slate-800">Acesso Restrito</p>
-                <p className="text-sm text-slate-500 mt-1">Você não tem permissão para acessar este módulo. Contate um administrador.</p>
-              </div>
-              <Button onClick={() => navigate(-1)} variant="outline" className="mt-4 text-xs font-semibold">
-                Voltar
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </Layout>
-    );
-  }
-
-  return (
+return (
     <Layout>
-      <div className="flex flex-col w-full min-h-screen bg-[#01050a] mx-[7px] -my-2 px-0 py-0 font-sans">
-        {/* Main Tabs Component */}
-        <Tabs defaultValue="fluxo" className="flex flex-col w-full flex-1">
-          
-          {/* Desktop Tab Navigation (Pill Style) */}
-          <div className="w-full hidden xl:block mb-6">
-            <TabsList className="h-auto p-1 bg-slate-200/60 rounded-xl border border-slate-200 flex justify-start gap-1 overflow-x-auto scrollbar-hide shadow-inner">
-              {tabs.map((tab) => {
-                const IconComponent = tab.icon;
-                return (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className="rounded-lg py-2 px-4 text-[13px] font-semibold transition-all whitespace-nowrap flex items-center gap-2
-                      data-[state=inactive]:text-slate-500 data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:bg-slate-300/50
-                      data-[state=active]:bg-white data-[state=active]:text-slate-800 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200"
-                  >
-                    <IconComponent className="w-3.5 h-3.5 opacity-70" />
-                    {tab.label}
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+      <div
+      className="min-h-screen font-sans text-slate-100"
+      style={{
+        background:
+          "radial-gradient(circle at top left, rgba(14,165,233,0.10), transparent 30%), linear-gradient(135deg, #030712 0%, #07111f 45%, #0f172a 100%)",
+      }}
+    >
+      {/* Header */}
+      <header
+        className="sticky top-0 z-40 px-6 py-3 flex items-center justify-between gap-4 border-b backdrop-blur-xl"
+        style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.7)", boxShadow: "0 10px 40px rgba(2,6,23,0.35)" }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center ring-1"
+            style={{ background: "rgba(6,182,212,0.15)", color: "#67e8f9", boxShadow: "inset 0 0 0 1px rgba(6,182,212,0.2)" }}
+          >
+            <CircleDollarSign className="h-4 w-4" />
           </div>
-
-          {/* Tab Content Areas */}
-          <div className="w-full flex-1">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="h-full"
-            >
-              <TabsContent value="fluxo" className="mt-0 h-full focus-visible:outline-none">
-                <GestaoFiscal />
-              </TabsContent>
-
-              <TabsContent value="contas-recorrentes" className="mt-0 h-full focus-visible:outline-none">
-                <ContasRecorrentesTab />
-              </TabsContent>
-
-              <TabsContent value="pagamento-salario" className="mt-0 h-full focus-visible:outline-none">
-                <PagamentoSalarioTab />
-              </TabsContent>
-
-              <TabsContent value="prestadores-pj" className="mt-0 h-full focus-visible:outline-none">
-                <PrestadoresPJTab />
-              </TabsContent>
-
-              <TabsContent value="saida" className="mt-0 h-full focus-visible:outline-none">
-                <NFSaidaTab />
-              </TabsContent>
-
-              <TabsContent value="contas-pagar" className="mt-0 h-full focus-visible:outline-none">
-                <ContasPagar />
-              </TabsContent>
-
-              <TabsContent value="contas-receber" className="mt-0 h-full focus-visible:outline-none">
-                <ContasReceber />
-              </TabsContent>
-
-              <TabsContent value="configuracoes" className="mt-0 h-full focus-visible:outline-none">
-                <ConfiguracoesFiscais />
-              </TabsContent>
-            </motion.div>
+          <div>
+            <span className="font-bold text-sm text-slate-100 block leading-none mb-1">Módulo Financeiro</span>
+            <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">Gestão e Controle Fiscal</span>
           </div>
-        </Tabs>
+        </div>
+      </header>
+
+      {/* Tab navigation */}
+      <div className="px-5 lg:px-6 pt-5 max-w-[1600px] mx-auto">
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = activeTab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
+                  active
+                    ? "bg-slate-100 text-slate-900 border-slate-100"
+                    : "bg-slate-900/70 text-slate-400 border-slate-700 hover:text-slate-100 hover:bg-slate-800"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </Layout>
+
+      {/* Tab content */}
+      <main className="p-5 lg:p-6 max-w-[1600px] mx-auto">
+        {activeTab === "fluxo" && <FluxoCaixaTab />}
+        {activeTab === "contas-recorrentes" && <ContasRecorrentesTab />}
+        {activeTab === "salarios" && <SalariosTab />}
+        {activeTab === "prestadores-pj" && <PrestadoresPJTab />}
+        {activeTab === "nf-saida" && <NFSaidaTab />}
+        {activeTab === "configuracoes" && <ConfiguracoesTab />}
+      </main>
+    </div>
+     </Layout>
   );
 }

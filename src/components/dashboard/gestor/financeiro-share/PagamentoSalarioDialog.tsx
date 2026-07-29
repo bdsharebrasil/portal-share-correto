@@ -220,17 +220,17 @@ export function PagamentoSalarioDialog({
           .insert({
             user_profile: formData.user_profile,
             base_salary_holerite: formData.base_salary_holerite,
-            benefit: formData.benefit,
-            horas_voo: formData.horas_voo,
-            extra: formData.extra,
-            obs: formData.obs,
-            comprovante_url: formData.comprovante_url,
-            conta_banco: formData.conta_banco,
-            banco: formData.banco,
-            categoria_holerite: formData.categoria_holerite,
-            categoria_benefit: formData.categoria_benefit,
-            categoria_horas_voo: formData.categoria_horas_voo,
-            categoria_extra: formData.categoria_extra
+            benefit: formData.benefit || null,
+            horas_voo: formData.horas_voo || null,
+            extra: formData.extra || null,
+            obs: formData.obs || null,
+            comprovante_url: formData.comprovante_url || null,
+            conta_banco: formData.conta_banco || null,
+            banco: formData.banco || null,
+            categoria_holerite: formData.categoria_holerite || null,
+            categoria_benefit: formData.categoria_benefit || null,
+            categoria_horas_voo: formData.categoria_horas_voo || null,
+            categoria_extra: formData.categoria_extra || null
           })
           .select()
           .single();

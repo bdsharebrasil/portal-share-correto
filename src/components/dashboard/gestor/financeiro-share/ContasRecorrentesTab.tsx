@@ -189,6 +189,7 @@ export default function ContasRecorrentesTab() {
         lembrete_antecipado: form.lembrete_antecipado,
         notas: form.notas.trim() || null,
         data_inicio: form.data_inicio || null,
+        criado_por: "",
       };
       if (editingId) {
         const { error } = await supabase
