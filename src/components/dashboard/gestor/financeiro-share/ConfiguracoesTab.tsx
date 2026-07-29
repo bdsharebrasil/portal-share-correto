@@ -628,6 +628,7 @@ function CaixaClientePanel() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: BLUE }} />
+
        
       </div>
       <div className="flex justify-end gap-2">
