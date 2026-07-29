@@ -29,7 +29,6 @@ import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
 
 import { InformacoesCotistasTab } from "./InformacoesCotistasTab";
 import BalancoNovo from "./BalancoNovo";
-import VisaoGeralNova from "./VisaoGeralNova";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { CentroLancamentos } from "./CentroLancamentos";
@@ -395,8 +394,8 @@ export default function FinanceiroCotistaDetalhe() {
 
           <div className="mt-8">
             {/* Visão Geral */}
-            <TabsContent value="visao" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <VisaoGeralNova />
+            <TabsContent value="visao" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <BalancoNovo />
             </TabsContent>
 
 
