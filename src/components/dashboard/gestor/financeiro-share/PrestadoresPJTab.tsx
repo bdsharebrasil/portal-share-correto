@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarDays } from "lucide-react";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -386,7 +390,11 @@ function NotasPanel() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [payingNota, setPayingNota] = useState<NotaFiscal | null>(null);
   const [uploadingNota, setUploadingNota] = useState(false);
+  const [uploadingComprovante, setUploadingComprovante] = useState(false);
+  const [bancosShare, setBancosShare] = useState<{ id: string; label: string }[]>([]);
+  const [paymentForm, setPaymentForm] = useState({ data_pagamento: today(), banco_nome: "", forma_pagamento: "transferencia", comprovante_url: "" });
 
   const now = new Date();
   const [fMes, setFMes] = useState<string>("");
@@ -403,14 +411,16 @@ function NotasPanel() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [n, p] = await Promise.all([
+      const [n, p, bancos] = await Promise.all([
         supabase.from("prestador_notas_fiscais").select("*").order("data_emissao", { ascending: false }),
         supabase.from("prestadores_servico").select("*").order("nome", { ascending: true }),
+        (supabase as any).from("contas_bancarias").select("id,banco,numero_conta").eq("ativo", true).order("banco"),
       ]);
       if (n.error) throw n.error;
       if (p.error) throw p.error;
       setNotas((n.data ?? []) as NotaFiscal[]);
       setPrestadores((p.data ?? []) as Prestador[]);
+      setBancosShare((bancos.data ?? []).map((b: any) => ({ id: b.banco, label: `${b.banco}${b.numero_conta ? ` — ${b.numero_conta}` : ""}` })));
     } catch (e: any) {
       setToast({ type: "err", text: e.message || "Erro ao carregar notas." });
     } finally { setLoading(false); }
@@ -507,15 +517,82 @@ function NotasPanel() {
     } finally { setSaving(false); }
   };
 
-  const pagar = async (n: NotaFiscal) => {
-    setPayingId(n.id); setToast(null);
+  const openPayment = (n: NotaFiscal) => {
+    setPayingNota(n);
+    setPaymentForm({ data_pagamento: today(), banco_nome: "", forma_pagamento: "transferencia", comprovante_url: "" });
+  };
+
+  const uploadComprovante = async (file: File) => {
+    setUploadingComprovante(true);
     try {
-      const { error } = await supabase.from("prestador_notas_fiscais")
-        .update({ status: "pago", data_pagamento: today(), updated_at: new Date().toISOString() }).eq("id", n.id);
+      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+      const path = `prestador-notas/comprovantes/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("client-documents").upload(path, file, { upsert: true });
       if (error) throw error;
-      setToast({ type: "ok", text: "Nota marcada como paga." });
+      const { data } = supabase.storage.from("client-documents").getPublicUrl(path);
+      setPaymentForm((current) => ({ ...current, comprovante_url: data.publicUrl }));
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao anexar comprovante." });
+    } finally {
+      setUploadingComprovante(false);
+    }
+  };
+
+  const pagar = async () => {
+    if (!payingNota) return;
+    if (!paymentForm.data_pagamento || !paymentForm.banco_nome || !paymentForm.comprovante_url) {
+      setToast({ type: "err", text: "Informe a data, o banco de origem e anexe o comprovante." });
+      return;
+    }
+    setPayingId(payingNota.id); setToast(null);
+    try {
+      const agora = new Date().toISOString();
+      const { error: notaError } = await supabase.from("prestador_notas_fiscais")
+        .update({
+          status: "pago",
+          data_pagamento: paymentForm.data_pagamento,
+          comprovante_pagamento_url: paymentForm.comprovante_url,
+          updated_at: agora,
+        })
+        .eq("id", payingNota.id);
+      if (notaError) throw notaError;
+
+      const prestador = prestadorNome(payingNota.prestador_id);
+      const payload = {
+        descricao: `Pagamento salário colaborador P.J. — ${prestador}`,
+        tipo: "despesa",
+        tipo_caixa: "share",
+        grupo_custo: "e714eeae-7a06-4dc2-a6f2-614b8a773255",
+        categoria_nome: "PAGAMENTO SALARIO COLABORADOR P.J",
+        valor_rateado: num(payingNota.valor),
+        valor_original: num(payingNota.valor),
+        valor_pago_real: num(payingNota.valor),
+        data_competencia: paymentForm.data_pagamento,
+        data_vencimento: payingNota.data_vencimento || paymentForm.data_pagamento,
+        data_pagamento: paymentForm.data_pagamento,
+        fornecedor_nome: prestador,
+        numero_nf: payingNota.numero_nota || null,
+        comprovante_url: paymentForm.comprovante_url,
+        forma_pagamento: paymentForm.forma_pagamento,
+        banco_nome: paymentForm.banco_nome,
+        movimentacao_pai_id: payingNota.id,
+        reference_type: "prestador_nota_fiscal",
+        reference_id: payingNota.id,
+        status: "despesa paga",
+        atualizado_em: agora,
+      };
+      const { data: existing, error: existingError } = await supabase.from("movimentacoes")
+        .select("id").eq("reference_type", "prestador_nota_fiscal").eq("reference_id", payingNota.id).maybeSingle();
+      if (existingError) throw existingError;
+      const { error: movError } = existing?.id
+        ? await supabase.from("movimentacoes").update(payload).eq("id", existing.id)
+        : await supabase.from("movimentacoes").insert(payload);
+      if (movError) throw movError;
+
+      setPayingNota(null);
+      setToast({ type: "ok", text: "Baixa registrada e despesa criada no Caixa Share." });
       fetchAll();
-    } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao pagar." });
+    } catch (e: any) { setToast({ type: "err", text: e.message || "Erro ao registrar pagamento." });
     } finally { setPayingId(null); }
   };
 
@@ -638,7 +715,7 @@ function NotasPanel() {
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
                       {(n.status ?? "").toLowerCase() !== "pago" && (
-                        <button onClick={() => pagar(n)} disabled={payingId === n.id}
+                        <button onClick={() => openPayment(n)} disabled={payingId === n.id}
                           className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px] font-semibold disabled:opacity-50">
                           {payingId === n.id ? "..." : "Pagar"}
                         </button>
