@@ -43,6 +43,7 @@ interface Movimentacao {
   clientes_id: string | null;
   socio_id: string | null;
   categoria_id: string | null;
+  categoria_nome: string | null;
   status: string | null;
   forma_pagamento: string | null;
   fornecedor_nome: string | null;
@@ -157,6 +158,8 @@ const TABS: { key: TabKey; label: string; icon: React.FC<any> }[] = [
 export default function FluxoCaixaTab() {
   const [movs, setMovs] = useState<Movimentacao[]>([]);
   const [categorias, setCategorias] = useState<Record<string, string>>({});
+  const [categoriasCliente, setCategoriasCliente] = useState<Record<string, string>>({});
+  const [categoriaCustoPorDespesa, setCategoriaCustoPorDespesa] = useState<Record<string, string>>({});
   const [pessoas, setPessoas] = useState<Record<string, Pessoa>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -211,6 +214,26 @@ export default function FluxoCaixaTab() {
       });
   }, []);
 
+  /* ── categorias do caixa cliente ── */
+  useEffect(() => {
+    Promise.all([
+      supabase.from("expense_configu").select("id,expense_type"),
+      supabase.from("rateio_despesas").select("despesa_id,categoria_custo"),
+    ]).then(([expenseConfig, rateios]) => {
+      const categoriasMap: Record<string, string> = {};
+      (expenseConfig.data ?? []).forEach((categoria: any) => {
+        if (categoria.expense_type) categoriasMap[categoria.id] = categoria.expense_type.trim();
+      });
+      setCategoriasCliente(categoriasMap);
+
+      const rateioMap: Record<string, string> = {};
+      (rateios.data ?? []).forEach((rateio: any) => {
+        if (rateio.despesa_id && rateio.categoria_custo) rateioMap[rateio.despesa_id] = rateio.categoria_custo;
+      });
+      setCategoriaCustoPorDespesa(rateioMap);
+    });
+  }, []);
+
   /* ── pessoas ── */
   useEffect(() => {
     Promise.all([
@@ -230,10 +253,14 @@ export default function FluxoCaixaTab() {
     return m.fornecedor_nome || "—";
   }, [pessoas]);
 
-  const categoriaOf = useCallback(
-    (m: Movimentacao) => categorias[m.categoria_id ?? ""] || (m.reference_type ? m.reference_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—"),
-    [categorias],
-  );
+  const categoriaOf = useCallback((m: Movimentacao) => {
+    if (isShare(m)) {
+      return m.categoria_nome || categorias[m.categoria_id ?? ""] || "—";
+    }
+
+    const categoriaCusto = categoriaCustoPorDespesa[m.id] || m.categoria_id;
+    return categoriasCliente[categoriaCusto ?? ""] || categoriaCusto || "—";
+  }, [categorias, categoriasCliente, categoriaCustoPorDespesa]);
 
   /* ── filter ── */
   const filteredMovs = useMemo(() => {
@@ -366,7 +393,7 @@ export default function FluxoCaixaTab() {
     }).join("");
     const totalReceita = filteredMovs.filter(isEntrada).reduce((s, m) => s + num(m.valor), 0);
     const totalDespesa = filteredMovs.filter((m) => !isEntrada(m)).reduce((s, m) => s + num(m.valor), 0);
-    win.document.write(`<!DOCTYPE html><html><head><title>${tabLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.tot{margin-top:16px;font-size:12px;display:flex;gap:24px}.tot span{font-weight:bold}</style></head><body><h1>Relatório — ${tabLabel}</h1><div class="meta">Gerado em ${new Date().toLocaleDateString("pt-BR")} • ${filteredMovs.length} registros</div><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Responsável</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="tot"><span>Receitas: ${formatBRL(totalReceita)}</span><span>Despesas: ${formatBRL(totalDespesa)}</span><span>Saldo: ${formatBRL(totalReceita - totalDespesa)}</span></div></body></html>`);
+    win.document.write(`<!DOCTYPE html><html><head><title>${tabLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.tot{margin-top:16px;font-size:12px;display:flex;gap:24px}.tot span{font-weight:bold}</style></head><body><h1>Relatório — ${tabLabel}</h1><div class="meta">Gerado em ${new Date().toLocaleDateString("pt-BR")} • ${filteredMovs.length} registros</div><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Cliente</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="tot"><span>Receitas: ${formatBRL(totalReceita)}</span><span>Despesas: ${formatBRL(totalDespesa)}</span><span>Saldo: ${formatBRL(totalReceita - totalDespesa)}</span></div></body></html>`);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); }, 500);
@@ -537,7 +564,7 @@ export default function FluxoCaixaTab() {
                 <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Data / Tipo</th>
                 <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição</th>
                 <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Categoria</th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Responsável</th>
+                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Cliente</th>
                 <th className="text-right px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor</th>
                 <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Status</th>
                 <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Docs</th>
