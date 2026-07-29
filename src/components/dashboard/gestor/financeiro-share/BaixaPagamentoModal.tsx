@@ -38,7 +38,12 @@ interface Movimentacao {
   descricao: string | null;
   tipo: string | null;
   tipo_caixa: string | null;
-  valor: string | number | null;
+  valor?: string | number | null;
+  valor_original?: string | number | null;
+  valor_rateado?: string | number | null;
+  categoria_id?: string | null;
+  categoria_nome?: string | null;
+  aeronave_id?: string | null;
   data_competencia: string | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
@@ -163,15 +168,19 @@ export default function BaixaPagamentoModal({
   onSuccess: (updated: Partial<Movimentacao>) => void;
 }) {
   const entrada = isEntrada(mov);
-  const valorOriginal = num(mov.valor);
+  // `movimentacoes` não possui coluna `valor`: usamos o rateado / original.
+  const valorRateadoBase = num(mov.valor_rateado) || num(mov.valor);
+  const valorTotal = num(mov.valor_original) || valorRateadoBase;
+  const valorOriginal = valorTotal;
+  const precisaReembolso = !!mov.reembolsavel;
 
   const [dataPagamento, setDataPagamento] = useState(
     new Date().toISOString().slice(0, 10),
   );
   const [percentualUso, setPercentualUso] = useState<string>("");
   const [pagoPor, setPagoPor] = useState<string>("");
-  const [valorRateado, setValorRateado] = useState<string>(valorOriginal.toFixed(2));
-  const [valorPagoReal, setValorPagoReal] = useState<string>(valorOriginal.toFixed(2));
+  const [valorRateado, setValorRateado] = useState<string>((valorRateadoBase || valorTotal).toFixed(2));
+  const [valorPagoReal, setValorPagoReal] = useState<string>(valorTotal.toFixed(2));
   const [pagoDiretamente, setPagoDiretamente] = useState<boolean>(mov.pago_diretamente ?? false);
   const [anexos, setAnexos] = useState<AnexoRow[]>([
     { tipo_anexo: "comprovante", numero_doc: "", file_url: "" },
@@ -296,9 +305,15 @@ export default function BaixaPagamentoModal({
     }
     setSaving(true);
     try {
+      const precisaAguardarReembolso = !!mov.reembolsavel && !pagoDiretamente;
+
       const updatePayload: Record<string, any> = {
         data_pagamento: dataPagamento,
-        status: entrada ? "receita paga" : "despesa paga",
+        status: precisaAguardarReembolso
+          ? "aguardando_reembolso"
+          : entrada
+          ? "receita paga"
+          : "despesa paga",
         pago_diretamente: pagoDiretamente,
         percentual_uso: percentualUso ? parseFloat(percentualUso) : null,
         valor_rateado: parseFloat(valorRateado) || 0,
@@ -335,6 +350,42 @@ export default function BaixaPagamentoModal({
           .from("contas_areceber")
           .update({ status: "recebido", data_pagamento: dataPagamento })
           .eq("id", mov.contas_areceber_id);
+      }
+
+      // 3b. Despesa reembolsável: a Share adiantou → gera conta a receber do cliente
+      if (precisaAguardarReembolso && !mov.contas_areceber_id && mov.clientes_id) {
+        const { data: cli } = await supabase
+          .from("clientes")
+          .select("id, razao_social, proprietario, cnpj")
+          .eq("id", mov.clientes_id)
+          .maybeSingle();
+        const valorReembolso = parseFloat(valorRateado) || valorRateadoBase || valorTotal;
+        const { data: novaConta } = await supabase
+          .from("contas_areceber")
+          .insert({
+            cliente_id: mov.clientes_id,
+            cliente_nome: (cli as any)?.razao_social || (cli as any)?.proprietario || "Cliente",
+            cliente_cnpj: (cli as any)?.cnpj || "—",
+            data_criacao: dataPagamento,
+            data_vencimento: dataPagamento,
+            valor: valorReembolso,
+            categoria: mov.categoria_nome || "REEMBOLSO",
+            categoria_id: mov.categoria_id || null,
+            descricao: `Reembolso — ${mov.descricao || ""}`.trim(),
+            status: "pendente",
+            movimentacao_id: mov.id,
+            reference_type: "reembolso_share",
+            reference_id: mov.id,
+          } as any)
+          .select("id")
+          .maybeSingle();
+        if (novaConta?.id) {
+          updatePayload.contas_areceber_id = novaConta.id;
+          await supabase
+            .from("movimentacoes")
+            .update({ contas_areceber_id: novaConta.id })
+            .eq("id", mov.id);
+        }
       }
 
       // 4. Update rateio_despesas if this movimentacao has a linked despesa

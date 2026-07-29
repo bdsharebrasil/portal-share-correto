@@ -22,10 +22,12 @@ import {
   X,
   Trash2,
   Pencil,
+  HandCoins,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import BaixaPagamentoModal from "./BaixaPagamentoModal";
+import ReembolsoModal from "./ReembolsoModal";
 import EditLancamentoModal from "./EditLancamentoModal";
 import AttachmentViewerModal from "./AttachmentViewerModal";
 
@@ -36,7 +38,9 @@ interface Movimentacao {
   descricao: string | null;
   tipo: string | null;
   tipo_caixa: string | null;
-  valor: string | number | null;
+  valor?: string | number | null;
+  valor_original?: string | number | null;
+  aeronave_id?: string | null;
   data_competencia: string | null;
   data_vencimento: string | null;
   data_pagamento: string | null;
@@ -79,6 +83,15 @@ const norm = (s?: string | null) =>
   (s ?? "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
+
+/** A tabela `movimentacoes` não possui coluna `valor`: o valor da linha é o rateado. */
+const valorDe = (m: Movimentacao) => num(m.valor_rateado) || num(m.valor) || num(m.valor_original);
+/** Valor cheio da despesa (o que a Share desembolsa quando adianta pelo cliente). */
+const valorTotalDe = (m: Movimentacao) => num(m.valor_original) || valorDe(m);
+
+const aguardandoReembolso = (m: Movimentacao) =>
+  !!m.reembolsavel && !m.reembolso_quitado &&
+  (norm(m.tipo) === "aguardando_reembolso" || norm(m.status) === "aguardando_reembolso" || !!m.data_pagamento);
 
 const isEntrada = (m: Movimentacao) => {
   const t = norm(m.tipo);
@@ -181,6 +194,10 @@ export default function FluxoCaixaTab() {
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | "pendente" | "pago" | "vencido">("todos");
   const [contasCaixa, setContasCaixa] = useState<"share" | "cliente">("share");
+  const [dateMode, setDateMode] = useState<"pagamento" | "emissao">("pagamento");
+  const [reembolsoMov, setReembolsoMov] = useState<Movimentacao | null>(null);
+  const [sociosPorCliente, setSociosPorCliente] = useState<Record<string, string[]>>({});
+  const [subcatsPorDespesa, setSubcatsPorDespesa] = useState<Record<string, string[]>>({});
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
@@ -214,23 +231,39 @@ export default function FluxoCaixaTab() {
       });
   }, []);
 
-  /* ── categorias do caixa cliente ── */
+  /* ── categorias e subcategorias do caixa cliente ── */
   useEffect(() => {
     Promise.all([
-      supabase.from("expense_configu").select("id,expense_type"),
-      supabase.from("rateio_despesas").select("despesa_id,categoria_custo"),
+      supabase.from("expense_configu").select("id,expense_type,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4"),
+      supabase
+        .from("rateio_despesas")
+        .select("despesa_id,categoria_custo,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4"),
     ]).then(([expenseConfig, rateios]) => {
       const categoriasMap: Record<string, string> = {};
+      const subcatsConfig: Record<string, string[]> = {};
       (expenseConfig.data ?? []).forEach((categoria: any) => {
         if (categoria.expense_type) categoriasMap[categoria.id] = categoria.expense_type.trim();
+        const subs = [categoria.subcategoria_1, categoria.subcategoria_2, categoria.subcategoria_3, categoria.subcategoria_4]
+          .filter((s: any) => !!s && String(s).trim())
+          .map((s: any) => String(s).trim());
+        if (subs.length) subcatsConfig[categoria.id] = subs;
       });
       setCategoriasCliente(categoriasMap);
 
       const rateioMap: Record<string, string> = {};
+      const subMap: Record<string, string[]> = {};
       (rateios.data ?? []).forEach((rateio: any) => {
-        if (rateio.despesa_id && rateio.categoria_custo) rateioMap[rateio.despesa_id] = rateio.categoria_custo;
+        if (!rateio.despesa_id) return;
+        if (rateio.categoria_custo) rateioMap[rateio.despesa_id] = rateio.categoria_custo;
+        const subs = [rateio.subcategoria_1, rateio.subcategoria_2, rateio.subcategoria_3, rateio.subcategoria_4]
+          .filter((s: any) => !!s && String(s).trim())
+          .map((s: any) => String(s).trim());
+        const fallback = rateio.categoria_custo ? subcatsConfig[rateio.categoria_custo] ?? [] : [];
+        const final = subs.length ? subs : fallback;
+        if (final.length) subMap[rateio.despesa_id] = final;
       });
       setCategoriaCustoPorDespesa(rateioMap);
+      setSubcatsPorDespesa(subMap);
     });
   }, []);
 
@@ -238,19 +271,37 @@ export default function FluxoCaixaTab() {
   useEffect(() => {
     Promise.all([
       supabase.from("clientes").select("id,razao_social,proprietario"),
-      supabase.from("socios").select("id,nome"),
+      supabase.from("socios").select("id,nome,cliente_id"),
     ]).then(([c, s]) => {
       const map: Record<string, Pessoa> = {};
       (c.data ?? []).forEach((x: any) => { map[x.id] = { id: x.id, nome: x.razao_social || x.proprietario }; });
-      (s.data ?? []).forEach((x: any) => { map[x.id] = { id: x.id, nome: x.nome }; });
+      const porCliente: Record<string, string[]> = {};
+      (s.data ?? []).forEach((x: any) => {
+        map[x.id] = { id: x.id, nome: x.nome };
+        if (x.cliente_id && x.nome) {
+          porCliente[x.cliente_id] = [...(porCliente[x.cliente_id] ?? []), x.nome];
+        }
+      });
       setPessoas(map);
+      setSociosPorCliente(porCliente);
     });
   }, []);
 
+  /** Nome exibido na coluna Cliente — prioriza o nome do sócio quando o cliente possui sócios. */
   const resolveName = useCallback((m: Movimentacao) => {
-    if (m.clientes_id && pessoas[m.clientes_id]) return pessoas[m.clientes_id].nome || "—";
     if (m.socio_id && pessoas[m.socio_id]) return pessoas[m.socio_id].nome || "—";
+    if (m.clientes_id) {
+      const socios = sociosPorCliente[m.clientes_id];
+      if (socios?.length) return socios.join(" / ");
+      if (pessoas[m.clientes_id]) return pessoas[m.clientes_id].nome || "—";
+    }
     return m.fornecedor_nome || "—";
+  }, [pessoas, sociosPorCliente]);
+
+  /** Razão social do cliente (exibida como subtítulo quando mostramos o sócio). */
+  const resolveCliente = useCallback((m: Movimentacao) => {
+    if (m.clientes_id && pessoas[m.clientes_id]) return pessoas[m.clientes_id].nome || null;
+    return null;
   }, [pessoas]);
 
   const categoriaOf = useCallback((m: Movimentacao) => {
@@ -261,6 +312,20 @@ export default function FluxoCaixaTab() {
     const categoriaCusto = categoriaCustoPorDespesa[m.id] || m.categoria_id;
     return categoriasCliente[categoriaCusto ?? ""] || categoriaCusto || "—";
   }, [categorias, categoriasCliente, categoriaCustoPorDespesa]);
+
+  const subcategoriasOf = useCallback(
+    (m: Movimentacao) => subcatsPorDespesa[m.id] ?? [],
+    [subcatsPorDespesa],
+  );
+
+  /** Data exibida/filtrada conforme o modo escolhido na coluna "Data". */
+  const dateOf = useCallback(
+    (m: Movimentacao) =>
+      dateMode === "pagamento"
+        ? m.data_pagamento || m.data_vencimento || m.data_competencia || ""
+        : m.data_competencia || m.data_vencimento || "",
+    [dateMode],
+  );
 
   /* ── filter ── */
   const filteredMovs = useMemo(() => {
@@ -287,8 +352,8 @@ export default function FluxoCaixaTab() {
         norm(categoriaOf(m)).includes(q),
       );
     }
-    if (dateFrom) list = list.filter((m) => (m.data_competencia || m.data_vencimento || "") >= dateFrom);
-    if (dateTo) list = list.filter((m) => (m.data_competencia || m.data_vencimento || "") <= dateTo);
+    if (dateFrom) list = list.filter((m) => (dateOf(m) || "") >= dateFrom);
+    if (dateTo) list = list.filter((m) => (dateOf(m) || "") <= dateTo);
     if (statusFilter !== "todos") {
       list = list.filter((m) => {
         const k = statusOf(m).kind;
@@ -301,16 +366,14 @@ export default function FluxoCaixaTab() {
     list = [...list].sort((a, b) => {
       let cmp = 0;
       if (sortBy === "data") {
-        const da = a.data_competencia || a.data_vencimento || "";
-        const db = b.data_competencia || b.data_vencimento || "";
-        cmp = da.localeCompare(db);
+        cmp = (dateOf(a) || "").localeCompare(dateOf(b) || "");
       } else {
         cmp = norm(resolveName(a)).localeCompare(norm(resolveName(b)));
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, sortBy, sortDir, contasCaixa]);
+  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, sortBy, sortDir, contasCaixa, dateOf]);
 
   /* ── pagination ── */
   const totalPages = Math.max(1, Math.ceil(filteredMovs.length / itemsPerPage));
@@ -561,7 +624,17 @@ export default function FluxoCaixaTab() {
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.7)" }}>
                 <th className="w-4 px-4 py-3" />
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Data / Tipo</th>
+                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => setDateMode((v) => (v === "pagamento" ? "emissao" : "pagamento"))}
+                    title="Clique para alternar entre data de pagamento e data de emissão"
+                    className="flex items-center gap-1 uppercase tracking-wider text-slate-400 hover:text-cyan-300 transition-colors"
+                  >
+                    Data {dateMode === "pagamento" ? "Pagamento" : "Emissão"}
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </th>
                 <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição</th>
                 <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Categoria</th>
                 <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Cliente</th>
@@ -589,20 +662,24 @@ export default function FluxoCaixaTab() {
                   const entrada = isEntrada(m);
                   const expanded = expandedId === m.id;
                   const name = resolveName(m);
+                  const clienteNome = resolveCliente(m);
                   const cat = categoriaOf(m);
+                  const subcats = subcategoriasOf(m);
                   const tid = txnId(m);
-                  const dateStr = formatDate(m.data_pagamento || m.data_vencimento || m.data_competencia);
+                  const dateStr = formatDate(dateOf(m));
                   const isPaid = !!m.data_pagamento;
                   const docCount = [m.nf_url, m.comprovante_url, m.boleto_url, m.recibo_url].filter(Boolean).length;
 
                   return (
-                    <RowFragment key={m.id} m={m} entrada={entrada} expanded={expanded} name={name} cat={cat}
+                    <RowFragment key={m.id} m={m} entrada={entrada} expanded={expanded} name={name}
+                      clienteNome={clienteNome} cat={cat} subcats={subcats}
                       tid={tid} dateStr={dateStr} isPaid={isPaid} docCount={docCount}
                       onToggle={() => setExpandedId(expanded ? null : m.id)}
                       onApprove={() => doAction(m, "baixa")}
                       onEdit={() => setEditMovId(m.id)}
                       onDelete={() => handleDelete(m.id)}
                       onOpenAttachment={(url, title) => setViewAttachment({ url, title })}
+                      onReembolso={aguardandoReembolso(m) ? () => setReembolsoMov(m) : undefined}
                       actionLoading={actionLoading} />
                   );
                 })
@@ -652,6 +729,13 @@ export default function FluxoCaixaTab() {
           onSuccess={onBaixaSuccess}
         />
       )}
+      {reembolsoMov && (
+        <ReembolsoModal
+          mov={reembolsoMov}
+          onClose={() => setReembolsoMov(null)}
+          onSuccess={(patch) => { setReembolsoMov(null); onBaixaSuccess(patch || {}); }}
+        />
+      )}
       {editMovId && (
         <EditLancamentoModal
           movId={editMovId}
@@ -672,12 +756,14 @@ export default function FluxoCaixaTab() {
 
 /* ─────────────────────────── RowFragment ─────────────────────────── */
 
-function RowFragment({ m, entrada, expanded, name, cat, tid, dateStr, isPaid, docCount,
-  onToggle, onApprove, onEdit, onDelete, onOpenAttachment, actionLoading }: {
-  m: Movimentacao; entrada: boolean; expanded: boolean; name: string; cat: string; tid: string;
+function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, tid, dateStr, isPaid, docCount,
+  onToggle, onApprove, onEdit, onDelete, onOpenAttachment, onReembolso, actionLoading }: {
+  m: Movimentacao; entrada: boolean; expanded: boolean; name: string; clienteNome?: string | null;
+  cat: string; subcats: string[]; tid: string;
   dateStr: string; isPaid: boolean; docCount: number;
   onToggle: () => void; onApprove: () => void; onEdit: () => void; onDelete: () => void;
   onOpenAttachment: (url: string, title: string) => void;
+  onReembolso?: () => void;
   actionLoading: string | null;
 }) {
   const [rateio, setRateio] = useState<any>(null);
@@ -732,14 +818,27 @@ function RowFragment({ m, entrada, expanded, name, cat, tid, dateStr, isPaid, do
         </td>
         <td className="px-3 py-3.5 hidden sm:table-cell">
           <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800/80 text-slate-300 border border-slate-700">{cat}</span>
+          {subcats.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {subcats.map((s) => (
+                <span key={s} className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-900/70 text-slate-400 border border-slate-700/70">{s}</span>
+              ))}
+            </div>
+          )}
         </td>
         <td className="px-3 py-3.5 hidden md:table-cell">
           <div className="text-[11px] font-medium text-slate-200 truncate max-w-[150px]">{name}</div>
+          {clienteNome && clienteNome !== name && (
+            <div className="text-[10px] text-slate-500 truncate max-w-[150px]">{clienteNome}</div>
+          )}
         </td>
         <td className="px-3 py-3.5 text-right whitespace-nowrap">
           <span className={`font-bold text-[13px] ${entrada ? "text-emerald-300" : "text-slate-100"}`}>
-            {entrada ? "+" : ""} {formatBRL(num(m.valor))}
+            {entrada ? "+" : ""} {formatBRL(valorDe(m))}
           </span>
+          {valorTotalDe(m) > valorDe(m) && (
+            <div className="text-[10px] text-slate-500">Total: {formatBRL(valorTotalDe(m))}</div>
+          )}
         </td>
         <td className="px-3 py-3.5 text-center hidden sm:table-cell"><StatusBadge m={m} /></td>
         <td className="px-3 py-3.5 text-center hidden md:table-cell">
@@ -747,6 +846,12 @@ function RowFragment({ m, entrada, expanded, name, cat, tid, dateStr, isPaid, do
         </td>
         <td className="px-3 py-3.5">
           <div className="flex items-center justify-end gap-2">
+            {onReembolso && (
+              <button onClick={(e) => { e.stopPropagation(); onReembolso(); }}
+                className="p-1.5 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded transition-colors" title="Receber reembolso do cliente">
+                <HandCoins className="h-3.5 w-3.5" />
+              </button>
+            )}
             <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="p-1.5 text-slate-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Deletar">
               <Trash2 className="h-3.5 w-3.5" />
@@ -755,6 +860,7 @@ function RowFragment({ m, entrada, expanded, name, cat, tid, dateStr, isPaid, do
           </div>
         </td>
       </tr>
+
 
       {expanded && (
         <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.7)", background: "rgba(30,41,59,0.4)" }}>

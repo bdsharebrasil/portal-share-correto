@@ -3566,7 +3566,6 @@ export type Database = {
           aeronave_registro: string | null
           atualizado_em: string | null
           boleto_url: string | null
-          categoria_id: string | null
           categoria_nome: string
           clientes_id: string
           comprovante_pagamento_url: string | null
@@ -3608,7 +3607,6 @@ export type Database = {
           aeronave_registro?: string | null
           atualizado_em?: string | null
           boleto_url?: string | null
-          categoria_id?: string | null
           categoria_nome: string
           clientes_id: string
           comprovante_pagamento_url?: string | null
@@ -3650,7 +3648,6 @@ export type Database = {
           aeronave_registro?: string | null
           atualizado_em?: string | null
           boleto_url?: string | null
-          categoria_id?: string | null
           categoria_nome?: string
           clientes_id?: string
           comprovante_pagamento_url?: string | null
@@ -3721,13 +3718,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "despesas_cliente_direto_categoria_id_fkey"
-            columns: ["categoria_id"]
-            isOneToOne: false
-            referencedRelation: "categorias_movimentacao"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "despesas_cliente_direto_clientes_id_fkey"
@@ -6194,6 +6184,7 @@ export type Database = {
           banco_nome: string | null
           boleto_url: string | null
           categoria_id: string | null
+          categoria_nome: string | null
           clientes_id: string | null
           comprovante_url: string | null
           conciliacao_id: string | null
@@ -6242,6 +6233,7 @@ export type Database = {
           banco_nome?: string | null
           boleto_url?: string | null
           categoria_id?: string | null
+          categoria_nome?: string | null
           clientes_id?: string | null
           comprovante_url?: string | null
           conciliacao_id?: string | null
@@ -6290,6 +6282,7 @@ export type Database = {
           banco_nome?: string | null
           boleto_url?: string | null
           categoria_id?: string | null
+          categoria_nome?: string | null
           clientes_id?: string | null
           comprovante_url?: string | null
           conciliacao_id?: string | null
