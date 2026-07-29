@@ -703,7 +703,7 @@ function NotasPanel() {
                     {uploadingNota ? "Enviando..." : "Anexar imagem ou PDF"}
                   </label>
                   {form.arquivo_nota_url && <a href={form.arquivo_nota_url} target="_blank" rel="noreferrer" className="text-xs font-medium text-emerald-300 hover:text-emerald-200">Arquivo anexado</a>}
-                </div></div>
+                </div>
               </div>
               <div className="md:col-span-2"><label className={labelCls}>Observações</label>
                 <textarea className={inputCls} rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
