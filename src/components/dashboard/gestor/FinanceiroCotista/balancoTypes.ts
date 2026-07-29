@@ -77,6 +77,55 @@ export interface VooRow {
   pic_canac: string | null;
   sic_canac: string | null;
   sic_name: string | null;
+  distancia_nm: number | null;
+  consumo_combustivel_voo: number | null;
+  litros_combustivel_inicio_voo: number | null;
+  preco_combustivel_litro: number | null;
+  abastecido: boolean | null;
+}
+
+export interface MembroTripulacao {
+  id: string;
+  canac: string;
+  nome_completo: string;
+}
+
+export interface TERRow {
+  id: string;
+  numero_relatorio: string | null;
+  data_inicio: string | null;
+  data_fim: string | null;
+  rota: string | null;
+  status: string | null;
+  aeronave_id: string | null;
+  total_valor: number | null;
+  pago_em: string | null;
+}
+
+export interface AbastecimentoRow {
+  id: string;
+  logbook_entry_id: string | null;
+  data: string | null;
+  trecho: string | null;
+  litros: number | null;
+  valor_total: number | null;
+  valor_unitario: number | null;
+  status: string | null;
+}
+
+export interface ContaApagarRow {
+  id: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  categoria: string | null;
+  descricao: string | null;
+  valor: number | null;
+  status: string | null;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  aeronave_registro: string | null;
+  competencia_decea: string | null;
+  competencia_infraero: string | null;
 }
 
 export const MESES = [

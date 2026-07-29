@@ -27,12 +27,9 @@ import {
 } from "lucide-react";
 import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
 
-import { InformacoesCotistasTab } from "./InformacoesCotistasTab";
-import BalancoNovo from "./BalancoNovo";
+import BalancoCotista from "./VisaoGeralNova";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
-import { CentroLancamentos } from "./CentroLancamentos";
-import { DiarioBordoCotistaTab } from "./DiarioBordoCotistaTab";
 import { RelatoriosViagemTab } from "./RelatoriosViagemTab";
 import LancamentoForm from "./LancamentoForm";
 import EntradaForm from "./EntradaForm";
@@ -47,13 +44,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import type { DespesaUnificada } from "@/hooks/useFinanceiroCotista";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -339,148 +329,18 @@ export default function FinanceiroCotistaDetalhe() {
           </div>
         </div>
 
-        {/* Toolbar de Filtro de Aeronave Ultra-Clean */}
-        {aeronaves.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 rounded-2xl bg-card/30 backdrop-blur-sm border border-border/40">
-            <div className="flex items-center gap-3 px-3">
-              <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                <Plane className="h-4 w-4" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground tracking-tight">
-                Analisando aeronave:
-              </span>
-            </div>
-            <div className="flex-1 max-w-sm">
-              <Select value={aeronaveAtual} onValueChange={setAeronaveSelecionada}>
-                <SelectTrigger className="w-full bg-background/50 border-border/50 rounded-xl h-11 transition-all focus:ring-primary/20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-border/50 backdrop-blur-xl bg-card/90">
-                  {(aeronaves as any[]).map((a) => (
-                    <SelectItem key={a.id_aeronave} value={a.id_aeronave} className="rounded-lg my-1">
-                      <span className="font-medium text-foreground">{a.aeronave?.matricula}</span>
-                      <span className="text-muted-foreground mx-2">—</span>
-                      <span className="text-muted-foreground">{a.aeronave?.modelo} ({a.percentual_sociedade}%)</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        {aeronaveInfo?.id ? (
+          <BalancoCotista
+            aeronaveId={aeronaveInfo.id}
+            clienteId={clienteId!}
+            matricula={aeronaveInfo.matricula}
+            modelo={aeronaveInfo.modelo}
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
+            Esta conta não possui uma aeronave vinculada.
           </div>
         )}
-
-        {/* Navegação por Tabs Moderna */}
-        <Tabs defaultValue="visao" className="w-full">
-          <TabsList className="h-auto p-1 bg-card/40 backdrop-blur-md border border-border/40 rounded-2xl w-full flex flex-wrap justify-start gap-1">
-            <TabsTrigger value="visao" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all">Visão Geral</TabsTrigger>
-
-            <TabsTrigger value="diario" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all border-2 border-transparent data-[state=active]:border-cyan-500/20">
-              <Plane className="h-4 w-4 mr-2 text-cyan-500" />
-              Diário de Bordo
-            </TabsTrigger>
-            <TabsTrigger value="financeiro" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Financeiro</TabsTrigger>
-            <TabsTrigger value="viagem" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Relatórios Viagem</TabsTrigger>
-            <TabsTrigger value="abast" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Abastecimentos</TabsTrigger>
-            <TabsTrigger value="balanco" className="rounded-xl px-4 py-2.5 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">Fechamento de Balanço</TabsTrigger>
-            <TabsTrigger value="info" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all">
-              <TrendingUp className="h-4 w-4 text-primary/70" />
-              Informações Cotistas
-            </TabsTrigger>
-            <TabsTrigger value="portal" className="rounded-xl px-4 py-2.5 flex items-center gap-2 data-[state=active]:bg-slate-800 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-slate-600 transition-all ml-auto">
-              <KeyRound className="h-4 w-4 text-primary/70" />
-              <span>Acesso Portal</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="mt-8">
-            {/* Visão Geral */}
-            <TabsContent value="visao" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <BalancoNovo />
-            </TabsContent>
-
-
-
-            {/* Diário de Bordo */}
-            <TabsContent value="diario" className="mt-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <DiarioBordoCotistaTab
-                clienteId={clienteId!}
-                aeronaveId={aeronaveAtual}
-                relatorios={relatoriosDaAeronave}
-              />
-            </TabsContent>
-
-            {/* Financeiro */}
-            <TabsContent value="financeiro" className="space-y-4 mt-4">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <h3 className="text-lg font-semibold text-foreground">Gestão Financeira</h3>
-                <Button
-                  onClick={() => setFluxoSelecionado("escolher")}
-                  className="gap-2 rounded-xl"
-                >
-                  <FileText className="h-4 w-4" />
-                  Novo Lançamento
-                </Button>
-              </div>
-              {aeronaveInfo?.id ? (
-                <CentroLancamentos
-                  aeronaveId={aeronaveInfo.id}
-                  cotistas={cotistasDaAeronave}
-                  aeronaveLabel={aeronaveInfo?.matricula}
-                />
-              ) : (
-                <TabelaFinanceiraTab
-                  despesas={despesasDaAeronave}
-                  cotistas={cotistasDaAeronave}
-                  aeronaveLabel={aeronaveInfo?.matricula}
-                />
-              )}
-            </TabsContent>
-
-            {/* Relatórios de Viagem */}
-            <TabsContent value="viagem" className="mt-4">
-              <RelatoriosViagemTab
-                relatorios={relatoriosDaAeronave}
-                cotistas={cotistasDaAeronave}
-                aeronaveLabel={aeronaveInfo?.matricula}
-                onOpen={() => navigate(`/financeiro/relatorios-cliente/${clienteId}`)}
-              />
-            </TabsContent>
-
-            {/* Abastecimentos */}
-            <TabsContent value="abast" className="space-y-4 mt-4">
-              <AbastecimentosTab
-                abastecimentos={abastecimentosDaAeronave as any}
-                cotistas={cotistasDaAeronave}
-                aeronaveLabel={aeronaveInfo?.matricula}
-              />
-            </TabsContent>
-
-            {/* Fechamento de Balanço */}
-            <TabsContent value="balanco" className="mt-4">
-              <BalancoNovo />
-            </TabsContent>
-
-            {/* Informações Cotistas */}
-            <TabsContent value="info" className="mt-4">
-              {aeronaveAtual ? (
-                <InformacoesCotistasTab
-                  aeronaveId={aeronaveAtual}
-                  matricula={aeronaveInfo?.matricula}
-                  cotistas={cotistasDaAeronave}
-                />
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  Selecione uma aeronave para visualizar as informações dos cotistas.
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Acesso ao Portal */}
-            <TabsContent value="portal" className="mt-4">
-              <GerenciarAcessoPortal clienteId={clienteId!} />
-            </TabsContent>
-          </div>
-        </Tabs>
 
         {/* Drill-down dos cards do topo */}
         <DrillDownModal

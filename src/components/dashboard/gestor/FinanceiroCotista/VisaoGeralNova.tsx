@@ -1,36 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Wallet, Scale, Gauge, HandCoins, CheckCircle2, ChevronDown,
   Plane, ReceiptText, Layers, FileText, ArrowRight, PlaneLanding,
-  TrendingUp, Users, AlertCircle, LayoutGrid,
+  TrendingUp, Users, AlertCircle, BarChart3, Calculator,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import {
-  type Aeronave, type RateioRow, type VooRow,
+  type RateioRow, type VooRow,
   MESES, MESES_SHORT, norm, isSaida, formatDate, num,
   resolveCategoria, statusOf, formatHours, monthLabel,
 } from "./balancoTypes";
-import { useBalancoAeronave, keyOfParticipante } from "./useBalancoAeronave";
+import { useBalancoAeronave, keyOfParticipante } from "@/hooks/useBalancoAeronave";
 
 const CHART = { primary: "#06b6d4", success: "#10b981", amber: "#f59e0b", danger: "#ef4444", sky: "#38bdf8" };
 const CHART_COLORS = ["#06b6d4", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#3b82f6"];
 
-// ─── As 5 abas em que a página foi reorganizada ───
-// Antes: tudo empilhado em uma rolagem só. Agora: cada assunto tem seu espaço.
 const ABAS = [
-  { id: "resumo", label: "Resumo", icon: Scale },
-  { id: "cotistas", label: "Cotistas", icon: Users },
+  { id: "visao-geral", label: "Visão Geral", icon: Plane },
+  { id: "cotistas", label: "Cotistas / Sócios", icon: Users },
+  { id: "graficos", label: "Gráficos", icon: BarChart3 },
   { id: "diario", label: "Diário de Bordo", icon: PlaneLanding },
-  { id: "evolucao", label: "Evolução", icon: TrendingUp },
-  { id: "custos", label: "Custos", icon: Layers },
+  { id: "medias", label: "Médias e Cálculos", icon: Calculator },
 ] as const;
 type AbaId = typeof ABAS[number]["id"];
 
-export default function BalancoAeronaveInterno() {
+interface BalancoCotistaProps {
+  aeronaveId: string;
+  clienteId: string;
+  matricula?: string;
+  modelo?: string;
+}
+
+export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricula, modelo }: BalancoCotistaProps) {
   const hoje = new Date();
-  const [aeronaves, setAeronaves] = useState<Aeronave[]>([]);
-  const [aircraftId, setAircraftId] = useState<string>("");
   const [ano, setAno] = useState(hoje.getFullYear());
   const [selectedMonths, setSelectedMonths] = useState<number[]>([hoje.getMonth() + 1]);
   const [filtroCotista, setFiltroCotista] = useState("todos");
@@ -41,18 +44,9 @@ export default function BalancoAeronaveInterno() {
   const [expandedEvol, setExpandedEvol] = useState<string | null>(null);
   const [expandedComp, setExpandedComp] = useState<string | null>(null);
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
-  const [aba, setAba] = useState<AbaId>("resumo");
+  const [aba, setAba] = useState<AbaId>("visao-geral");
 
-  useEffect(() => {
-    supabase.from("aeronave").select("id, matricula, modelo, fabricante").eq("status", "ativa").order("matricula")
-      .then(({ data }) => {
-        const list = (data || []) as Aeronave[];
-        setAeronaves(list);
-        if (list.length > 0 && !aircraftId) setAircraftId(list[0].id);
-      });
-  }, []);
-
-  useEffect(() => { setFiltroCotista("todos"); setShowEntradas(false); }, [aircraftId, ano, selectedMonths]);
+  useEffect(() => { setFiltroCotista("todos"); setShowEntradas(false); }, [aeronaveId, ano, selectedMonths]);
 
   const {
     loading, custoFixo, custoVariavel, custoTotal, entradasPeriodo,
@@ -61,9 +55,7 @@ export default function BalancoAeronaveInterno() {
     monthlyBreakdown, composicaoPeriodo, diarioPorSocio, evolucaoPorSocio,
     composicaoPorSocio, categoriasPorSocio, voosEnriquecidos, rateiosPeriodo, voosPeriodo,
     resolveSocioName, catNameOf,
-  } = useBalancoAeronave({ aeronaveId: aircraftId, ano, selectedMonths });
-
-  const activeAircraft = aeronaves.find((a) => a.id === aircraftId);
+  } = useBalancoAeronave({ aeronaveId, ano, selectedMonths, participanteFiltro: { cliente_id: clienteId } });
 
   const selectedSet = useMemo(() => new Set(selectedMonths), [selectedMonths]);
   const periodLabel = useMemo(() => {
@@ -90,8 +82,8 @@ export default function BalancoAeronaveInterno() {
     const diarioRows = diarioPorSocio.map((d) =>
       `<tr><td>${d.nome}</td><td style="text-align:right">${d.voos}</td><td style="text-align:right">${formatHours(d.horas)}</td><td style="text-align:right">${d.pousos}</td><td style="text-align:right">${formatHours(d.noturnas)}</td><td style="text-align:right">${formatHours(d.ifr)}</td></tr>`
     ).join("");
-    win.document.write(`<!DOCTYPE html><html><head><title>Balanço ${activeAircraft?.matricula || ""} - ${periodLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:20px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}h2{font-size:14px;margin:20px 0 8px;color:#334155}table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.summary{display:flex;gap:16px;margin:12px 0;flex-wrap:wrap}.summary div{flex:1;min-width:120px;padding:12px;border:1px solid #e2e8f0;border-radius:8px}.summary .label{font-size:9px;color:#64748b;text-transform:uppercase}.summary .val{font-size:16px;font-weight:bold;margin-top:4px}</style></head><body>
-    <h1>Balanço Financeiro — ${activeAircraft?.matricula || "Aeronave"} ${activeAircraft?.modelo || ""}</h1>
+    win.document.write(`<!DOCTYPE html><html><head><title>Balanço ${matricula || ""} - ${periodLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:20px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}h2{font-size:14px;margin:20px 0 8px;color:#334155}table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.summary{display:flex;gap:16px;margin:12px 0;flex-wrap:wrap}.summary div{flex:1;min-width:120px;padding:12px;border:1px solid #e2e8f0;border-radius:8px}.summary .label{font-size:9px;color:#64748b;text-transform:uppercase}.summary .val{font-size:16px;font-weight:bold;margin-top:4px}</style></head><body>
+    <h1>Balanço Financeiro — ${matricula || "Aeronave"} ${modelo || ""}</h1>
     <div class="meta">${periodLabel} · Gerado em ${new Date().toLocaleDateString("pt-BR")}</div>
     <div class="summary">
       <div><div class="label">Custo Total</div><div class="val">${formatBRL(custoTotal)}</div></div>
@@ -122,9 +114,9 @@ export default function BalancoAeronaveInterno() {
           <span className="text-sm font-bold text-slate-100">Balanço Cotista</span>
         </div>
         <div className="flex-1" />
-        <select value={aircraftId} onChange={(e) => setAircraftId(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400">
-          {aeronaves.map((a) => <option key={a.id} value={a.id}>{a.matricula} — {a.modelo || ""}</option>)}
-        </select>
+        <span className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-200">
+          {matricula || "Aeronave"}{modelo ? ` — ${modelo}` : ""}
+        </span>
         <select value={String(ano)} onChange={(e) => setAno(Number(e.target.value))} className="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400">
           {anos.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
@@ -152,9 +144,9 @@ export default function BalancoAeronaveInterno() {
           <div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Relatório · {periodLabel}</div>
             <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-slate-100">
-              Balanço da <span className="text-cyan-400">{activeAircraft?.matricula || "Aeronave"}</span>
+              Balanço da <span className="text-cyan-400">{matricula || "Aeronave"}</span>
             </h1>
-            {activeAircraft?.modelo && <span className="text-lg text-slate-500">{activeAircraft.modelo}</span>}
+            {modelo && <span className="text-lg text-slate-500">{modelo}</span>}
           </div>
           <div className="flex items-center gap-6 rounded-xl border border-slate-700/60 bg-slate-900/40 px-5 py-4">
             <StatMini label="Custo total" value={formatBRL(custoTotal)} tone="primary" />
@@ -189,7 +181,7 @@ export default function BalancoAeronaveInterno() {
         <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-10 text-center text-sm text-slate-400">Carregando balanço…</div>
       ) : (
         <>
-          {aba === "resumo" && (
+          {aba === "visao-geral" && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <MetricCard icon={<Wallet className="h-4 w-4" />} label="Custo total" value={formatBRL(custoTotal)} tone="primary" />
@@ -352,7 +344,7 @@ export default function BalancoAeronaveInterno() {
             </div>
           )}
 
-          {aba === "evolucao" && (
+          {aba === "graficos" && (
             <div>
               <div className="mb-4">
                 <div className="flex items-center gap-2">
@@ -380,7 +372,7 @@ export default function BalancoAeronaveInterno() {
             </div>
           )}
 
-          {aba === "custos" && (
+          {aba === "graficos" && (
             <div className="space-y-8">
               <div>
                 <div className="mb-4 flex items-center gap-2">
