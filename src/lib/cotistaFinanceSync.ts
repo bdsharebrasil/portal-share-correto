@@ -75,7 +75,7 @@ if (input.pagador !== FinancePayorType.COMPANY) {
     descricao: `Reembolso rateio: ${input.descricao}`,
     tipo: "receita",
     categoria_id: categoriaId,
-    valor: input.valorTotal,
+    valor_rateado: input.valorTotal,
     data_competencia: input.data,
     data_vencimento: input.data,
     data_pagamento: null,

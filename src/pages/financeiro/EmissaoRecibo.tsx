@@ -560,7 +560,7 @@ export default function EmissaoRecibo() {
               descricao: brDescription,
               tipo: "despesa",
               categoria_id: originalForm.reembolsoCategoriaId || null,
-              valor: isDECEAorINFRAERO
+              valor_rateado: isDECEAorINFRAERO
                 ? parseFloat(originalForm.valorTotalBoleto || String(valorRecibo))
                 : valorRecibo,
               data_competencia: dataEmissaoStr,
@@ -630,7 +630,7 @@ export default function EmissaoRecibo() {
                 descricao: brDescription,
                 tipo: "receita",
                 categoria_id: originalForm.reembolsoCategoriaId || null,
-                valor: valorRecibo,
+                valor_rateado: valorRecibo,
                 data_competencia: dataEmissaoStr,
                 data_vencimento: dataVencimento,
                 aeronave_id: selectedAircraftId || null,

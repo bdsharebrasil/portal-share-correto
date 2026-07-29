@@ -738,7 +738,7 @@ export function FuelRecordsByAircraft({
             descricao,
             tipo: "despesa",
             tipo_caixa: "cliente",
-            valor: valorPorSocio,
+            valor_rateado: valorPorSocio,
             data_competencia: formData.data,
             data_vencimento: dataVencimento,
             data_pagamento: pago ? formData.data_pagamento : null,

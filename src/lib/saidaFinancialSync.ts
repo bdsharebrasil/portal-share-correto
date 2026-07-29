@@ -434,7 +434,7 @@ export async function syncSaidaFinancialLegs(input: SaidaLegInput) {
   // (só é conhecido depois do passo 2), então entra depois via spread em cada leg específica.
   const movComum = {
     descricao: descricaoBase,
-    valor,
+    valor_rateado: valor,
     valor_original: input.valor_total_despesa ?? valor,
     data_competencia,
     data_vencimento,

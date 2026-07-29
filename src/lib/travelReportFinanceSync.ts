@@ -240,7 +240,7 @@ export async function syncTravelReportToFinance(params: SyncParams): Promise<{
             descricao: descricaoBase,
             tipo: "despesa",
             grupo_custo: "VARIAVEL",
-            valor: t.valor,
+            valor_rateado: t.valor,
             data_competencia: params.dataReferencia,
             data_pagamento: null, // ainda não pago pela Share
             aeronave_id: params.aeronaveId || null,

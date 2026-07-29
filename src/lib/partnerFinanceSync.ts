@@ -114,7 +114,7 @@ export async function syncPartnerToMovimentacoes(input: PartnerSyncInput): Promi
     descricao: input.descricao,
     tipo: input.tipo,
     categoria_id: categoriaId,
-    valor: input.valor,
+    valor_rateado: input.valor,
     data_competencia: input.data_competencia,
     data_vencimento: input.data_vencimento || input.data_competencia,
     data_pagamento: input.data_pagamento || (status === "pago" ? input.data_competencia : null),
