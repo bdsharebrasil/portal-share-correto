@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import {
   type Cotista, type RateioRow, type VooRow,
   type MembroTripulacao, type TERRow, type AbastecimentoRow, type ContaApagarRow,
   norm, isSaida, isFixo, num, cotistaKey, resolveCategoria,
-} from "./balancoTypes";
+} from "../components/dashboard/gestor/FinanceiroCotista/balancoTypes";
 
 export interface ParticipanteBalanco {
   id: string;
