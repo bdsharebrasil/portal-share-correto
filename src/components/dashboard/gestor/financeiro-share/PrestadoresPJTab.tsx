@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   Clock,
   DollarSign,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
@@ -384,6 +386,7 @@ function NotasPanel() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [uploadingNota, setUploadingNota] = useState(false);
 
   const now = new Date();
   const [fMes, setFMes] = useState<string>("");
@@ -454,6 +457,24 @@ function NotasPanel() {
       comprovante_pagamento_url: n.comprovante_pagamento_url ?? "",
     });
     setEditingId(n.id); setShowModal(true);
+  };
+
+  const uploadArquivoNota = async (file: File) => {
+    setUploadingNota(true);
+    setToast(null);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+      const path = `prestador-notas/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("client-documents").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("client-documents").getPublicUrl(path);
+      setForm((current) => ({ ...current, arquivo_nota_url: data.publicUrl }));
+      setToast({ type: "ok", text: "Arquivo da nota anexado." });
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao anexar arquivo." });
+    } finally {
+      setUploadingNota(false);
+    }
   };
 
   const save = async () => {
@@ -674,8 +695,15 @@ function NotasPanel() {
                 </select></div>
               <div><label className={labelCls}>Data Pagamento</label>
                 <input type="date" className={inputCls} value={form.data_pagamento} onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })} /></div>
-              <div className="md:col-span-2"><label className={labelCls}>URL Arquivo Nota</label>
-                <input className={inputCls} value={form.arquivo_nota_url} onChange={(e) => setForm({ ...form, arquivo_nota_url: e.target.value })} /></div>
+              <div className="md:col-span-2"><label className={labelCls}>Arquivo da Nota</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input id="arquivo-nota" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadArquivoNota(file); }} />
+                  <label htmlFor="arquivo-nota" className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/20">
+                    {uploadingNota ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    {uploadingNota ? "Enviando..." : "Anexar imagem ou PDF"}
+                  </label>
+                  {form.arquivo_nota_url && <a href={form.arquivo_nota_url} target="_blank" rel="noreferrer" className="text-xs font-medium text-emerald-300 hover:text-emerald-200">Arquivo anexado</a>}
+                </div></div>
               <div className="md:col-span-2"><label className={labelCls}>URL Comprovante</label>
                 <input className={inputCls} value={form.comprovante_pagamento_url} onChange={(e) => setForm({ ...form, comprovante_pagamento_url: e.target.value })} /></div>
               <div className="md:col-span-2"><label className={labelCls}>Observações</label>
