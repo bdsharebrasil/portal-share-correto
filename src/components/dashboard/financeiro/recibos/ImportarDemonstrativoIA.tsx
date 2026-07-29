@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, Sparkles, FileImage, Trash2, AlertCircle, CheckCircle2, Receipt, Send, Repeat } from "lucide-react";
+import { Loader2, Upload, FileImage, Trash2, AlertCircle, CheckCircle2, Receipt, Send, Repeat } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
@@ -48,13 +48,15 @@ interface Aeronave {
   matricula: string;
 }
 
-// NOVO: opção de atribuição para quem NÃO é cotista da aeronave, mas pegou ela
+// Opção de atribuição para quem NÃO é cotista da aeronave, mas pegou ela
 // emprestada (tomador). Mesmo "formato" de um CotistaOption pra poder reaproveitar
 // os mesmos lookups (cliente_id, documento, endereco...) já existentes no arquivo.
+// ATUALIZADO: agora pode ser identificado tanto por cliente quanto por sócio.
 interface TomadorOption {
   id: string;
   nome: string;
   cliente_id: string;
+  socio_id?: string; // NOVO: presente quando o tomador foi resolvido via sócio
   documento?: string;
   endereco?: string;
   cidade?: string;
@@ -66,12 +68,23 @@ interface LinhaItem extends DemonstrativoItem {
   cotistaNome: string;
   sugeridoDoDiario?: boolean;
   naoIdentificado?: boolean;
-  isEmprestimo?: boolean; // NOVO: true quando a linha foi atribuída a um tomador de empréstimo
+  isEmprestimo?: boolean;
+}
+
+interface DiarioRow {
+  data_registro: string;
+  aerodromo_partida: string | null;
+  aerodromo_chegada: string | null;
+  socios_nome: string | null;
+  socios_id: string | null;
+  clientes_id: string | null;
+  emprestimo: boolean | null;
+  cliente_tomador_emprestimo_id: string | null;
+  socio_tomador_emprestimo_id: string | null; // NOVO
 }
 
 const brl = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-
 
 const fileToBase64 = (file: File): Promise<{ base64: string; mimeType: string }> =>
   new Promise((resolve, reject) => {
@@ -115,7 +128,7 @@ export default function ImportarDemonstrativoIA({
   const [aeronaves, setAeronaves] = useState<Aeronave[]>([]);
   const [aeronaveId, setAeronaveId] = useState<string>("");
   const [cotistas, setCotistas] = useState<CotistaOption[]>([]);
-  const [tomadores, setTomadores] = useState<TomadorOption[]>([]); // NOVO
+  const [tomadores, setTomadores] = useState<TomadorOption[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -189,9 +202,12 @@ export default function ImportarDemonstrativoIA({
     fetchCotistas();
   }, [aeronaveId]);
 
-  // NOVO: busca quem já pegou essa aeronave emprestada alguma vez (histórico do
+  // Busca quem já pegou essa aeronave emprestada alguma vez (histórico do
   // diário de bordo), pra esses nomes aparecerem como opção de atribuição mesmo
   // não sendo cotistas da aeronave.
+  // ATUALIZADO: o tomador pode ter sido registrado no diário tanto como um
+  // cliente (cliente_tomador_emprestimo_id) quanto como um sócio
+  // (socio_tomador_emprestimo_id) — agora buscamos os dois.
   useEffect(() => {
     if (!aeronaveId) {
       setTomadores([]);
@@ -201,57 +217,94 @@ export default function ImportarDemonstrativoIA({
     const fetchTomadores = async () => {
       const { data: emprestimosData, error: emprestimosErr } = await (supabase as any)
         .from("lancamentos_diario_bordo")
-        .select("cliente_tomador_emprestimo_id")
+        .select("cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id")
         .eq("aeronave_id", aeronaveId)
-        .eq("emprestimo", true)
-        .not("cliente_tomador_emprestimo_id", "is", null);
+        .eq("emprestimo", true);
 
       if (emprestimosErr) {
         console.error(emprestimosErr);
         return;
       }
 
-      const ids = Array.from(
+      const clienteIds = Array.from(
         new Set(
           (emprestimosData || [])
             .map((r: any) => r.cliente_tomador_emprestimo_id)
             .filter(Boolean)
         )
       );
-
-      if (ids.length === 0) {
-        setTomadores([]);
-        return;
-      }
-
-      const { data: clientesData, error: clientesErr } = await supabase
-        .from("clientes")
-        .select("id, razao_social, cnpj, endereco, cidade, uf")
-        .in("id", ids as string[]);
-
-      if (clientesErr) {
-        console.error(clientesErr);
-        return;
-      }
-
-      setTomadores(
-        (clientesData || []).map((c: any) => ({
-          id: c.razao_social,
-          nome: c.razao_social,
-          cliente_id: c.id,
-          documento: c.cnpj,
-          endereco: c.endereco,
-          cidade: c.cidade,
-          uf: c.uf,
-          isEmprestimo: true as const,
-        }))
+      const socioTomadorIds = Array.from(
+        new Set(
+          (emprestimosData || [])
+            .map((r: any) => r.socio_tomador_emprestimo_id)
+            .filter(Boolean)
+        )
       );
+
+      const novosTomadores: TomadorOption[] = [];
+
+      if (clienteIds.length > 0) {
+        const { data: clientesData, error: clientesErr } = await supabase
+          .from("clientes")
+          .select("id, razao_social, cnpj, endereco, cidade, uf")
+          .in("id", clienteIds as string[]);
+
+        if (clientesErr) {
+          console.error(clientesErr);
+        } else {
+          (clientesData || []).forEach((c: any) => {
+            novosTomadores.push({
+              id: c.razao_social,
+              nome: c.razao_social,
+              cliente_id: c.id,
+              documento: c.cnpj,
+              endereco: c.endereco,
+              cidade: c.cidade,
+              uf: c.uf,
+              isEmprestimo: true as const,
+            });
+          });
+        }
+      }
+
+      if (socioTomadorIds.length > 0) {
+        const { data: sociosData, error: sociosErr } = await supabase
+          .from("socios")
+          .select("id, nome, cpf, cliente_id, endereco, cidade, uf")
+          .in("id", socioTomadorIds as string[]);
+
+        if (sociosErr) {
+          console.error(sociosErr);
+        } else {
+          (sociosData || []).forEach((s: any) => {
+            // evita duplicar caso o mesmo nome já tenha entrado via cliente
+            const jaExiste = novosTomadores.find(
+              (t) => normalizeTextForMatching(t.nome) === normalizeTextForMatching(s.nome)
+            );
+            if (!jaExiste) {
+              novosTomadores.push({
+                id: s.nome,
+                nome: s.nome,
+                cliente_id: s.cliente_id || s.id,
+                socio_id: s.id,
+                documento: s.cpf,
+                endereco: s.endereco,
+                cidade: s.cidade,
+                uf: s.uf,
+                isEmprestimo: true as const,
+              });
+            }
+          });
+        }
+      }
+
+      setTomadores(novosTomadores);
     };
 
     fetchTomadores();
   }, [aeronaveId]);
 
-  // NOVO: lista combinada usada em todo lugar que precisa "achar quem é" a
+  // Lista combinada usada em todo lugar que precisa "achar quem é" a
   // partir de um nome — cotistas reais + tomadores de empréstimo.
   const opcoesAtribuicao = useMemo(
     () => [...cotistas, ...tomadores],
@@ -293,31 +346,24 @@ export default function ImportarDemonstrativoIA({
         new Set(res.itens.map((i) => toIso(i.data)).filter(Boolean) as string[])
       );
 
-      let diarioRows: Array<{
-        data_registro: string;
-        aerodromo_partida: string | null;
-        aerodromo_chegada: string | null;
-        socios_nome: string | null;
-        socios_id: string | null;
-        clientes_id: string | null;
-        emprestimo: boolean | null; // NOVO
-        cliente_tomador_emprestimo_id: string | null; // NOVO
-      }> = [];
+      let diarioRows: DiarioRow[] = [];
 
       if (datasIso.length > 0) {
         const { data: diarioData, error: diarioErr } = await (supabase as any)
           .from("lancamentos_diario_bordo")
           .select(
-            "data_registro, aerodromo_partida, aerodromo_chegada, socios_nome, socios_id, clientes_id, emprestimo, cliente_tomador_emprestimo_id"
+            "data_registro, aerodromo_partida, aerodromo_chegada, socios_nome, socios_id, clientes_id, emprestimo, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id"
           )
           .eq("aeronave_id", aeronaveId)
           .in("data_registro", datasIso);
         if (diarioErr) console.warn("Falha ao consultar diário:", diarioErr.message);
-        diarioRows = (diarioData || []) as typeof diarioRows;
+        diarioRows = (diarioData || []) as DiarioRow[];
       }
 
-      // ALTERADO: agora retorna também se o voo era empréstimo, e nesse caso
-      // sugere o TOMADOR (não o sócio/cliente da aeronave) a partir do diário.
+      // Retorna também se o voo era empréstimo, e nesse caso sugere o TOMADOR
+      // (não o sócio/cliente da aeronave) a partir do diário.
+      // ATUALIZADO: prioriza o tomador identificado por sócio; se não houver,
+      // cai para o tomador identificado por cliente.
       const findSugestao = (
         item: DemonstrativoItem
       ): { nome: string | null; isEmprestimo: boolean } => {
@@ -342,11 +388,20 @@ export default function ImportarDemonstrativoIA({
         }
         if (!match) return { nome: null, isEmprestimo: false };
 
-        if (match.emprestimo && match.cliente_tomador_emprestimo_id) {
-          const tomador = tomadores.find(
-            (t) => t.cliente_id === match!.cliente_tomador_emprestimo_id
-          );
-          return { nome: tomador?.nome || null, isEmprestimo: true };
+        if (match.emprestimo) {
+          if (match.socio_tomador_emprestimo_id) {
+            const tomador = tomadores.find(
+              (t) => t.socio_id === match!.socio_tomador_emprestimo_id
+            );
+            if (tomador) return { nome: tomador.nome, isEmprestimo: true };
+          }
+          if (match.cliente_tomador_emprestimo_id) {
+            const tomador = tomadores.find(
+              (t) => t.cliente_id === match!.cliente_tomador_emprestimo_id
+            );
+            if (tomador) return { nome: tomador.nome, isEmprestimo: true };
+          }
+          return { nome: null, isEmprestimo: true };
         }
 
         return { nome: match.socios_nome?.trim() || null, isEmprestimo: false };
@@ -359,7 +414,7 @@ export default function ImportarDemonstrativoIA({
           cotistaNome: sugestao.nome || "",
           sugeridoDoDiario: !!sugestao.nome,
           naoIdentificado: !sugestao.nome,
-          isEmprestimo: sugestao.isEmprestimo, // NOVO
+          isEmprestimo: sugestao.isEmprestimo,
         }];
       });
 
@@ -367,7 +422,7 @@ export default function ImportarDemonstrativoIA({
       novasLinhas = novasLinhas.flatMap((linha) => expandSpecialRateioLine(linha, cotistas));
 
       const naoIdent = novasLinhas.filter((l) => l.naoIdentificado).length;
-      const emprestimos = novasLinhas.filter((l) => l.isEmprestimo).length; // NOVO
+      const emprestimos = novasLinhas.filter((l) => l.isEmprestimo).length;
       setResult(res);
       setLinhas(novasLinhas);
       toast({
@@ -397,7 +452,7 @@ export default function ImportarDemonstrativoIA({
       const cur = map.get(nome) || { nome, valor: 0, itens: 0, isEmprestimo: !!l.isEmprestimo };
       cur.valor += l.valor || 0;
       cur.itens += 1;
-      cur.isEmprestimo = cur.isEmprestimo || !!l.isEmprestimo; // NOVO
+      cur.isEmprestimo = cur.isEmprestimo || !!l.isEmprestimo;
       map.set(nome, cur);
     }
     const rows = Array.from(map.values()).map((r) => ({
@@ -446,7 +501,6 @@ export default function ImportarDemonstrativoIA({
     let sucesso = 0;
     for (const row of consolidado.rows) {
       const normalizedRowName = normalizeTextForMatching(row.nome);
-      // ALTERADO: busca em cotistas + tomadores, não só cotistas
       const cotistaMatch = opcoesAtribuicao.find(
         (c) => normalizeTextForMatching(c.nome) === normalizedRowName
       );
@@ -500,6 +554,48 @@ export default function ImportarDemonstrativoIA({
     return sucesso;
   };
 
+  // NOVO: para linhas de empréstimo, além do recibo, lança uma despesa de
+  // cobrança direta ao tomador (fora do rateio dos cotistas).
+  const criarDespesasEmprestimo = async (demonstrativoUrl: string | null): Promise<number> => {
+    if (!result) return 0;
+    const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
+    const hoje = new Date().toISOString().split("T")[0];
+    let count = 0;
+
+    for (const row of consolidado.rows.filter((r) => r.isEmprestimo)) {
+      const normalizedRowName = normalizeTextForMatching(row.nome);
+      const tomador = tomadores.find(
+        (t) => normalizeTextForMatching(t.nome) === normalizedRowName
+      );
+      if (!tomador) continue;
+
+      const descricao = `${tipoLabel} - Doc ${result.numero_documento || "?"} - Cobrança direta (empréstimo) - ${tomador.nome}`;
+
+      const { error } = await (supabase as any).from("despesas_cliente_direto").insert({
+        clientes_id: tomador.cliente_id,
+        nome_cliente: tomador.nome,
+        aeronave_id: aeronaveId || null,
+        aeronave_registro: result.aeronave_matricula || null,
+        categoria_nome: tipoLabel,
+        descricao,
+        valor: Number(row.valor.toFixed(2)),
+        data_vencimento: hoje,
+        fornecedor_nome: tipo === "INFRAERO" ? "INFRAERO" : "DECEA",
+        status: "pendente_envio",
+        percentual: 100,
+        demonstrativo_url: demonstrativoUrl || null,
+        numero_documento: result.numero_documento || null,
+      });
+
+      if (error) {
+        console.error("Erro ao criar despesa_cliente_direto:", error);
+      } else {
+        count++;
+      }
+    }
+    return count;
+  };
+
   const abrirSolicitacaoPagamento = (demonstrativoUrl: string | null) => {
     if (!result) return;
     const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
@@ -519,11 +615,11 @@ export default function ImportarDemonstrativoIA({
       }
     >();
 
-    // ALTERADO: linhas de empréstimo (tomador) NÃO entram no rateio dos
-    // cotistas — elas já geram recibo direto pro tomador em criarRecibos().
+    // Linhas de empréstimo (tomador) NÃO entram no rateio dos cotistas —
+    // elas já geram recibo/despesa direta pro tomador em criarRecibos()/criarDespesasEmprestimo().
     // Aqui só ficam as linhas de uso próprio dos cotistas de fato.
     for (const row of consolidado.rows) {
-      if (row.isEmprestimo) continue; // NOVO
+      if (row.isEmprestimo) continue;
       const normalizedRowName = normalizeTextForMatching(row.nome);
       const cotistaMatch = opcoesAtribuicao.find(
         (c) => normalizeTextForMatching(c.nome) === normalizedRowName
@@ -555,8 +651,8 @@ export default function ImportarDemonstrativoIA({
       valorOverridesSocio: g.valorOverridesSocio,
     }));
 
-    // NOVO: valor total da solicitação de pagamento passa a refletir só a
-    // parte que é dos cotistas — a parte dos tomadores já virou recibo à parte.
+    // Valor total da solicitação de pagamento reflete só a parte que é dos
+    // cotistas — a parte dos tomadores já virou recibo/despesa à parte.
     const valorCotistas = consolidado.rows
       .filter((r) => !r.isEmprestimo)
       .reduce((s, r) => s + r.valor, 0);
@@ -613,7 +709,13 @@ export default function ImportarDemonstrativoIA({
 
       if (modo === "recibo") {
         const n = await criarRecibos(demonstrativoUrl);
-        toast({ title: "Recibos gerados", description: `${n} recibo(s) criado(s).` });
+        const empCount = await criarDespesasEmprestimo(demonstrativoUrl);
+        toast({
+          title: "Recibos gerados",
+          description: `${n} recibo(s) criado(s)${
+            empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo lançada(s)` : ""
+          }.`,
+        });
         onGenerated?.();
         resetForm();
         return;
@@ -621,15 +723,27 @@ export default function ImportarDemonstrativoIA({
 
       if (modo === "recibo_pgto") {
         const n = await criarRecibos(demonstrativoUrl);
-        toast({ title: "Recibos gerados", description: `${n} recibo(s) criado(s). Abrindo solicitação de pagamento…` });
+        const empCount = await criarDespesasEmprestimo(demonstrativoUrl);
+        toast({
+          title: "Recibos gerados",
+          description: `${n} recibo(s) criado(s)${
+            empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo` : ""
+          }. Abrindo solicitação de pagamento…`,
+        });
         onGenerated?.();
         abrirSolicitacaoPagamento(demonstrativoUrl);
         return;
       }
 
       // modo === "pgto"
+      const empCount = await criarDespesasEmprestimo(demonstrativoUrl);
       abrirSolicitacaoPagamento(demonstrativoUrl);
-      toast({ title: "Solicitação de pagamento", description: "Preencha os dados e confirme." });
+      toast({
+        title: "Solicitação de pagamento",
+        description: `Preencha os dados e confirme.${
+          empCount > 0 ? ` ${empCount} cobrança(s) de empréstimo lançada(s) diretamente.` : ""
+        }`,
+      });
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "Falha desconhecida";
@@ -775,7 +889,6 @@ export default function ImportarDemonstrativoIA({
                             <SearchableCombobox
                               items={[
                                 ...SPECIAL_RATEIO_OPTIONS,
-                                // ALTERADO: cotistas + tomadores, tomador marcado no label
                                 ...opcoesAtribuicao.map((o) => ({
                                   id: o.nome,
                                   label: (o as any).isEmprestimo ? `${o.nome} (empréstimo)` : o.nome,
@@ -796,7 +909,7 @@ export default function ImportarDemonstrativoIA({
                                             cotistaNome: nomeSelecionado,
                                             sugeridoDoDiario: false,
                                             naoIdentificado: false,
-                                            isEmprestimo: !!(opcaoSelecionada as any)?.isEmprestimo, // NOVO
+                                            isEmprestimo: !!(opcaoSelecionada as any)?.isEmprestimo,
                                           }
                                         : it
                                     );
@@ -911,59 +1024,60 @@ export default function ImportarDemonstrativoIA({
                 </Table>
               )}
 
-<div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">                <Button
-    size="sm"
-    onClick={() => handleAcao("recibo")}
-    disabled={
-      isGenerating ||
-      consolidado.rows.length === 0 ||
-      consolidado.semAtribuicao > 0
-    }
-    className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
-  >
-    {generatingMode === "recibo" ? (
-      <Loader2 className="h-3 w-3 animate-spin" />
-    ) : (
-      <Receipt className="h-3 w-3" />
-    )}
-    APENAS GERAR RECIBO
-  </Button>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleAcao("recibo")}
+                  disabled={
+                    isGenerating ||
+                    consolidado.rows.length === 0 ||
+                    consolidado.semAtribuicao > 0
+                  }
+                  className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
+                >
+                  {generatingMode === "recibo" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Receipt className="h-3 w-3" />
+                  )}
+                  APENAS GERAR RECIBO
+                </Button>
 
-  <Button
-    size="sm"
-    onClick={() => handleAcao("recibo_pgto")}
-    disabled={
-      isGenerating ||
-      consolidado.rows.length === 0 ||
-      consolidado.semAtribuicao > 0
-    }
-    className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
-  >
-    {generatingMode === "recibo_pgto" ? (
-      <Loader2 className="h-3 w-3 animate-spin" />
-    ) : (
-      <Receipt className="h-3 w-3" />
-    )}
-    GERAR RECIBO E ENVIAR PARA PAGAMENTO
-  </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAcao("recibo_pgto")}
+                  disabled={
+                    isGenerating ||
+                    consolidado.rows.length === 0 ||
+                    consolidado.semAtribuicao > 0
+                  }
+                  className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
+                >
+                  {generatingMode === "recibo_pgto" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Receipt className="h-3 w-3" />
+                  )}
+                  GERAR RECIBO E ENVIAR PARA PAGAMENTO
+                </Button>
 
-  <Button
-    size="sm"
-    onClick={() => handleAcao("pgto")}
-    disabled={
-      isGenerating ||
-      consolidado.rows.length === 0 ||
-      consolidado.semAtribuicao > 0
-    }
-    className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
-  >
-    {generatingMode === "pgto" ? (
-      <Loader2 className="h-3 w-3 animate-spin" />
-    ) : (
-      <Send className="h-3 w-3" />
-    )}
-    APENAS ENVIAR PARA PAGAMENTO
-  </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAcao("pgto")}
+                  disabled={
+                    isGenerating ||
+                    consolidado.rows.length === 0 ||
+                    consolidado.semAtribuicao > 0
+                  }
+                  className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
+                >
+                  {generatingMode === "pgto" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Send className="h-3 w-3" />
+                  )}
+                  APENAS ENVIAR PARA PAGAMENTO
+                </Button>
               </div>
             </CardContent>
           </Card>

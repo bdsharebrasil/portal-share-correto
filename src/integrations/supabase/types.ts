@@ -758,7 +758,6 @@ export type Database = {
         Row: {
           ativo: boolean | null
           atualizado_em: string | null
-          categoria_pai_id: string | null
           criado_em: string | null
           criado_por: string
           descricao: string | null
@@ -771,7 +770,6 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           atualizado_em?: string | null
-          categoria_pai_id?: string | null
           criado_em?: string | null
           criado_por: string
           descricao?: string | null
@@ -784,7 +782,6 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           atualizado_em?: string | null
-          categoria_pai_id?: string | null
           criado_em?: string | null
           criado_por?: string
           descricao?: string | null
@@ -794,15 +791,7 @@ export type Database = {
           reembolsavel?: boolean | null
           tipo?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "categorias_movimentacao_categoria_pai_id_fkey"
-            columns: ["categoria_pai_id"]
-            isOneToOne: false
-            referencedRelation: "categorias_movimentacao"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       checklists_voo: {
         Row: {
@@ -4464,6 +4453,7 @@ export type Database = {
       }
       expense_configu: {
         Row: {
+          categoria_pai: string | null
           expense_type: string
           id: string
           subcategoria_1: string | null
@@ -4472,6 +4462,7 @@ export type Database = {
           subcategoria_4: string | null
         }
         Insert: {
+          categoria_pai?: string | null
           expense_type: string
           id?: string
           subcategoria_1?: string | null
@@ -4480,6 +4471,7 @@ export type Database = {
           subcategoria_4?: string | null
         }
         Update: {
+          categoria_pai?: string | null
           expense_type?: string
           id?: string
           subcategoria_1?: string | null
@@ -4487,7 +4479,15 @@ export type Database = {
           subcategoria_3?: string | null
           subcategoria_4?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expense_configu_categoria_pai_fkey"
+            columns: ["categoria_pai"]
+            isOneToOne: false
+            referencedRelation: "categorias_movimentacao"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -6197,10 +6197,8 @@ export type Database = {
           clientes_id: string | null
           comprovante_url: string | null
           conciliacao_id: string | null
-          conta_bancaria: string | null
           contas_apagar_id: string | null
           contas_areceber_id: string | null
-          controle_bancario_id: string | null
           criado_em: string
           criado_por: string | null
           data_competencia: string
@@ -6248,10 +6246,8 @@ export type Database = {
           clientes_id?: string | null
           comprovante_url?: string | null
           conciliacao_id?: string | null
-          conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
-          controle_bancario_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_competencia: string
@@ -6299,10 +6295,8 @@ export type Database = {
           clientes_id?: string | null
           comprovante_url?: string | null
           conciliacao_id?: string | null
-          conta_bancaria?: string | null
           contas_apagar_id?: string | null
           contas_areceber_id?: string | null
-          controle_bancario_id?: string | null
           criado_em?: string
           criado_por?: string | null
           data_competencia?: string
@@ -7987,6 +7981,7 @@ export type Database = {
           criado_em: string | null
           data_emissao: string
           data_max_pagamento: string | null
+          data_quitacao: string | null
           data_vencimento: string | null
           demonstrativo_url: string | null
           descricao_servico: string
@@ -8001,6 +7996,7 @@ export type Database = {
           numero_recibo: string
           pdf_url: string | null
           percentual: number | null
+          recibo_origem_id: string | null
           socios_cliente: string | null
           status: string | null
           subcategoria_1: string | null
@@ -8025,6 +8021,7 @@ export type Database = {
           criado_em?: string | null
           data_emissao: string
           data_max_pagamento?: string | null
+          data_quitacao?: string | null
           data_vencimento?: string | null
           demonstrativo_url?: string | null
           descricao_servico: string
@@ -8039,6 +8036,7 @@ export type Database = {
           numero_recibo: string
           pdf_url?: string | null
           percentual?: number | null
+          recibo_origem_id?: string | null
           socios_cliente?: string | null
           status?: string | null
           subcategoria_1?: string | null
@@ -8063,6 +8061,7 @@ export type Database = {
           criado_em?: string | null
           data_emissao?: string
           data_max_pagamento?: string | null
+          data_quitacao?: string | null
           data_vencimento?: string | null
           demonstrativo_url?: string | null
           descricao_servico?: string
@@ -8077,6 +8076,7 @@ export type Database = {
           numero_recibo?: string
           pdf_url?: string | null
           percentual?: number | null
+          recibo_origem_id?: string | null
           socios_cliente?: string | null
           status?: string | null
           subcategoria_1?: string | null
@@ -10336,6 +10336,20 @@ export type Database = {
           status: string
           valor_rateado: number
         }[]
+      }
+      processar_demonstrativo_voo: {
+        Args: {
+          p_aeronave_id: string
+          p_competencia: string
+          p_data_emissao: string
+          p_data_vencimento: string
+          p_dry_run?: boolean
+          p_itens: Json
+          p_numero_documento: string
+          p_tipo: string
+          p_valor_total: number
+        }
+        Returns: Json
       }
       recalcular_consumo_aeronave: {
         Args: { p_aeronave_id: string }

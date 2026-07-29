@@ -36,7 +36,6 @@ import DiarioBordoDetalhes from "./components/diario/DiarioBordoDetalhes";
 import DiarioBordo from "./pages/DiarioBordo";
 import BancodeHoras from './pages/DiarioBordo/BancodeHoras';
 import GestaoTripulacao from "./pages/GestaoTripulacao";
-import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Documentos from "./pages/Documentos";
 import NotFound from "./pages/NotFound";
@@ -62,7 +61,6 @@ import Senhas from "./pages/Senhas";
 import GestaoFiscal from "./components/dashboard/gestor/financeiro-share/Index";
 import MasterRelatorios from "./components/dashboard/gestor/master/MasterRelatorios";
 
-import ConfiguracoesFiscais from "./components/dashboard/gestor/financeiro-share/ConfiguracoesFiscais";
 import Master from "./components/dashboard/gestor/master/Master";
 import MasterColaboradores from "./components/dashboard/gestor/master/MasterColaboradores";
 import DashboardOperacoes from "./pages/DashboardOperacoes";
@@ -203,7 +201,6 @@ const App = () => {
                           <Route path="/historico-ponto" element={renderProtected(<Invoices />)} />
                           <Route path="/financeiro/gestao-fiscal" element={renderProtected(<GestaoFiscal />)} />
                           <Route path="/financeiro/financeiro-share-brasil" element={renderProtected(<GestaoFiscal />)} />
-                          <Route path="/financeiro/configuracoes-fiscais" element={renderProtected(<ConfiguracoesFiscais />)} />
                           <Route path="/financeiro/master" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master"]}>

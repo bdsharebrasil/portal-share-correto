@@ -21,10 +21,13 @@ import {
   Wallet,
   X,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import BaixaPagamentoModal from "./BaixaPagamentoModal";
+import EditLancamentoModal from "./EditLancamentoModal";
+import AttachmentViewerModal from "./AttachmentViewerModal";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -165,6 +168,8 @@ export default function FluxoCaixaTab() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [baixaMov, setBaixaMov] = useState<Movimentacao | null>(null);
+  const [editMovId, setEditMovId] = useState<string | null>(null);
+  const [viewAttachment, setViewAttachment] = useState<{ url: string; title: string } | null>(null);
   const [sortBy, setSortBy] = useState<"data" | "nome">("data");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -568,8 +573,9 @@ export default function FluxoCaixaTab() {
                       tid={tid} dateStr={dateStr} isPaid={isPaid} docCount={docCount}
                       onToggle={() => setExpandedId(expanded ? null : m.id)}
                       onApprove={() => doAction(m, "baixa")}
-                      onReject={() => doAction(m, "rejeitar")}
+                      onEdit={() => setEditMovId(m.id)}
                       onDelete={() => handleDelete(m.id)}
+                      onOpenAttachment={(url, title) => setViewAttachment({ url, title })}
                       actionLoading={actionLoading} />
                   );
                 })
@@ -619,6 +625,20 @@ export default function FluxoCaixaTab() {
           onSuccess={onBaixaSuccess}
         />
       )}
+      {editMovId && (
+        <EditLancamentoModal
+          movId={editMovId}
+          onClose={() => setEditMovId(null)}
+          onSaved={(movPatch: any) => { setEditMovId(null); onBaixaSuccess(movPatch || {}); }}
+        />
+      )}
+      {viewAttachment && (
+        <AttachmentViewerModal
+          url={viewAttachment.url}
+          title={viewAttachment.title}
+          onClose={() => setViewAttachment(null)}
+        />
+      )}
     </div>
   );
 }
@@ -626,11 +646,47 @@ export default function FluxoCaixaTab() {
 /* ─────────────────────────── RowFragment ─────────────────────────── */
 
 function RowFragment({ m, entrada, expanded, name, cat, tid, dateStr, isPaid, docCount,
-  onToggle, onApprove, onReject, onDelete, actionLoading }: {
+  onToggle, onApprove, onEdit, onDelete, onOpenAttachment, actionLoading }: {
   m: Movimentacao; entrada: boolean; expanded: boolean; name: string; cat: string; tid: string;
   dateStr: string; isPaid: boolean; docCount: number;
-  onToggle: () => void; onApprove: () => void; onReject: () => void; onDelete: () => void; actionLoading: string | null;
+  onToggle: () => void; onApprove: () => void; onEdit: () => void; onDelete: () => void;
+  onOpenAttachment: (url: string, title: string) => void;
+  actionLoading: string | null;
 }) {
+  const [rateio, setRateio] = useState<any>(null);
+  const [loadingRateio, setLoadingRateio] = useState(false);
+
+  useEffect(() => {
+    if (!expanded || rateio) return;
+    let cancel = false;
+    setLoadingRateio(true);
+    (async () => {
+      const { data } = await supabase
+        .from("rateio_despesas")
+        .select("*")
+        .eq("despesa_id", m.id)
+        .maybeSingle();
+      if (!cancel) {
+        setRateio(data || null);
+        setLoadingRateio(false);
+      }
+    })();
+    return () => { cancel = true; };
+  }, [expanded, m.id, rateio]);
+
+  const attachments = [
+    { url: m.nf_url, label: "Nota Fiscal", color: "text-cyan-300 hover:border-cyan-400/40" },
+    { url: m.comprovante_url, label: "Comprovante", color: "text-emerald-300 hover:border-emerald-400/40" },
+    { url: m.boleto_url, label: "Boleto", color: "text-amber-300 hover:border-amber-400/40" },
+    { url: m.recibo_url, label: "Recibo", color: "text-sky-300 hover:border-sky-400/40" },
+  ].filter((a) => !!a.url);
+
+  const fmtDate = (d?: string | null) => d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+  const fmtNum = (n?: number | string | null) => n != null && n !== "" ? formatBRL(Number(n)) : "—";
+  const detail = (label: string, value: any) => (
+    <div><span className="text-slate-500">{label}:</span> <span className="font-medium text-slate-100">{value ?? "—"}</span></div>
+  );
+
   return (
     <>
       <tr onClick={onToggle} className="cursor-pointer transition-colors hover:bg-slate-800/50"
@@ -676,41 +732,66 @@ function RowFragment({ m, entrada, expanded, name, cat, tid, dateStr, isPaid, do
       {expanded && (
         <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.7)", background: "rgba(30,41,59,0.4)" }}>
           <td colSpan={9} className="px-5 py-4">
-            <div className="flex flex-col md:flex-row gap-6 text-xs text-slate-300">
-              <div className="flex-1">
-                <div className="font-bold text-[10px] uppercase tracking-wider text-slate-500 mb-2">Documentos Anexos</div>
-                <div className="flex flex-wrap gap-2">
-                  {m.nf_url ? <a href={m.nf_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-950/70 border border-slate-700 text-cyan-300 font-medium hover:border-cyan-400/40 transition-colors"><FileText className="h-3.5 w-3.5" /> Nota Fiscal</a> : null}
-                  {m.comprovante_url ? <a href={m.comprovante_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-950/70 border border-slate-700 text-emerald-300 font-medium hover:border-emerald-400/40 transition-colors"><Paperclip className="h-3.5 w-3.5" /> Comprovante</a> : null}
-                  {m.boleto_url ? <a href={m.boleto_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-950/70 border border-slate-700 text-amber-300 font-medium hover:border-amber-400/40 transition-colors"><FileText className="h-3.5 w-3.5" /> Boleto</a> : null}
-                  {m.recibo_url ? <a href={m.recibo_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-950/70 border border-slate-700 text-sky-300 font-medium hover:border-sky-400/40 transition-colors"><FileText className="h-3.5 w-3.5" /> Recibo</a> : null}
-                  {docCount === 0 && <span className="text-slate-500 italic">Nenhum documento anexado.</span>}
+            <div className="flex flex-col gap-5 text-xs text-slate-300">
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1">
+                  <div className="font-bold text-[10px] uppercase tracking-wider text-slate-500 mb-2">Documentos Anexos</div>
+                  <div className="flex flex-wrap gap-2">
+                    {attachments.length === 0 && <span className="text-slate-500 italic">Nenhum documento anexado.</span>}
+                    {attachments.map((a) => (
+                      <button
+                        key={a.label}
+                        onClick={(e) => { e.stopPropagation(); onOpenAttachment(a.url as string, a.label); }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-950/70 border border-slate-700 font-medium transition-colors ${a.color}`}
+                      >
+                        <FileText className="h-3.5 w-3.5" /> {a.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1">
-                <div className="font-bold text-[10px] uppercase tracking-wider text-slate-500 mb-2">Detalhes Financeiros</div>
-                <div className="grid grid-cols-2 gap-y-2 gap-x-4">
-                  <div><span className="text-slate-500">Conta:</span> <span className="font-medium text-slate-100">{m.conta_bancaria || m.banco_nome || "—"}</span></div>
-                  <div><span className="text-slate-500">Caixa:</span> <span className="font-medium text-slate-100">{m.tipo_caixa || "share"}</span></div>
-                  <div><span className="text-slate-500">Forma:</span> <span className="font-medium text-slate-100">{m.forma_pagamento || "—"}</span></div>
-                  <div><span className="text-slate-500">ID:</span> <span className="mono font-medium text-slate-100">{tid}</span></div>
-                  {m.observacoes && <div className="col-span-2"><span className="text-slate-500">Obs:</span> <span className="font-medium text-slate-100">{m.observacoes}</span></div>}
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 shrink-0">
-                {!isPaid ? (
-                  <>
+                <div className="flex flex-col gap-2 shrink-0">
+                  {!isPaid ? (
                     <button onClick={(e) => { e.stopPropagation(); onApprove(); }} disabled={actionLoading !== null}
-                      className="px-6 py-2 rounded-lg text-xs font-bold text-white transition-colors disabled:opacity-50" style={{ background: "#0e7490", minWidth: 90 }}>
+                      className="px-6 py-2 rounded-lg text-xs font-bold text-white transition-colors disabled:opacity-50" style={{ background: "#0e7490", minWidth: 100 }}>
                       {actionLoading === m.id + "baixa" ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Dar Baixa"}
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); onReject(); }} disabled={actionLoading !== null}
-                      className="px-6 py-2 rounded-lg text-xs font-bold transition-colors disabled:opacity-50" style={{ border: "1px solid #fca5a5", color: "#f87171", background: "transparent", minWidth: 90 }}>
-                      {actionLoading === m.id + "rejeitar" ? <RefreshCw className="h-3.5 w-3.5 animate-spin mx-auto" /> : "Rejeitar"}
-                    </button>
-                  </>
-                ) : (
-                  <span className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-400/20">Lançamento quitado</span>
+                  ) : (
+                    <span className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-400/20 text-center">Quitado</span>
+                  )}
+                  <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                    className="px-6 py-2 rounded-lg text-xs font-bold text-cyan-300 border border-cyan-400/40 hover:bg-cyan-500/10 flex items-center justify-center gap-1.5" style={{ minWidth: 100 }}>
+                    <Pencil className="h-3.5 w-3.5" /> Editar
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-bold text-[10px] uppercase tracking-wider text-slate-500 mb-2">
+                  Detalhes Financeiros {loadingRateio && <span className="text-slate-600">(carregando rateio...)</span>}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-2 gap-x-4">
+                  {detail("Data Emissão", fmtDate(rateio?.data_emissao))}
+                  {detail("Data Vencimento", fmtDate(rateio?.data_vencimento || m.data_vencimento))}
+                  {detail("Data Pagamento", fmtDate(rateio?.data_pagamento || m.data_pagamento))}
+                  {detail("Tipo Rateio", rateio?.tipo_rateio)}
+                  {detail("Nº Doc", rateio?.numero_doc || m.numero_doc)}
+                  {detail("Nº NF", rateio?.numero_nf || m.numero_nf)}
+                  {detail("Nº Recibo", rateio?.numero_recibo || m.numero_recibo)}
+                  {detail("Forma Pagamento", rateio?.forma_pagamento || m.forma_pagamento)}
+                  {detail("Periodicidade", rateio?.periodicidade)}
+                  {detail("Pago por", rateio?.pago_por || m.pago_por)}
+                  {detail("% Uso", rateio?.percentual_uso != null ? `${rateio.percentual_uso}%` : null)}
+                  {detail("% Sociedade", rateio?.percentual_sociedade != null ? `${rateio.percentual_sociedade}%` : null)}
+                  {detail("Valor Total", fmtNum(rateio?.valor_total_despesa))}
+                  {detail("Valor Rateado", fmtNum(rateio?.valor_rateado))}
+                  {detail("Valor Pago Real", fmtNum(rateio?.valor_pago_real ?? m.valor))}
+                  {detail("Conta", m.conta_bancaria || m.banco_nome)}
+                </div>
+                {(rateio?.observacoes || m.observacoes) && (
+                  <div className="mt-3">
+                    <span className="text-slate-500">Observações:</span>{" "}
+                    <span className="font-medium text-slate-100">{rateio?.observacoes || m.observacoes}</span>
+                  </div>
                 )}
               </div>
             </div>
