@@ -357,13 +357,17 @@ function CaixaSharePanel() {
     }
   };
 
+  const categoriasPorGrupo = items.reduce<Record<string, Categoria[]>>((grupos, categoria) => {
+    const grupo = categoria.grupo_categoria?.trim() || "Sem grupo";
+    (grupos[grupo] ||= []).push(categoria);
+    return grupos;
+  }, {});
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: GREEN }} />
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: GREEN }}>
-          Tabela: categorias_movimentacao
-        </span>
+       
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
@@ -441,42 +445,33 @@ function CaixaSharePanel() {
           Nenhuma categoria cadastrada.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(16,185,129,0.2)", background: "rgba(15,23,42,0.7)" }}>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700" style={{ color: GREEN }}>
-                <th className="px-3 py-2">Nome</th>
-                <th className="px-3 py-2">Tipo</th>
-                <th className="px-3 py-2">Grupo</th>
-                <th className="px-3 py-2">Reembolsável</th>
-                <th className="px-3 py-2 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((c) => (
-                <tr key={c.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                  <td className="px-3 py-2 text-slate-200 font-semibold">{c.nome || "—"}</td>
-                  <td className="px-3 py-2">
-                    <TipoBadge tipo={c.tipo} />
-                  </td>
-                  <td className="px-3 py-2 text-slate-300">{c.grupo_categoria || "—"}</td>
-                  <td className="px-3 py-2">
-                    {c.reembolsavel ? <CheckCircle2 className="h-4 w-4" style={{ color: GREEN }} /> : <span className="text-slate-600">—</span>}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => openEdit(c)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button onClick={() => setDeleteId(c.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-4">
+          {Object.entries(categoriasPorGrupo)
+            .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+            .map(([grupo, categorias]) => (
+              <section key={grupo} className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(16,185,129,0.2)", background: "rgba(15,23,42,0.7)" }}>
+                <div className="flex items-center justify-between border-b border-slate-700/80 px-4 py-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: GREEN }}>{grupo}</h3>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">{categorias.length} categorias</span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead><tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700 text-slate-400">
+                    <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Tipo</th><th className="px-3 py-2">Reembolsável</th><th className="px-3 py-2 text-right">Ações</th>
+                  </tr></thead>
+                  <tbody>{categorias.map((c) => (
+                    <tr key={c.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                      <td className="px-3 py-2 text-slate-200 font-semibold">{c.nome || "—"}</td>
+                      <td className="px-3 py-2"><TipoBadge tipo={c.tipo} /></td>
+                      <td className="px-3 py-2">{c.reembolsavel ? <CheckCircle2 className="h-4 w-4" style={{ color: GREEN }} /> : <span className="text-slate-600">—</span>}</td>
+                      <td className="px-3 py-2"><div className="flex justify-end gap-1">
+                        <button onClick={() => openEdit(c)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]"><Pencil className="h-3 w-3" /></button>
+                        <button onClick={() => setDeleteId(c.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]"><Trash2 className="h-3 w-3" /></button>
+                      </div></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </section>
+            ))}
         </div>
       )}
 
@@ -630,9 +625,7 @@ function CaixaClientePanel() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: BLUE }} />
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: BLUE }}>
-          Tabela: expense_configu
-        </span>
+       
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
