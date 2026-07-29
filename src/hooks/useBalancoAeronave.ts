@@ -141,6 +141,15 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
       await Promise.all([fetchRateios(), fetchVoos(), fetchMembros(), fetchTERs(), fetchAbastecimentos(), fetchContasApagar(mat)]);
     };
     doAll().finally(() => setLoading(false));
+
+    const channel = supabase
+      .channel(`balanco-aeronave-${aeronaveId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rateio_despesas", filter: `aeronave_id=eq.${aeronaveId}` }, () => { void doAll(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "lancamentos_diario_bordo", filter: `aeronave_id=eq.${aeronaveId}` }, () => { void doAll(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "abastecimentos", filter: `aeronave_id=eq.${aeronaveId}` }, () => { void doAll(); })
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
   }, [aeronaveId, ano]);
 
   const selectedSet = useMemo(() => new Set(selectedMonths), [selectedMonths]);
