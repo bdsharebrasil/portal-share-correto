@@ -29,7 +29,6 @@ import { GerenciarAcessoPortal } from "./GerenciarAcessoPortal";
 
 import { InformacoesCotistasTab } from "./InformacoesCotistasTab";
 import BalancoNovo from "./BalancoNovo";
-import VisaoGeralNova from "./VisaoGeralNova";
 import { AbastecimentosTab } from "./AbastecimentosTab";
 import { TabelaFinanceiraTab } from "./TabelaFinanceiraTab";
 import { CentroLancamentos } from "./CentroLancamentos";
@@ -194,7 +193,7 @@ export default function FinanceiroCotistaDetalhe() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="animate-pulse space-y-6 max-w-7xl mx-auto">
+        <div className="animate-pulse space-y-6 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-4 w-32 bg-muted/50 rounded-full" />
           <div className="h-48 bg-card/40 backdrop-blur-md rounded-2xl border border-border/40" />
           <div className="grid grid-cols-4 gap-4">
@@ -223,7 +222,7 @@ export default function FinanceiroCotistaDetalhe() {
 
   return (
     <Layout>
-      <div className="space-y-8 max-w-7xl mx-auto pb-12">
+      <div className="space-y-8 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Navegação Topo */}
         <div className="flex flex-col gap-2">
           <button
@@ -395,8 +394,8 @@ export default function FinanceiroCotistaDetalhe() {
 
           <div className="mt-8">
             {/* Visão Geral */}
-            <TabsContent value="visao" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <VisaoGeralNova />
+            <TabsContent value="visao" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <BalancoNovo />
             </TabsContent>
 
 
