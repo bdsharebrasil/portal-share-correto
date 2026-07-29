@@ -110,7 +110,7 @@ function txnId(m: Movimentacao): string {
   return `TXN-${ym || "0000"}-${suffix}`;
 }
 
-type StatusKind = "aprovado" | "pendente" | "vencido" | "deposito" | "reembolsado" | "cancelado";
+type StatusKind = "pago" | "pendente" | "vencido" | "deposito" | "reembolsado" | "cancelado";
 
 function statusOf(m: Movimentacao): { label: string; kind: StatusKind } {
   const s = norm(m.status);
@@ -119,7 +119,7 @@ function statusOf(m: Movimentacao): { label: string; kind: StatusKind } {
   const isDeposit = norm(m.tipo) === "deposito" || norm(m.tipo_caixa) === "deposito";
   if (isDeposit) return { label: "Depósito", kind: "deposito" };
   const pago = !!m.data_pagamento || s === "aprovado" || s === "pago" || s === "quitado" || s === "confirmado" || s === "receita paga" || s === "despesa paga";
-  if (pago) return { label: "Aprovado", kind: "aprovado" };
+  if (pago) return { label: "Pago", kind: "pago" };
   if (m.data_vencimento && new Date(m.data_vencimento) < new Date()) return { label: "Vencido", kind: "vencido" };
   return { label: "Pendente", kind: "pendente" };
 }
@@ -127,7 +127,7 @@ function statusOf(m: Movimentacao): { label: string; kind: StatusKind } {
 function StatusBadge({ m }: { m: Movimentacao }) {
   const { label, kind } = statusOf(m);
   const cfg: Record<StatusKind, { bg: string; text: string; border: string; Icon: React.FC<any> }> = {
-    aprovado:    { bg: "rgba(34,197,94,0.10)",  text: "#4ade80", border: "rgba(34,197,94,0.25)",  Icon: Check },
+    pago:        { bg: "rgba(34,197,94,0.10)",  text: "#4ade80", border: "rgba(34,197,94,0.25)",  Icon: Check },
     reembolsado: { bg: "rgba(56,189,248,0.10)", text: "#38bdf8", border: "rgba(56,189,248,0.25)", Icon: Check },
     deposito:    { bg: "rgba(45,212,191,0.10)", text: "#2dd4bf", border: "rgba(45,212,191,0.25)", Icon: ArrowDownRight },
     pendente:    { bg: "rgba(245,158,11,0.10)", text: "#fbbf24", border: "rgba(245,158,11,0.25)", Icon: Clock },
@@ -148,7 +148,7 @@ function StatusBadge({ m }: { m: Movimentacao }) {
 function StatusDot({ m }: { m: Movimentacao }) {
   const { kind } = statusOf(m);
   const color: Record<StatusKind, string> = {
-    aprovado: "bg-emerald-400", reembolsado: "bg-sky-400", deposito: "bg-teal-400",
+    pago: "bg-emerald-400", reembolsado: "bg-sky-400", deposito: "bg-teal-400",
     pendente: "bg-amber-400", vencido: "bg-red-400", cancelado: "bg-slate-500",
   };
   return <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color[kind]}`} />;
@@ -185,6 +185,9 @@ export default function FluxoCaixaTab() {
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [baixaMov, setBaixaMov] = useState<Movimentacao | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
+  const [showNewMov, setShowNewMov] = useState(false);
+  const [newMov, setNewMov] = useState({ descricao: "", tipo: "saida", categoria_id: "", valor_rateado: "", data_competencia: new Date().toISOString().slice(0, 10), data_vencimento: "", fornecedor_nome: "", reembolsavel: false });
+  const [savingNewMov, setSavingNewMov] = useState(false);
   const [viewAttachment, setViewAttachment] = useState<{ url: string; title: string } | null>(null);
   const [sortBy, setSortBy] = useState<"data" | "nome">("data");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -358,7 +361,7 @@ export default function FluxoCaixaTab() {
       list = list.filter((m) => {
         const k = statusOf(m).kind;
         if (statusFilter === "pendente") return k === "pendente" || k === "vencido";
-        if (statusFilter === "pago") return k === "aprovado" || k === "reembolsado" || k === "deposito";
+        if (statusFilter === "pago") return k === "pago" || k === "reembolsado" || k === "deposito";
         if (statusFilter === "vencido") return k === "vencido";
         return true;
       });
@@ -425,6 +428,48 @@ export default function FluxoCaixaTab() {
     setBaixaMov(null);
     setExpandedId(null);
   }, [baixaMov]);
+
+  const openNewMov = useCallback(() => {
+    const tipoCaixa = activeTab === "caixa_cliente" ? "cliente" : "share";
+    setNewMov({ descricao: "", tipo: "saida", categoria_id: "", valor_rateado: "", data_competencia: new Date().toISOString().slice(0, 10), data_vencimento: "", fornecedor_nome: "", reembolsavel: false });
+    setShowNewMov(true);
+  }, [activeTab]);
+
+  const saveNewMov = useCallback(async () => {
+    if (!newMov.descricao.trim() || !newMov.valor_rateado || Number(newMov.valor_rateado) <= 0) {
+      setToast({ type: "err", text: "Informe descrição e valor válido." });
+      return;
+    }
+    setSavingNewMov(true);
+    try {
+      const tipoCaixa = activeTab === "caixa_cliente" ? "cliente" : "share";
+      const categoriaNome = tipoCaixa === "share" ? categorias[newMov.categoria_id] : categoriasCliente[newMov.categoria_id];
+      const payload = {
+        descricao: newMov.descricao.trim(),
+        tipo: newMov.tipo,
+        tipo_caixa: tipoCaixa,
+        categoria_id: newMov.categoria_id || null,
+        categoria_nome: categoriaNome || null,
+        valor_rateado: Number(newMov.valor_rateado),
+        valor_original: Number(newMov.valor_rateado),
+        data_competencia: newMov.data_competencia || null,
+        data_vencimento: newMov.data_vencimento || null,
+        fornecedor_nome: newMov.fornecedor_nome.trim() || null,
+        reembolsavel: newMov.reembolsavel,
+        reembolso_quitado: false,
+        status: "pendente",
+      };
+      const { data, error: e } = await supabase.from("movimentacoes").insert(payload).select("*").single();
+      if (e) throw e;
+      setMovs((prev) => [data as Movimentacao, ...prev]);
+      setShowNewMov(false);
+      setToast({ type: "ok", text: `Lançamento criado no Caixa ${tipoCaixa === "share" ? "Share" : "Cliente"}.` });
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao criar lançamento." });
+    } finally {
+      setSavingNewMov(false);
+    }
+  }, [activeTab, categorias, categoriasCliente, newMov]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Deseja realmente excluir esta movimentação?")) return;
@@ -567,7 +612,7 @@ export default function FluxoCaixaTab() {
             <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
               <Download className="h-3.5 w-3.5" /> Exportar PDF
             </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-950 transition-colors shadow-sm" style={{ background: "#06b6d4" }}>
+            <button onClick={openNewMov} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-950 transition-colors shadow-sm" style={{ background: "#06b6d4" }}>
               <Plus className="h-3.5 w-3.5" /> Nova
             </button>
           </div>
@@ -743,6 +788,17 @@ export default function FluxoCaixaTab() {
           onSaved={(movPatch: any) => { setEditMovId(null); onBaixaSuccess(movPatch || {}); }}
         />
       )}
+      {showNewMov && (
+        <NewMovimentacaoModal
+          tipoCaixa={activeTab === "caixa_cliente" ? "cliente" : "share"}
+          categorias={activeTab === "caixa_cliente" ? categoriasCliente : categorias}
+          form={newMov}
+          saving={savingNewMov}
+          onChange={(patch) => setNewMov((current) => ({ ...current, ...patch }))}
+          onClose={() => setShowNewMov(false)}
+          onSave={saveNewMov}
+        />
+      )}
       {viewAttachment && (
         <AttachmentViewerModal
           url={viewAttachment.url}
@@ -750,6 +806,80 @@ export default function FluxoCaixaTab() {
           onClose={() => setViewAttachment(null)}
         />
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── novo lançamento ─────────────────────────── */
+
+function NewMovimentacaoModal({ tipoCaixa, categorias, form, saving, onChange, onClose, onSave }: {
+  tipoCaixa: "share" | "cliente";
+  categorias: Record<string, string>;
+  form: { descricao: string; tipo: string; categoria_id: string; valor_rateado: string; data_competencia: string; data_vencimento: string; fornecedor_nome: string; reembolsavel: boolean };
+  saving: boolean;
+  onChange: (patch: Partial<typeof form>) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const categoriaLabel = tipoCaixa === "share" ? "Categoria do Caixa Share" : "Categoria do Caixa Cliente";
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-700 px-5 py-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-100">Novo Lançamento — Caixa {tipoCaixa === "share" ? "Share" : "Cliente"}</h2>
+            <p className="mt-0.5 text-xs text-slate-400">O lançamento será criado diretamente em movimentações.</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição *</label>
+            <input value={form.descricao} onChange={(event) => onChange({ descricao: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tipo</label>
+            <select value={form.tipo} onChange={(event) => onChange({ tipo: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400">
+              <option value="saida">Saída</option>
+              <option value="receita">Entrada</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor *</label>
+            <input type="number" min="0.01" step="0.01" value={form.valor_rateado} onChange={(event) => onChange({ valor_rateado: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{categoriaLabel}</label>
+            <select value={form.categoria_id} onChange={(event) => onChange({ categoria_id: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400">
+              <option value="">Sem categoria</option>
+              {Object.entries(categorias).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Competência</label>
+            <input type="date" value={form.data_competencia} onChange={(event) => onChange({ data_competencia: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
+          </div>
+          <div>
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Vencimento</label>
+            <input type="date" value={form.data_vencimento} onChange={(event) => onChange({ data_vencimento: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Fornecedor</label>
+            <input value={form.fornecedor_nome} onChange={(event) => onChange({ fornecedor_nome: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
+          </div>
+          {tipoCaixa === "share" && form.tipo === "saida" && (
+            <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-200">
+              <input type="checkbox" checked={form.reembolsavel} onChange={(event) => onChange({ reembolsavel: event.target.checked })} className="h-4 w-4 accent-cyan-400" />
+              Despesa reembolsável pelo cliente
+            </label>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-700 px-5 py-4">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800">Cancelar</button>
+          <button onClick={onSave} disabled={saving} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-50">{saving ? "Salvando..." : "Criar lançamento"}</button>
+        </div>
+      </div>
     </div>
   );
 }
