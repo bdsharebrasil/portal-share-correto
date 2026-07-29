@@ -628,9 +628,7 @@ function CaixaClientePanel() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: BLUE }} />
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: BLUE }}>
-          Tabela: expense_configu
-        </span>
+       
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
