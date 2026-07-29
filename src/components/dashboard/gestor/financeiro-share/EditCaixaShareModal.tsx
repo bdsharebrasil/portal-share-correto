@@ -141,7 +141,7 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
         data_competencia: mov.data_competencia || null,
         data_vencimento: mov.data_vencimento || null,
         data_pagamento: mov.data_pagamento || null,
-        valor: numOrNull(mov.valor),
+        valor_rateado: numOrNull(mov.valor_rateado),
         status: mov.status,
         forma_pagamento: mov.forma_pagamento,
         banco_nome: mov.banco_nome,

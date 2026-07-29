@@ -762,7 +762,7 @@ export default function LancamentoForm(props: LancamentoFormProps) {
         tipo: "despesa",
         tipo_caixa: "cliente",
         grupo_custo: grupo,
-        valor: valorNum,
+        valor_rateado: valorNum,
         valor_original: valorNum,
         data_competencia: dataCompetencia,
         data_vencimento: dataVencimento || dataCompetencia,

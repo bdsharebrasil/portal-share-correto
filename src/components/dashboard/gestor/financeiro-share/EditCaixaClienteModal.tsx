@@ -127,7 +127,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         data_vencimento: mov.data_vencimento || null,
         data_pagamento: mov.data_pagamento || null,
         forma_pagamento: mov.forma_pagamento,
-        valor: numOrNull(mov.valor),
+        valor_rateado: numOrNull(mov.valor_rateado),
         observacoes: subcategoria ? `${mov.observacoes || ""}\n[Subcategoria: ${subcategoria}]`.trim() : mov.observacoes,
         categoria_id: categoriaCustoId || null,
         ...anexosToPatch(anexos),

@@ -288,7 +288,7 @@ export default function EntradaForm(props: EntradaFormProps) {
         descricao: descricao.trim(),
         tipo: "entrada",
         tipo_caixa: "cliente",
-        valor: valorNum,
+        valor_rateado: valorNum,
         data_competencia: dataCompetencia,
         data_pagamento: status === "pago" ? (dataPagamento || dataCompetencia) : null,
         client_id: clienteId,

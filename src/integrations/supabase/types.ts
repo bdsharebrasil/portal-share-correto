@@ -6232,10 +6232,9 @@ export type Database = {
           status: string
           tipo: string
           tipo_caixa: string | null
-          valor: number
           valor_original: number | null
           valor_pago_real: number | null
-          valor_rateado: number | null
+          valor_rateado: number
         }
         Insert: {
           aeronave_id?: string | null
@@ -6281,10 +6280,9 @@ export type Database = {
           status?: string
           tipo: string
           tipo_caixa?: string | null
-          valor: number
           valor_original?: number | null
           valor_pago_real?: number | null
-          valor_rateado?: number | null
+          valor_rateado: number
         }
         Update: {
           aeronave_id?: string | null
@@ -6330,10 +6328,9 @@ export type Database = {
           status?: string
           tipo?: string
           tipo_caixa?: string | null
-          valor?: number
           valor_original?: number | null
           valor_pago_real?: number | null
-          valor_rateado?: number | null
+          valor_rateado?: number
         }
         Relationships: [
           {

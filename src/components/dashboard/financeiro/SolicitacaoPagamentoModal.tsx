@@ -1321,7 +1321,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             movId = await insertAndGetId("movimentacoes", {
               descricao: descricaoViagemModo, 
               tipo: "despesa", tipo_caixa: "cliente",
-              categoria_id: categoriaContaId, valor: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
+              categoria_id: categoriaContaId, valor_rateado: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
               clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: travelReportNumeroDoc,
@@ -1433,7 +1433,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
                 tipo: "despesa", tipo_caixa: "cliente",
-                categoria_id: categoriaContaId, valor: valorCliente, valor_original: valorNumericoFinal,
+                categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_original: valorNumericoFinal,
                 data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
                 numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum,
@@ -1495,7 +1495,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           try {
             shareMovId = await insertAndGetId("movimentacoes", {
               descricao, tipo: "despesa", tipo_caixa: "share",
-              categoria_id: categoriaContaId, valor: valorNumericoFinal, valor_original: valorNumericoFinal,
+              categoria_id: categoriaContaId, valor_rateado: valorNumericoFinal, valor_original: valorNumericoFinal,
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
               aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: docNum,
@@ -1529,7 +1529,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
-                categoria_id: categoriaContaId, valor: valorCliente, valor_original: valorNumericoFinal, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
+                categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_original: valorNumericoFinal, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
                 numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum, nf_url: nfUrl, recibo_url: reciboUrlLinha, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
                 observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,

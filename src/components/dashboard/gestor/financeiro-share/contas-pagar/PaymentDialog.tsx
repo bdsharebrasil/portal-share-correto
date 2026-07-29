@@ -428,11 +428,11 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
 
       if (!shareMovError && shareMov?.id) {
         await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
-          .update({ valor: valorNum })
+          .update({ valor_rateado: valorNum })
           .eq("id", shareMov.id);
       } else if (conta!.movimentacao_id) {
         await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
-          .update({ valor: valorNum })
+          .update({ valor_rateado: valorNum })
           .eq("id", conta!.movimentacao_id);
       }
 

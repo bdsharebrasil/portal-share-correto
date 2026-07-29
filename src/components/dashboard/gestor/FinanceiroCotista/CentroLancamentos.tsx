@@ -563,7 +563,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
       }
       
       if (Object.prototype.hasOwnProperty.call(patch, "valor_pago_real")) {
-        movPatch.valor = patch.valor_pago_real ?? patch.valor_total_despesa ?? g.valor_total_despesa;
+        movPatch.valor_rateado = patch.valor_pago_real ?? patch.valor_total_despesa ?? g.valor_total_despesa;
       }
       if (Object.prototype.hasOwnProperty.call(patch, "data_pagamento")) {
         movPatch.data_pagamento = patch.data_pagamento;
