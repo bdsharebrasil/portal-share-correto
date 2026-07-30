@@ -239,7 +239,7 @@ function DiarioBordoDetalhes() {
     const anoIni = `${ano}-01-01`;
     const anoFim = `${ano}-12-31`;
 
-    const [aRes, dmRes, lRes, lAnoRes, ultimaDataRes, cRes, sRes, tRes, abRes, logbookIdsRes, aeroRes] = await Promise.all([
+    const [aRes, dmRes, lRes, lAnoRes, ultimaDataRes, cRes, sRes, membrosTripulacaoRes, tripulacaoRes, abRes, logbookIdsRes, aeroRes] = await Promise.all([
       supabase.from("aeronave").select("id,matricula,modelo,ano,base,consumo_combustivel,modo_celula").eq("id", aircraftId).maybeSingle(),
       supabase.from("diario_mes").select("*").eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle(),
       supabase.from("lancamentos_diario_bordo").select(`*`).eq("aeronave_id", aircraftId)
@@ -256,7 +256,8 @@ function DiarioBordoDetalhes() {
         .limit(1),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
       (supabase as any).from("socios").select("id,nome,cliente_id").order("nome"),
-      supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
+      supabase.from("membros_tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
+      supabase.from("tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
       supabase.from("abastecimentos").select("id,data,local,litros,valor_total,valor_unitario,tipo_combustivel,logbook_entry_id,comanda,abastecedor,nf,tipo_faturamento")
         .eq("aeronave_id", aircraftId)
         .gte("data", ini).lte("data", fim)
@@ -274,7 +275,11 @@ function DiarioBordoDetalhes() {
     setUltimaDataLancamento(ultimaDataRes.data?.[0]?.data_registro ?? null);
     setClientes((cRes.data ?? []) as Cliente[]);
     setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
-    setTripulantes((tRes.data ?? []) as Tripulante[]);
+    const tripulantesData = [
+      ...(membrosTripulacaoRes.data ?? []),
+      ...(tripulacaoRes.data ?? []),
+    ] as Tripulante[];
+    setTripulantes(tripulantesData);
     setAbastecimentos((abRes.data ?? []) as unknown as Abastecimento[]);
     setAerodromes(((aeroRes.data ?? []) as Array<{ id: string; designativo: string; nome: string; coordenadas: string | null }>).map((a) => ({ ...a, name: a.nome })));
 
@@ -294,7 +299,7 @@ function DiarioBordoDetalhes() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUsuarioAtual({ id: user.id, email: user.email || "" });
-      const tripulantesArr = (tRes.data ?? []) as Tripulante[];
+      const tripulantesArr = tripulantesData;
       const tripulacaoAtual = tripulantesArr.find(t =>
         t.nome_completo?.toLowerCase().includes(user.email?.split("@")[0] || "") ||
         t.canac === user.id?.slice(0, 8)
@@ -707,23 +712,28 @@ function DiarioBordoDetalhes() {
           const fimDate = new Date(year, mês, 0);
           const fim = `${year}-${String(mês).padStart(2, "0")}-${String(fimDate.getDate()).padStart(2, "0")}`;
 
-          const [lRes, cRes, sRes, tRes] = await Promise.all([
+          const [lRes, cRes, sRes, membrosTripulacaoRes, tripulacaoRes] = await Promise.all([
             supabase.from("lancamentos_diario_bordo").select("*").eq("aeronave_id", aircraftId)
               .gte("data_registro", ini).lte("data_registro", fim).order("data_registro", { ascending: true }),
             supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
             (supabase as any).from("socios").select("id,nome,cliente_id").order("nome"),
-            supabase.from("membros_tripulacao").select("id,nome_completo,canac,status"),
+            supabase.from("membros_tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
+            supabase.from("tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
           ]);
 
           if (lRes.error) throw new Error(`Erro ao carregar lancamentos: ${lRes.error.message}`);
           if (cRes.error) throw new Error(`Erro ao carregar clientes: ${cRes.error.message}`);
           if (sRes.error) throw new Error(`Erro ao carregar sócios: ${sRes.error.message}`);
-          if (tRes.error) throw new Error(`Erro ao carregar tripulação: ${tRes.error.message}`);
+          if (membrosTripulacaoRes.error) throw new Error(`Erro ao carregar membros da tripulação: ${membrosTripulacaoRes.error.message}`);
+          if (tripulacaoRes.error) throw new Error(`Erro ao carregar tripulação: ${tripulacaoRes.error.message}`);
 
           const lancamentosData = (lRes.data ?? []) as unknown as Lanc[];
           const clientesData = (cRes.data ?? []) as Cliente[];
           const sociosData = (((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id }))) as Socio[];
-          const tripulantesData = (tRes.data ?? []) as Tripulante[];
+          const tripulantesData = [
+            ...(membrosTripulacaoRes.data ?? []),
+            ...(tripulacaoRes.data ?? []),
+          ] as Tripulante[];
 
           const tripByCanac = new Map<string, Tripulante>();
           tripulantesData.forEach((t) => { if (t.canac) tripByCanac.set(t.canac, t); });
