@@ -822,63 +822,78 @@ function NewMovimentacaoModal({ tipoCaixa, categorias, form, saving, onChange, o
   onSave: () => void;
 }) {
   const categoriaLabel = tipoCaixa === "share" ? "Categoria do Caixa Share" : "Categoria do Caixa Cliente";
+  const inputClass = "w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-400";
+  const labelClass = "mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-700 px-5 py-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-3xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-700 px-6 py-5">
           <div>
-            <h2 className="text-base font-bold text-slate-100">Novo Lançamento — Caixa {tipoCaixa === "share" ? "Share" : "Cliente"}</h2>
-            <p className="mt-0.5 text-xs text-slate-400">O lançamento será criado diretamente em movimentações.</p>
+            <h2 className="text-lg font-bold text-slate-100">Nova Despesa — Caixa {tipoCaixa === "share" ? "Share" : "Cliente"}</h2>
+            <p className="mt-1 text-xs text-slate-400">Preencha os dados para registrar uma nova movimentação financeira.</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100" aria-label="Fechar">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição *</label>
-            <input value={form.descricao} onChange={(event) => onChange({ descricao: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
+
+        <form onSubmit={(event) => { event.preventDefault(); onSave(); }} className="space-y-5 p-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <label htmlFor="nova-despesa-descricao" className={labelClass}>Descrição *</label>
+              <input id="nova-despesa-descricao" required value={form.descricao} onChange={(event) => onChange({ descricao: event.target.value })} placeholder="Ex: Internet, aluguel, seguro" className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="nova-despesa-fornecedor" className={labelClass}>Fornecedor/Beneficiário</label>
+              <input id="nova-despesa-fornecedor" value={form.fornecedor_nome} onChange={(event) => onChange({ fornecedor_nome: event.target.value })} placeholder="Nome do fornecedor" className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="nova-despesa-valor" className={labelClass}>Valor *</label>
+              <input id="nova-despesa-valor" required type="number" min="0.01" step="0.01" value={form.valor_rateado} onChange={(event) => onChange({ valor_rateado: event.target.value })} placeholder="R$ 0,00" className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="nova-despesa-tipo" className={labelClass}>Tipo de movimentação</label>
+              <select id="nova-despesa-tipo" value={form.tipo} onChange={(event) => onChange({ tipo: event.target.value })} className={inputClass}>
+                <option value="saida">Saída</option>
+                <option value="receita">Entrada</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="nova-despesa-categoria" className={labelClass}>{categoriaLabel}</label>
+              <select id="nova-despesa-categoria" value={form.categoria_id} onChange={(event) => onChange({ categoria_id: event.target.value })} className={inputClass}>
+                <option value="">Sem categoria</option>
+                {Object.entries(categorias).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tipo</label>
-            <select value={form.tipo} onChange={(event) => onChange({ tipo: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400">
-              <option value="saida">Saída</option>
-              <option value="receita">Entrada</option>
-            </select>
+
+          <div className="space-y-4 border-t border-slate-700 pt-5">
+            <h3 className="font-semibold text-slate-100">Datas da movimentação</h3>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="nova-despesa-competencia" className={labelClass}>Competência</label>
+                <input id="nova-despesa-competencia" type="date" value={form.data_competencia} onChange={(event) => onChange({ data_competencia: event.target.value })} className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="nova-despesa-vencimento" className={labelClass}>Vencimento</label>
+                <input id="nova-despesa-vencimento" type="date" value={form.data_vencimento} onChange={(event) => onChange({ data_vencimento: event.target.value })} className={inputClass} />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor *</label>
-            <input type="number" min="0.01" step="0.01" value={form.valor_rateado} onChange={(event) => onChange({ valor_rateado: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{categoriaLabel}</label>
-            <select value={form.categoria_id} onChange={(event) => onChange({ categoria_id: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400">
-              <option value="">Sem categoria</option>
-              {Object.entries(categorias).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Competência</label>
-            <input type="date" value={form.data_competencia} onChange={(event) => onChange({ data_competencia: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
-          </div>
-          <div>
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Vencimento</label>
-            <input type="date" value={form.data_vencimento} onChange={(event) => onChange({ data_vencimento: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Fornecedor</label>
-            <input value={form.fornecedor_nome} onChange={(event) => onChange({ fornecedor_nome: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400" />
-          </div>
+
           {tipoCaixa === "share" && form.tipo === "saida" && (
-            <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-200">
+            <label className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950/40 p-3 text-sm text-slate-200">
               <input type="checkbox" checked={form.reembolsavel} onChange={(event) => onChange({ reembolsavel: event.target.checked })} className="h-4 w-4 accent-cyan-400" />
-              Despesa reembolsável pelo cliente
+              <span><strong>Despesa reembolsável</strong><span className="block text-xs text-slate-400">O valor poderá ser cobrado do cliente.</span></span>
             </label>
           )}
-        </div>
-        <div className="flex justify-end gap-2 border-t border-slate-700 px-5 py-4">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800">Cancelar</button>
-          <button onClick={onSave} disabled={saving} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-50">{saving ? "Salvando..." : "Criar lançamento"}</button>
-        </div>
+
+          <div className="flex justify-end gap-3 border-t border-slate-700 pt-5">
+            <button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800">Cancelar</button>
+            <button type="submit" disabled={saving} className="rounded-lg bg-cyan-400 px-5 py-2 text-sm font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Salvando..." : "Salvar despesa"}</button>
+          </div>
+        </form>
       </div>
     </div>
   );

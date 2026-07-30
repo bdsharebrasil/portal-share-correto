@@ -35,7 +35,9 @@ interface BalancoCotistaProps {
 export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricula, modelo }: BalancoCotistaProps) {
   const hoje = new Date();
   const [ano, setAno] = useState(hoje.getFullYear());
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([hoje.getMonth() + 1]);
+  const [selectedMonths, setSelectedMonths] = useState<number[]>(() =>
+    Array.from({ length: 12 }, (_, index) => index + 1)
+  );
   const [filtroCotista, setFiltroCotista] = useState("todos");
   const [showEntradas, setShowEntradas] = useState(false);
   const [sortBy, setSortBy] = useState<"data" | "nome">("data");
