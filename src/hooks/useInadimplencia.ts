@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -18,104 +19,92 @@ export interface InadimplenciaItem {
 
 interface UseInadimplenciaOptions {
   clienteId?: string;
-  diasAtrasoMinimo?: number; // default 1 = qualquer coisa já vencida
+  diasAtrasoMinimo?: number;
 }
+
+const queryKey = (clienteId?: string, diasAtrasoMinimo = 1) => [
+  "inadimplencia",
+  clienteId,
+  diasAtrasoMinimo,
+];
 
 export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
   const { clienteId, diasAtrasoMinimo = 1 } = options;
-  const hoje = new Date().toISOString().split("T")[0];
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("dashboard-inadimplencia")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "movimentacoes" },
+        () => queryClient.invalidateQueries({ queryKey: ["inadimplencia"] }),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["inadimplencia", clienteId, diasAtrasoMinimo],
+    queryKey: queryKey(clienteId, diasAtrasoMinimo),
     queryFn: async () => {
-      // 1) Despesas do cliente pagas direto (caixa cliente), sem passar pelo caixa Share
-      let despesasQuery = supabase
+      const hoje = new Date().toISOString().split("T")[0];
+      let movimentacoesQuery = supabase
         .from("movimentacoes")
         .select(`
           id,
           descricao,
           grupo_custo,
-          valor,
+          valor_rateado,
           data_vencimento,
           status,
+          tipo,
+          tipo_caixa,
           clientes_id,
           clientes:clientes_id ( razao_social )
         `)
-        .eq("tipo_caixa", "cliente")
-        .in("status", ["pendente", "parcial"])
-        .not("clientes_id", "is", null)
+        .in("status", ["pendente", "parcial", "aguardando_reembolso"])
         .not("data_vencimento", "is", null)
         .lt("data_vencimento", hoje);
 
-      if (clienteId) despesasQuery = despesasQuery.eq("clientes_id", clienteId);
+      if (clienteId) movimentacoesQuery = movimentacoesQuery.eq("clientes_id", clienteId);
 
-      // 2) Contas que a Share tem a receber do cliente (reembolso ou receita mensal)
-      let receberQuery = supabase
-        .from("contas_areceber")
-        .select(`
-          id,
-          cliente_id,
-          cliente_nome,
-          descricao,
-          categoria,
-          valor,
-          data_vencimento,
-          status
-        `)
-        .eq("status", "pendente")
-        .lt("data_vencimento", hoje);
+      const { data: movimentacoes, error: movimentacoesError } = await movimentacoesQuery;
+      if (movimentacoesError) throw movimentacoesError;
 
-      if (clienteId) receberQuery = receberQuery.eq("cliente_id", clienteId);
-
-      const [
-        { data: despesas, error: errDespesas },
-        { data: receber, error: errReceber },
-      ] = await Promise.all([despesasQuery, receberQuery]);
-
-      if (errDespesas) throw errDespesas;
-      if (errReceber) throw errReceber;
-
-      const itensDespesas: InadimplenciaItem[] = (despesas || []).map((d: any) => ({
-        id: d.id,
-        origem: "despesa_cliente_direta",
-        cliente_id: d.clientes_id,
-        cliente_nome: d.clientes?.razao_social || "Cliente desconhecido",
-        descricao: d.descricao,
-        categoria: d.grupo_custo || null,
-        valor: Number(d.valor),
-        data_vencimento: d.data_vencimento,
-        dias_atraso: differenceInDays(new Date(), parseISO(d.data_vencimento)),
-      }));
-
-      const itensReceber: InadimplenciaItem[] = (receber || []).map((r: any) => ({
-        id: r.id,
-        origem: "conta_a_receber",
-        cliente_id: r.cliente_id,
-        cliente_nome: r.cliente_nome || "Cliente desconhecido",
-        descricao: r.descricao || "",
-        categoria: r.categoria || null,
-        valor: Number(r.valor),
-        data_vencimento: r.data_vencimento,
-        dias_atraso: differenceInDays(new Date(), parseISO(r.data_vencimento)),
-      }));
-
-      return [...itensDespesas, ...itensReceber]
+      return (movimentacoes || [])
+        .filter((movimentacao) => {
+          if (movimentacao.tipo_caixa === "cliente") return true;
+          return ["entrada", "receita", "aguardando_reembolso", "reembolsado"].includes(movimentacao.tipo);
+        })
+        .map((movimentacao: any): InadimplenciaItem => ({
+          id: movimentacao.id,
+          origem: movimentacao.tipo_caixa === "cliente" ? "despesa_cliente_direta" : "conta_a_receber",
+          cliente_id: movimentacao.clientes_id,
+          cliente_nome: movimentacao.clientes?.razao_social || "Cliente desconhecido",
+          descricao: movimentacao.descricao,
+          categoria: movimentacao.grupo_custo || null,
+          valor: Number(movimentacao.valor_rateado),
+          data_vencimento: movimentacao.data_vencimento,
+          dias_atraso: differenceInDays(new Date(), parseISO(movimentacao.data_vencimento)),
+        }))
         .filter((item) => item.dias_atraso >= diasAtrasoMinimo)
         .sort((a, b) => b.dias_atraso - a.dias_atraso);
     },
   });
 
   const lista = data || [];
-
   const resumo = {
-    totalEmAtraso: lista.reduce((acc, i) => acc + i.valor, 0),
+    totalEmAtraso: lista.reduce((acc, item) => acc + item.valor, 0),
     totalDespesasDiretas: lista
-      .filter((i) => i.origem === "despesa_cliente_direta")
-      .reduce((acc, i) => acc + i.valor, 0),
+      .filter((item) => item.origem === "despesa_cliente_direta")
+      .reduce((acc, item) => acc + item.valor, 0),
     totalAReceber: lista
-      .filter((i) => i.origem === "conta_a_receber")
-      .reduce((acc, i) => acc + i.valor, 0),
-    quantidadeClientes: new Set(lista.map((i) => i.cliente_id)).size,
+      .filter((item) => item.origem === "conta_a_receber")
+      .reduce((acc, item) => acc + item.valor, 0),
+    quantidadeClientes: new Set(lista.map((item) => item.cliente_id)).size,
   };
 
   return { data: lista, resumo, isLoading, error };
