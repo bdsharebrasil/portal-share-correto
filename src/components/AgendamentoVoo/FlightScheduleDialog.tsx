@@ -15,6 +15,7 @@ interface FlightScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  scheduleId?: string;
 }
 
 interface Aircraft {
@@ -39,7 +40,7 @@ interface Aerodrome {
   designativo: string;
 }
 
-export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightScheduleDialogProps) {
+export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId }: FlightScheduleDialogProps) {
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -51,7 +52,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
     flight_date: "",
     flight_time: "",
     estimated_duration: "",
-    client_id: "",
+    cliente_id: "",
     contact: "",
     passengers: "1",
     flight_type: "particular",
@@ -59,14 +60,20 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
     destination: "",
     crew_member_id: "",
     status: "pendente",
-    observations: "",
+    observacoes: "",
   });
 
   useEffect(() => {
-    if (open) {
-      loadData();
+    if (!open) return;
+
+    void loadData();
+    if (!scheduleId) {
+      resetForm();
+      return;
     }
-  }, [open]);
+
+    void loadSchedule(scheduleId);
+  }, [open, scheduleId]);
 
   const loadData = async () => {
     setLoading(true);
@@ -95,40 +102,72 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
     }
   };
 
+  const loadSchedule = async (id: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from("flight_schedules").select("*").eq("id", id).single();
+      if (error) throw error;
+
+      setFormData({
+        aeronave_id: data.aeronave_id || "",
+        flight_date: data.flight_date || "",
+        flight_time: data.flight_time || "",
+        estimated_duration: data.estimated_duration || "",
+        cliente_id: data.cliente_id || "",
+        contact: data.contact || "",
+        passengers: String(data.passengers || 1),
+        flight_type: data.flight_type || "particular",
+        origin: data.origin || "",
+        destination: data.destination || "",
+        crew_member_id: data.crew_member_id || "",
+        status: data.status || "pendente",
+        observacoes: data.observacoes || "",
+      });
+    } catch (error) {
+      console.error("Erro ao carregar agendamento:", error);
+      toast.error("Erro ao carregar agendamento");
+      onOpenChange(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!formData.aeronave_id || !formData.flight_date || !formData.flight_time || 
-        !formData.origin || !formData.destination) {
+    if (!formData.aeronave_id || !formData.flight_date || !formData.flight_time || !formData.origin || !formData.destination) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
 
     try {
       setLoading(true);
-      const { error } = await supabase.from("flight_schedules").insert({
+      const payload = {
         aeronave_id: formData.aeronave_id,
         flight_date: formData.flight_date,
         flight_time: formData.flight_time,
         estimated_duration: formData.estimated_duration || null,
-        client_id: formData.cliente_id || null,
+        cliente_id: formData.cliente_id || null,
         contact: formData.contact || null,
-        passengers: parseInt(formData.passengers),
+        passengers: parseInt(formData.passengers, 10),
         flight_type: formData.flight_type,
         origin: formData.origin,
         destination: formData.destination,
         crew_member_id: formData.crew_member_id || null,
         status: formData.status,
-        observations: formData.observacoes || null,
-      });
+        observacoes: formData.observacoes || null,
+      };
+      const { error } = scheduleId
+        ? await supabase.from("flight_schedules").update(payload).eq("id", scheduleId)
+        : await supabase.from("flight_schedules").insert(payload);
 
       if (error) throw error;
 
-      toast.success("Agendamento criado com sucesso!");
+      toast.success(scheduleId ? "Agendamento atualizado com sucesso!" : "Agendamento criado com sucesso!");
       resetForm();
       onOpenChange(false);
-      if (onSuccess) onSuccess();
+      onSuccess?.();
     } catch (error) {
-      console.error("Error creating schedule:", error);
-      toast.error("Erro ao criar agendamento");
+      console.error("Erro ao salvar agendamento:", error);
+      toast.error(scheduleId ? "Erro ao atualizar agendamento" : "Erro ao criar agendamento");
     } finally {
       setLoading(false);
     }
@@ -140,15 +179,15 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
       flight_date: "",
       flight_time: "",
       estimated_duration: "",
-      client_id: "",
-      contact: "",
-      passengers: "1",
-      flight_type: "particular",
-      origin: "",
-      destination: "",
-      crew_member_id: "",
-      status: "pendente",
-      observations: "",
+      cliente_id: "",
+    contact: "",
+    passengers: "1",
+    flight_type: "particular",
+    origin: "",
+    destination: "",
+    crew_member_id: "",
+    status: "pendente",
+    observacoes: "",
     });
   };
 
@@ -158,7 +197,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
         <DialogHeader className="bg-primary text-primary-foreground -m-6 mb-6 p-6 rounded-t-lg">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Plane className="h-5 w-5" />
-            Novo Agendamento
+            {scheduleId ? "Editar Agendamento" : "Novo Agendamento"}
           </DialogTitle>
         </DialogHeader>
 
@@ -188,7 +227,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
               <Label htmlFor="flight_date">Data do Voo *</Label>
               <Input
                 id="flight_date"
-                type="data"
+                type="date"
                 className="bg-secondary"
                 value={formData.flight_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, flight_date: e.target.value }))}
