@@ -34,6 +34,7 @@ import {
   ClienteLinhaRateioInput,
 } from "@/components/dashboard/financeiro/solicitacaoPagamentoValidators";
 import { syncSaidaFinancialLegs } from "@/lib/saidaFinancialSync";
+import { EnviarEmailClienteDialog, type AnexoEmail } from "@/components/financeiro/EnviarEmailClienteDialog";
 
 interface SolicitacaoPagamentoModalProps {
   open: boolean;
@@ -282,6 +283,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [travelReportId, setTravelReportId] = useState("");
   const [referenciaNumero, setReferenciaNumero] = useState("");
   const [saving, setSaving] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailPayload, setEmailPayload] = useState<{
+    clienteId: string | null;
+    assunto: string;
+    mensagem: string;
+    anexos: AnexoEmail[];
+  } | null>(null);
 
   const [fuelComanda, setFuelComanda] = useState("");
   const [fuelNf, setFuelNf] = useState("");
@@ -1829,8 +1837,37 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       }
 
       toast.success(rascunho ? "Rascunho salvo" : "Solicitação de pagamento enviada com sucesso");
+
+      if (!rascunho) {
+        const anexosEmail: AnexoEmail[] = [
+          { url: nfUrl, label: `Nota Fiscal${nfNum ? ` ${nfNum}` : ""}`, filename: "nota-fiscal.pdf" },
+          { url: boletoUrl, label: `Boleto${boletoNum ? ` ${boletoNum}` : ""}`, filename: "boleto.pdf" },
+          { url: reciboUrl, label: `Recibo${reciboNum ? ` ${reciboNum}` : ""}`, filename: "recibo.pdf" },
+          { url: comprovanteUrl, label: "Documento / Comprovante", filename: "documento.pdf" },
+          { url: demonstrativoUrl, label: "Demonstrativo de rateio", filename: "demonstrativo.pdf" },
+        ].filter((a): a is AnexoEmail => !!a.url);
+
+        const clienteEmailId = clienteLinhas.length === 1 ? clienteLinhas[0].clienteId : clienteSel?.clienteId || null;
+        const clienteNome = clienteLinhas.length === 1
+          ? getClienteAeronaveInfo(clienteLinhas[0].clienteId)?.razaoSocial || ""
+          : clienteSel?.razaoSocial || "";
+
+        setEmailPayload({
+          clienteId: clienteEmailId,
+          assunto: `Solicitação de pagamento — ${descricao || "Despesa"}${aeronaveSel?.matricula ? ` (${aeronaveSel.matricula})` : ""}`,
+          mensagem:
+            `Olá${clienteNome ? ` ${clienteNome}` : ""},\n\n` +
+            `Segue a solicitação de pagamento referente a: ${descricao || "despesa"}.\n` +
+            `Valor: ${Number(valorNumericoFinal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n` +
+            `Vencimento: ${dataVenc ? format(new Date(`${dataVenc}T12:00:00`), "dd/MM/yyyy") : "-"}\n\n` +
+            `Os documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`,
+          anexos: anexosEmail,
+        });
+        setEmailOpen(true);
+      }
+
       resetForm();
-      onOpenChange(false);
+      if (rascunho) onOpenChange(false);
     } catch (e: unknown) {
       toast.error(`Erro ao salvar: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -3048,6 +3085,20 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EnviarEmailClienteDialog
+        open={emailOpen}
+        onOpenChange={(v) => {
+          setEmailOpen(v);
+          if (!v) onOpenChange(false);
+        }}
+        clienteId={emailPayload?.clienteId || null}
+        assuntoSugerido={emailPayload?.assunto || ""}
+        mensagemSugerida={emailPayload?.mensagem || ""}
+        anexos={emailPayload?.anexos || []}
+        tipo="solicitacao_pagamento"
+        referenceType="contas_apagar"
+      />
     </Dialog>
   );
 }
