@@ -103,7 +103,7 @@ interface AbastecimentoLookup {
   valor_total: number | null;
   litros: number | null;
   local: string | null;
-  status_pagamento: string | null;
+  status: string | null;
   comprovante_pagamento: string | null;
   boleto_url: string | null;
   nota_url: string | null;
@@ -644,7 +644,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     try {
       let q: any = (supabase as any)
         .from("abastecimentos")
-        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
+        .select("id, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
         .order("data", { ascending: false })
         .limit(1);
       if (aeronaveId) q = q.eq("aeronave_id", aeronaveId);
@@ -761,12 +761,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         comanda_url: comandaUrl,
         nota_url: notaUrl,
         boleto_url: boletoUrl,
-        status_pagamento: "em aberto",
+        status: "em aberto",
       };
       const { data, error } = await (supabase as any)
         .from("abastecimentos")
         .insert(payload)
-        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
+        .select("id, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
         .single();
       if (error) throw error;
       const inserted = data as AbastecimentoLookup;
@@ -1801,7 +1801,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       if (!rascunho && referenciaTipo === "abastecimento" && referenciaId) {
         const socioNomeParaAbastecimento = (socioSel?.nome || (clienteLinhas.length === 1 ? null : null)).trim() || null;
         await (supabase.from("abastecimentos") as any).update({
-          status_pagamento: "pago",
+          status: "pago",
           data_pagamento: dataComp,
           socio_nome: socioNomeParaAbastecimento,
           updated_at: new Date().toISOString(),
