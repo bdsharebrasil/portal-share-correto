@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useEffect, useMemo, useState } from "react";
 import {
   Wallet, Scale, Gauge, HandCoins, CheckCircle2, ChevronDown,
   Plane, ReceiptText, Layers, FileText, ArrowRight, PlaneLanding,
@@ -12,6 +11,7 @@ import {
   resolveCategoria, statusOf, formatHours, monthLabel,
 } from "./balancoTypes";
 import { useBalancoAeronave, keyOfParticipante } from "@/hooks/useBalancoAeronave";
+import { InformacoesCotistasTab } from "./InformacoesCotistasTab";
 
 const CHART = { primary: "#06b6d4", success: "#10b981", amber: "#f59e0b", danger: "#ef4444", sky: "#38bdf8" };
 const CHART_COLORS = ["#06b6d4", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#3b82f6"];
@@ -22,6 +22,7 @@ const ABAS = [
   { id: "graficos", label: "Gráficos", icon: BarChart3 },
   { id: "diario", label: "Diário de Bordo", icon: PlaneLanding },
   { id: "medias", label: "Médias e Cálculos", icon: Calculator },
+  { id: "informacoes", label: "Informações dos Cotistas", icon: Users },
 ] as const;
 type AbaId = typeof ABAS[number]["id"];
 
@@ -57,7 +58,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
     monthlyBreakdown, composicaoPeriodo, diarioPorSocio, evolucaoPorSocio,
     composicaoPorSocio, categoriasPorSocio, voosEnriquecidos, rateiosPeriodo, voosPeriodo,
     resolveSocioName, catNameOf,
-  } = useBalancoAeronave({ aeronaveId, ano, selectedMonths, participanteFiltro: { cliente_id: clienteId } });
+  } = useBalancoAeronave({ aeronaveId, ano, selectedMonths });
 
   const selectedSet = useMemo(() => new Set(selectedMonths), [selectedMonths]);
   const periodLabel = useMemo(() => {
@@ -428,6 +429,15 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
                 </div>
               </div>
             </div>
+          )}
+
+          {aba === "informacoes" && (
+            <InformacoesCotistasTab
+              aeronaveId={aeronaveId}
+              matricula={matricula}
+              ano={ano}
+              cotistas={participantes.map((p) => ({ id: p.id, nome: p.nome, percentual: p.percentual }))}
+            />
           )}
         </>
       )}

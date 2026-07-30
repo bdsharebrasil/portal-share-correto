@@ -30,6 +30,7 @@ import BaixaPagamentoModal from "./BaixaPagamentoModal";
 import ReembolsoModal from "./ReembolsoModal";
 import EditLancamentoModal from "./EditLancamentoModal";
 import AttachmentViewerModal from "./AttachmentViewerModal";
+import NovaDespesaShareForm from "./NovaDespesaShareForm";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -186,8 +187,6 @@ export default function FluxoCaixaTab() {
   const [baixaMov, setBaixaMov] = useState<Movimentacao | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
   const [showNewMov, setShowNewMov] = useState(false);
-  const [newMov, setNewMov] = useState({ descricao: "", tipo: "saida", categoria_id: "", valor_rateado: "", data_competencia: new Date().toISOString().slice(0, 10), data_vencimento: "", fornecedor_nome: "", reembolsavel: false });
-  const [savingNewMov, setSavingNewMov] = useState(false);
   const [viewAttachment, setViewAttachment] = useState<{ url: string; title: string } | null>(null);
   const [sortBy, setSortBy] = useState<"data" | "nome">("data");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -430,46 +429,15 @@ export default function FluxoCaixaTab() {
   }, [baixaMov]);
 
   const openNewMov = useCallback(() => {
-    const tipoCaixa = activeTab === "caixa_cliente" ? "cliente" : "share";
-    setNewMov({ descricao: "", tipo: "saida", categoria_id: "", valor_rateado: "", data_competencia: new Date().toISOString().slice(0, 10), data_vencimento: "", fornecedor_nome: "", reembolsavel: false });
     setShowNewMov(true);
-  }, [activeTab]);
+  }, []);
 
-  const saveNewMov = useCallback(async () => {
-    if (!newMov.descricao.trim() || !newMov.valor_rateado || Number(newMov.valor_rateado) <= 0) {
-      setToast({ type: "err", text: "Informe descrição e valor válido." });
-      return;
-    }
-    setSavingNewMov(true);
-    try {
-      const tipoCaixa = activeTab === "caixa_cliente" ? "cliente" : "share";
-      const categoriaNome = tipoCaixa === "share" ? categorias[newMov.categoria_id] : categoriasCliente[newMov.categoria_id];
-      const payload = {
-        descricao: newMov.descricao.trim(),
-        tipo: newMov.tipo,
-        tipo_caixa: tipoCaixa,
-        categoria_id: newMov.categoria_id || null,
-        categoria_nome: categoriaNome || null,
-        valor_rateado: Number(newMov.valor_rateado),
-        valor_original: Number(newMov.valor_rateado),
-        data_competencia: newMov.data_competencia || null,
-        data_vencimento: newMov.data_vencimento || null,
-        fornecedor_nome: newMov.fornecedor_nome.trim() || null,
-        reembolsavel: newMov.reembolsavel,
-        reembolso_quitado: false,
-        status: "pendente",
-      };
-      const { data, error: e } = await supabase.from("movimentacoes").insert(payload).select("*").single();
-      if (e) throw e;
-      setMovs((prev) => [data as Movimentacao, ...prev]);
-      setShowNewMov(false);
-      setToast({ type: "ok", text: `Lançamento criado no Caixa ${tipoCaixa === "share" ? "Share" : "Cliente"}.` });
-    } catch (e: any) {
-      setToast({ type: "err", text: e.message || "Erro ao criar lançamento." });
-    } finally {
-      setSavingNewMov(false);
-    }
-  }, [activeTab, categorias, categoriasCliente, newMov]);
+  const onNewMovSaved = useCallback((createdMovs: Movimentacao[]) => {
+    setMovs((prev) => [...createdMovs, ...prev]);
+    setShowNewMov(false);
+    setActiveTab("caixa_share");
+    setCurrentPage(1);
+  }, []);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Deseja realmente excluir esta movimentação?")) return;
@@ -789,14 +757,9 @@ export default function FluxoCaixaTab() {
         />
       )}
       {showNewMov && (
-        <NewMovimentacaoModal
-          tipoCaixa={activeTab === "caixa_cliente" ? "cliente" : "share"}
-          categorias={activeTab === "caixa_cliente" ? categoriasCliente : categorias}
-          form={newMov}
-          saving={savingNewMov}
-          onChange={(patch) => setNewMov((current) => ({ ...current, ...patch }))}
-          onClose={() => setShowNewMov(false)}
-          onSave={saveNewMov}
+        <NovaDespesaShareForm
+          onCancel={() => setShowNewMov(false)}
+          onSaved={onNewMovSaved}
         />
       )}
       {viewAttachment && (
@@ -806,95 +769,6 @@ export default function FluxoCaixaTab() {
           onClose={() => setViewAttachment(null)}
         />
       )}
-    </div>
-  );
-}
-
-/* ─────────────────────────── novo lançamento ─────────────────────────── */
-
-function NewMovimentacaoModal({ tipoCaixa, categorias, form, saving, onChange, onClose, onSave }: {
-  tipoCaixa: "share" | "cliente";
-  categorias: Record<string, string>;
-  form: { descricao: string; tipo: string; categoria_id: string; valor_rateado: string; data_competencia: string; data_vencimento: string; fornecedor_nome: string; reembolsavel: boolean };
-  saving: boolean;
-  onChange: (patch: Partial<typeof form>) => void;
-  onClose: () => void;
-  onSave: () => void;
-}) {
-  const categoriaLabel = tipoCaixa === "share" ? "Categoria do Caixa Share" : "Categoria do Caixa Cliente";
-  const inputClass = "w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-400";
-  const labelClass = "mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400";
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-3xl rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-700 px-6 py-5">
-          <div>
-            <h2 className="text-lg font-bold text-slate-100">Nova Despesa — Caixa {tipoCaixa === "share" ? "Share" : "Cliente"}</h2>
-            <p className="mt-1 text-xs text-slate-400">Preencha os dados para registrar uma nova movimentação financeira.</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100" aria-label="Fechar">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <form onSubmit={(event) => { event.preventDefault(); onSave(); }} className="space-y-5 p-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <label htmlFor="nova-despesa-descricao" className={labelClass}>Descrição *</label>
-              <input id="nova-despesa-descricao" required value={form.descricao} onChange={(event) => onChange({ descricao: event.target.value })} placeholder="Ex: Internet, aluguel, seguro" className={inputClass} />
-            </div>
-            <div>
-              <label htmlFor="nova-despesa-fornecedor" className={labelClass}>Fornecedor/Beneficiário</label>
-              <input id="nova-despesa-fornecedor" value={form.fornecedor_nome} onChange={(event) => onChange({ fornecedor_nome: event.target.value })} placeholder="Nome do fornecedor" className={inputClass} />
-            </div>
-            <div>
-              <label htmlFor="nova-despesa-valor" className={labelClass}>Valor *</label>
-              <input id="nova-despesa-valor" required type="number" min="0.01" step="0.01" value={form.valor_rateado} onChange={(event) => onChange({ valor_rateado: event.target.value })} placeholder="R$ 0,00" className={inputClass} />
-            </div>
-            <div>
-              <label htmlFor="nova-despesa-tipo" className={labelClass}>Tipo de movimentação</label>
-              <select id="nova-despesa-tipo" value={form.tipo} onChange={(event) => onChange({ tipo: event.target.value })} className={inputClass}>
-                <option value="saida">Saída</option>
-                <option value="receita">Entrada</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="nova-despesa-categoria" className={labelClass}>{categoriaLabel}</label>
-              <select id="nova-despesa-categoria" value={form.categoria_id} onChange={(event) => onChange({ categoria_id: event.target.value })} className={inputClass}>
-                <option value="">Sem categoria</option>
-                {Object.entries(categorias).map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-4 border-t border-slate-700 pt-5">
-            <h3 className="font-semibold text-slate-100">Datas da movimentação</h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="nova-despesa-competencia" className={labelClass}>Competência</label>
-                <input id="nova-despesa-competencia" type="date" value={form.data_competencia} onChange={(event) => onChange({ data_competencia: event.target.value })} className={inputClass} />
-              </div>
-              <div>
-                <label htmlFor="nova-despesa-vencimento" className={labelClass}>Vencimento</label>
-                <input id="nova-despesa-vencimento" type="date" value={form.data_vencimento} onChange={(event) => onChange({ data_vencimento: event.target.value })} className={inputClass} />
-              </div>
-            </div>
-          </div>
-
-          {tipoCaixa === "share" && form.tipo === "saida" && (
-            <label className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950/40 p-3 text-sm text-slate-200">
-              <input type="checkbox" checked={form.reembolsavel} onChange={(event) => onChange({ reembolsavel: event.target.checked })} className="h-4 w-4 accent-cyan-400" />
-              <span><strong>Despesa reembolsável</strong><span className="block text-xs text-slate-400">O valor poderá ser cobrado do cliente.</span></span>
-            </label>
-          )}
-
-          <div className="flex justify-end gap-3 border-t border-slate-700 pt-5">
-            <button type="button" onClick={onClose} className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800">Cancelar</button>
-            <button type="submit" disabled={saving} className="rounded-lg bg-cyan-400 px-5 py-2 text-sm font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Salvando..." : "Salvar despesa"}</button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }
