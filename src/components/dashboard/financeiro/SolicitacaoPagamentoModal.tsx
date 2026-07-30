@@ -44,6 +44,38 @@ interface SolicitacaoPagamentoModalProps {
 
 type Periodicidade = "MENSAL" | "SEMESTRAL" | "ANUAL" | "EVENTUAL";
 
+/** Modos exclusivos da solicitação de pagamento. */
+type ModoSolicitacao = "SHARE" | "REEMBOLSO" | "DIRETO";
+type CategoriaShareOption = { id: string; nome: string };
+
+const MODOS: { key: ModoSolicitacao; titulo: string; descricao: string; accent: string; dot: string; text: string }[] = [
+  {
+    key: "SHARE",
+    titulo: "Envio de pagamento para o caixa Share",
+    descricao: "Despesa da própria Share (luz, compras, administrativo). Gera apenas contas a pagar no caixa Share.",
+    accent: "border-emerald-500/40 bg-emerald-500/[0.07]",
+    dot: "bg-emerald-400",
+    text: "text-emerald-300",
+  },
+  {
+    key: "REEMBOLSO",
+    titulo: "Envio despesa cliente com reembolso",
+    descricao: "A Share paga adiantado e cobra o reembolso do cliente após a baixa (contas a pagar + contas a receber).",
+    accent: "border-amber-500/40 bg-amber-500/[0.07]",
+    dot: "bg-amber-400",
+    text: "text-amber-300",
+  },
+  {
+    key: "DIRETO",
+    titulo: "Envio cliente direto",
+    descricao: "Despesa paga diretamente pelo cliente. Não passa pelo caixa Share, apenas rateio de despesas.",
+    accent: "border-violet-500/40 bg-violet-500/[0.07]",
+    dot: "bg-violet-400",
+    text: "text-violet-300",
+  },
+];
+
+
 type TaxaOrigem = "INFRAERO" | "DECEA" | null;
 
 interface TaxaReciboOption {
@@ -228,6 +260,13 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [gerarContasAReceber, setGerarContasAReceber] = useState(false);
   const [gerarCaixaCliente, setGerarCaixaCliente] = useState(false);
 
+  /** Modo da solicitação — exclusivo (clique na opção ativa para desmarcar). */
+  const [modo, setModo] = useState<ModoSolicitacao | null>(null);
+  const [categoriasShare, setCategoriasShare] = useState<CategoriaShareOption[]>([]);
+  const [categoriaShareId, setCategoriaShareId] = useState("");
+  const [categoriaShareLabel, setCategoriaShareLabel] = useState("");
+
+
   const [usarReciboExistente, setUsarReciboExistente] = useState(false);
   const [reciboExistenteId, setReciboExistenteId] = useState("");
   const [reciboExistentePorCliente, setReciboExistentePorCliente] = useState<Record<string, string>>({});
@@ -276,6 +315,41 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [taxaReciboId, setTaxaReciboId] = useState("");
   const [taxaReciboPorCliente, setTaxaReciboPorCliente] = useState<Record<string, string>>({});
   const [taxaRecibosMultiplos, setTaxaRecibosMultiplos] = useState<string[]>([]);
+
+  /** Categorias do caixa Share (tabela categorias_movimentacao). */
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const { data } = await supabase
+        .from("categorias_movimentacao")
+        .select("id, nome")
+        .eq("ativo", true)
+        .order("nome");
+      setCategoriasShare(((data as CategoriaShareOption[] | null) || []).filter((c) => !!c?.id && !!c?.nome));
+    })();
+  }, [open]);
+
+  /** O modo selecionado define, de forma exclusiva, os fluxos financeiros gerados. */
+  useEffect(() => {
+    if (modo === "SHARE") {
+      setGerarContasAPagar(true); setGerarContasAReceber(false); setGerarCaixaCliente(false);
+    } else if (modo === "REEMBOLSO") {
+      setGerarContasAPagar(true); setGerarContasAReceber(true); setGerarCaixaCliente(false);
+    } else if (modo === "DIRETO") {
+      setGerarContasAPagar(false); setGerarContasAReceber(false); setGerarCaixaCliente(true);
+    } else {
+      setGerarContasAPagar(false); setGerarContasAReceber(false); setGerarCaixaCliente(false);
+    }
+  }, [modo]);
+
+  /** Regra do usuário: clicar numa opção inativa não troca — é preciso desmarcar a ativa antes. */
+  const handleModoClick = (key: ModoSolicitacao) => {
+    setModo((prev) => (prev === key ? null : prev === null ? key : prev));
+  };
+
+  const isModoShare = modo === "SHARE";
+  const modoCfg = MODOS.find((m) => m.key === modo) || null;
+
 
   useEffect(() => {
     if (!open) return;
@@ -1048,7 +1122,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   };
 
   const resetForm = () => {
-    setEtapaAtual(1); 
+    setEtapaAtual(0);
+    setModo(null); setCategoriaShareId(""); setCategoriaShareLabel("");
     setAeronaveId(""); 
     setTipoDespesa(""); setTipoDespesaLabel(""); setDescricao(""); setValorTotal("");
     setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio("FIXO"); setObservacoes("");
@@ -1064,16 +1139,19 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
   const podeAvancar = () => {
     if (etapaAtual === 1) {
-      const baseOk = !!(aeronaveId && tipoRateio && periodicidade && tipoDespesaLabel);
+      if (isModoShare) return !!(categoriaShareId && periodicidade);
+      const baseOk = !!(modo && aeronaveId && tipoRateio && periodicidade && tipoDespesaLabel);
       if (isViagemMode) return baseOk && (!!clienteId || !!socioId);
       return baseOk;
     }
     if (etapaAtual === 2) {
+      if (isModoShare) return true;
       if (isViagemMode) return !!clienteId;
       if (!isViagemMode) return clienteLinhas.length > 0 && clienteLinhas.every((l) => !!l.clienteId) && !erroSomaClientes;
     }
     return true;
   };
+
 
   const clientesJaUsados = new Set(clienteLinhas.map((l) => l.clienteId).filter(Boolean));
   const addClienteLinha = () => setClienteLinhas((prev) => [...prev, { uid: crypto.randomUUID(), clienteId: "", percentualUsoCliente: "", overridesSocio: {}, valorOverridesSocio: {}, numeroDocumentoRecibo: undefined, urlBoleto: undefined, urlDemonstrativo: undefined }]);
@@ -1191,12 +1269,23 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   };
 
   const validar = (): string | null => {
+    if (!modo) return "Selecione o modo da solicitação";
+
+    if (isModoShare) {
+      if (!descricao.trim()) return "Descreva a despesa";
+      if (!categoriaShareId) return "Selecione a categoria do caixa Share";
+      if (valorNumerico <= 0) return "Informe um valor válido";
+      if (!dataVencimento) return "Data de vencimento é obrigatória";
+      return null;
+    }
+
     if (!aeronaveId) return "Selecione a aeronave";
     if (!descricao.trim()) return "Descreva a despesa";
     if (!tipoDespesaLabel) return "Selecione o tipo de despesa";
     if (valorNumerico <= 0) return "Informe um valor válido";
     if (!dataVencimento) return "Data de vencimento é obrigatória";
     if (!gerarContasAPagar && !gerarContasAReceber && !gerarCaixaCliente) return "Selecione ao menos uma opção: Despesa Share, Conta a Receber do cliente ou Envio despesa caixa cliente";
+
 
     if (isViagemMode) {
       if (!clienteId && !socioId) return "Selecione o cliente ou o sócio";
@@ -1223,6 +1312,53 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       const dataComp = format(dataEmissao || new Date(), "yyyy-MM-dd");
       const statusMov = rascunho ? "rascunho" : "pendente";
       const statusCP = rascunho ? "rascunho" : "pendente";
+
+      /* ---- Modo 1: despesa da própria Share (não envolve cliente nem rateio) ---- */
+      if (isModoShare) {
+        const anexosShare = await uploadAnexos();
+        const nfUrlShare = pickUrl(anexosShare, "nf");
+        const reciboUrlShare = pickUrl(anexosShare, "recibo");
+        const boletoUrlShare = pickUrl(anexosShare, "boleto");
+        const docUrlShare = pickUrl(anexosShare, "doc");
+
+        const capIdShare = await insertAndGetId("contas_apagar", {
+          data_vencimento: dataVenc, data_agendamento: dataVenc, valor: valorNumerico,
+          categoria: categoriaShareLabel || "Despesa Share", categoria_id: categoriaShareId,
+          descricao: descricao.trim(), status: statusCP, observacoes: observacoes || null,
+          fornecedor_favorito_id: fornecedorSel?.source === "favorito" ? fornecedorId : null,
+          fornecedor_combustivel_id: fornecedorSel?.source === "combustivel" ? fornecedorId : null,
+          fornecedor_nome: (fornecedorNome || "").trim() || null,
+          possui_boleto: !!boletoUrlShare, boleto_url: boletoUrlShare, vencimento_boleto: boletoUrlShare ? dataVenc : null,
+          possui_nf: !!nfUrlShare, nf_numero: pickNumero(anexosShare, "nf"), nf_url: nfUrlShare,
+          possui_recibo: !!reciboUrlShare, numero_recibo: pickNumero(anexosShare, "recibo"), recibo_url: reciboUrlShare,
+          numero_doc: pickNumero(anexosShare, "doc"), arquivo_pdf_url: docUrlShare, criado_por: userId,
+        });
+
+        let movIdShare: string;
+        try {
+          movIdShare = await insertAndGetId("movimentacoes", {
+            descricao: descricao.trim(), tipo: "despesa", tipo_caixa: "share",
+            categoria_id: categoriaShareId, categoria_nome: categoriaShareLabel || null, valor_rateado: valorNumerico, valor_original: valorNumerico,
+            data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
+            fornecedor_nome: (fornecedorNome || "").trim() || null,
+            numero_nf: pickNumero(anexosShare, "nf"), numero_recibo: pickNumero(anexosShare, "recibo"),
+            numero_boleto: pickNumero(anexosShare, "boleto"), numero_doc: pickNumero(anexosShare, "doc"),
+            nf_url: nfUrlShare, recibo_url: reciboUrlShare, boleto_url: boletoUrlShare, comprovante_url: docUrlShare,
+            observacoes: observacoes || null, contas_apagar_id: capIdShare, criado_por: userId,
+          });
+        } catch (movErr) {
+          await supabase.from("contas_apagar").delete().eq("id", capIdShare);
+          throw movErr;
+        }
+        await supabase.from("contas_apagar").update({ movimentacao_id: movIdShare }).eq("id", capIdShare);
+
+        toast.success(rascunho ? "Rascunho salvo (caixa Share)" : "Despesa enviada ao caixa Share");
+        
+        resetForm();
+        onOpenChange(false);
+        return;
+      }
+
       const taxaRecibosMultiplosData = getTaxaRecibosMultiplosData();
       const recibosMultiplosObs = taxaRecibosMultiplosData.length > 0 ? `Recibos de taxa: ${taxaRecibosMultiplosData.map((r) => r.numero).filter(Boolean).join(", ")}` : null;
       const obsFinal = [observacoes, referenciaDuplicada?.mensagem, recibosMultiplosObs].filter(Boolean).join("\n");
@@ -1429,6 +1565,15 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.clienteId, null);
               const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId) || reciboNum;
               const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId) || reciboUrl;
+              const anexoNfLinha = pickAnexoParaRateio(anexosProc, "nf", linha.clienteId, null);
+              const anexoBoletoLinha = pickAnexoParaRateio(anexosProc, "boleto", linha.clienteId, null);
+              const anexoDocLinha = pickAnexoParaRateio(anexosProc, "doc", linha.clienteId, null);
+              const nfNumLinha = anexoNfLinha?.numero || nfNum;
+              const nfUrlLinhaMov = anexoNfLinha?.url || nfUrl;
+              const boletoNumLinha = anexoBoletoLinha?.numero || boletoNum;
+              const boletoUrlLinha = anexoBoletoLinha?.url || boletoUrl;
+              const docNumLinha = anexoDocLinha?.numero || docNum;
+              const comprovanteUrlLinhaMov = anexoDocLinha?.url || comprovanteUrl;
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
@@ -1436,8 +1581,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_original: valorNumericoFinal,
                 data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
-                numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum,
-                nf_url: nfUrl, recibo_url: reciboUrlLinha, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
+                categoria_nome: tipoDespesaLabel || null,
+                numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha,
+                nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
                 observacoes: obsFinal || null,
                 reembolsavel: false, pago_diretamente: true,
                 reference_type: referenciaTipo || "solicitacao_pagamento",
@@ -1495,7 +1641,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           try {
             shareMovId = await insertAndGetId("movimentacoes", {
               descricao, tipo: "despesa", tipo_caixa: "share",
-              categoria_id: categoriaContaId, valor_rateado: valorNumericoFinal, valor_original: valorNumericoFinal,
+              categoria_id: categoriaContaId, categoria_nome: tipoDespesaLabel || null, valor_rateado: valorNumericoFinal, valor_original: valorNumericoFinal,
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
               aeronave_id: aeronaveId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: docNum,
@@ -1526,12 +1672,22 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const anexoRecibo = pickAnexoParaRateio(anexosProc, "recibo", linha.clienteId, null);
               const reciboNumLinha = anexoRecibo?.numero || (isTaxasMode ? getTaxaReciboNumeroForCliente(linha.clienteId) : null) || getReciboNumeroForCliente(linha.clienteId) || reciboNum;
               const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.clienteId) : null) || getReciboUrlForCliente(linha.clienteId) || reciboUrl;
+              const anexoNfLinha = pickAnexoParaRateio(anexosProc, "nf", linha.clienteId, null);
+              const anexoBoletoLinha = pickAnexoParaRateio(anexosProc, "boleto", linha.clienteId, null);
+              const anexoDocLinha = pickAnexoParaRateio(anexosProc, "doc", linha.clienteId, null);
+              const nfNumLinha = anexoNfLinha?.numero || nfNum;
+              const nfUrlLinhaMov = anexoNfLinha?.url || nfUrl;
+              const boletoNumLinha = anexoBoletoLinha?.numero || boletoNum;
+              const boletoUrlLinha = anexoBoletoLinha?.url || boletoUrl;
+              const docNumLinha = anexoDocLinha?.numero || docNum;
+              const comprovanteUrlLinhaMov = anexoDocLinha?.url || comprovanteUrl;
 
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
                 categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_original: valorNumericoFinal, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
-                numero_nf: nfNum, numero_recibo: reciboNumLinha, numero_boleto: boletoNum, numero_doc: docNum, nf_url: nfUrl, recibo_url: reciboUrlLinha, boleto_url: boletoUrl, comprovante_url: comprovanteUrl,
+                categoria_nome: tipoDespesaLabel || null,
+                numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
                 observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
               });
               movimentacaoIdsPorCliente[linha.clienteId] = movId;
@@ -1687,28 +1843,65 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
         <div className="space-y-6 py-2">
           {etapaAtual === 0 && (
-            <section className="grid gap-4 sm:grid-cols-2 py-4">
-              <Button
-                variant="outline"
-                className="h-auto min-h-32 flex-col items-center justify-center gap-3 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/60"
-                onClick={() => setEtapaAtual(1)}
-              >
-                <Send className="h-8 w-8 text-emerald-400" />
-                <span className="text-base">Enviar solicitação de pagamento</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto min-h-32 flex-col items-center justify-center gap-3 border-blue-500/30 hover:bg-blue-500/10 hover:border-blue-500/60"
-                onClick={() => {
-                  onOpenChange(false);
-                  onOpenTravelReports?.();
-                }}
-              >
-                <FileText className="h-8 w-8 text-blue-400" />
-                <span className="text-base">Abrir Relatórios de Viagem em fluxo</span>
-              </Button>
+            <section className="space-y-4 py-2">
+              <div>
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Modo da solicitação *</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Marque um modo. Para trocar, clique na opção ativa para desmarcá-la primeiro.
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                {MODOS.map((m) => {
+                  const ativo = modo === m.key;
+                  const bloqueado = modo !== null && !ativo;
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => handleModoClick(m.key)}
+                      className={cn(
+                        "w-full text-left rounded-xl border p-4 transition-all",
+                        ativo ? `${m.accent} shadow-lg` : "border-white/10 bg-white/[0.02]",
+                        bloqueado ? "opacity-40 cursor-not-allowed" : "hover:border-white/25",
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className={cn("mt-1 h-3 w-3 shrink-0 rounded-full border", ativo ? `${m.dot} border-transparent` : "border-white/30")} />
+                        <div className="space-y-1">
+                          <p className={cn("text-sm font-semibold", ativo ? m.text : "text-foreground")}>{m.titulo}</p>
+                          <p className="text-xs text-muted-foreground">{m.descricao}</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 pt-2">
+                <Button
+                  disabled={!modo}
+                  className="h-auto min-h-16 flex-col items-center justify-center gap-2"
+                  onClick={() => setEtapaAtual(1)}
+                >
+                  <Send className="h-5 w-5" />
+                  <span className="text-sm">Continuar</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto min-h-16 flex-col items-center justify-center gap-2 border-blue-500/30 hover:bg-blue-500/10 hover:border-blue-500/60"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onOpenTravelReports?.();
+                  }}
+                >
+                  <FileText className="h-5 w-5 text-blue-400" />
+                  <span className="text-sm">Abrir Relatórios de Viagem em fluxo</span>
+                </Button>
+              </div>
             </section>
           )}
+
           
           {etapaAtual === 1 && (
             <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.01] p-5 shadow-sm animate-in fade-in slide-in-from-right-4 duration-300">
@@ -1718,50 +1911,52 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 </h3>
               </div>
 
-              <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
-                <Label className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">Escopo financeiro *</Label>
-                <p className="text-xs text-muted-foreground">Selecione o(s) fluxo(s) que esta solicitação deve gerar.</p>
-                <div className="flex flex-col gap-2 mt-2">
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={gerarContasAPagar}
-                      onCheckedChange={(v) => setGerarContasAPagar(!!v)}
-                      disabled={gerarCaixaCliente}
-                      className="mt-0.5"
-                    />
-                    <span className="text-sm">
-                      <span className="font-medium">DESPESA CONTAS A PAGAR SHARE</span>
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={gerarContasAReceber}
-                      onCheckedChange={(v) => setGerarContasAReceber(!!v)}
-                      disabled={isAdmShareType || gerarCaixaCliente}
-                      className="mt-0.5"
-                    />
-                    <span className="text-sm">
-                      <span className="font-medium">DESPESA CONTAS A RECEBER CLIENTE</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {isAdmShareType && " Obrigatório para ADM SHARE / ADM E TRIP SHARE."}
-                      </span>
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={gerarCaixaCliente}
-                      onCheckedChange={(v) => toggleCaixaCliente(!!v)}
-                      className="mt-0.5"
-                    />
-                    <span className="text-sm">
-                      <span className="font-medium">ENVIO DESPESA DIRETO CAIXA CLIENTE</span>
-                      <span className="block text-xs text-muted-foreground">
-                      </span>
-                    </span>
-                  </label>
+              {modoCfg && (
+                <div className={cn("space-y-1 rounded-lg border p-4", modoCfg.accent)}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("h-2.5 w-2.5 rounded-full", modoCfg.dot)} />
+                      <Label className={cn("text-xs font-semibold uppercase tracking-wide", modoCfg.text)}>{modoCfg.titulo}</Label>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEtapaAtual(0)}>Trocar modo</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{modoCfg.descricao}</p>
                 </div>
+              )}
 
-              </div>
+              {isModoShare && (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>1. Categoria do caixa Share *</Label>
+                    <SearchableCombobox
+                      items={categoriasShare.map((c) => ({ id: c.id, label: c.nome }))}
+                      value={categoriaShareId}
+                      onChange={(id, label) => {
+                        setCategoriaShareId(id);
+                        setCategoriaShareLabel(categoriasShare.find((c) => c.id === id)?.nome || label || "");
+                      }}
+                      placeholder="Selecione a categoria"
+                      searchPlaceholder="Buscar categoria..."
+                      emptyMessage="Nenhuma categoria"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>2. Periodicidade *</Label>
+                    <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MENSAL">MENSAL</SelectItem>
+                        <SelectItem value="SEMESTRAL">SEMESTRAL</SelectItem>
+                        <SelectItem value="ANUAL">ANUAL</SelectItem>
+                        <SelectItem value="EVENTUAL">EVENTUAL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {!isModoShare && (<>
+
 
 
               <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
@@ -1874,7 +2069,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                   </Select>
                 </div>
               )}
+              </>)}
             </section>
+
           )}
 
           {etapaAtual === 2 && (
@@ -2695,7 +2892,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         <DialogFooter className="gap-3 pt-4 border-t border-white/10 mt-2 flex sm:justify-between w-full">
           <div className="flex-shrink-0">
             {etapaAtual > 1 && (
-              <Button variant="ghost" onClick={() => setEtapaAtual((prev) => prev - 1)} disabled={saving}>
+              <Button variant="ghost" onClick={() => setEtapaAtual((prev) => (isModoShare && prev === 3 ? 1 : prev - 1))} disabled={saving}>
                 Voltar
               </Button>
             )}
@@ -2708,7 +2905,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
             {etapaAtual > 0 && (etapaAtual < 3 ? (
               <Button 
-                onClick={() => setEtapaAtual((prev) => prev + 1)} 
+                onClick={() => setEtapaAtual((prev) => (isModoShare && prev === 1 ? 3 : prev + 1))} 
+
                 disabled={!podeAvancar() || saving}
                 className="bg-sky-600 hover:bg-sky-500 text-white"
               >

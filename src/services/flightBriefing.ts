@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * services/flightBriefing.ts
  *

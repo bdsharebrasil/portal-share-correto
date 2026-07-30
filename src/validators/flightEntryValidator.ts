@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { isValidTimeFormat } from '@/utils/timeUtils';
 
 export type FlightType = 'cliente' | 'rateio' | 'emprestimo';

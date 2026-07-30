@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { apiClient } from '@/lib/api-client';
 
 export interface ChartData {

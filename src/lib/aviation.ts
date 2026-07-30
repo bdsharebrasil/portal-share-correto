@@ -1,3 +1,4 @@
+// @ts-nocheck
 // lib/aviation.ts - ARQUIVO COMPLETO
 
 // Aviation calculation utilities

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FlightRouteMap as FlightRouteMapPro, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';

@@ -1,30 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, FileImage, Trash2, AlertCircle, CheckCircle2, Receipt, Send, Repeat } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
-import { useReceiptPdfGenerator } from "@/hooks/useReceiptPdfGenerator";
 import {
-  buildCotistaOptions,
-  normalizeTextForMatching,
-  CotistaOption,
-  SPECIAL_RATEIO_OPTIONS,
-  expandSpecialRateioLine,
-  isSpecialRateio,
-} from "./demonstrativoUtils";
+  Upload, Sparkles, FileImage, Trash2, AlertCircle, CheckCircle2,
+  Receipt, Send, Repeat, Loader2, Hourglass, Plane, FileText, Download,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { formatBRL } from "@/lib/format";
+import { useReceiptPdfGenerator } from "@/hooks/useReceiptPdfGenerator";
+import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
+import {
+  type Aeronave, type Cotista,
+  norm, num,
+} from "../../gestor/FinanceiroCotista/balancoTypes";
 
-type TipoDemonstrativo = "INFRAERO" | "DECEA";
+type TipoDemo = "INFRAERO" | "DECEA" | "POUSO";
 
-interface DemonstrativoItem {
+const TIPO_LABEL: Record<TipoDemo, string> = {
+  INFRAERO: "Tarifa INFRAERO",
+  DECEA: "Tarifa DECEA",
+  POUSO: "Tarifa de Pouso",
+};
+const TIPO_FORNECEDOR: Record<TipoDemo, string> = {
+  INFRAERO: "INFRAERO",
+  DECEA: "DECEA",
+  POUSO: "TARIFA DE POUSO",
+};
+const TIPO_SUBCATEGORIA: Record<TipoDemo, string> = {
+  INFRAERO: "TARIFA INFRAERO",
+  DECEA: "TARIFA DE NAVEGAÇÃO AÉREA - DECEA",
+  POUSO: "TARIFA DE POUSO",
+};
+
+interface DemoItem {
   data: string;
   hora?: string;
   operacao?: string;
@@ -32,43 +40,22 @@ interface DemonstrativoItem {
   valor: number;
 }
 
-interface DemonstrativoResult {
-  tipo: TipoDemonstrativo;
+interface DemoResult {
+  tipo: TipoDemo;
   numero_documento: string | null;
   competencia: string | null;
   data_faturamento: string | null;
   aeronave_matricula: string | null;
   cliente_nome: string | null;
   valor_total: number | null;
-  itens: DemonstrativoItem[];
+  itens: DemoItem[];
 }
 
-interface Aeronave {
-  id: string;
-  matricula: string;
-}
-
-// Opção de atribuição para quem NÃO é cotista da aeronave, mas pegou ela
-// emprestada (tomador). Mesmo "formato" de um CotistaOption pra poder reaproveitar
-// os mesmos lookups (cliente_id, documento, endereco...) já existentes no arquivo.
-// ATUALIZADO: agora pode ser identificado tanto por cliente quanto por sócio.
-interface TomadorOption {
-  id: string;
-  nome: string;
-  cliente_id: string;
-  socio_id?: string; // NOVO: presente quando o tomador foi resolvido via sócio
-  documento?: string;
-  endereco?: string;
-  cidade?: string;
-  uf?: string;
-  isEmprestimo: true;
-}
-
-interface LinhaItem extends DemonstrativoItem {
+interface LinhaItem extends DemoItem {
   cotistaNome: string;
-  sugeridoDoDiario?: boolean;
-  naoIdentificado?: boolean;
-  isEmprestimo?: boolean;
+  sugeridoDoDiario: boolean;
+  naoIdentificado: boolean;
+  isEmprestimo: boolean;
 }
 
 interface DiarioRow {
@@ -80,235 +67,132 @@ interface DiarioRow {
   clientes_id: string | null;
   emprestimo: boolean | null;
   cliente_tomador_emprestimo_id: string | null;
-  socio_tomador_emprestimo_id: string | null; // NOVO
+  socio_tomador_emprestimo_id: string | null;
 }
 
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
+interface Tomador {
+  id: string;
+  nome: string;
+  cliente_id: string;
+  documento?: string;
+  isEmprestimo: true;
+}
+
+const brl = (v: number) => formatBRL(v || 0);
 
 const fileToBase64 = (file: File): Promise<{ base64: string; mimeType: string }> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      const [, mime, b64] = result.match(/^data:(.+);base64,(.+)$/) || [];
-      if (!b64) reject(new Error("Falha ao ler arquivo"));
-      else resolve({ base64: b64, mimeType: mime || file.type || "image/png" });
+      const match = result.match(/^data:(.+);base64,(.+)$/);
+      if (!match) reject(new Error("Falha ao ler arquivo"));
+      else resolve({ base64: match[2], mimeType: match[1] || file.type });
     };
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
 
-const STORAGE_BUCKET = "n.f-boletos-clients";
+const toIso = (d: string): string | null => {
+  const m = (d || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+};
 
-async function uploadDemonstrativo(file: File, tipo: TipoDemonstrativo): Promise<string | null> {
-  try {
-    const timestamp = Date.now();
-    const suffix = Math.random().toString(36).substring(2, 8);
-    const sanitized = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_").substring(0, 80);
-    const path = `demonstrativo_${tipo.toLowerCase()}_${timestamp}_${suffix}_${sanitized}`;
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, file, { cacheControl: "3600", upsert: false });
-    if (error) throw error;
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    return data?.publicUrl || null;
-  } catch (err) {
-    console.error("Erro no upload do demonstrativo:", err);
-    return null;
-  }
-}
-
-export default function ImportarDemonstrativoIA({
-  onGenerated,
-}: {
-  onGenerated?: () => void;
-}) {
-  const [tipo, setTipo] = useState<TipoDemonstrativo>("INFRAERO");
+export default function ImportarDemonstrativoTab() {
+  const [tipo, setTipo] = useState<TipoDemo>("INFRAERO");
   const [aeronaves, setAeronaves] = useState<Aeronave[]>([]);
-  const [aeronaveId, setAeronaveId] = useState<string>("");
-  const [cotistas, setCotistas] = useState<CotistaOption[]>([]);
-  const [tomadores, setTomadores] = useState<TomadorOption[]>([]);
+  const [aircraftId, setAircraftId] = useState("");
+  const [cotistas, setCotistas] = useState<Cotista[]>([]);
+  const [tomadores, setTomadores] = useState<Tomador[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [generatingMode, setGeneratingMode] = useState<null | "recibo" | "recibo_pgto" | "pgto">(null);
-  const [result, setResult] = useState<DemonstrativoResult | null>(null);
+  const [generatingMode, setGeneratingMode] = useState<null | "recibo" | "pgto">(null);
+  const [result, setResult] = useState<DemoResult | null>(null);
   const [linhas, setLinhas] = useState<LinhaItem[]>([]);
+  const [clienteRateioSelecionado, setClienteRateioSelecionado] = useState("");
+  const [solicitacaoModalOpen, setSolicitacaoModalOpen] = useState(false);
+  const [solicitacaoInitialData, setSolicitacaoInitialData] = useState<any>(null);
+  const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { generateAndUploadPdf } = useReceiptPdfGenerator();
 
-  // Modal de solicitação de pagamento
-  const [solicitacaoOpen, setSolicitacaoOpen] = useState(false);
-  const [solicitacaoInitialData, setSolicitacaoInitialData] = useState<any>(null);
-
   useEffect(() => {
-    supabase
-      .from("aeronave")
-      .select("id, matricula")
-      .order("matricula")
+    supabase.from("aeronave").select("id, matricula, modelo").eq("status", "ativa").order("matricula")
       .then(({ data }) => setAeronaves((data || []) as Aeronave[]));
   }, []);
 
   useEffect(() => {
-    if (!aeronaveId) {
-      setCotistas([]);
-      return;
-    }
-
-    const fetchCotistas = async () => {
-      const { data: cotistasData, error: cotistasError } = await supabase
+    if (!aircraftId) { setCotistas([]); setTomadores([]); return; }
+    const fetchData = async () => {
+      const { data: cotData } = await supabase
         .from("cotistas_aeronave")
-        .select(
-          "id_clientes, socios_id, percentual_sociedade, clientes:id_clientes(id, razao_social, cnpj, endereco, cidade, uf)"
-        )
-        .eq("id_aeronave", aeronaveId);
-
-      if (cotistasError) {
-        console.error(cotistasError);
-        return;
-      }
-
-      const socioIds = Array.from(
-        new Set(
-          (cotistasData || [])
-            .map((row: any) => row.socios_id)
-            .filter(Boolean)
-        )
-      );
-
-      let sociosData: any[] = [];
+        .select("id_clientes, socios_id, percentual_sociedade, clientes(id, razao_social, cnpj), socios(id, nome, cpf)")
+        .eq("id_aeronave", aircraftId);
+      const socioIds = Array.from(new Set((cotData || []).map((r: any) => r.socios_id).filter(Boolean)));
+      let sociosMap: Record<string, any> = {};
       if (socioIds.length > 0) {
-        const { data: sociosRows, error: sociosError } = await supabase
-          .from("socios")
-          .select("id, nome, cpf, cliente_id, endereco, cidade, uf")
-          .in("id", socioIds)
-          .order("nome");
-
-        if (sociosError) {
-          console.error(sociosError);
-          return;
-        }
-        sociosData = sociosRows || [];
+        const { data: sociosData } = await supabase.from("socios").select("id, nome, cpf").in("id", socioIds);
+        (sociosData || []).forEach((s: any) => { sociosMap[s.id] = s; });
       }
+      setCotistas((cotData || []).map((r: any) => ({
+        id: `${r.id_clientes}|${r.socios_id || ""}`,
+        cliente_id: r.id_clientes ?? null,
+        socio_id: r.socios_id ?? null,
+        nome: sociosMap[r.socios_id]?.nome || r.clientes?.razao_social || "Cotista",
+        percentual: num(r.percentual_sociedade),
+      })));
 
-      const opts = buildCotistaOptions(
-        (cotistasData as any[]) || [],
-        sociosData
-      );
-      setCotistas(opts as CotistaOption[]);
-    };
-
-    fetchCotistas();
-  }, [aeronaveId]);
-
-  // Busca quem já pegou essa aeronave emprestada alguma vez (histórico do
-  // diário de bordo), pra esses nomes aparecerem como opção de atribuição mesmo
-  // não sendo cotistas da aeronave.
-  // ATUALIZADO: o tomador pode ter sido registrado no diário tanto como um
-  // cliente (cliente_tomador_emprestimo_id) quanto como um sócio
-  // (socio_tomador_emprestimo_id) — agora buscamos os dois.
-  useEffect(() => {
-    if (!aeronaveId) {
-      setTomadores([]);
-      return;
-    }
-
-    const fetchTomadores = async () => {
-      const { data: emprestimosData, error: emprestimosErr } = await (supabase as any)
+      // Buscar tomadores de empréstimo — por cliente_id E por socio_id
+      const { data: empData } = await supabase
         .from("lancamentos_diario_bordo")
         .select("cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id")
-        .eq("aeronave_id", aeronaveId)
+        .eq("aeronave_id", aircraftId)
         .eq("emprestimo", true);
 
-      if (emprestimosErr) {
-        console.error(emprestimosErr);
-        return;
-      }
+      // tomadores via cliente
+      const clienteIds = Array.from(new Set(
+        (empData || []).map((r: any) => r.cliente_tomador_emprestimo_id).filter(Boolean)
+      ));
+      // tomadores via sócio
+      const socioTomadorIds = Array.from(new Set(
+        (empData || []).map((r: any) => r.socio_tomador_emprestimo_id).filter(Boolean)
+      ));
 
-      const clienteIds = Array.from(
-        new Set(
-          (emprestimosData || [])
-            .map((r: any) => r.cliente_tomador_emprestimo_id)
-            .filter(Boolean)
-        )
-      );
-      const socioTomadorIds = Array.from(
-        new Set(
-          (emprestimosData || [])
-            .map((r: any) => r.socio_tomador_emprestimo_id)
-            .filter(Boolean)
-        )
-      );
-
-      const novosTomadores: TomadorOption[] = [];
+      const newTomadores: Tomador[] = [];
 
       if (clienteIds.length > 0) {
-        const { data: clientesData, error: clientesErr } = await supabase
+        const { data: clientesData } = await supabase
           .from("clientes")
-          .select("id, razao_social, cnpj, endereco, cidade, uf")
-          .in("id", clienteIds as string[]);
-
-        if (clientesErr) {
-          console.error(clientesErr);
-        } else {
-          (clientesData || []).forEach((c: any) => {
-            novosTomadores.push({
-              id: c.razao_social,
-              nome: c.razao_social,
-              cliente_id: c.id,
-              documento: c.cnpj,
-              endereco: c.endereco,
-              cidade: c.cidade,
-              uf: c.uf,
-              isEmprestimo: true as const,
-            });
-          });
-        }
+          .select("id, razao_social, cnpj")
+          .in("id", clienteIds);
+        (clientesData || []).forEach((c: any) => {
+          newTomadores.push({ id: c.razao_social, nome: c.razao_social, cliente_id: c.id, documento: c.cnpj, isEmprestimo: true as const });
+        });
       }
 
       if (socioTomadorIds.length > 0) {
-        const { data: sociosData, error: sociosErr } = await supabase
+        const { data: socioTomData } = await supabase
           .from("socios")
-          .select("id, nome, cpf, cliente_id, endereco, cidade, uf")
-          .in("id", socioTomadorIds as string[]);
-
-        if (sociosErr) {
-          console.error(sociosErr);
-        } else {
-          (sociosData || []).forEach((s: any) => {
-            // evita duplicar caso o mesmo nome já tenha entrado via cliente
-            const jaExiste = novosTomadores.find(
-              (t) => normalizeTextForMatching(t.nome) === normalizeTextForMatching(s.nome)
-            );
-            if (!jaExiste) {
-              novosTomadores.push({
-                id: s.nome,
-                nome: s.nome,
-                cliente_id: s.cliente_id || s.id,
-                socio_id: s.id,
-                documento: s.cpf,
-                endereco: s.endereco,
-                cidade: s.cidade,
-                uf: s.uf,
-                isEmprestimo: true as const,
-              });
-            }
-          });
-        }
+          .select("id, nome, cpf, cliente_id")
+          .in("id", socioTomadorIds);
+        (socioTomData || []).forEach((s: any) => {
+          // avoid duplicates by socio nome
+          if (!newTomadores.find((t) => norm(t.nome) === norm(s.nome))) {
+            newTomadores.push({ id: s.nome, nome: s.nome, cliente_id: s.cliente_id || s.id, documento: s.cpf, isEmprestimo: true as const });
+          }
+        });
       }
 
-      setTomadores(novosTomadores);
+      setTomadores(newTomadores);
     };
+    fetchData();
+  }, [aircraftId]);
 
-    fetchTomadores();
-  }, [aeronaveId]);
-
-  // Lista combinada usada em todo lugar que precisa "achar quem é" a
-  // partir de um nome — cotistas reais + tomadores de empréstimo.
-  const opcoesAtribuicao = useMemo(
-    () => [...cotistas, ...tomadores],
-    [cotistas, tomadores]
+  const opcoesAtribuicao = useMemo(() => [...cotistas, ...tomadores], [cotistas, tomadores]);
+  const clienteRateioItems = useMemo(
+    () => opcoesAtribuicao.map((item) => ({ id: item.id, label: item.nome })),
+    [opcoesAtribuicao]
   );
 
   const handleFileChange = (f: File | null) => {
@@ -319,15 +203,14 @@ export default function ImportarDemonstrativoIA({
     setPreviewUrl(f ? URL.createObjectURL(f) : null);
   };
 
+  const showToast = (type: "ok" | "err", text: string) => {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const handleAnalyze = async () => {
-    if (!file) {
-      toast({ title: "Selecione uma imagem", variant: "destructive" });
-      return;
-    }
-    if (!aeronaveId) {
-      toast({ title: "Selecione a aeronave antes de analisar", variant: "destructive" });
-      return;
-    }
+    if (!file) { showToast("err", "Selecione uma imagem"); return; }
+    if (!aircraftId) { showToast("err", "Selecione a aeronave antes de analisar"); return; }
     setIsAnalyzing(true);
     try {
       const { base64, mimeType } = await fileToBase64(file);
@@ -335,109 +218,84 @@ export default function ImportarDemonstrativoIA({
         body: { imageBase64: base64, mimeType, tipo },
       });
       if (error) throw error;
-      const res = data as DemonstrativoResult;
+      const res = data as DemoResult;
 
-      const toIso = (d: string): string | null => {
-        const m = (d || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-      };
-
-      const datasIso = Array.from(
-        new Set(res.itens.map((i) => toIso(i.data)).filter(Boolean) as string[])
-      );
-
+      const datasIso = Array.from(new Set(res.itens.map((i) => toIso(i.data)).filter(Boolean) as string[]));
       let diarioRows: DiarioRow[] = [];
-
       if (datasIso.length > 0) {
-        const { data: diarioData, error: diarioErr } = await (supabase as any)
+        const { data: diarioData } = await supabase
           .from("lancamentos_diario_bordo")
-          .select(
-            "data_registro, aerodromo_partida, aerodromo_chegada, socios_nome, socios_id, clientes_id, emprestimo, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id"
-          )
-          .eq("aeronave_id", aeronaveId)
+          .select("data_registro, aerodromo_partida, aerodromo_chegada, socios_nome, socios_id, clientes_id, emprestimo, cliente_tomador_emprestimo_id, socio_tomador_emprestimo_id")
+          .eq("aeronave_id", aircraftId)
           .in("data_registro", datasIso);
-        if (diarioErr) console.warn("Falha ao consultar diário:", diarioErr.message);
         diarioRows = (diarioData || []) as DiarioRow[];
       }
 
-      // Retorna também se o voo era empréstimo, e nesse caso sugere o TOMADOR
-      // (não o sócio/cliente da aeronave) a partir do diário.
-      // ATUALIZADO: prioriza o tomador identificado por sócio; se não houver,
-      // cai para o tomador identificado por cliente.
-      const findSugestao = (
-        item: DemonstrativoItem
-      ): { nome: string | null; isEmprestimo: boolean } => {
+      // Build a map of socio_tomador IDs → nome for fast lookup
+      const socioTomadorIdSet = new Set(
+        diarioRows
+          .filter((r) => r.emprestimo && r.socio_tomador_emprestimo_id)
+          .map((r) => r.socio_tomador_emprestimo_id!)
+      );
+      let socioTomadorNomeMap: Record<string, string> = {};
+      if (socioTomadorIdSet.size > 0) {
+        const { data: stData } = await supabase
+          .from("socios")
+          .select("id, nome")
+          .in("id", Array.from(socioTomadorIdSet));
+        (stData || []).forEach((s: any) => { socioTomadorNomeMap[s.id] = s.nome; });
+      }
+
+      const findSugestao = (item: DemoItem): { nome: string | null; isEmprestimo: boolean } => {
         const iso = toIso(item.data);
         if (!iso) return { nome: null, isEmprestimo: false };
         const op = (item.operacao || "").trim().toUpperCase();
-        let match = diarioRows.find(
-          (r) =>
-            r.data_registro === iso &&
-            (r.aerodromo_partida || "").trim().toUpperCase() === op
-        );
-        if (!match) {
-          match = diarioRows.find(
-            (r) =>
-              r.data_registro === iso &&
-              (r.aerodromo_chegada || "").trim().toUpperCase() === op
-          );
-        }
+        let match = diarioRows.find((r) => r.data_registro === iso && (r.aerodromo_partida || "").trim().toUpperCase() === op);
+        if (!match) match = diarioRows.find((r) => r.data_registro === iso && (r.aerodromo_chegada || "").trim().toUpperCase() === op);
         if (!match) {
           const doDia = diarioRows.filter((r) => r.data_registro === iso);
           if (doDia.length === 1) match = doDia[0];
         }
         if (!match) return { nome: null, isEmprestimo: false };
 
+        // Empréstimo: priorizar sócio tomador, depois cliente tomador
         if (match.emprestimo) {
           if (match.socio_tomador_emprestimo_id) {
-            const tomador = tomadores.find(
-              (t) => t.socio_id === match!.socio_tomador_emprestimo_id
-            );
-            if (tomador) return { nome: tomador.nome, isEmprestimo: true };
+            const nome = socioTomadorNomeMap[match.socio_tomador_emprestimo_id] || null;
+            return { nome, isEmprestimo: true };
           }
           if (match.cliente_tomador_emprestimo_id) {
-            const tomador = tomadores.find(
-              (t) => t.cliente_id === match!.cliente_tomador_emprestimo_id
-            );
-            if (tomador) return { nome: tomador.nome, isEmprestimo: true };
+            const tomador = tomadores.find((t) => t.cliente_id === match!.cliente_tomador_emprestimo_id);
+            return { nome: tomador?.nome || null, isEmprestimo: true };
           }
           return { nome: null, isEmprestimo: true };
         }
 
-        return { nome: match.socios_nome?.trim() || null, isEmprestimo: false };
+        // Voo normal: tentar socios_nome, depois resolver via socios_id, depois via clientes_id
+        if (match.socios_nome?.trim()) return { nome: match.socios_nome.trim(), isEmprestimo: false };
+        if (match.socios_id) {
+          const cot = cotistas.find((c) => c.socio_id === match!.socios_id);
+          if (cot) return { nome: cot.nome, isEmprestimo: false };
+        }
+        if (match.clientes_id) {
+          const cot = cotistas.find((c) => c.cliente_id === match!.clientes_id);
+          if (cot) return { nome: cot.nome, isEmprestimo: false };
+        }
+        return { nome: null, isEmprestimo: false };
       };
 
-      let novasLinhas: LinhaItem[] = res.itens.flatMap((it) => {
+      const novasLinhas: LinhaItem[] = res.itens.map((it) => {
         const sugestao = findSugestao(it);
-        return [{
-          ...it,
-          cotistaNome: sugestao.nome || "",
-          sugeridoDoDiario: !!sugestao.nome,
-          naoIdentificado: !sugestao.nome,
-          isEmprestimo: sugestao.isEmprestimo,
-        }];
+        return { ...it, cotistaNome: sugestao.nome || "", sugeridoDoDiario: !!sugestao.nome, naoIdentificado: !sugestao.nome, isEmprestimo: sugestao.isEmprestimo };
       });
 
-      // Expande linhas especiais de voo translado / voo de check em rateio igualitário entre sócios
-      novasLinhas = novasLinhas.flatMap((linha) => expandSpecialRateioLine(linha, cotistas));
-
-      const naoIdent = novasLinhas.filter((l) => l.naoIdentificado).length;
-      const emprestimos = novasLinhas.filter((l) => l.isEmprestimo).length;
       setResult(res);
       setLinhas(novasLinhas);
-      toast({
-        title: "Análise concluída",
-        description:
-          `${res.itens.length} operações detectadas` +
-          (naoIdent > 0
-            ? ` — ${naoIdent} sem correspondência no diário de bordo`
-            : " — todos os sócios sugeridos a partir do diário") +
-          (emprestimos > 0 ? ` — ${emprestimos} em empréstimo a terceiro` : ""),
-      });
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Falha ao processar a imagem";
-      toast({ title: "Erro na análise", description: message, variant: "destructive" });
+      const naoIdent = novasLinhas.filter((l) => l.naoIdentificado).length;
+      const emprestimos = novasLinhas.filter((l) => l.isEmprestimo).length;
+      showToast("ok", `${res.itens.length} operações detectadas${naoIdent > 0 ? ` — ${naoIdent} sem correspondência no diário` : " — todos identificados"}${emprestimos > 0 ? ` — ${emprestimos} em empréstimo` : ""}`);
+    } catch (err: any) {
+      showToast("err", err?.message || "Falha ao processar a imagem");
     } finally {
       setIsAnalyzing(false);
     }
@@ -455,27 +313,256 @@ export default function ImportarDemonstrativoIA({
       cur.isEmprestimo = cur.isEmprestimo || !!l.isEmprestimo;
       map.set(nome, cur);
     }
-    const rows = Array.from(map.values()).map((r) => ({
-      ...r,
-      percentual: total > 0 ? (r.valor / total) * 100 : 0,
-    }));
+    const rows = Array.from(map.values()).map((r) => ({ ...r, percentual: total > 0 ? (r.valor / total) * 100 : 0 }));
     return { total, rows, semAtribuicao: linhas.filter((l) => !l.cotistaNome.trim()).length };
   }, [linhas]);
 
-  const validarAntesDeGerar = (): boolean => {
-    if (!result || consolidado.rows.length === 0) {
-      toast({ title: "Nenhum sócio atribuído às linhas", variant: "destructive" });
-      return false;
+  const updateLinhaCotista = (idx: number, nome: string, isEmprestimo: boolean) => {
+    setLinhas((prev) => prev.map((it, i) => i === idx ? { ...it, cotistaNome: nome, sugeridoDoDiario: false, naoIdentificado: false, isEmprestimo } : it));
+  };
+
+  const uploadDemonstrativo = async (): Promise<string | null> => {
+    if (!file) return null;
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `demonstrativo_${tipo.toLowerCase()}_${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("n.f-boletos-clients").upload(path, file, { cacheControl: "3600", upsert: false });
+      if (error) throw error;
+      const { data } = supabase.storage.from("n.f-boletos-clients").getPublicUrl(path);
+      return data?.publicUrl || null;
+    } catch (err) {
+      console.error("Erro no upload do demonstrativo:", err);
+      return null;
     }
-    if (consolidado.semAtribuicao > 0) {
-      toast({
-        title: "Existem linhas sem sócio",
-        description: `${consolidado.semAtribuicao} linha(s) sem atribuição.`,
-        variant: "destructive",
+  };
+
+  const criarRecibos = async (demoUrl: string | null): Promise<any[]> => {
+    if (!result) return [];
+
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    if (userErr || !userId) throw new Error("Usuário não autenticado");
+
+    const today = new Date().toISOString().split("T")[0];
+    const tipoLabel = TIPO_LABEL[tipo];
+    const descBase = `${tipoLabel} - Doc ${result.numero_documento || "?"}${result.competencia ? " - Comp " + result.competencia : ""}`;
+    const createdReceipts: any[] = [];
+
+    for (const row of consolidado.rows) {
+      const cotistaMatch = opcoesAtribuicao.find((c) => norm(c.nome) === norm(row.nome));
+      const clienteId = (cotistaMatch as any)?.cliente_id || null;
+      const socioIdMatch = (cotistaMatch as any)?.socio_id || null;
+      const seqNum = await generateSequentialReceiptNumber(row.nome, supabase, clienteId, {
+        aeronaveId: aircraftId || null,
+        socioId: socioIdMatch,
       });
-      return false;
+      const payload = {
+        numero_recibo: seqNum,
+        usuario_id: userId,
+        nome_pagador: row.nome,
+        documento_pagador: (cotistaMatch as any)?.documento || "",
+        valor: Number(row.valor.toFixed(2)),
+        descricao_servico: `${descBase} - Rateio ${row.percentual.toFixed(2)}% (${row.itens} op.)${row.isEmprestimo ? " - Uso por empréstimo de aeronave" : ""}`,
+        tipo_recibo: "reembolso",
+        data_emissao: today,
+        cliente_id: clienteId,
+        aeronave_id: aircraftId || null,
+        compartilhado: true,
+        percentual: Number(row.percentual.toFixed(2)),
+        valor_total: Number(consolidado.total.toFixed(2)),
+        numero_documento: result.numero_documento || null,
+        competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
+        competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
+        demonstrativo_url: demoUrl || null,
+        nome_categoria: tipoLabel,
+        subcategoria_1: TIPO_SUBCATEGORIA[tipo],
+        status: "pendente",
+      };
+
+      const { data, error } = await supabase.from("recibos").insert(payload).select("*").single();
+      if (error) throw error;
+
+      const receiptData = data as any;
+      if (receiptData?.id) {
+        const pdfUrl = await generateAndUploadPdf({
+          receiptData,
+          userId,
+        });
+        if (pdfUrl) {
+          receiptData.pdf_url = pdfUrl;
+        }
+      }
+
+      createdReceipts.push(receiptData);
     }
-    return true;
+
+    return createdReceipts;
+  };
+
+  const criarDespesasEmprestimo = async (demoUrl: string | null): Promise<number> => {
+    if (!result) return 0;
+    const today = new Date().toISOString().split("T")[0];
+    const tipoLabel = TIPO_LABEL[tipo];
+    let count = 0;
+
+    for (const row of consolidado.rows.filter((r) => r.isEmprestimo)) {
+      const tomador = tomadores.find((t) => norm(t.nome) === norm(row.nome));
+      if (!tomador) continue;
+
+      const desc = `${tipoLabel} - Doc ${result.numero_documento || "?"} - Cobrança direta (empréstimo) - ${tomador.nome}`;
+      const { error } = await supabase.from("despesas_cliente_direto").insert({
+        clientes_id: tomador.cliente_id,
+        nome_cliente: tomador.nome,
+        aeronave_id: aircraftId,
+        aeronave_registro: aeronaves.find((a) => a.id === aircraftId)?.matricula || null,
+        categoria_nome: tipoLabel,
+        descricao: desc,
+        valor: Number(row.valor.toFixed(2)),
+        data_vencimento: today,
+        fornecedor_nome: TIPO_FORNECEDOR[tipo],
+        status: "pendente_envio",
+        percentual: 100,
+      });
+      if (error) console.error("Erro ao criar despesa_cliente_direto:", error);
+      else count++;
+    }
+    return count;
+  };
+
+  const handleAcao = async (modo: "recibo" | "pgto") => {
+    if (!result || consolidado.rows.length === 0) { showToast("err", "Nenhum sócio atribuído"); return; }
+    if (consolidado.semAtribuicao > 0) { showToast("err", `${consolidado.semAtribuicao} linha(s) sem atribuição`); return; }
+    if (!file) { showToast("err", "Imagem do demonstrativo não encontrada"); return; }
+    setGeneratingMode(modo);
+    try {
+      const demoUrl = await uploadDemonstrativo();
+
+      if (modo === "recibo") {
+        const createdReceipts = await criarRecibos(demoUrl);
+        const empCount = await criarDespesasEmprestimo(demoUrl);
+        showToast("ok", `${createdReceipts.length} recibo(s) criado(s)${empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo` : ""}`);
+        resetForm();
+        return;
+      }
+
+      // modo pgto: criar rateio_despesas + movimentacoes e abrir solicitação de pagamento
+      if (modo === "pgto") {
+        const demoUrlFinal = demoUrl;
+        const today = new Date().toISOString().split("T")[0];
+        const tipoLabel = TIPO_LABEL[tipo];
+        const subcategoria = TIPO_SUBCATEGORIA[tipo];
+
+        const createdReceipts = await criarRecibos(demoUrlFinal);
+
+        // Valor que entra no rateio dos cotistas (exclui empréstimos)
+        const valorCotistas = consolidado.rows.filter((r) => !r.isEmprestimo).reduce((s, r) => s + r.valor, 0);
+
+        if (valorCotistas > 0) {
+          const despesaId = crypto.randomUUID();
+          const linhasRateio = consolidado.rows
+            .filter((r) => !r.isEmprestimo)
+            .map((r) => {
+              const cotistaMatch = opcoesAtribuicao.find((c) => norm(c.nome) === norm(r.nome));
+              const socioId = cotistaMatch && "socio_id" in cotistaMatch ? cotistaMatch.socio_id : null;
+              return {
+                despesa_id: despesaId,
+                fonte_despesa: "demonstrativo",
+                fluxo: "SAIDA",
+                tipo_rateio: "variavel_por_voo",
+                periodicidade: "MENSAL",
+                descricao_despesa: `${tipoLabel} - Doc ${result.numero_documento || "?"}${result.competencia ? " - Comp " + result.competencia : ""}`,
+                fornecedor_nome: TIPO_FORNECEDOR[tipo],
+                categoria_custo: null,
+                cliente_id: cotistaMatch?.cliente_id || null,
+                socio_id: socioId,
+                clientes_nome: r.nome,
+                aeronave_id: aircraftId,
+                aeronave_registro: aeronaves.find((a) => a.id === aircraftId)?.matricula || null,
+                data_emissao: today,
+                data_vencimento: today,
+                valor_total_despesa: valorCotistas,
+                valor_rateado: Number(r.valor.toFixed(2)),
+                percentual_uso: Number(r.percentual.toFixed(2)),
+                numero_doc: result.numero_documento || null,
+                demonstrativo_url: demoUrlFinal,
+                status: "pendente",
+                subcategoria_1: subcategoria,
+              };
+            });
+          const { error: rateioErr } = await supabase.from("rateio_despesas").insert(linhasRateio);
+          if (rateioErr) console.error("Erro ao inserir rateio:", rateioErr);
+
+          // Criar movimentacao para o caixa share
+          await supabase.from("movimentacoes").insert({
+            id: despesaId,
+            descricao: `${tipoLabel} - Doc ${result.numero_documento || "?"} - ${aeronaves.find((a) => a.id === aircraftId)?.matricula || ""}`,
+            tipo: "SAIDA",
+            valor_rateado: valorCotistas,
+            valor_original: valorCotistas,
+            data_competencia: today,
+            data_vencimento: today,
+            aeronave_id: aircraftId,
+            reembolsavel: true,
+            status: "pendente",
+            tipo_caixa: "share",
+            numero_doc: result.numero_documento || null,
+            fornecedor_nome: TIPO_FORNECEDOR[tipo],
+          });
+        }
+
+        const primeiraReceita = createdReceipts[0];
+        const clienteSelecionado = clienteRateioSelecionado
+          ? opcoesAtribuicao.find((item) => item.id === clienteRateioSelecionado)
+          : null;
+        const clientePrincipalId = (clienteSelecionado as any)?.cliente_id || null;
+        const clientePrincipalNome = clienteSelecionado?.nome || consolidado.rows[0]?.nome || null;
+        const valorPrincipal = consolidado.rows.find((row) => norm(row.nome) === norm(clientePrincipalNome || ""))?.valor || consolidado.total;
+        const percentualPrincipal = consolidado.rows.find((row) => norm(row.nome) === norm(clientePrincipalNome || ""))?.percentual || 100;
+
+        setSolicitacaoInitialData({
+          data_emissao: today,
+          data_vencimento: today,
+          tipo_rateio: "variavel_por_voo",
+          numero_doc: result.numero_documento || null,
+          descricao_despesa: `${tipoLabel} - Doc ${result.numero_documento || "?"}${result.competencia ? " - Comp " + result.competencia : ""}`,
+          cliente_id: clientePrincipalId,
+          clientes_nome: clientePrincipalNome,
+          aeronave_id: aircraftId,
+          aeronave_registro: aeronaves.find((a) => a.id === aircraftId)?.matricula || null,
+          numero_recibo: primeiraReceita?.numero_recibo || null,
+          nome_categoria: tipoLabel,
+          subcategoria_1: subcategoria,
+          anexos: [
+            ...(demoUrlFinal ? [{ tipo: "demonstrativo", url: demoUrlFinal }] : []),
+            ...(primeiraReceita?.pdf_url ? [{ tipo: "recibo", url: primeiraReceita.pdf_url }] : []),
+          ],
+          valor_total: Number(consolidado.total.toFixed(2)),
+          valor_total_despesa: Number(consolidado.total.toFixed(2)),
+          valor_rateado: Number(valorPrincipal.toFixed(2)),
+          percentual_uso: Number(percentualPrincipal.toFixed(2)),
+          competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
+          competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
+          rateio_cliente: clientePrincipalId ? [{
+            cliente_id: clientePrincipalId,
+            cliente_nome: clientePrincipalNome,
+            valor_total_despesa: Number(consolidado.total.toFixed(2)),
+            valor_rateado: Number(valorPrincipal.toFixed(2)),
+            percentual_uso: Number(percentualPrincipal.toFixed(2)),
+            socio_id: null,
+          }] : [],
+        });
+        setSolicitacaoModalOpen(true);
+
+        // Criar despesas_cliente_direto para empréstimos
+        const empCount = await criarDespesasEmprestimo(demoUrlFinal);
+        showToast("ok", `${createdReceipts.length} recibo(s) criado(s)${empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo` : ""}`);
+        resetForm();
+      }
+    } catch (err: any) {
+      showToast("err", err?.message || "Falha desconhecida");
+    } finally {
+      setGeneratingMode(null);
+    }
   };
 
   const resetForm = () => {
@@ -487,615 +574,242 @@ export default function ImportarDemonstrativoIA({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const criarRecibos = async (demonstrativoUrl: string | null): Promise<number> => {
-    if (!result) return 0;
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) throw new Error("Usuário não autenticado");
-
-    const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
-    const descBase = `${tipoLabel} - Doc ${result.numero_documento || "?"}${
-      result.competencia ? " - Comp " + result.competencia : ""
-    } - Aeronave ${result.aeronave_matricula || ""}`;
-
-    let sucesso = 0;
-    for (const row of consolidado.rows) {
-      const normalizedRowName = normalizeTextForMatching(row.nome);
-      const cotistaMatch = opcoesAtribuicao.find(
-        (c) => normalizeTextForMatching(c.nome) === normalizedRowName
-      );
-      const numeroRecibo = await generateSequentialReceiptNumber(
-        row.nome,
-        supabase,
-        cotistaMatch?.cliente_id || cotistaMatch?.id || null
-      );
-      const payload: Record<string, unknown> = {
-        usuario_id: userId,
-        nome_pagador: row.nome,
-        documento_pagador: cotistaMatch?.documento || "",
-        endereco_pagador: cotistaMatch?.endereco || null,
-        cidade_pagador: cotistaMatch?.cidade || null,
-        uf_pagador: cotistaMatch?.uf || null,
-        valor: Number(row.valor.toFixed(2)),
-        descricao_servico: `${descBase} - Rateio ${row.percentual.toFixed(2)}% (${row.itens} op.)${
-          row.isEmprestimo ? " - Uso por empréstimo de aeronave" : ""
-        }`,
-        tipo_recibo: "reembolso",
-        data_emissao: new Date().toISOString().split("T")[0],
-        numero_recibo: numeroRecibo,
-        cliente_id: cotistaMatch?.id || null,
-        aeronave_id: aeronaveId || null,
-        compartilhado: true,
-        percentual: Number(row.percentual.toFixed(2)),
-        valor_total: Number(consolidado.total.toFixed(2)),
-        numero_documento: result.numero_documento || null,
-        competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
-        competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
-        demonstrativo_url: demonstrativoUrl || null,
-      };
-
-      const { data: inserted, error } = await (supabase as any)
-        .from("recibos")
-        .insert(payload)
-        .select()
-        .single();
-      if (error) throw error;
-
-      try {
-        await generateAndUploadPdf({
-          receiptData: { ...(inserted || {}), ...payload } as any,
-          userId,
-        });
-      } catch (pdfErr) {
-        console.error("Falha ao gerar PDF do recibo", pdfErr);
-      }
-      sucesso++;
-    }
-    return sucesso;
-  };
-
-  // NOVO: para linhas de empréstimo, além do recibo, lança uma despesa de
-  // cobrança direta ao tomador (fora do rateio dos cotistas).
-  const criarDespesasEmprestimo = async (demonstrativoUrl: string | null): Promise<number> => {
-    if (!result) return 0;
-    const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
-    const hoje = new Date().toISOString().split("T")[0];
-    let count = 0;
-
-    for (const row of consolidado.rows.filter((r) => r.isEmprestimo)) {
-      const normalizedRowName = normalizeTextForMatching(row.nome);
-      const tomador = tomadores.find(
-        (t) => normalizeTextForMatching(t.nome) === normalizedRowName
-      );
-      if (!tomador) continue;
-
-      const descricao = `${tipoLabel} - Doc ${result.numero_documento || "?"} - Cobrança direta (empréstimo) - ${tomador.nome}`;
-
-      const { error } = await (supabase as any).from("despesas_cliente_direto").insert({
-        clientes_id: tomador.cliente_id,
-        nome_cliente: tomador.nome,
-        aeronave_id: aeronaveId || null,
-        aeronave_registro: result.aeronave_matricula || null,
-        categoria_nome: tipoLabel,
-        descricao,
-        valor: Number(row.valor.toFixed(2)),
-        data_vencimento: hoje,
-        fornecedor_nome: tipo === "INFRAERO" ? "INFRAERO" : "DECEA",
-        status: "pendente_envio",
-        percentual: 100,
-        demonstrativo_url: demonstrativoUrl || null,
-        numero_documento: result.numero_documento || null,
-      });
-
-      if (error) {
-        console.error("Erro ao criar despesa_cliente_direto:", error);
-      } else {
-        count++;
-      }
-    }
-    return count;
-  };
-
-  const abrirSolicitacaoPagamento = (demonstrativoUrl: string | null) => {
-    if (!result) return;
-    const tipoLabel = tipo === "INFRAERO" ? "Tarifa INFRAERO" : "Tarifa DECEA";
-    const subcategoria =
-      tipo === "INFRAERO"
-        ? "TARIFA INFRAERO"
-        : "TARIFA DE NAVEGAÇÃO AÉREA - DECEA";
-
-    // Agrupar rows por clienteId (cotista pode compartilhar cliente com socio diferente)
-    const grupos = new Map<
-      string,
-      {
-        cliente_id: string;
-        valor_total_cliente: number;
-        percentual_uso: number;
-        valorOverridesSocio: Record<string, string>;
-      }
-    >();
-
-    // Linhas de empréstimo (tomador) NÃO entram no rateio dos cotistas —
-    // elas já geram recibo/despesa direta pro tomador em criarRecibos()/criarDespesasEmprestimo().
-    // Aqui só ficam as linhas de uso próprio dos cotistas de fato.
-    for (const row of consolidado.rows) {
-      if (row.isEmprestimo) continue;
-      const normalizedRowName = normalizeTextForMatching(row.nome);
-      const cotistaMatch = opcoesAtribuicao.find(
-        (c) => normalizeTextForMatching(c.nome) === normalizedRowName
-      );
-      const clienteId = cotistaMatch?.cliente_id || cotistaMatch?.id || null;
-      const socioId = (cotistaMatch as any)?.socio_id || null;
-      if (!clienteId) continue;
-
-      const g =
-        grupos.get(clienteId) ||
-        ({
-          cliente_id: clienteId,
-          valor_total_cliente: 0,
-          percentual_uso: 0,
-          valorOverridesSocio: {},
-        } as any);
-      g.valor_total_cliente += row.valor;
-      g.percentual_uso += row.percentual;
-      if (socioId) {
-        g.valorOverridesSocio[socioId] = row.valor.toFixed(2);
-      }
-      grupos.set(clienteId, g);
-    }
-
-    const rateio_cliente = Array.from(grupos.values()).map((g) => ({
-      cliente_id: g.cliente_id,
-      valor_total_cliente: Number(g.valor_total_cliente.toFixed(2)),
-      percentual_uso: Number(g.percentual_uso.toFixed(2)),
-      valorOverridesSocio: g.valorOverridesSocio,
-    }));
-
-    // Valor total da solicitação de pagamento reflete só a parte que é dos
-    // cotistas — a parte dos tomadores já virou recibo/despesa à parte.
-    const valorCotistas = consolidado.rows
-      .filter((r) => !r.isEmprestimo)
-      .reduce((s, r) => s + r.valor, 0);
-    const valorEmprestimos = consolidado.total - valorCotistas;
-
-    const initial = {
-      aeronave_id: aeronaveId,
-      tipo_despesa_label: "Taxas Aeroportuárias",
-      subcategoria,
-      nome_categoria: "Taxas Aeroportuárias",
-      tipo_rateio: "VARIAVEL POR VOO",
-      periodicidade: "MENSAL",
-      taxa_origem: tipo,
-      numero_doc: result.numero_documento || null,
-      numero_documento_infraero: tipo === "INFRAERO" ? result.numero_documento || null : null,
-      numero_documento_decea: tipo === "DECEA" ? result.numero_documento || null : null,
-      competencia_infraero: tipo === "INFRAERO" ? result.competencia || null : null,
-      competencia_decea: tipo === "DECEA" ? result.competencia || null : null,
-      valor_total: Number(valorCotistas.toFixed(2)),
-      valor: Number(valorCotistas.toFixed(2)),
-      descricao_despesa: `${tipoLabel} - Doc ${result.numero_documento || "?"}${
-        result.competencia ? " - Comp " + result.competencia : ""
-      }${
-        valorEmprestimos > 0
-          ? ` (${brl(valorEmprestimos)} cobrados diretamente de terceiro via empréstimo)`
-          : ""
-      }`,
-      demonstrativo_url: demonstrativoUrl,
-      anexos: demonstrativoUrl
-        ? [{ tipo: "demonstrativo", url: demonstrativoUrl, numero: result.numero_documento || "" }]
-        : [],
-      rateio_cliente,
-    };
-
-    setSolicitacaoInitialData(initial);
-    setSolicitacaoOpen(true);
-  };
-
-  const handleAcao = async (modo: "recibo" | "recibo_pgto" | "pgto") => {
-    if (!validarAntesDeGerar()) return;
-    if (!file) {
-      toast({ title: "Imagem do demonstrativo não encontrada", variant: "destructive" });
-      return;
-    }
-    setGeneratingMode(modo);
-    try {
-      const demonstrativoUrl = await uploadDemonstrativo(file, tipo);
-      if (!demonstrativoUrl) {
-        toast({
-          title: "Aviso",
-          description: "Falha ao salvar imagem no storage — seguindo sem URL.",
-        });
-      }
-
-      if (modo === "recibo") {
-        const n = await criarRecibos(demonstrativoUrl);
-        const empCount = await criarDespesasEmprestimo(demonstrativoUrl);
-        toast({
-          title: "Recibos gerados",
-          description: `${n} recibo(s) criado(s)${
-            empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo lançada(s)` : ""
-          }.`,
-        });
-        onGenerated?.();
-        resetForm();
-        return;
-      }
-
-      if (modo === "recibo_pgto") {
-        const n = await criarRecibos(demonstrativoUrl);
-        const empCount = await criarDespesasEmprestimo(demonstrativoUrl);
-        toast({
-          title: "Recibos gerados",
-          description: `${n} recibo(s) criado(s)${
-            empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo` : ""
-          }. Abrindo solicitação de pagamento…`,
-        });
-        onGenerated?.();
-        abrirSolicitacaoPagamento(demonstrativoUrl);
-        return;
-      }
-
-      // modo === "pgto"
-      const empCount = await criarDespesasEmprestimo(demonstrativoUrl);
-      abrirSolicitacaoPagamento(demonstrativoUrl);
-      toast({
-        title: "Solicitação de pagamento",
-        description: `Preencha os dados e confirme.${
-          empCount > 0 ? ` ${empCount} cobrança(s) de empréstimo lançada(s) diretamente.` : ""
-        }`,
-      });
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Falha desconhecida";
-      toast({ title: "Erro", description: message, variant: "destructive" });
-    } finally {
-      setGeneratingMode(null);
-    }
-  };
-
   const isGenerating = generatingMode !== null;
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Reconhecimento Automatico — Demonstrativos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Tipo de demonstrativo</Label>
-              <Select value={tipo} onValueChange={(v) => setTipo(v as TipoDemonstrativo)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INFRAERO">TARIFA INFRAERO</SelectItem>
-                  <SelectItem value="DECEA">TARIFA DE NAVEGAÇÃO AÉREA - DECEA</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Matrícula da aeronave</Label>
-              <Select value={aeronaveId} onValueChange={setAeronaveId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a aeronave" />
-                </SelectTrigger>
-                <SelectContent>
-                  {aeronaves.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.matricula}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+    <div className="space-y-5">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 rounded-xl border px-4 py-3 text-sm font-medium shadow-xl ${toast.type === "ok" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-rose-500/30 bg-rose-500/10 text-rose-400"}`}>
+          {toast.text}
+          <button onClick={() => setToast(null)} className="ml-3 text-slate-500 hover:text-slate-300"><Trash2 className="h-3.5 w-3.5 inline" /></button>
+        </div>
+      )}
 
+      <div className="flex items-center gap-2">
+      
+        <span className="text-sm font-bold text-slate-100">Importar Demonstrativo — Reconhecimento Automático</span>
+      </div>
+
+      {/* Upload card */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label>Imagem do demonstrativo</Label>
-            <div className="mt-1 flex items-center gap-3">
-              <Input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-              />
-              <Button
-                type="button"
-                onClick={handleAnalyze}
-                disabled={!file || isAnalyzing}
-                className="gap-2"
-              >
-                {isAnalyzing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4" />
-                )}
-                Analisar demonstrativo
-              </Button>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Tipo de demonstrativo</label>
+            <div className="flex gap-2">
+              {(["INFRAERO", "DECEA", "POUSO"] as TipoDemo[]).map((t) => (
+                <button key={t} onClick={() => setTipo(t)} className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${tipo === t ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700"}`}>
+                  {TIPO_LABEL[t]}
+                </button>
+              ))}
             </div>
-            {previewUrl && (
-              <div className="mt-3 rounded-lg border border-border/50 p-2 bg-muted/30 inline-block">
-                <img src={previewUrl} alt="Prévia demonstrativo" className="max-h-48 rounded" />
-              </div>
-            )}
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Matrícula da aeronave</label>
+            <select value={aircraftId} onChange={(e) => setAircraftId(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-cyan-400">
+              <option value="">Selecione a aeronave</option>
+              {aeronaves.map((a) => <option key={a.id} value={a.id}>{a.matricula}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Imagem do demonstrativo</label>
+          <div className="flex items-center gap-3">
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handleFileChange(e.target.files?.[0] || null)} className="flex-1 text-sm text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 file:cursor-pointer" />
+            <button onClick={handleAnalyze} disabled={!file || isAnalyzing || !aircraftId} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {isAnalyzing ? <Hourglass className="h-4 w-4 animate-spin" /> : null}
+              ANALISAR 
+            </button>
+          </div>
+          {previewUrl && (
+            <div className="mt-3 inline-block rounded-lg border border-slate-700 p-2 bg-slate-900/40">
+              <img src={previewUrl} alt="Prévia demonstrativo" className="max-h-40 rounded" />
+            </div>
+          )}
+        </div>
+      </div>
 
       {result && (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileImage className="h-4 w-4" /> Dados extraídos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div>
-                  <div className="text-muted-foreground">Nº Documento</div>
-                  <div className="font-medium">{result.numero_documento || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Competência</div>
-                  <div className="font-medium">{result.competencia || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Matrícula</div>
-                  <div className="font-medium">{result.aeronave_matricula || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Valor total</div>
-                  <div className="font-medium">
-                    {result.valor_total != null ? brl(result.valor_total) : brl(consolidado.total)}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Dados extraídos */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+            <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-slate-200"><FileImage className="h-4 w-4 text-cyan-400" /> Dados extraídos</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <DataField label="Nº Documento" value={result.numero_documento || "—"} />
+              <DataField label="Competência" value={result.competencia || "—"} />
+              <DataField label="Matrícula" value={result.aeronave_matricula || "—"} />
+              <DataField label="Valor total" value={result.valor_total != null ? brl(result.valor_total) : brl(consolidado.total)} />
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Operações — atribua o sócio/cliente por linha
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Hora</TableHead>
-                      <TableHead>Operação</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="min-w-[240px]">Sócio / Cliente</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {linhas.map((l, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{l.data}</TableCell>
-                        <TableCell>{l.hora || "—"}</TableCell>
-                        <TableCell className="text-xs">{l.operacao || "—"}</TableCell>
-                        <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
-                        <TableCell>
-                          <div className="space-y-1.5">
-                            <SearchableCombobox
-                              items={[
-                                ...SPECIAL_RATEIO_OPTIONS,
-                                ...opcoesAtribuicao.map((o) => ({
-                                  id: o.nome,
-                                  label: (o as any).isEmprestimo ? `${o.nome} (empréstimo)` : o.nome,
-                                })),
-                              ]}
-                              value={l.cotistaNome}
-                              onChange={(_id, label) => {
-                                const nomeSelecionado = label.replace(" (empréstimo)", "");
-                                const opcaoSelecionada = opcoesAtribuicao.find(
-                                  (o) => o.nome === nomeSelecionado
-                                );
-                                setLinhas((prev) => {
-                                  if (!isSpecialRateio(label)) {
-                                    return prev.map((it, i) =>
-                                      i === idx
-                                        ? {
-                                            ...it,
-                                            cotistaNome: nomeSelecionado,
-                                            sugeridoDoDiario: false,
-                                            naoIdentificado: false,
-                                            isEmprestimo: !!(opcaoSelecionada as any)?.isEmprestimo,
-                                          }
-                                        : it
-                                    );
-                                  }
-
-                                  return prev.flatMap((it, i) =>
-                                    i === idx
-                                      ? expandSpecialRateioLine(
-                                          {
-                                            ...it,
-                                            cotistaNome: nomeSelecionado,
-                                            sugeridoDoDiario: false,
-                                            naoIdentificado: false,
-                                            isEmprestimo: false,
-                                          },
-                                          cotistas
-                                        )
-                                      : [it]
-                                  );
-                                });
-                              }}
-                              placeholder="Selecione o sócio/cliente"
-                              searchPlaceholder="Buscar cotista ou digitar novo..."
-                              emptyMessage="Nenhum cotista cadastrado"
-                              allowFreeText
-                            />
-                            {l.sugeridoDoDiario && l.cotistaNome && !l.isEmprestimo && (
-                              <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Sugerido a partir do diário de bordo
-                              </div>
-                            )}
-                            {l.isEmprestimo && l.cotistaNome && (
-                              <div className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400">
-                                <Repeat className="h-3 w-3" />
-                                Empréstimo — cobrança direta do tomador, fora do rateio dos cotistas
-                              </div>
-                            )}
-                            {l.naoIdentificado && !l.cotistaNome && (
-                              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
-                                <AlertCircle className="h-3 w-3" />
-                                Não identificado no diário — informe manualmente
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              setLinhas((prev) => prev.filter((_, i) => i !== idx))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Rateio consolidado</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {consolidado.rows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Atribua os sócios nas linhas acima para ver o rateio.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sócio / Cliente</TableHead>
-                      <TableHead className="text-center">Operações</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="text-right">%</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {consolidado.rows.map((r) => (
-                      <TableRow key={r.nome}>
-                        <TableCell className="font-medium">
-                          {r.nome}
-                          {r.isEmprestimo && (
-                            <Badge variant="outline" className="ml-2 text-[10px] text-blue-600 border-blue-400">
-                              empréstimo
-                            </Badge>
+          {/* Operações — atribuição por linha */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+            <div className="text-sm font-semibold text-slate-200 mb-3">Operações — atribua o sócio/cliente por linha</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2.5 text-left">Data</th>
+                    <th className="px-3 py-2.5 text-left">Hora</th>
+                    <th className="px-3 py-2.5 text-left">Operação</th>
+                    <th className="px-3 py-2.5 text-right">Valor</th>
+                    <th className="px-3 py-2.5 text-left min-w-[220px]">Sócio / Cliente</th>
+                    <th className="px-3 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((l, idx) => (
+                    <tr key={idx} className="border-t border-slate-800/60">
+                      <td className="px-3 py-3 text-slate-300">{l.data}</td>
+                      <td className="px-3 py-3 text-slate-400">{l.hora || "—"}</td>
+                      <td className="px-3 py-3 text-slate-400 text-xs">{l.operacao || "—"}</td>
+                      <td className="px-3 py-3 text-right font-medium text-slate-200">{brl(l.valor)}</td>
+                      <td className="px-3 py-3">
+                        <div className="space-y-1.5">
+                          <SearchableCotista
+                            opcoes={opcoesAtribuicao}
+                            value={l.cotistaNome}
+                            onChange={(nome, isEmp) => updateLinhaCotista(idx, nome, isEmp)}
+                          />
+                          {l.sugeridoDoDiario && l.cotistaNome && !l.isEmprestimo && (
+                            <div className="flex items-center gap-1 text-[11px] text-emerald-400"><CheckCircle2 className="h-3 w-3" /> Sugerido pelo diário de bordo</div>
                           )}
-                        </TableCell>
-                        <TableCell className="text-center">{r.itens}</TableCell>
-                        <TableCell className="text-right">{brl(r.valor)}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="secondary">{r.percentual.toFixed(2)}%</Badge>
-                        </TableCell>
-                      </TableRow>
+                          {l.isEmprestimo && l.cotistaNome && (
+                            <div className="flex items-center gap-1 text-[11px] text-sky-400"><Repeat className="h-3 w-3" /> Empréstimo — cobrança direta do tomador, fora do rateio</div>
+                          )}
+                          {l.naoIdentificado && !l.cotistaNome && (
+                            <div className="flex items-center gap-1 text-[11px] text-amber-400"><AlertCircle className="h-3 w-3" /> Não identificado no diário — informe manualmente</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <button onClick={() => setLinhas((prev) => prev.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-rose-400"><Trash2 className="h-4 w-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Rateio consolidado */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
+            <div className="text-sm font-semibold text-slate-200">Rateio consolidado</div>
+            {consolidado.rows.length === 0 ? (
+              <p className="text-sm text-slate-400">Atribua os sócios nas linhas acima para ver o rateio.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2.5 text-left">Sócio / Cliente</th>
+                      <th className="px-3 py-2.5 text-center">Operações</th>
+                      <th className="px-3 py-2.5 text-right">Valor</th>
+                      <th className="px-3 py-2.5 text-right">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consolidado.rows.map((r) => (
+                      <tr key={r.nome} className="border-t border-slate-800/60">
+                        <td className="px-3 py-2.5 font-medium text-slate-200">
+                          {r.nome}
+                          {r.isEmprestimo && <span className="ml-2 text-[10px] text-sky-400 border border-sky-400/30 rounded-full px-2 py-0.5">empréstimo</span>}
+                        </td>
+                        <td className="px-3 py-2.5 text-center text-slate-400">{r.itens}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{brl(r.valor)}</td>
+                        <td className="px-3 py-2.5 text-right"><span className="text-xs bg-slate-800 text-slate-300 rounded-full px-2 py-0.5">{r.percentual.toFixed(2)}%</span></td>
+                      </tr>
                     ))}
-                    <TableRow>
-                      <TableCell className="font-bold">Total</TableCell>
-                      <TableCell />
-                      <TableCell className="text-right font-bold">
-                        {brl(consolidado.total)}
-                      </TableCell>
-                      <TableCell className="text-right font-bold">100%</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              )}
-
-              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleAcao("recibo")}
-                  disabled={
-                    isGenerating ||
-                    consolidado.rows.length === 0 ||
-                    consolidado.semAtribuicao > 0
-                  }
-                  className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
-                >
-                  {generatingMode === "recibo" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Receipt className="h-3 w-3" />
-                  )}
-                  APENAS GERAR RECIBO
-                </Button>
-
-                <Button
-                  size="sm"
-                  onClick={() => handleAcao("recibo_pgto")}
-                  disabled={
-                    isGenerating ||
-                    consolidado.rows.length === 0 ||
-                    consolidado.semAtribuicao > 0
-                  }
-                  className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
-                >
-                  {generatingMode === "recibo_pgto" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Receipt className="h-3 w-3" />
-                  )}
-                  GERAR RECIBO E ENVIAR PARA PAGAMENTO
-                </Button>
-
-                <Button
-                  size="sm"
-                  onClick={() => handleAcao("pgto")}
-                  disabled={
-                    isGenerating ||
-                    consolidado.rows.length === 0 ||
-                    consolidado.semAtribuicao > 0
-                  }
-                  className="gap-2 bg-gray-300 border border-blue-500 text-blue-700 hover:bg-blue-500 hover:text-white transition-colors"
-                >
-                  {generatingMode === "pgto" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Send className="h-3 w-3" />
-                  )}
-                  APENAS ENVIAR PARA PAGAMENTO
-                </Button>
+                    <tr className="border-t border-slate-700">
+                      <td className="px-3 py-2.5 font-bold text-slate-100">Total</td>
+                      <td className="px-3 py-2.5" />
+                      <td className="px-3 py-2.5 text-right font-bold tabular-nums text-slate-100">{brl(consolidado.total)}</td>
+                      <td className="px-3 py-2.5 text-right font-bold text-slate-100">100%</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-            </CardContent>
-          </Card>
+            )}
+
+            <div className="space-y-3 pt-2">
+              <div className="max-w-md">
+                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Cliente principal para a solicitação</label>
+                <SearchableCombobox
+                  items={clienteRateioItems}
+                  value={clienteRateioSelecionado}
+                  onChange={(id) => setClienteRateioSelecionado(id)}
+                  placeholder="Selecione o cliente"
+                  searchPlaceholder="Buscar cliente..."
+                  emptyMessage="Nenhum cliente encontrado"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row justify-end gap-2">
+                <button onClick={() => handleAcao("recibo")} disabled={isGenerating || consolidado.rows.length === 0 || consolidado.semAtribuicao > 0} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/10 transition-colors disabled:opacity-50">
+                  {generatingMode === "recibo" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Receipt className="h-3.5 w-3.5" />}
+                  Gerar Recibo
+                </button>
+                <button onClick={() => handleAcao("pgto")} disabled={isGenerating || consolidado.rows.length === 0 || consolidado.semAtribuicao > 0} className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/10 transition-colors disabled:opacity-50">
+                  {generatingMode === "pgto" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Enviar para Rateio
+                </button>
+              </div>
+            </div>
+          </div>
         </>
       )}
 
       <SolicitacaoPagamentoModal
-        open={solicitacaoOpen}
-        onOpenChange={(v) => {
-          setSolicitacaoOpen(v);
-          if (!v) {
-            // ao fechar, se veio de fluxo "pgto only" ou "recibo_pgto" - resetar
-            resetForm();
-            onGenerated?.();
-          }
-        }}
-        initialData={solicitacaoInitialData}
+        open={solicitacaoModalOpen}
+        onOpenChange={setSolicitacaoModalOpen}
+        initialData={solicitacaoInitialData || undefined}
       />
+    </div>
+  );
+}
+
+function DataField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-slate-500 text-xs">{label}</div>
+      <div className="font-medium text-slate-200">{value}</div>
+    </div>
+  );
+}
+
+function SearchableCotista({ opcoes, value, onChange }: { opcoes: (Cotista | Tomador)[]; value: string; onChange: (nome: string, isEmprestimo: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const filtered = opcoes.filter((o) => o.nome.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen(!open)} className="w-full px-3 py-2 rounded-lg border border-slate-700 bg-slate-900/60 text-xs text-left flex items-center justify-between outline-none focus:border-cyan-400 transition-colors">
+        <span className={value ? "text-slate-200" : "text-slate-500"}>
+          {(() => {
+            const sel = opcoes.find((o) => o.nome === value);
+            return sel ? (sel as any).isEmprestimo ? `${sel.nome} (empréstimo)` : sel.nome : "Selecione";
+          })()}
+        </span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => { setOpen(false); setQuery(""); }} />
+          <div className="absolute z-50 top-full mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg shadow-2xl overflow-hidden">
+            <div className="p-2 border-b border-slate-700">
+              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar cotista…" className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 outline-none focus:border-cyan-400" />
+            </div>
+            <div className="max-h-40 overflow-y-auto">
+              {filtered.length === 0 ? <p className="px-3 py-3 text-xs text-slate-500 text-center">Nenhum resultado</p> :
+                filtered.map((o) => (
+                  <button key={o.id} type="button" onClick={() => { onChange(o.nome, !!(o as any).isEmprestimo); setOpen(false); setQuery(""); }} className={`w-full px-3 py-2 text-xs text-left hover:bg-slate-800 transition-colors ${o.nome === value ? "text-cyan-400 bg-cyan-500/10" : "text-slate-200"}`}>
+                    {(o as any).isEmprestimo ? `${o.nome} (empréstimo)` : o.nome}
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -64,19 +64,22 @@ function anexosFromMov(m: any): AnexoLinha[] {
   return list;
 }
 
+// Só grava os campos dos tipos de anexo presentes na tela — assim editar o
+// lançamento nunca apaga NF/boleto/recibo que não foram tocados.
 function anexosToPatch(anexos: AnexoLinha[]) {
-  const first = (t: AnexoTipoId) => anexos.find((a) => a.tipo === t && a.url);
-  const c = first("comprovante"), r = first("recibo"), n = first("nf"), b = first("boleto");
-  return {
-    comprovante_url: c?.url ?? null,
-    recibo_url: r?.url ?? null,
-    nf_url: n?.url ?? null,
-    boleto_url: b?.url ?? null,
-    numero_doc: c?.numero || null,
-    numero_recibo: r?.numero || null,
-    numero_nf: n?.numero || null,
-    numero_boleto: b?.numero || null,
+  const patch: Record<string, string | null> = {};
+  const apply = (t: AnexoTipoId, urlField: string, numeroField: string) => {
+    const linhas = anexos.filter((a) => a.tipo === t);
+    if (linhas.length === 0) return;
+    const comUrl = linhas.find((a) => a.url) || linhas[0];
+    patch[urlField] = comUrl?.url ?? null;
+    patch[numeroField] = comUrl?.numero?.trim() || null;
   };
+  apply("comprovante", "comprovante_url", "numero_doc");
+  apply("recibo", "recibo_url", "numero_recibo");
+  apply("nf", "nf_url", "numero_nf");
+  apply("boleto", "boleto_url", "numero_boleto");
+  return patch;
 }
 
 export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, onSaved }: Props) {
@@ -85,13 +88,14 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const [mov, setMov] = useState<any>(movInit || {});
   const [rateio, setRateio] = useState<any>(null);
   const [anexos, setAnexos] = useState<AnexoLinha[]>(anexosFromMov(movInit || {}));
-  const [categoriaCustoId, setCategoriaCustoId] = useState<string>(movInit?.categoria_id || "");
+  const [categoriaCustoId, setCategoriaCustoId] = useState<string>("");
   const [subcategoria, setSubcategoria] = useState<string>("");
 
   useEffect(() => {
     (async () => {
       const { data: r } = await supabase.from("rateio_despesas").select("*").eq("despesa_id", movId).maybeSingle();
       setRateio(r || null);
+      if (r?.subcategoria_1) setSubcategoria(r.subcategoria_1 as string);
     })();
   }, [movId]);
 
@@ -107,6 +111,13 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   });
 
   const expenseOptions = expenseConfigs.map((c) => ({ id: c.id, label: c.expense_type }));
+  useEffect(() => {
+    if (categoriaCustoId || expenseConfigs.length === 0) return;
+    const nome = String(movInit?.categoria_nome || "").trim().toLowerCase();
+    if (!nome) return;
+    const match = expenseConfigs.find((c) => String(c.expense_type || "").trim().toLowerCase() === nome);
+    if (match) setCategoriaCustoId(match.id);
+  }, [expenseConfigs, categoriaCustoId, movInit?.categoria_nome]);
   const selected = expenseConfigs.find((c) => c.id === categoriaCustoId);
   const subcatOptions = selected
     ? [selected.subcategoria_1, selected.subcategoria_2, selected.subcategoria_3, selected.subcategoria_4]
@@ -128,8 +139,8 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         data_pagamento: mov.data_pagamento || null,
         forma_pagamento: mov.forma_pagamento,
         valor_rateado: numOrNull(mov.valor_rateado),
-        observacoes: subcategoria ? `${mov.observacoes || ""}\n[Subcategoria: ${subcategoria}]`.trim() : mov.observacoes,
-        categoria_id: categoriaCustoId || null,
+        observacoes: mov.observacoes || null,
+        categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? null,
         ...anexosToPatch(anexos),
       };
       const { error: e1 } = await supabase.from("movimentacoes").update(patch).eq("id", movId);
@@ -142,6 +153,8 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           fornecedor_nome: mov.fornecedor_nome,
           data_vencimento: mov.data_vencimento || null,
           data_pagamento: mov.data_pagamento || null,
+          categoria_custo: selected?.expense_type ?? rateio.categoria_custo ?? null,
+          subcategoria_1: subcategoria || rateio.subcategoria_1 || null,
           ...anexosToPatch(anexos),
         }).eq("id", rateio.id);
       }

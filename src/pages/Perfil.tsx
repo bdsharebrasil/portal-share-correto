@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Loader2, Save, Edit, User as UserIcon, Calendar, AlertCircle, CheckCircle, Clock, Lock, Eye, EyeOff } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";

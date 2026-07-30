@@ -312,8 +312,8 @@ export default function BaixaPagamentoModal({
         status: precisaAguardarReembolso
           ? "aguardando_reembolso"
           : entrada
-          ? "receita paga"
-          : "despesa paga",
+          ? "recebido"
+          : "pago",
         pago_diretamente: pagoDiretamente,
         percentual_uso: percentualUso ? parseFloat(percentualUso) : null,
         valor_rateado: parseFloat(valorRateado) || 0,
@@ -406,7 +406,7 @@ export default function BaixaPagamentoModal({
       }
 
       // 5. Update rateio_despesas for this movimentacao
-      if (rateioRows.length > 1) {
+      if (rateioRows.length > 0) {
         // Persistir ajustes individuais por cotista
         await Promise.all(
           rateioRows.map((r) =>
@@ -626,7 +626,7 @@ export default function BaixaPagamentoModal({
           </div>
 
           {/* Rateio entre cotistas — quando a despesa possui múltiplos rateios */}
-          {rateioRows.length > 1 && (
+          {rateioRows.length > 0 && (
             <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div>

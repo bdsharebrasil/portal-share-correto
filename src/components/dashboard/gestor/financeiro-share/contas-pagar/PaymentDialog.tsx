@@ -500,25 +500,23 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
           .limit(1);
         categoriaId = catData?.[0]?.id || null;
       }
-      if (categoriaId) {
-        await (supabase.from("controle_bancario") as unknown as SupabaseQuery).insert([{
-          data: dataPagamento,
-          tipo_movimento: "saida",
-          categoria_id: categoriaId,
-          descricao: `${conta!.categoria} - ${conta!.fornecedor_nome}`,
-          valor: valorNum,
-          banco_pagamento: banco,
-          status: "pago",
-          fornecedores_favoritos_id: conta!.fornecedor_favorito_id || null,
-          client_id: conta!.cliente_id || null,
-          aeronave_id: conta!.aeronave_id || null,
-          aeronave_registro: conta!.aeronave_registro || null,
-          comprovante_url: comprovanteUrl || null,
-          grupo_categoria: conta!.categoria,
-          criado_por: user?.id,
-          numero_documento: conta!.numero || null,
-          referencia: conta!.id,
-        }]);
+
+      // `controle_bancario` foi descontinuado — a fonte única de verdade é
+      // `movimentacoes`. Aqui apenas completamos os metadados contábeis e
+      // registramos a origem do caixa que efetivamente pagou.
+      const metadadosMovimentacao: any = {
+        tipo_caixa: origemCaixa,
+        pago_por: origemCaixa === "share" ? "Share Brasil" : (pagoPor || "CLIENTE"),
+        atualizado_em: new Date().toISOString(),
+      };
+      if (categoriaId) metadadosMovimentacao.categoria_id = categoriaId;
+      if (conta!.aeronave_id) metadadosMovimentacao.aeronave_id = conta!.aeronave_id;
+
+      const { error: metaError } = await (supabase.from("movimentacoes") as unknown as SupabaseQuery)
+        .update(metadadosMovimentacao)
+        .eq("contas_apagar_id", conta!.id);
+      if (metaError) {
+        console.warn("Não foi possível atualizar metadados da movimentação:", metaError);
       }
 
       if (origemCaixa === "share") {

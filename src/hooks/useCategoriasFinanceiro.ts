@@ -243,7 +243,6 @@ export function useCategoriasConta() {
           tipo_conta: conta.tipo_conta || "corrente",
           ativo: true,
           criado_por: user.id,
-          empresa_id: (user as any).empresa_id || 'default'
         }]);
 
       if (error) {

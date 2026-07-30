@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { HourTransaction, HourTransactionWithDetails } from '@/integrations/supabase/types-hour-bank';

@@ -31,6 +31,7 @@ import ReembolsoModal from "./ReembolsoModal";
 import EditLancamentoModal from "./EditLancamentoModal";
 import AttachmentViewerModal from "./AttachmentViewerModal";
 import NovaDespesaShareForm from "./NovaDespesaShareForm";
+import NovaDespesaClienteForm from "./NovaDespesaClienteForm";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -187,6 +188,7 @@ export default function FluxoCaixaTab() {
   const [baixaMov, setBaixaMov] = useState<Movimentacao | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
   const [showNewMov, setShowNewMov] = useState(false);
+  const [newMovCaixa, setNewMovCaixa] = useState<"share" | "cliente">("share");
   const [viewAttachment, setViewAttachment] = useState<{ url: string; title: string } | null>(null);
   const [sortBy, setSortBy] = useState<"data" | "nome">("data");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -428,16 +430,22 @@ export default function FluxoCaixaTab() {
     setExpandedId(null);
   }, [baixaMov]);
 
+  /** Determina, com base na aba ativa (e no sub-toggle de Contas a Pagar), qual caixa o botão "Nova" deve abrir. */
   const openNewMov = useCallback(() => {
+    const caixa: "share" | "cliente" =
+      activeTab === "caixa_cliente" ? "cliente" :
+      activeTab === "contas_pagar" ? contasCaixa :
+      "share";
+    setNewMovCaixa(caixa);
     setShowNewMov(true);
-  }, []);
+  }, [activeTab, contasCaixa]);
 
   const onNewMovSaved = useCallback((createdMovs: Movimentacao[]) => {
     setMovs((prev) => [...createdMovs, ...prev]);
     setShowNewMov(false);
-    setActiveTab("caixa_share");
+    setActiveTab(newMovCaixa === "cliente" ? "caixa_cliente" : "caixa_share");
     setCurrentPage(1);
-  }, []);
+  }, [newMovCaixa]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Deseja realmente excluir esta movimentação?")) return;
@@ -508,13 +516,20 @@ export default function FluxoCaixaTab() {
         })}
       </div>
 
-      {/* Formulário Expansor - Movido para cá */}
+      {/* Formulário Expansor - abre o form correto de acordo com a aba/caixa alvo */}
       {showNewMov && (
         <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-4 shadow-lg backdrop-blur-sm animate-in slide-in-from-top-4 fade-in duration-300">
-          <NovaDespesaShareForm
-            onCancel={() => setShowNewMov(false)}
-            onSaved={onNewMovSaved}
-          />
+          {newMovCaixa === "cliente" ? (
+            <NovaDespesaClienteForm
+              onCancel={() => setShowNewMov(false)}
+              onSaved={onNewMovSaved}
+            />
+          ) : (
+            <NovaDespesaShareForm
+              onCancel={() => setShowNewMov(false)}
+              onSaved={onNewMovSaved}
+            />
+          )}
         </div>
       )}
 
@@ -766,8 +781,6 @@ export default function FluxoCaixaTab() {
           onSaved={(movPatch: any) => { setEditMovId(null); onBaixaSuccess(movPatch || {}); }}
         />
       )}
-
-      {/* NovaDespesaShareForm foi removido daqui e subiu para baixo das abas */}
 
       {viewAttachment && (
         <AttachmentViewerModal

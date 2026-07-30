@@ -623,27 +623,30 @@ function DiarioBordoDetalhes() {
         diarioMes?.celula_atual_ttotal ?? 0
       );
 
-  const handleOpenCreateMonth = async () => {
-    try {
-      const mesAnterior = mes === 1 ? 12 : mes! - 1;
-      const anoAnterior = mes === 1 ? ano! - 1 : ano!;
-      const { data: previousMonth } = await supabase.from("diario_mes").select("*")
-        .eq("aeronave_id", aircraftId).eq("ano", anoAnterior).eq("mes", mesAnterior).maybeSingle();
-      setPreviousMonthForCreation(previousMonth);
-      setShowCreateMonth(true);
-    } catch { setShowCreateMonth(true); }
+  // FIX (bug célula anterior): o mês atualmente aberto na tela (`diarioMes`)
+  // é o "mês anterior" em relação ao novo mês que será criado — os dados já
+  // estão carregados no state, não é necessário (nem correto) buscar mais um
+  // mês para trás. A busca anterior pegava `mes - 1`, o que fazia a célula
+  // atual de FEVEREIRO ser usada como célula anterior de ABRIL em vez da
+  // célula atual de MARÇO.
+  const handleOpenCreateMonth = () => {
+    setPreviousMonthForCreation(diarioMes);
+    setShowCreateMonth(true);
   };
 
   const handleCreateMonth = async (data: any) => {
     try {
-      const mesAnterior = mes === 1 ? 12 : mes! - 1;
-      const anoAnterior = mes === 1 ? ano! - 1 : ano!;
-      const { data: previousMonth } = await supabase.from("diario_mes").select("id, fechado")
-        .eq("aeronave_id", aircraftId).eq("ano", anoAnterior).eq("mes", mesAnterior).maybeSingle();
-      if (previousMonth && !previousMonth.fechado) {
-        toast.warning("Aviso: O mês anterior ainda não foi fechado!", {
-          description: `${monthNames[mesAnterior - 1]}/${anoAnterior} - Feche o mês anterior antes de prosseguir`,
-        });
+      // FIX: a checagem de "mês anterior não fechado" deve olhar para o mês
+      // atualmente aberto na tela (mes/ano), que é o mês que está virando
+      // "anterior" do novo mês — e não para um mês antes dele.
+      if (mes !== null && ano !== null) {
+        const { data: currentMonthCheck } = await supabase.from("diario_mes").select("id, fechado")
+          .eq("aeronave_id", aircraftId).eq("ano", ano).eq("mes", mes).maybeSingle();
+        if (currentMonthCheck && !currentMonthCheck.fechado) {
+          toast.warning("Aviso: O mês anterior ainda não foi fechado!", {
+            description: `${monthNames[mes - 1]}/${ano} - Feche o mês anterior antes de prosseguir`,
+          });
+        }
       }
       await supabase.from("aeronave").update({ modo_celula: data.modo_celula }).eq("id", aircraftId);
       const { error } = await supabase.from("diario_mes").insert({
@@ -1551,8 +1554,8 @@ function DiarioBordoDetalhes() {
         onOpenChange={(open) => { setShowCreateMonth(open); if (!open) setPreviousMonthForCreation(null); }}
         aircraftId={aircraftId!}
         aircraftRegistration={aeronave?.matricula ?? ""}
-        month={mes ?? new Date().getMonth() + 1}
-        year={ano ?? new Date().getFullYear()}
+        month={mes === 12 ? 1 : (mes ?? new Date().getMonth() + 1) + 1}
+        year={mes === 12 ? (ano ?? new Date().getFullYear()) + 1 : (ano ?? new Date().getFullYear())}
         currentModoCelula={aeronave?.modo_celula}
         previousMonthData={previousMonthForCreation}
         onCreate={handleCreateMonth}

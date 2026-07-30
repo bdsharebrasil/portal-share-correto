@@ -11,6 +11,51 @@ interface GeneratePdfOptions {
 }
 
 /**
+ * Normaliza um registro da tabela `recibos` (colunas em PT) para o formato
+ * esperado pelo componente de PDF (chaves em EN) e carrega os dados do emissor.
+ */
+export const normalizeReceiptForPdf = async (receiptData: any) => {
+  let emissor = receiptData?.emissor || null;
+  if (!emissor) {
+    const { data: empresa } = await (supabase as any)
+      .from("configuracao_empresa")
+      .select("*")
+      .order("criado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (empresa) {
+      emissor = {
+        razao_social: empresa.razao_social,
+        cnpj: empresa.cnpj,
+        telefone: empresa.telefone,
+        endereco: empresa.endereco,
+        cidade: empresa.cidade,
+        cep: empresa.cep,
+      };
+    }
+  }
+
+  return {
+    ...receiptData,
+    receipt_number: receiptData.receipt_number || receiptData.numero_recibo || "",
+    payer_name: receiptData.payer_name || receiptData.nome_pagador || "",
+    payer_document: receiptData.payer_document || receiptData.documento_pagador || "",
+    payer_address: receiptData.payer_address || receiptData.endereco_pagador || null,
+    payer_city: receiptData.payer_city || receiptData.cidade_pagador || null,
+    payer_uf: receiptData.payer_uf || receiptData.uf_pagador || null,
+    service_description: receiptData.service_description || receiptData.descricao_servico || "",
+    receipt_type: receiptData.receipt_type || receiptData.tipo_recibo || "pagamento",
+    issue_date: receiptData.issue_date || receiptData.data_emissao || null,
+    max_payment_date: receiptData.max_payment_date || receiptData.data_max_pagamento || null,
+    payment_method: receiptData.payment_method || receiptData.forma_pagamento || null,
+    documento_number: receiptData.documento_number || receiptData.numero_documento || null,
+    nome_categoria: receiptData.nome_categoria || null,
+    valor: Number(receiptData.valor ?? receiptData.amount ?? 0),
+    emissor,
+  };
+};
+
+/**
  * Hook para gerar e fazer upload de PDF de recibos
  * Usa @react-pdf/renderer para a geração
  */
@@ -32,10 +77,14 @@ export const useReceiptPdfGenerator = () => {
         throw new Error("Número do recibo não encontrado");
       }
 
+      // Normalizar para o formato do documento PDF
+      const pdfData = await normalizeReceiptForPdf(receiptData);
+
       // Gerar PDF usando @react-pdf/renderer
       const pdfBlob = await pdf(
-        <ReciboDocument data={receiptData} />
+        <ReciboDocument data={pdfData} />
       ).toBlob();
+
 
       if (!pdfBlob) {
         throw new Error("Falha ao gerar PDF");

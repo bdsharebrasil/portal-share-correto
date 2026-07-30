@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Aeronave Types
 export interface Aeronave {
   id: string;

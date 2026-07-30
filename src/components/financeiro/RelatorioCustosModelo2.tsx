@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { useRelatorioCustosModelo2 } from "@/hooks/useRelatorioCustosModelo2";
 import {

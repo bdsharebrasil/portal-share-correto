@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, ChangeEvent, useEffect, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";

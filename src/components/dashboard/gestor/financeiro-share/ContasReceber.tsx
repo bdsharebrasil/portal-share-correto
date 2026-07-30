@@ -659,7 +659,8 @@ export function ContasReceber() {
         }
       }
 
-      // controle_bancario foi removido; atualizamos diretamente `contas_areceber` abaixo.
+      // `controle_bancario` foi removido; a baixa acontece em `contas_areceber`
+      // e/ou diretamente em `movimentacoes` (linhas virtuais da conciliação).
 
       const updateData: any = {
         status: "recebido",
@@ -673,46 +674,43 @@ export function ContasReceber() {
         updateData.comprovante_recebimento_url = comprovanteUrl;
       }
 
-      const movimentacaoUpdate = {
-        status: "recebido",
+      // Em `movimentacoes` o status válido é "pago" (não existe "recebido").
+      const movimentacaoUpdate: any = {
+        status: "pago",
         data_pagamento: dataRecebimento,
         banco_nome: nomeBanco,
         forma_pagamento: metodo_pagamento || null,
-        comprovante_url: comprovanteUrl || null,
         atualizado_em: new Date().toISOString(),
       };
-
-      // Registros virtuais são originados apenas de movimentacoes e não possuem
-      // uma linha correspondente em contas_areceber para atualizar.
-      if (contasReceberData.isFromBankReconciliation) {
-        const movId = contasReceberData.bankReconciliationId || contasReceberData.id;
-        const { error: movimentacaoError } = await (supabase.from("movimentacoes") as any)
-          .update(movimentacaoUpdate)
-          .eq("id", movId);
-        if (movimentacaoError) throw movimentacaoError;
-
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["contas-receber"] }),
-          queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }),
-          queryClient.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] }),
-        ]);
-        toast.success("Conta marcada como recebida!");
-        resetBankDialog();
-        await loadContas();
-        return;
+      if (comprovanteUrl) {
+        movimentacaoUpdate.comprovante_url = comprovanteUrl;
       }
 
-      const { data: updatedRows, error: updateError } = await supabase
-        .from("contas_areceber")
-        .update(updateData)
-        .eq("id", contasReceberData.id)
-        .select("id,status,data_recebimento");
+      // ─── 1. Tenta baixar a linha real em contas_areceber ────────────────────
+      // Não confiamos apenas na flag `isFromBankReconciliation`: o mesmo id pode
+      // aparecer nas duas origens. Tentamos o update e verificamos as linhas.
+      let baixouAlgo = false;
 
-      if (updateError) throw updateError;
-      if (!updatedRows?.length) throw new Error("Nenhuma conta a receber foi atualizada.");
+      if (!contasReceberData.isFromBankReconciliation) {
+        const { data: updatedRows, error: updateError } = await supabase
+          .from("contas_areceber")
+          .update(updateData)
+          .eq("id", contasReceberData.id)
+          .select("id,status,data_recebimento");
 
-      const movimentacaoId = contasReceberData.movimentacao_id;
-      let movimentacoesQuery = (supabase.from("movimentacoes") as any).update(movimentacaoUpdate);
+        if (updateError) throw updateError;
+        baixouAlgo = !!updatedRows?.length;
+      }
+
+      // ─── 2. Baixa a movimentação vinculada (ou a linha virtual) ─────────────
+      const movimentacaoId =
+        contasReceberData.movimentacao_id ||
+        contasReceberData.bankReconciliationId ||
+        (contasReceberData.isFromBankReconciliation ? contasReceberData.id : null);
+
+      let movimentacoesQuery = (supabase.from("movimentacoes") as any)
+        .update(movimentacaoUpdate);
+
       if (movimentacaoId) {
         movimentacoesQuery = movimentacoesQuery.eq("id", movimentacaoId);
       } else if (contasReceberData.reference_type && contasReceberData.reference_id) {
@@ -724,19 +722,38 @@ export function ContasReceber() {
         movimentacoesQuery = movimentacoesQuery.eq("contas_areceber_id", contasReceberData.id);
       }
 
-      const { error: movimentacoesError } = await movimentacoesQuery;
+      const { data: movRows, error: movimentacoesError } = await movimentacoesQuery.select("id");
       if (movimentacoesError) throw movimentacoesError;
+      baixouAlgo = baixouAlgo || !!movRows?.length;
+
+      // ─── 3. Fallback: nada foi baixado — tenta a movimentação pelo próprio id ─
+      if (!baixouAlgo) {
+        const { data: fallbackRows, error: fallbackError } = await (supabase.from("movimentacoes") as any)
+          .update(movimentacaoUpdate)
+          .eq("id", contasReceberData.id)
+          .select("id");
+        if (fallbackError) throw fallbackError;
+        baixouAlgo = !!fallbackRows?.length;
+      }
+
+      if (!baixouAlgo) {
+        throw new Error(
+          "Nenhum registro foi atualizado. Verifique se o lançamento ainda existe ou se você tem permissão para alterá-lo."
+        );
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["contas-receber"] }),
         queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }),
         queryClient.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] }),
+        queryClient.invalidateQueries({ queryKey: ["rateio-despesas"] }),
       ]);
 
       toast.success("Conta marcada como recebida!");
       resetBankDialog();
       await loadContas();
     } catch (error: any) {
+      console.error("Erro ao marcar como recebido:", error);
       toast.error(error.message || "Erro ao marcar como recebido");
     } finally {
       setIsUploadingComprovante(false);

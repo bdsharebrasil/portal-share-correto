@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Substitui o antigo useControleBancario.
  * A tabela `controle_bancario` não existe mais — os dados agora vêm de
  * `movimentacoes` (que já contém a coluna `tipo_caixa`: 'share' | 'cliente').
  *

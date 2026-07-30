@@ -121,6 +121,8 @@ interface GrupoLancamento {
   despesa_id: string | null;
   fonte_despesa: string | null;
   ids: string[];
+  /** Clientes envolvidos no rateio dessa despesa — usado pelo filtro por cliente. */
+  clienteIds: string[];
   data_emissao: string | null;
   data_pagamento: string | null;
   data_vencimento: string | null;
@@ -161,6 +163,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
   const [ano, setAno] = useState(hoje.getFullYear());
   const [busca, setBusca] = useState("");
   const [fluxoFiltro, setFluxoFiltro] = useState<"TODOS" | "ENTRADA" | "SAIDA">("TODOS");
+  const [clienteFiltro, setClienteFiltro] = useState<string>("TODOS");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [selectedChaves, setSelectedChaves] = useState<string[]>([]);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
@@ -419,6 +422,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           despesa_id: r.despesa_id || null,
           fonte_despesa: r.fonte_despesa || null,
           ids: [],
+          clienteIds: [],
           data_emissao: r.data_emissao ?? r.data_pagamento ?? r.data_vencimento ?? null,
           data_pagamento: r.data_pagamento,
           data_vencimento: r.data_vencimento,
@@ -447,7 +451,10 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
       }
       const g = map.get(chave)!;
       g.ids.push(r.id);
-      if (r.cliente_id) g.rateiosPorCotista.set(r.cliente_id, r);
+      if (r.cliente_id) {
+        g.rateiosPorCotista.set(r.cliente_id, r);
+        if (!g.clienteIds.includes(r.cliente_id)) g.clienteIds.push(r.cliente_id);
+      }
       if (r.socio_id) g.rateiosPorCotista.set(r.socio_id, r);
     });
     return Array.from(map.values());
@@ -468,6 +475,7 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
           if (!t.includes(q)) return false;
         }
         if (fluxoFiltro !== "TODOS" && normalizeFluxo(g.fluxo) !== fluxoFiltro) return false;
+        if (clienteFiltro !== "TODOS" && !g.clienteIds.includes(clienteFiltro)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -484,7 +492,17 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         }
         return sortDirection === "asc" ? valA - valB : valB - valA;
       });
-  }, [grupos, mes, ano, busca, fluxoFiltro, sortDirection, categorias]);
+  }, [grupos, mes, ano, busca, fluxoFiltro, clienteFiltro, sortDirection, categorias]);
+
+  const clientesOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    (rateios || []).forEach((r: any) => {
+      if (r.cliente_id) map.set(r.cliente_id, r.clientes_nome || "Cliente");
+    });
+    return Array.from(map.entries())
+      .map(([id, nome]) => ({ id, nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [rateios]);
 
   const gruposParaSoma = useMemo(() => {
     if (selectedChaves.length === 0) return gruposFiltrados;
@@ -686,6 +704,13 @@ export function CentroLancamentos({ aeronaveId, cotistas, aeronaveLabel }: Centr
         <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
           <SelectTrigger className="w-24 h-9 bg-background border-border rounded-lg text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>{anos.map((a) => <SelectItem key={a} value={String(a)}>{a}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={clienteFiltro} onValueChange={setClienteFiltro}>
+          <SelectTrigger className="w-48 h-9 bg-background border-border rounded-lg text-xs"><SelectValue placeholder="Cliente" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="TODOS">Todos os clientes</SelectItem>
+            {clientesOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+          </SelectContent>
         </Select>
         <Select value={fluxoFiltro} onValueChange={(value) => setFluxoFiltro(value as "TODOS" | "ENTRADA" | "SAIDA") }>
           <SelectTrigger className="w-32 h-9 bg-background border-border rounded-lg text-xs"><SelectValue placeholder="Fluxo" /></SelectTrigger>
@@ -1545,11 +1570,11 @@ function PagamentoDialog({
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Emissão</Label>
               <Input type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} className="h-10 bg-background" />
             </div>
-            <div className="grid gap-2 px-[19px] -mx-[5px]">
+            <div className="grid gap-2">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Vencimento</Label>
               <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} className="h-10 bg-background" />
             </div>
-            <div className="grid gap-2 px-4 mx-5">
+            <div className="grid gap-2">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pagamento</Label>
               <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} disabled={status === "pendente"} className="h-10 bg-background" />
             </div>
@@ -1597,19 +1622,19 @@ function PagamentoDialog({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="grid gap-2 -mx-[17px]">
+            <div className="grid gap-2">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Fornecedor</Label>
               <div className="h-10 bg-background rounded-md [&>button]:h-10">
                 <SearchableCombobox items={fornecedores} value={fornecedor} onChange={(_id, label) => setFornecedor(label || "")} placeholder="Fornecedor..." searchPlaceholder="Buscar..." allowFreeText />
               </div>
             </div>
-            <div className="grid gap-2 px-[34px] mx-[29px]">
+            <div className="grid gap-2">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Categoria</Label>
               <div className="h-10 bg-background rounded-md [&>button]:h-10">
                 <SearchableCombobox items={categorias} value={categoria} onChange={(id) => setCategoria(id || "")} placeholder="Categoria..." searchPlaceholder="Buscar..." allowFreeText={false} />
               </div>
             </div>
-            <div className="grid gap-2 mx-3">
+            <div className="grid gap-2">
               <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Pago por</Label>
               <div className="h-10 bg-background rounded-md [&>button]:h-10">
                 <SearchableCombobox items={pagadores} value={pagador} onChange={(_id, label) => setPagador(label || "")} placeholder="Pagador..." searchPlaceholder="Buscar..." allowFreeText />
@@ -1663,21 +1688,25 @@ function PagamentoDialog({
                   <div className="text-center py-6 text-sm text-muted-foreground border border-dashed border-border/70 rounded-xl bg-muted/10">Nenhum anexo adicionado.</div>
                )}
                {anexos.map((anexo) => (
-                  <div key={anexo.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-muted/10 p-3 rounded-xl border border-border/60 hover:border-border transition-colors group">
-                     <Select value={anexo.tipo} onValueChange={(v) => updateAnexo(anexo.id, "tipo", v)}>
-                        <SelectTrigger className="w-full sm:w-[150px] h-9 bg-background"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                           {TIPOS_ANEXO.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                        </SelectContent>
-                     </Select>
-                     <Input placeholder="Nº do doc..." value={anexo.numero} onChange={e => updateAnexo(anexo.id, "numero", e.target.value)} className="w-full sm:w-[130px] h-9 bg-background" />
-                     <div className="flex-1 min-w-[200px] flex items-center gap-3 w-full">
+                  <div key={anexo.id} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-muted/10 p-3 rounded-xl border border-border/60 hover:border-border transition-colors group">
+                     <div className="w-full sm:w-[170px] shrink-0 [&>button]:h-9 [&>button]:bg-background">
+                        <SearchableCombobox
+                          items={TIPOS_ANEXO.map((t) => ({ id: t.value, label: t.label }))}
+                          value={anexo.tipo}
+                          onChange={(id) => updateAnexo(anexo.id, "tipo", id || "comprovante")}
+                          placeholder="Tipo..."
+                          searchPlaceholder="Buscar tipo..."
+                          allowFreeText={false}
+                        />
+                     </div>
+                     <Input placeholder="Nº do doc..." value={anexo.numero} onChange={e => updateAnexo(anexo.id, "numero", e.target.value)} className="w-full sm:w-[140px] h-9 bg-background" />
+                     <div className="flex-1 min-w-0 flex items-center gap-3 w-full">
                        <Input type="file" accept="image/*,.pdf" onChange={e => updateAnexo(anexo.id, "file", e.target.files?.[0] || null)} className="h-9 file:h-full file:bg-transparent file:text-xs file:font-medium text-xs bg-background" />
                        {anexo.currentUrl && !anexo.file && (
                          <a href={anexo.currentUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] font-medium text-primary whitespace-nowrap hover:underline"><ExternalLink className="w-3.5 h-3.5 inline mr-1"/>Atual</a>
                        )}
                      </div>
-                     <Button variant="ghost" size="icon" className="text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 w-9 h-9 shrink-0" onClick={() => removeAnexo(anexo.id)}>
+                     <Button variant="ghost" size="icon" className="text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 w-9 h-9 shrink-0 self-end sm:self-auto" onClick={() => removeAnexo(anexo.id)}>
                         <Trash2 className="w-4 h-4" />
                      </Button>
                   </div>
@@ -1686,10 +1715,10 @@ function PagamentoDialog({
           </div>
         </div>
         
-        <DialogFooter className="px-6 py-5 border-t border-border/50 bg-muted/20 rounded-b-2xl">
+        <DialogFooter className="px-6 py-5 border-t border-border/50 bg-muted/20 rounded-b-2xl gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="h-10 px-5">Cancelar</Button>
           <Button onClick={handleSalvar} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 h-10 px-5">
-            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processando...</> : <><Upload className="mr-2 h-4 w-4" />Confirmar Pagamento</>}
+            {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processando...</> : <><Upload className="mr-2 h-4 w-4" />{status === "pendente" ? "Salvar Lançamento" : isGrupoEntrada ? "Confirmar Recebimento" : "Confirmar Pagamento"}</>}
           </Button>
         </DialogFooter>
       </DialogContent>

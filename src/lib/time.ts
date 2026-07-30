@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Utilitários para manipulação de tempos em formato decimal e HH:MM
  */

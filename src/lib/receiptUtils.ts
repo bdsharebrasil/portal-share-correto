@@ -319,31 +319,42 @@ export function formatDateExtended(dateString: string): string {
 export async function generateSequentialReceiptNumber(
   clientName: string,
   supabase: any,
-  clienteId?: string | null
+  clienteId?: string | null,
+  options?: { aeronaveId?: string | null; socioId?: string | null }
 ): Promise<string> {
   const today = new Date();
   const year = String(today.getFullYear()).slice(-2);
 
   // 1) Buscar o código oficial do cliente na tabela cotistas_aeronave
+  // Importante: um mesmo cliente pode ter códigos diferentes por aeronave/sócio,
+  // então filtramos por aeronave (e sócio) quando informados.
   let prefix: string | null = null;
 
   if (clienteId) {
-    const { data: cotistaData, error: cotistaError } = await supabase
-      .from("cotistas_aeronave")
-      .select("codigo_cliente")
-      .eq("id_clientes", clienteId)
-      .not("codigo_cliente", "is", null)
-      .limit(1)
-      .maybeSingle();
+    const buscarCodigo = async (filtros: { aeronaveId?: string | null; socioId?: string | null }) => {
+      let query = supabase
+        .from("cotistas_aeronave")
+        .select("codigo_cliente")
+        .eq("id_clientes", clienteId)
+        .not("codigo_cliente", "is", null);
+      if (filtros.aeronaveId) query = query.eq("id_aeronave", filtros.aeronaveId);
+      if (filtros.socioId) query = query.eq("socios_id", filtros.socioId);
+      const { data, error } = await query.limit(1).maybeSingle();
+      if (error) console.error("Erro ao buscar codigo_cliente:", error);
+      return (data?.codigo_cliente as string | undefined)?.trim() || null;
+    };
 
-    if (cotistaError) {
-      console.error("Erro ao buscar codigo_cliente:", cotistaError);
-    }
+    const aeronaveId = options?.aeronaveId || null;
+    const socioId = options?.socioId || null;
 
-    if (cotistaData?.codigo_cliente?.trim()) {
-      prefix = cotistaData.codigo_cliente.trim().toUpperCase();
-    }
+    prefix =
+      (aeronaveId && socioId ? await buscarCodigo({ aeronaveId, socioId }) : null) ||
+      (aeronaveId ? await buscarCodigo({ aeronaveId }) : null) ||
+      (await buscarCodigo({}));
+
+    if (prefix) prefix = prefix.toUpperCase();
   }
+
 
   // 2) Fallback: se o cliente não tiver codigo_cliente cadastrado,
   // cai para a derivação antiga a partir do nome (evita quebrar o fluxo)
