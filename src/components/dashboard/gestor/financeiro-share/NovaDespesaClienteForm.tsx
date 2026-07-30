@@ -29,7 +29,6 @@ const TIPOS = [
 
 const TIPOS_RATEIO = [
   { id: "FIXO", label: "Fixo" },
-  { id: "MENSAL", label: "Mensal" },
   { id: "EXTRA", label: "Extra" },
   { id: "VARIAVEL_POR_VOO", label: "Variável por voo" },
   { id: "VARIAVEL_POR_HORA", label: "Variável por hora" },
@@ -39,8 +38,6 @@ const STATUS = [
   { id: "pendente", label: "Pendente" },
   { id: "pago", label: "Pago" },
   { id: "recebido", label: "Recebido" },
-  { id: "aguardando_reembolso", label: "Aguardando reembolso" },
-  { id: "parcial", label: "Parcial" },
   { id: "cancelado", label: "Cancelado" },
 ];
 
@@ -49,7 +46,6 @@ const FORMAS = [
   { id: "TED", label: "TED" },
   { id: "BOLETO", label: "Boleto" },
   { id: "DINHEIRO", label: "Dinheiro" },
-  { id: "CARTAO", label: "Cartão" },
   { id: "TRANSFERENCIA", label: "Transferência" },
   { id: "DEBITO_AUTOMATICO", label: "Débito automático" },
 ];
@@ -405,7 +401,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             percentual_uso: form.percentual_uso ? Number(form.percentual_uso) : null,
             descricao_despesa: payload.descricao,
             categoria_custo: form.categoria_id || null,
-            periodicidade: "EVENTUAL",
+            periodicidade: "MENSAL",
             valor_total_despesa: valorParcela,
             valor_rateado: Number(((valorParcela * linha.percentual) / 100).toFixed(2)),
             valor_pago_real: pago ? Number(((valorParcela * linha.percentual) / 100).toFixed(2)) : 0,

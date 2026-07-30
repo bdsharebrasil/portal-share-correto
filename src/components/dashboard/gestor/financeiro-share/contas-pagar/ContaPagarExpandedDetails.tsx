@@ -1,21 +1,74 @@
-import React from "react";
-import { FileText, ExternalLink, Plane, Building2 } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { FileText, Plane, Building2, Mail, CheckCircle2 } from "lucide-react";
 import { BoletoCopiaCola } from "./BoletoCopiaCola";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import {
+  EnviarEmailClienteDialog,
+  type AnexoEmail,
+} from "@/components/financeiro/EnviarEmailClienteDialog";
 
 interface Props {
   conta: any;
 }
 
+interface EmailLog {
+  id: string;
+  destinatario: string;
+  criado_em: string;
+  status: string;
+}
+
 export function ContaPagarExpandedDetails({ conta }: Props) {
+  const [emails, setEmails] = useState<EmailLog[]>([]);
+  const [emailOpen, setEmailOpen] = useState(false);
+
   const parseLocalDate = (dateString: string): Date | null => {
     if (!dateString) return null;
     const [year, month, day] = dateString.split('-').map(Number);
     return new Date(year, month - 1, day);
   };
 
+  const carregarEmails = useCallback(async () => {
+    if (!conta?.id) return;
+    const { data } = await (supabase as any)
+      .from("emails_enviados")
+      .select("id, destinatario, criado_em, status")
+      .eq("reference_id", String(conta.id))
+      .order("criado_em", { ascending: false });
+    setEmails((data || []) as EmailLog[]);
+  }, [conta?.id]);
+
+  useEffect(() => {
+    carregarEmails();
+  }, [carregarEmails]);
+
+  const anexosEmail: AnexoEmail[] = [
+    { url: conta.nf_url, label: "Nota Fiscal", filename: "nota-fiscal.pdf" },
+    { url: conta.boleto_url, label: "Boleto", filename: "boleto.pdf" },
+    { url: conta.recibo_url, label: "Recibo", filename: "recibo.pdf" },
+    { url: conta.arquivo_pdf_url, label: "Arquivo", filename: "arquivo.pdf" },
+    { url: conta.comprovante_pagamento_url, label: "Comprovante de pagamento", filename: "comprovante.pdf" },
+    { url: conta.decea_url, label: "Documento DECEA", filename: "decea.pdf" },
+    { url: conta.infraero_url, label: "Documento Infraero", filename: "infraero.pdf" },
+  ].filter((a): a is AnexoEmail => !!a.url);
+
+  const enviadoEm = emails.find((e) => e.status === "enviado") || emails[0] || null;
+
   return (
     <div className="px-6 py-5 bg-muted/30 border-t border-border/50 space-y-4 animate-in fade-in slide-in-from-top-1">
+      {enviadoEm && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            Enviado por e-mail ao cliente em {format(new Date(enviadoEm.criado_em), "dd/MM/yyyy 'às' HH:mm")} para{" "}
+            <span className="font-semibold">{enviadoEm.destinatario}</span>
+            {emails.length > 1 && ` (${emails.length} envios)`}
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Bloco: Identificação */}
@@ -79,7 +132,7 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
       )}
 
       {/* Botões de Anexos / Links */}
-      <div className="flex flex-wrap gap-2 pt-2">
+      <div className="flex flex-wrap items-center gap-2 pt-2">
         {conta.boleto_url && (
           <a href={conta.boleto_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-md text-[11px] font-semibold hover:bg-primary/20 transition-all border border-primary/20">
             <FileText className="h-3.5 w-3.5" /> BOLETO
@@ -115,7 +168,36 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
             <FileText className="h-3.5 w-3.5" /> RECIBO
           </a>
         )}
+
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-[11px] font-semibold gap-1.5 ml-auto"
+          onClick={() => setEmailOpen(true)}
+        >
+          <Mail className="h-3.5 w-3.5" />
+          {enviadoEm ? "Reenviar por e-mail" : "Enviar por e-mail"}
+        </Button>
       </div>
+
+      <EnviarEmailClienteDialog
+        open={emailOpen}
+        onOpenChange={setEmailOpen}
+        clienteId={conta.cliente_id || conta.client_id || null}
+        assuntoSugerido={`${conta.descricao || "Despesa"}${conta.aeronave_registro ? ` — ${conta.aeronave_registro}` : ""}`}
+        mensagemSugerida={
+          `Olá${conta.clients?.razao_social ? ` ${conta.clients.razao_social}` : ""},\n\n` +
+          `Segue a documentação referente a: ${conta.descricao || "despesa"}.\n` +
+          `Valor: ${Number(conta.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n` +
+          `Vencimento: ${conta.data_vencimento ? format(parseLocalDate(conta.data_vencimento)!, "dd/MM/yyyy") : "-"}\n\n` +
+          `Os documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`
+        }
+        anexos={anexosEmail}
+        tipo="contas_apagar"
+        referenceType="contas_apagar"
+        referenceIds={conta.id ? [String(conta.id)] : []}
+        onEnviado={carregarEmails}
+      />
     </div>
   );
 }

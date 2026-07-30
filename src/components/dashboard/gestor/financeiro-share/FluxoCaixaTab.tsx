@@ -443,6 +443,13 @@ export default function FluxoCaixaTab() {
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Deseja realmente excluir esta movimentação?")) return;
     try {
+      const { error: rateioError } = await supabase
+        .from("rateio_despesas")
+        .delete()
+        .eq("despesa_id", id)
+        .eq("fonte_despesa", "movimentacoes");
+      if (rateioError) throw rateioError;
+
       const { error: e } = await supabase.from("movimentacoes").delete().eq("id", id);
       if (e) throw e;
       setMovs((prev) => prev.filter((x) => x.id !== id));
