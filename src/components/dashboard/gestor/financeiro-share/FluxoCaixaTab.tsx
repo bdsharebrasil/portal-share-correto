@@ -86,9 +86,7 @@ const norm = (s?: string | null) =>
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
 
-/** A tabela `movimentacoes` não possui coluna `valor`: o valor da linha é o rateado. */
 const valorDe = (m: Movimentacao) => num(m.valor_rateado) || num(m.valor) || num(m.valor_original);
-/** Valor cheio da despesa (o que a Share desembolsa quando adianta pelo cliente). */
 const valorTotalDe = (m: Movimentacao) => num(m.valor_original) || valorDe(m);
 
 const aguardandoReembolso = (m: Movimentacao) =>
@@ -291,7 +289,6 @@ export default function FluxoCaixaTab() {
     });
   }, []);
 
-  /** Nome exibido na coluna Cliente — prioriza o nome do sócio quando o cliente possui sócios. */
   const resolveName = useCallback((m: Movimentacao) => {
     if (m.socio_id && pessoas[m.socio_id]) return pessoas[m.socio_id].nome || "—";
     if (m.clientes_id) {
@@ -302,7 +299,6 @@ export default function FluxoCaixaTab() {
     return m.fornecedor_nome || "—";
   }, [pessoas, sociosPorCliente]);
 
-  /** Razão social do cliente (exibida como subtítulo quando mostramos o sócio). */
   const resolveCliente = useCallback((m: Movimentacao) => {
     if (m.clientes_id && pessoas[m.clientes_id]) return pessoas[m.clientes_id].nome || null;
     return null;
@@ -312,7 +308,6 @@ export default function FluxoCaixaTab() {
     if (isShare(m)) {
       return m.categoria_nome || categorias[m.categoria_id ?? ""] || "—";
     }
-
     const categoriaCusto = categoriaCustoPorDespesa[m.id] || m.categoria_id;
     return categoriasCliente[categoriaCusto ?? ""] || categoriaCusto || "—";
   }, [categorias, categoriasCliente, categoriaCustoPorDespesa]);
@@ -322,7 +317,6 @@ export default function FluxoCaixaTab() {
     [subcatsPorDespesa],
   );
 
-  /** Data exibida/filtrada conforme o modo escolhido na coluna "Data". */
   const dateOf = useCallback(
     (m: Movimentacao) =>
       dateMode === "pagamento"
@@ -430,7 +424,6 @@ export default function FluxoCaixaTab() {
     setExpandedId(null);
   }, [baixaMov]);
 
-  /** Determina, com base na aba ativa (e no sub-toggle de Contas a Pagar), qual caixa o botão "Nova" deve abrir. */
   const openNewMov = useCallback(() => {
     const caixa: "share" | "cliente" =
       activeTab === "caixa_cliente" ? "cliente" :
@@ -483,6 +476,13 @@ export default function FluxoCaixaTab() {
     setTimeout(() => { win.print(); }, 500);
   }, [filteredMovs, activeTab, resolveName]);
 
+  // Cores dinâmicas globais para a Tabela e Tabs
+  const isShareActive = activeTab === "caixa_share" || (activeTab === "contas_pagar" && contasCaixa === "share") || activeTab === "contas_receber";
+  const isClienteActive = activeTab === "caixa_cliente" || (activeTab === "contas_pagar" && contasCaixa === "cliente");
+
+  const tableHeaderBg = isShareActive ? "rgba(6,78,59,0.15)" : isClienteActive ? "rgba(30,58,138,0.15)" : "rgba(2,6,23,0.7)";
+  const tableHeaderBorder = isShareActive ? "rgba(16,185,129,0.3)" : isClienteActive ? "rgba(59,130,246,0.3)" : "rgba(30,41,59,0.8)";
+
   return (
     <div className="space-y-6">
       {/* Toast */}
@@ -503,11 +503,16 @@ export default function FluxoCaixaTab() {
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = activeTab === t.key;
+          
+          let activeClasses = "bg-cyan-500/20 text-cyan-300 border-cyan-400/30";
+          if (t.key === "caixa_share") activeClasses = "bg-emerald-500/20 text-emerald-300 border-emerald-400/30";
+          else if (t.key === "caixa_cliente") activeClasses = "bg-blue-500/20 text-blue-300 border-blue-400/30";
+
           return (
             <button key={t.key}
               onClick={() => { setActiveTab(t.key); setExpandedId(null); setFlowFilter("todos"); setCurrentPage(1); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
-                active ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/30" : "bg-slate-900/70 text-slate-400 border-slate-700 hover:text-slate-100 hover:bg-slate-800"
+                active ? activeClasses : "bg-slate-900/70 text-slate-400 border-slate-700 hover:text-slate-100 hover:bg-slate-800"
               }`}>
               <Icon className="h-3.5 w-3.5" />
               {t.label}
@@ -516,7 +521,7 @@ export default function FluxoCaixaTab() {
         })}
       </div>
 
-      {/* Formulário Expansor - abre o form correto de acordo com a aba/caixa alvo */}
+      {/* Formulário Expansor */}
       {showNewMov && (
         <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-4 shadow-lg backdrop-blur-sm animate-in slide-in-from-top-4 fade-in duration-300">
           {newMovCaixa === "cliente" ? (
@@ -660,7 +665,7 @@ export default function FluxoCaixaTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.7)" }}>
+              <tr style={{ borderBottom: `1px solid ${tableHeaderBorder}`, background: tableHeaderBg, transition: 'background 0.3s ease' }}>
                 <th className="w-4 px-4 py-3" />
                 <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                   <button
@@ -718,7 +723,8 @@ export default function FluxoCaixaTab() {
                       onDelete={() => handleDelete(m.id)}
                       onOpenAttachment={(url, title) => setViewAttachment({ url, title })}
                       onReembolso={aguardandoReembolso(m) ? () => setReembolsoMov(m) : undefined}
-                      actionLoading={actionLoading} />
+                      actionLoading={actionLoading} 
+                      isShareRow={isShare(m)} />
                   );
                 })
               )}
@@ -796,7 +802,7 @@ export default function FluxoCaixaTab() {
 /* ─────────────────────────── RowFragment ─────────────────────────── */
 
 function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, tid, dateStr, isPaid, docCount,
-  onToggle, onApprove, onEdit, onDelete, onOpenAttachment, onReembolso, actionLoading }: {
+  onToggle, onApprove, onEdit, onDelete, onOpenAttachment, onReembolso, actionLoading, isShareRow }: {
   m: Movimentacao; entrada: boolean; expanded: boolean; name: string; clienteNome?: string | null;
   cat: string; subcats: string[]; tid: string;
   dateStr: string; isPaid: boolean; docCount: number;
@@ -804,9 +810,37 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
   onOpenAttachment: (url: string, title: string) => void;
   onReembolso?: () => void;
   actionLoading: string | null;
+  isShareRow: boolean;
 }) {
   const [rateio, setRateio] = useState<any>(null);
   const [loadingRateio, setLoadingRateio] = useState(false);
+
+  // Paleta de Cores baseadas no tipo de Caixa (Share = Verde, Cliente = Azul)
+  const theme = isShareRow ? {
+    textMain: "text-emerald-50",
+    textMuted: "text-emerald-200/60",
+    catBg: "bg-emerald-500/10",
+    catText: "text-emerald-400",
+    catBorder: "border-emerald-500/30",
+    subBg: "bg-emerald-500/5",
+    subText: "text-emerald-400/80",
+    subBorder: "border-emerald-500/20",
+    hoverBg: "hover:bg-emerald-900/20",
+    expandedBg: "rgba(6,78,59,0.15)",
+    borderBottom: "rgba(16,185,129,0.15)"
+  } : {
+    textMain: "text-blue-50",
+    textMuted: "text-blue-200/60",
+    catBg: "bg-blue-500/10",
+    catText: "text-blue-400",
+    catBorder: "border-blue-500/30",
+    subBg: "bg-blue-500/5",
+    subText: "text-blue-400/80",
+    subBorder: "border-blue-500/20",
+    hoverBg: "hover:bg-blue-900/20",
+    expandedBg: "rgba(30,58,138,0.15)",
+    borderBottom: "rgba(59,130,246,0.15)"
+  };
 
   useEffect(() => {
     if (!expanded || rateio) return;
@@ -836,52 +870,52 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
   const fmtDate = (d?: string | null) => d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—";
   const fmtNum = (n?: number | string | null) => n != null && n !== "" ? formatBRL(Number(n)) : "—";
   const detail = (label: string, value: any) => (
-    <div><span className="text-slate-500">{label}:</span> <span className="font-medium text-slate-100">{value ?? "—"}</span></div>
+    <div><span className={theme.textMuted}>{label}:</span> <span className={`font-medium ${theme.textMain}`}>{value ?? "—"}</span></div>
   );
 
   return (
     <>
-      <tr onClick={onToggle} className="cursor-pointer transition-colors hover:bg-slate-800/50"
-        style={{ borderBottom: "1px solid rgba(30,41,59,0.7)", background: expanded ? "rgba(30,41,59,0.5)" : undefined }}>
+      <tr onClick={onToggle} className={`cursor-pointer transition-colors ${theme.hoverBg}`}
+        style={{ borderBottom: `1px solid ${theme.borderBottom}`, background: expanded ? theme.expandedBg : undefined }}>
         <td className="px-4 py-3.5"><StatusDot m={m} /></td>
         <td className="px-3 py-3.5 whitespace-nowrap">
-          <div className="font-bold text-[12px] text-slate-100">{dateStr}</div>
+          <div className={`font-bold text-[12px] ${theme.textMain}`}>{dateStr}</div>
           <div className="flex items-center gap-1 mt-0.5">
             {entrada ? <ArrowUpRight className="h-3 w-3 text-emerald-400" /> : <ArrowDownRight className="h-3 w-3 text-red-400" />}
             <span className={`text-[10px] font-semibold ${entrada ? "text-emerald-300" : "text-red-300"}`}>{entrada ? "Entrada" : "Saída"}</span>
           </div>
         </td>
         <td className="px-3 py-3.5 max-w-[200px]">
-          <span className="block truncate font-semibold text-slate-100" title={m.descricao ?? ""}>{m.descricao || "—"}</span>
-          {m.numero_doc && <span className="text-[10px] text-slate-500">Doc: {m.numero_doc}</span>}
+          <span className={`block truncate font-semibold ${theme.textMain}`} title={m.descricao ?? ""}>{m.descricao || "—"}</span>
+          {m.numero_doc && <span className={`text-[10px] ${theme.textMuted}`}>Doc: {m.numero_doc}</span>}
         </td>
         <td className="px-3 py-3.5 hidden sm:table-cell">
-          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800/80 text-slate-300 border border-slate-700">{cat}</span>
+          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${theme.catBg} ${theme.catText} ${theme.catBorder}`}>{cat}</span>
           {subcats.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {subcats.map((s) => (
-                <span key={s} className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-900/70 text-slate-400 border border-slate-700/70">{s}</span>
+                <span key={s} className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-medium border ${theme.subBg} ${theme.subText} ${theme.subBorder}`}>{s}</span>
               ))}
             </div>
           )}
         </td>
         <td className="px-3 py-3.5 hidden md:table-cell">
-          <div className="text-[11px] font-medium text-slate-200 truncate max-w-[150px]">{name}</div>
+          <div className={`text-[11px] font-medium truncate max-w-[150px] ${theme.textMain}`}>{name}</div>
           {clienteNome && clienteNome !== name && (
-            <div className="text-[10px] text-slate-500 truncate max-w-[150px]">{clienteNome}</div>
+            <div className={`text-[10px] truncate max-w-[150px] ${theme.textMuted}`}>{clienteNome}</div>
           )}
         </td>
         <td className="px-3 py-3.5 text-right whitespace-nowrap">
-          <span className={`font-bold text-[13px] ${entrada ? "text-emerald-300" : "text-slate-100"}`}>
+          <span className={`font-bold text-[13px] ${entrada ? "text-emerald-300" : theme.textMain}`}>
             {entrada ? "+" : ""} {formatBRL(valorDe(m))}
           </span>
           {valorTotalDe(m) > valorDe(m) && (
-            <div className="text-[10px] text-slate-500">Total: {formatBRL(valorTotalDe(m))}</div>
+            <div className={`text-[10px] ${theme.textMuted}`}>Total: {formatBRL(valorTotalDe(m))}</div>
           )}
         </td>
         <td className="px-3 py-3.5 text-center hidden sm:table-cell"><StatusBadge m={m} /></td>
         <td className="px-3 py-3.5 text-center hidden md:table-cell">
-          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium">{docCount}<Paperclip className="h-3 w-3" /></span>
+          <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${theme.textMuted}`}>{docCount}<Paperclip className="h-3 w-3" /></span>
         </td>
         <td className="px-3 py-3.5">
           <div className="flex items-center justify-end gap-2">
@@ -895,20 +929,20 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
               className="p-1.5 text-slate-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Deletar">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
-            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-4 w-4 ${theme.textMuted} transition-transform ${expanded ? "rotate-180" : ""}`} />
           </div>
         </td>
       </tr>
 
       {expanded && (
-        <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.7)", background: "rgba(30,41,59,0.4)" }}>
+        <tr style={{ borderBottom: `1px solid ${theme.borderBottom}`, background: theme.expandedBg }}>
           <td colSpan={9} className="px-5 py-4">
-            <div className="flex flex-col gap-5 text-xs text-slate-300">
+            <div className={`flex flex-col gap-5 text-xs ${theme.textMain}`}>
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-1">
-                  <div className="font-bold text-[10px] uppercase tracking-wider text-slate-500 mb-2">Documentos Anexos</div>
+                  <div className={`font-bold text-[10px] uppercase tracking-wider mb-2 ${theme.textMuted}`}>Documentos Anexos</div>
                   <div className="flex flex-wrap gap-2">
-                    {attachments.length === 0 && <span className="text-slate-500 italic">Nenhum documento anexado.</span>}
+                    {attachments.length === 0 && <span className={`${theme.textMuted} italic`}>Nenhum documento anexado.</span>}
                     {attachments.map((a) => (
                       <button
                         key={a.label}
@@ -937,8 +971,8 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
               </div>
 
               <div>
-                <div className="font-bold text-[10px] uppercase tracking-wider text-slate-500 mb-2">
-                  Detalhes Financeiros {loadingRateio && <span className="text-slate-600">(carregando rateio...)</span>}
+                <div className={`font-bold text-[10px] uppercase tracking-wider mb-2 ${theme.textMuted}`}>
+                  Detalhes Financeiros {loadingRateio && <span className="opacity-70">(carregando rateio...)</span>}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-y-2 gap-x-4">
                   {detail("Data Emissão", fmtDate(rateio?.data_emissao))}
@@ -960,8 +994,8 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
                 </div>
                 {(rateio?.observacoes || m.observacoes) && (
                   <div className="mt-3">
-                    <span className="text-slate-500">Observações:</span>{" "}
-                    <span className="font-medium text-slate-100">{rateio?.observacoes || m.observacoes}</span>
+                    <span className={theme.textMuted}>Observações:</span>{" "}
+                    <span className={`font-medium ${theme.textMain}`}>{rateio?.observacoes || m.observacoes}</span>
                   </div>
                 )}
               </div>
