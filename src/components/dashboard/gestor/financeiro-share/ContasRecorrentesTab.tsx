@@ -1,526 +1,396 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  RefreshCw,
-  CalendarClock,
-  Bell,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { formatBRL } from "@/lib/format";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { X, Save } from "lucide-react";
 
-/* ─────────────────────────── types ─────────────────────────── */
-
-interface ContaRecorrente {
-  id: string;
-  descricao: string | null;
-  fornecedor: string | null;
-  valor: number | string | null;
-  categoria: string | null;
-  frequencia_recorrencia: string | null;
-  dia_recorrencia: number | null;
-  lembrete_antecipado: boolean | null;
-  status: string | null;
-  notas: string | null;
-  data_inicio: string | null;
-  criado_por: string | null;
-  atualizado_por: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  empresa_id: string | null;
+interface ContaRecorrenteFormProps {
+  conta?: any;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
-interface FormState {
-  descricao: string;
-  fornecedor: string;
-  valor: string;
-  categoria: string;
-  frequencia_recorrencia: string;
-  dia_recorrencia: string;
-  status: string;
-  lembrete_antecipado: boolean;
-  notas: string;
-  data_inicio: string;
-}
-
-const emptyForm: FormState = {
-  descricao: "",
-  fornecedor: "",
-  valor: "",
-  categoria: "",
-  frequencia_recorrencia: "mensal",
-  dia_recorrencia: "1",
-  status: "agendado",
-  lembrete_antecipado: false,
-  notas: "",
-  data_inicio: new Date().toISOString().slice(0, 10),
-};
-
-const FREQUENCIAS = [
-  { value: "semanal", label: "Semanal" },
-  { value: "mensal", label: "Mensal" },
-  { value: "anual", label: "Anual" },
+// Transformando os arrays para o formato { id, label } usado pelo SearchableCombobox
+const frequenciasItems = [
+  { id: "semanal", label: "Semanal" },
+  { id: "mensal", label: "Mensal" },
+  { id: "anual", label: "Anual" }
 ];
 
-const STATUS_OPCOES = [
-  { value: "agendado", label: "Agendado" },
-  { value: "cancelado", label: "Cancelado" },
+const diasDoMesItems = Array.from({ length: 31 }, (_, i) => ({
+  id: (i + 1).toString(),
+  label: `Dia ${i + 1}`
+}));
+
+const tiposDespesaItems = [
+  { id: "DESPESAS EMPRESA", label: "EMPRESA" },
+  { id: "DESPESAS PARTICULARES", label: "PARTICULAR" },
+  { id: "DESPESAS REEMBOLSÁVEIS", label: "CLIENTE - REEMBOLSÁVEL" },
 ];
 
-/* ─────────────────────────── helpers ─────────────────────────── */
+const statusItems = [
+  { id: "agendado", label: "Ativo" },
+  { id: "cancelado", label: "Inativo" }
+];
 
-const num = (v: string | number | null | undefined) => Number(v) || 0;
-
-function StatusBadge({ status }: { status: string | null }) {
-  const s = (status ?? "").toLowerCase();
-  if (s === "cancelado") {
-    return (
-      <span
-        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
-        style={{
-          background: "rgba(239,68,68,0.10)",
-          color: "#f87171",
-          borderColor: "rgba(239,68,68,0.25)",
-        }}
-      >
-        <XCircle className="h-3 w-3 mr-1" /> Cancelado
-      </span>
-    );
-  }
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border"
-      style={{
-        background: "rgba(34,197,94,0.10)",
-        color: "#4ade80",
-        borderColor: "rgba(34,197,94,0.25)",
-      }}
-    >
-      <CheckCircle2 className="h-3 w-3 mr-1" /> Agendado
-    </span>
-  );
-}
-
-const freqLabel = (f: string | null) =>
-  FREQUENCIAS.find((x) => x.value === (f ?? "").toLowerCase())?.label || f || "—";
-
-/* ─────────────────────────── main ─────────────────────────── */
-
-export default function ContasRecorrentesTab() {
-  const [contas, setContas] = useState<ContaRecorrente[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const fetchContas = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("contas_recorrentes")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setContas((data ?? []) as ContaRecorrente[]);
-    } catch (e: any) {
-      setToast({ type: "err", text: e.message || "Erro ao carregar contas recorrentes." });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+export function ContaRecorrenteForm({
+  conta,
+  onSuccess,
+  onCancel
+}: ContaRecorrenteFormProps) {
+  const { user } = useAuth();
+  const { categorias } = useCategoriasFinanceiro();
+  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [selectedFornecedorId, setSelectedFornecedorId] = useState<string>("");
+  const [contaPagamento, setContaPagamento] = useState<string>("");
+  const [tipoDespesa, setTipoDespesa] = useState<string>("");
 
   useEffect(() => {
-    fetchContas();
-  }, [fetchContas]);
+    loadFornecedores();
+  }, []);
 
-  const openNew = () => {
-    setForm(emptyForm);
-    setEditingId(null);
-    setShowForm(true);
+  const loadFornecedores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("fornecedores_favoritos")
+        .select("id, nome_completo, documento, categoria, apelido, conta_pagamento")
+        .order("nome_completo", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao carregar fornecedores:", error);
+        return;
+      }
+      setFornecedores(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar fornecedores:", error.message);
+    }
   };
 
-  const openEdit = (c: ContaRecorrente) => {
-    setForm({
-      descricao: c.descricao ?? "",
-      fornecedor: c.fornecedor ?? "",
-      valor: c.valor != null ? String(c.valor) : "",
-      categoria: c.categoria ?? "",
-      frequencia_recorrencia: c.frequencia_recorrencia ?? "mensal",
-      dia_recorrencia: c.dia_recorrencia != null ? String(c.dia_recorrencia) : "1",
-      status: c.status ?? "agendado",
-      lembrete_antecipado: !!c.lembrete_antecipado,
-      notas: c.notas ?? "",
-      data_inicio: c.data_inicio ?? new Date().toISOString().slice(0, 10),
-    });
-    setEditingId(c.id);
-    setShowForm(true);
+  const fornecedorItems = useMemo(() => {
+    return fornecedores.map(f => ({
+      id: f.id,
+      label: f.apelido ? `${f.nome_completo} (${f.apelido})` : f.nome_completo
+    }));
+  }, [fornecedores]);
+
+  // Subcategorias filtradas pelo grupo_categoria selecionado
+  const subcategorias = useMemo(() => {
+    if (!tipoDespesa) return [];
+    return categorias
+      .filter(cat => cat.tipo === "despesa" && cat.grupo_categoria === tipoDespesa)
+      .map(cat => ({ id: cat.id, label: cat.nome }));
+  }, [categorias, tipoDespesa]);
+
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+    defaultValues: {
+      descricao: "",
+      fornecedor: "",
+      valor: "",
+      categoria: "",
+      status: "agendado",
+      frequencia_recorrencia: "mensal",
+      dia_recorrencia: "1",
+      lembrete_antecipado: true,
+      notas: ""
+    }
+  });
+
+  const lembreteAntecipado = watch("lembrete_antecipado");
+
+  useEffect(() => {
+    if (conta) {
+      setValue("descricao", conta.descricao);
+      setValue("fornecedor", conta.fornecedor);
+      setValue("valor", conta.valor?.toString() || "");
+      setValue("categoria", conta.categoria || "");
+      setValue("status", conta.status || (conta as any).status);
+      setValue("frequencia_recorrencia", conta.frequencia_recorrencia || "mensal");
+      setValue("dia_recorrencia", conta.dia_recorrencia?.toString() || "1");
+      setValue("lembrete_antecipado", conta.lembrete_antecipado || false);
+      setValue("notas", conta.notas || "");
+
+      // Set fornecedor selection
+      if (conta.fornecedor_favorito_id) {
+        setSelectedFornecedorId(conta.fornecedor_favorito_id);
+        const forn = fornecedores.find(f => f.id === conta.fornecedor_favorito_id);
+        if (forn) setContaPagamento(forn.conta_pagamento || "");
+      }
+
+      // Set tipo despesa from categoria
+      if (conta.tipo_despesa) {
+        setTipoDespesa(conta.tipo_despesa);
+      }
+    } else {
+      reset();
+      setValue("status", "agendado");
+      setValue("frequencia_recorrencia", "mensal");
+      setValue("dia_recorrencia", "1");
+      setValue("lembrete_antecipado", true);
+      setSelectedFornecedorId("");
+      setContaPagamento("");
+      setTipoDespesa("");
+    }
+  }, [conta, setValue, reset, fornecedores]);
+
+  const handleFornecedorChange = (id: string, label: string) => {
+    setSelectedFornecedorId(id);
+    const forn = fornecedores.find(f => f.id === id);
+    if (forn) {
+      setValue("fornecedor", forn.nome_completo);
+      setContaPagamento(forn.conta_pagamento || "");
+    } else {
+      setValue("fornecedor", "");
+      setContaPagamento("");
+    }
   };
 
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingId(null);
-    setForm(emptyForm);
-  };
-
-  const save = async () => {
-    if (!form.descricao.trim()) {
-      setToast({ type: "err", text: "Informe a descrição." });
+  const onSubmit = async (formData: any) => {
+    if (!user) {
+      toast.error("Usuário não autenticado");
       return;
     }
-    setSaving(true);
-    setToast(null);
+
     try {
-      const payload = {
-        descricao: form.descricao.trim(),
-        fornecedor: form.fornecedor.trim() || null,
-        valor: form.valor ? Number(form.valor) : 0,
-        categoria: form.categoria.trim() || null,
-        frequencia_recorrencia: form.frequencia_recorrencia,
-        dia_recorrencia: Number(form.dia_recorrencia) || 1,
-        status: form.status,
-        lembrete_antecipado: form.lembrete_antecipado,
-        notas: form.notas.trim() || null,
-        data_inicio: form.data_inicio || null,
-        criado_por: "",
+      let valor = null;
+      if (formData.valor) {
+        valor = parseFloat(formData.valor);
+        if (isNaN(valor) || valor < 0) {
+          toast.error("Valor deve ser um número válido e maior ou igual a zero");
+          return;
+        }
+      }
+
+      const data = {
+        descricao: formData.descricao,
+        fornecedor: formData.fornecedor,
+        // Impede que strings vazias causem erro de UUID ("invalid input syntax for type uuid: ''")
+        fornecedor_favorito_id: selectedFornecedorId || null,
+        conta_pagamento: contaPagamento || null,
+        valor: valor !== null ? valor : null,
+        categoria: formData.categoria || null,
+        tipo_despesa: tipoDespesa || null,
+        status: formData.status,
+        frequencia_recorrencia: formData.frequencia_recorrencia,
+        dia_recorrencia: formData.dia_recorrencia ? parseInt(formData.dia_recorrencia) : null,
+        lembrete_antecipado: formData.lembrete_antecipado || false,
+        notas: formData.notas || null,
+        atualizado_por: user.id,
       };
-      if (editingId) {
+
+      if (conta?.id) {
         const { error } = await supabase
           .from("contas_recorrentes")
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq("id", editingId);
-        if (error) throw error;
-        setToast({ type: "ok", text: "Conta recorrente atualizada." });
+          .update(data as any)
+          .eq("id", conta.id);
+
+        if (error) {
+          toast.error(`Erro ao atualizar: ${error.message}`);
+          return;
+        }
+        toast.success("Conta recorrente atualizada com sucesso!");
       } else {
-        const { error } = await supabase.from("contas_recorrentes").insert(payload);
-        if (error) throw error;
-        setToast({ type: "ok", text: "Conta recorrente criada." });
+        const { error } = await supabase
+          .from("contas_recorrentes")
+          .insert({
+            ...data,
+            criado_por: user.id
+          } as any);
+
+        if (error) {
+          toast.error(`Erro ao criar: ${error.message}`);
+          return;
+        }
+        toast.success("Conta recorrente criada com sucesso!");
       }
-      closeForm();
-      fetchContas();
-    } catch (e: any) {
-      setToast({ type: "err", text: e.message || "Erro ao salvar." });
-    } finally {
-      setSaving(false);
+
+      reset();
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao processar conta recorrente");
     }
   };
-
-  const confirmDelete = async () => {
-    if (!deleteId) return;
-    setDeleting(true);
-    try {
-      const { error } = await supabase.from("contas_recorrentes").delete().eq("id", deleteId);
-      if (error) throw error;
-      setToast({ type: "ok", text: "Conta recorrente excluída." });
-      setDeleteId(null);
-      fetchContas();
-    } catch (e: any) {
-      setToast({ type: "err", text: e.message || "Erro ao excluir." });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const inputCls =
-    "border border-slate-700 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 w-full";
-  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1";
 
   return (
-    <div className="space-y-5">
-      {/* header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-slate-100">Contas Recorrentes</h2>
-          <p className="text-xs text-slate-400">Despesas e receitas que se repetem automaticamente.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={fetchContas}
-            className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2"
-          >
-            <RefreshCw className="h-4 w-4" /> Atualizar
-          </button>
-          <button
-            onClick={openNew}
-            className="text-slate-950 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2 font-semibold"
-            style={{ background: "#06b6d4" }}
-          >
-            <Plus className="h-4 w-4" /> Nova Conta Recorrente
-          </button>
-        </div>
-      </div>
-
-      {/* toast */}
-      {toast && (
-        <div
-          className="rounded-lg px-4 py-2 text-sm border"
-          style={{
-            background: toast.type === "ok" ? "rgba(34,197,94,0.10)" : "rgba(239,68,68,0.10)",
-            color: toast.type === "ok" ? "#4ade80" : "#f87171",
-            borderColor: toast.type === "ok" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)",
-          }}
-        >
-          {toast.text}
-        </div>
-      )}
-
-      {/* inline form */}
-      {showForm && (
-        <div
-          className="rounded-2xl p-5 space-y-4"
-          style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-100">
-              {editingId ? "Editar Conta Recorrente" : "Nova Conta Recorrente"}
-            </h3>
-            <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <Card className="bg-card border-border">
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
+        <CardTitle className="text-foreground">
+          {conta ? "Editar Conta Recorrente" : "Nova Conta Recorrente"}
+        </CardTitle>
+        <Button variant="ghost" size="icon" onClick={onCancel}>
+          <X className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className={labelCls}>Descrição *</label>
-              <input
-                className={inputCls}
-                value={form.descricao}
-                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                placeholder="Ex.: Aluguel do galpão"
+              <Label htmlFor="descricao">Descrição da Conta *</Label>
+              <Input
+                id="descricao"
+                placeholder="Ex: Internet, Aluguel, Seguro"
+                {...register("descricao", { required: "Descrição é obrigatória" })}
+                className={errors.descricao ? "border-destructive" : ""}
               />
+              {errors.descricao && <span className="text-xs text-destructive">{errors.descricao.message}</span>}
             </div>
+
             <div>
-              <label className={labelCls}>Fornecedor</label>
-              <input
-                className={inputCls}
-                value={form.fornecedor}
-                onChange={(e) => setForm({ ...form, fornecedor: e.target.value })}
-                placeholder="Nome do fornecedor"
+              <Label htmlFor="fornecedor">Fornecedor/Beneficiário *</Label>
+              <SearchableCombobox
+                items={fornecedorItems}
+                value={selectedFornecedorId}
+                onChange={handleFornecedorChange}
+                placeholder="Selecione um fornecedor..."
+                searchPlaceholder="Buscar fornecedor..."
+                emptyMessage="Nenhum fornecedor encontrado."
               />
+              {errors.fornecedor && <span className="text-xs text-destructive">{errors.fornecedor.message}</span>}
+              {contaPagamento && (
+                <div className="mt-1.5 p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <p className="text-xs text-green-600 font-medium">💳 Conta pagamento: {contaPagamento}</p>
+                </div>
+              )}
             </div>
+
             <div>
-              <label className={labelCls}>Valor (R$)</label>
-              <input
+              <Label htmlFor="valor">Valor</Label>
+              <Input
+                id="valor"
                 type="number"
                 step="0.01"
-                className={inputCls}
-                value={form.valor}
-                onChange={(e) => setForm({ ...form, valor: e.target.value })}
-                placeholder="0,00"
+                min="0"
+                placeholder="R$"
+                {...register("valor")}
+                className={errors.valor ? "border-destructive" : ""}
               />
             </div>
+
+            {/* Seleção de Tipo de Despesa (nível 1) */}
             <div>
-              <label className={labelCls}>Categoria</label>
-              <input
-                className={inputCls}
-                value={form.categoria}
-                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-                placeholder="Ex.: Infraestrutura"
+              <Label>Tipo de Despesa</Label>
+              <SearchableCombobox
+                items={tiposDespesaItems}
+                value={tipoDespesa}
+                onChange={(id, label) => {
+                  setTipoDespesa(id);
+                  setValue("categoria", ""); // Reset subcategoria
+                }}
+                placeholder="Selecione o tipo..."
+                searchPlaceholder="Buscar tipo..."
+                emptyMessage="Nenhum tipo encontrado."
               />
             </div>
+
+            {/* Subcategoria (nível 2) - aparece após selecionar tipo */}
+            {tipoDespesa && (
+              <div>
+                <Label>Categoria</Label>
+                <SearchableCombobox
+                  items={subcategorias}
+                  value={subcategorias.find(s => s.label === watch("categoria"))?.id || ""}
+                  onChange={(id, label) => setValue("categoria", label)}
+                  placeholder="Selecione a categoria..."
+                  searchPlaceholder="Buscar categoria..."
+                  emptyMessage="Nenhuma categoria encontrada para este tipo."
+                />
+              </div>
+            )}
+
             <div>
-              <label className={labelCls}>Frequência</label>
-              <select
-                className={inputCls + " cursor-pointer"}
-                value={form.frequencia_recorrencia}
-                onChange={(e) => setForm({ ...form, frequencia_recorrencia: e.target.value })}
-              >
-                {FREQUENCIAS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Dia da Recorrência</label>
-              <select
-                className={inputCls + " cursor-pointer"}
-                value={form.dia_recorrencia}
-                onChange={(e) => setForm({ ...form, dia_recorrencia: e.target.value })}
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={d}>
-                    Dia {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Status</label>
-              <select
-                className={inputCls + " cursor-pointer"}
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-              >
-                {STATUS_OPCOES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Data de Início</label>
-              <input
-                type="date"
-                className={inputCls}
-                value={form.data_inicio}
-                onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
-              />
-            </div>
-            <div className="md:col-span-2 flex items-center gap-2 pt-1">
-              <input
-                id="lembrete"
-                type="checkbox"
-                checked={form.lembrete_antecipado}
-                onChange={(e) => setForm({ ...form, lembrete_antecipado: e.target.checked })}
-                className="h-4 w-4 accent-cyan-400"
-              />
-              <label htmlFor="lembrete" className="text-sm text-slate-200 inline-flex items-center gap-1">
-                <Bell className="h-3.5 w-3.5 text-cyan-400" /> Lembrar com antecedência
-              </label>
-            </div>
-            <div className="md:col-span-2">
-              <label className={labelCls}>Notas</label>
-              <textarea
-                className={inputCls}
-                rows={3}
-                value={form.notas}
-                onChange={(e) => setForm({ ...form, notas: e.target.value })}
-                placeholder="Observações adicionais"
+              <Label htmlFor="status">Status</Label>
+              <SearchableCombobox
+                items={statusItems}
+                value={watch("status")}
+                onChange={(id, label) => setValue("status", id)}
+                placeholder="Selecione o status..."
+                searchPlaceholder="Buscar status..."
+                emptyMessage="Nenhum status encontrado."
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              onClick={closeForm}
-              className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm"
-            >
+
+          {/* Seção de Recorrência */}
+          <div className="space-y-4 border-t border-border pt-4">
+            <h3 className="font-semibold text-foreground">Configuração de Recorrência</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
+              <div>
+                <Label htmlFor="frequencia_recorrencia">Frequência de Pagamento *</Label>
+                <SearchableCombobox
+                  items={frequenciasItems}
+                  value={watch("frequencia_recorrencia")}
+                  onChange={(id, label) => setValue("frequencia_recorrencia", id)}
+                  placeholder="Selecione a frequência..."
+                  searchPlaceholder="Buscar frequência..."
+                  emptyMessage="Nenhuma frequência encontrada."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="dia_recorrencia">Dia do Mês para Vencimento *</Label>
+                <SearchableCombobox
+                  items={diasDoMesItems}
+                  value={watch("dia_recorrencia")}
+                  onChange={(id, label) => setValue("dia_recorrencia", id)}
+                  placeholder="Selecione o dia..."
+                  searchPlaceholder="Buscar dia..."
+                  emptyMessage="Nenhum dia encontrado."
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Esta conta vence todo dia <strong>{watch("dia_recorrencia") || "?"}</strong> do mês
+                </p>
+              </div>
+
+              <div className="md:col-span-2 space-y-3 pt-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="lembrete_antecipado"
+                    checked={lembreteAntecipado}
+                    onCheckedChange={(checked) => setValue("lembrete_antecipado", checked as boolean)}
+                  />
+                  <Label htmlFor="lembrete_antecipado" className="cursor-pointer">
+                    Deseja receber lembretes antecipados sobre essa conta?
+                  </Label>
+                </div>
+                {lembreteAntecipado && (
+                  <p className="text-sm text-muted-foreground ml-6 p-2 bg-primary/10 rounded border border-primary/20">
+                    🔔 Você receberá notificações <strong>3 dias antes</strong>, <strong>2 dias antes</strong> e <strong>1 dia antes</strong> do vencimento.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="notas">Notas e Observações</Label>
+            <Textarea
+              id="notas"
+              placeholder="Adicione observações sobre essa conta recorrente (opcional)"
+              rows={2}
+              {...register("notas")}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-border">
+            <Button type="button" variant="outline" onClick={onCancel}>
               Cancelar
-            </button>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              style={{ background: "#06b6d4" }}
-            >
-              {saving ? "Salvando..." : editingId ? "Salvar Alterações" : "Criar Conta"}
-            </button>
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              <Save className="w-4 h-4 mr-2" />
+              {isSubmitting ? "Salvando..." : "Salvar Conta Recorrente"}
+            </Button>
           </div>
-        </div>
-      )}
-
-      {/* list */}
-      {loading ? (
-        <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
-      ) : contas.length === 0 ? (
-        <div
-          className="rounded-2xl p-10 text-center text-sm text-slate-400"
-          style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
-        >
-          Nenhuma conta recorrente cadastrada.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {contas.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-2xl p-4 space-y-3"
-              style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-100 truncate">{c.descricao || "—"}</div>
-                  <div className="text-xs text-slate-400 truncate">{c.fornecedor || "Sem fornecedor"}</div>
-                </div>
-                <StatusBadge status={c.status} />
-              </div>
-              <div className="flex items-end justify-between">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor</div>
-                  <div className="text-lg font-bold text-cyan-300">{formatBRL(num(c.valor))}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Recorrência</div>
-                  <div className="text-xs text-slate-200 inline-flex items-center gap-1">
-                    <CalendarClock className="h-3.5 w-3.5 text-cyan-400" />
-                    {freqLabel(c.frequencia_recorrencia)} · dia {c.dia_recorrencia ?? "—"}
-                  </div>
-                </div>
-              </div>
-              {c.categoria && (
-                <div className="text-[11px] text-slate-400">
-                  Categoria: <span className="text-slate-200">{c.categoria}</span>
-                </div>
-              )}
-              {c.lembrete_antecipado && (
-                <div className="text-[11px] text-cyan-400 inline-flex items-center gap-1">
-                  <Bell className="h-3 w-3" /> Lembrete antecipado ativo
-                </div>
-              )}
-              {c.notas && (
-                <div className="text-[11px] text-slate-400 border-t border-slate-800 pt-2 line-clamp-2">
-                  {c.notas}
-                </div>
-              )}
-              <div className="flex justify-end gap-2 pt-1 border-t border-slate-800">
-                <button
-                  onClick={() => openEdit(c)}
-                  className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1"
-                >
-                  <Pencil className="h-3.5 w-3.5" /> Editar
-                </button>
-                <button
-                  onClick={() => setDeleteId(c.id)}
-                  className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded-lg px-2.5 py-1.5 text-xs inline-flex items-center gap-1"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Excluir
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* delete modal */}
-      {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-red-950/50 flex items-center justify-center">
-                <Trash2 className="h-5 w-5 text-red-400" />
-              </div>
-              <h3 className="text-base font-bold text-slate-100">Excluir conta recorrente</h3>
-            </div>
-            <p className="text-sm text-slate-300">
-              Tem certeza que deseja excluir esta conta recorrente? Esta ação não pode ser desfeita.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setDeleteId(null)}
-                className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                style={{ background: "#dc2626" }}
-              >
-                {deleting ? "Excluindo..." : "Excluir"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
