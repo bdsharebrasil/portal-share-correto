@@ -27,6 +27,14 @@ const TIPOS = [
   { id: "estorno", label: "Estorno" },
 ];
 
+const TIPOS_RATEIO = [
+  { id: "FIXO", label: "Fixo" },
+  { id: "MENSAL", label: "Mensal" },
+  { id: "EXTRA", label: "Extra" },
+  { id: "VARIAVEL_POR_VOO", label: "Variável por voo" },
+  { id: "VARIAVEL_POR_HORA", label: "Variável por hora" },
+];
+
 const STATUS = [
   { id: "pendente", label: "Pendente" },
   { id: "pago", label: "Pago" },
@@ -90,6 +98,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
   const [form, setForm] = useState({
     descricao: "",
     tipo: "despesa",
+    tipo_rateio: "EXTRA",
     clientes_id: "",
     socio_id: "",
     aeronave_id: "",
@@ -378,12 +387,11 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
 
         // Rateio de despesas — garante os dados de aeronave no balanço,
         // inclusive para cliente com 100% da cota.
-        if (!entrada) {
-          const rateioRows = linhasRateioBase.map((linha) => ({
+        const rateioRows = linhasRateioBase.map((linha) => ({
             despesa_id: (mov as any).id,
             fonte_despesa: "movimentacoes",
-            tipo_rateio: "DIRETO_CLIENTE",
-            fluxo: "cliente",
+            tipo_rateio: form.tipo_rateio,
+            fluxo: entrada ? "ENTRADA" : "SAIDA",
             data_emissao: competencia,
             data_vencimento: vencimento || competencia,
             data_pagamento: payload.data_pagamento,
@@ -420,9 +428,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             boleto_url: anexosPatch.boleto_url,
             recibo_url: anexosPatch.recibo_url,
           }));
-          const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioRows as any);
-          if (rateioErr) throw rateioErr;
-        }
+        const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioRows as any);
+        if (rateioErr) throw rateioErr;
 
         // Gera o título financeiro correspondente (a pagar ou a receber)
         if (!entrada) {
@@ -541,6 +548,16 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
               value={form.tipo}
               onChange={(id) => set({ tipo: id })}
               placeholder="Selecione o tipo"
+            />
+          </div>
+
+          <div>
+            <Label>Tipo de rateio</Label>
+            <SearchableCombobox
+              items={TIPOS_RATEIO}
+              value={form.tipo_rateio}
+              onChange={(id) => set({ tipo_rateio: id })}
+              placeholder="Selecione o tipo de rateio"
             />
           </div>
 
