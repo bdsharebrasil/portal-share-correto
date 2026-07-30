@@ -1031,6 +1031,16 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     return montarLinhasRateioMultiCliente({ valorTotal: valorNumerico, linhas: linhasInput });
   }, [clienteLinhas, clientesDaAeronave, valorNumerico, isViagemMode, socioId]);
 
+  const socioIdDaMovimentacaoCliente = (idCliente: string) => {
+    if (socioId) return socioId;
+    const sociosDoCliente = [...new Set(
+      linhasRateioMultiCliente
+        .filter((linha) => linha.cliente_id === idCliente && linha.socio_id)
+        .map((linha) => linha.socio_id),
+    )];
+    return sociosDoCliente.length === 1 ? sociosDoCliente[0] : null;
+  };
+
   const somaPercentualClientes = clienteLinhas.reduce((sum, l) => sum + (Number(String(l.percentualUsoCliente).replace(",", ".")) || 0), 0);
   const erroSomaClientes = !isViagemMode && clienteLinhas.length > 0
     ? validarSomaPercentualClientes(clienteLinhas.map((l) => ({ percentualUsoCliente: Number(String(l.percentualUsoCliente).replace(",", ".")) || 0 })))
@@ -1584,7 +1594,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 tipo: "despesa", tipo_caixa: "cliente",
                 categoria_id: categoriaCaixaClienteId, valor_rateado: valorCliente, valor_original: valorNumericoFinal,
                 data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
-                aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
+                aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha,
                 nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
@@ -1689,7 +1699,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao, tipo: "despesa", tipo_caixa: "cliente",
                 categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_original: valorNumericoFinal, data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
-                aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
+                aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, socio_id: socioIdDaMovimentacaoCliente(linha.clienteId), fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
                 numero_nf: nfNumLinha, numero_recibo: reciboNumLinha, numero_boleto: boletoNumLinha, numero_doc: docNumLinha, nf_url: nfUrlLinhaMov, recibo_url: reciboUrlLinha, boleto_url: boletoUrlLinha, comprovante_url: comprovanteUrlLinhaMov,
                 observacoes: obsFinal || null, contas_apagar_id: capId, reference_type: referenciaTipo || "solicitacao_pagamento", reference_id: referenciaTipo && referenciaId ? referenciaId : null, criado_por: userId,
