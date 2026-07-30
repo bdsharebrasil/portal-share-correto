@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -39,7 +39,7 @@ interface NFSaida {
   atualizado_em: string | null;
   criado_por: string | null;
   aeronave: string | null;
-  client_id: string | null;
+  cliente_id: string | null;
   aircraft_id: string | null;
   socio_id: string | null;
   categoria_id: string | null;
@@ -52,7 +52,7 @@ interface FormState {
   numero: string;
   cliente_nome: string;
   cliente_cnpj: string;
-  client_id: string;
+  cliente_id: string; // Corrigido de client_id para cliente_id
   socio_id: string;
   aircraft_id: string;
   categoria_id: string;
@@ -69,7 +69,7 @@ interface FormState {
 }
 
 const emptyForm: FormState = {
-  numero: "", cliente_nome: "", cliente_cnpj: "", client_id: "", socio_id: "", aircraft_id: "", categoria_id: "", categoria_despesa_id: "",
+  numero: "", cliente_nome: "", cliente_cnpj: "", cliente_id: "", socio_id: "", aircraft_id: "", categoria_id: "", categoria_despesa_id: "",
   categoria_despesa_subcategoria: "",
   data_criacao: new Date().toISOString().slice(0, 10),
   data_vencimento: "", valor: "", categoria: "", descricao: "", status: "pendente",
@@ -138,7 +138,7 @@ interface ExpenseConfigRow {
 }
 
 interface DespesaOption {
-  optionId: string; // composto: `${expense_configu.id}::${slot}`
+  optionId: string;
   expenseConfigId: string;
   expenseType: string;
   subcategoria: string | null;
@@ -291,8 +291,8 @@ export default function NFSaidaTab() {
         supabase.from("contas_bancarias").select("id, banco, numero_conta").eq("ativo", true).order("banco"),
       ]);
       setClientes([
-        ...(clientesData || []).map((cliente) => ({ id: `cliente:${cliente.id}`, clientId: cliente.id, socioId: null as string | null, nome: cliente.razao_social || cliente.proprietario || "Cliente", documento: cliente.cnpj || "", tipo: "Cliente" })),
-        ...(sociosData || []).map((socio) => ({ id: `socio:${socio.id}`, clientId: socio.cliente_id, socioId: socio.id as string | null, nome: socio.nome, documento: socio.cpf || "", tipo: "Sócio" })),
+        ...(clientesData || []).map((cliente) => ({ id: `cliente:${cliente.id}`, clienteId: cliente.id, socioId: null as string | null, nome: cliente.razao_social || cliente.proprietario || "Cliente", documento: cliente.cnpj || "", tipo: "Cliente" })),
+        ...(sociosData || []).map((socio) => ({ id: `socio:${socio.id}`, clienteId: socio.cliente_id, socioId: socio.id as string | null, nome: socio.nome, documento: socio.cpf || "", tipo: "Sócio" })),
       ]);
       setAeronaves(aeronavesData || []);
       setCategorias((categoriasData || []).filter((categoria) => CATEGORIAS_PERMITIDAS.has(categoria.nome.trim().toUpperCase())));
@@ -333,6 +333,33 @@ export default function NFSaidaTab() {
     return sorted;
   }, [notas, dateFrom, dateTo, statusFilter, sortBy, sortDir]);
 
+  // Agrupamento por cliente e priorização de pendentes para exibição visual
+  const groupedNotas = useMemo(() => {
+    const groups: Record<string, NFSaida[]> = {};
+    
+    filteredNotas.forEach((n) => {
+      const clientName = n.cliente_nome || "Cliente Não Informado";
+      if (!groups[clientName]) groups[clientName] = [];
+      groups[clientName].push(n);
+    });
+
+    // Ordenar pendentes no topo de cada grupo
+    Object.keys(groups).forEach((key) => {
+      groups[key].sort((a, b) => {
+        const aPendente = (a.status || "").toLowerCase() === "pendente";
+        const bPendente = (b.status || "").toLowerCase() === "pendente";
+        
+        if (aPendente && !bPendente) return -1;
+        if (!aPendente && bPendente) return 1;
+        
+        // Se empatar, ordena por data descrescente
+        return (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "");
+      });
+    });
+
+    return groups;
+  }, [filteredNotas]);
+
   const clearFilters = () => { setDateFrom(""); setDateTo(""); setStatusFilter(""); };
 
   const selectedDespesaOptionId = useMemo(() => {
@@ -352,7 +379,7 @@ export default function NFSaidaTab() {
       data_criacao: n.data_criacao ?? new Date().toISOString().slice(0, 10),
       data_vencimento: n.data_vencimento ?? "", valor: n.valor != null ? String(n.valor) : "",
       categoria: n.categoria ?? "", descricao: n.descricao ?? "", status: n.status ?? "pendente",
-      client_id: n.client_id ?? "", socio_id: n.socio_id ?? "", aircraft_id: n.aircraft_id ?? "",
+      cliente_id: n.cliente_id ?? "", socio_id: n.socio_id ?? "", aircraft_id: n.aircraft_id ?? "",
       categoria_id: n.categoria_id ?? "", categoria_despesa_id: n.categoria_despesa_id ?? "",
       categoria_despesa_subcategoria: n.categoria_despesa_subcategoria ?? "",
       aeronave: n.aeronave ?? "", arquivo_pdf_url: n.arquivo_pdf_url ?? "",
@@ -375,17 +402,6 @@ export default function NFSaidaTab() {
     } finally { setUploading(false); }
   };
 
-  /**
-   * Gera os dois lançamentos financeiros (perna Share = contas a receber/receita,
-   * perna Cliente = despesa) a partir de uma NF de saída ou recibo recém-criado,
-   * seguindo o mesmo padrão de dados já usado em outros fluxos de "contas a
-   * receber" da plataforma (mesmo contas_areceber_id nas duas movimentações).
-   *
-   * OBS: não é atômico (são 4 chamadas sequenciais ao Supabase). Se uma falhar
-   * no meio do caminho, o registro de origem (nota/recibo) já foi criado mas
-   * pode ficar sem lançamento correspondente — nesse caso o toast de erro
-   * aparece e vale a pena conferir manualmente antes de tentar de novo.
-   */
   const syncSaidaFinancialLegs = useCallback(async (params: SyncSaidaParams) => {
     const { data: areceber, error: areceberError } = await supabase
       .from("contas_areceber")
@@ -484,7 +500,7 @@ export default function NFSaidaTab() {
           numero_recibo: form.numero.trim(), tipo_recibo: form.categoria, categoria_id: form.categoria_id || null,
           categoria_despesa_id: form.categoria_despesa_id || null,
           categoria_despesa_subcategoria: form.categoria_despesa_subcategoria || null,
-          nome_categoria: form.categoria, cliente_id: form.client_id || null, socio_id: form.socio_id || null, aeronave_id: form.aircraft_id || null,
+          nome_categoria: form.categoria, cliente_id: form.cliente_id || null, socio_id: form.socio_id || null, aeronave_id: form.aircraft_id || null,
           nome_pagador: form.cliente_nome.trim(), documento_pagador: form.cliente_cnpj.trim(),
           data_emissao: form.data_criacao, data_vencimento: form.data_vencimento || null,
           valor: Number(form.valor) || 0, valor_total: Number(form.valor) || 0,
@@ -499,7 +515,7 @@ export default function NFSaidaTab() {
           numero: form.numero.trim(),
           clienteNome: form.cliente_nome.trim(),
           clienteCnpj: form.cliente_cnpj.trim(),
-          clienteId: form.client_id || null,
+          clienteId: form.cliente_id || null,
           socioId: form.socio_id || null,
           aeronaveId: form.aircraft_id || null,
           aeronaveMatricula: form.aeronave || null,
@@ -516,7 +532,7 @@ export default function NFSaidaTab() {
       } else {
         const payload = {
           numero: form.numero.trim(), cliente_nome: form.cliente_nome.trim(), cliente_cnpj: form.cliente_cnpj.trim(),
-          client_id: form.client_id || null, socio_id: form.socio_id || null, aircraft_id: form.aircraft_id || null,
+          cliente_id: form.cliente_id || null, socio_id: form.socio_id || null, aircraft_id: form.aircraft_id || null,
           categoria_id: form.categoria_id || null, categoria_despesa_id: form.categoria_despesa_id || null,
           categoria_despesa_subcategoria: form.categoria_despesa_subcategoria || null,
           data_criacao: form.data_criacao, data_vencimento: dataVencimentoFinal,
@@ -537,7 +553,7 @@ export default function NFSaidaTab() {
             numero: form.numero.trim(),
             clienteNome: form.cliente_nome.trim(),
             clienteCnpj: form.cliente_cnpj.trim(),
-            clienteId: form.client_id || null,
+            clienteId: form.cliente_id || null,
             socioId: form.socio_id || null,
             aeronaveId: form.aircraft_id || null,
             aeronaveMatricula: form.aeronave || null,
@@ -705,13 +721,13 @@ export default function NFSaidaTab() {
             <div><label className={labelCls}>Número *</label>
               <input className={inputCls} value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} /></div>
             <div><label className={labelCls}>Cliente ou Sócio *</label>
-              <SearchableCombobox items={clientes.map((pessoa) => ({ id: pessoa.id, label: `${pessoa.nome} · ${pessoa.tipo}` }))} value={form.client_id ? clientes.find((pessoa) => pessoa.clientId === form.client_id && pessoa.nome === form.cliente_nome)?.id || form.cliente_nome : form.cliente_nome} onChange={(id, label) => {
+              <SearchableCombobox items={clientes.map((pessoa) => ({ id: pessoa.id, label: `${pessoa.nome} · ${pessoa.tipo}` }))} value={form.cliente_id ? clientes.find((pessoa) => pessoa.clienteId === form.cliente_id && pessoa.nome === form.cliente_nome)?.id || form.cliente_nome : form.cliente_nome} onChange={(id, label) => {
                 const pessoa = clientes.find((item) => item.id === id);
-                setForm(pessoa ? { ...form, client_id: pessoa.clientId, socio_id: pessoa.socioId || "", cliente_nome: pessoa.nome, cliente_cnpj: pessoa.documento } : { ...form, client_id: "", socio_id: "", cliente_nome: label });
+                setForm(pessoa ? { ...form, cliente_id: pessoa.clienteId, socio_id: pessoa.socioId || "", cliente_nome: pessoa.nome, cliente_cnpj: pessoa.documento } : { ...form, cliente_id: "", socio_id: "", cliente_nome: label });
               }} placeholder="Selecione ou informe manualmente" searchPlaceholder="Buscar cliente ou sócio..." emptyMessage="Nenhum cadastro encontrado." allowFreeText />
             </div>
             <div><label className={labelCls}>CNPJ / CPF *</label>
-              <input className={inputCls} value={form.cliente_cnpj} onChange={(e) => setForm({ ...form, client_id: "", socio_id: "", cliente_cnpj: e.target.value })} placeholder="Preenchido ao selecionar" /></div>
+              <input className={inputCls} value={form.cliente_cnpj} onChange={(e) => setForm({ ...form, cliente_id: "", socio_id: "", cliente_cnpj: e.target.value })} placeholder="Preenchido ao selecionar" /></div>
             <div><label className={labelCls}>Data Emissão</label>
               <input type="date" className={inputCls} value={form.data_criacao} onChange={(e) => setForm({ ...form, data_criacao: e.target.value })} /></div>
             <div><label className={labelCls}>Data Vencimento</label>
@@ -855,7 +871,7 @@ export default function NFSaidaTab() {
         )}
       </div>
 
-      {/* table */}
+      {/* table agrupada */}
       {loading ? (
         <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
       ) : filteredNotas.length === 0 ? (
@@ -880,39 +896,65 @@ export default function NFSaidaTab() {
               </tr>
             </thead>
             <tbody>
-              {filteredNotas.map((n) => (
-                <tr key={n.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                  <td className="px-3 py-2 text-slate-200 font-semibold">{n.numero || "—"}</td>
-                  <td className="px-3 py-2 text-slate-200">{n.cliente_nome || "—"}</td>
-                  <td className="px-3 py-2 text-slate-300">{n.aeronave || "—"}</td>
-                  <td className="px-3 py-2 text-slate-300">{n.data_criacao || "—"}</td>
-                  <td className="px-3 py-2 text-slate-300">{n.data_vencimento || "—"}</td>
-                  <td className="px-3 py-2 text-right font-semibold text-cyan-300">{formatBRL(num(n.valor))}</td>
-                  <td className="px-3 py-2 text-slate-300">{n.categoria || "—"}</td>
-                  <td className="px-3 py-2"><StatusBadge status={n.status} /></td>
-                  <td className="px-3 py-2 text-center">
-                    {n.arquivo_pdf_url ? (
-                      <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 inline-flex items-center justify-center">
-                        <Download className="h-3.5 w-3.5" />
-                      </a>
-                    ) : <span className="text-slate-600">—</span>}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex justify-end gap-1">
-                      {n.status === "pendente" && n.contas_areceber_id && (
-                        <button onClick={() => openBaixa(n)} title="Dar baixa (registrar recebimento)" className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px]">
-                          <Banknote className="h-3 w-3" />
-                        </button>
-                      )}
-                      <button onClick={() => openEdit(n)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+              {Object.entries(groupedNotas).map(([clienteNome, notasDoCliente]) => (
+                <React.Fragment key={clienteNome}>
+                  {/* Cabeçalho do Grupo */}
+                  <tr className="bg-slate-800/60 border-b border-slate-700">
+                    <td colSpan={10} className="px-3 py-2 text-sm font-bold text-slate-100">
+                      {clienteNome} <span className="text-xs font-normal text-slate-400 ml-1">({notasDoCliente.length} {notasDoCliente.length === 1 ? 'nota' : 'notas'})</span>
+                    </td>
+                  </tr>
+                  
+                  {/* Linhas das Notas */}
+                  {notasDoCliente.map((n) => {
+                    const isRecebido = (n.status ?? "").toLowerCase() === "recebido";
+                    const isPendente = (n.status ?? "").toLowerCase() === "pendente";
+                    
+                    return (
+                      <tr 
+                        key={n.id} 
+                        className={`border-b border-slate-800/50 transition-all ${
+                          isRecebido 
+                            ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' 
+                            : isPendente 
+                              ? 'bg-slate-800/30 border-l-2 border-l-amber-500 hover:bg-slate-800/60' 
+                              : 'hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <td className={`px-3 py-2 font-semibold ${isRecebido ? 'text-slate-400' : 'text-slate-200'}`}>{n.numero || "—"}</td>
+                        <td className="px-3 py-2 text-slate-400">{n.cliente_nome || "—"}</td>
+                        <td className="px-3 py-2 text-slate-400">{n.aeronave || "—"}</td>
+                        <td className="px-3 py-2 text-slate-400">{n.data_criacao || "—"}</td>
+                        <td className="px-3 py-2 text-slate-400">{n.data_vencimento || "—"}</td>
+                        <td className={`px-3 py-2 text-right font-semibold ${isRecebido ? 'text-slate-400' : 'text-cyan-300'}`}>{formatBRL(num(n.valor))}</td>
+                        <td className="px-3 py-2 text-slate-400">{n.categoria || "—"}</td>
+                        <td className="px-3 py-2"><StatusBadge status={n.status} /></td>
+                        <td className="px-3 py-2 text-center">
+                          {n.arquivo_pdf_url ? (
+                            <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 inline-flex items-center justify-center">
+                              <Download className="h-3.5 w-3.5" />
+                            </a>
+                          ) : <span className="text-slate-600">—</span>}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex justify-end gap-1">
+                            {n.status === "pendente" && n.contas_areceber_id && (
+                              <button onClick={() => openBaixa(n)} title="Dar baixa (registrar recebimento)" className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px]">
+                                <Banknote className="h-3 w-3" />
+                              </button>
+                            )}
+                            <button onClick={() => openEdit(n)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
