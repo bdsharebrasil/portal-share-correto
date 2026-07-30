@@ -10,7 +10,7 @@ import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCategorias} from "@/hooks/useCategorias";
+import { useCategorias } from "@/hooks/useCategorias";
 import { X, Save } from "lucide-react";
 
 interface ContaRecorrenteFormProps {
@@ -48,7 +48,11 @@ export function ContaRecorrenteForm({
   onCancel
 }: ContaRecorrenteFormProps) {
   const { user } = useAuth();
-  const { categorias } = useCategoriasFinanceiro();
+
+  // useCategorias() retorna { data, isLoading, error } — não { categorias }
+  // Por isso renomeamos "data" para "categorias" aqui e garantimos fallback de array vazio
+  const { data: categorias = [], isLoading: isLoadingCategorias, error: categoriasError } = useCategorias();
+
   const [fornecedores, setFornecedores] = useState<any[]>([]);
   const [selectedFornecedorId, setSelectedFornecedorId] = useState<string>("");
   const [contaPagamento, setContaPagamento] = useState<string>("");
@@ -86,8 +90,8 @@ export function ContaRecorrenteForm({
   const subcategorias = useMemo(() => {
     if (!tipoDespesa) return [];
     return categorias
-      .filter(cat => cat.tipo === "despesa" && cat.grupo_categoria === tipoDespesa)
-      .map(cat => ({ id: cat.id, label: cat.nome }));
+      .filter((cat: any) => cat.tipo === "despesa" && cat.grupo_categoria === tipoDespesa)
+      .map((cat: any) => ({ id: cat.id, label: cat.nome }));
   }, [categorias, tipoDespesa]);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
