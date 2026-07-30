@@ -10,7 +10,7 @@ import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { useCategoriasFinanceiro } from "@/hooks/useCategorias";
 import { X, Save } from "lucide-react";
 
 interface ContaRecorrenteFormProps {
