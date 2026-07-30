@@ -475,7 +475,7 @@ export default function FluxoCaixaTab() {
     setTimeout(() => { win.print(); }, 500);
   }, [filteredMovs, activeTab, resolveName]);
 
-  return (
+   return (
     <div className="space-y-6">
       {/* Toast */}
       {toast && (
@@ -507,6 +507,16 @@ export default function FluxoCaixaTab() {
           );
         })}
       </div>
+
+      {/* Formulário Expansor - Movido para cá */}
+      {showNewMov && (
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-4 shadow-lg backdrop-blur-sm animate-in slide-in-from-top-4 fade-in duration-300">
+          <NovaDespesaShareForm
+            onCancel={() => setShowNewMov(false)}
+            onSaved={onNewMovSaved}
+          />
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -756,12 +766,9 @@ export default function FluxoCaixaTab() {
           onSaved={(movPatch: any) => { setEditMovId(null); onBaixaSuccess(movPatch || {}); }}
         />
       )}
-      {showNewMov && (
-        <NovaDespesaShareForm
-          onCancel={() => setShowNewMov(false)}
-          onSaved={onNewMovSaved}
-        />
-      )}
+      
+      {/* NovaDespesaShareForm foi removido daqui e subiu para baixo das abas */}
+
       {viewAttachment && (
         <AttachmentViewerModal
           url={viewAttachment.url}
@@ -771,7 +778,8 @@ export default function FluxoCaixaTab() {
       )}
     </div>
   );
-}
+
+  
 
 /* ─────────────────────────── RowFragment ─────────────────────────── */
 
