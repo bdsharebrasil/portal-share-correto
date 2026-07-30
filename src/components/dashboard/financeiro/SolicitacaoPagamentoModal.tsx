@@ -34,7 +34,7 @@ import {
   ClienteLinhaRateioInput,
 } from "@/components/dashboard/financeiro/solicitacaoPagamentoValidators";
 import { syncSaidaFinancialLegs } from "@/lib/saidaFinancialSync";
-import { EnviarEmailClienteDialog, type AnexoEmail } from "@/components/financeiro/EnviarEmailClienteDialog";
+import { EnviarEmailClienteDialog, type AnexoEmail } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 
 interface SolicitacaoPagamentoModalProps {
   open: boolean;
