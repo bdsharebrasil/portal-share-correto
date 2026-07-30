@@ -54,6 +54,7 @@ interface Transacao {
   conta_banco?: string | null;
   metodo_pagamento?: string | null;
   status?: string | null;
+  tipo_caixa?: string | null;
   nf_url?: string | null;
   boleto_url?: string | null;
   recibo_url?: string | null;
@@ -71,6 +72,7 @@ function useMovimentacoesMensal() {
           id,
           descricao,
           tipo,
+          tipo_caixa,
           valor,
           data_competencia,
           data_vencimento,
@@ -162,6 +164,7 @@ function useMovimentacoesMensal() {
         conta_banco: row.conta_bancaria || row.banco_nome || null,
         metodo_pagamento: row.forma_pagamento,
         status: row.status,
+        tipo_caixa: row.tipo_caixa,
         nf_url: row.nf_url,
         boleto_url: row.boleto_url,
         recibo_url: row.recibo_url,
@@ -402,6 +405,10 @@ export function QuadroMensalTab() {
       const matchesTipo =
         filterTipo === "todas" || t.tipo_movimento === filterTipo;
 
+      const matchesCaixa =
+        advancedFilters.caixaType === "all" ||
+        t.tipo_caixa === advancedFilters.caixaType;
+
       let matchesDateRange = true;
       if (advancedFilters.dateRange?.from) {
         const transacaoDate = new Date(t.data);
@@ -420,7 +427,7 @@ export function QuadroMensalTab() {
         (advancedFilters.source === "reconciliation" && t.conta_banco) ||
         (advancedFilters.source === "despesa" && !t.conta_banco);
 
-      return matchesSearch && matchesStatus && matchesValue && matchesTipo && matchesDateRange && matchesSource;
+      return matchesSearch && matchesStatus && matchesValue && matchesTipo && matchesCaixa && matchesDateRange && matchesSource;
     });
 
     return [...filtered].sort((a, b) => {
@@ -429,6 +436,20 @@ export function QuadroMensalTab() {
       return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
     });
   }, [transacoes, advancedFilters, filterTipo, sortOrder]);
+
+  const tableThemeClass =
+    advancedFilters.caixaType === "share"
+      ? "border-emerald-500/40 bg-emerald-500/10"
+      : advancedFilters.caixaType === "cliente"
+        ? "border-blue-500/40 bg-blue-500/10"
+        : "border-border/40 bg-card/30";
+
+  const tableHeaderThemeClass =
+    advancedFilters.caixaType === "share"
+      ? "bg-emerald-950/70"
+      : advancedFilters.caixaType === "cliente"
+        ? "bg-blue-950/70"
+        : "bg-card/80";
 
   // ── KPI totals ────────────────────────────────────────────────────────────
   const totalReceitas = useMemo(
@@ -640,14 +661,16 @@ export function QuadroMensalTab() {
       </div>
 
       {/* ── Table ──────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm overflow-hidden">
+      <div className={`rounded-xl border backdrop-blur-sm overflow-hidden transition-colors ${tableThemeClass}`}>
         {/* Table title — drag scrolls the table body */}
         <div
           {...titleDragHandlers}
           className="px-5 py-4 border-b border-border/40 cursor-grab active:cursor-grabbing select-none"
         >
           <h3 className="font-semibold text-foreground">
-            Transações —{" "}
+            Transações
+            {advancedFilters.caixaType !== "all" && ` — Caixa ${advancedFilters.caixaType === "share" ? "Share" : "Cliente"}`}
+            {" — "}
             <span className="capitalize">
               {format(new Date(mesAtual.year, mesAtual.month), "MMMM yyyy", { locale: ptBR })}
             </span>
@@ -679,7 +702,7 @@ export function QuadroMensalTab() {
             className="overflow-auto max-h-[560px] cursor-grab active:cursor-grabbing"
           >
             <Table>
-              <TableHeader className="sticky top-0 bg-card/80 backdrop-blur-sm z-10">
+              <TableHeader className={`sticky top-0 backdrop-blur-sm z-10 transition-colors ${tableHeaderThemeClass}`}>
                 <TableRow className="border-border/40 hover:bg-transparent">
                   <TableHead
                     className="text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
