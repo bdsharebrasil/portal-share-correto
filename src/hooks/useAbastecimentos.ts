@@ -13,7 +13,7 @@ export interface Abastecimento {
   valor_unitario: number;
   valor_total: number;
   abastecedor: string | null;
-  status_pagamento: string | null;
+  status: string | null;
   created_at: string | null;
   updated_at: string | null;
   socio_nome: string | null;
@@ -42,7 +42,7 @@ export function useClientAbastecimentos(clientId: string | null) {
       let query = supabase
         .from("abastecimentos")
         .select("*")
-        .or("status_pagamento.is.null,status_pagamento.eq.em_aberto,status_pagamento.eq.em aberto,status_pagamento.eq.pendente");
+        .or("status.is.null,statuseq.em_aberto,status.eq.em aberto,status.eq.pendente");
 
       if (aircraftIds.length > 0) {
         query = query.or(`id_clientes.eq.${clientId},aeronave_id.in.(${aircraftIds.join(",")})`);
@@ -79,7 +79,7 @@ export function useLinkAbastecimentoDespesa() {
       const { error: updateError } = await supabase
         .from("abastecimentos")
         .update({
-          status_pagamento: data.statusPagamento || "registrado",
+          status: data.status || "registrado",
           updated_at: new Date().toISOString(),
         })
         .eq("id", data.abastecimentoId);
@@ -178,7 +178,7 @@ export function useCreateAbastecimento() {
           valor_unitario: data.valorUnitario,
           abastecedor: data.abastecedor || null,
           socio_nome: data.partnerName || null,
-          status_pagamento: null,
+          status: null,
         })
         .select()
         .single();

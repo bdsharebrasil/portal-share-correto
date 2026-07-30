@@ -103,7 +103,7 @@ interface AbastecimentoLookup {
   valor_total: number | null;
   litros: number | null;
   local: string | null;
-  status_pagamento: string | null;
+  status: string | null;
   comprovante_pagamento: string | null;
   boleto_url: string | null;
   nota_url: string | null;
@@ -644,7 +644,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     try {
       let q: any = (supabase as any)
         .from("abastecimentos")
-        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
+        .select("id, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
         .order("data", { ascending: false })
         .limit(1);
       if (aeronaveId) q = q.eq("aeronave_id", aeronaveId);
@@ -761,12 +761,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         comanda_url: comandaUrl,
         nota_url: notaUrl,
         boleto_url: boletoUrl,
-        status_pagamento: "em aberto",
+        status: "em aberto",
       };
       const { data, error } = await (supabase as any)
         .from("abastecimentos")
         .insert(payload)
-        .select("id, comanda, nf, data, valor_total, litros, local, status_pagamento, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
+        .select("id, comanda, nf, data, valor_total, litros, local, status, comprovante_pagamento, boleto_url, nota_url, comprovante_url, comanda_url, data_vencimento_boleto, abastecedor, abastecedor_id, data_pagamento")
         .single();
       if (error) throw error;
       const inserted = data as AbastecimentoLookup;
@@ -1420,11 +1420,15 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         if (existente) { toast.error("Já existe um lançamento associado a este recibo."); return; }
       }
 
-      const categoriaContaId = await resolveCategoriaConta(tipoDespesaLabel || 'Despesa', userId);
+      const categoriaCaixaClienteId = modo === "DIRETO" ? tipoDespesa : null;
+      const categoriaContaId = modo === "DIRETO"
+        ? null
+        : await resolveCategoriaConta(tipoDespesaLabel || "Despesa", userId);
       const tipoRateioFinal = normalizarTipoRateio(tipoRateio);
       const supabaseClient = supabase as unknown as SupabaseClientLike;
 
-      if (!categoriaContaId) throw new Error("Não foi possível resolver/criar a categoria da despesa.");
+      if (modo === "DIRETO" && !categoriaCaixaClienteId) throw new Error("Selecione uma categoria do Caixa Cliente.");
+      if (modo !== "DIRETO" && !categoriaContaId) throw new Error("Não foi possível resolver/criar a categoria da despesa.");
 
       if (isViagemMode && travelReportSel && !rascunho) {
         const travelReportNumeroDoc = travelReportSel.numero_relatorio || docNum || referenciaNumero;
@@ -1455,9 +1459,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           let movId: string;
           try {
             movId = await insertAndGetId("movimentacoes", {
-              descricao: descricaoViagemModo, 
+              descricao: descricaoViagemModo,
               tipo: "despesa", tipo_caixa: "cliente",
-              categoria_id: categoriaContaId, valor_rateado: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
+              categoria_id: categoriaCaixaClienteId || categoriaContaId, valor_rateado: entry.valor, valor_original: Number(travelReportSel.total_valor ?? valorNumerico),
               data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov, aeronave_id: aeronaveId || null,
               clientes_id: clienteParaPersistencia, socio_id: socioId || null, fornecedor_nome: fornecedorNomeFinal,
               numero_nf: nfNum, numero_recibo: reciboNum, numero_boleto: boletoNum, numero_doc: travelReportNumeroDoc,
@@ -1578,7 +1582,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
               const movId = await insertAndGetId("movimentacoes", {
                 descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
                 tipo: "despesa", tipo_caixa: "cliente",
-                categoria_id: categoriaContaId, valor_rateado: valorCliente, valor_original: valorNumericoFinal,
+                categoria_id: categoriaCaixaClienteId, valor_rateado: valorCliente, valor_original: valorNumericoFinal,
                 data_competencia: dataComp, data_vencimento: dataVenc, status: statusMov,
                 aeronave_id: aeronaveId || null, clientes_id: linha.clienteId, fornecedor_nome: fornecedorNomeFinal,
                 categoria_nome: tipoDespesaLabel || null,
@@ -1801,7 +1805,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
       if (!rascunho && referenciaTipo === "abastecimento" && referenciaId) {
         const socioNomeParaAbastecimento = (socioSel?.nome || (clienteLinhas.length === 1 ? null : null)).trim() || null;
         await (supabase.from("abastecimentos") as any).update({
-          status_pagamento: "pago",
+          status: "pago",
           data_pagamento: dataComp,
           socio_nome: socioNomeParaAbastecimento,
           updated_at: new Date().toISOString(),
