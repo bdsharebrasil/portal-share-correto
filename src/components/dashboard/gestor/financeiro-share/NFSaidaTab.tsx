@@ -14,6 +14,8 @@ import {
   Upload,
   ReceiptText,
   Banknote,
+  Filter,
+  SlidersHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
@@ -42,6 +44,7 @@ interface NFSaida {
   socio_id: string | null;
   categoria_id: string | null;
   categoria_despesa_id: string | null;
+  categoria_despesa_subcategoria: string | null;
   contas_areceber_id: string | null;
 }
 
@@ -54,6 +57,7 @@ interface FormState {
   aircraft_id: string;
   categoria_id: string;
   categoria_despesa_id: string;
+  categoria_despesa_subcategoria: string;
   data_criacao: string;
   data_vencimento: string;
   valor: string;
@@ -66,6 +70,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   numero: "", cliente_nome: "", cliente_cnpj: "", client_id: "", socio_id: "", aircraft_id: "", categoria_id: "", categoria_despesa_id: "",
+  categoria_despesa_subcategoria: "",
   data_criacao: new Date().toISOString().slice(0, 10),
   data_vencimento: "", valor: "", categoria: "", descricao: "", status: "pendente",
   aeronave: "", arquivo_pdf_url: "",
@@ -120,9 +125,74 @@ const STATUS_OPCOES = [
   { value: "cancelado", label: "Cancelado" },
 ];
 
+/* ─────────────── categorias de despesa (expense_configu) ─────────────── */
+
+interface ExpenseConfigRow {
+  id: string;
+  expense_type: string;
+  subcategoria_1: string | null;
+  subcategoria_2: string | null;
+  subcategoria_3: string | null;
+  subcategoria_4: string | null;
+  categoria_pai: string | null;
+}
+
+interface DespesaOption {
+  optionId: string; // composto: `${expense_configu.id}::${slot}`
+  expenseConfigId: string;
+  expenseType: string;
+  subcategoria: string | null;
+  label: string;
+}
+
+function buildDespesaOptions(rows: ExpenseConfigRow[]): DespesaOption[] {
+  const options: DespesaOption[] = [];
+  for (const row of rows) {
+    const subcategorias = [row.subcategoria_1, row.subcategoria_2, row.subcategoria_3, row.subcategoria_4]
+      .map((s) => (s ? s.trim() : s))
+      .filter((s): s is string => !!s);
+
+    if (subcategorias.length === 0) {
+      options.push({
+        optionId: `${row.id}::0`,
+        expenseConfigId: row.id,
+        expenseType: row.expense_type,
+        subcategoria: null,
+        label: row.expense_type,
+      });
+    } else {
+      subcategorias.forEach((sub, index) => {
+        options.push({
+          optionId: `${row.id}::${index + 1}`,
+          expenseConfigId: row.id,
+          expenseType: row.expense_type,
+          subcategoria: sub,
+          label: `${row.expense_type} — ${sub}`,
+        });
+      });
+    }
+  }
+  return options.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+}
+
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
+
+const isImageUrl = (url: string) => /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url);
+
+const getFileNameFromUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const segment = parsed.pathname.split("/").pop() || "arquivo";
+    return decodeURIComponent(segment);
+  } catch {
+    return "arquivo";
+  }
+};
+
+type SortBy = "data" | "nome";
+type SortDir = "asc" | "desc";
 
 function StatusBadge({ status }: { status: string | null }) {
   const s = (status ?? "").toLowerCase();
@@ -165,10 +235,19 @@ export default function NFSaidaTab() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [aeronaves, setAeronaves] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
-  const [despesaCategorias, setDespesaCategorias] = useState<any[]>([]);
+  const [despesaOptions, setDespesaOptions] = useState<DespesaOption[]>([]);
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
   const [uploading, setUploading] = useState(false);
+
+  // filtros e ordenação
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "pendente" | "recebido" | "cancelado">("");
+  const [sortBy, setSortBy] = useState<SortBy>("data");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // dar baixa
   const [baixaTarget, setBaixaTarget] = useState<NFSaida | null>(null);
@@ -201,14 +280,14 @@ export default function NFSaidaTab() {
         { data: sociosData },
         { data: aeronavesData },
         { data: categoriasData },
-        { data: despesaCategoriasData },
+        { data: expenseConfigData },
         { data: bancosData },
       ] = await Promise.all([
         supabase.from("clientes").select("id, razao_social, proprietario, cnpj").order("razao_social"),
         supabase.from("socios").select("id, cliente_id, nome, cpf"),
         supabase.from("aeronave").select("id, matricula").order("matricula"),
         supabase.from("categorias_movimentacao").select("id, nome").eq("ativo", true).order("nome"),
-        supabase.from("categorias_movimentacao").select("id, nome").eq("ativo", true).eq("tipo", "despesa").order("nome"),
+        supabase.from("expense_configu").select("id, expense_type, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4, categoria_pai").order("expense_type"),
         supabase.from("contas_bancarias").select("id, banco, numero_conta").eq("ativo", true).order("banco"),
       ]);
       setClientes([
@@ -217,7 +296,7 @@ export default function NFSaidaTab() {
       ]);
       setAeronaves(aeronavesData || []);
       setCategorias((categoriasData || []).filter((categoria) => CATEGORIAS_PERMITIDAS.has(categoria.nome.trim().toUpperCase())));
-      setDespesaCategorias(despesaCategoriasData || []);
+      setDespesaOptions(buildDespesaOptions((expenseConfigData || []) as ExpenseConfigRow[]));
       setContasBancarias(bancosData || []);
     };
     loadFormData();
@@ -234,6 +313,37 @@ export default function NFSaidaTab() {
     return { total, totalPendente, totalRecebido };
   }, [notas]);
 
+  const hasActiveFilters = !!dateFrom || !!dateTo || !!statusFilter;
+
+  const filteredNotas = useMemo(() => {
+    let result = notas;
+    if (dateFrom) result = result.filter((n) => (n.data_criacao ?? "") >= dateFrom);
+    if (dateTo) result = result.filter((n) => (n.data_criacao ?? "") <= dateTo);
+    if (statusFilter) result = result.filter((n) => (n.status ?? "").toLowerCase() === statusFilter);
+
+    const sorted = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "data") {
+        cmp = (a.data_criacao ?? "").localeCompare(b.data_criacao ?? "");
+      } else {
+        cmp = (a.cliente_nome ?? "").localeCompare(b.cliente_nome ?? "", "pt-BR");
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [notas, dateFrom, dateTo, statusFilter, sortBy, sortDir]);
+
+  const clearFilters = () => { setDateFrom(""); setDateTo(""); setStatusFilter(""); };
+
+  const selectedDespesaOptionId = useMemo(() => {
+    if (!form.categoria_despesa_id) return "";
+    const match = despesaOptions.find((option) =>
+      option.expenseConfigId === form.categoria_despesa_id &&
+      (option.subcategoria ?? "") === (form.categoria_despesa_subcategoria ?? "")
+    );
+    return match?.optionId ?? "";
+  }, [despesaOptions, form.categoria_despesa_id, form.categoria_despesa_subcategoria]);
+
   const openNew = () => { setForm(emptyForm); setEditingId(null); setDocumentType("nota"); setShowForm(true); };
   const openNewReceipt = () => { setForm(emptyForm); setEditingId(null); setDocumentType("recibo"); setShowForm(true); };
   const openEdit = (n: NFSaida) => {
@@ -244,6 +354,7 @@ export default function NFSaidaTab() {
       categoria: n.categoria ?? "", descricao: n.descricao ?? "", status: n.status ?? "pendente",
       client_id: n.client_id ?? "", socio_id: n.socio_id ?? "", aircraft_id: n.aircraft_id ?? "",
       categoria_id: n.categoria_id ?? "", categoria_despesa_id: n.categoria_despesa_id ?? "",
+      categoria_despesa_subcategoria: n.categoria_despesa_subcategoria ?? "",
       aeronave: n.aeronave ?? "", arquivo_pdf_url: n.arquivo_pdf_url ?? "",
     });
     setEditingId(n.id); setDocumentType("nota"); setShowForm(true);
@@ -363,7 +474,8 @@ export default function NFSaidaTab() {
     if (!(Number(form.valor) > 0)) { setToast({ type: "err", text: "Informe um valor maior que zero." }); return; }
     setSaving(true); setToast(null);
     try {
-      const categoriaDespesaNome = despesaCategorias.find((c) => c.id === form.categoria_despesa_id)?.nome ?? null;
+      const despesaSelecionada = despesaOptions.find((option) => option.optionId === selectedDespesaOptionId);
+      const categoriaDespesaNome = despesaSelecionada?.label ?? null;
       const dataVencimentoFinal = form.data_vencimento || form.data_criacao;
 
       if (documentType === "recibo") {
@@ -371,6 +483,7 @@ export default function NFSaidaTab() {
         const { data: inserted, error } = await supabase.from("recibos_saida").insert({
           numero_recibo: form.numero.trim(), tipo_recibo: form.categoria, categoria_id: form.categoria_id || null,
           categoria_despesa_id: form.categoria_despesa_id || null,
+          categoria_despesa_subcategoria: form.categoria_despesa_subcategoria || null,
           nome_categoria: form.categoria, cliente_id: form.client_id || null, socio_id: form.socio_id || null, aeronave_id: form.aircraft_id || null,
           nome_pagador: form.cliente_nome.trim(), documento_pagador: form.cliente_cnpj.trim(),
           data_emissao: form.data_criacao, data_vencimento: form.data_vencimento || null,
@@ -405,6 +518,7 @@ export default function NFSaidaTab() {
           numero: form.numero.trim(), cliente_nome: form.cliente_nome.trim(), cliente_cnpj: form.cliente_cnpj.trim(),
           client_id: form.client_id || null, socio_id: form.socio_id || null, aircraft_id: form.aircraft_id || null,
           categoria_id: form.categoria_id || null, categoria_despesa_id: form.categoria_despesa_id || null,
+          categoria_despesa_subcategoria: form.categoria_despesa_subcategoria || null,
           data_criacao: form.data_criacao, data_vencimento: dataVencimentoFinal,
           valor: Number(form.valor) || 0, categoria: form.categoria, descricao: form.descricao.trim() || null, status: form.status,
           aeronave: form.aeronave, arquivo_pdf_url: form.arquivo_pdf_url.trim() || null,
@@ -608,7 +722,21 @@ export default function NFSaidaTab() {
               <SearchableCombobox items={categorias.map((categoria) => ({ id: categoria.id, label: categoria.nome }))} value={form.categoria_id || form.categoria} onChange={(id, label) => setForm({ ...form, categoria_id: id, categoria: label })} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." emptyMessage="Nenhuma categoria permitida encontrada." />
             </div>
             <div><label className={labelCls}>Categoria de Despesa (Cliente) *</label>
-              <SearchableCombobox items={despesaCategorias.map((categoria) => ({ id: categoria.id, label: categoria.nome }))} value={form.categoria_despesa_id} onChange={(id) => setForm({ ...form, categoria_despesa_id: id })} placeholder="Como isso entra no caixa do cliente" searchPlaceholder="Buscar categoria de despesa..." emptyMessage="Nenhuma categoria de despesa encontrada." />
+              <SearchableCombobox
+                items={despesaOptions.map((option) => ({ id: option.optionId, label: option.label }))}
+                value={selectedDespesaOptionId}
+                onChange={(optionId) => {
+                  const option = despesaOptions.find((item) => item.optionId === optionId);
+                  setForm({
+                    ...form,
+                    categoria_despesa_id: option?.expenseConfigId ?? "",
+                    categoria_despesa_subcategoria: option?.subcategoria ?? "",
+                  });
+                }}
+                placeholder="Como isso entra no caixa do cliente"
+                searchPlaceholder="Buscar categoria de despesa..."
+                emptyMessage="Nenhuma categoria de despesa encontrada."
+              />
             </div>
             <div><label className={labelCls}>Aeronave *</label>
               <SearchableCombobox items={aeronaves.map((aeronave) => ({ id: aeronave.id, label: aeronave.matricula }))} value={form.aircraft_id || form.aeronave} onChange={(id, label) => setForm({ ...form, aircraft_id: id, aeronave: label })} placeholder="Selecione a aeronave" searchPlaceholder="Buscar aeronave..." emptyMessage="Nenhuma aeronave encontrada." />
@@ -619,14 +747,38 @@ export default function NFSaidaTab() {
               </select></div>
             <div className="md:col-span-3"><label className={labelCls}>Descrição</label>
               <textarea className={inputCls} rows={2} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
-            <div className="md:col-span-3"><label className={labelCls}>PDF ou imagem</label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input className={inputCls} value={form.arquivo_pdf_url} onChange={(e) => setForm({ ...form, arquivo_pdf_url: e.target.value })} placeholder="URL do arquivo" />
-                <label className="inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800">
-                  <Upload className="h-4 w-4" /> {uploading ? "Enviando..." : "Enviar arquivo"}
+            <div className="md:col-span-3">
+              <label className={labelCls}>PDF ou imagem</label>
+              {form.arquivo_pdf_url ? (
+                <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-950/70 p-3">
+                  {isImageUrl(form.arquivo_pdf_url) ? (
+                    <img src={form.arquivo_pdf_url} alt="Pré-visualização" className="h-16 w-16 shrink-0 rounded-lg border border-slate-700 object-cover" />
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-900">
+                      <FileText className="h-6 w-6 text-slate-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-slate-200">{getFileNameFromUrl(form.arquivo_pdf_url)}</p>
+                    <a href={form.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-xs text-cyan-400 hover:text-cyan-300">Abrir arquivo</a>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800">
+                      <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando..." : "Trocar"}
+                      <input type="file" accept="application/pdf,image/*" className="hidden" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadDocument(file); e.target.value = ""; }} />
+                    </label>
+                    <button type="button" onClick={() => setForm({ ...form, arquivo_pdf_url: "" })} className="rounded-lg border border-red-900/50 bg-red-950/40 px-2.5 py-1.5 text-xs text-red-300 hover:bg-red-900/40">
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-700 bg-slate-950/40 px-4 py-6 text-center text-xs text-slate-400 hover:border-cyan-400/50 hover:text-slate-200">
+                  <Upload className="h-5 w-5" />
+                  {uploading ? "Enviando..." : "Clique para enviar PDF ou imagem"}
                   <input type="file" accept="application/pdf,image/*" className="hidden" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadDocument(file); e.target.value = ""; }} />
                 </label>
-              </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
@@ -638,12 +790,77 @@ export default function NFSaidaTab() {
         </div>
       )}
 
+      {/* filtros e ordenação */}
+      <div className="rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setShowFilterPanel(!showFilterPanel); setShowSortMenu(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showFilterPanel ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
+              <Filter className="h-3.5 w-3.5" /> Filtros{hasActiveFilters ? " •" : ""}
+            </button>
+            <div className="relative">
+              <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterPanel(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showSortMenu ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Ordenar
+              </button>
+              {showSortMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-slate-700 bg-slate-900 shadow-xl py-1">
+                    {([
+                      { by: "data" as const, dir: "desc" as const, label: "Data — Mais recente" },
+                      { by: "data" as const, dir: "asc" as const, label: "Data — Mais antiga" },
+                      { by: "nome" as const, dir: "asc" as const, label: "Cliente — A a Z" },
+                      { by: "nome" as const, dir: "desc" as const, label: "Cliente — Z a A" },
+                    ]).map((opt) => {
+                      const active = sortBy === opt.by && sortDir === opt.dir;
+                      return (
+                        <button
+                          key={`${opt.by}-${opt.dir}`}
+                          onClick={() => { setSortBy(opt.by); setSortDir(opt.dir); setShowSortMenu(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs ${active ? "text-cyan-300 bg-cyan-500/10" : "text-slate-200 hover:bg-slate-800"}`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <span className="text-[11px] text-slate-500">{filteredNotas.length} de {notas.length} nota(s)</span>
+        </div>
+        {showFilterPanel && (
+          <div className="px-5 py-4 border-t space-y-3" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data De</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data Até</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400">
+                  <option value="">Todos</option>
+                  {STATUS_OPCOES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">Limpar filtros</button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* table */}
       {loading ? (
         <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
-      ) : notas.length === 0 ? (
+      ) : filteredNotas.length === 0 ? (
         <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
-          Nenhuma nota fiscal cadastrada.
+          {hasActiveFilters ? "Nenhuma nota fiscal encontrada para os filtros aplicados." : "Nenhuma nota fiscal cadastrada."}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
@@ -663,7 +880,7 @@ export default function NFSaidaTab() {
               </tr>
             </thead>
             <tbody>
-              {notas.map((n) => (
+              {filteredNotas.map((n) => (
                 <tr key={n.id} className="border-b border-slate-800 hover:bg-slate-800/30">
                   <td className="px-3 py-2 text-slate-200 font-semibold">{n.numero || "—"}</td>
                   <td className="px-3 py-2 text-slate-200">{n.cliente_nome || "—"}</td>
