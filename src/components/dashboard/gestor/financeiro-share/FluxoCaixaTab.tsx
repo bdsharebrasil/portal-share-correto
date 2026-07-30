@@ -390,7 +390,7 @@ export default function FluxoCaixaTab() {
   const kpis = useMemo(() => {
     let entradas = 0, saidas = 0, pendentes = 0;
     for (const m of filteredMovs) {
-      const v = num(m.valor);
+      const v = valorDe(m);
       if (isEntrada(m)) entradas += v; else saidas += v;
       const k = statusOf(m).kind;
       if (k === "pendente" || k === "vencido") pendentes += v;
@@ -464,18 +464,18 @@ export default function FluxoCaixaTab() {
       const name = resolveName(m);
       const date = formatDate(m.data_pagamento || m.data_vencimento || m.data_competencia);
       const status = statusOf(m).label;
-      const valor = formatBRL(num(m.valor));
+      const valor = formatBRL(valorDe(m));
       return `<tr><td>${date}</td><td>${entrada ? "Entrada" : "Saída"}</td><td>${m.descricao || "—"}</td><td>${name}</td><td style="text-align:right">${valor}</td><td>${status}</td></tr>`;
     }).join("");
-    const totalReceita = filteredMovs.filter(isEntrada).reduce((s, m) => s + num(m.valor), 0);
-    const totalDespesa = filteredMovs.filter((m) => !isEntrada(m)).reduce((s, m) => s + num(m.valor), 0);
+    const totalReceita = filteredMovs.filter(isEntrada).reduce((s, m) => s + valorDe(m), 0);
+    const totalDespesa = filteredMovs.filter((m) => !isEntrada(m)).reduce((s, m) => s + valorDe(m), 0);
     win.document.write(`<!DOCTYPE html><html><head><title>${tabLabel}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e293b}h1{font-size:18px;margin:0 0 4px}.meta{font-size:11px;color:#64748b;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#f1f5f9;padding:8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:9px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #e2e8f0}.tot{margin-top:16px;font-size:12px;display:flex;gap:24px}.tot span{font-weight:bold}</style></head><body><h1>Relatório — ${tabLabel}</h1><div class="meta">Gerado em ${new Date().toLocaleDateString("pt-BR")} • ${filteredMovs.length} registros</div><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Cliente</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table><div class="tot"><span>Receitas: ${formatBRL(totalReceita)}</span><span>Despesas: ${formatBRL(totalDespesa)}</span><span>Saldo: ${formatBRL(totalReceita - totalDespesa)}</span></div></body></html>`);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); }, 500);
   }, [filteredMovs, activeTab, resolveName]);
 
-   return (
+  return (
     <div className="space-y-6">
       {/* Toast */}
       {toast && (
@@ -766,7 +766,7 @@ export default function FluxoCaixaTab() {
           onSaved={(movPatch: any) => { setEditMovId(null); onBaixaSuccess(movPatch || {}); }}
         />
       )}
-      
+
       {/* NovaDespesaShareForm foi removido daqui e subiu para baixo das abas */}
 
       {viewAttachment && (
@@ -778,8 +778,7 @@ export default function FluxoCaixaTab() {
       )}
     </div>
   );
-
-  
+}
 
 /* ─────────────────────────── RowFragment ─────────────────────────── */
 
@@ -888,7 +887,6 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
         </td>
       </tr>
 
-
       {expanded && (
         <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.7)", background: "rgba(30,41,59,0.4)" }}>
           <td colSpan={9} className="px-5 py-4">
@@ -944,7 +942,7 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
                   {detail("% Sociedade", rateio?.percentual_sociedade != null ? `${rateio.percentual_sociedade}%` : null)}
                   {detail("Valor Total", fmtNum(rateio?.valor_total_despesa))}
                   {detail("Valor Rateado", fmtNum(rateio?.valor_rateado))}
-                  {detail("Valor Pago Real", fmtNum(rateio?.valor_pago_real ?? m.valor))}
+                  {detail("Valor Pago Real", fmtNum(rateio?.valor_pago_real ?? valorDe(m)))}
                   {detail("Conta", m.conta_bancaria || m.banco_nome)}
                 </div>
                 {(rateio?.observacoes || m.observacoes) && (
