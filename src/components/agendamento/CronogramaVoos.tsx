@@ -1,9 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plane, CircleDot, CheckCircle2, Clock } from "lucide-react";
+import { Plane, CircleDot, CheckCircle2, Clock, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Solicitacao } from "@/hooks/useAgendamentoVoo";
+import { Solicitacao, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 const STATUS_META: Record<string, { label: string; badge: string; dot: string }> = {
   pendente: { label: "Pendente", badge: "bg-muted text-muted-foreground", dot: "text-muted-foreground" },
@@ -11,7 +29,7 @@ const STATUS_META: Record<string, { label: string; badge: string; dot: string }>
   em_voo: { label: "Em Voo", badge: "bg-amber-500/15 text-amber-500", dot: "text-amber-500" },
   concluido: { label: "Pousado", badge: "bg-emerald-500/15 text-emerald-500", dot: "text-emerald-500" },
   rejeitado: { label: "Rejeitado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
-  cancelado: { label: "Cancelado", badge: "bg-muted text-muted-foreground", dot: "text-muted-foreground" },
+  cancelado: { label: "Cancelado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
 };
 
 interface Props {
@@ -20,14 +38,22 @@ interface Props {
 }
 
 export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
+  const { alterarStatusVoo, excluirSolicitacao } = useAgendamentoMutations();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Solicitacao | null>(null);
+
   const voos = useMemo(
     () =>
       solicitacoes
-        .filter((s) => ["confirmado", "em_voo", "concluido"].includes(s.status))
+        .filter((s) => ["confirmado", "em_voo", "concluido", "cancelado", "pendente"].includes(s.status))
         .filter((s) => isToday(parseISO(s.data_agendada)) || s.data_agendada >= format(new Date(), "yyyy-MM-dd"))
         .slice(0, 6),
     [solicitacoes],
   );
+
+  const handleStatusChange = (voo: Solicitacao, newStatus: string) => {
+    alterarStatusVoo.mutate({ solicitacaoId: voo.id, status: newStatus });
+  };
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
@@ -44,18 +70,25 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
           {voos.map((voo) => {
             const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
             const Icon = voo.status === "concluido" ? CheckCircle2 : voo.status === "em_voo" ? Plane : CircleDot;
+            const expanded = expandedId === voo.id;
             return (
               <li key={voo.id} className="relative">
                 <Icon className={cn("absolute -left-7 top-4 h-[18px] w-[18px] bg-card", meta.dot)} />
-                <button
-                  type="button"
-                  onClick={() => onSelect?.(voo)}
+                <div
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-left transition-colors hover:border-primary/50",
                     voo.status === "em_voo" && "border-amber-500/40 bg-amber-500/5",
+                    voo.status === "cancelado" && "border-destructive/30 bg-destructive/5",
                   )}
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandedId(expanded ? null : voo.id);
+                      onSelect?.(voo);
+                    }}
+                    className="min-w-0 flex-1"
+                  >
                     <p className="truncate text-sm font-semibold text-foreground">
                       {voo.aeronave?.matricula ?? "Aeronave —"}{" "}
                       <span className="font-normal text-muted-foreground">
@@ -66,18 +99,88 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       {format(parseISO(voo.data_agendada), "dd 'de' MMM", { locale: ptBR })}
                       {voo.cliente_nome ? ` · ${voo.cliente_nome}` : ""}
                     </p>
-                  </div>
+                  </button>
                   <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>{meta.label}</span>
                   <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
                     <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                     {voo.horario_partida?.slice(0, 5) ?? "--:--"}
                   </span>
-                </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem
+                        onClick={() => handleStatusChange(voo, "confirmado")}
+                        disabled={voo.status === "confirmado"}
+                      >
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-primary" /> Confirmar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleStatusChange(voo, "em_voo")}
+                        disabled={voo.status === "em_voo"}
+                      >
+                        <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Voo iniciado
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleStatusChange(voo, "cancelado")}
+                        disabled={voo.status === "cancelado"}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <XCircle className="mr-2 h-4 w-4" /> Cancelar voo
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setDeleteTarget(voo)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir voo
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </li>
             );
           })}
         </ol>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Excluir voo?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o voo{" "}
+              <strong className="text-foreground">
+                {deleteTarget?.aeronave?.matricula ?? "—"} ({deleteTarget?.origem ?? "—"} → {deleteTarget?.destino ?? "—"})
+              </strong>
+              ? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) excluirSolicitacao.mutate(deleteTarget);
+                setDeleteTarget(null);
+              }}
+              disabled={excluirSolicitacao.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {excluirSolicitacao.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

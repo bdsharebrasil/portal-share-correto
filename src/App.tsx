@@ -21,7 +21,7 @@ import { HashRouter, Route, Routes, useParams, useNavigate } from "react-router-
 
 // Import das páginas
 import AgendaHub from "./pages/AgendaHub";
-import Agendamento from "./pages/Agendamento";
+
 import ConfigEmpresa from "./pages/financeiro/ConfigEmpresa";
 import EmissaoRecibo from "./pages/financeiro/EmissaoRecibo";
 import RelatorioViagem from "./pages/financeiro/RelatorioViagem";
@@ -74,6 +74,7 @@ import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 import { CostSimulator } from "./components/dashboard/CostSimulator";
+import ManualSistema from "./pages/ManualSistema";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -248,7 +249,6 @@ const App = () => {
                           <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
                           <Route path="/documentos" element={renderProtected(<Documentos />)} />
                           <Route path="/senhas" element={renderProtected(<Senhas />)} />
-                          <Route path="/agendamento" element={renderProtected(<Agendamento />)} />
                           <Route path="/aprovacao-agendamentos" element={renderProtected(<AprovacaoAgendamentos />)} />
                           <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
                           <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
@@ -297,6 +297,7 @@ const App = () => {
                           <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
                           <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
                           <Route path="/ferias" element={renderProtected(<Ferias />)} />
+                          <Route path="/manual" element={renderProtected(<ManualSistema />)} />
                           <Route path="*" element={renderProtected(<NotFound />)} />
                         </Routes>
                         </HashRouter>

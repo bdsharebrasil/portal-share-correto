@@ -69,7 +69,7 @@ export function UpcomingFlightsPanel() {
             <div 
               key={flight.id}
               className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50 hover:border-primary/30 transition-colors cursor-pointer"
-              onClick={() => navigate("/agendamento")}
+              onClick={() => navigate("/painel-agendamentos")}
             >
               <div className="flex flex-col items-center justify-center min-w-[50px] text-center">
                 <span className="text-xs text-muted-foreground uppercase">
@@ -111,7 +111,7 @@ export function UpcomingFlightsPanel() {
       <Button 
         variant="ghost" 
         className="w-full mt-4 text-primary hover:text-primary/80"
-        onClick={() => navigate("/agendamento")}
+        onClick={() => navigate("/painel-agendamentos")}
       >
         Ver Agenda Completa
         <ArrowRight className="ml-2 h-4 w-4" />
