@@ -186,8 +186,7 @@ function CotistaBalancoCard({
   onClick: () => void;
 }) {
   const gap = percentualUso - cotaOriginal;
-  const status = gap > 2 ? "Over-use" : gap < -2 ? "Under-use" : "Equilibrado";
-  const statusClass =
+const status = gap > 2 ? "Acima da cota" : gap < -2 ? "Abaixo da cota" : "Equilibrado";  const statusClass =
     gap > 2
       ? "text-rose-500 border-rose-500/30 bg-rose-500/10"
       : gap < -2

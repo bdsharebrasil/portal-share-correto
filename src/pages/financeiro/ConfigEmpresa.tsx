@@ -59,7 +59,7 @@ export default function ConfigEmpresa() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from("configuracao_empresa" as any)
+  .from("configuracao_empresa")
         .select("*")
         .order("criado_em", { ascending: false })
         .limit(1);
@@ -215,13 +215,13 @@ export default function ConfigEmpresa() {
 
       if (companyData.id) {
         const { error } = await supabase
-          .from("configuracao_empresa" as any)
+  .from("configuracao_empresa")
           .update(payload)
           .eq("id", companyData.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
-          .from("configuracao_empresa" as any)
+  .from("configuracao_empresa")
           .insert(payload)
           .select("id")
           .single();

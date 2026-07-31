@@ -12,40 +12,66 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isWeekend } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, FileText, AlertCircle, CheckCircle, XCircle, Upload, Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import {
+  Clock,
+  FileText,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Calendar as CalendarIcon,
+  Loader2,
+} from "lucide-react";
 
+// ---- Tipos alinhados 1:1 com o schema do banco ----
+
+// public.lancamento_ponto
 interface TimeEntry {
   id: string;
-  entry_date: string;
-  clock_in: string | null;
-  lunch_start: string | null;
-  lunch_end: string | null;
-  clock_out: string | null;
-  total_hours: number | null;
+  user_id: string;
+  data_entrada: string;
+  entrada_hora: string | null;
+  inicio_almoco: string | null;
+  fim_almoco: string | null;
+  saida_hora: string | null;
+  horas_totais: number | null;
   status: string;
 }
 
+// public.justificativa_ausencia
 interface AbsenceJustification {
   id: string;
-  entry_date: string;
-  justification: string;
-  document_url: string | null;
-  status: string;
-  created_at: string;
+  id_usuario: string;
+  data_registro: string;
+  justificativa: string;
+  url_documento: string | null;
+  status: string; // 'pendente' | 'aprovado' | 'rejeitado'
+  motivo_rejeicao: string | null;
+  criado_em: string;
 }
 
+// public.solicitacoes_correcao_ponto
 interface TimeCorrectionRequest {
   id: string;
-  entry_date: string;
-  correction_type: string;
-  original_time: string | null;
-  corrected_time: string;
-  reason: string;
-  status: string;
-  created_at: string;
+  user_id: string;
+  data_entrada: string;
+  lancamento_ponto_id: string | null;
+  tipo_correcao: string; // 'entrada_hora' | 'inicio_almoco' | 'fim_almoco' | 'saida_hora'
+  tempo_original: string | null;
+  tempo_corrigido: string;
+  justificativa: string;
+  status: string; // 'pending' | 'approved' | 'rejected'
+  motivo_rejeicao: string | null;
+  criado_em: string;
 }
+
+const CORRECTION_TYPES = [
+  { value: "entrada_hora", label: "Entrada" },
+  { value: "inicio_almoco", label: "Início Almoço" },
+  { value: "fim_almoco", label: "Fim Almoço" },
+  { value: "saida_hora", label: "Saída" },
+] as const;
 
 export function TimeClockTab() {
   const { user } = useAuth();
@@ -55,7 +81,7 @@ export function TimeClockTab() {
   const [absenceDialogOpen, setAbsenceDialogOpen] = useState(false);
   const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
   const [justification, setJustification] = useState("");
-  const [correctionType, setCorrectionType] = useState("clock_in");
+  const [correctionType, setCorrectionType] = useState<string>("entrada_hora");
   const [correctedTime, setCorrectedTime] = useState("");
   const [correctionReason, setCorrectionReason] = useState("");
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -63,112 +89,120 @@ export function TimeClockTab() {
 
   const userId = user?.id;
 
-  // Fetch time entries for selected month
+  // Registros de ponto do mês (lancamento_ponto)
   const { data: timeEntries = [], isLoading: loadingEntries } = useQuery({
-    queryKey: ["time-entries", userId, format(selectedMonth, "yyyy-MM")],
+    queryKey: ["lancamento-ponto", userId, format(selectedMonth, "yyyy-MM")],
     queryFn: async () => {
       if (!userId) return [];
       const start = format(startOfMonth(selectedMonth), "yyyy-MM-dd");
       const end = format(endOfMonth(selectedMonth), "yyyy-MM-dd");
-      
+
       const { data, error } = await supabase
-        .from("time_entries")
+        .from("lancamento_ponto")
         .select("*")
         .eq("user_id", userId)
-        .gte("entry_date", start)
-        .lte("entry_date", end)
-        .order("entry_date", { ascending: true });
-      
+        .gte("data_entrada", start)
+        .lte("data_entrada", end)
+        .order("data_entrada", { ascending: true });
+
       if (error) throw error;
       return data as TimeEntry[];
     },
     enabled: !!userId,
   });
 
-  // Fetch absence justifications
+  // Justificativas de ausência (justificativa_ausencia)
   const { data: absenceJustifications = [] } = useQuery({
-    queryKey: ["absence-justifications", userId],
+    queryKey: ["justificativa-ausencia", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await (supabase as any)
-        .from("absence_justifications")
+      const { data, error } = await supabase
+        .from("justificativa_ausencia")
         .select("*")
-        .eq("user_id", userId)
+        .eq("id_usuario", userId)
         .order("criado_em", { ascending: false });
-      
+
       if (error) throw error;
       return (data || []) as AbsenceJustification[];
     },
     enabled: !!userId,
   });
 
-  // Fetch time correction requests
+  // Solicitações de correção de ponto (solicitacoes_correcao_ponto)
   const { data: correctionRequests = [] } = useQuery({
-    queryKey: ["time-correction-requests", userId],
+    queryKey: ["solicitacoes-correcao-ponto", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await (supabase as any)
-        .from("time_correction_requests")
+      const { data, error } = await supabase
+        .from("solicitacoes_correcao_ponto")
         .select("*")
         .eq("user_id", userId)
         .order("criado_em", { ascending: false });
-      
+
       if (error) throw error;
       return (data || []) as TimeCorrectionRequest[];
     },
     enabled: !!userId,
   });
 
-  // Generate all days in the selected month
   const monthDays = useMemo(() => {
     const start = startOfMonth(selectedMonth);
     const end = endOfMonth(selectedMonth);
     return eachDayOfInterval({ start, end });
   }, [selectedMonth]);
 
-  // Create a map of entries by date
   const entriesByDate = useMemo(() => {
     const map = new Map<string, TimeEntry>();
-    timeEntries.forEach((entry) => {
-      map.set(entry.entry_date, entry);
-    });
+    timeEntries.forEach((entry) => map.set(entry.data_entrada, entry));
     return map;
   }, [timeEntries]);
 
-  // Submit absence justification
+  // Envio de justificativa de ausência
   const submitAbsenceMutation = useMutation({
     mutationFn: async () => {
       if (!userId || !selectedDate) throw new Error("Dados inválidos");
-      
-      let documentUrl = null;
-      
+
+      const dataRegistro = format(selectedDate, "yyyy-MM-dd");
+      let documentUrl: string | null = null;
+
       if (documentFile) {
         setUploading(true);
-        const fileName = `${userId}/${format(selectedDate, "yyyy-MM-dd")}-${Date.now()}.${documentFile.name.split(".").pop()}`;
+        const fileName = `${userId}/${dataRegistro}-${Date.now()}.${documentFile.name.split(".").pop()}`;
         const { error: uploadError } = await supabase.storage
           .from("documents_colaborador")
           .upload(fileName, documentFile);
-        
+
         if (uploadError) throw uploadError;
-        
-        const { data: urlData } = supabase.storage
-          .from("documents_colaborador")
-          .getPublicUrl(fileName);
-        
+
+        const { data: urlData } = supabase.storage.from("documents_colaborador").getPublicUrl(fileName);
         documentUrl = urlData.publicUrl;
+
+        // Registra o anexo também em lancamento_ponto_anexos, vinculando ao
+        // lançamento do dia (se existir) para manter o histórico de documentos.
+        const entry = entriesByDate.get(dataRegistro);
+        const { error: anexoError } = await supabase.from("lancamento_ponto_anexos").insert({
+          lancamento_ponto_id: entry?.id ?? null,
+          user_id: userId,
+          data_entrada: dataRegistro,
+          caminho_arquivo: fileName,
+          nome_arquivo: documentFile.name,
+          tipo_arquivo: documentFile.type || null,
+          tipo_justificativa: "medical",
+          observacoes: justification,
+        });
+        if (anexoError) throw anexoError;
+
         setUploading(false);
       }
 
-      const { error } = await supabase
-        .from("absence_justifications" as any)
-        .insert({
-          user_id: userId,
-          entry_date: format(selectedDate, "yyyy-MM-dd"),
-          justification,
-          document_url: documentUrl,
-          status: "pending",
-        });
-      
+      const { error } = await supabase.from("justificativa_ausencia").insert({
+        id_usuario: userId,
+        data_registro: dataRegistro,
+        justificativa: justification,
+        url_documento: documentUrl,
+        status: "pendente",
+      });
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -177,7 +211,7 @@ export function TimeClockTab() {
       setJustification("");
       setDocumentFile(null);
       setSelectedDate(undefined);
-      queryClient.invalidateQueries({ queryKey: ["absence-justifications"] });
+      queryClient.invalidateQueries({ queryKey: ["justificativa-ausencia"] });
     },
     onError: (error: any) => {
       toast.error(`Erro ao enviar justificativa: ${error.message}`);
@@ -185,44 +219,27 @@ export function TimeClockTab() {
     },
   });
 
-  // Submit time correction request
+  // Envio de solicitação de correção de ponto
   const submitCorrectionMutation = useMutation({
     mutationFn: async () => {
       if (!userId || !selectedDate) throw new Error("Dados inválidos");
-      
-      const entry = entriesByDate.get(format(selectedDate, "yyyy-MM-dd"));
-      let originalTime = null;
-      
-      if (entry) {
-        switch (correctionType) {
-          case "clock_in":
-            originalTime = entry.clock_in ? format(new Date(entry.clock_in), "HH:mm") : null;
-            break;
-          case "lunch_start":
-            originalTime = entry.lunch_start ? format(new Date(entry.lunch_start), "HH:mm") : null;
-            break;
-          case "lunch_end":
-            originalTime = entry.lunch_end ? format(new Date(entry.lunch_end), "HH:mm") : null;
-            break;
-          case "clock_out":
-            originalTime = entry.clock_out ? format(new Date(entry.clock_out), "HH:mm") : null;
-            break;
-        }
-      }
 
-      const { error } = await supabase
-        .from("time_correction_requests" as any)
-        .insert({
-          user_id: userId,
-          entry_date: format(selectedDate, "yyyy-MM-dd"),
-          time_entry_id: entry?.id || null,
-          correction_type: correctionType,
-          original_time: originalTime,
-          corrected_time: correctedTime,
-          reason: correctionReason,
-          status: "pending",
-        });
-      
+      const dataEntrada = format(selectedDate, "yyyy-MM-dd");
+      const entry = entriesByDate.get(dataEntrada);
+      const originalValue = entry ? (entry as any)[correctionType] : null;
+      const originalTime = originalValue ? format(new Date(originalValue), "HH:mm") : null;
+
+      const { error } = await supabase.from("solicitacoes_correcao_ponto").insert({
+        user_id: userId,
+        data_entrada: dataEntrada,
+        lancamento_ponto_id: entry?.id ?? null,
+        tipo_correcao: correctionType,
+        tempo_original: originalTime,
+        tempo_corrigido: correctedTime,
+        justificativa: correctionReason,
+        status: "pending",
+      });
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -231,7 +248,7 @@ export function TimeClockTab() {
       setCorrectedTime("");
       setCorrectionReason("");
       setSelectedDate(undefined);
-      queryClient.invalidateQueries({ queryKey: ["time-correction-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["solicitacoes-correcao-ponto"] });
     },
     onError: (error: any) => {
       toast.error(`Erro ao enviar solicitação: ${error.message}`);
@@ -239,16 +256,29 @@ export function TimeClockTab() {
   });
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-600">Pendente</Badge>;
-      case "approved":
-        return <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-600">Aprovado</Badge>;
-      case "rejected":
-        return <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-600">Rejeitado</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+    const normalized = status.toLowerCase();
+    if (["pending", "pendente"].includes(normalized)) {
+      return (
+        <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400 border-yellow-600">
+          Pendente
+        </Badge>
+      );
     }
+    if (["approved", "aprovado"].includes(normalized)) {
+      return (
+        <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-600">
+          Aprovado
+        </Badge>
+      );
+    }
+    if (["rejected", "rejeitado"].includes(normalized)) {
+      return (
+        <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-600">
+          Rejeitado
+        </Badge>
+      );
+    }
+    return <Badge variant="outline">{status}</Badge>;
   };
 
   const formatTime = (isoDate: string | null) => {
@@ -256,15 +286,8 @@ export function TimeClockTab() {
     return format(new Date(isoDate), "HH:mm");
   };
 
-  const getCorrectionTypeLabel = (type: string) => {
-    switch (type) {
-      case "clock_in": return "Entrada";
-      case "lunch_start": return "Início Almoço";
-      case "lunch_end": return "Fim Almoço";
-      case "clock_out": return "Saída";
-      default: return type;
-    }
-  };
+  const getCorrectionTypeLabel = (type: string) =>
+    CORRECTION_TYPES.find((t) => t.value === type)?.label ?? type;
 
   const handleOpenAbsenceDialog = () => {
     if (!selectedDate) {
@@ -336,10 +359,7 @@ export function TimeClockTab() {
                 locale={ptBR}
                 className="rounded-md border-0"
                 modifiers={{
-                  hasEntry: (date) => {
-                    const dateStr = format(date, "yyyy-MM-dd");
-                    return entriesByDate.has(dateStr);
-                  },
+                  hasEntry: (date) => entriesByDate.has(format(date, "yyyy-MM-dd")),
                   weekend: (date) => isWeekend(date),
                 }}
                 modifiersClassNames={{
@@ -347,7 +367,7 @@ export function TimeClockTab() {
                   weekend: "text-muted-foreground/50",
                 }}
               />
-              
+
               {selectedDate && (
                 <div className="mt-4 p-4 rounded-lg bg-background/50 border border-border">
                   <h4 className="font-semibold mb-2">
@@ -360,23 +380,23 @@ export function TimeClockTab() {
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Entrada:</span>
-                            <span className="font-medium">{formatTime(entry.clock_in)}</span>
+                            <span className="font-medium">{formatTime(entry.entrada_hora)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Início Almoço:</span>
-                            <span className="font-medium">{formatTime(entry.lunch_start)}</span>
+                            <span className="font-medium">{formatTime(entry.inicio_almoco)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Fim Almoço:</span>
-                            <span className="font-medium">{formatTime(entry.lunch_end)}</span>
+                            <span className="font-medium">{formatTime(entry.fim_almoco)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Saída:</span>
-                            <span className="font-medium">{formatTime(entry.clock_out)}</span>
+                            <span className="font-medium">{formatTime(entry.saida_hora)}</span>
                           </div>
                           <div className="col-span-2 flex justify-between border-t pt-2 mt-2">
                             <span className="text-muted-foreground">Total:</span>
-                            <span className="font-semibold text-primary">{entry.total_hours || 0}h</span>
+                            <span className="font-semibold text-primary">{entry.horas_totais || 0}h</span>
                           </div>
                         </div>
                       );
@@ -387,11 +407,8 @@ export function TimeClockTab() {
                           Sem registro de ponto para este dia
                         </p>
                       );
-                    } else {
-                      return (
-                        <p className="text-muted-foreground text-sm">Fim de semana</p>
-                      );
                     }
+                    return <p className="text-muted-foreground text-sm">Fim de semana</p>;
                   })()}
                 </div>
               )}
@@ -413,44 +430,48 @@ export function TimeClockTab() {
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {monthDays.filter(day => !isWeekend(day)).map((day) => {
-                    const dateStr = format(day, "yyyy-MM-dd");
-                    const entry = entriesByDate.get(dateStr);
-                    const hasEntry = !!entry;
+                  {monthDays
+                    .filter((day) => !isWeekend(day))
+                    .map((day) => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const entry = entriesByDate.get(dateStr);
+                      const hasEntry = !!entry;
 
-                    return (
-                      <div
-                        key={dateStr}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${
-                          hasEntry
-                            ? "bg-green-500/10 border-green-600/30"
-                            : "bg-red-500/10 border-red-600/30"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="text-center min-w-[50px]">
-                            <p className="text-lg font-bold">{format(day, "dd")}</p>
-                            <p className="text-xs text-muted-foreground">{format(day, "EEE", { locale: ptBR })}</p>
+                      return (
+                        <div
+                          key={dateStr}
+                          className={`flex items-center justify-between p-3 rounded-lg border ${
+                            hasEntry ? "bg-green-500/10 border-green-600/30" : "bg-red-500/10 border-red-600/30"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="text-center min-w-[50px]">
+                              <p className="text-lg font-bold">{format(day, "dd")}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(day, "EEE", { locale: ptBR })}
+                              </p>
+                            </div>
+                            {hasEntry ? (
+                              <div className="flex items-center gap-4 text-sm">
+                                <span>
+                                  {formatTime(entry.entrada_hora)} - {formatTime(entry.saida_hora)}
+                                </span>
+                                <Badge variant="outline" className="bg-green-500/20 text-green-400">
+                                  {entry.horas_totais || 0}h
+                                </Badge>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-red-400">Sem registro</span>
+                            )}
                           </div>
                           {hasEntry ? (
-                            <div className="flex items-center gap-4 text-sm">
-                              <span>{formatTime(entry.clock_in)} - {formatTime(entry.clock_out)}</span>
-                              <Badge variant="outline" className="bg-green-500/20 text-green-400">
-                                {entry.total_hours || 0}h
-                              </Badge>
-                            </div>
+                            <CheckCircle className="h-5 w-5 text-green-500" />
                           ) : (
-                            <span className="text-sm text-red-400">Sem registro</span>
+                            <XCircle className="h-5 w-5 text-red-500" />
                           )}
                         </div>
-                        {hasEntry ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-red-500" />
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               )}
             </CardContent>
@@ -474,19 +495,24 @@ export function TimeClockTab() {
                     {absenceJustifications.map((item) => (
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="font-medium">{format(new Date(item.entry_date), "dd/MM/yyyy")}</span>
+                          <span className="font-medium">
+                            {format(new Date(item.data_registro), "dd/MM/yyyy")}
+                          </span>
                           {getStatusBadge(item.status)}
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{item.justification}</p>
-                        {item.document_url && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{item.justificativa}</p>
+                        {item.url_documento && (
                           <a
-                            href={item.document_url}
+                            href={item.url_documento}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-primary hover:underline mt-1 inline-block"
                           >
                             Ver documento anexo
                           </a>
+                        )}
+                        {item.motivo_rejeicao && (
+                          <p className="text-xs text-red-400 mt-1">Motivo: {item.motivo_rejeicao}</p>
                         )}
                       </div>
                     ))}
@@ -510,13 +536,23 @@ export function TimeClockTab() {
                     {correctionRequests.map((item) => (
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="font-medium">{format(new Date(item.entry_date), "dd/MM/yyyy")}</span>
+                          <span className="font-medium">
+                            {format(new Date(item.data_entrada), "dd/MM/yyyy")}
+                          </span>
                           {getStatusBadge(item.status)}
                         </div>
                         <div className="text-sm space-y-1">
-                          <p><span className="text-muted-foreground">Tipo:</span> {getCorrectionTypeLabel(item.correction_type)}</p>
-                          <p><span className="text-muted-foreground">Horário correto:</span> {item.corrected_time}</p>
-                          <p className="text-muted-foreground line-clamp-1">{item.reason}</p>
+                          <p>
+                            <span className="text-muted-foreground">Tipo:</span>{" "}
+                            {getCorrectionTypeLabel(item.tipo_correcao)}
+                          </p>
+                          <p>
+                            <span className="text-muted-foreground">Horário correto:</span> {item.tempo_corrigido}
+                          </p>
+                          <p className="text-muted-foreground line-clamp-1">{item.justificativa}</p>
+                          {item.motivo_rejeicao && (
+                            <p className="text-xs text-red-400">Motivo: {item.motivo_rejeicao}</p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -528,7 +564,7 @@ export function TimeClockTab() {
         </TabsContent>
       </Tabs>
 
-      {/* Absence Justification Dialog */}
+      {/* Dialog: Justificar Falta */}
       <Dialog open={absenceDialogOpen} onOpenChange={setAbsenceDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -540,11 +576,7 @@ export function TimeClockTab() {
           <div className="space-y-4">
             <div>
               <Label>Data</Label>
-              <Input
-                value={selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""}
-                disabled
-                className="bg-muted"
-              />
+              <Input value={selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""} disabled className="bg-muted" />
             </div>
             <div>
               <Label>Justificativa *</Label>
@@ -581,7 +613,7 @@ export function TimeClockTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Time Correction Dialog */}
+      {/* Dialog: Corrigir Ponto */}
       <Dialog open={correctionDialogOpen} onOpenChange={setCorrectionDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -593,11 +625,7 @@ export function TimeClockTab() {
           <div className="space-y-4">
             <div>
               <Label>Data</Label>
-              <Input
-                value={selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""}
-                disabled
-                className="bg-muted"
-              />
+              <Input value={selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""} disabled className="bg-muted" />
             </div>
             <div>
               <Label>Tipo de Registro *</Label>
@@ -606,19 +634,16 @@ export function TimeClockTab() {
                 onChange={(e) => setCorrectionType(e.target.value)}
                 className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground"
               >
-                <option value="clock_in">Entrada</option>
-                <option value="lunch_start">Início Almoço</option>
-                <option value="lunch_end">Fim Almoço</option>
-                <option value="clock_out">Saída</option>
+                {CORRECTION_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
               <Label>Horário Correto *</Label>
-              <Input
-                type="time"
-                value={correctedTime}
-                onChange={(e) => setCorrectedTime(e.target.value)}
-              />
+              <Input type="time" value={correctedTime} onChange={(e) => setCorrectedTime(e.target.value)} />
             </div>
             <div>
               <Label>Motivo da Correção *</Label>
@@ -638,9 +663,7 @@ export function TimeClockTab() {
               onClick={() => submitCorrectionMutation.mutate()}
               disabled={!correctedTime || !correctionReason || submitCorrectionMutation.isPending}
             >
-              {submitCorrectionMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
+              {submitCorrectionMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Enviar
             </Button>
           </DialogFooter>

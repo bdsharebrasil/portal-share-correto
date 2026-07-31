@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { format, isBefore, isWithinInterval, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendamentoPagamentoForm } from "./AgendamentoPagamentoForm";
-import { syncAgendamentoPagamentoToControle, removeAgendamentoPagamentoFromControle } from "@/services/syncSalariesToBankingControl";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send } from "lucide-react";
 
@@ -94,7 +93,7 @@ export default function AgendamentoPagamentos() {
 
     try {
       // Remove do controle bancário se existir
-      await removeAgendamentoPagamentoFromControle(deleteConfirmId);
+      // await removeAgendamentoPagamentoFromControle(deleteConfirmId);
 
       // Remove o agendamento
       const { error } = await supabase
@@ -118,7 +117,7 @@ export default function AgendamentoPagamentos() {
   const handleMarkAsPaid = async (agendamento: any) => {
     try {
       // Primeiro, sincroniza o pagamento com o controle bancário
-      await syncAgendamentoPagamentoToControle(agendamento, user?.id);
+      syncAgendamentoPagamentoToControle(agendamento, user?.id);
 
       // Depois, atualiza o status no agendamento
       const { error } = await supabase
@@ -425,3 +424,7 @@ export default function AgendamentoPagamentos() {
     </Layout>
   );
 }
+function syncAgendamentoPagamentoToControle(agendamento: any, id: string) {
+  throw new Error("Function not implemented.");
+}
+

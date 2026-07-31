@@ -1,13 +1,7 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Clock,
@@ -21,8 +15,9 @@ import {
   Play,
   CheckCircle2,
   AlertCircle,
+  FileText,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -30,15 +25,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { FileText } from "lucide-react";
-import { normalizeTimeEntry, type NormalizedTimeEntry } from "./timeClockHistoryUtils";
 
 interface TimeClockHistoryModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface TimeEntry extends NormalizedTimeEntry {}
+// public.lancamento_ponto
+interface TimeEntry {
+  id: string;
+  user_id: string;
+  data_entrada: string;
+  entrada_hora: string | null;
+  inicio_almoco: string | null;
+  fim_almoco: string | null;
+  saida_hora: string | null;
+  horas_totais: number | null;
+  status: string;
+}
+
+const CORRECTION_TYPES = [
+  { value: "entrada_hora", label: "Entrada" },
+  { value: "inicio_almoco", label: "Início Almoço" },
+  { value: "fim_almoco", label: "Fim Almoço" },
+  { value: "saida_hora", label: "Saída" },
+] as const;
 
 export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryModalProps) {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
@@ -51,7 +62,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     completedDays: 0,
   });
 
-  // Day action dialogs
+  // Ações do dia
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [dayAction, setDayAction] = useState<"none" | "absence" | "correction">("none");
   const [justification, setJustification] = useState("");
@@ -82,7 +93,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
       const monthStart = startOfMonth(selectedMonth);
       const monthEnd = endOfMonth(selectedMonth);
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("lancamento_ponto")
         .select("*")
         .eq("user_id", user.id)
@@ -92,7 +103,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
 
       if (error) throw error;
 
-      const normalizedEntries = (data || []).map(normalizeTimeEntry) as TimeEntry[];
+      const normalizedEntries = (data || []) as TimeEntry[];
       setEntries(normalizedEntries);
       calculateStats(normalizedEntries);
     } catch (error) {
@@ -107,23 +118,15 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     let completedDays = 0;
 
     data.forEach((entry) => {
-      if (entry.horas_totais) {
-        totalHours += entry.horas_totais;
-      }
-      if (entry.status === "concluido") {
-        completedDays += 1;
-      }
+      if (entry.horas_totais) totalHours += entry.horas_totais;
+      if (entry.status === "concluido") completedDays += 1;
     });
 
-    setStats({
-      totalHours,
-      workDays: data.length,
-      completedDays,
-    });
+    setStats({ totalHours, workDays: data.length, completedDays });
   };
 
   const getEntryForDate = (date: Date): TimeEntry | undefined => {
-    return entries.find((entry) => entry.date === format(date, "yyyy-MM-dd"));
+    return entries.find((entry) => entry.data_entrada === format(date, "yyyy-MM-dd"));
   };
 
   const openDay = (date: Date) => {
@@ -143,26 +146,45 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     }
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
+
+      const dataRegistro = format(selectedDay, "yyyy-MM-dd");
       let documentUrl: string | null = null;
+
       if (documentFile) {
         const ext = documentFile.name.split(".").pop();
-        const path = `${user.id}/${format(selectedDay, "yyyy-MM-dd")}-${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("documents_colaborador")
-          .upload(path, documentFile);
+        const path = `${user.id}/${dataRegistro}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("documents_colaborador").upload(path, documentFile);
         if (upErr) throw upErr;
         documentUrl = supabase.storage.from("documents_colaborador").getPublicUrl(path).data.publicUrl;
+
+        // guarda o anexo em lancamento_ponto_anexos, vinculado ao lançamento do dia (se existir)
+        const entry = getEntryForDate(selectedDay);
+        const { error: anexoError } = await supabase.from("lancamento_ponto_anexos").insert({
+          lancamento_ponto_id: entry?.id ?? null,
+          user_id: user.id,
+          data_entrada: dataRegistro,
+          caminho_arquivo: path,
+          nome_arquivo: documentFile.name,
+          tipo_arquivo: documentFile.type || null,
+          tipo_justificativa: "medical",
+          observacoes: justification,
+        });
+        if (anexoError) throw anexoError;
       }
-      const { error } = await (supabase as any).from("absence_justifications").insert({
-        user_id: user.id,
-        entry_date: format(selectedDay, "yyyy-MM-dd"),
-        justification,
-        document_url: documentUrl,
-        status: "pending",
+
+      const { error } = await supabase.from("justificativa_ausencia").insert({
+        id_usuario: user.id,
+        data_registro: dataRegistro,
+        justificativa: justification,
+        url_documento: documentUrl,
+        status: "pendente",
       });
       if (error) throw error;
+
       toast.success("Justificativa enviada para aprovação!");
       setSelectedDay(null);
     } catch (err: any) {
@@ -179,12 +201,16 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     }
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Não autenticado");
+
       const entry = getEntryForDate(selectedDay);
       const original = entry?.[correctionType as keyof TimeEntry] as string | null | undefined;
       const originalTime = original ? format(new Date(original), "HH:mm") : null;
-      const { error } = await (supabase as any).from("solicitacoes_correcao_ponto").insert({
+
+      const { error } = await supabase.from("solicitacoes_correcao_ponto").insert({
         user_id: user.id,
         data_entrada: format(selectedDay, "yyyy-MM-dd"),
         lancamento_ponto_id: entry?.id || null,
@@ -195,6 +221,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
         status: "pending",
       });
       if (error) throw error;
+
       toast.success("Solicitação de correção enviada!");
       setSelectedDay(null);
     } catch (err: any) {
@@ -204,13 +231,8 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
     }
   };
 
-  const previousMonth = () => {
-    setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1));
-  };
-
-  const nextMonth = () => {
-    setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1));
-  };
+  const previousMonth = () => setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1));
+  const nextMonth = () => setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1));
 
   const renderCalendarView = () => {
     const monthStart = startOfMonth(selectedMonth);
@@ -247,25 +269,22 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   isToday && "border-primary/50 bg-primary/10",
                   !entry && "border-slate-700/50 bg-slate-800/30",
                   entry && entry.status === "concluido" && "border-emerald-500/50 bg-emerald-500/10",
-                  entry && entry.status === "incompleto" && "border-amber-500/50 bg-amber-500/10",
-                  entry && entry.status === "ativo" && "border-blue-500/50 bg-blue-500/10"
+                  entry && entry.status === "not_started" && "border-amber-500/50 bg-amber-500/10",
+                  entry && entry.status === "em_andamento" && "border-blue-500/50 bg-blue-500/10",
+                  entry && entry.status === "falta" && "border-red-500/50 bg-red-500/10"
                 )}
               >
                 <span className="font-semibold text-white">{date.getDate()}</span>
                 {entry && (
                   <div className="flex items-center gap-0.5 mt-1">
-                    {entry.status === "concluido" && (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                    )}
-                    {entry.status === "incompleto" && (
+                    {entry.status === "concluido" && <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                    {(entry.status === "not_started" || entry.status === "falta") && (
                       <AlertCircle className="h-3 w-3 text-amber-400" />
                     )}
                   </div>
                 )}
                 {entry && entry.horas_totais && (
-                  <span className="text-[10px] text-slate-400 mt-0.5">
-                    {entry.horas_totais.toFixed(1)}h
-                  </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">{entry.horas_totais.toFixed(1)}h</span>
                 )}
               </div>
             );
@@ -295,21 +314,21 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
                     <span className="font-semibold text-white">
-                      {format(new Date(entry.date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      {format(new Date(entry.data_entrada), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </span>
                     <Badge
                       className={cn(
                         "ml-auto",
-                        entry.status === "concluido" &&
-                          "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-                        entry.status === "incompleto" &&
-                          "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                        entry.status === "ativo" && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        entry.status === "concluido" && "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+                        entry.status === "not_started" && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                        entry.status === "em_andamento" && "bg-blue-500/20 text-blue-400 border-blue-500/30",
+                        entry.status === "falta" && "bg-red-500/20 text-red-400 border-red-500/30"
                       )}
                     >
                       {entry.status === "concluido" && "Concluído"}
-                      {entry.status === "incompleto" && "Incompleto"}
-                      {entry.status === "ativo" && "Em andamento"}
+                      {entry.status === "not_started" && "Não iniciado"}
+                      {entry.status === "em_andamento" && "Em andamento"}
+                      {entry.status === "falta" && "Falta"}
                     </Badge>
                   </div>
 
@@ -386,14 +405,8 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Month Navigation */}
           <div className="flex items-center justify-between">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={previousMonth}
-              className="border-slate-700/50"
-            >
+            <Button variant="outline" size="sm" onClick={previousMonth} className="border-slate-700/50">
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
@@ -401,17 +414,11 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
               {format(selectedMonth, "MMMM 'de' yyyy", { locale: ptBR })}
             </span>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={nextMonth}
-              className="border-slate-700/50"
-            >
+            <Button variant="outline" size="sm" onClick={nextMonth} className="border-slate-700/50">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-4">
             <Card className="bg-slate-800/50 border-slate-700/50">
               <CardContent className="p-4">
@@ -430,14 +437,11 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
             <Card className="bg-slate-800/50 border-slate-700/50">
               <CardContent className="p-4">
                 <div className="text-xs text-slate-400 mb-1">Total de Horas</div>
-                <div className="text-2xl font-bold text-cyan-400">
-                  {stats.totalHours.toFixed(1)}h
-                </div>
+                <div className="text-2xl font-bold text-cyan-400">{stats.totalHours.toFixed(1)}h</div>
               </CardContent>
             </Card>
           </div>
 
-          {/* View Mode Tabs */}
           <div className="flex gap-2">
             <Button
               variant={viewMode === "calendar" ? "default" : "outline"}
@@ -459,7 +463,6 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
             </Button>
           </div>
 
-          {/* Content */}
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin">
@@ -473,29 +476,19 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
             renderListView()
           )}
 
-          {/* Footer Actions */}
           <div className="flex gap-2 justify-end pt-4 border-t border-slate-700/50">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 border-slate-700/50"
-              disabled
-            >
+            <Button variant="outline" size="sm" className="gap-2 border-slate-700/50" disabled>
               <Download className="h-4 w-4" />
               Exportar PDF
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant="default" size="sm" onClick={() => onOpenChange(false)}>
               Fechar
             </Button>
           </div>
         </div>
       </DialogContent>
 
-      {/* Day action dialog */}
+      {/* Dialog de ação do dia */}
       <Dialog open={!!selectedDay} onOpenChange={(v) => !v && setSelectedDay(null)}>
         <DialogContent className="max-w-md bg-slate-900 border-slate-700/50">
           <DialogHeader>
@@ -508,10 +501,18 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
             <div className="space-y-3">
               <p className="text-sm text-slate-400">O que deseja fazer neste dia?</p>
               <div className="grid grid-cols-1 gap-2">
-                <Button variant="outline" className="justify-start gap-2 border-slate-700/50" onClick={() => setDayAction("absence")}>
+                <Button
+                  variant="outline"
+                  className="justify-start gap-2 border-slate-700/50"
+                  onClick={() => setDayAction("absence")}
+                >
                   <FileText className="h-4 w-4" /> Justificar falta (enviar atestado)
                 </Button>
-                <Button variant="outline" className="justify-start gap-2 border-slate-700/50" onClick={() => setDayAction("correction")}>
+                <Button
+                  variant="outline"
+                  className="justify-start gap-2 border-slate-700/50"
+                  onClick={() => setDayAction("correction")}
+                >
                   <Clock className="h-4 w-4" /> Solicitar ajuste de ponto
                 </Button>
               </div>
@@ -540,7 +541,9 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setDayAction("none")} className="border-slate-700/50">Voltar</Button>
+                <Button variant="outline" onClick={() => setDayAction("none")} className="border-slate-700/50">
+                  Voltar
+                </Button>
                 <Button onClick={submitAbsence} disabled={submitting || !justification.trim()}>
                   {submitting ? "Enviando..." : "Enviar"}
                 </Button>
@@ -557,10 +560,11 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   onChange={(e) => setCorrectionType(e.target.value)}
                   className="w-full h-10 px-3 rounded-md border border-slate-700 bg-slate-800 text-white"
                 >
-                  <option value="entrada_hora">Entrada</option>
-                  <option value="inicio_almoco">Início Almoço</option>
-                  <option value="fim_almoco">Fim Almoço</option>
-                  <option value="saida_hora">Saída</option>
+                  {CORRECTION_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -583,7 +587,9 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setDayAction("none")} className="border-slate-700/50">Voltar</Button>
+                <Button variant="outline" onClick={() => setDayAction("none")} className="border-slate-700/50">
+                  Voltar
+                </Button>
                 <Button onClick={submitCorrection} disabled={submitting || !correctedTime || !correctionReason.trim()}>
                   {submitting ? "Enviando..." : "Enviar"}
                 </Button>

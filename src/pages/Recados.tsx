@@ -104,8 +104,12 @@ export default function Recados() {
   useEffect(() => {
     loadCurrentUser();
     loadUsers();
-    loadMessages();
   }, []);
+
+  // Load messages after currentUserId is available so is_read is correct
+  useEffect(() => {
+    loadMessages();
+  }, [currentUserId]);
 
   // Realtime subscription to messages
   useEffect(() => {
@@ -278,15 +282,9 @@ export default function Recados() {
     if (!currentUserId) return;
 
     try {
-      const msg = messages.find(m => m.id === messageId);
-      if (!msg) return;
-
-      const updatedLidoPor = Array.from(new Set([...(msg.lido_por || []), currentUserId]));
-
-      const { error } = await supabase
-        .from('recados')
-        .update({ lido_por: updatedLidoPor })
-        .eq('id', messageId);
+      const { error } = await supabase.rpc('marcar_recado_lido', {
+        p_recado_id: messageId,
+      });
 
       if (error) throw error;
 

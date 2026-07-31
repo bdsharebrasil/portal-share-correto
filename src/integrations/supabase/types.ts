@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       abastecimentos: {
@@ -202,48 +227,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      absence_justifications: {
-        Row: {
-          approved_at: string | null
-          approved_by: string | null
-          created_at: string
-          document_url: string | null
-          entry_date: string
-          id: string
-          justification: string
-          rejection_reason: string | null
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          document_url?: string | null
-          entry_date: string
-          id?: string
-          justification: string
-          rejection_reason?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string
-          document_url?: string | null
-          entry_date?: string
-          id?: string
-          justification?: string
-          rejection_reason?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       accounts_receivable: {
         Row: {
@@ -5410,7 +5393,7 @@ export type Database = {
           aeronave_registro: string
           ano: number
           atualizado_em: string | null
-          cliente_id: string
+          clientes_id: string
           criado_em: string | null
           data_referencia: string
           fonte_diario_bordo: boolean | null
@@ -5429,7 +5412,7 @@ export type Database = {
           aeronave_registro: string
           ano: number
           atualizado_em?: string | null
-          cliente_id: string
+          clientes_id: string
           criado_em?: string | null
           data_referencia: string
           fonte_diario_bordo?: boolean | null
@@ -5448,7 +5431,7 @@ export type Database = {
           aeronave_registro?: string
           ano?: number
           atualizado_em?: string | null
-          cliente_id?: string
+          clientes_id?: string
           criado_em?: string | null
           data_referencia?: string
           fonte_diario_bordo?: boolean | null
@@ -5840,6 +5823,48 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           value?: number
+        }
+        Relationships: []
+      }
+      justificativa_ausencia: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          atualizado_em: string
+          criado_em: string
+          data_registro: string
+          id: string
+          id_usuario: string
+          justificativa: string
+          motivo_rejeicao: string | null
+          status: string
+          url_documento: string | null
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          data_registro: string
+          id?: string
+          id_usuario: string
+          justificativa: string
+          motivo_rejeicao?: string | null
+          status?: string
+          url_documento?: string | null
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          data_registro?: string
+          id?: string
+          id_usuario?: string
+          justificativa?: string
+          motivo_rejeicao?: string | null
+          status?: string
+          url_documento?: string | null
         }
         Relationships: []
       }
@@ -8264,6 +8289,9 @@ export type Database = {
           cliente_id: string | null
           clientes_nome: string | null
           comprovante_url: string | null
+          conferido: boolean
+          conferido_em: string | null
+          conferido_por: string | null
           criado_em: string | null
           data_emissao: string | null
           data_pagamento: string | null
@@ -8311,6 +8339,9 @@ export type Database = {
           cliente_id?: string | null
           clientes_nome?: string | null
           comprovante_url?: string | null
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
           criado_em?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
@@ -8358,6 +8389,9 @@ export type Database = {
           cliente_id?: string | null
           clientes_nome?: string | null
           comprovante_url?: string | null
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
           criado_em?: string | null
           data_emissao?: string | null
           data_pagamento?: string | null
@@ -10989,6 +11023,7 @@ export type Database = {
       is_gestor_master: { Args: never; Returns: boolean }
       is_privileged_user: { Args: never; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
+      marcar_recado_lido: { Args: { p_recado_id: string }; Returns: undefined }
       next_receipt_number:
         | { Args: never; Returns: number }
         | { Args: { p_year: number }; Returns: string }
@@ -11196,6 +11231,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

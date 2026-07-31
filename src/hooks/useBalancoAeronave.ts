@@ -229,28 +229,71 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     [voosPeriodo, participanteFiltroKey]
   );
 
+  // Totais agregados da aeronave (não por sócio): cada voo conta 1x, sem duplicar
+  // mesmo quando o lançamento é "compartilhado" entre vários sócios de um cliente.
   const horasPeriodo = useMemo(() => voosPeriodoFiltrado.reduce((s, v) => s + (num(v.tempo_total) || num(v.tempo_voo)), 0), [voosPeriodoFiltrado]);
   const custoMedioHora = horasPeriodo > 0 ? custoVariavel / horasPeriodo : 0;
   const custoMedioHoraTotal = horasPeriodo > 0 ? custoTotal / horasPeriodo : 0;
   const totalPousos = useMemo(() => voosPeriodoFiltrado.reduce((s, v) => s + num(v.pousos_total), 0), [voosPeriodoFiltrado]);
 
+  // Participantes = exatamente os sócios cadastrados em cotistas_aeronave (fonte da verdade).
+  // Não "descobrimos" participantes a partir de voos/rateios — isso é o que causava o card
+  // fantasma quando um lançamento só tinha cliente_id, sem sócio específico vinculado.
   const participantesTodos = useMemo(() => {
     const map = new Map<string, ParticipanteBalanco>();
-    const upsert = (socio_id: string | null, cliente_id: string | null, nome: string) => {
-      const key = keyOfParticipante(socio_id, cliente_id, nome);
+    cotistas.forEach((c) => {
+      const key = keyOfParticipante(c.socio_id, c.cliente_id, c.nome);
       if (map.has(key)) return;
-      const cadastro = cotistas.find((c) => (socio_id && c.socio_id === socio_id) || (cliente_id && c.cliente_id === cliente_id));
-      map.set(key, { id: key, nome: cadastro?.nome || nome || "Cotista", socio_id, cliente_id, percentual: cadastro?.percentual ?? 0 });
-    };
-    rateiosPeriodo.forEach((r) => { if (!r.socio_id && !r.cliente_id) return; upsert(r.socio_id || null, r.cliente_id || null, resolveSocioName(r)); });
-    voosPeriodo.forEach((v) => { if (!v.socios_id && !v.clientes_id) return; upsert(v.socios_id || null, v.clientes_id || null, resolveVooSocioName(v)); });
+      map.set(key, { id: key, nome: c.nome, socio_id: c.socio_id, cliente_id: c.cliente_id, percentual: c.percentual });
+    });
     return Array.from(map.values());
-  }, [rateiosPeriodo, voosPeriodo, cotistas, sociosMap, clientesMap]);
+  }, [cotistas]);
 
   const participantes = useMemo(
     () => participanteFiltroKey ? participantesTodos.filter((p) => p.id === participanteFiltroKey) : participantesTodos,
     [participantesTodos, participanteFiltroKey]
   );
+
+  // Agrupa os sócios cadastrados por cliente_id, para saber entre quantos ratear
+  // um lançamento (de despesa) que só tem cliente_id, sem sócio vinculado.
+  const sociosPorCliente = useMemo(() => {
+    const m = new Map<string, ParticipanteBalanco[]>();
+    participantesTodos.forEach((p) => {
+      if (!p.cliente_id) return;
+      const arr = m.get(p.cliente_id) || [];
+      arr.push(p);
+      m.set(p.cliente_id, arr);
+    });
+    return m;
+  }, [participantesTodos]);
+
+  // ---- DESPESAS (dinheiro): dividido entre os sócios do cliente quando não há sócio vinculado ----
+  // lançamento com socio_id preenchido -> pertence 100% a esse sócio.
+  // lançamento só com cliente_id -> rateado em partes iguais entre os sócios cadastrados desse cliente.
+  const resolveKeysWeighted = (socio_id: string | null, cliente_id: string | null): { key: string; weight: number }[] => {
+    if (socio_id) return [{ key: socio_id, weight: 1 }];
+    if (cliente_id) {
+      const socios = sociosPorCliente.get(cliente_id) || [];
+      if (socios.length > 0) {
+        const weight = 1 / socios.length;
+        return socios.map((s) => ({ key: s.id, weight }));
+      }
+      return [{ key: cliente_id, weight: 1 }];
+    }
+    return [];
+  };
+
+  // ---- VOOS: horas/pousos NÃO são custo, são fato do voo. Quando o lançamento só tem
+  // cliente_id, o voo conta INTEIRO (sem fracionar) para cada sócio cadastrado desse cliente. ----
+  const resolveKeysForVoo = (socio_id: string | null, cliente_id: string | null): string[] => {
+    if (socio_id) return [socio_id];
+    if (cliente_id) {
+      const socios = sociosPorCliente.get(cliente_id) || [];
+      if (socios.length > 0) return socios.map((s) => s.id);
+      return [cliente_id];
+    }
+    return [];
+  };
 
   const linhasPeriodo = useMemo(() => {
     const debito = new Map<string, number>();
@@ -258,26 +301,33 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     const horas = new Map<string, number>();
     const pousos = new Map<string, number>();
     participantes.forEach((c) => { debito.set(c.id, 0); credito.set(c.id, 0); horas.set(c.id, 0); pousos.set(c.id, 0); });
+
     rateiosPeriodo.forEach((r) => {
       if (!isSaida(r.fluxo)) return;
       if (!r.socio_id && !r.cliente_id) return;
-      const k = keyOfParticipante(r.socio_id || null, r.cliente_id || null, resolveSocioName(r));
-      if (!debito.has(k)) return;
       const rateado = num(r.valor_rateado);
       const pct = num(r.percentual_uso ?? r.percentual_sociedade);
       const total = num(r.valor_total_despesa);
       const base = rateado > 0 ? rateado : pct > 0 ? total * (pct / 100) : 0;
-      debito.set(k, (debito.get(k) || 0) + base);
       const pago = num(r.valor_pago_real);
-      if (pago > 0) credito.set(k, (credito.get(k) || 0) + pago);
+      resolveKeysWeighted(r.socio_id || null, r.cliente_id || null).forEach(({ key: k, weight }) => {
+        if (!debito.has(k)) return;
+        debito.set(k, (debito.get(k) || 0) + base * weight);
+        if (pago > 0) credito.set(k, (credito.get(k) || 0) + pago * weight);
+      });
     });
+
     voosPeriodo.forEach((v) => {
       if (!v.socios_id && !v.clientes_id) return;
-      const k = keyOfParticipante(v.socios_id || null, v.clientes_id || null, resolveVooSocioName(v));
-      if (!horas.has(k)) return;
-      horas.set(k, (horas.get(k) || 0) + (num(v.tempo_total) || num(v.tempo_voo)));
-      pousos.set(k, (pousos.get(k) || 0) + num(v.pousos_total));
+      const h = num(v.tempo_total) || num(v.tempo_voo);
+      const p = num(v.pousos_total);
+      resolveKeysForVoo(v.socios_id || null, v.clientes_id || null).forEach((k) => {
+        if (!horas.has(k)) return;
+        horas.set(k, (horas.get(k) || 0) + h); // valor cheio, sem fracionar
+        pousos.set(k, (pousos.get(k) || 0) + p); // valor cheio, sem fracionar
+      });
     });
+
     return participantes.map((c) => {
       const deb = debito.get(c.id) || 0;
       const cre = credito.get(c.id) || 0;
@@ -285,7 +335,7 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
       const pctPago = deb > 0 ? (cre / deb) * 100 : cre > 0 ? 100 : 0;
       return { ...c, debito: deb, credito: cre, saldo, horas: horas.get(c.id) || 0, pousos: pousos.get(c.id) || 0, pctPago };
     });
-  }, [rateiosPeriodo, voosPeriodo, participantes]);
+  }, [rateiosPeriodo, voosPeriodo, participantes, sociosPorCliente]);
 
   const entradasPorCotista = useMemo(() => {
     const map = new Map<string, number>();
@@ -293,16 +343,17 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     rateiosPeriodo.forEach((r) => {
       if (isSaida(r.fluxo)) return;
       if (!r.socio_id && !r.cliente_id) return;
-      const k = keyOfParticipante(r.socio_id || null, r.cliente_id || null, resolveSocioName(r));
-      if (!map.has(k)) return;
       const rateado = num(r.valor_rateado);
       const pct = num(r.percentual_uso ?? r.percentual_sociedade);
       const total = num(r.valor_total_despesa);
       const base = rateado > 0 ? rateado : pct > 0 ? total * (pct / 100) : total;
-      map.set(k, (map.get(k) || 0) + base);
+      resolveKeysWeighted(r.socio_id || null, r.cliente_id || null).forEach(({ key: k, weight }) => {
+        if (!map.has(k)) return;
+        map.set(k, (map.get(k) || 0) + base * weight);
+      });
     });
     return participantes.map((c) => ({ ...c, valor: map.get(c.id) || 0 })).filter((c) => c.valor > 0.005).sort((a, b) => b.valor - a.valor);
-  }, [rateiosPeriodo, participantes]);
+  }, [rateiosPeriodo, participantes, sociosPorCliente]);
 
   // Comparativo mensal — quando há filtro de participante, mostra só o custo/horas dela;
   // sem filtro (visão interna), mostra o total da aeronave.
@@ -372,93 +423,102 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     return Array.from(map.entries()).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total);
   }, [despesasPeriodoFiltrado, catMap]);
 
+  // Espelho diário por sócio: voo conta INTEIRO (horas, pousos, contagem) para cada
+  // sócio vinculado ao cliente do lançamento — não é despesa, não se rateia.
   const diarioPorSocio = useMemo(() => {
     const map = new Map<string, { nome: string; socio_id: string | null; cliente_id: string | null; horas: number; pousos: number; voos: number; noturnas: number; ifr: number; voosList: VooRow[] }>();
+    participantes.forEach((c) => map.set(c.id, { nome: c.nome, socio_id: c.socio_id, cliente_id: c.cliente_id, horas: 0, pousos: 0, voos: 0, noturnas: 0, ifr: 0, voosList: [] }));
     voosPeriodo.forEach((v) => {
       if (!matchFiltro(v.socios_id || null, v.clientes_id || null)) return;
-      const nome = resolveVooSocioName(v);
-      const sid = v.socios_id || null;
-      const cid = v.clientes_id || null;
-      const key = `${sid || cid || nome}`;
-      const cur = map.get(key) || { nome, socio_id: sid, cliente_id: cid, horas: 0, pousos: 0, voos: 0, noturnas: 0, ifr: 0, voosList: [] as VooRow[] };
-      cur.horas += num(v.tempo_total) || num(v.tempo_voo);
-      cur.pousos += num(v.pousos_total);
-      cur.voos += 1;
-      cur.noturnas += num(v.horas_noturnas);
-      cur.ifr += num(v.tempo_ifr);
-      cur.voosList.push(v);
-      map.set(key, cur);
+      resolveKeysForVoo(v.socios_id || null, v.clientes_id || null).forEach((k) => {
+        const cur = map.get(k);
+        if (!cur) return;
+        cur.horas += num(v.tempo_total) || num(v.tempo_voo);
+        cur.pousos += num(v.pousos_total);
+        cur.voos += 1;
+        cur.noturnas += num(v.horas_noturnas);
+        cur.ifr += num(v.tempo_ifr);
+        cur.voosList.push(v);
+      });
     });
-    return Array.from(map.values()).sort((a, b) => b.horas - a.horas);
-  }, [voosPeriodo, sociosMap, clientesMap, participanteFiltroKey]);
+    return Array.from(map.values()).filter((d) => d.voosList.length > 0).sort((a, b) => b.horas - a.horas);
+  }, [voosPeriodo, participantes, sociosPorCliente, participanteFiltroKey]);
 
   const evolucaoPorSocio = useMemo(() => {
     const map = new Map<string, { nome: string; serie: { key: string; horas: number; pousos: number; voos: number }[] }>();
+    participantes.forEach((c) => map.set(c.id, { nome: c.nome, serie: Array.from({ length: 12 }, (_, i) => ({ key: `${ano}-${String(i + 1).padStart(2, "0")}`, horas: 0, pousos: 0, voos: 0 })) }));
     voos.forEach((v) => {
       const dt = new Date(v.data_registro);
       if (dt.getFullYear() !== ano) return;
       if (!matchFiltro(v.socios_id || null, v.clientes_id || null)) return;
-      const nome = resolveVooSocioName(v);
-      const sid = v.socios_id || null;
-      const cid = v.clientes_id || null;
-      const key = `${sid || cid || nome}`;
-      if (!map.has(key)) {
-        map.set(key, { nome, serie: Array.from({ length: 12 }, (_, i) => ({ key: `${ano}-${String(i + 1).padStart(2, "0")}`, horas: 0, pousos: 0, voos: 0 })) });
-      }
-      const entry = map.get(key)!;
-      entry.serie[dt.getMonth()].horas += num(v.tempo_total) || num(v.tempo_voo);
-      entry.serie[dt.getMonth()].pousos += num(v.pousos_total);
-      entry.serie[dt.getMonth()].voos += 1;
+      resolveKeysForVoo(v.socios_id || null, v.clientes_id || null).forEach((k) => {
+        const entry = map.get(k);
+        if (!entry) return;
+        entry.serie[dt.getMonth()].horas += num(v.tempo_total) || num(v.tempo_voo);
+        entry.serie[dt.getMonth()].pousos += num(v.pousos_total);
+        entry.serie[dt.getMonth()].voos += 1;
+      });
     });
     return Array.from(map.entries()).map(([id, v]) => ({ id, ...v })).sort((a, b) => {
       const ta = a.serie.reduce((s, p) => s + p.horas, 0);
       const tb = b.serie.reduce((s, p) => s + p.horas, 0);
       return tb - ta;
     });
-  }, [voos, ano, sociosMap, clientesMap, participanteFiltroKey]);
+  }, [voos, ano, participantes, sociosPorCliente, participanteFiltroKey]);
 
-  // Já usa `participantes`, que respeita o filtro — nenhuma checagem extra necessária
+  // Já usa `participantes`, que respeita o filtro
   const composicaoPorSocio = useMemo(() => {
-    return participantes.map((c) => {
-      let fixo = 0, variavel = 0, extra = 0, entradas = 0;
-      rateiosPeriodo.forEach((r) => {
-        if (!r.socio_id && !r.cliente_id) return;
-        if (keyOfParticipante(r.socio_id || null, r.cliente_id || null, resolveSocioName(r)) !== c.id) return;
-        const rateado = num(r.valor_rateado);
-        const pct = num(r.percentual_uso ?? r.percentual_sociedade);
-        const total = num(r.valor_total_despesa);
-        const base = rateado > 0 ? rateado : pct > 0 ? total * (pct / 100) : total;
-        if (!isSaida(r.fluxo)) { entradas += base; return; }
-        const t = norm(r.tipo_rateio);
-        if (t === "fixo") fixo += base;
-        else if (t === "extra") extra += base;
-        else if (isFixo(r.periodicidade)) fixo += base;
-        else variavel += base;
+    const acc = new Map<string, { fixo: number; variavel: number; extra: number; entradas: number }>();
+    participantes.forEach((c) => acc.set(c.id, { fixo: 0, variavel: 0, extra: 0, entradas: 0 }));
+    rateiosPeriodo.forEach((r) => {
+      if (!r.socio_id && !r.cliente_id) return;
+      const rateado = num(r.valor_rateado);
+      const pct = num(r.percentual_uso ?? r.percentual_sociedade);
+      const total = num(r.valor_total_despesa);
+      const base = rateado > 0 ? rateado : pct > 0 ? total * (pct / 100) : total;
+      const t = norm(r.tipo_rateio);
+      resolveKeysWeighted(r.socio_id || null, r.cliente_id || null).forEach(({ key: k, weight }) => {
+        const entry = acc.get(k);
+        if (!entry) return;
+        const val = base * weight;
+        if (!isSaida(r.fluxo)) { entry.entradas += val; return; }
+        if (t === "fixo") entry.fixo += val;
+        else if (t === "extra") entry.extra += val;
+        else if (isFixo(r.periodicidade)) entry.fixo += val;
+        else entry.variavel += val;
       });
-      return { ...c, fixo, variavel, extra, entradas, total: fixo + variavel + extra };
     });
-  }, [rateiosPeriodo, participantes]);
+    return participantes.map((c) => {
+      const e = acc.get(c.id)!;
+      return { ...c, ...e, total: e.fixo + e.variavel + e.extra };
+    });
+  }, [rateiosPeriodo, participantes, sociosPorCliente]);
 
   const categoriasPorSocio = useMemo(() => {
-    return participantes.map((c) => {
-      const map = new Map<string, { total: number; count: number }>();
-      rateiosPeriodo.forEach((r) => {
-        if (!isSaida(r.fluxo)) return;
-        if (!r.socio_id && !r.cliente_id) return;
-        if (keyOfParticipante(r.socio_id || null, r.cliente_id || null, resolveSocioName(r)) !== c.id) return;
-        const nome = resolveCategoria(r.categoria_custo, catMap);
-        const rateado = num(r.valor_rateado);
-        const pct = num(r.percentual_uso ?? r.percentual_sociedade);
-        const total = num(r.valor_total_despesa);
-        const base = rateado > 0 ? rateado : pct > 0 ? total * (pct / 100) : total;
-        const cur = map.get(nome) || { total: 0, count: 0 };
-        cur.total += base;
+    const acc = new Map<string, Map<string, { total: number; count: number }>>();
+    participantes.forEach((c) => acc.set(c.id, new Map()));
+    rateiosPeriodo.forEach((r) => {
+      if (!isSaida(r.fluxo)) return;
+      if (!r.socio_id && !r.cliente_id) return;
+      const nome = resolveCategoria(r.categoria_custo, catMap);
+      const rateado = num(r.valor_rateado);
+      const pct = num(r.percentual_uso ?? r.percentual_sociedade);
+      const total = num(r.valor_total_despesa);
+      const base = rateado > 0 ? rateado : pct > 0 ? total * (pct / 100) : total;
+      resolveKeysWeighted(r.socio_id || null, r.cliente_id || null).forEach(({ key: k, weight }) => {
+        const m = acc.get(k);
+        if (!m) return;
+        const cur = m.get(nome) || { total: 0, count: 0 };
+        cur.total += base * weight;
         cur.count += 1;
-        map.set(nome, cur);
+        m.set(nome, cur);
       });
-      return { ...c, categorias: Array.from(map.entries()).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total) };
     });
-  }, [rateiosPeriodo, participantes, catMap]);
+    return participantes.map((c) => ({
+      ...c,
+      categorias: Array.from((acc.get(c.id) || new Map()).entries()).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total),
+    }));
+  }, [rateiosPeriodo, participantes, catMap, sociosPorCliente]);
 
   // Detalhe por voo (combustível, TER, tarifas, hangar) — usado no espelho do diário.
   // Não é filtrado por participante pois é indexado por voo, não por sócio; ao usar na
