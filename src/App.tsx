@@ -6,7 +6,6 @@ import { RoleProtected } from "@/components/auth/RoleProtected";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
-import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
 import { ExpirationAlertsProvider } from "@/contexts/ExpirationAlertsContext";
 import { AnniversaryAlertsProvider } from "@/contexts/AnniversaryAlertsContext";
 import { UpdateCheckProvider } from "@/contexts/UpdateCheckContext";
@@ -21,7 +20,6 @@ import { HashRouter, Route, Routes, useParams, useNavigate } from "react-router-
 
 // Import das páginas
 import AgendaHub from "./pages/AgendaHub";
-import Agendamento from "./pages/Agendamento";
 import ConfigEmpresa from "./pages/financeiro/ConfigEmpresa";
 import EmissaoRecibo from "./pages/financeiro/EmissaoRecibo";
 import RelatorioViagem from "./pages/financeiro/RelatorioViagem";
@@ -66,7 +64,7 @@ import MasterColaboradores from "./components/dashboard/gestor/master/MasterCola
 import DashboardOperacoes from "./pages/DashboardOperacoes";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import DashboardGestorPage from "./pages/DashboardGestorPage";
-import AprovacaoAgendamentos from "./components/AgendamentoVoo/AprovacaoAgendamentos";
+
 import PainelAgendamentos from "./pages/PainelAgendamentos";
 import CartoesCorporativos from "./pages/CartoesCorporativos";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
