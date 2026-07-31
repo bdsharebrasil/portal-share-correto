@@ -139,7 +139,7 @@ const App = () => {
         <AuthProvider>
           <LoadingProvider>
             <ViewModeProvider>
-              <VencimentosSyncProvider>
+              
                 <ExpirationAlertsProvider>
                   <AnniversaryAlertsProvider>
                     <UpdateCheckProvider>
@@ -304,7 +304,7 @@ const App = () => {
                     </UpdateCheckProvider>
                   </AnniversaryAlertsProvider>
                 </ExpirationAlertsProvider>
-              </VencimentosSyncProvider>
+              
             </ViewModeProvider>
           </LoadingProvider>
         </AuthProvider>
