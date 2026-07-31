@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, FileText,
-  Lock, Paperclip, ExternalLink, Edit2, X, Save, Loader2,
+  Lock, Paperclip, ExternalLink, Edit2, X, Save, Loader2, Eye, EyeOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -30,6 +30,19 @@ interface FechamentoBalancoTabProps {
 const formatBRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
 
+const HIDEABLE_COLUMNS = [
+  ["fluxo", "Fluxo"],
+  ["vencimento", "Vencimento"],
+  ["pagamento", "Pagamento"],
+  ["documento", "nº Doc"],
+  ["fornecedor", "Fornecedor"],
+  ["cliente", "Cliente"],
+  ["descricao", "Descrição"],
+  ["uso", "% Uso"],
+  ["total", "Vlr. Total"],
+  ["pago", "Vlr. Pago"],
+] as const;
+
 export function FechamentoBalancoTab({
   rateios,
   cotistas,
@@ -41,7 +54,21 @@ export function FechamentoBalancoTab({
 }: FechamentoBalancoTabProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [editingRateio, setEditingRateio] = useState<RateioRow | null>(null);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
   const qc = useQueryClient();
+
+  const toggleColumn = (column: string) => {
+    setHiddenColumns((current) => {
+      const next = new Set(current);
+      if (next.has(column)) next.delete(column);
+      else next.add(column);
+      return next;
+    });
+  };
+
+  const columnVisible = (column: string) => !hiddenColumns.has(column);
+  const visibleColumnCount = 2 + HIDEABLE_COLUMNS.length - hiddenColumns.size;
 
   // Drag to scroll refs and state
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -194,6 +221,32 @@ export function FechamentoBalancoTab({
             </div>
           </div>
 
+          <div className="relative">
+            <button
+              onClick={() => setShowColumnMenu((current) => !current)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+              aria-expanded={showColumnMenu}
+              aria-label="Mostrar ou ocultar colunas"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              COLUNAS
+            </button>
+            {showColumnMenu && (
+              <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl">
+                {HIDEABLE_COLUMNS.map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => toggleColumn(id)}
+                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-cyan-300"
+                  >
+                    {label}
+                    {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-cyan-400" /> : <EyeOff className="h-3.5 w-3.5 text-slate-600" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => fecharMesMutation.mutate()}
             disabled={!todosConferidos || fecharMesMutation.isPending}
@@ -227,23 +280,23 @@ export function FechamentoBalancoTab({
             <thead>
               <tr className="border-b-2 border-slate-700/60 bg-slate-800/80 text-[9px] uppercase tracking-widest text-slate-400 divide-x divide-slate-700/30">
                 <th className="px-3 py-2 text-center font-bold w-10"></th>
-                <th className="px-3 py-2 text-left font-bold">Fluxo</th>
-                <th className="px-3 py-2 text-left font-bold">Vencimento</th>
-                <th className="px-3 py-2 text-left font-bold">Pagamento</th>
-                <th className="px-3 py-2 text-left font-bold">nº Doc</th>
-                <th className="px-3 py-2 text-left font-bold min-w-[130px]">Fornecedor</th>
-                <th className="px-3 py-2 text-left font-bold">Cliente</th>
-                <th className="px-3 py-2 text-left font-bold min-w-[160px]">Descrição</th>
-                <th className="px-3 py-2 text-right font-bold">% Uso</th>
-                <th className="px-3 py-2 text-right font-bold">Vlr. Total</th>
-                <th className="px-3 py-2 text-right font-bold">Vlr. Pago</th>
+                <th className={`px-3 py-2 text-left font-bold ${columnVisible("fluxo") ? "" : "hidden"}`}>Fluxo</th>
+                <th className={`px-3 py-2 text-left font-bold ${columnVisible("vencimento") ? "" : "hidden"}`}>Vencimento</th>
+                <th className={`px-3 py-2 text-left font-bold ${columnVisible("pagamento") ? "" : "hidden"}`}>Pagamento</th>
+                <th className={`px-3 py-2 text-left font-bold ${columnVisible("documento") ? "" : "hidden"}`}>nº Doc</th>
+                <th className={`px-3 py-2 text-left font-bold min-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>Fornecedor</th>
+                <th className={`px-3 py-2 text-left font-bold ${columnVisible("cliente") ? "" : "hidden"}`}>Cliente</th>
+                <th className={`px-3 py-2 text-left font-bold min-w-[160px] ${columnVisible("descricao") ? "" : "hidden"}`}>Descrição</th>
+                <th className={`px-3 py-2 text-right font-bold ${columnVisible("uso") ? "" : "hidden"}`}>% Uso</th>
+                <th className={`px-3 py-2 text-right font-bold ${columnVisible("total") ? "" : "hidden"}`}>Vlr. Total</th>
+                <th className={`px-3 py-2 text-right font-bold ${columnVisible("pago") ? "" : "hidden"}`}>Vlr. Pago</th>
                 <th className="px-3 py-2 text-center font-bold">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/40">
               {despesas.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-xs font-medium text-slate-500">
+                  <td colSpan={visibleColumnCount} className="px-4 py-10 text-center text-xs font-medium text-slate-500">
                     Nenhum lançamento encontrado no período selecionado.
                   </td>
                 </tr>
@@ -282,36 +335,36 @@ export function FechamentoBalancoTab({
                             {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                           </button>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className={`px-3 py-2 ${columnVisible("fluxo") ? "" : "hidden"}`}>
                           <span className={`text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-sm ${isSaida(r.fluxo) ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
                             {r.fluxo || "—"}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-slate-300 font-medium font-mono">
+                        <td className={`px-3 py-2 text-slate-300 font-medium font-mono ${columnVisible("vencimento") ? "" : "hidden"}`}>
                           {formatDate(r.data_vencimento)}
                         </td>
-                        <td className={`px-3 py-2 font-mono ${r.data_pagamento ? "text-emerald-600 font-bold" : "text-slate-500"}`}>
+                        <td className={`px-3 py-2 font-mono ${r.data_pagamento ? "text-emerald-600 font-bold" : "text-slate-500"} ${columnVisible("pagamento") ? "" : "hidden"}`}>
                           {r.data_pagamento ? formatDate(r.data_pagamento) : "---"}
                         </td>
-                        <td className="px-3 py-2 font-mono text-cyan-400/90 text-[10px]">
+                        <td className={`px-3 py-2 font-mono text-cyan-400/90 text-[10px] ${columnVisible("documento") ? "" : "hidden"}`}>
                           {r.numero_doc || "—"}
                         </td>
-                        <td className="px-3 py-2 text-slate-200 font-semibold truncate max-w-[130px]">
+                        <td className={`px-3 py-2 text-slate-200 font-semibold truncate max-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>
                           {r.fornecedor_nome || "—"}
                         </td>
-                        <td className="px-3 py-2 text-slate-300 font-medium truncate max-w-[110px]">
+                        <td className={`px-3 py-2 text-slate-300 font-medium truncate max-w-[110px] ${columnVisible("cliente") ? "" : "hidden"}`}>
                           {clienteOuSocio}
                         </td>
-                        <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate" title={r.descricao_despesa || ""}>
+                        <td className={`px-3 py-2 text-slate-400 max-w-[180px] truncate ${columnVisible("descricao") ? "" : "hidden"}`} title={r.descricao_despesa || ""}>
                           {r.descricao_despesa || "—"}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-300 font-medium">
+                        <td className={`px-3 py-2 text-right tabular-nums text-slate-300 font-medium ${columnVisible("uso") ? "" : "hidden"}`}>
                           {r.percentual_uso != null ? `${num(r.percentual_uso)}%` : "—"}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums font-bold text-slate-200">
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold text-slate-200 ${columnVisible("total") ? "" : "hidden"}`}>
                           {formatBRL(num(r.valor_total_despesa))}
                         </td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${valorPago > 0 ? "text-emerald-600" : "text-slate-500"}`}>
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${valorPago > 0 ? "text-emerald-600" : "text-slate-500"} ${columnVisible("pago") ? "" : "hidden"}`}>
                           {formatBRL(valorPago)}
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -342,7 +395,7 @@ export function FechamentoBalancoTab({
                             exit={{ opacity: 0, height: 0 }}
                             className="bg-slate-950/80 border-b border-slate-700/50 shadow-inner"
                           >
-                            <td colSpan={12} className="px-4 py-4 cursor-default">
+                            <td colSpan={visibleColumnCount} className="px-4 py-4 cursor-default">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                                 {/* Coluna 1: Anexos */}
@@ -470,15 +523,19 @@ export function FechamentoBalancoTab({
             {despesas.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-slate-700 bg-slate-900 shadow-inner">
-                  <td colSpan={8} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
+                  <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("pago") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
                     TOTAL DO MÊS:
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums font-black text-slate-100 text-xs">
-                    {formatBRL(despesas.reduce((s, d) => s + num(d.valor_total_despesa), 0))}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums font-black text-cyan-400 text-xs">
-                    {formatBRL(despesas.reduce((s, d) => s + num(d.valor_pago_real), 0))}
-                  </td>
+                  {columnVisible("total") && (
+                    <td className="px-3 py-3 text-right tabular-nums font-black text-slate-100 text-xs">
+                      {formatBRL(despesas.reduce((s, d) => s + num(d.valor_total_despesa), 0))}
+                    </td>
+                  )}
+                  {columnVisible("pago") && (
+                    <td className="px-3 py-3 text-right tabular-nums font-black text-cyan-400 text-xs">
+                      {formatBRL(despesas.reduce((s, d) => s + num(d.valor_pago_real), 0))}
+                    </td>
+                  )}
                   <td />
                 </tr>
               </tfoot>

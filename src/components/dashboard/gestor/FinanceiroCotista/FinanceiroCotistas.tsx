@@ -61,7 +61,7 @@ export default function FinanceiroCotistas() {
 
   return (
     <Layout>
-      <div className="space-y-6 px-2">
+      <div className="space-y-6 px-[23px]">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group w-fit"
