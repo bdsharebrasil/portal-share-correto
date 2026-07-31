@@ -342,21 +342,30 @@ function DiarioBordoDetalhes() {
     (async () => {
       if (!aircraftId) return;
       try {
-        const { data } = await supabase
-          .from("lancamentos_diario_bordo")
-          .select("data_registro")
-          .eq("aeronave_id", aircraftId)
-          .order("data_registro", { ascending: false });
+        const [lancRes, mesesRes] = await Promise.all([
+          supabase
+            .from("lancamentos_diario_bordo")
+            .select("data_registro")
+            .eq("aeronave_id", aircraftId)
+            .order("data_registro", { ascending: false }),
+          supabase
+            .from("diario_mes")
+            .select("mes,ano")
+            .eq("aeronave_id", aircraftId),
+        ]);
 
         const meses = new Map<string, { mes: number; ano: number }>();
-        if (data) {
-          for (const row of data) {
-            const date = new Date(row.data_registro + "T00:00");
-            const m = date.getMonth() + 1;
-            const a = date.getFullYear();
-            const key = `${a}-${m}`;
-            if (!meses.has(key)) meses.set(key, { mes: m, ano: a });
-          }
+        for (const row of (lancRes.data ?? [])) {
+          const date = new Date(row.data_registro + "T00:00");
+          const m = date.getMonth() + 1;
+          const a = date.getFullYear();
+          const key = `${a}-${m}`;
+          if (!meses.has(key)) meses.set(key, { mes: m, ano: a });
+        }
+        // Meses criados no diario_mes (mesmo sem lançamentos) também devem aparecer
+        for (const row of (mesesRes.data ?? []) as Array<{ mes: number; ano: number }>) {
+          const key = `${row.ano}-${row.mes}`;
+          if (!meses.has(key)) meses.set(key, { mes: Number(row.mes), ano: Number(row.ano) });
         }
         setAvailableMeses(Array.from(meses.values()).sort((a, b) => {
           if (a.ano !== b.ano) return b.ano - a.ano;
@@ -364,7 +373,8 @@ function DiarioBordoDetalhes() {
         }));
       } catch {}
     })();
-  }, [aircraftId]);
+  }, [aircraftId, diarioMes?.id]);
+
 
   useEffect(() => {
     if (ano !== null && mes !== null && availableMeses.length > 0) {
@@ -610,7 +620,16 @@ function DiarioBordoDetalhes() {
     } else {
       const { error } = await supabase.from("lancamentos_diario_bordo").delete().eq("id", lanc.id);
       if (error) toast.error("Erro ao excluir lançamento: " + error.message);
-      else { toast.success("Lançamento excluído"); await reload(); }
+      else {
+        const [ry, rm] = String(lanc.data_registro ?? "").split("-");
+        await supabase.rpc("recalcular_cadeia_celula" as never, {
+          p_aeronave_id: (lanc as any).aeronave_id ?? aeronave?.id,
+          p_desde_ano: Number(ry) || null,
+          p_desde_mes: Number(rm) || null,
+        } as never);
+        toast.success("Lançamento excluído");
+        await reload();
+      }
     }
   };
 
@@ -874,10 +893,6 @@ function DiarioBordoDetalhes() {
                   </select>
                 </div>
               </div>
-              <button onClick={handleOpenCreateMonth}
-                className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-400/50 text-emerald-400 font-medium rounded-lg px-3 py-1.5 text-xs transition-all">
-                <Calendar className="w-3.5 h-3.5" /> Novo Mês
-              </button>
               <button
                 onClick={() => { setActivePanel(activePanel === "novoVoo" ? "none" : "novoVoo"); setEditingLanc(null); }}
                 className={`inline-flex items-center gap-1.5 font-medium rounded-lg px-3 py-1.5 text-xs transition-all border ${
@@ -891,6 +906,11 @@ function DiarioBordoDetalhes() {
                 className="inline-flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-400/50 text-amber-400 font-medium rounded-lg px-3 py-1.5 text-xs transition-all">
                 <FileText className="w-3.5 h-3.5" /> PDF
               </button>
+              <button onClick={handleOpenCreateMonth}
+                className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-400/50 text-emerald-400 font-medium rounded-lg px-3 py-1.5 text-xs transition-all">
+                <Calendar className="w-3.5 h-3.5" /> Novo Mês
+              </button>
+
             </div>
           </div>
 
@@ -1638,6 +1658,66 @@ function Td({ children, className = "", colSpan, style }: { children: React.Reac
 /* ─── inputCls ─────────────────────────────────────────────────────────────── */
 const inputCls = "w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none transition-colors placeholder:text-slate-600";
 
+/* ─── Data dd/mm/yy <-> ISO ────────────────────────────────────────────────── */
+function isoToBR2(iso: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y.slice(2)}`;
+}
+function br2ToIso(br: string): string | null {
+  const m = br.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  return `20${y}-${mo}-${d}`;
+}
+function DateBRInput({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+  const [text, setText] = useState(isoToBR2(value));
+  useEffect(() => { setText(isoToBR2(value)); }, [value]);
+  return (
+    <div className="flex gap-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        placeholder="dd/mm/aa"
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+          let masked = digits;
+          if (digits.length > 4) masked = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+          else if (digits.length > 2) masked = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+          setText(masked);
+          const iso = br2ToIso(masked);
+          if (iso) onChange(iso);
+        }}
+        className={`${inputCls} font-mono`}
+      />
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0"><CalendarIcon className="h-3.5 w-3.5" /></Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-slate-700" align="end">
+          <CalendarComponent
+            mode="single"
+            selected={value ? new Date(`${value}T00:00`) : undefined}
+            onSelect={(date) => {
+              if (date) {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, "0");
+                const d = String(date.getDate()).padStart(2, "0");
+                onChange(`${y}-${m}-${d}`);
+              }
+            }}
+            defaultMonth={value ? new Date(`${value}T00:00`) : new Date()}
+            initialFocus
+            className="pointer-events-auto bg-[#1a2332]"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+
 /* ─── Section / Field ──────────────────────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -1685,7 +1765,7 @@ function NovoVooInline({
   const [pousos, setPousos] = useState(1);
   const [fuelInicio, setFuelInicio] = useState(0);
   const [abast, setAbast] = useState(0);
-  const [natureza, setNatureza] = useState("Privado");
+  const [natureza, setNatureza] = useState("PV - Privado");
   const [picId, setPicId] = useState<string>("");
   const [sicId, setSicId] = useState<string>("");
   const [sicNome, setSicNome] = useState("");
@@ -1812,6 +1892,12 @@ function NovoVooInline({
       if (ins.error) throw ins.error;
       const updatePayload = modoCelula === "tvoo" ? { celula_atual_tvoo: celulaTvoo } : { celula_atual_ttotal: celula };
       await supabase.from("diario_mes").update(updatePayload).eq("id", dmId);
+      const [iy, im] = String(data ?? "").split("-");
+      await supabase.rpc("recalcular_cadeia_celula", {
+        p_aeronave_id: aeronave.id,
+        p_desde_ano: Number(iy) || null,
+        p_desde_mes: Number(im) || null,
+      });
       onSaved();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -1848,22 +1934,11 @@ function NovoVooInline({
       </div>
       <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
         <Section title="Identificação">
-          <Field label="Data">
-            <div className="flex gap-2">
-              <input type="text" value={data} onChange={(e) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value) || e.target.value === '') setData(e.target.value); }} placeholder="YYYY-MM-DD" className={inputCls} />
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0"><CalendarIcon className="h-3.5 w-3.5" /></Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-slate-700" align="end">
-                  <CalendarComponent mode="single" selected={data ? new Date(data) : undefined}
-                    onSelect={(date) => { if (date) { const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, '0'); const d = String(date.getDate()).padStart(2, '0'); setData(`${y}-${m}-${d}`); } }}
-                    defaultMonth={data ? new Date(data) : new Date()} initialFocus className="pointer-events-auto bg-[#1a2332]" />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <Field label="Data (dd/mm/aa)">
+            <DateBRInput value={data} onChange={setData} />
           </Field>
         </Section>
+
         <Section title="Cliente & Cotista">
           <Field label="Cliente">
             <SearchableCombobox items={clientes.map((c) => ({ id: c.id, label: c.razao_social ?? c.proprietario ?? c.id.slice(0, 6) }))} value={clienteId} onChange={(v) => { setClienteId(v); setSocioId(""); }} placeholder="Selecionar..." searchPlaceholder="Buscar..." />
@@ -1885,11 +1960,16 @@ function NovoVooInline({
         </Section>
         <Section title="Natureza">
           <Field label="Natureza do voo">
-            <select value={natureza} onChange={(e) => setNatureza(e.target.value)} className={inputCls}>
-              {NATUREZAS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <SearchableCombobox
+              items={NATUREZAS.map((n) => ({ id: n, label: n }))}
+              value={natureza}
+              onChange={(id) => setNatureza(id)}
+              placeholder="Selecionar natureza..."
+              searchPlaceholder="Buscar natureza..."
+            />
           </Field>
         </Section>
+
         <Section title="Tripulação">
           <Field label="PIC">
             <SearchableCombobox items={tripOptions.map((t) => ({ id: t.id, label: `${t.nome_completo ?? t.canac ?? t.id.slice(0, 6)}${t.canac ? ` (${t.canac})` : ""}` }))} value={picId} onChange={setPicId} placeholder="Selecionar PIC..." searchPlaceholder="Buscar..." />
@@ -2027,6 +2107,12 @@ function EditarVooInline({
         origem_sic: null,
       } as never).eq("id", lanc.id);
       if (error) throw error;
+      const [uy, um] = String(data ?? "").split("-");
+      await supabase.rpc("recalcular_cadeia_celula", {
+        p_aeronave_id: (lanc as any).aeronave_id,
+        p_desde_ano: Number(uy) || null,
+        p_desde_mes: Number(um) || null,
+      });
       onSaved();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -2088,26 +2174,19 @@ function EditarVooInline({
           )}
         </Section>
         <Section title="Identificação">
-          <Field label="Data">
-            <div className="flex gap-2">
-              <input type="text" value={data} onChange={(e) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value) || e.target.value === '') setData(e.target.value); }} placeholder="YYYY-MM-DD" className={inputCls} />
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0"><CalendarIcon className="h-3.5 w-3.5" /></Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 !bg-[#1a2332] !border-slate-700" align="end">
-                  <CalendarComponent mode="single" selected={data ? new Date(data) : undefined}
-                    onSelect={(date) => { if (date) { const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, '0'); const d = String(date.getDate()).padStart(2, '0'); setData(`${y}-${m}-${d}`); } }}
-                    defaultMonth={data ? new Date(data) : new Date()} initialFocus className="pointer-events-auto bg-[#1a2332]" />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <Field label="Data (dd/mm/aa)">
+            <DateBRInput value={data} onChange={setData} />
           </Field>
           <Field label="Natureza">
-            <select value={natureza} onChange={(e) => setNatureza(e.target.value)} className={inputCls}>
-              {NATUREZAS.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <SearchableCombobox
+              items={NATUREZAS.map((n) => ({ id: n, label: n }))}
+              value={natureza}
+              onChange={(id) => setNatureza(id)}
+              placeholder="Selecionar natureza..."
+              searchPlaceholder="Buscar natureza..."
+            />
           </Field>
+
           <Field label="Origem (ICAO)">
             <SearchableCombobox items={aerodromes.map((ad, idx) => ({ id: idx.toString(), label: `${ad.designativo} - ${ad.name}` }))} value={(() => { const idx = aerodromes.findIndex(ad => ad.designativo === origem); return idx >= 0 ? idx.toString() : ""; })()} onChange={(id, label) => setOrigem(label.split(' - ')[0])} placeholder="Buscar..." searchPlaceholder="Código ou nome..." allowFreeText={true} />
           </Field>
