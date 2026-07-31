@@ -11027,6 +11027,14 @@ export type Database = {
         }
         Returns: Json
       }
+      recalcular_cadeia_celula: {
+        Args: {
+          p_aeronave_id: string
+          p_desde_ano?: number
+          p_desde_mes?: number
+        }
+        Returns: undefined
+      }
       recalcular_consumo_aeronave: {
         Args: { p_aeronave_id: string }
         Returns: number
