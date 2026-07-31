@@ -12,7 +12,8 @@ import {
   Key,
   Menu,
   Wallet,
-  CheckSquare
+  CheckSquare,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,12 @@ const baseMenuGroups: MenuGroup[] = [
     items: [
       { title: "Solicitações compras/pagamentos", icon: CreditCard, href: "/financeiro/compras" },
       { title: "Cartões Corporativos", icon: Wallet, href: "/cartoes-corporativos" },
+    ],
+  },
+  {
+    title: "Ajuda",
+    items: [
+      { title: "Manual do Sistema", icon: BookOpen, href: "/manual" },
     ],
   },
 ];
