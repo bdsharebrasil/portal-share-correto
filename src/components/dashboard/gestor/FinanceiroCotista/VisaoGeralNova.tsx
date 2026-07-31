@@ -431,6 +431,162 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
             </div>
           )}
 
+          {aba === "medias" && (() => {
+            const numMeses = selectedMonths.length || 1;
+            const numVoos = voosPeriodo.length;
+            const numCotistas = participantes.length || 1;
+            const custoPorVoo = numVoos > 0 ? custoTotal / numVoos : 0;
+            const custoPorPouso = totalPousos > 0 ? custoTotal / totalPousos : 0;
+            const mediaMensalCusto = custoTotal / numMeses;
+            const mediaMensalHoras = horasPeriodo / numMeses;
+            const mediaMensalVoos = numVoos / numMeses;
+            const mediaHorasCotista = horasPeriodo / numCotistas;
+            const mediaCustoCotista = custoTotal / numCotistas;
+            const mediaPousosCotista = totalPousos / numCotistas;
+            const pctFixo = custoTotal > 0 ? (custoFixo / custoTotal) * 100 : 0;
+            const pctVariavel = custoTotal > 0 ? (custoVariavel / custoTotal) * 100 : 0;
+            const coberturaEntradas = custoTotal > 0 ? (entradasPeriodo / custoTotal) * 100 : 0;
+
+            const calcRows = [
+              { label: "Custo / Hora (Total)", value: horasPeriodo > 0 ? formatBRL(custoMedioHoraTotal) : "—", icon: <Gauge className="h-4 w-4" />, tone: "primary" as const },
+              { label: "Custo / Hora (Variável)", value: horasPeriodo > 0 ? formatBRL(custoMedioHora) : "—", icon: <Gauge className="h-4 w-4" /> },
+              { label: "Custo / Voo", value: numVoos > 0 ? formatBRL(custoPorVoo) : "—", icon: <Plane className="h-4 w-4" /> },
+              { label: "Custo / Pouso", value: totalPousos > 0 ? formatBRL(custoPorPouso) : "—", icon: <PlaneLanding className="h-4 w-4" /> },
+              { label: "Média Mensal de Custo", value: formatBRL(mediaMensalCusto), icon: <Wallet className="h-4 w-4" /> },
+              { label: "Média Mensal de Horas", value: formatHours(mediaMensalHoras), icon: <TrendingUp className="h-4 w-4" /> },
+              { label: "Média Mensal de Voos", value: mediaMensalVoos.toFixed(1), icon: <Plane className="h-4 w-4" /> },
+              { label: "Horas Médias / Cotista", value: formatHours(mediaHorasCotista), icon: <Users className="h-4 w-4" /> },
+              { label: "Custo Médio / Cotista", value: formatBRL(mediaCustoCotista), icon: <Scale className="h-4 w-4" /> },
+              { label: "Pousos Médios / Cotista", value: mediaPousosCotista.toFixed(1), icon: <PlaneLanding className="h-4 w-4" /> },
+            ];
+
+            const compRows = [
+              { label: "Custos Fixos", value: formatBRL(custoFixo), pct: pctFixo, color: CHART.amber },
+              { label: "Custos Variáveis", value: formatBRL(custoVariavel), pct: pctVariavel, color: CHART.danger },
+              { label: "Entradas / Créditos", value: formatBRL(entradasPeriodo), pct: coberturaEntradas, color: CHART.success },
+            ];
+
+            return (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Calculator className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Médias e Cálculos — {periodLabel}</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                    {calcRows.map((r) => (
+                      <div key={r.label} className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
+                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-slate-500">
+                          <span className={r.tone === "primary" ? "text-cyan-400" : "text-slate-500"}>{r.icon}</span>
+                          {r.label}
+                        </div>
+                        <div className={`mt-2 text-lg font-bold tabular-nums ${r.tone === "primary" ? "text-cyan-400" : "text-slate-100"}`}>{r.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Composição Percentual</span>
+                  </div>
+                  <div className="space-y-4">
+                    {compRows.map((r) => (
+                      <div key={r.label}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs text-slate-300">{r.label}</span>
+                          <span className="text-xs tabular-nums text-slate-400">{r.value} · {r.pct.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                          <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.min(100, r.pct)}%`, background: r.color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {monthlyBreakdown.length > 0 && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-cyan-400" />
+                      <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Média de Custo/Hora por Mês</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                          <tr>
+                            <th className="px-3 py-2.5 text-left">Mês</th>
+                            <th className="px-3 py-2.5 text-right">Custo</th>
+                            <th className="px-3 py-2.5 text-right">Horas</th>
+                            <th className="px-3 py-2.5 text-right">Voos</th>
+                            <th className="px-3 py-2.5 text-right">Custo/Hora</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {monthlyBreakdown.map((m) => (
+                            <tr key={m.mes} className="border-t border-slate-800/60 hover:bg-slate-800/20">
+                              <td className="px-3 py-2.5 font-medium text-slate-200">{MESES[m.mes - 1]}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{formatBRL(m.custo)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{formatHours(m.horas)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{m.voos}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400 font-medium">{m.custoHora > 0 ? formatBRL(m.custoHora) : "—"}</td>
+                            </tr>
+                          ))}
+                          <tr className="border-t-2 border-cyan-500/20 bg-slate-800/40 font-bold">
+                            <td className="px-3 py-2.5 text-slate-100">Média</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{formatBRL(mediaMensalCusto)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{formatHours(mediaMensalHoras)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-100">{mediaMensalVoos.toFixed(1)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{horasPeriodo > 0 ? formatBRL(custoMedioHoraTotal) : "—"}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {linhasPeriodo.length > 0 && (
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                      <Users className="h-4 w-4 text-cyan-400" />
+                      <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Médias por Cotista</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+                          <tr>
+                            <th className="px-3 py-2.5 text-left">Cotista</th>
+                            <th className="px-3 py-2.5 text-right">Horas</th>
+                            <th className="px-3 py-2.5 text-right">Pousos</th>
+                            <th className="px-3 py-2.5 text-right">Débito</th>
+                            <th className="px-3 py-2.5 text-right">Custo/Hora</th>
+                            <th className="px-3 py-2.5 text-right">% do Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {linhasPeriodo.map((l) => {
+                            const pctTotal = custoTotal > 0 ? (l.debito / custoTotal) * 100 : 0;
+                            return (
+                              <tr key={l.id} className="border-t border-slate-800/60 hover:bg-slate-800/20">
+                                <td className="px-3 py-2.5 font-medium text-slate-200">{l.nome}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400">{formatHours(l.horas)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{l.pousos}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{formatBRL(l.debito)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-amber-400">{l.horas > 0 ? formatBRL(l.debito / l.horas) : "—"}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{pctTotal.toFixed(1)}%</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {aba === "informacoes" && (
             <InformacoesCotistasTab
               aeronaveId={aeronaveId}

@@ -75,7 +75,7 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
         const { error } = await supabase
           .from("abastecimentos")
           .update({
-            status_pagamento: "pago",
+            status: "pago",
             data_pagamento: dataPagamento,
             forma_pagamento: formaPagamento,
             comprovante_pagamento: comprovanteUrl,

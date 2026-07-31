@@ -470,7 +470,7 @@ export function useSocioTransactions(
           created_by: null,
           created_at: f.created_at || f.criado_em || null,
           expense_type: "abastecimento",
-          status: f.status_pagamento || null,
+          status: f.status || null,
           bank_name: f.banco || null,
           prazo: f.prazo || null,
           payment_method: f.forma_pagamento || null,
@@ -907,7 +907,7 @@ export function useCreateExpense(showToast = true) {
       if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
         if (data.abastecimentoId) {
           const updatePayload: any = {
-            status_pagamento:
+            status:
               data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
             partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
             updated_at: new Date().toISOString(),
@@ -1358,13 +1358,13 @@ export function useUpdateTransaction() {
         }
 
         if (data.status === "paid" || data.status === "pago") {
-          updatePayload.status_pagamento = "pago";
+          updatePayload.status = "pago";
           updatePayload.data_pagamento = data.paymentDate;
         } else if (data.status === "pendente" || data.status === "pending") {
-          updatePayload.status_pagamento = "pendente";
+          updatePayload.status = "pendente";
           updatePayload.data_pagamento = null;
         } else {
-          updatePayload.status_pagamento = data.status || "pendente";
+          updatePayload.status = data.status || "pendente";
           if (data.paymentDate) updatePayload.data_pagamento = data.paymentDate;
         }
 

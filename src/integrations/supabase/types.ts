@@ -4519,6 +4519,57 @@ export type Database = {
           },
         ]
       }
+      emails_enviados: {
+        Row: {
+          anexos: Json
+          assunto: string
+          cc: string | null
+          criado_em: string
+          destinatario: string
+          enviado_por: string | null
+          erro_mensagem: string | null
+          id: string
+          mensagem: string | null
+          provider_id: string | null
+          reference_id: string | null
+          reference_type: string | null
+          status: string
+          tipo: string | null
+        }
+        Insert: {
+          anexos?: Json
+          assunto: string
+          cc?: string | null
+          criado_em?: string
+          destinatario: string
+          enviado_por?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          mensagem?: string | null
+          provider_id?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          status?: string
+          tipo?: string | null
+        }
+        Update: {
+          anexos?: Json
+          assunto?: string
+          cc?: string | null
+          criado_em?: string
+          destinatario?: string
+          enviado_por?: string | null
+          erro_mensagem?: string | null
+          id?: string
+          mensagem?: string | null
+          provider_id?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          status?: string
+          tipo?: string | null
+        }
+        Relationships: []
+      }
       employee_payslips: {
         Row: {
           employee_id: string
@@ -6649,7 +6700,7 @@ export type Database = {
           reference_type: string | null
           socio_id: string | null
           status: string
-          tipo: string
+          tipo: string | null
           tipo_caixa: string | null
           valor_original: number | null
           valor_pago_real: number | null
@@ -6698,7 +6749,7 @@ export type Database = {
           reference_type?: string | null
           socio_id?: string | null
           status?: string
-          tipo: string
+          tipo?: string | null
           tipo_caixa?: string | null
           valor_original?: number | null
           valor_pago_real?: number | null
@@ -6747,7 +6798,7 @@ export type Database = {
           reference_type?: string | null
           socio_id?: string | null
           status?: string
-          tipo?: string
+          tipo?: string | null
           tipo_caixa?: string | null
           valor_original?: number | null
           valor_pago_real?: number | null

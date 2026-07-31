@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -120,7 +121,11 @@ function statusOf(m: Movimentacao): { label: string; kind: StatusKind } {
   if (isDeposit) return { label: "Depósito", kind: "deposito" };
   const pago = !!m.data_pagamento || s === "aprovado" || s === "pago" || s === "quitado" || s === "confirmado" || s === "receita paga" || s === "despesa paga";
   if (pago) return { label: "Pago", kind: "pago" };
-  if (m.data_vencimento && new Date(m.data_vencimento) < new Date()) return { label: "Vencido", kind: "vencido" };
+  if (m.data_vencimento) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const venc = new Date(m.data_vencimento + "T00:00:00"); venc.setHours(0, 0, 0, 0);
+    if (venc < today) return { label: "Vencido", kind: "vencido" };
+  }
   return { label: "Pendente", kind: "pendente" };
 }
 
@@ -416,13 +421,15 @@ export default function FluxoCaixaTab() {
     }
   }, []);
 
+  const queryClient = useQueryClient();
   const onBaixaSuccess = useCallback((updated: Partial<Movimentacao>) => {
     if (!baixaMov) return;
     setMovs((prev) => prev.map((x) => (x.id === baixaMov.id ? { ...x, ...updated } : x)));
     setToast({ type: "ok", text: "Baixa registrada com sucesso." });
     setBaixaMov(null);
     setExpandedId(null);
-  }, [baixaMov]);
+    queryClient.invalidateQueries({ queryKey: ["balanco"] });
+  }, [baixaMov, queryClient]);
 
   const openNewMov = useCallback(() => {
     const caixa: "share" | "cliente" =

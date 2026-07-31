@@ -60,12 +60,12 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     const fetchCotistas = async () => {
       const { data: cotData } = await supabase
         .from("cotistas_aeronave")
-        .select("id_clientes, socios_id, percentual_sociedade, clientes(id, razao_social, cnpj, endereco, cidade, uf), socios(id, nome, cpf, endereco, cidade, uf)")
+        .select("id_clientes, socios_id, percentual_sociedade, clientes(id, razao_social, cnpj, endereco, cidade, uf), socios(id, nome, cpf, endereco)")
         .eq("id_aeronave", aeronaveId);
       const socioIds = Array.from(new Set((cotData || []).map((r: any) => r.socios_id).filter(Boolean)));
       let sm: Record<string, any> = {};
       if (socioIds.length > 0) {
-        const { data: sociosData } = await supabase.from("socios").select("id, nome, cpf, endereco, cidade, uf").in("id", socioIds);
+        const { data: sociosData } = await supabase.from("socios").select("id, nome, cpf, endereco").in("id", socioIds);
         (sociosData || []).forEach((s: any) => { sm[s.id] = s; });
       }
       setSociosMap(sm);

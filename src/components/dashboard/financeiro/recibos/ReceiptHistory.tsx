@@ -12,6 +12,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency, formatDate, GeneratedReceipt } from "@/lib/receiptUtils";
+import { EnviarEmailClienteButton } from "@/components/dashboard/financeiro/EnviarEmailClienteButton";
 
 // --- NOVO COMPONENTE DE PASTA 3D ANIMADA ---
 interface FolderProps {
@@ -349,6 +350,26 @@ export function ReceiptHistory({
                     <div className="text-xs text-slate-500 mt-1">{receipt.receipt_number}</div>
                   </div>
                   <div className="flex gap-2">
+                    <EnviarEmailClienteButton
+                      stopPropagation
+                      size="icon"
+                      clienteId={receipt.cliente_id || null}
+                      tipo="recibo"
+                      referenceType="recibos"
+                      referenceIds={[receipt.id]}
+                      assuntoSugerido={`Recibo ${receipt.receipt_number || receipt.numero_recibo || ""}`}
+                      mensagemSugerida={
+                        `Olá${receipt.payer_name ? ` ${receipt.payer_name}` : ""},\n\n` +
+                        `Segue o recibo ${receipt.receipt_number || receipt.numero_recibo || ""} no valor de ` +
+                        `${formatCurrency(receipt.valor)}.\n\nAtenciosamente,\nEquipe Share Brasil`
+                      }
+                      anexos={
+                        (receipt as any).pdf_url
+                          ? [{ url: (receipt as any).pdf_url, label: `Recibo ${receipt.receipt_number || receipt.numero_recibo || ""}`, filename: "recibo.pdf" }]
+                          : []
+                      }
+                      className="bg-sky-600/10 hover:bg-sky-600/20 text-sky-400 border-sky-600/20"
+                    />
                     <Button
                       variant="outline"
                       size="sm"

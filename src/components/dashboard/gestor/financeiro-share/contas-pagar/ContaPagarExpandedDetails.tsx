@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   EnviarEmailClienteDialog,
   type AnexoEmail,
-} from "@/components/financeiro/EnviarEmailClienteDialog";
+} from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 
 interface Props {
   conta: any;

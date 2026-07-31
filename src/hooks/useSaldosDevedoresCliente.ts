@@ -72,9 +72,9 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
         // 3. Combustível
         let abastecimentoQuery = supabase
           .from('abastecimentos')
-          .select('id, valor_total, status_pagamento')
+          .select('id, valor_total, status')
           .eq('id_clientes', clienteId)
-          .neq('status_pagamento', 'pago');
+          .neq('status', 'pago');
 
         if (aircraftId) {
           abastecimentoQuery = abastecimentoQuery.eq('aeronave_id', aircraftId);

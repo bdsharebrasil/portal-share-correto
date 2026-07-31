@@ -337,10 +337,18 @@ export default function BaixaPagamentoModal({
       if (movErr) throw movErr;
 
       // 2. Update contas_apagar if linked
+      const validAnexos = anexos.filter((a) => a.file_url);
       if (mov.contas_apagar_id) {
+        const comprovanteUrl = validAnexos.find((a) => a.tipo_anexo === "comprovante")?.file_url || null;
         await supabase
           .from("contas_apagar")
-          .update({ status: "pago", data_pagamento: dataPagamento })
+          .update({
+            status: "paga",
+            data_pagamento: dataPagamento,
+            comprovante_pagamento_url: comprovanteUrl,
+            banco_pagamento: pagoPor || null,
+            valor_pago: String(parseFloat(valorPagoReal) || 0),
+          })
           .eq("id", mov.contas_apagar_id);
       }
 
@@ -406,6 +414,7 @@ export default function BaixaPagamentoModal({
       }
 
       // 5. Update rateio_despesas for this movimentacao
+      const comprovanteRateioUrl = validAnexos.find((a) => a.tipo_anexo === "comprovante")?.file_url || null;
       if (rateioRows.length > 0) {
         // Persistir ajustes individuais por cotista
         await Promise.all(
@@ -419,6 +428,7 @@ export default function BaixaPagamentoModal({
                 pago_por: r.pago_por,
                 status: "pago",
                 data_pagamento: dataPagamento,
+                comprovante_url: comprovanteRateioUrl,
               })
               .eq("id", r.id),
           ),
@@ -426,12 +436,11 @@ export default function BaixaPagamentoModal({
       } else {
         await supabase
           .from("rateio_despesas")
-          .update({ status: "pago", data_pagamento: dataPagamento })
+          .update({ status: "pago", data_pagamento: dataPagamento, valor_pago_real: parseFloat(valorPagoReal) || 0, comprovante_url: comprovanteRateioUrl })
           .eq("despesa_id", mov.id);
       }
 
       // 6. Save anexos
-      const validAnexos = anexos.filter((a) => a.file_url);
       // Delete existing anexos first
       await supabase.from("payment_anexos").delete().eq("movimentacao_id", mov.id);
       // Insert new ones

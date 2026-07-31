@@ -1,5 +1,5 @@
 import { SetStateAction, useEffect, useMemo, useState } from "react";
-import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane, Users, Wallet } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Upload, FileText, Loader2, Send, Save, Link2, ArrowUp, ArrowDown, Eye, ExternalLink, Plane, Users, Wallet, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -1863,7 +1863,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             `Os documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`,
           anexos: anexosEmail,
         });
-        setEmailOpen(true);
+        toast.info("Solicitação salva. Se quiser, use o botão \"Enviar por e-mail\" para encaminhar ao cliente.");
       }
 
       resetForm();
@@ -2950,9 +2950,20 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end">
+            {emailPayload && (
+              <Button
+                variant="outline"
+                onClick={() => setEmailOpen(true)}
+                className="border-sky-500/40 text-sky-400 hover:bg-sky-500/10"
+              >
+                <Mail className="h-4 w-4 mr-2" /> Enviar por e-mail
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancelar
             </Button>
+
+
 
             {etapaAtual > 0 && (etapaAtual < 3 ? (
               <Button 
@@ -3088,10 +3099,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
       <EnviarEmailClienteDialog
         open={emailOpen}
-        onOpenChange={(v) => {
-          setEmailOpen(v);
-          if (!v) onOpenChange(false);
-        }}
+        onOpenChange={setEmailOpen}
         clienteId={emailPayload?.clienteId || null}
         assuntoSugerido={emailPayload?.assunto || ""}
         mensagemSugerida={emailPayload?.mensagem || ""}

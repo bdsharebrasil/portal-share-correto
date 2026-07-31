@@ -54,7 +54,7 @@ export interface AbastecimentoItem {
   litros: number;
   valor_unitario: number;
   valor_total: number;
-  status_pagamento: string | null;
+  status: string | null;
   abastecedor: string | null;
   abastecedor_id?: string | null;
   aeronave_id: string | null;
@@ -253,7 +253,7 @@ export function useFinanceiroCotistaDetalhe(clienteId?: string) {
           supabase
             .from("abastecimentos")
             .select(
-              "id, data, trecho, local, litros, valor_unitario, valor_total, status_pagamento, abastecedor, abastecedor_id, aeronave_id, id_clientes, socio_nome, comanda, nota_url, boleto_url, comprovante_pagamento, data_pagamento, nf, forma_pagamento, prazo, banco, tipo_combustivel, descricao"
+              "id, data, trecho, local, litros, valor_unitario, valor_total, status, abastecedor, abastecedor_id, aeronave_id, id_clientes, socio_nome, comanda, nota_url, boleto_url, comprovante_pagamento, data_pagamento, nf, forma_pagamento, prazo, banco, tipo_combustivel, descricao"
             )
             .in("aeronave_id", aeronaveIds)
             .order("data", { ascending: false }),

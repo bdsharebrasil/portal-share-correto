@@ -480,7 +480,7 @@ export function PaymentDialog({ open, onOpenChange, conta, onPaid }: PaymentDial
         const socioNomeAbastecimento = rateioRows.find((row) => row.socios_nome?.trim())?.socios_nome?.trim() || null;
         await (supabase.from("abastecimentos") as unknown as SupabaseQuery)
           .update({
-            status_pagamento: "pago",
+            status: "pago",
             data_pagamento: dataPagamento,
             forma_pagamento: metodoPagamento || null,
             comprovante_pagamento: comprovanteUrl || null,

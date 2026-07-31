@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, ArrowLeft, Eye, Edit, Printer, Download } from "lucide-react";
 import { TravelReportStatusManager, type TravelReportStatus } from "./TravelReportStatusManager";
 import type { TravelReport } from "@/pages/financeiro/RelatorioViagem";
+import { EnviarEmailClienteButton } from "@/components/dashboard/financeiro/EnviarEmailClienteButton";
 
 interface RelatorioViagemViewerProps {
   open: boolean;
@@ -240,6 +241,29 @@ export function RelatorioViagemViewer({
               Imprimir
             </Button>
           )}
+
+          <EnviarEmailClienteButton
+            size="default"
+            clienteId={localReport.clientes_id || null}
+            tipo="relatorio_viagem"
+            referenceType="travel_expense_reports"
+            referenceIds={localReport.id ? [localReport.id] : []}
+            assuntoSugerido={`Relatório de Viagem ${localReport.numero_relatorio || ""}`}
+            mensagemSugerida={
+              `Olá,\n\nSegue o relatório de viagem ${localReport.numero_relatorio || ""}` +
+              `${localReport.matricula_aeronave ? ` — aeronave ${localReport.matricula_aeronave}` : ""}.\n` +
+              `Período: ${localReport.data_inicio || "-"} a ${localReport.data_fim || "-"}\n` +
+              `Rota: ${localReport.rota || "-"}\n` +
+              `Total: ${Number(localReport.total_valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}\n\n` +
+              `Atenciosamente,\nEquipe Share Brasil`
+            }
+            anexos={
+              localReport.pdf_url
+                ? [{ url: localReport.pdf_url, label: `Relatório ${localReport.numero_relatorio || ""}`, filename: "relatorio-viagem.pdf" }]
+                : []
+            }
+            className="border-sky-500/40 text-sky-500 hover:bg-sky-500/10"
+          />
 
           <DialogClose asChild>
             <Button variant="outline" className="ml-auto">

@@ -103,7 +103,7 @@ interface Rateio {
   // rateio_despesas). Enquanto não vierem da query, a UI mostra "—"/estado
   // vazio automaticamente, sem quebrar nada.
   forma_pagamento?: string | null;
-  status_pagamento?: string | null;
+  status?: string | null;
   observacoes?: string | null;
   anexo_nota_fiscal_url?: string | null;
   anexo_recibo_url?: string | null;
@@ -142,14 +142,18 @@ function findCotistaKey(
 }
 
 function statusDoPagamento(r: Rateio): { label: string; tone: "success" | "warning" | "danger" } {
-  if (r.status_pagamento) {
-    const n = norm(r.status_pagamento);
-    if (n.startsWith("pago")) return { label: r.status_pagamento, tone: "success" };
-    if (n.startsWith("atras")) return { label: r.status_pagamento, tone: "danger" };
-    return { label: r.status_pagamento, tone: "warning" };
+  if (r.status) {
+    const n = norm(r.status);
+    if (n.startsWith("pago")) return { label: r.status, tone: "success" };
+    if (n.startsWith("atras")) return { label: r.status, tone: "danger" };
+    return { label: r.status, tone: "warning" };
   }
   if ((Number(r.valor_pago_real) || 0) > 0 || r.data_pagamento) return { label: "Pago", tone: "success" };
-  if (r.data_vencimento && new Date(r.data_vencimento) < new Date()) return { label: "Atrasado", tone: "danger" };
+  if (r.data_vencimento) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const venc = new Date(r.data_vencimento + "T00:00:00"); venc.setHours(0, 0, 0, 0);
+    if (venc < today) return { label: "Atrasado", tone: "danger" };
+  }
   return { label: "Pendente", tone: "warning" };
 }
 
