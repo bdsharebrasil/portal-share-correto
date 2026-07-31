@@ -247,7 +247,7 @@ const App = () => {
                           <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
                           <Route path="/documentos" element={renderProtected(<Documentos />)} />
                           <Route path="/senhas" element={renderProtected(<Senhas />)} />
-                          <Route path="/agendamento" element={renderProtected(<Agendamento />)} />
+                          
                           <Route path="/aprovacao-agendamentos" element={renderProtected(<AprovacaoAgendamentos />)} />
                           <Route path="/painel-agendamentos" element={renderProtected(<PainelAgendamentos />)} />
                           <Route path="/plano-voo" element={renderProtected(<PlanoVoo />)} />
