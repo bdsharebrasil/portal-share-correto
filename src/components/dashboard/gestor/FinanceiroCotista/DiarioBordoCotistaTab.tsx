@@ -138,7 +138,7 @@ function useDiarioBordo(clienteId: string | undefined, aeronaveId: string) {
         supabase
           .from("socios")
           .select("id,nome,cpf,percentual_participacao,codigo_cliente")
-          .eq("cliente_id", clienteId)
+          .eq("clientes_id", clienteId)
           .order("nome"),
       ]);
 

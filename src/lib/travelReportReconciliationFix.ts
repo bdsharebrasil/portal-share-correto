@@ -1,4 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supabaseTyped } from "@/integrations/supabase/client";
+
+// Este utilitário legado toca colunas fora dos tipos gerados (reference_id/expenses).
+const supabase = supabaseTyped as any;
 import { calculateReportTotals, extractPayerTotals, getValidExpenses } from "./travelReportUtils";
 
 interface Expense {

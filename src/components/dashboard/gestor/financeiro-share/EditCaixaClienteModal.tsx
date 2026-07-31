@@ -9,8 +9,23 @@ import AnexosDinamicosField, {
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import {
   X, Save, Loader2, Wallet, CalendarRange, ClipboardList,
-  Info, CreditCard, Layers, Paperclip,
+  Info, CreditCard, Layers, Paperclip, Trash2, Plus,
 } from "lucide-react";
+
+const PAGADORES = [
+  { id: "SHARE", label: "Share" },
+  { id: "CLIENTE", label: "Cliente" },
+  { id: "COTISTA", label: "Cotista" },
+  { id: "TRIPULANTE", label: "Tripulante" },
+];
+const STATUS_RATEIO = [
+  { id: "pendente", label: "Pendente" },
+  { id: "pago", label: "Pago" },
+  { id: "recebido", label: "Recebido" },
+  { id: "reembolsado", label: "Reembolsado" },
+  { id: "aguardando_reembolso", label: "Aguardando reembolso" },
+];
+
 
 interface Props {
   movId: string;
@@ -82,22 +97,88 @@ function anexosToPatch(anexos: AnexoLinha[]) {
   return patch;
 }
 
+interface RateioLinha {
+  id?: string;
+  cliente_id: string | null;
+  clientes_nome: string | null;
+  socio_id: string | null;
+  socios_nome: string | null;
+  percentual_uso: number | null;
+  valor_rateado: number | null;
+  valor_pago_real: number | null;
+  pago_por: string | null;
+  pago_diretamente: boolean;
+  status: string | null;
+  _new?: boolean;
+}
+
+const novaLinha = (): RateioLinha => ({
+  cliente_id: null, clientes_nome: null, socio_id: null, socios_nome: null,
+  percentual_uso: null, valor_rateado: null, valor_pago_real: null,
+  pago_por: null, pago_diretamente: false, status: "pendente", _new: true,
+});
+
 export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mov, setMov] = useState<any>(movInit || {});
   const [rateio, setRateio] = useState<any>(null);
+  const [linhas, setLinhas] = useState<RateioLinha[]>([]);
+  const [removidos, setRemovidos] = useState<string[]>([]);
   const [anexos, setAnexos] = useState<AnexoLinha[]>(anexosFromMov(movInit || {}));
   const [categoriaCustoId, setCategoriaCustoId] = useState<string>("");
   const [subcategoria, setSubcategoria] = useState<string>("");
 
   useEffect(() => {
     (async () => {
-      const { data: r } = await supabase.from("rateio_despesas").select("*").eq("despesa_id", movId).maybeSingle();
-      setRateio(r || null);
-      if (r?.subcategoria_1) setSubcategoria(r.subcategoria_1 as string);
+      const { data: rows } = await (supabase as any)
+        .from("rateio_despesas")
+        .select("*")
+        .eq("despesa_id", movId)
+        .order("criado_em");
+      const list = (rows ?? []) as any[];
+      const first = list[0] || null;
+      setRateio(first);
+      if (first?.subcategoria_1) setSubcategoria(first.subcategoria_1 as string);
+      setLinhas(
+        list.map((r) => ({
+          id: r.id,
+          cliente_id: r.cliente_id ?? null,
+          clientes_nome: r.clientes_nome ?? null,
+          socio_id: r.socio_id ?? null,
+          socios_nome: r.socios_nome ?? null,
+          percentual_uso: r.percentual_uso ?? null,
+          valor_rateado: r.valor_rateado ?? null,
+          valor_pago_real: r.valor_pago_real ?? null,
+          pago_por: r.pago_por ?? null,
+          pago_diretamente: !!r.pago_diretamente,
+          status: r.status ?? null,
+        }))
+      );
     })();
   }, [movId]);
+
+  // Cotistas/sócios possíveis para a aeronave do lançamento
+  const { data: cotistas = [] } = useQuery({
+    queryKey: ["cotistas-rateio-edit", movInit?.aeronave_id],
+    queryFn: async () => {
+      let q = (supabase as any)
+        .from("cotistas_aeronave")
+        .select("id_clientes, socios_id, percentual_sociedade, clientes:clientes(id, razao_social, proprietario), socios:socios(id, nome)");
+      if (movInit?.aeronave_id) q = q.eq("id_aeronave", movInit.aeronave_id);
+      const { data } = await q;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const cotistaOptions = cotistas.map((c) => ({
+    id: `${c.id_clientes || ""}|${c.socios_id || ""}`,
+    label:
+      c.socios?.nome ||
+      c.clientes?.razao_social ||
+      c.clientes?.proprietario ||
+      "Sem nome",
+  }));
 
   const { data: expenseConfigs = [] } = useQuery({
     queryKey: ["expense-configu-edit"],
@@ -128,6 +209,25 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const setM = (k: string, v: any) => setMov((s: any) => ({ ...s, [k]: v }));
   const setR = (k: string, v: any) => setRateio((s: any) => (s ? { ...s, [k]: v } : s));
 
+  const setLinha = (idx: number, patch: Partial<RateioLinha>) =>
+    setLinhas((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  const addLinha = () => setLinhas((ls) => [...ls, novaLinha()]);
+  const removeLinha = (idx: number) =>
+    setLinhas((ls) => {
+      const l = ls[idx];
+      if (l?.id) setRemovidos((r) => [...r, l.id!]);
+      return ls.filter((_, i) => i !== idx);
+    });
+
+  const valorTotal = Number(mov.valor ?? mov.valor_total_despesa ?? 0) || 0;
+  const totalRateado = linhas.reduce((a, l) => a + (Number(l.valor_rateado) || 0), 0);
+  const totalPercentual = linhas.reduce((a, l) => a + (Number(l.percentual_uso) || 0), 0);
+
+  const aplicarPercentual = (idx: number, pct: number | null) => {
+    const valor = pct != null && valorTotal ? Number(((valorTotal * pct) / 100).toFixed(2)) : null;
+    setLinha(idx, { percentual_uso: pct, valor_rateado: valor ?? linhas[idx]?.valor_rateado ?? null });
+  };
+
   const handleSave = async () => {
     setSaving(true); setErr(null);
     try {
@@ -143,26 +243,57 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         categoria_nome: selected?.expense_type ?? mov.categoria_nome ?? null,
         ...anexosToPatch(anexos),
       };
-      const { error: e1 } = await supabase.from("movimentacoes").update(patch).eq("id", movId);
+      const { error: e1 } = await supabase.from("movimentacoes").update(patch as any).eq("id", movId);
       if (e1) throw e1;
-      if (rateio?.id) {
-        await supabase.from("rateio_despesas").update({
-          descricao_despesa: mov.descricao,
-          tipo_rateio: rateio.tipo_rateio,
-          forma_pagamento: mov.forma_pagamento,
-          fornecedor_nome: mov.fornecedor_nome,
-          data_vencimento: mov.data_vencimento || null,
-          data_pagamento: mov.data_pagamento || null,
-          categoria_custo: selected?.expense_type ?? rateio.categoria_custo ?? null,
-          subcategoria_1: subcategoria || rateio.subcategoria_1 || null,
-          ...anexosToPatch(anexos),
-        }).eq("id", rateio.id);
+
+      const comuns = {
+        despesa_id: movId,
+        descricao_despesa: mov.descricao,
+        tipo_rateio: rateio?.tipo_rateio ?? null,
+        forma_pagamento: mov.forma_pagamento,
+        fornecedor_nome: mov.fornecedor_nome,
+        data_vencimento: mov.data_vencimento || null,
+        data_pagamento: mov.data_pagamento || null,
+        aeronave_id: mov.aeronave_id ?? null,
+        aeronave_registro: mov.aeronave_registro ?? rateio?.aeronave_registro ?? null,
+        valor_total_despesa: valorTotal || null,
+        categoria_custo: categoriaCustoId || rateio?.categoria_custo || null,
+        subcategoria_1: subcategoria || rateio?.subcategoria_1 || null,
+        ...anexosToPatch(anexos),
+      };
+
+      if (removidos.length > 0) {
+        await (supabase as any).from("rateio_despesas").delete().in("id", removidos);
       }
+
+      for (const l of linhas) {
+        const payload: any = {
+          ...comuns,
+          cliente_id: l.cliente_id,
+          clientes_nome: l.clientes_nome,
+          socio_id: l.socio_id,
+          socios_nome: l.socios_nome,
+          percentual_uso: numOrNull(l.percentual_uso),
+          valor_rateado: numOrNull(l.valor_rateado),
+          valor_pago_real: numOrNull(l.valor_pago_real),
+          pago_por: l.pago_por || null,
+          pago_diretamente: !!l.pago_diretamente,
+          status: l.status || "pendente",
+          atualizado_em: new Date().toISOString(),
+        };
+        if (l.id) {
+          await (supabase as any).from("rateio_despesas").update(payload).eq("id", l.id);
+        } else {
+          await (supabase as any).from("rateio_despesas").insert(payload);
+        }
+      }
+
       onSaved(patch); onClose();
     } catch (e: any) {
       setErr(e.message || "Erro ao salvar");
     } finally { setSaving(false); }
   };
+
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: "rgba(2,6,23,0.85)" }} onClick={onClose}>
@@ -222,6 +353,133 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
               <div><label className={labelCls}>Valor</label><input type="number" step="0.01" className={inputCls} value={mov.valor ?? ""} onChange={(e) => setM("valor", e.target.value)} /></div>
             </div>
           </Section>
+
+          <Section icon={<Layers className="h-4 w-4" />} title="Rateio da Despesa" accent="#34d399">
+            <div className="space-y-3">
+              {linhas.length === 0 && (
+                <div className="rounded-lg border border-dashed border-slate-700/70 px-3 py-4 text-center text-[11.5px] text-slate-500">
+                  Nenhum rateio cadastrado para esta despesa.
+                </div>
+              )}
+
+              {linhas.map((l, idx) => (
+                <div key={l.id || `new-${idx}`} className="rounded-xl border border-white/[0.07] bg-slate-950/50 p-3">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                    <div className="md:col-span-2">
+                      <label className={labelCls}>Cotista / Cliente</label>
+                      <SearchableCombobox
+                        items={cotistaOptions}
+                        value={`${l.cliente_id || ""}|${l.socio_id || ""}`}
+                        onChange={(v) => {
+                          const [cid, sid] = String(v).split("|");
+                          const opt = cotistas.find(
+                            (c) => (c.id_clientes || "") === cid && (c.socios_id || "") === (sid || null || "")
+                          );
+                          setLinha(idx, {
+                            cliente_id: cid || null,
+                            socio_id: sid || null,
+                            clientes_nome:
+                              opt?.clientes?.razao_social || opt?.clientes?.proprietario || l.clientes_nome,
+                            socios_nome: opt?.socios?.nome || (sid ? l.socios_nome : null),
+                          });
+                        }}
+                        placeholder={l.socios_nome || l.clientes_nome || "Selecione o cotista"}
+                        searchPlaceholder="Buscar cotista..."
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>% Uso</label>
+                      <input
+                        type="number" step="0.01" className={inputCls}
+                        value={l.percentual_uso ?? ""}
+                        onChange={(e) => aplicarPercentual(idx, e.target.value === "" ? null : Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Valor rateado</label>
+                      <input
+                        type="number" step="0.01" className={inputCls}
+                        value={l.valor_rateado ?? ""}
+                        onChange={(e) => setLinha(idx, { valor_rateado: e.target.value === "" ? null : Number(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Quem pagou</label>
+                      <SearchableCombobox
+                        items={PAGADORES}
+                        value={l.pago_por || ""}
+                        onChange={(v) => setLinha(idx, { pago_por: v })}
+                        placeholder="Pagador"
+                        allowFreeText
+                      />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Status</label>
+                      <SearchableCombobox
+                        items={STATUS_RATEIO}
+                        value={l.status || ""}
+                        onChange={(v) => setLinha(idx, { status: v })}
+                        placeholder="Status"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 accent-emerald-500"
+                        checked={!!l.pago_diretamente}
+                        onChange={(e) => setLinha(idx, { pago_diretamente: e.target.checked })}
+                      />
+                      Pago diretamente pelo cotista
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pago real</span>
+                        <input
+                          type="number" step="0.01"
+                          className="w-28 rounded-lg bg-slate-950/60 border border-slate-700/70 px-2 py-1 text-[12px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-400/50"
+                          value={l.valor_pago_real ?? ""}
+                          onChange={(e) => setLinha(idx, { valor_pago_real: e.target.value === "" ? null : Number(e.target.value) })}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeLinha(idx)}
+                        className="flex items-center gap-1.5 rounded-lg border border-red-400/25 bg-red-500/10 px-2.5 py-1.5 text-[11px] font-bold text-red-300 hover:bg-red-500/20"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Remover
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={addLinha}
+                  className="flex items-center gap-1.5 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/20"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar rateio
+                </button>
+                <div className="flex items-center gap-4 text-[11px]">
+                  <span className="text-slate-400">
+                    Total rateado:{" "}
+                    <strong className={Math.abs(totalRateado - valorTotal) > 0.02 ? "text-amber-300" : "text-emerald-300"}>
+                      {totalRateado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </strong>
+                    {valorTotal ? <span className="text-slate-600"> / {valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span> : null}
+                  </span>
+                  <span className="text-slate-400">
+                    Total %: <strong className={Math.abs(totalPercentual - 100) > 0.01 ? "text-amber-300" : "text-emerald-300"}>{totalPercentual.toFixed(2)}%</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Section>
+
 
           <Section icon={<Paperclip className="h-4 w-4" />} title="Documentos e Anexos" accent="#fbbf24">
             <AnexosDinamicosField anexos={anexos} onChange={setAnexos} storagePrefix={`edit-mov/${movId}`} />

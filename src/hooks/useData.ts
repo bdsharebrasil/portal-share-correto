@@ -33,7 +33,7 @@ export const useClientes = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clientes")
-        .select("id, razao_social, email, phone")
+        .select("id, razao_social, email, telefone")
         .order("razao_social", { ascending: true });
 
       if (error) {
@@ -41,7 +41,7 @@ export const useClientes = () => {
         throw error;
       }
 
-      return (data as Cliente[]) || null;
+      return ((data ?? []) as unknown as Cliente[]);
     },
     staleTime: 15 * 60 * 1000, // 15 minutos
     gcTime: 30 * 60 * 1000, // 30 minutos

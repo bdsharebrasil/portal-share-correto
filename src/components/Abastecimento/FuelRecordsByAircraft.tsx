@@ -461,7 +461,7 @@ export function FuelRecordsByAircraft({
       const { data, error } = await (supabase as any)
         .from("socios")
         .select("id, nome, cpf, percentual_participacao")
-        .eq("cliente_id", clientId)
+        .eq("clientes_id", clientId)
         .order("nome");
 
       if (error) {
@@ -703,7 +703,7 @@ export function FuelRecordsByAircraft({
       const { data: contaApagar, error: capError } = await (supabase as any)
         .from("contas_apagar")
         .insert({
-          cliente_id: clienteIdParaRateio,
+          clientes_id: clienteIdParaRateio,
           aeronave_registro: aircraft.matricula,
           descricao,
           valor: valorTotal,
@@ -773,7 +773,7 @@ export function FuelRecordsByAircraft({
             data_vencimento: dataVencimento,
             data_pagamento: pago ? formData.data_pagamento : null,
             fornecedor_nome: fornecedorNome,
-            cliente_id: clienteIdParaRateio,
+            clientes_id: clienteIdParaRateio,
             socio_id: socio.id,
             aeronave_id: aircraft.id,
             descricao_despesa: descricao,

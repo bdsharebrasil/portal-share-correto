@@ -183,7 +183,7 @@ export default function FinanceiroCotistaDetalhe() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="animate-pulse space-y-6 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="animate-pulse space-y-6 px-2">
           <div className="h-4 w-32 bg-muted/50 rounded-full" />
           <div className="h-48 bg-card/40 backdrop-blur-md rounded-2xl border border-border/40" />
           <div className="grid grid-cols-4 gap-4">
@@ -212,7 +212,7 @@ export default function FinanceiroCotistaDetalhe() {
 
   return (
     <Layout>
-      <div className="space-y-8 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <div className="space-y-6 px-2 pb-8">
         {/* Navegação Topo */}
         <div className="flex flex-col gap-2">
           <button
@@ -228,7 +228,7 @@ export default function FinanceiroCotistaDetalhe() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span
               className="hover:text-primary cursor-pointer transition-colors"
-              onClick={() => navigate("/financeiro/financeiro-cotistas")}
+              onClick={() => navigate("/gestor/financeiro-cotistas")}
             >
               Gestão Financeira
             </span>
@@ -443,7 +443,7 @@ export default function FinanceiroCotistaDetalhe() {
           onEditarClick={() => {
             if (lancamentoSelecionado) {
               navigate(
-                `/financeiro/lancamento/${clienteId}/${aeronaveAtual}?editing=${lancamentoSelecionado.id}`,
+                `/gestor/lancamento/${clienteId}/${aeronaveAtual}?editing=${lancamentoSelecionado.id}`,
                 { state: { despesaPrefill: lancamentoSelecionado } }
               );
               setLancamentoSelecionado(null);

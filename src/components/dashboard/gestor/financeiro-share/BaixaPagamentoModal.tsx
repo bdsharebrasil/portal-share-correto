@@ -199,7 +199,7 @@ export default function BaixaPagamentoModal({
       const { data } = await supabase
         .from("socios")
         .select("id, nome, percentual_participacao")
-        .eq("cliente_id", mov.clientes_id)
+        .eq("clientes_id", mov.clientes_id)
         .order("nome");
       setSocios((data as SocioOption[]) || []);
     })();
@@ -332,7 +332,7 @@ export default function BaixaPagamentoModal({
       // 1. Update movimentacoes
       const { error: movErr } = await supabase
         .from("movimentacoes")
-        .update(updatePayload)
+        .update(updatePayload as any)
         .eq("id", mov.id);
       if (movErr) throw movErr;
 
@@ -468,7 +468,7 @@ export default function BaixaPagamentoModal({
       if (boleto) urlUpdate.boleto_url = boleto.file_url;
       if (nf) urlUpdate.nf_url = nf.file_url;
       if (Object.keys(urlUpdate).length > 0) {
-        await supabase.from("movimentacoes").update(urlUpdate).eq("id", mov.id);
+        await supabase.from("movimentacoes").update(urlUpdate as any).eq("id", mov.id);
       }
 
       onSuccess(updatePayload);

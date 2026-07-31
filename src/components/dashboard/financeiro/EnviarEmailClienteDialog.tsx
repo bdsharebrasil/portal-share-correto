@@ -92,7 +92,7 @@ export function EnviarEmailClienteDialog({
             .not("email", "is", null),
           (supabase as any)
             .from("socios")
-            .select("id, nome, email, cliente_id")
+            .select("id, nome, email, clientes_id")
             .not("email", "is", null),
         ]);
 

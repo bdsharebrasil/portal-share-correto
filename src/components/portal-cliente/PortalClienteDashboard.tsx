@@ -304,7 +304,7 @@ function PortalClienteDashboard() {
           .eq("aeronave_id", activeAircraftId)
           .order("data_vencimento", { ascending: false, nullsFirst: false });
         if (err) throw err;
-        setMovimentacoes((data ?? []) as Movimentacao[]);
+        setMovimentacoes((data ?? []) as unknown as Movimentacao[]);
       } catch (e: any) {
         setError(e.message);
       }

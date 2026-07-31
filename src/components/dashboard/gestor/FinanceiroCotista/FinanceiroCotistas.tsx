@@ -19,23 +19,21 @@ export default function FinanceiroCotistas() {
   const [aba, setAba] = useState<"cotistas" | "sociedade">("cotistas");
   const [clientesComSocios, setClientesComSocios] = useState<Set<string>>(new Set());
 
-  // Carregar clientes que têm sócios
   const carregarClientesComSocios = async () => {
     try {
       const { data, error } = await supabase
         .from("socios")
-        .select("cliente_id");
+        .select("clientes_id");
 
       if (error) throw error;
 
-      const ids = new Set((data || []).map((s: any) => s.cliente_id));
+      const ids = new Set((data || []).map((s: any) => s.clientes_id));
       setClientesComSocios(ids);
     } catch (err) {
       console.error("Erro ao carregar clientes com sócios:", err);
     }
   };
 
-  // Carrega dados de sócios ao montar o componente
   useEffect(() => {
     carregarClientesComSocios();
   }, []);
@@ -45,16 +43,12 @@ export default function FinanceiroCotistas() {
 
     let resultado = clientes;
 
-    // Filtrar pela aba selecionada
     if (aba === "cotistas") {
-      // Na aba Cotistas: mostrar clientes que NÃO têm sócios
       resultado = resultado.filter((c: any) => !clientesComSocios.has(c.id));
     } else if (aba === "sociedade") {
-      // Na aba Sociedade: mostrar clientes que TÊM sócios
       resultado = resultado.filter((c: any) => clientesComSocios.has(c.id));
     }
 
-    // Aplicar filtro de busca
     if (!s) return resultado;
 
     return resultado.filter((c: any) =>
@@ -67,7 +61,7 @@ export default function FinanceiroCotistas() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-6 px-2">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group w-fit"
@@ -142,12 +136,12 @@ export default function FinanceiroCotistas() {
             {filtered.map((c: any) => (
               <button
                 key={c.id}
-                onClick={() => navigate(`/financeiro/financeiro-cotistas/${c.id}`)}
-                className="text-left bg-gradient-to-b from-slate-800 to-slate-900 backdrop-blur-sm rounded-2xl border border-slate-700 hover:border-primary/50 hover:from-slate-700 hover:to-slate-800 transition-all duration-200 group p-6 flex flex-col gap-4 relative overflow-hidden"
+                onClick={() => navigate(`/gestor/financeiro-cotistas/${c.id}`)}
+                className="text-left bg-card/60 backdrop-blur-sm rounded-2xl border border-border/60 hover:border-primary/50 hover:bg-card/80 transition-all duration-200 group p-6 flex flex-col gap-4 relative overflow-hidden"
               >
                 {/* Header com logo, título e ícones */}
                 <div className="flex items-start gap-4 justify-between">
-                  <div className="w-14 h-14 rounded-lg bg-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
+                  <div className="w-14 h-14 rounded-lg bg-muted/40 border border-border/40 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
                     {c.url_logo ? (
                       <img
                         src={c.url_logo}
@@ -155,35 +149,35 @@ export default function FinanceiroCotistas() {
                         className="w-full h-full object-contain"
                       />
                     ) : (
-                      <Users className="h-7 w-7 text-white" />
+                      <Users className="h-7 w-7 text-muted-foreground" />
                     )}
                   </div>
 
                   <div className="flex gap-2">
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="p-2 rounded-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/50 transition-all cursor-pointer"
+                      className="p-2 rounded-full border border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer"
                     >
-                      <Bell className="h-4 w-4 text-slate-400" />
+                      <Bell className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                   </div>
                 </div>
 
                 {/* Título e subtítulo */}
                 <div className="flex-1">
-                  <p className="font-bold text-white text-lg leading-tight">
+                  <p className="font-bold text-foreground text-lg leading-tight">
                     {c.razao_social || "Sem razão social"}
                   </p>
-                  <p className="text-sm text-slate-400 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     {c.proprietario || c.cnpj || "—"}
                   </p>
                 </div>
 
                 {/* Divisor */}
-                <div className="h-px bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700"></div>
+                <div className="h-px bg-border/50"></div>
 
                 {/* Seção de participação ativa */}
-                <div className="text-sm text-slate-300">
+                <div className="text-sm text-muted-foreground">
                   Participação ativa em {c.aeronaves.length} aeronave{c.aeronaves.length !== 1 ? "s" : ""}
                 </div>
 
@@ -193,10 +187,10 @@ export default function FinanceiroCotistas() {
                     <div
                       key={a.id_aeronave}
                       onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left group/btn cursor-pointer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/40 hover:border-primary/30 transition-all text-left group/btn cursor-pointer"
                     >
-                      <Plane className="h-4 w-4 text-slate-300 shrink-0" />
-                      <span className="text-sm font-medium text-slate-200">
+                      <Plane className="h-4 w-4 text-muted-foreground group-hover/btn:text-primary shrink-0 transition-colors" />
+                      <span className="text-sm font-medium text-foreground/90">
                         {a.aeronave?.matricula || "—"} · {a.percentual_sociedade}%
                       </span>
                     </div>
@@ -204,10 +198,10 @@ export default function FinanceiroCotistas() {
                   {c.aeronaves.length > 2 && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all text-left cursor-pointer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/40 hover:border-primary/30 transition-all text-left cursor-pointer"
                     >
-                      <Plane className="h-4 w-4 text-slate-300 shrink-0" />
-                      <span className="text-sm font-medium text-slate-200">
+                      <Plane className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium text-foreground/90">
                         +{c.aeronaves.length - 2} aeronave{c.aeronaves.length - 2 !== 1 ? "s" : ""}
                       </span>
                     </div>

@@ -1068,7 +1068,8 @@ function FornecedoresPanel() {
         if (error) throw error;
         setToast({ type: "ok", text: "Fornecedor atualizado." });
       } else {
-        const { error } = await supabase.from("fornecedores_favoritos").insert({ ...payload, criado_em: new Date().toISOString() });
+        const { data: authData } = await supabase.auth.getUser();
+        const { error } = await supabase.from("fornecedores_favoritos").insert({ ...payload, criado_por: authData?.user?.id ?? "", criado_em: new Date().toISOString() });
         if (error) throw error;
         setToast({ type: "ok", text: "Fornecedor criado." });
       }

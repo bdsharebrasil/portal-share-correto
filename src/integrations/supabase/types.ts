@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       abastecimentos: {
@@ -9029,7 +9004,7 @@ export type Database = {
       socios: {
         Row: {
           atualizado_em: string
-          cliente_id: string
+          clientes_id: string
           codigo_cliente: string | null
           contato_financeiro: string | null
           cpf: string
@@ -9043,7 +9018,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
-          cliente_id: string
+          clientes_id: string
           codigo_cliente?: string | null
           contato_financeiro?: string | null
           cpf: string
@@ -9057,7 +9032,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
-          cliente_id?: string
+          clientes_id?: string
           codigo_cliente?: string | null
           contato_financeiro?: string | null
           cpf?: string
@@ -9071,22 +9046,22 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "socios_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "socios_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "socios_clientes_id_fkey"
+            columns: ["clientes_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
@@ -11231,9 +11206,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: [

@@ -1,4 +1,2 @@
 export { default as FinanceiroCotistas } from './FinanceiroCotistas';
 export { default as FinanceiroCotistaDetalhe } from './FinanceiroCotistaDetalhe';
-export { SociosDetailCard } from './SociosDetailCard';
-

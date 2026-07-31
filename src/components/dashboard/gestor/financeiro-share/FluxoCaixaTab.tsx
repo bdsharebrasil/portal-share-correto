@@ -24,6 +24,7 @@ import {
   Trash2,
   Pencil,
   HandCoins,
+  CheckCircle2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
@@ -205,6 +206,7 @@ export default function FluxoCaixaTab() {
   const [reembolsoMov, setReembolsoMov] = useState<Movimentacao | null>(null);
   const [sociosPorCliente, setSociosPorCliente] = useState<Record<string, string[]>>({});
   const [subcatsPorDespesa, setSubcatsPorDespesa] = useState<Record<string, string[]>>({});
+  const [conferidoPorDespesa, setConferidoPorDespesa] = useState<Record<string, boolean>>({});
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
@@ -244,7 +246,7 @@ export default function FluxoCaixaTab() {
       supabase.from("expense_configu").select("id,expense_type,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4"),
       supabase
         .from("rateio_despesas")
-        .select("despesa_id,categoria_custo,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4"),
+        .select("despesa_id,categoria_custo,subcategoria_1,subcategoria_2,subcategoria_3,subcategoria_4,conferido"),
     ]).then(([expenseConfig, rateios]) => {
       const categoriasMap: Record<string, string> = {};
       const subcatsConfig: Record<string, string[]> = {};
@@ -259,9 +261,11 @@ export default function FluxoCaixaTab() {
 
       const rateioMap: Record<string, string> = {};
       const subMap: Record<string, string[]> = {};
+      const conferidoMap: Record<string, boolean> = {};
       (rateios.data ?? []).forEach((rateio: any) => {
         if (!rateio.despesa_id) return;
         if (rateio.categoria_custo) rateioMap[rateio.despesa_id] = rateio.categoria_custo;
+        if (rateio.conferido) conferidoMap[rateio.despesa_id] = true;
         const subs = [rateio.subcategoria_1, rateio.subcategoria_2, rateio.subcategoria_3, rateio.subcategoria_4]
           .filter((s: any) => !!s && String(s).trim())
           .map((s: any) => String(s).trim());
@@ -271,6 +275,7 @@ export default function FluxoCaixaTab() {
       });
       setCategoriaCustoPorDespesa(rateioMap);
       setSubcatsPorDespesa(subMap);
+      setConferidoPorDespesa(conferidoMap);
     });
   }, []);
 
@@ -278,15 +283,15 @@ export default function FluxoCaixaTab() {
   useEffect(() => {
     Promise.all([
       supabase.from("clientes").select("id,razao_social,proprietario"),
-      supabase.from("socios").select("id,nome,cliente_id"),
+      supabase.from("socios").select("id,nome,clientes_id"),
     ]).then(([c, s]) => {
       const map: Record<string, Pessoa> = {};
       (c.data ?? []).forEach((x: any) => { map[x.id] = { id: x.id, nome: x.razao_social || x.proprietario }; });
       const porCliente: Record<string, string[]> = {};
       (s.data ?? []).forEach((x: any) => {
         map[x.id] = { id: x.id, nome: x.nome };
-        if (x.cliente_id && x.nome) {
-          porCliente[x.cliente_id] = [...(porCliente[x.cliente_id] ?? []), x.nome];
+        if (x.clientes_id && x.nome) {
+          porCliente[x.clientes_id] = [...(porCliente[x.clientes_id] ?? []), x.nome];
         }
       });
       setPessoas(map);
@@ -494,22 +499,22 @@ export default function FluxoCaixaTab() {
   const isShareActive = activeTab === "caixa_share" || (activeTab === "contas_pagar" && contasCaixa === "share") || activeTab === "contas_receber";
   const isClienteActive = activeTab === "caixa_cliente" || (activeTab === "contas_pagar" && contasCaixa === "cliente");
 
-  const tableHeaderBg = isShareActive ? "rgba(6,78,59,0.15)" : isClienteActive ? "rgba(30,58,138,0.15)" : "rgba(2,6,23,0.7)";
-  const tableHeaderBorder = isShareActive ? "rgba(16,185,129,0.3)" : isClienteActive ? "rgba(59,130,246,0.3)" : "rgba(30,41,59,0.8)";
+  const tableHeaderBg = isShareActive ? "rgba(16,185,129,0.08)" : isClienteActive ? "rgba(59,130,246,0.08)" : "rgba(0,0,0,0.2)";
+  const tableHeaderBorder = isShareActive ? "rgba(16,185,129,0.25)" : isClienteActive ? "rgba(59,130,246,0.25)" : "rgba(125,125,125,0.2)";
 
   return (
     <div className="space-y-6">
       {/* Toast */}
       {toast && (
         <div className={`px-4 py-3 rounded-xl text-sm flex items-center justify-between border ${
-          toast.type === "ok" ? "bg-emerald-500/10 border-emerald-400/20 text-emerald-300" : "bg-red-500/10 border-red-400/20 text-red-300"
+          toast.type === "ok" ? "bg-success/10 border-success/20 text-success" : "bg-destructive/10 border-destructive/20 text-destructive"
         }`}>
           {toast.text}
           <button onClick={() => setToast(null)}><X className="h-4 w-4" /></button>
         </div>
       )}
       {error && (
-        <div className="px-4 py-3 rounded-xl text-sm border bg-red-500/10 border-red-400/20 text-red-300">{error}</div>
+        <div className="px-4 py-3 rounded-xl text-sm border bg-destructive/10 border-destructive/20 text-destructive">{error}</div>
       )}
 
       {/* Sub-tabs */}
@@ -518,15 +523,15 @@ export default function FluxoCaixaTab() {
           const Icon = t.icon;
           const active = activeTab === t.key;
           
-          let activeClasses = "bg-cyan-500/20 text-cyan-300 border-cyan-400/30";
-          if (t.key === "caixa_share") activeClasses = "bg-emerald-500/20 text-emerald-300 border-emerald-400/30";
-          else if (t.key === "caixa_cliente") activeClasses = "bg-blue-500/20 text-blue-300 border-blue-400/30";
+          let activeClasses = "bg-primary/15 text-primary border-primary/30";
+          if (t.key === "caixa_share") activeClasses = "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+          else if (t.key === "caixa_cliente") activeClasses = "bg-blue-500/15 text-blue-400 border-blue-500/30";
 
           return (
             <button key={t.key}
               onClick={() => { setActiveTab(t.key); setExpandedId(null); setFlowFilter("todos"); setCurrentPage(1); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
-                active ? activeClasses : "bg-slate-900/70 text-slate-400 border-slate-700 hover:text-slate-100 hover:bg-slate-800"
+                active ? activeClasses : "bg-card/50 text-muted-foreground border-border hover:text-foreground hover:bg-card/80"
               }`}>
               <Icon className="h-3.5 w-3.5" />
               {t.label}
@@ -537,7 +542,7 @@ export default function FluxoCaixaTab() {
 
       {/* Formulário Expansor */}
       {showNewMov && (
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/40 p-4 shadow-lg backdrop-blur-sm animate-in slide-in-from-top-4 fade-in duration-300">
+        <div className="rounded-2xl border border-border bg-card/60 p-4 shadow-lg backdrop-blur-sm animate-in slide-in-from-top-4 fade-in duration-300">
           {newMovCaixa === "cliente" ? (
             <NovaDespesaClienteForm
               onCancel={() => setShowNewMov(false)}
@@ -561,47 +566,45 @@ export default function FluxoCaixaTab() {
       </div>
 
       {/* Table card */}
-      <div className="rounded-2xl overflow-hidden flex flex-col backdrop-blur-sm"
-        style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)", boxShadow: "0 20px 60px rgba(2,6,23,0.35)" }}>
+      <div className="rounded-2xl overflow-hidden flex flex-col backdrop-blur-sm border border-border bg-card/60 shadow-xl">
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b"
-          style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.6)" }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-border bg-background/40">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-slate-100">Lançamentos</span>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300">{filteredMovs.length} registros</span>
+            <span className="font-bold text-sm text-foreground">Lançamentos</span>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">{filteredMovs.length} registros</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex bg-slate-800/70 p-0.5 rounded-lg border border-slate-700 mr-2">
+            <div className="flex bg-muted/60 p-0.5 rounded-lg border border-border mr-2">
               {(["todos", "saidas", "entradas"] as FlowFilter[]).map((f) => (
                 <button key={f} onClick={() => { setFlowFilter(f); setCurrentPage(1); }}
                   className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    flowFilter === f ? "bg-slate-100 text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-100"
+                    flowFilter === f ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}>
                   {f === "todos" ? "Todos" : f === "saidas" ? "Saídas" : "Entradas"}
                 </button>
               ))}
             </div>
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input type="text" placeholder="Buscar lançamentos..." value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all w-48 sm:w-64 bg-slate-950/70" />
+                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background/60 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all w-48 sm:w-64" />
             </div>
-            <button onClick={fetchMovs} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
+            <button onClick={fetchMovs} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border text-foreground hover:bg-muted/60 transition-colors bg-background/60">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Atualizar
             </button>
-            <button onClick={() => { setShowFilterPanel(!showFilterPanel); setShowSortMenu(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showFilterPanel ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
+            <button onClick={() => { setShowFilterPanel(!showFilterPanel); setShowSortMenu(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-background/60 ${showFilterPanel ? "border-primary/40 text-primary" : "border-border text-foreground hover:bg-muted/60"}`}>
               <Filter className="h-3.5 w-3.5" /> Filtros
             </button>
             <div className="relative">
-              <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterPanel(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-slate-950/70 ${showSortMenu ? "border-cyan-400/40 text-cyan-300" : "border-slate-700 text-slate-200 hover:bg-slate-800"}`}>
+              <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterPanel(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-background/60 ${showSortMenu ? "border-primary/40 text-primary" : "border-border text-foreground hover:bg-muted/60"}`}>
                 <SlidersHorizontal className="h-3.5 w-3.5" /> Ordenar
               </button>
               {showSortMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-slate-700 bg-slate-900 shadow-xl py-1">
+                  <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-border bg-popover shadow-xl py-1">
                     {([
                       { by: "data" as const, dir: "asc" as const, label: "Data — Crescente" },
                       { by: "data" as const, dir: "desc" as const, label: "Data — Decrescente" },
@@ -611,7 +614,7 @@ export default function FluxoCaixaTab() {
                       const active = sortBy === opt.by && sortDir === opt.dir;
                       return (
                         <button key={opt.label} onClick={() => { setSortBy(opt.by); setSortDir(opt.dir); setShowSortMenu(false); }}
-                          className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition ${active ? "text-cyan-300 bg-cyan-500/10" : "text-slate-300 hover:bg-slate-800"}`}>
+                          className={`flex items-center gap-2 w-full px-3 py-2 text-xs text-left transition ${active ? "text-primary bg-primary/10" : "text-popover-foreground hover:bg-muted/60"}`}>
                           {active ? <Check className="h-3 w-3 shrink-0" /> : <span className="w-3 shrink-0" />}
                           {opt.label}
                         </button>
@@ -621,10 +624,10 @@ export default function FluxoCaixaTab() {
                 </>
               )}
             </div>
-            <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-700 text-slate-200 hover:bg-slate-800 transition-colors bg-slate-950/70">
+            <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-border text-foreground hover:bg-muted/60 transition-colors bg-background/60">
               <Download className="h-3.5 w-3.5" /> Exportar PDF
             </button>
-            <button onClick={openNewMov} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-950 transition-colors shadow-sm" style={{ background: "#06b6d4" }}>
+            <button onClick={openNewMov} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary-foreground transition-colors shadow-sm bg-primary hover:bg-primary/90">
               <Plus className="h-3.5 w-3.5" /> Nova
             </button>
           </div>
@@ -632,12 +635,12 @@ export default function FluxoCaixaTab() {
 
         {/* Contas a pagar caixa sub-toggle */}
         {activeTab === "contas_pagar" && (
-          <div className="px-5 py-2.5 border-b flex items-center gap-3" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Caixa:</span>
-            <div className="flex bg-slate-800/70 p-0.5 rounded-lg border border-slate-700">
+          <div className="px-5 py-2.5 border-b border-border flex items-center gap-3 bg-background/30">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Caixa:</span>
+            <div className="flex bg-muted/60 p-0.5 rounded-lg border border-border">
               {(["share", "cliente"] as const).map((c) => (
                 <button key={c} onClick={() => { setContasCaixa(c); setCurrentPage(1); }}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${contasCaixa === c ? "bg-slate-100 text-slate-900" : "text-slate-400 hover:text-slate-100"}`}>
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${contasCaixa === c ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>
                   {c === "share" ? "Caixa Share" : "Caixa Cliente"}
                 </button>
               ))}
@@ -647,19 +650,19 @@ export default function FluxoCaixaTab() {
 
         {/* Filter panel */}
         {showFilterPanel && (
-          <div className="px-5 py-4 border-b space-y-3" style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.4)" }}>
+          <div className="px-5 py-4 border-b border-border space-y-3 bg-background/30">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data De</label>
-                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Data De</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-lg border border-border bg-input px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Data Até</label>
-                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Data Até</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-lg border border-border bg-input px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="w-full rounded-lg border border-border bg-input px-3 py-1.5 text-xs text-foreground outline-none focus:border-primary">
                   <option value="todos">Todos</option>
                   <option value="pendente">Pendente</option>
                   <option value="pago">Pago</option>
@@ -668,7 +671,7 @@ export default function FluxoCaixaTab() {
               </div>
             </div>
             {(dateFrom || dateTo || statusFilter !== "todos") && (
-              <button onClick={() => { setDateFrom(""); setDateTo(""); setStatusFilter("todos"); }} className="text-xs text-slate-400 hover:text-slate-200 transition">
+              <button onClick={() => { setDateFrom(""); setDateTo(""); setStatusFilter("todos"); }} className="text-xs text-muted-foreground hover:text-foreground transition">
                 Limpar filtros
               </button>
             )}
@@ -679,38 +682,38 @@ export default function FluxoCaixaTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr style={{ borderBottom: `1px solid ${tableHeaderBorder}`, background: tableHeaderBg, transition: 'background 0.3s ease' }}>
+              <tr className="border-b border-border bg-muted/30" style={{ transition: 'background 0.3s ease' }}>
                 <th className="w-4 px-4 py-3" />
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => setDateMode((v) => (v === "pagamento" ? "emissao" : "pagamento"))}
                     title="Clique para alternar entre data de pagamento e data de emissão"
-                    className="flex items-center gap-1 uppercase tracking-wider text-slate-400 hover:text-cyan-300 transition-colors"
+                    className="flex items-center gap-1 uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
                   >
                     Data {dateMode === "pagamento" ? "Pagamento" : "Emissão"}
                     <ChevronDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição</th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Categoria</th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Cliente</th>
-                <th className="text-right px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Valor</th>
-                <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden sm:table-cell">Status</th>
-                <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden md:table-cell">Docs</th>
-                <th className="w-8 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Ações</th>
+                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Descrição</th>
+                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Categoria</th>
+                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Cliente</th>
+                <th className="text-right px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Valor</th>
+                <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Status</th>
+                <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Docs</th>
+                <th className="w-8 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Ações</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid rgba(30,41,59,0.7)" }}>
-                    <td colSpan={9} className="p-4"><div className="h-8 bg-slate-800/70 rounded animate-pulse" /></td>
+                  <tr key={i} className="border-b border-border/60">
+                    <td colSpan={9} className="p-4"><div className="h-8 bg-muted/50 rounded animate-pulse" /></td>
                   </tr>
                 ))
               ) : paginatedMovs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-500 text-sm">
+                  <td colSpan={9} className="py-16 text-center text-muted-foreground text-sm">
                     Nenhum lançamento encontrado para os filtros selecionados.
                   </td>
                 </tr>
@@ -731,6 +734,7 @@ export default function FluxoCaixaTab() {
                     <RowFragment key={m.id} m={m} entrada={entrada} expanded={expanded} name={name}
                       clienteNome={clienteNome} cat={cat} subcats={subcats}
                       tid={tid} dateStr={dateStr} isPaid={isPaid} docCount={docCount}
+                      conferido={!!conferidoPorDespesa[m.id]}
                       onToggle={() => setExpandedId(expanded ? null : m.id)}
                       onApprove={() => doAction(m, "baixa")}
                       onEdit={() => setEditMovId(m.id)}
@@ -747,33 +751,32 @@ export default function FluxoCaixaTab() {
         </div>
 
         {/* Pagination */}
-        <div className="border-t px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-4"
-          style={{ borderColor: "rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.6)" }}>
-          <div className="text-xs text-slate-400 font-medium">
+        <div className="border-t border-border px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-4 bg-background/40">
+          <div className="text-xs text-muted-foreground font-medium">
             Mostrando {filteredMovs.length === 0 ? 0 : startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredMovs.length)} de {filteredMovs.length} registros
           </div>
           <div className="flex items-center gap-4 text-xs font-medium">
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 hidden sm:inline">Linhas por página:</span>
+              <span className="text-muted-foreground hidden sm:inline">Linhas por página:</span>
               <select value={itemsPerPage} onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="border border-slate-700 bg-slate-900/70 rounded-md px-2 py-1 text-slate-200 outline-none focus:ring-1 focus:ring-cyan-400 cursor-pointer">
+                className="border border-border bg-background/60 rounded-md px-2 py-1 text-foreground outline-none focus:ring-1 focus:ring-primary cursor-pointer">
                 <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option>
               </select>
             </div>
-            <div className="flex items-center gap-2 bg-slate-900/70 px-2 py-1 rounded-md border border-slate-700">
-              <span className="text-slate-400">Page</span>
+            <div className="flex items-center gap-2 bg-background/60 px-2 py-1 rounded-md border border-border">
+              <span className="text-muted-foreground">Page</span>
               <input type="number" min={1} max={totalPages} value={currentPage}
                 onChange={(e) => { const val = parseInt(e.target.value); if (!isNaN(val)) setCurrentPage(Math.max(1, Math.min(totalPages, val))); }}
-                className="w-10 border border-slate-700 rounded text-center text-slate-100 bg-slate-950/70 outline-none focus:ring-1 focus:ring-cyan-400 py-0.5" />
-              <span className="text-slate-400">of {totalPages}</span>
+                className="w-10 border border-border rounded text-center text-foreground bg-input outline-none focus:ring-1 focus:ring-primary py-0.5" />
+              <span className="text-muted-foreground">of {totalPages}</span>
             </div>
             <div className="flex items-center gap-1">
               <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
-                className="p-1.5 rounded-md border border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className="p-1.5 rounded-md border border-border bg-background/60 text-foreground hover:bg-muted/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}
-                className="p-1.5 rounded-md border border-slate-700 bg-slate-900/70 text-slate-300 hover:bg-slate-800 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className="p-1.5 rounded-md border border-border bg-background/60 text-foreground hover:bg-muted/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -816,10 +819,10 @@ export default function FluxoCaixaTab() {
 /* ─────────────────────────── RowFragment ─────────────────────────── */
 
 function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, tid, dateStr, isPaid, docCount,
-  onToggle, onApprove, onEdit, onDelete, onOpenAttachment, onReembolso, actionLoading, isShareRow }: {
+  conferido, onToggle, onApprove, onEdit, onDelete, onOpenAttachment, onReembolso, actionLoading, isShareRow }: {
   m: Movimentacao; entrada: boolean; expanded: boolean; name: string; clienteNome?: string | null;
   cat: string; subcats: string[]; tid: string;
-  dateStr: string; isPaid: boolean; docCount: number;
+  dateStr: string; isPaid: boolean; docCount: number; conferido: boolean;
   onToggle: () => void; onApprove: () => void; onEdit: () => void; onDelete: () => void;
   onOpenAttachment: (url: string, title: string) => void;
   onReembolso?: () => void;
@@ -927,7 +930,16 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
             <div className={`text-[10px] ${theme.textMuted}`}>Total: {formatBRL(valorTotalDe(m))}</div>
           )}
         </td>
-        <td className="px-3 py-3.5 text-center hidden sm:table-cell"><StatusBadge m={m} /></td>
+        <td className="px-3 py-3.5 text-center hidden sm:table-cell">
+          <div className="flex flex-col items-center gap-1">
+            <StatusBadge m={m} />
+            {conferido && (
+              <span className="inline-flex items-center gap-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-400">
+                <CheckCircle2 className="h-2.5 w-2.5" /> Conferido
+              </span>
+            )}
+          </div>
+        </td>
         <td className="px-3 py-3.5 text-center hidden md:table-cell">
           <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${theme.textMuted}`}>{docCount}<Paperclip className="h-3 w-3" /></span>
         </td>
@@ -940,7 +952,7 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
               </button>
             )}
             <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1.5 text-slate-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors" title="Deletar">
+              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors" title="Deletar">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
             <ChevronDown className={`h-4 w-4 ${theme.textMuted} transition-transform ${expanded ? "rotate-180" : ""}`} />
@@ -961,7 +973,7 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
                       <button
                         key={a.label}
                         onClick={(e) => { e.stopPropagation(); onOpenAttachment(a.url as string, a.label); }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-950/70 border border-slate-700 font-medium transition-colors ${a.color}`}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded bg-background/60 border border-border font-medium transition-colors ${a.color}`}
                       >
                         <FileText className="h-3.5 w-3.5" /> {a.label}
                       </button>
@@ -1033,9 +1045,9 @@ function KpiCard({ label, value, tone, icon: Icon }: {
     blue:  { bg: "rgba(59,130,246,0.06)", border: "rgba(59,130,246,0.15)", text: "#60a5fa", iconBg: "rgba(59,130,246,0.12)" },
   }[tone];
   return (
-    <div className="rounded-xl p-4 border shadow-sm" style={{ background: cfg.bg, borderColor: cfg.border }}>
+    <div className="rounded-xl p-4 border border-border bg-card/50 shadow-sm">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 opacity-80">{label}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: cfg.iconBg }}>
           <Icon className="h-4 w-4" style={{ color: cfg.text } as React.CSSProperties} />
         </div>

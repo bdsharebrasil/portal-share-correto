@@ -103,7 +103,7 @@ export function GestorDashboard() {
     {
       icon: FileText,
       label: "Financeiro Share Brasil",
-      route: "/financeiro/financeiro-share-brasil",
+      route: "/gestor/financeiro-share",
       iconColor: "text-emerald-400",
       iconBg: "bg-emerald-500/10",
       hoverGlow: "hover:border-emerald-500/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]",
@@ -112,7 +112,7 @@ export function GestorDashboard() {
     {
       icon: Users,
       label: "Gestão de Funcionários",
-      route: "/gestao-funcionarios",
+      route: "/gestor/funcionarios",
       iconColor: "text-blue-400",
       iconBg: "bg-blue-500/10",
       hoverGlow: "hover:border-blue-500/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]",
@@ -121,7 +121,7 @@ export function GestorDashboard() {
     {
       icon: Settings,
       label: "Configurações",
-      route: "/financeiro/configuracoes-fiscais",
+      route: "/gestor/configuracoes",
       iconColor: "text-cyan-400",
       iconBg: "bg-cyan-500/10",
       hoverGlow: "hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)]",
@@ -130,7 +130,7 @@ export function GestorDashboard() {
     {
       icon: DollarSign,
       label: "Financeiro Cotistas",
-      route: "/financeiro/financeiro-cotistas",
+      route: "/gestor/financeiro-cotistas",
       iconColor: "text-green-500",
       iconBg: "bg-green-500/10",
       hoverGlow: "hover:border-green-500/50 hover:shadow-[0_0_20px_rgba(34,197,94,0.15)]",
@@ -139,7 +139,7 @@ export function GestorDashboard() {
     {
       icon: BarChart3,
       label: "Master",
-      route: "/financeiro/master",
+      route: "/gestor/master",
       iconColor: "text-orange-400",
       iconBg: "bg-orange-500/10",
       hoverGlow: "hover:border-orange-500/50 hover:shadow-[0_0_20px_rgba(249,115,22,0.15)]",
