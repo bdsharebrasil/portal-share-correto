@@ -74,6 +74,7 @@ import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import { FinanceiroCotistas, FinanceiroCotistaDetalhe } from "./components/dashboard/gestor/FinanceiroCotista";
 import LancamentoForm from "./components/dashboard/gestor/FinanceiroCotista/LancamentoForm";
 import { CostSimulator } from "./components/dashboard/CostSimulator";
+import ManualSistema from "./pages/ManualSistema";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -297,6 +298,7 @@ const App = () => {
                           <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
                           <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
                           <Route path="/ferias" element={renderProtected(<Ferias />)} />
+                          <Route path="/manual" element={renderProtected(<ManualSistema />)} />
                           <Route path="*" element={renderProtected(<NotFound />)} />
                         </Routes>
                         </HashRouter>
