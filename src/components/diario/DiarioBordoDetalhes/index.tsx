@@ -108,7 +108,7 @@ type DiarioMesRow = {
   tarifa_diaria: number | null;
 };
 type Cliente = { id: string; razao_social: string | null; proprietario: string | null };
-type Socio = { id: string; nome: string; cliente_id: string };
+type Socio = { id: string; nome: string; clientes_id: string };
 type Abastecimento = {
   id: string;
   data: string;
@@ -255,7 +255,7 @@ function DiarioBordoDetalhes() {
         .order("numero_sequencial", { ascending: false })
         .limit(1),
       supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
-      (supabase as any).from("socios").select("id,nome,cliente_id").order("nome"),
+      (supabase as any).from("socios").select("id,nome,clientes_id").order("nome"),
       supabase.from("membros_tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
       supabase.from("tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
       supabase.from("abastecimentos").select("id,data,local,litros,valor_total,valor_unitario,tipo_combustivel,logbook_entry_id,comanda,abastecedor,nf,tipo_faturamento")
@@ -274,7 +274,7 @@ function DiarioBordoDetalhes() {
     setLancamentosAno((lAnoRes.data ?? []) as unknown as Lanc[]);
     setUltimaDataLancamento(ultimaDataRes.data?.[0]?.data_registro ?? null);
     setClientes((cRes.data ?? []) as Cliente[]);
-    setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id })));
+    setSocios(((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, clientes_id: s.clientes_id })));
     const tripulantesData = [
       ...(membrosTripulacaoRes.data ?? []),
       ...(tripulacaoRes.data ?? []),
@@ -735,7 +735,7 @@ function DiarioBordoDetalhes() {
             supabase.from("lancamentos_diario_bordo").select("*").eq("aeronave_id", aircraftId)
               .gte("data_registro", ini).lte("data_registro", fim).order("data_registro", { ascending: true }),
             supabase.from("clientes").select("id,razao_social,proprietario").order("razao_social"),
-            (supabase as any).from("socios").select("id,nome,cliente_id").order("nome"),
+            (supabase as any).from("socios").select("id,nome,clientes_id").order("nome"),
             supabase.from("membros_tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
             supabase.from("tripulacao").select("id,nome_completo,canac,status").eq("status", "ativo"),
           ]);
@@ -748,7 +748,7 @@ function DiarioBordoDetalhes() {
 
           const lancamentosData = (lRes.data ?? []) as unknown as Lanc[];
           const clientesData = (cRes.data ?? []) as Cliente[];
-          const sociosData = (((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, cliente_id: s.cliente_id }))) as Socio[];
+          const sociosData = (((sRes.data ?? []) as any[]).map((s) => ({ id: s.id, nome: s.nome, clientes_id: s.clientes_id }))) as Socio[];
           const tripulantesData = [
             ...(membrosTripulacaoRes.data ?? []),
             ...(tripulacaoRes.data ?? []),
@@ -1800,7 +1800,7 @@ function NovoVooInline({
   useEffect(() => { if (!celulaTouched) setCelula(sugCelula); }, [sugCelula, celulaTouched]);
   useEffect(() => { if (!celulaTvooTouched) setCelulaTvoo(sugCelulaTvoo); }, [sugCelulaTvoo, celulaTvooTouched]);
 
-  const sociosDoCliente = useMemo(() => socios.filter((s) => s.cliente_id === clienteId), [socios, clienteId]);
+  const sociosDoCliente = useMemo(() => socios.filter((s) => s.clientes_id === clienteId), [socios, clienteId]);
   const tripOptions = useMemo(() =>
     tripulantes.filter((t) => (t.status ?? "").toLowerCase().startsWith("ativ"))
       .slice().sort((a, b) => (a.nome_completo ?? "").localeCompare(b.nome_completo ?? "")),
@@ -2078,7 +2078,7 @@ function EditarVooInline({
   const ifrDec = useMemo(() => Number(((hhmmToMinutes(ifr) ?? 0) / 60).toFixed(2)), [ifr]);
   const diurno = useMemo(() => Number((Math.max(0, tVoo - noturnoDec)).toFixed(2)), [tVoo, noturnoDec]);
 
-  const sociosDoCliente = useMemo(() => socios.filter((s) => s.cliente_id === clienteId), [socios, clienteId]);
+  const sociosDoCliente = useMemo(() => socios.filter((s) => s.clientes_id === clienteId), [socios, clienteId]);
   const tripOptions = useMemo(() =>
     tripulantes.filter((t) => (t.status ?? "").toLowerCase().startsWith("ativ"))
       .slice().sort((a, b) => (a.nome_completo ?? "").localeCompare(b.nome_completo ?? "")),
@@ -2162,12 +2162,12 @@ function EditarVooInline({
               </Field>
               <Field label="Sócio Tomador">
                 <SearchableCombobox
-                  items={socios.filter(s => s.cliente_id === clienteTomadorId).map((s) => ({ id: s.id, label: s.nome }))}
+                  items={socios.filter(s => s.clientes_id === clienteTomadorId).map((s) => ({ id: s.id, label: s.nome }))}
                   value={socioTomadorId}
                   onChange={setSocioTomadorId}
                   placeholder="Selecionar..."
                   searchPlaceholder="Buscar..."
-                  disabled={!clienteTomadorId || socios.filter(s => s.cliente_id === clienteTomadorId).length === 0}
+                  disabled={!clienteTomadorId || socios.filter(s => s.clientes_id === clienteTomadorId).length === 0}
                 />
               </Field>
             </>
@@ -2234,6 +2234,27 @@ function EditarVooInline({
   );
 }
 
+/* ─── AttachmentThumb ──────────────────────────────────────────────────────── */
+function AttachmentThumb({ url }: { url: string | null }) {
+  if (!url) return null;
+  const isImage = /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(url);
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Ver anexo"
+      className="shrink-0 flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-800 hover:border-cyan-500/50 transition-colors"
+    >
+      {isImage ? (
+        <img src={url} alt="anexo" className="h-full w-full object-cover" />
+      ) : (
+        <FileText className="w-4 h-4 text-slate-400" />
+      )}
+    </a>
+  );
+}
+
 /* ─── AbastecimentoModal ───────────────────────────────────────────────────── */
 function AbastecimentoModal({
   clienteId, aeronaveId, abastecimentos, onSelectAbastecimento, onCreateNew, onClose,
@@ -2259,7 +2280,7 @@ function AbastecimentoModal({
     logbook_entry_id: "",
   });
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState<{ comanda: boolean; nf: boolean }>({ comanda: false, nf: false });
+  const [uploading, setUploading] = useState<{ comanda: boolean; nf: boolean; boleto: boolean }>({ comanda: false, nf: false, boleto: false });
   const [fuelSuppliers, setFuelSuppliers] = useState<Array<{ id: string; label: string }>>([]);
   const [lastLogbookEntry, setLastLogbookEntry] = useState<{ id: string; aerodromo_partida: string | null; aerodromo_chegada: string | null } | null>(null);
 
@@ -2318,9 +2339,10 @@ function AbastecimentoModal({
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
-  const uploadAttachment = async (file: File | null, target: "comanda_url" | "nota_url") => {
+  const uploadAttachment = async (file: File | null, target: "comanda_url" | "nota_url" | "boleto_url") => {
     if (!file) return;
-    setUploading((prev) => ({ ...prev, [target === "comanda_url" ? "comanda" : "nf"]: true }));
+    const key = target === "comanda_url" ? "comanda" : target === "nota_url" ? "nf" : "boleto";
+    setUploading((prev) => ({ ...prev, [key]: true }));
     try {
       const fileName = `abastecimentos/${aeronaveId || "sem-aeronave"}/${target}/${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
       const { error } = await supabase.storage.from("abastecimento").upload(fileName, file);
@@ -2332,7 +2354,7 @@ function AbastecimentoModal({
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(`Erro ao enviar arquivo: ${msg}`);
     } finally {
-      setUploading((prev) => ({ ...prev, [target === "comanda_url" ? "comanda" : "nf"]: false }));
+      setUploading((prev) => ({ ...prev, [key]: false }));
     }
   };
 
@@ -2380,15 +2402,15 @@ function AbastecimentoModal({
     return createPortal(
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-3 sm:p-4 backdrop-blur-sm">
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-          className="w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-700/50 p-4">
+          className="flex w-full max-w-3xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-700/50 p-4 shrink-0">
             <div>
               <h3 className="text-sm font-bold text-white">Novo Abastecimento</h3>
               <p className="text-[11px] text-slate-400">Formulário responsivo com seleção pesquisável e anexos.</p>
             </div>
             <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><X className="w-4 h-4" /></button>
           </div>
-          <div className="overflow-y-auto p-4 sm:p-5">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Data</span>
@@ -2443,36 +2465,49 @@ function AbastecimentoModal({
                   emptyMessage="Nenhum fornecedor encontrado"
                 />
               </label>
+
+              {/* Comanda: número + thumbnail + upload na mesma linha */}
               <label className="block md:col-span-2">
                 <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Comanda</span>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex items-center gap-2">
                   <input type="text" value={formData.comanda} onChange={(e) => setFormData({ ...formData, comanda: e.target.value })}
-                    placeholder="Número da comanda" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
-                  <label className="flex min-w-[220px] items-center justify-center rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 py-2 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors">
+                    placeholder="Número da comanda" className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  <AttachmentThumb url={formData.comanda_url} />
+                  <label className="flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
                     <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "comanda_url")} />
-                    {uploading.comanda ? "Enviando..." : formData.comanda_url ? "Arquivo anexado" : "Upload comanda"}
+                    {uploading.comanda ? "Enviando..." : formData.comanda_url ? "Trocar" : "Upload"}
                   </label>
                 </div>
               </label>
+
+              {/* NF: número + thumbnail + upload na mesma linha */}
               <label className="block md:col-span-2">
                 <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">NF</span>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex items-center gap-2">
                   <input type="text" value={formData.nf} onChange={(e) => setFormData({ ...formData, nf: e.target.value })}
-                    placeholder="Número da NF" className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
-                  <label className="flex min-w-[220px] items-center justify-center rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 py-2 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors">
+                    placeholder="Número da NF" className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                  <AttachmentThumb url={formData.nota_url} />
+                  <label className="flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
                     <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "nota_url")} />
-                    {uploading.nf ? "Enviando..." : formData.nota_url ? "Arquivo anexado" : "Upload NF"}
+                    {uploading.nf ? "Enviando..." : formData.nota_url ? "Trocar" : "Upload"}
                   </label>
                 </div>
               </label>
+
+              {/* Boleto: thumbnail + upload (sem número associado) */}
               <label className="block md:col-span-2">
-                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Boleto URL</span>
-                <input type="text" value={formData.boleto_url} onChange={(e) => setFormData({ ...formData, boleto_url: e.target.value })}
-                  placeholder="https://..." className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-cyan-500/50 focus:outline-none" />
+                <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Boleto</span>
+                <div className="flex items-center gap-2">
+                  <AttachmentThumb url={formData.boleto_url} />
+                  <label className="flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-dashed border-slate-600 bg-slate-800/60 px-3 text-center text-xs text-slate-400 hover:border-cyan-500/50 hover:text-cyan-400 transition-colors cursor-pointer">
+                    <input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => uploadAttachment(e.target.files?.[0] ?? null, "boleto_url")} />
+                    {uploading.boleto ? "Enviando..." : formData.boleto_url ? "Arquivo anexado — trocar" : "Upload boleto"}
+                  </label>
+                </div>
               </label>
             </div>
           </div>
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-700/50 p-4 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 border-t border-slate-700/50 p-4 sm:flex-row sm:justify-end shrink-0">
             <button onClick={() => setShowForm(false)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Cancelar</button>
             <button onClick={handleSaveNew} disabled={saving} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-600 disabled:opacity-60">
               <Save className="w-3.5 h-3.5" /> {saving ? "Salvando..." : "Salvar"}
@@ -2487,16 +2522,16 @@ function AbastecimentoModal({
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-        className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-700/50 p-4">
+        className="flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-700/50 p-4 shrink-0">
           <h3 className="text-sm font-bold text-white">Abastecimentos</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4">
           {abastecimentos.length === 0 ? (
             <p className="text-center text-slate-400 text-xs mb-4">Nenhum abastecimento encontrado</p>
           ) : (
-            <div className="space-y-1.5 mb-4 max-h-56 overflow-y-auto">
+            <div className="space-y-1.5 mb-4">
               {abastecimentos.map((ab) => (
                 <button key={ab.id} onClick={() => onSelectAbastecimento(ab)}
                   className="w-full text-left rounded-lg border border-slate-700 bg-slate-800 p-2.5 hover:bg-slate-700 hover:border-cyan-500/50 transition-colors">
@@ -2512,7 +2547,7 @@ function AbastecimentoModal({
             </div>
           )}
         </div>
-        <div className="flex justify-between gap-2 border-t border-slate-700/50 p-4">
+        <div className="flex justify-between gap-2 border-t border-slate-700/50 p-4 shrink-0">
           <button onClick={onClose} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Cancelar</button>
           <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-cyan-600">
             <Plus className="w-3.5 h-3.5" /> Novo Abastecimento
