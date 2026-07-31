@@ -25,7 +25,7 @@ type Lanc = {
 };
 
 type Cliente = { id: string; razao_social: string | null; proprietario: string | null };
-type Socio = { id: string; nome: string; cliente_id: string };
+type Socio = { id: string; nome: string; clientes_id: string };
 type Aeronave = { matricula: string; modelo: string; consumo_combustivel: number | null };
 
 type MesAnual = {
