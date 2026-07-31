@@ -48,11 +48,15 @@ export interface RateioRow {
   recibo_url: string | null;
   nf_url: string | null;
   boleto_url: string | null;
+  relatorio_url: string | null;
+  demonstrativo_url: string | null;
+  conferido: boolean;
+  conferido_em: string | null;
+  conferido_por: string | null;
   pago_por: string | null;
   pago_diretamente: boolean | null;
   aeronave_id: string | null;
   aeronave_registro: string | null;
-  demonstrativo_url: string | null;
 }
 
 export interface VooRow {
