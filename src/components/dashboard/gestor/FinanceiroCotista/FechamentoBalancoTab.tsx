@@ -262,7 +262,7 @@ export function FechamentoBalancoTab({
                   ].filter((a) => a.url);
 
                   const st = statusOf(r);
-                  const clienteOuSocio = r.socios_nome || r.clientes_nome || "—";
+                  const clienteOuSocio = r.pago_por || "—";
                   const valorPago = num(r.valor_pago_real);
                   const valorOutroSocio = outrosRateios.reduce((s, o) => s + num(o.valor_rateado), 0);
 
