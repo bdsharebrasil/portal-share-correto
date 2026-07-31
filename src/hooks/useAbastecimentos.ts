@@ -79,7 +79,7 @@ export function useLinkAbastecimentoDespesa() {
       const { error: updateError } = await supabase
         .from("abastecimentos")
         .update({
-          status: data.status || "registrado",
+          status: data.statusPagamento || "registrado",
           updated_at: new Date().toISOString(),
         })
         .eq("id", data.abastecimentoId);
