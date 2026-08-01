@@ -20,32 +20,22 @@ function OperacoesKPIs() {
     queryKey: ["kpi-voos-hoje", today],
     queryFn: async () => {
       const { count } = await (supabase as any)
-        .from("flight_schedules")
+        .from("solicitacoes_reserva_voo")
         .select("id", { count: "exact", head: true })
-        .eq("flight_date", today);
+        .eq("data_agendada", today)
+        .in("status", ["confirmado", "aprovado", "em_voo"]);
       return count ?? 0;
     },
     refetchInterval: 30000,
   });
 
-  const { data: frotaAtiva = 0 } = useQuery({
-    queryKey: ["kpi-frota-ativa"],
-    queryFn: async () => {
-      const { count } = await (supabase as any)
-        .from("aeronave")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "ativa");
-      return count ?? 0;
-    },
-  });
-
   const { data: agendamentos = 0 } = useQuery({
-    queryKey: ["kpi-agendamentos"],
+    queryKey: ["kpi-agendamentos", today],
     queryFn: async () => {
       const { count } = await (supabase as any)
-        .from("flight_schedules")
+        .from("solicitacoes_reserva_voo")
         .select("id", { count: "exact", head: true })
-        .gte("flight_date", today);
+        .gte("data_agendada", today);
       return count ?? 0;
     },
     refetchInterval: 30000,
@@ -55,13 +45,14 @@ function OperacoesKPIs() {
     queryKey: ["kpi-pendencias"],
     queryFn: async () => {
       const { count } = await (supabase as any)
-        .from("flight_schedules")
+        .from("solicitacoes_reserva_voo")
         .select("id", { count: "exact", head: true })
-        .eq("status", "Pendente");
+        .eq("status", "pendente");
       return count ?? 0;
     },
     refetchInterval: 30000,
   });
+
 
   const kpis = [
     { label: "Voos Hoje", value: voosHoje, icon: Plane, color: "text-primary", bg: "bg-primary/10", border: "border-primary/20" },
