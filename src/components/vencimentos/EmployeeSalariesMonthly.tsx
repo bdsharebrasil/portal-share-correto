@@ -2,16 +2,15 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Pencil, Save, X, Loader2, DollarSign, Users, Calendar } from "lucide-react";
+import { Save, Loader2, Users } from "lucide-react";
 
 interface EmployeeSalary {
   id: string;
@@ -207,20 +206,6 @@ export function EmployeeSalariesMonthly() {
     return Array.from(roles).sort();
   }, [employees]);
 
-  const getRoleColor = (role: string): string => {
-    const roleColors: Record<string, string> = {
-      financeiro_master: "bg-gradient-to-r from-blue-500 to-indigo-600 text-white",
-      financeiro: "bg-gradient-to-r from-blue-500 to-cyan-600 text-white",
-      rh: "bg-gradient-to-r from-blue-500 to-cyan-600 text-white",
-      adm: "bg-gradient-to-r from-blue-500 to-cyan-600 text-white",
-      piloto_chefe: "bg-gradient-to-r from-blue-500 to-red-600 text-white",
-      tripulante: "bg-gradient-to-r from-blue-500 to-emerald-600 text-white",
-      operacoes: "bg-gradient-to-r from-blue-500 to-orange-600 text-white",
-      coordenador_de_voor: "bg-gradient-to-r from-blue-500 to-gray-600 text-white",
-    };
-    return roleColors[role] || "bg-gradient-to-r from-gray-400 to-gray-600 text-white";
-  };
-
   const formatRole = (role: string): string => {
     const roleNames: Record<string, string> = {
       financeiro_master: "Financeiro Master",
@@ -314,213 +299,118 @@ export function EmployeeSalariesMonthly() {
   const monthLabel = months.find((m) => m.value === selectedMonth)?.label || "";
 
   return (
-    <div className="space-y-6">
-      <Card className="border-border/50 rounded-2xl shadow-lg bg-gradient-to-br from-card to-card/50 overflow-hidden">
-        <CardHeader className="pb-6 border-b border-border/50 bg-muted/30">
-          <div className="space-y-2">
-            <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              <DollarSign className="h-6 w-6 text-primary" />
-              Salários Vigentes por Mês
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Somente Admin, Gestor Master e Financeiro Master podem editar. Selecione um mês para visualizar e editar salários.
-            </p>
+    <div className="min-h-screen space-y-6 bg-[#fafafa] p-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Salários</h1>
+        <p className="mt-1 text-sm text-zinc-500">Gestão mensal de colaboradores</p>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(Number(value))}>
+          <SelectTrigger className="h-10 w-[140px] rounded-lg border-zinc-200 bg-white shadow-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map((month) => (
+              <SelectItem key={month.value} value={month.value.toString()}>{month.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
+          <SelectTrigger className="h-10 w-[120px] rounded-lg border-zinc-200 bg-white shadow-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((year) => (
+              <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Input
+          placeholder="Buscar colaborador..."
+          value={searchFilter}
+          onChange={(event) => setSearchFilter(event.target.value)}
+          className="h-10 w-[260px] rounded-lg border-zinc-200 bg-white shadow-sm"
+        />
+
+        <Select value={roleFilter || "all"} onValueChange={(value) => setRoleFilter(value === "all" ? "" : value)}>
+          <SelectTrigger className="h-10 w-[200px] rounded-lg border-zinc-200 bg-white shadow-sm">
+            <SelectValue placeholder="Função" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {uniqueRoles.map((role) => (
+              <SelectItem key={role} value={role}>{formatRole(role)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "Colaboradores", value: statistics.totalCollaborators },
+          { label: "Com salário", value: statistics.collaboratorsWithSalary },
+          { label: "Total bruto", value: `R$ ${statistics.totalBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+          { label: "Média", value: `R$ ${statistics.averageBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
+        ].map((item) => (
+          <div key={item.label} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <p className="text-xs text-zinc-500">{item.label}</p>
+            <p className="mt-1 text-xl font-semibold text-zinc-900">{item.value}</p>
           </div>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="month-select" className="text-muted-foreground font-medium">Mês</Label>
-              <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
-                <SelectTrigger id="month-select" className="h-11 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="year-select" className="text-muted-foreground font-medium">Ano</Label>
-              <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(Number(v))}>
-                <SelectTrigger id="year-select" className="h-11 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="search-input" className="text-muted-foreground font-medium">Buscar</Label>
-              <Input
-                id="search-input"
-                placeholder="Nome ou email..."
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role-filter" className="text-muted-foreground font-medium">Função</Label>
-              <Select value={roleFilter || "all"} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
-                <SelectTrigger id="role-filter" className="h-11 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">Todas as funções</SelectItem>
-                  {uniqueRoles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {formatRole(role)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+        {filteredEmployees.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Users className="mb-3 h-8 w-8 text-zinc-400" />
+            <p className="font-medium text-zinc-700">Nenhum colaborador encontrado</p>
+            <p className="text-sm text-zinc-500">Tente ajustar seus filtros de busca.</p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total de Colaboradores</p>
-                  <p className="text-2xl font-bold text-foreground mt-1">{statistics.totalCollaborators}</p>
-                </div>
-                <Users className="h-8 w-8 text-primary/50" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-xl p-4 border border-emerald-500/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Com Salário Registrado</p>
-                  <p className="text-2xl font-bold text-emerald-600 mt-1">{statistics.collaboratorsWithSalary}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-emerald-500/50" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl p-4 border border-blue-500/20">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Bruto</p>
-                <p className="text-2xl font-bold text-blue-600 mt-1">R$ {statistics.totalBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl p-4 border border-amber-500/20">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Média de Salário</p>
-                <p className="text-2xl font-bold text-amber-600 mt-1">R$ {statistics.averageBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              </div>
-            </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-zinc-200 bg-zinc-50">
+                <tr className="text-left text-zinc-500">
+                  <th className="px-4 py-3 font-medium">Nome</th>
+                  <th className="px-4 py-3 font-medium">Função</th>
+                  <th className="px-4 py-3 font-medium">Bruto</th>
+                  <th className="px-4 py-3 font-medium">Líquido</th>
+                  <th className="px-4 py-3 font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEmployees.map((employee) => (
+                  <tr key={employee.id} className="border-b border-zinc-100 transition-colors hover:bg-zinc-50 last:border-0">
+                    <td className="px-4 py-3 font-medium text-zinc-900">
+                      {employee.full_name}
+                      <div className="text-xs font-normal text-zinc-400">{employee.email}</div>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600">{employee.roles.map(formatRole).join(", ")}</td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {employee.salary?.base_salary_bruto
+                        ? `R$ ${Number(employee.salary.base_salary_bruto).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                        : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {employee.salary?.base_salary_liquid
+                        ? `R$ ${Number(employee.salary.base_salary_liquid).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                        : "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button variant="ghost" className="text-zinc-600 hover:text-black" onClick={() => handleEditClick(employee)}>
+                        Editar
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          {filteredEmployees.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="bg-muted/30 rounded-full p-4 mb-4">
-                <Users className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground font-medium">Nenhum colaborador encontrado</p>
-              <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-border/50 shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
-                    <TableHead className="font-semibold text-foreground">Colaborador</TableHead>
-                    <TableHead className="font-semibold text-foreground">Função</TableHead>
-                    <TableHead className="text-right font-semibold text-foreground">Salário Bruto</TableHead>
-                    <TableHead className="text-right font-semibold text-foreground">Salário Líquido</TableHead>
-                    <TableHead className="font-semibold text-foreground">Benefícios</TableHead>
-                    <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEmployees.map((employee, index) => (
-                    <TableRow 
-                      key={employee.id} 
-                      className={`transition-all hover:bg-muted/50 ${
-                        employee.has_salary_this_month 
-                          ? "bg-emerald-500/5 border-l-4 border-l-emerald-500" 
-                          : employee.is_new_month 
-                            ? "border-l-4 border-l-amber-500 bg-amber-500/5" 
-                            : ""
-                      }`}
-                    >
-                      <TableCell className="font-semibold text-foreground py-4">
-                        <div className="flex items-center gap-2">
-                          {employee.full_name}
-                          {employee.has_salary_this_month && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-600">
-                              ✓ Registrado
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="flex gap-2 flex-wrap">
-                          {employee.roles.map((role) => (
-                            <span
-                              key={role}
-                              className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getRoleColor(role)}`}
-                            >
-                              {formatRole(role)}
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right py-4">
-                        {employee.salary?.base_salary_bruto ? (
-                          <span className="text-emerald-600 font-semibold">
-                            R$ {Number(employee.salary.base_salary_bruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground italic">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right py-4">
-                        {employee.salary?.base_salary_liquid ? (
-                          <span className="font-semibold">
-                            R$ {Number(employee.salary.base_salary_liquid).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground italic">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="text-sm text-muted-foreground truncate max-w-xs">
-                          {employee.salary?.benefit || "—"}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right py-4">
-                        <Button
-                          variant={employee.has_salary_this_month ? "ghost" : "outline"}
-                          size="sm"
-                          onClick={() => handleEditClick(employee)}
-                          className={`h-9 ${employee.has_salary_this_month ? 'w-9 p-0 hover:bg-primary/10 text-primary' : 'gap-2 text-primary'}`}
-                          title={employee.has_salary_this_month ? "Editar salário" : "Adicionar salário"}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          {!employee.has_salary_this_month && <span className="hidden sm:inline">Adicionar</span>}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md rounded-2xl">
