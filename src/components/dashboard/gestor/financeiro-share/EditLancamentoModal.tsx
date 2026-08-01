@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import EditCaixaClienteModal from "./EditCaixaClienteModal";
@@ -30,20 +31,23 @@ export default function EditLancamentoModal({ movId, onClose, onSaved }: Props) 
   }, [movId]);
 
   if (loading) {
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+    return createPortal(
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
         <div className="flex items-center gap-2 text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Carregando lançamento...</div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
   if (err || !mov) {
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80" onClick={onClose}>
+    return createPortal(
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80" onClick={onClose}>
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{err || "Lançamento não encontrado"}</div>
-      </div>
+      </div>,
+      document.body
     );
   }
+
 
   const tipo = (mov.tipo_caixa || "").toLowerCase();
   if (tipo === "share") {
