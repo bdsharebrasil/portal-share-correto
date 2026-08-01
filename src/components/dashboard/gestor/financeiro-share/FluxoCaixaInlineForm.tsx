@@ -694,7 +694,8 @@ export function FluxoCaixaInlineForm({
             const { data: existingConta } = await (supabase
               .from('contas_areceber') as any)
               .select('id')
-              .eq('banco_conciliacao_id', reconciliationId)
+              .eq('reference_type', 'conciliacao_bancaria')
+              .eq('reference_id', reconciliationId)
               .maybeSingle();
 
             alreadyHasConta = !!existingConta;
@@ -718,7 +719,8 @@ export function FluxoCaixaInlineForm({
                 status: 'pendente',
                 aeronave: formData.aeronave || '',
                 criado_por: user.id,
-                banco_conciliacao_id: reconciliationId || null
+                reference_type: reconciliationId ? 'conciliacao_bancaria' : null,
+                reference_id: reconciliationId,
               });
 
             if (contaReceberError) {

@@ -294,8 +294,12 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
 
   const salvar = async () => {
     const valorTotal = Number(form.valor_original);
+    const percentualUso = form.percentual_uso === "" ? null : Number(form.percentual_uso);
     if (!form.descricao.trim()) return toast.error("Informe a descrição.");
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido.");
+    if (percentualUso !== null && (!Number.isFinite(percentualUso) || percentualUso < 0 || percentualUso > 100)) {
+      return toast.error("Informe uma porcentagem de uso entre 0 e 100.");
+    }
     if (!form.data_competencia) return toast.error("Informe a data de competência.");
     if (!form.clientes_id) return toast.error("Selecione o cliente.");
     if (!form.aeronave_id) return toast.error("Selecione a aeronave (necessária para o rateio e o balanço).");
@@ -341,8 +345,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
       0,
     );
     const deveRatear =
-      cotistasComParticipacao.length > 1 ||
-      (cotistasComParticipacao.length === 1 && totalParticipacao < 100);
+      percentualUso !== 100 &&
+      (cotistasComParticipacao.length > 1 ||
+        (cotistasComParticipacao.length === 1 && totalParticipacao < 100));
 
     const linhasRateioBase = deveRatear
       ? cotistasComParticipacao.length
@@ -387,7 +392,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           valor_rateado: valorParcela,
           valor_original: valorParcela,
           valor_pago_real: pago ? valorParcela : null,
-          percentual_uso: form.percentual_uso ? Number(form.percentual_uso) : null,
+          percentual_uso: percentualUso,
           data_competencia: competencia,
           data_vencimento: vencimento,
           data_pagamento: dataPagamento,
@@ -432,7 +437,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             aeronave_id: form.aeronave_id || null,
             aeronave_registro: aeronaveRegistro,
             percentual_sociedade: linha.percentual,
-            percentual_uso: form.percentual_uso ? Number(form.percentual_uso) : null,
+            percentual_uso: percentualUso,
             descricao_despesa: payload.descricao,
             categoria_custo: form.categoria_id || null,
             periodicidade: form.periodicidade,
