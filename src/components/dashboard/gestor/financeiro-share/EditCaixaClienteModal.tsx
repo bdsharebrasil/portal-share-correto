@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
@@ -9,15 +10,21 @@ import AnexosDinamicosField, {
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import {
   X, Save, Loader2, Wallet, CalendarRange, ClipboardList,
-  Info, CreditCard, Layers, Paperclip, Trash2, Plus,
+  Info, CreditCard, Layers, Paperclip, Trash2, Plus, Fuel,
 } from "lucide-react";
 
-const PAGADORES = [
-  { id: "SHARE", label: "Share" },
-  { id: "CLIENTE", label: "Cliente" },
-  { id: "COTISTA", label: "Cotista" },
-  { id: "TRIPULANTE", label: "Tripulante" },
+export const SHARE_BRASIL = "SHARE BRASIL";
+
+const PERIODICIDADES = [
+  { id: "UNICA", label: "Única" },
+  { id: "MENSAL", label: "Mensal" },
+  { id: "BIMESTRAL", label: "Bimestral" },
+  { id: "TRIMESTRAL", label: "Trimestral" },
+  { id: "SEMESTRAL", label: "Semestral" },
+  { id: "ANUAL", label: "Anual" },
+  { id: "EVENTUAL", label: "Eventual" },
 ];
+
 const STATUS_RATEIO = [
   { id: "pendente", label: "Pendente" },
   { id: "pago", label: "Pago" },
@@ -25,6 +32,7 @@ const STATUS_RATEIO = [
   { id: "reembolsado", label: "Reembolsado" },
   { id: "aguardando_reembolso", label: "Aguardando reembolso" },
 ];
+
 
 
 interface Props {
@@ -128,6 +136,9 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   const [anexos, setAnexos] = useState<AnexoLinha[]>(anexosFromMov(movInit || {}));
   const [categoriaCustoId, setCategoriaCustoId] = useState<string>("");
   const [subcategoria, setSubcategoria] = useState<string>("");
+  const [tipoRateio, setTipoRateio] = useState<string>("");
+  const [periodicidade, setPeriodicidade] = useState<string>("");
+  const [abastecimentoId, setAbastecimentoId] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -140,6 +151,9 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
       const first = list[0] || null;
       setRateio(first);
       if (first?.subcategoria_1) setSubcategoria(first.subcategoria_1 as string);
+      if (first?.tipo_rateio) setTipoRateio(first.tipo_rateio as string);
+      if (first?.periodicidade) setPeriodicidade(first.periodicidade as string);
+      if (first?.abastecimento_id) setAbastecimentoId(first.abastecimento_id as string);
       setLinhas(
         list.map((r) => ({
           id: r.id,
@@ -157,6 +171,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
       );
     })();
   }, [movId]);
+
 
   // Cotistas/sócios possíveis para a aeronave do lançamento
   const { data: cotistas = [] } = useQuery({
@@ -179,6 +194,45 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
       c.clientes?.proprietario ||
       "Sem nome",
   }));
+
+  // Quem pagou: nomes reais dos cotistas/clientes/sócios + a própria Share Brasil
+  const pagadorOptions = useMemo(() => {
+    const nomes = new Set<string>([SHARE_BRASIL]);
+    cotistas.forEach((c) => {
+      const n = c.socios?.nome || c.clientes?.razao_social || c.clientes?.proprietario;
+      if (n) nomes.add(String(n));
+    });
+    linhas.forEach((l) => {
+      if (l.socios_nome) nomes.add(l.socios_nome);
+      if (l.clientes_nome) nomes.add(l.clientes_nome);
+      if (l.pago_por) nomes.add(l.pago_por);
+    });
+    return Array.from(nomes).map((n) => ({ id: n, label: n === SHARE_BRASIL ? "SHARE BRASIL (caixa da empresa)" : n }));
+  }, [cotistas, linhas]);
+
+  // Abastecimentos da aeronave para vincular ao rateio
+  const { data: abastecimentos = [] } = useQuery({
+    queryKey: ["abastecimentos-rateio-edit", movInit?.aeronave_id],
+    queryFn: async () => {
+      let q = (supabase as any)
+        .from("abastecimentos")
+        .select("id, data, local, litros, valor_total, comanda")
+        .order("data", { ascending: false })
+        .limit(200);
+      if (movInit?.aeronave_id) q = q.eq("aeronave_id", movInit.aeronave_id);
+      const { data } = await q;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const abastecimentoOptions = abastecimentos.map((a) => ({
+    id: a.id,
+    label: `${a.data ? new Date(`${a.data}T00:00:00`).toLocaleDateString("pt-BR") : "s/ data"} — ${a.local || "s/ local"} — ${Number(a.litros || 0).toLocaleString("pt-BR")} L — ${Number(a.valor_total || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+  }));
+
+
+
+
 
   const { data: expenseConfigs = [] } = useQuery({
     queryKey: ["expense-configu-edit"],
@@ -205,6 +259,12 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
         .filter((s: string | null) => !!s && s.trim().length > 0)
         .map((s: string) => ({ id: s, label: s }))
     : [];
+
+  const isAbastecimento = /abastec|combust/i.test(
+    `${selected?.expense_type || ""} ${mov.categoria_nome || ""} ${mov.descricao || ""} ${tipoRateio}`
+  );
+
+
 
   const setM = (k: string, v: any) => setMov((s: any) => ({ ...s, [k]: v }));
   const setR = (k: string, v: any) => setRateio((s: any) => (s ? { ...s, [k]: v } : s));
@@ -249,7 +309,9 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
       const comuns = {
         despesa_id: movId,
         descricao_despesa: mov.descricao,
-        tipo_rateio: rateio?.tipo_rateio ?? null,
+        tipo_rateio: tipoRateio || rateio?.tipo_rateio || null,
+        periodicidade: periodicidade || rateio?.periodicidade || null,
+        abastecimento_id: abastecimentoId || null,
         forma_pagamento: mov.forma_pagamento,
         fornecedor_nome: mov.fornecedor_nome,
         data_vencimento: mov.data_vencimento || null,
@@ -295,9 +357,9 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
   };
 
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" style={{ background: "rgba(2,6,23,0.85)" }} onClick={onClose}>
-      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl shadow-cyan-950/40" onClick={(e) => e.stopPropagation()}>
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto p-3 sm:p-6 backdrop-blur-sm" style={{ background: "rgba(2,6,23,0.85)" }} onClick={onClose}>
+      <div className="relative m-auto flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl shadow-cyan-950/40" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300"><ClipboardList className="h-4 w-4" /></div>
@@ -332,12 +394,29 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                   <SearchableCombobox items={subcatOptions} value={subcategoria} onChange={(v) => setSubcategoria(v)} placeholder="Selecione a subcategoria" allowFreeText />
                 </div>
               )}
-              {rateio && (
-                <div>
-                  <label className={labelCls}>Tipo de Rateio</label>
-                  <SearchableCombobox items={TIPOS_RATEIO} value={rateio.tipo_rateio || ""} onChange={(v) => setR("tipo_rateio", v)} placeholder="Selecione" />
+              <div>
+                <label className={labelCls}>Tipo de Rateio</label>
+                <SearchableCombobox items={TIPOS_RATEIO} value={tipoRateio} onChange={setTipoRateio} placeholder="Selecione" allowFreeText />
+              </div>
+              <div>
+                <label className={labelCls}>Periodicidade</label>
+                <SearchableCombobox items={PERIODICIDADES} value={periodicidade} onChange={setPeriodicidade} placeholder="Selecione" allowFreeText />
+              </div>
+              {(isAbastecimento || abastecimentoId) && (
+                <div className="md:col-span-3">
+                  <label className={labelCls}>Abastecimento vinculado</label>
+                  <div className="flex items-center gap-2">
+                    <Fuel className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+                    <div className="flex-1">
+                      <SearchableCombobox items={abastecimentoOptions} value={abastecimentoId} onChange={setAbastecimentoId} placeholder="Selecione o abastecimento" searchPlaceholder="Buscar abastecimento..." />
+                    </div>
+                    {abastecimentoId && (
+                      <button type="button" onClick={() => setAbastecimentoId("")} className="rounded-lg border border-slate-700 px-2 py-1.5 text-[11px] text-slate-400 hover:bg-slate-800">Limpar</button>
+                    )}
+                  </div>
                 </div>
               )}
+
             </div>
           </Section>
 
@@ -406,7 +485,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
                     <div>
                       <label className={labelCls}>Quem pagou</label>
                       <SearchableCombobox
-                        items={PAGADORES}
+                        items={pagadorOptions}
                         value={l.pago_por || ""}
                         onChange={(v) => setLinha(idx, { pago_por: v })}
                         placeholder="Pagador"
@@ -497,6 +576,7 @@ export default function EditCaixaClienteModal({ movId, mov: movInit, onClose, on
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
