@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       abastecimentos: {
@@ -956,6 +981,7 @@ export type Database = {
           criado_em: string | null
           documentos: Json | null
           email: string | null
+          emails: string[]
           endereco: string | null
           id: string
           inscricao_estadual: string | null
@@ -978,6 +1004,7 @@ export type Database = {
           criado_em?: string | null
           documentos?: Json | null
           email?: string | null
+          emails?: string[]
           endereco?: string | null
           id?: string
           inscricao_estadual?: string | null
@@ -1000,6 +1027,7 @@ export type Database = {
           criado_em?: string | null
           documentos?: Json | null
           email?: string | null
+          emails?: string[]
           endereco?: string | null
           id?: string
           inscricao_estadual?: string | null
@@ -1756,7 +1784,7 @@ export type Database = {
           reference_id: string | null
           reference_type: string | null
           socio_id: string | null
-          status: string
+          status: string | null
           valor: number
         }
         Insert: {
@@ -1790,7 +1818,7 @@ export type Database = {
           reference_id?: string | null
           reference_type?: string | null
           socio_id?: string | null
-          status: string
+          status?: string | null
           valor: number
         }
         Update: {
@@ -1824,7 +1852,7 @@ export type Database = {
           reference_id?: string | null
           reference_type?: string | null
           socio_id?: string | null
-          status?: string
+          status?: string | null
           valor?: number
         }
         Relationships: [
@@ -3772,6 +3800,59 @@ export type Database = {
           },
         ]
       }
+      decimo_terceiro_funcionarios: {
+        Row: {
+          ano: number
+          atualizado_em: string | null
+          criado_em: string | null
+          data_primeira_parcela: string | null
+          data_segunda_parcela: string | null
+          id: string
+          id_usuario: string
+          status_pagamento: string | null
+          valor_bruto: number
+          valor_liquido: number
+          valor_primeira_parcela: number
+          valor_segunda_parcela: number
+        }
+        Insert: {
+          ano: number
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data_primeira_parcela?: string | null
+          data_segunda_parcela?: string | null
+          id?: string
+          id_usuario: string
+          status_pagamento?: string | null
+          valor_bruto?: number
+          valor_liquido?: number
+          valor_primeira_parcela?: number
+          valor_segunda_parcela?: number
+        }
+        Update: {
+          ano?: number
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data_primeira_parcela?: string | null
+          data_segunda_parcela?: string | null
+          id?: string
+          id_usuario?: string
+          status_pagamento?: string | null
+          valor_bruto?: number
+          valor_liquido?: number
+          valor_primeira_parcela?: number
+          valor_segunda_parcela?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decimo_terceiro_funcionarios_usuario_fkey"
+            columns: ["id_usuario"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       departamentos: {
         Row: {
           atualizado_em: string | null
@@ -4573,59 +4654,6 @@ export type Database = {
           },
         ]
       }
-      employee_thirteenth_salary: {
-        Row: {
-          created_at: string | null
-          first_installment_amount: number
-          first_installment_date: string | null
-          gross_value: number
-          id: string
-          net_value: number
-          payment_status: string | null
-          second_installment_amount: number
-          second_installment_date: string | null
-          updated_at: string | null
-          user_profile: string
-          year: number
-        }
-        Insert: {
-          created_at?: string | null
-          first_installment_amount?: number
-          first_installment_date?: string | null
-          gross_value?: number
-          id?: string
-          net_value?: number
-          payment_status?: string | null
-          second_installment_amount?: number
-          second_installment_date?: string | null
-          updated_at?: string | null
-          user_profile: string
-          year: number
-        }
-        Update: {
-          created_at?: string | null
-          first_installment_amount?: number
-          first_installment_date?: string | null
-          gross_value?: number
-          id?: string
-          net_value?: number
-          payment_status?: string | null
-          second_installment_amount?: number
-          second_installment_date?: string | null
-          updated_at?: string | null
-          user_profile?: string
-          year?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "employee_thirteenth_salary_user_profile_fkey"
-            columns: ["user_profile"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       employee_vacation_config: {
         Row: {
           created_at: string | null
@@ -5112,7 +5140,6 @@ export type Database = {
           cidade: string | null
           conta_pagamento: string | null
           criado_em: string
-          criado_por: string
           documento: string | null
           id: string
           nome_completo: string
@@ -5125,7 +5152,6 @@ export type Database = {
           cidade?: string | null
           conta_pagamento?: string | null
           criado_em?: string
-          criado_por: string
           documento?: string | null
           id?: string
           nome_completo: string
@@ -5138,7 +5164,6 @@ export type Database = {
           cidade?: string | null
           conta_pagamento?: string | null
           criado_em?: string
-          criado_por?: string
           documento?: string | null
           id?: string
           nome_completo?: string
@@ -5192,6 +5217,77 @@ export type Database = {
             columns: ["membro_tripulacao_id"]
             isOneToOne: false
             referencedRelation: "membros_tripulacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historico_pagamentos_funcionarios: {
+        Row: {
+          adicionais: string | null
+          atualizado_em: string | null
+          banco_pagamento: string | null
+          beneficios: string | null
+          criado_em: string | null
+          data_pagamento: string | null
+          decimo_terceiro_parcela1: number | null
+          decimo_terceiro_parcela2: number | null
+          ferias: number | null
+          horas_voadas: string | null
+          id: string
+          id_usuario: string | null
+          observacoes: string | null
+          observacoes_internas: string | null
+          salario_holerite: number | null
+          url_comprovante: string | null
+          url_holerite: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          adicionais?: string | null
+          atualizado_em?: string | null
+          banco_pagamento?: string | null
+          beneficios?: string | null
+          criado_em?: string | null
+          data_pagamento?: string | null
+          decimo_terceiro_parcela1?: number | null
+          decimo_terceiro_parcela2?: number | null
+          ferias?: number | null
+          horas_voadas?: string | null
+          id?: string
+          id_usuario?: string | null
+          observacoes?: string | null
+          observacoes_internas?: string | null
+          salario_holerite?: number | null
+          url_comprovante?: string | null
+          url_holerite?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          adicionais?: string | null
+          atualizado_em?: string | null
+          banco_pagamento?: string | null
+          beneficios?: string | null
+          criado_em?: string | null
+          data_pagamento?: string | null
+          decimo_terceiro_parcela1?: number | null
+          decimo_terceiro_parcela2?: number | null
+          ferias?: number | null
+          horas_voadas?: string | null
+          id?: string
+          id_usuario?: string | null
+          observacoes?: string | null
+          observacoes_internas?: string | null
+          salario_holerite?: number | null
+          url_comprovante?: string | null
+          url_holerite?: string | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagamento_salario_funcionario_user_profile_fkey"
+            columns: ["id_usuario"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -6527,6 +6623,42 @@ export type Database = {
           },
         ]
       }
+      manual_tutoriais: {
+        Row: {
+          categoria: string
+          created_at: string | null
+          criado_por: string | null
+          descricao: string
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string | null
+          video_url: string | null
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string | null
+          criado_por?: string | null
+          descricao: string
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          categoria?: string
+          created_at?: string | null
+          criado_por?: string | null
+          descricao?: string
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       membros_tripulacao: {
         Row: {
           atualizado_em: string | null
@@ -7204,74 +7336,6 @@ export type Database = {
         }
         Relationships: []
       }
-      pagamento_salario_funcionario: {
-        Row: {
-          atualizado_em: string | null
-          banco: string | null
-          base_salary_holerite: number | null
-          benefit: string | null
-          comprovante_url: string | null
-          criado_em: string | null
-          data_pagamento: string | null
-          decimo_terceiro_parcela1: number | null
-          decimo_terceiro_parcela2: number | null
-          extra: string | null
-          ferias: number | null
-          holerite_url: string | null
-          horas_voo: string | null
-          id: string
-          obs: string | null
-          obs2: string | null
-          user_profile: string | null
-        }
-        Insert: {
-          atualizado_em?: string | null
-          banco?: string | null
-          base_salary_holerite?: number | null
-          benefit?: string | null
-          comprovante_url?: string | null
-          criado_em?: string | null
-          data_pagamento?: string | null
-          decimo_terceiro_parcela1?: number | null
-          decimo_terceiro_parcela2?: number | null
-          extra?: string | null
-          ferias?: number | null
-          holerite_url?: string | null
-          horas_voo?: string | null
-          id?: string
-          obs?: string | null
-          obs2?: string | null
-          user_profile?: string | null
-        }
-        Update: {
-          atualizado_em?: string | null
-          banco?: string | null
-          base_salary_holerite?: number | null
-          benefit?: string | null
-          comprovante_url?: string | null
-          criado_em?: string | null
-          data_pagamento?: string | null
-          decimo_terceiro_parcela1?: number | null
-          decimo_terceiro_parcela2?: number | null
-          extra?: string | null
-          ferias?: number | null
-          holerite_url?: string | null
-          horas_voo?: string | null
-          id?: string
-          obs?: string | null
-          obs2?: string | null
-          user_profile?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pagamento_salario_funcionario_user_profile_fkey"
-            columns: ["user_profile"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       partner_accounts: {
         Row: {
           atualizado_em: string | null
@@ -7720,84 +7784,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pastas_documentos"
             referencedColumns: ["id"]
-          },
-        ]
-      }
-      pilot_hours: {
-        Row: {
-          aircraft_id: string
-          created_at: string | null
-          duilio: string | null
-          gramulha: string | null
-          id: string
-          josmeyr: string | null
-          oficina: string | null
-          period: string
-          ricardo: string | null
-          service_order_id: string
-          updated_at: string | null
-        }
-        Insert: {
-          aircraft_id: string
-          created_at?: string | null
-          duilio?: string | null
-          gramulha?: string | null
-          id?: string
-          josmeyr?: string | null
-          oficina?: string | null
-          period: string
-          ricardo?: string | null
-          service_order_id: string
-          updated_at?: string | null
-        }
-        Update: {
-          aircraft_id?: string
-          created_at?: string | null
-          duilio?: string | null
-          gramulha?: string | null
-          id?: string
-          josmeyr?: string | null
-          oficina?: string | null
-          period?: string
-          ricardo?: string | null
-          service_order_id?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pilot_hours_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pilot_hours_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "disponibilidade_aeronave"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pilot_hours_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_aeronave_totais"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "pilot_hours_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "pilot_hours_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
           },
         ]
       }
@@ -8868,41 +8854,41 @@ export type Database = {
           },
         ]
       }
-      salaries: {
+      salarios: {
         Row: {
-          base_salary_bruto: number | null
-          base_salary_liquid: number
-          benefit: string | null
-          created_at: string | null
-          effective_date: string
+          atualizado_em: string | null
+          beneficios: string | null
+          criado_em: string | null
+          data_vigencia: string
           id: string
-          updated_at: string | null
-          user_profile: string | null
+          id_usuario: string | null
+          salario_bruto: number | null
+          salario_liquido: number
         }
         Insert: {
-          base_salary_bruto?: number | null
-          base_salary_liquid: number
-          benefit?: string | null
-          created_at?: string | null
-          effective_date: string
+          atualizado_em?: string | null
+          beneficios?: string | null
+          criado_em?: string | null
+          data_vigencia: string
           id?: string
-          updated_at?: string | null
-          user_profile?: string | null
+          id_usuario?: string | null
+          salario_bruto?: number | null
+          salario_liquido: number
         }
         Update: {
-          base_salary_bruto?: number | null
-          base_salary_liquid?: number
-          benefit?: string | null
-          created_at?: string | null
-          effective_date?: string
+          atualizado_em?: string | null
+          beneficios?: string | null
+          criado_em?: string | null
+          data_vigencia?: string
           id?: string
-          updated_at?: string | null
-          user_profile?: string | null
+          id_usuario?: string | null
+          salario_bruto?: number | null
+          salario_liquido?: number
         }
         Relationships: [
           {
-            foreignKeyName: "salaries_user_profile_fkey"
-            columns: ["user_profile"]
+            foreignKeyName: "salarios_usuario_fkey"
+            columns: ["id_usuario"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
@@ -9945,6 +9931,110 @@ export type Database = {
           status?: string
           telefone?: string | null
           url_avatar?: string | null
+        }
+        Relationships: []
+      }
+      tutorial_steps: {
+        Row: {
+          audio_script: string
+          created_at: string
+          crop_h: number | null
+          crop_w: number | null
+          crop_x: number | null
+          crop_y: number | null
+          description: string
+          end_time: number | null
+          id: string
+          is_deleted: boolean
+          media_url: string | null
+          order_index: number
+          start_time: number | null
+          title: string
+          tutorial_id: string
+          updated_at: string
+          x_position: number
+          y_position: number
+        }
+        Insert: {
+          audio_script?: string
+          created_at?: string
+          crop_h?: number | null
+          crop_w?: number | null
+          crop_x?: number | null
+          crop_y?: number | null
+          description?: string
+          end_time?: number | null
+          id?: string
+          is_deleted?: boolean
+          media_url?: string | null
+          order_index?: number
+          start_time?: number | null
+          title?: string
+          tutorial_id: string
+          updated_at?: string
+          x_position?: number
+          y_position?: number
+        }
+        Update: {
+          audio_script?: string
+          created_at?: string
+          crop_h?: number | null
+          crop_w?: number | null
+          crop_x?: number | null
+          crop_y?: number | null
+          description?: string
+          end_time?: number | null
+          id?: string
+          is_deleted?: boolean
+          media_url?: string | null
+          order_index?: number
+          start_time?: number | null
+          title?: string
+          tutorial_id?: string
+          updated_at?: string
+          x_position?: number
+          y_position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutorial_steps_tutorial_id_fkey"
+            columns: ["tutorial_id"]
+            isOneToOne: false
+            referencedRelation: "tutorials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tutorials: {
+        Row: {
+          created_at: string
+          id: string
+          is_deleted: boolean
+          media_type: string
+          media_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          media_type?: string
+          media_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          media_type?: string
+          media_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -11206,6 +11296,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

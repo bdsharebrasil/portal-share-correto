@@ -118,9 +118,9 @@ export function ThirteenthSalaryManager() {
     queryKey: ["all_thirteenth_salaries"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("employee_thirteenth_salary")
+        .from("decimo_terceiro_funcionarios")
         .select("*")
-        .order("year", { ascending: false });
+        .order("ano", { ascending: false });
       if (error) throw error;
       return (data || []) as ThirteenthSalary[];
     },
@@ -137,16 +137,16 @@ export function ThirteenthSalaryManager() {
       const decemberEnd = `${selectedYear}-12-31T23:59:59`;
 
       const { data: novPayments, error: novError } = await supabase
-        .from("pagamento_salario_funcionario")
-        .select("id, user_profile, base_salary_holerite, created_at")
-        .gte("created_at", novemberStart)
-        .lte("created_at", novemberEnd);
+        .from("historico_pagamentos_funcionarios")
+        .select("id, id_usuario, salario_holerite, criado_em")
+        .gte("criado_em", novemberStart)
+        .lte("criado_em", novemberEnd);
 
       const { data: decPayments, error: decError } = await supabase
-        .from("pagamento_salario_funcionario")
-        .select("id, user_profile, base_salary_holerite, created_at")
-        .gte("created_at", decemberStart)
-        .lte("created_at", decemberEnd);
+        .from("historico_pagamentos_funcionarios")
+        .select("id, id_usuario, salario_holerite, criado_em")
+        .gte("criado_em", decemberStart)
+        .lte("criado_em", decemberEnd);
 
       if (novError) console.error("Erro ao buscar pagamentos de novembro:", novError);
       if (decError) console.error("Erro ao buscar pagamentos de dezembro:", decError);
@@ -296,18 +296,18 @@ export function ThirteenthSalaryManager() {
 
     try {
       const { error } = await supabase
-        .from("employee_thirteenth_salary")
+        .from("decimo_terceiro_funcionarios")
         .upsert({
-          user_profile: selectedEmployee.id,
-          year: selectedYear,
-          gross_value: grossValue,
-          net_value: netValue,
-          first_installment_amount: grossValue / 2,
-          second_installment_amount: grossValue / 2,
-          first_installment_date: `${selectedYear}-11-01`,
-          second_installment_date: `${selectedYear}-12-01`,
-          payment_status: "calculated",
-          updated_at: new Date().toISOString(),
+          id_usuario: selectedEmployee.id,
+          ano: selectedYear,
+          valor_bruto: grossValue,
+          valor_liquido: netValue,
+          valor_primeira_parcela: grossValue / 2,
+          valor_segunda_parcela: grossValue / 2,
+          data_primeira_parcela: `${selectedYear}-11-01`,
+          data_segunda_parcela: `${selectedYear}-12-01`,
+          status_pagamento: "calculated",
+          atualizado_em: new Date().toISOString(),
         } as any);
 
       if (error) throw error;

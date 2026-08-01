@@ -12,22 +12,22 @@ import { toast } from "sonner";
 import { Upload, FileText, X } from "lucide-react";
 import { syncSalaryPaymentToFinancial } from "@/services/financialSyncClient";
 
-// Interface alinhada 1:1 com o schema da tabela pagamento_salario_funcionario
+// Interface alinhada ao schema da tabela historico_pagamentos_funcionarios
 interface SalaryPayment {
   id: string;
-  user_profile: string | null;
-  base_salary_holerite: number | null;
-  benefit: string | null;
-  horas_voo: string | null;
-  extra: string | null;
-  obs: string | null;
-  obs2: string | null;
-  holerite_url: string | null;
-  comprovante_url: string | null;
+  id_usuario: string | null;
+  salario_holerite: number | null;
+  beneficios: string | null;
+  horas_voadas: string | null;
+  adicionais: string | null;
+  observacoes: string | null;
+  observacoes_internas: string | null;
+  url_holerite: string | null;
+  url_comprovante: string | null;
   decimo_terceiro_parcela1: number | null;
   decimo_terceiro_parcela2: number | null;
   ferias: number | null;
-  banco: string | null;
+  banco_pagamento: string | null;
   data_pagamento: string | null;
   criado_em?: string | null;
   atualizado_em?: string | null;
@@ -42,19 +42,19 @@ interface PagamentoSalarioDialogProps {
 }
 
 const emptyForm: Partial<SalaryPayment> = {
-  user_profile: "",
-  base_salary_holerite: null,
-  benefit: "",
-  horas_voo: "",
-  extra: "",
-  obs: "",
-  obs2: "",
-  holerite_url: "",
-  comprovante_url: "",
+  id_usuario: "",
+  salario_holerite: null,
+  beneficios: "",
+  horas_voadas: "",
+  adicionais: "",
+  observacoes: "",
+  observacoes_internas: "",
+  url_holerite: "",
+  url_comprovante: "",
   decimo_terceiro_parcela1: null,
   decimo_terceiro_parcela2: null,
   ferias: null,
-  banco: "",
+  banco_pagamento: "",
   data_pagamento: "",
 };
 
@@ -119,7 +119,7 @@ export function PagamentoSalarioDialog({
     setIsUploadingComprovante(true);
     try {
       const url = await uploadFile(file, "salarios", "comprovante");
-      setFormData((prev) => ({ ...prev, comprovante_url: url }));
+      setFormData((prev) => ({ ...prev, url_comprovante: url }));
       toast.success("Comprovante enviado com sucesso!");
     } catch (error: any) {
       toast.error(error.message || "Erro ao enviar comprovante");
@@ -136,7 +136,7 @@ export function PagamentoSalarioDialog({
     setIsUploadingHolerite(true);
     try {
       const url = await uploadFile(file, "holerites", "holerite");
-      setFormData((prev) => ({ ...prev, holerite_url: url }));
+      setFormData((prev) => ({ ...prev, url_holerite: url }));
       toast.success("Holerite enviado com sucesso!");
     } catch (error: any) {
       toast.error(error.message || "Erro ao enviar holerite");
@@ -153,37 +153,36 @@ export function PagamentoSalarioDialog({
   };
 
   const handleSave = async () => {
-    if (!formData.user_profile) {
+    if (!formData.id_usuario) {
       toast.error("Por favor, selecione um funcionário");
       return;
     }
 
     setIsSaving(true);
     try {
-      const selectedEmployee = employees.find((e) => e.id === formData.user_profile);
+      const selectedEmployee = employees.find((e) => e.id === formData.id_usuario);
       const employeeName = selectedEmployee?.full_name || "Funcionário";
 
       const payload = {
-        user_profile: formData.user_profile,
-        base_salary_holerite: toNumberOrNull(formData.base_salary_holerite),
-        benefit: formData.benefit || null,
-        horas_voo: formData.horas_voo || null,
-        extra: formData.extra || null,
-        obs: formData.obs || null,
-        obs2: formData.obs2 || null,
-        holerite_url: formData.holerite_url || null,
-        comprovante_url: formData.comprovante_url || null,
+        id_usuario: formData.id_usuario,
+        salario_holerite: toNumberOrNull(formData.salario_holerite),
+        beneficios: formData.beneficios || null,
+        horas_voadas: formData.horas_voadas || null,
+        adicionais: formData.adicionais || null,
+        observacoes: formData.observacoes || null,
+        url_holerite: formData.url_holerite || null,
+        url_comprovante: formData.url_comprovante || null,
         decimo_terceiro_parcela1: toNumberOrNull(formData.decimo_terceiro_parcela1),
         decimo_terceiro_parcela2: toNumberOrNull(formData.decimo_terceiro_parcela2),
         ferias: toNumberOrNull(formData.ferias),
-        banco: formData.banco || null,
+        banco_pagamento: formData.banco_pagamento || null,
         data_pagamento: formData.data_pagamento || null,
       };
 
       if (payment?.id) {
         // Atualizar pagamento existente
-        const { error } = await supabase
-          .from("pagamento_salario_funcionario")
+        const { error } = await (supabase as any)
+          .from("historico_pagamentos_funcionarios")
           .update({
             ...payload,
             atualizado_em: new Date().toISOString(),
@@ -197,8 +196,8 @@ export function PagamentoSalarioDialog({
         toast.success("Pagamento atualizado com sucesso!");
       } else {
         // Criar novo pagamento
-        const { data: newPayment, error } = await supabase
-          .from("pagamento_salario_funcionario")
+        const { data: newPayment, error } = await (supabase as any)
+          .from("historico_pagamentos_funcionarios")
           .insert(payload)
           .select()
           .single();
@@ -216,15 +215,15 @@ export function PagamentoSalarioDialog({
               newPayment.id,
               user.id,
               employeeName,
-              formData.user_profile as string,
+              formData.id_usuario as string,
               {
-                base_salary_holerite: payload.base_salary_holerite,
-                horas_voo: payload.horas_voo,
-                benefit: payload.benefit,
-                extra: payload.extra,
-                comprovante_url: payload.comprovante_url,
-                obs: payload.obs,
-                banco: payload.banco,
+                base_salary_holerite: payload.salario_holerite,
+                horas_voo: payload.horas_voadas,
+                benefit: payload.beneficios,
+                extra: payload.adicionais,
+                comprovante_url: payload.url_comprovante,
+                obs: payload.observacoes,
+                banco: payload.banco_pagamento,
               }
             );
 
@@ -265,8 +264,8 @@ export function PagamentoSalarioDialog({
               Funcionário <span className="text-destructive">*</span>
             </Label>
             <Select
-              value={formData.user_profile || ""}
-              onValueChange={(value) => setFormData({ ...formData, user_profile: value })}
+              value={formData.id_usuario || ""}
+              onValueChange={(value) => setFormData({ ...formData, id_usuario: value })}
             >
               <SelectTrigger id="employee">
                 <SelectValue placeholder="Selecione o funcionário" />
@@ -288,8 +287,8 @@ export function PagamentoSalarioDialog({
                 Banco
               </Label>
               <Select
-                value={formData.banco || ""}
-                onValueChange={(value) => setFormData({ ...formData, banco: value })}
+                value={formData.banco_pagamento || ""}
+                onValueChange={(value) => setFormData({ ...formData, banco_pagamento: value })}
               >
                 <SelectTrigger id="banco">
                   <SelectValue placeholder="Selecione o banco" />
@@ -332,11 +331,11 @@ export function PagamentoSalarioDialog({
                 placeholder="0.00"
                 step="0.01"
                 min="0"
-                value={formData.base_salary_holerite ?? ""}
+                value={formData.salario_holerite ?? ""}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    base_salary_holerite: e.target.value ? parseFloat(e.target.value) : null,
+                    salario_holerite: e.target.value ? parseFloat(e.target.value) : null,
                   })
                 }
               />
@@ -351,8 +350,8 @@ export function PagamentoSalarioDialog({
                 id="benefit"
                 type="text"
                 placeholder="0.00"
-                value={formData.benefit || ""}
-                onChange={(e) => setFormData({ ...formData, benefit: e.target.value })}
+                value={formData.beneficios || ""}
+                onChange={(e) => setFormData({ ...formData, beneficios: e.target.value })}
               />
             </div>
 
@@ -365,8 +364,8 @@ export function PagamentoSalarioDialog({
                 id="flight_hours"
                 type="text"
                 placeholder="0.00"
-                value={formData.horas_voo || ""}
-                onChange={(e) => setFormData({ ...formData, horas_voo: e.target.value })}
+                value={formData.horas_voadas || ""}
+                onChange={(e) => setFormData({ ...formData, horas_voadas: e.target.value })}
               />
             </div>
 
@@ -379,8 +378,8 @@ export function PagamentoSalarioDialog({
                 id="extra"
                 type="text"
                 placeholder="0.00"
-                value={formData.extra || ""}
-                onChange={(e) => setFormData({ ...formData, extra: e.target.value })}
+                value={formData.adicionais || ""}
+                onChange={(e) => setFormData({ ...formData, adicionais: e.target.value })}
               />
             </div>
 
@@ -448,11 +447,11 @@ export function PagamentoSalarioDialog({
           {/* Holerite (arquivo) */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Holerite (arquivo)</Label>
-            {formData.holerite_url ? (
+            {formData.url_holerite ? (
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <FileText className="h-5 w-5 text-blue-600" />
                 <a
-                  href={formData.holerite_url}
+                  href={formData.url_holerite}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-blue-600 hover:underline flex-1 truncate"
@@ -463,7 +462,7 @@ export function PagamentoSalarioDialog({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setFormData({ ...formData, holerite_url: "" })}
+                  onClick={() => setFormData({ ...formData, url_holerite: "" })}
                   className="h-8 w-8 p-0"
                 >
                   <X className="h-4 w-4" />
@@ -496,11 +495,11 @@ export function PagamentoSalarioDialog({
           {/* Comprovante de Pagamento */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Comprovante de Pagamento</Label>
-            {formData.comprovante_url ? (
+            {formData.url_comprovante ? (
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                 <FileText className="h-5 w-5 text-blue-600" />
                 <a
-                  href={formData.comprovante_url}
+                  href={formData.url_comprovante}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-blue-600 hover:underline flex-1 truncate"
@@ -511,7 +510,7 @@ export function PagamentoSalarioDialog({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setFormData({ ...formData, comprovante_url: "" })}
+                  onClick={() => setFormData({ ...formData, url_comprovante: "" })}
                   className="h-8 w-8 p-0"
                 >
                   <X className="h-4 w-4" />
@@ -549,8 +548,8 @@ export function PagamentoSalarioDialog({
             <Textarea
               id="obs"
               placeholder="Observações adicionais"
-              value={formData.obs || ""}
-              onChange={(e) => setFormData({ ...formData, obs: e.target.value })}
+              value={formData.observacoes || ""}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
               className="min-h-20"
             />
           </div>
@@ -563,8 +562,8 @@ export function PagamentoSalarioDialog({
             <Textarea
               id="obs2"
               placeholder="Observações complementares"
-              value={formData.obs2 || ""}
-              onChange={(e) => setFormData({ ...formData, obs2: e.target.value })}
+              value={formData.observacoes_internas || ""}
+              onChange={(e) => setFormData({ ...formData, observacoes_internas: e.target.value })}
               className="min-h-20"
             />
           </div>

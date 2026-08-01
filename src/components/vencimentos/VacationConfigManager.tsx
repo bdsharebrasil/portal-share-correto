@@ -92,9 +92,9 @@ export function VacationConfigManager() {
     queryKey: ["all_vacation_configs"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("employee_vacation_config")
+        .from("ferias_funcionarios")
         .select("*")
-        .order("year", { ascending: false });
+        .order("ano", { ascending: false });
       if (error) throw error;
       return (data || []) as VacationConfig[];
     },

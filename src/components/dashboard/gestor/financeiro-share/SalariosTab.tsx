@@ -23,19 +23,19 @@ interface UserProfile {
 
 interface PagamentoSalario {
   id: string;
-  user_profile: string | null;
-  base_salary_holerite: number | string | null;
-  benefit: string | null;
-  horas_voo: string | null;
+  id_usuario: string | null;
+  salario_holerite: number | string | null;
+  beneficios: string | null;
+  horas_voadas: string | null;
   decimo_terceiro_parcela1: number | string | null;
   decimo_terceiro_parcela2: number | string | null;
   ferias: number | string | null;
-  extra: string | null;
-  obs: string | null;
-  banco: string | null;
+  adicionais: string | null;
+  observacoes: string | null;
+  banco_pagamento: string | null;
   data_pagamento: string | null;
-  holerite_url: string | null;
-  comprovante_url: string | null;
+  url_holerite: string | null;
+  url_comprovante: string | null;
   criado_em: string | null;
   atualizado_em: string | null;
 }
@@ -149,11 +149,11 @@ export default function SalariosTab() {
         return;
       }
 
-      const { data: pags, error: pe } = await supabase
-        .from("pagamento_salario_funcionario")
+      const { data: pags, error: pe } = await (supabase as any)
+        .from("historico_pagamentos_funcionarios")
         .select("*")
         .in(
-          "user_profile",
+          "id_usuario",
           userList.map((u) => u.id),
         );
       if (pe) throw pe;
@@ -161,28 +161,28 @@ export default function SalariosTab() {
       const pagMap: Record<string, PagamentoSalario | null> = {};
       const formMap: Record<string, FormState> = {};
       (pags ?? []).forEach((p: any) => {
-        const existing = pagMap[p.user_profile];
+        const existing = pagMap[p.id_usuario];
         // keep the most recent by data_pagamento / atualizado_em
         if (!existing || (p.atualizado_em ?? "") > (existing.atualizado_em ?? "")) {
-          pagMap[p.user_profile] = p as PagamentoSalario;
+          pagMap[p.id_usuario] = p as PagamentoSalario;
         }
       });
       userList.forEach((u) => {
         const p = pagMap[u.id] ?? null;
         if (p) {
           formMap[u.id] = {
-            base_salary_holerite: p.base_salary_holerite != null ? String(p.base_salary_holerite) : "",
-            benefit: p.benefit ?? "",
-            horas_voo: p.horas_voo ?? "",
-            extra: p.extra ?? "",
+            base_salary_holerite: p.salario_holerite != null ? String(p.salario_holerite) : "",
+            benefit: p.beneficios ?? "",
+            horas_voo: p.horas_voadas ?? "",
+            extra: p.adicionais ?? "",
             decimo_terceiro_parcela1: p.decimo_terceiro_parcela1 != null ? String(p.decimo_terceiro_parcela1) : "",
             decimo_terceiro_parcela2: p.decimo_terceiro_parcela2 != null ? String(p.decimo_terceiro_parcela2) : "",
             ferias: p.ferias != null ? String(p.ferias) : "",
-            banco: p.banco ?? "",
+            banco: p.banco_pagamento ?? "",
             data_pagamento: p.data_pagamento ?? "",
-            obs: p.obs ?? "",
-            holerite_url: p.holerite_url ?? "",
-            comprovante_url: p.comprovante_url ?? "",
+            obs: p.observacoes ?? "",
+            holerite_url: p.url_holerite ?? "",
+            comprovante_url: p.url_comprovante ?? "",
           };
         } else {
           formMap[u.id] = { ...emptyForm };
@@ -205,30 +205,30 @@ export default function SalariosTab() {
     setToast(null);
     try {
       const payload = {
-        user_profile: userId,
-        base_salary_holerite: f.base_salary_holerite ? Number(f.base_salary_holerite) : null,
-        benefit: f.benefit.trim() || null,
-        horas_voo: f.horas_voo.trim() || null,
-        extra: f.extra.trim() || null,
+        id_usuario: userId,
+        salario_holerite: f.base_salary_holerite ? Number(f.base_salary_holerite) : null,
+        beneficios: f.benefit.trim() || null,
+        horas_voadas: f.horas_voo.trim() || null,
+        adicionais: f.extra.trim() || null,
         decimo_terceiro_parcela1: f.decimo_terceiro_parcela1 ? Number(f.decimo_terceiro_parcela1) : null,
         decimo_terceiro_parcela2: f.decimo_terceiro_parcela2 ? Number(f.decimo_terceiro_parcela2) : null,
         ferias: f.ferias ? Number(f.ferias) : null,
-        banco: f.banco || null,
+        banco_pagamento: f.banco || null,
         data_pagamento: f.data_pagamento || null,
-        obs: f.obs.trim() || null,
-        holerite_url: f.holerite_url.trim() || null,
-        comprovante_url: f.comprovante_url.trim() || null,
+        observacoes: f.obs.trim() || null,
+        url_holerite: f.holerite_url.trim() || null,
+        url_comprovante: f.comprovante_url.trim() || null,
       };
       const existing = pagamentos[userId];
       if (existing?.id) {
-        const { error } = await supabase
-          .from("pagamento_salario_funcionario")
+      const { error } = await (supabase as any)
+        .from("historico_pagamentos_funcionarios")
           .update({ ...payload, atualizado_em: new Date().toISOString() })
           .eq("id", existing.id);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase
-          .from("pagamento_salario_funcionario")
+        const { data, error } = await (supabase as any)
+          .from("historico_pagamentos_funcionarios")
           .insert({ ...payload, criado_em: new Date().toISOString() })
           .select("*")
           .single();

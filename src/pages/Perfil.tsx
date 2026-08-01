@@ -239,7 +239,7 @@ export default function Perfil() {
       const {
         data,
         error
-      } = await supabase.from("pagamento_salario_funcionario").select("*").eq("user_profile", userId).order("criado_em", {
+      } = await supabase.from("historico_pagamentos_funcionarios").select("*").eq("id_usuario", userId).order("criado_em", {
         ascending: false
       });
       if (error) return [] as any[];
@@ -248,7 +248,7 @@ export default function Perfil() {
     enabled: !!userId
   });
 
-  // Payslips são agora carregados da tabela pagamento_salario_funcionario acima
+  // Payslips são agora carregados da tabela historico_pagamentos_funcionarios acima
   const {
     data: vacationRequests = [],
     refetch: refetchVacations

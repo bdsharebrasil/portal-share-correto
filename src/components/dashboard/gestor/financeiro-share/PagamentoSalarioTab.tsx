@@ -135,10 +135,11 @@ export function PagamentoSalarioTab() {
     try {
       const startDate = `${selectedYear}-${selectedMonth}-01`;
       const endDate = `${selectedYear}-${selectedMonth}-31`;
-      const {
-        data: existingPayments,
-        error
-      } = await supabase.from("pagamento_salario_funcionario").select("*").gte("criado_em", startDate).lte("criado_em", `${endDate}T23:59:59`);
+      const { data: existingPayments, error } = await (supabase as any)
+        .from("historico_pagamentos_funcionarios")
+        .select("id, id_usuario, salario_holerite, beneficios, horas_voadas, adicionais, observacoes, banco_pagamento, data_pagamento, url_holerite, url_comprovante, decimo_terceiro_parcela1, decimo_terceiro_parcela2, ferias, criado_em, atualizado_em")
+        .gte("criado_em", startDate)
+        .lte("criado_em", `${endDate}T23:59:59`);
       if (error) {
         toast.error(`Erro ao carregar pagamentos: ${error.message}`);
         return;
@@ -146,23 +147,23 @@ export function PagamentoSalarioTab() {
 
       // Create rows for all employees, filling in existing data
       const rows: SalaryPaymentRow[] = employees.map(employee => {
-        const existingPayment = existingPayments?.find(p => p.user_profile === employee.id);
+        const existingPayment = existingPayments?.find((p: any) => p.id_usuario === employee.id);
         return {
           id: existingPayment?.id || undefined,
           user_profile: employee.id,
           employee_name: employee.full_name,
-          base_salary_holerite: existingPayment?.base_salary_holerite || null,
-          benefit: existingPayment?.benefit || "",
-          horas_voo: existingPayment?.horas_voo || "",
-          decimo_terceiro_parcela1: existingPayment?.decimo_terceiro_parcela1 || null,
-          decimo_terceiro_parcela2: existingPayment?.decimo_terceiro_parcela2 || null,
-          ferias: existingPayment?.ferias || null,
-          extra: existingPayment?.extra || "",
-          obs: existingPayment?.obs || "",
-          banco: existingPayment?.banco || "",
+          base_salary_holerite: existingPayment?.salario_holerite ?? null,
+          benefit: existingPayment?.beneficios || "",
+          horas_voo: existingPayment?.horas_voadas || "",
+          decimo_terceiro_parcela1: existingPayment?.decimo_terceiro_parcela1 ?? null,
+          decimo_terceiro_parcela2: existingPayment?.decimo_terceiro_parcela2 ?? null,
+          ferias: existingPayment?.ferias ?? null,
+          extra: existingPayment?.adicionais || "",
+          obs: existingPayment?.observacoes || "",
+          banco: existingPayment?.banco_pagamento || "",
           data_pagamento: existingPayment?.data_pagamento || null,
-          holerite_url: existingPayment?.holerite_url || null,
-          comprovante_url: existingPayment?.comprovante_url || null,
+          holerite_url: existingPayment?.url_holerite || null,
+          comprovante_url: existingPayment?.url_comprovante || null,
           isDirty: false,
           isLoading: false
         };
@@ -251,8 +252,8 @@ export function PagamentoSalarioTab() {
       await deleteCashFlowEntry(row.id);
 
       // Deletar o pagamento de salário
-      const { error } = await supabase
-        .from("pagamento_salario_funcionario")
+      const { error } = await (supabase as any)
+        .from("historico_pagamentos_funcionarios")
         .delete()
         .eq("id", row.id);
 
@@ -274,42 +275,44 @@ export function PagamentoSalarioTab() {
     const yearNum = parseInt(year);
     try {
       // Check if record exists for this employee and year
-      const {
-        data: existing,
-        error: fetchError
-      } = await supabase.from("employee_thirteenth_salary").select("*").eq("user_profile", employeeId).eq("year", yearNum).maybeSingle();
+      const { data: existing, error: fetchError } = await (supabase as any)
+        .from("decimo_terceiro_funcionarios")
+        .select("*")
+        .eq("id_usuario", employeeId)
+        .eq("ano", yearNum)
+        .maybeSingle();
       if (fetchError) {
         console.error("Erro ao buscar 13º salário:", fetchError);
         return;
       }
       let newStatus = "pending";
-      const hasParcela1 = parcela1 && parcela1 > 0 || existing?.first_installment_amount && existing.first_installment_amount > 0;
-      const hasParcela2 = parcela2 && parcela2 > 0 || existing?.second_installment_amount && existing.second_installment_amount > 0;
+      const hasParcela1 = (parcela1 && parcela1 > 0) || (existing?.valor_primeira_parcela && existing.valor_primeira_parcela > 0);
+      const hasParcela2 = (parcela2 && parcela2 > 0) || (existing?.valor_segunda_parcela && existing.valor_segunda_parcela > 0);
       if (hasParcela1 && hasParcela2) {
         newStatus = "paid";
       } else if (hasParcela1) {
-        newStatus = "first_paid";
+        newStatus = "partial_paid";
       } else if (hasParcela2) {
-        newStatus = "second_paid";
+        newStatus = "partial_paid";
       }
       const updateData: any = {
-        updated_at: new Date().toISOString(),
-        payment_status: newStatus
+        atualizado_em: new Date().toISOString(),
+        status_pagamento: newStatus
       };
       if (parcela1 && parcela1 > 0) {
-        updateData.first_installment_amount = parcela1;
-        updateData.first_installment_date = format(new Date(), "yyyy-MM-dd");
+        updateData.valor_primeira_parcela = parcela1;
+        updateData.data_primeira_parcela = format(new Date(), "yyyy-MM-dd");
       }
       if (parcela2 && parcela2 > 0) {
-        updateData.second_installment_amount = parcela2;
-        updateData.second_installment_date = format(new Date(), "yyyy-MM-dd");
+        updateData.valor_segunda_parcela = parcela2;
+        updateData.data_segunda_parcela = format(new Date(), "yyyy-MM-dd");
       }
       if (existing) {
         // Update existing record
-        const {
-          error: updateError
-        } = await supabase.from("employee_thirteenth_salary").update(updateData).eq("id", existing.id);
-        if (updateError) {
+        const { error: updateError } = await (supabase as any)
+          .from("decimo_terceiro_funcionarios")
+          .update(updateData)
+          .eq("id", existing.id);        if (updateError) {
           console.error("Erro ao atualizar 13º salário:", updateError);
           toast.error("Erro ao atualizar registro de 13º salário");
         } else {
@@ -317,19 +320,19 @@ export function PagamentoSalarioTab() {
         }
       } else {
         // Create new record
-        const {
-          error: insertError
-        } = await supabase.from("employee_thirteenth_salary").insert({
-          user_profile: employeeId,
-          year: yearNum,
-          first_installment_amount: parcela1 || 0,
-          first_installment_date: parcela1 && parcela1 > 0 ? format(new Date(), "yyyy-MM-dd") : null,
-          second_installment_amount: parcela2 || 0,
-          second_installment_date: parcela2 && parcela2 > 0 ? format(new Date(), "yyyy-MM-dd") : null,
-          payment_status: newStatus,
-          gross_value: (parcela1 || 0) + (parcela2 || 0),
-          net_value: (parcela1 || 0) + (parcela2 || 0)
-        });
+        const { error: insertError } = await (supabase as any)
+          .from("decimo_terceiro_funcionarios")
+          .insert({
+            id_usuario: employeeId,
+            ano: yearNum,
+            valor_primeira_parcela: parcela1 || 0,
+            data_primeira_parcela: parcela1 && parcela1 > 0 ? format(new Date(), "yyyy-MM-dd") : null,
+            valor_segunda_parcela: parcela2 || 0,
+            data_segunda_parcela: parcela2 && parcela2 > 0 ? format(new Date(), "yyyy-MM-dd") : null,
+            status_pagamento: newStatus,
+            valor_bruto: (parcela1 || 0) + (parcela2 || 0),
+            valor_liquido: (parcela1 || 0) + (parcela2 || 0)
+          });
         if (insertError) {
           console.error("Erro ao criar registro de 13º salário:", insertError);
           toast.error("Erro ao criar registro de 13º salário");
@@ -405,39 +408,41 @@ export function PagamentoSalarioTab() {
     });
     try {
       const paymentData = {
-        user_profile: row.user_profile,
-        base_salary_holerite: row.base_salary_holerite,
-        benefit: row.benefit || null,
-        horas_voo: row.horas_voo || null,
+        id_usuario: row.user_profile,
+        salario_holerite: row.base_salary_holerite,
+        beneficios: row.benefit || null,
+        horas_voadas: row.horas_voo || null,
         decimo_terceiro_parcela1: row.decimo_terceiro_parcela1,
         decimo_terceiro_parcela2: row.decimo_terceiro_parcela2,
         ferias: row.ferias,
-        extra: row.extra || null,
-        obs: row.obs || null,
-        banco: row.banco || null,
+        adicionais: row.extra || null,
+        observacoes: row.obs || null,
+        banco_pagamento: row.banco || null,
         data_pagamento: row.data_pagamento,
-        holerite_url: row.holerite_url,
-        comprovante_url: row.comprovante_url
+        url_holerite: row.holerite_url,
+        url_comprovante: row.comprovante_url
       };
       let isNewPayment = !row.id;
       if (row.id) {
-        const {
-          error
-        } = await supabase.from("pagamento_salario_funcionario").update({
-          ...paymentData,
-          updated_at: new Date().toISOString()
-        }).eq("id", row.id);
+        const { error } = await (supabase as any)
+          .from("historico_pagamentos_funcionarios")
+          .update({
+            ...paymentData,
+            atualizado_em: new Date().toISOString()
+          })
+          .eq("id", row.id);
         if (error) throw error;
 
         // Para update, não recriamos entradas do fluxo de caixa por ora
       } else {
-        const {
-          data,
-          error
-        } = await supabase.from("pagamento_salario_funcionario").insert({
-          ...paymentData,
-          created_at: `${selectedYear}-${selectedMonth}-15T12:00:00Z`
-        }).select().single();
+        const { data, error } = await (supabase as any)
+          .from("historico_pagamentos_funcionarios")
+          .insert({
+            ...paymentData,
+            criado_em: `${selectedYear}-${selectedMonth}-15T12:00:00Z`
+          })
+          .select()
+          .single();
         if (error) throw error;
         setPaymentRows(prev => {
           const updated = [...prev];

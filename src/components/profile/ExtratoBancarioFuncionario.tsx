@@ -37,11 +37,11 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
   const { data: payments = [], isLoading, isError } = useQuery({
     queryKey: ['employee-salary-payments', employeeId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('pagamento_salario_funcionario')
-        .select('id, created_at, base_salary_holerite, benefit, horas_voo, extra, obs, comprovante_url, holerite_url, ferias, decimo_terceiro_parcela1, decimo_terceiro_parcela2')
-        .eq('user_profile', employeeId)
-        .order('created_at', { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from('historico_pagamentos_funcionarios')
+        .select('id, criado_em, salario_holerite, beneficios, horas_voadas, adicionais, observacoes, url_comprovante, url_holerite, ferias, decimo_terceiro_parcela1, decimo_terceiro_parcela2')
+        .eq('id_usuario', employeeId)
+        .order('criado_em', { ascending: false });
 
       if (error) {
         console.error('Erro ao buscar pagamentos:', error);

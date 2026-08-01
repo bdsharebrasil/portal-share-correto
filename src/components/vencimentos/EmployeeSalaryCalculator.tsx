@@ -130,14 +130,14 @@ export function EmployeeSalaryCalculator() {
       const employeesWithSalaries = await Promise.all(
         colaboradores.map(async (profile) => {
           const { data: salaryData } = await supabase
-            .from("salaries")
+            .from("salarios")
             .select("*")
-            .eq("user_profile", profile.id)
-            .order("effective_date", { ascending: false })
+            .eq("id_usuario", profile.id)
+            .order("data_vigencia", { ascending: false })
             .limit(1);
 
           const baseSalary = salaryData && salaryData.length > 0
-            ? salaryData[0].base_salary_bruto || salaryData[0].base_salary_liquid
+            ? salaryData[0].salario_bruto ?? salaryData[0].salario_liquido
             : null;
 
           return {
@@ -161,11 +161,11 @@ export function EmployeeSalaryCalculator() {
     queryKey: ["all_thirteenth_salaries"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("employee_thirteenth_salary")
+        .from("decimo_terceiro_funcionarios")
         .select("*")
-        .order("year", { ascending: false });
+        .order("ano", { ascending: false });
       if (error) throw error;
-      return (data || []) as ThirteenthSalary[];
+      return (data || []) as unknown as ThirteenthSalary[];
     },
     enabled: isAllowed,
   });
@@ -247,26 +247,26 @@ export function EmployeeSalaryCalculator() {
       if (!selectedEmployee) throw new Error("Nenhum funcionário selecionado");
 
       const thirteenthData = {
-        user_profile: selectedEmployee.id,
-        year: selectedYear,
-        gross_value: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) : 0,
-        net_value: thirteenthForm.net_value ? parseFloat(thirteenthForm.net_value) : 0,
-        first_installment_date: thirteenthForm.first_installment_date || null,
-        second_installment_date: thirteenthForm.second_installment_date || null,
-        first_installment_amount: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) * 0.5 : 0,
-        second_installment_amount: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) * 0.5 : 0,
-        payment_status: thirteenthForm.payment_status,
-        updated_at: new Date().toISOString(),
+        id_usuario: selectedEmployee.id,
+        ano: selectedYear,
+        valor_bruto: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) : 0,
+        valor_liquido: thirteenthForm.net_value ? parseFloat(thirteenthForm.net_value) : 0,
+        data_primeira_parcela: thirteenthForm.first_installment_date || null,
+        data_segunda_parcela: thirteenthForm.second_installment_date || null,
+        valor_primeira_parcela: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) * 0.5 : 0,
+        valor_segunda_parcela: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) * 0.5 : 0,
+        status_pagamento: thirteenthForm.payment_status,
+        atualizado_em: new Date().toISOString(),
       };
 
       if (selectedEmployeeThirteenth?.id) {
         const { error } = await supabase
-          .from("employee_thirteenth_salary")
+          .from("decimo_terceiro_funcionarios")
           .update(thirteenthData)
           .eq("id", selectedEmployeeThirteenth.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("employee_thirteenth_salary").insert(thirteenthData);
+        const { error } = await supabase.from("decimo_terceiro_funcionarios").insert(thirteenthData);
         if (error) throw error;
       }
     },
@@ -357,7 +357,7 @@ export function EmployeeSalaryCalculator() {
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="pt-6">
           <p className="text-center text-gray-400">
-            Você não tem permiss��o para acessar esta página.
+            Você não tem permissão para acessar esta página.
           </p>
         </CardContent>
       </Card>
@@ -536,7 +536,7 @@ export function EmployeeSalaryCalculator() {
                     </Label>
                     <Input
                       id="first-install-date"
-                      type="data"
+                      type="date"
                       value={thirteenthForm.first_installment_date}
                       onChange={(e) =>
                         setThirteenthForm({ ...thirteenthForm, first_installment_date: e.target.value })
@@ -550,7 +550,7 @@ export function EmployeeSalaryCalculator() {
                     </Label>
                     <Input
                       id="second-install-date"
-                      type="data"
+                      type="date"
                       value={thirteenthForm.second_installment_date}
                       onChange={(e) =>
                         setThirteenthForm({ ...thirteenthForm, second_installment_date: e.target.value })
@@ -688,7 +688,7 @@ export function EmployeeSalaryCalculator() {
                   </Label>
                   <Input
                     id="scheduled-vacation-date"
-                    type="data"
+                    type="date"
                     value={vacationForm.scheduled_date}
                     onChange={(e) =>
                       setVacationForm({ ...vacationForm, scheduled_date: e.target.value })
