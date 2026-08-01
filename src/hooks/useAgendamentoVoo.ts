@@ -86,6 +86,7 @@ export function useAeronavesAgendamento() {
       const { data, error } = await sb
         .from("aeronave")
         .select("id, matricula, modelo, fabricante, status, url_imagem")
+        .eq("status", "ativa")
         .order("matricula");
       if (error) throw error;
       return data ?? [];
@@ -136,6 +137,7 @@ export function useTripulantes() {
       const { data, error } = await sb
         .from("membros_tripulacao")
         .select("id, user_id, nome_completo, status, url_avatar, telefone")
+        .eq("status", "ativo")
         .order("nome_completo");
       if (error) throw error;
       const membros = (data ?? []) as Tripulante[];
@@ -403,7 +405,32 @@ export function useAgendamentoMutations() {
     },
   });
 
-  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, definirStatusAeronave, criarEscala, removerEscala };
+  const excluirSolicitacao = useMutation({
+    mutationFn: async (solicitacao: Solicitacao) => {
+      if (solicitacao.aeronave_id) {
+        await sb
+          .from("datas_bloqueadas_voo")
+          .delete()
+          .eq("aeronave_id", solicitacao.aeronave_id)
+          .gte("data_bloqueio", solicitacao.data_agendada)
+          .like("motivo", "Voo confirmado%");
+
+        await sb
+          .from("escala_tripulacao")
+          .delete()
+          .eq("solicitacao_id", solicitacao.id);
+      }
+      const { error } = await sb.from("solicitacoes_reserva_voo").delete().eq("id", solicitacao.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Voo excluído");
+      invalidate();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao excluir voo"),
+  });
+
+  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, definirStatusAeronave, criarEscala, removerEscala, excluirSolicitacao };
 }
 
 async function upsertStatusAeronave(aeronaveId: string, status: string, vooId: string | null) {
