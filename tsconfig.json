@@ -17,6 +17,7 @@
       "@/*": ["./src/*"]
     },
     "skipLibCheck": true,
+    "types": ["node", "vite/client"],
     "strict": false,
     "strictNullChecks": false,
     "target": "ES2020",
