@@ -102,6 +102,11 @@ const isEntrada = (m: Movimentacao) => {
 
 const isShare = (m: Movimentacao) => norm(m.tipo_caixa) === "share";
 
+/** Despesa de cliente que saiu do caixa da Share (não foi paga direto pelo cliente). */
+const pagoPelaShare = (m: Movimentacao) =>
+  !isShare(m) && !isEntrada(m) && !m.pago_diretamente && aguardandoReembolso(m);
+
+
 const formatDate = (d?: string | null) =>
   d ? new Date(d + (d.length <= 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "—";
 
@@ -339,14 +344,20 @@ export default function FluxoCaixaTab() {
   const filteredMovs = useMemo(() => {
     let list = movs;
     switch (activeTab) {
-      case "caixa_share":    list = list.filter(isShare); break;
+      // Caixa Share: lançamentos do caixa share + despesas de cliente que a Share
+      // pagou e aguarda reembolso (o dinheiro saiu do caixa da Share).
+      case "caixa_share":    list = list.filter((m) => isShare(m) || pagoPelaShare(m)); break;
       case "caixa_cliente":  list = list.filter((m) => !isShare(m)); break;
       case "contas_pagar":   list = list.filter((m) => {
         const pending = !isEntrada(m) && !m.data_pagamento;
         if (!pending) return false;
         return contasCaixa === "share" ? isShare(m) : !isShare(m);
       }); break;
-      case "contas_receber": list = list.filter((m) => isEntrada(m) && !m.data_pagamento && isShare(m)); break;
+      // Contas a Receber: entradas share em aberto + tudo que está aguardando
+      // reembolso do cliente (despesa paga pela Share ainda não ressarcida).
+      case "contas_receber": list = list.filter((m) =>
+        (isEntrada(m) && !m.data_pagamento && isShare(m)) || aguardandoReembolso(m)
+      ); break;
     }
     if (flowFilter === "entradas") list = list.filter(isEntrada);
     if (flowFilter === "saidas")   list = list.filter((m) => !isEntrada(m));
@@ -1007,7 +1018,26 @@ function RowFragment({ m, entrada, expanded, name, clienteNome, cat, subcats, ti
                 </div>
               </div>
 
+              {aguardandoReembolso(m) && (
+                <div className="rounded-xl border border-amber-400/30 bg-amber-500/[0.07] p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300/80 mb-1">
+                    Fluxo do reembolso — lançamento único
+                  </div>
+                  <div className="text-xs text-amber-100/90 leading-relaxed">
+                    Despesa <strong>paga pelo caixa da Share</strong>
+                    {m.data_pagamento ? ` em ${formatDate(m.data_pagamento)}` : ""} no valor de{" "}
+                    <strong>{formatBRL(valorTotalDe(m))}</strong>
+                    {clienteNome ? <> — a Share <strong>aguarda o reembolso de {clienteNome}</strong></> : " — aguardando reembolso do cliente"}
+                    {" "}no valor de <strong>{formatBRL(valorDe(m))}</strong>.
+                  </div>
+                  <div className="mt-1 text-[11px] text-amber-200/60">
+                    É um único lançamento: saída no caixa Share + conta a receber do cliente (não gera despesa duplicada).
+                  </div>
+                </div>
+              )}
+
               <div>
+
                 <div className={`font-bold text-[10px] uppercase tracking-wider mb-2 ${theme.textMuted}`}>
                   Detalhes Financeiros {loadingRateio && <span className="opacity-70">(carregando rateio...)</span>}
                 </div>
