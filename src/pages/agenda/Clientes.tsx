@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ClienteCard } from "@/components/clientes/ClienteCard";
-import { Plus, Search, Building, Upload, FileText, X, Image, ChevronLeft, Edit, Phone, Mail, MapPin, Folder, Grid3x3, List } from "lucide-react";
+import { Plus, Search, Building, Upload, FileText, X, Image, ChevronLeft, Edit, Phone, Mail, MapPin, Folder, Grid3x3, List, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -42,6 +42,7 @@ interface Cliente {
   uf?: string;
   telefone?: string;
   email?: string;
+  emails?: string[];
   contato_financeiro?: string;
   observacoes?: string;
   aeronave_ownerships?: AeronavePropriedade[];
@@ -127,6 +128,7 @@ export default function Clientes() {
   const [viewingCliente, setViewingCliente] = useState<Cliente | null>(null);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [emailsExtras, setEmailsExtras] = useState<string[]>([]);
   const [showInactive, setShowInactive] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const { toast } = useToast();
@@ -269,6 +271,7 @@ export default function Clientes() {
         status: (cliente.status as string) || "ativo",
         codigo_cliente: cliente.codigo_cliente || null
       });
+      setEmailsExtras(((cliente.emails as string[] | undefined) || []).filter((e) => e && e.trim() && e.trim() !== (cliente.email || "").trim()));
       setAircraftOwnerships(cliente.aeronave_ownerships || []);
       setLogoPreview(cliente.url_logo || null);
       setHasPartner(cliente.tem_socio || false);
@@ -280,6 +283,7 @@ export default function Clientes() {
     } else {
       setEditingCliente(null);
       setFormData({ ...emptyFormData });
+      setEmailsExtras([]);
       setAircraftOwnerships([]);
       setLogoPreview(null);
       setHasPartner(false);
@@ -450,6 +454,9 @@ export default function Clientes() {
         uf: formData.uf,
         telefone: formData.telefone,
         email: formData.email,
+        emails: Array.from(
+          new Set([formData.email, ...emailsExtras].map((e) => (e || "").trim()).filter(Boolean)),
+        ),
         contato_financeiro: formData.contato_financeiro,
         observacoes: formData.observacoes,
         status: normalizeStatus(formData.status),
@@ -780,7 +787,7 @@ export default function Clientes() {
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {viewingCliente.telefone && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Phone className="h-3 w-3" />Telefone</p><p className="text-sm font-medium text-foreground">{viewingCliente.telefone}</p></div>}
-                  {viewingCliente.email && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Mail className="h-3 w-3" />E-mail</p><p className="text-sm font-medium text-foreground break-all">{viewingCliente.email}</p></div>}
+                  {(viewingCliente.email || (viewingCliente.emails || []).length > 0) && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Mail className="h-3 w-3" />E-mail</p>{Array.from(new Set([viewingCliente.email, ...(viewingCliente.emails || [])].filter(Boolean) as string[])).map((mail) => (<p key={mail} className="text-sm font-medium text-foreground break-all">{mail}</p>))}</div>}
                   {(viewingCliente.endereco || viewingCliente.cidade || viewingCliente.uf) && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><MapPin className="h-3 w-3" />Endereço</p><p className="text-sm font-medium text-foreground">{[viewingCliente.endereco, [viewingCliente.cidade, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ')}</p></div>}
                   {viewingCliente.contato_financeiro && <div><p className="text-xs text-muted-foreground mb-2 flex items-center gap-1"><Building className="h-3 w-3" />Contato Financeiro</p><p className="text-sm font-medium text-foreground">{viewingCliente.contato_financeiro}</p></div>}
                 </div>
@@ -971,8 +978,31 @@ export default function Clientes() {
                     <Input id="telefone" value={formData.telefone} onChange={e => setFormData({...formData, telefone: formatPhoneNumber(e.target.value)})} placeholder="(00) 00000-0000" maxLength={15} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
                   </div>
                   <div>
-                    <Label htmlFor="email" className="text-slate-300 font-semibold mb-2 block">📧 E-mail</Label>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label htmlFor="email" className="text-slate-300 font-semibold block">📧 E-mail</Label>
+                      <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-cyan-400 hover:text-cyan-300" onClick={() => setEmailsExtras(prev => [...prev, ""])}>
+                        <Plus className="h-4 w-4 mr-1" /> Adicionar e-mail
+                      </Button>
+                    </div>
                     <Input id="email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="contato@empresa.com" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                    {emailsExtras.length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {emailsExtras.map((mail, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <Input
+                              type="email"
+                              value={mail}
+                              onChange={e => setEmailsExtras(prev => prev.map((m, i) => (i === idx ? e.target.value : m)))}
+                              placeholder={`e-mail adicional ${idx + 1}`}
+                              className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                            />
+                            <Button type="button" size="icon" variant="ghost" className="h-9 w-9 text-red-400 hover:text-red-300" onClick={() => setEmailsExtras(prev => prev.filter((_, i) => i !== idx))}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="col-span-2">
                     <Label htmlFor="contato_financeiro" className="text-slate-300 font-semibold mb-2 block">💼 Contato Financeiro</Label>
