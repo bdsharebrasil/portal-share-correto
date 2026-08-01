@@ -3,7 +3,7 @@ import { format, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Plane, CircleDot, CheckCircle2, Clock, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Solicitacao, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,8 +51,9 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
     [solicitacoes],
   );
 
-  const handleStatusChange = (voo: Solicitacao, newStatus: string) => {
-    alterarStatusVoo.mutate({ solicitacaoId: voo.id, status: newStatus });
+  // CORRIGIDO: agora envia { solicitacao, status } igual à assinatura da mutation
+  const handleStatusChange = (voo: Solicitacao, newStatus: SolicitacaoStatus) => {
+    alterarStatusVoo.mutate({ solicitacao: voo, status: newStatus });
   };
 
   return (
