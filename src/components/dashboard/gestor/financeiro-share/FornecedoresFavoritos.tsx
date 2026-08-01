@@ -21,7 +21,6 @@ interface Fornecedor {
   telefone: string | null;
   documento: string | null;
   categoria: string | null;
-  criado_por: string;
   criado_em: string;
 }
 
@@ -197,7 +196,6 @@ export function FornecedoresFavoritos() {
             telefone: formData.telefone || null,
             documento: formData.documento || null,
             categoria: formData.categoria || "nenhum",
-            criado_por: user.id
           }]);
 
         if (error) throw error;
