@@ -9,6 +9,7 @@ import { useReceiptPdfGenerator } from "@/hooks/useReceiptPdfGenerator";
 import { generateSequentialReceiptNumber } from "@/lib/receiptUtils";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
+import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import {
   type Aeronave, type Cotista,
   norm, num,
@@ -113,6 +114,9 @@ export default function ImportarDemonstrativoTab() {
   const [clienteRateioSelecionado, setClienteRateioSelecionado] = useState("");
   const [solicitacaoModalOpen, setSolicitacaoModalOpen] = useState(false);
   const [solicitacaoInitialData, setSolicitacaoInitialData] = useState<any>(null);
+  const [recibosGerados, setRecibosGerados] = useState<any[]>([]);
+  const [perguntarEmail, setPerguntarEmail] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { generateAndUploadPdf } = useReceiptPdfGenerator();
@@ -440,8 +444,9 @@ export default function ImportarDemonstrativoTab() {
       if (modo === "recibo") {
         const createdReceipts = await criarRecibos(demoUrl);
         const empCount = await criarDespesasEmprestimo(demoUrl);
+        setRecibosGerados(createdReceipts);
         showToast("ok", `${createdReceipts.length} recibo(s) criado(s)${empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo` : ""}`);
-        resetForm();
+        setPerguntarEmail(createdReceipts.length > 0);
         return;
       }
 
@@ -551,12 +556,12 @@ export default function ImportarDemonstrativoTab() {
             socio_id: null,
           }] : [],
         });
+        setRecibosGerados(createdReceipts);
         setSolicitacaoModalOpen(true);
 
         // Criar despesas_cliente_direto para empréstimos
         const empCount = await criarDespesasEmprestimo(demoUrlFinal);
         showToast("ok", `${createdReceipts.length} recibo(s) criado(s)${empCount > 0 ? ` + ${empCount} cobrança(s) de empréstimo` : ""}`);
-        resetForm();
       }
     } catch (err: any) {
       showToast("err", err?.message || "Falha desconhecida");
@@ -585,10 +590,62 @@ export default function ImportarDemonstrativoTab() {
         </div>
       )}
 
+      {recibosGerados.length > 0 && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" /> {recibosGerados.length} recibo(s) gerado(s)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEmailDialogOpen(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+              >
+                Enviar por e-mail
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRecibosGerados([]); setPerguntarEmail(false); resetForm(); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:text-slate-100"
+              >
+                Novo demonstrativo
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {recibosGerados.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-3 text-xs text-slate-300 rounded-lg bg-slate-900/60 border border-slate-800 px-3 py-2">
+                <span className="font-semibold text-slate-100">Nº {r.numero_recibo}</span>
+                <span className="truncate flex-1">{r.nome_pagador}</span>
+                <span className="text-cyan-400 font-semibold">{brl(Number(r.valor || 0))}</span>
+                {r.pdf_url ? (
+                  <a href={r.pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300">
+                    <FileText className="h-3.5 w-3.5" /> Ver PDF
+                  </a>
+                ) : (
+                  <span className="text-slate-500">PDF indisponível</span>
+                )}
+              </div>
+            ))}
+          </div>
+          {perguntarEmail && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2">
+              <span className="text-xs text-slate-200">Deseja enviar o(s) recibo(s) por e-mail agora?</span>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setPerguntarEmail(false); setEmailDialogOpen(true); }} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950">Sim, enviar</button>
+                <button type="button" onClick={() => setPerguntarEmail(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">Agora não</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
       
         <span className="text-sm font-bold text-slate-100">Importar Demonstrativo — Reconhecimento Automático</span>
       </div>
+
 
       {/* Upload card */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 space-y-4">
@@ -760,9 +817,27 @@ export default function ImportarDemonstrativoTab() {
 
       <SolicitacaoPagamentoModal
         open={solicitacaoModalOpen}
-        onOpenChange={setSolicitacaoModalOpen}
+        onOpenChange={(v) => {
+          setSolicitacaoModalOpen(v);
+          if (!v && recibosGerados.length > 0) setPerguntarEmail(true);
+        }}
         initialData={solicitacaoInitialData || undefined}
       />
+
+      <EnviarEmailClienteDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        clienteId={solicitacaoInitialData?.cliente_id || null}
+        assuntoSugerido={`Recibo${recibosGerados.length > 1 ? "s" : ""} ${recibosGerados.map((r) => r.numero_recibo).join(", ")}`}
+        mensagemSugerida={`Olá,\n\nSegue em anexo o(s) recibo(s) referente(s) a ${TIPO_LABEL[tipo]}${result?.numero_documento ? ` - Doc ${result.numero_documento}` : ""}.\n\nAtenciosamente,`}
+        anexos={recibosGerados
+          .filter((r) => r.pdf_url)
+          .map((r) => ({ filename: `recibo-${r.numero_recibo}.pdf`, url: r.pdf_url, label: `Recibo ${r.numero_recibo} — ${r.nome_pagador}` }))}
+        tipo="recibo"
+        referenceType="recibos"
+        referenceIds={recibosGerados.map((r) => r.id).filter(Boolean)}
+      />
+
     </div>
   );
 }
