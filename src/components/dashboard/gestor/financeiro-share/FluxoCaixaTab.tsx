@@ -427,14 +427,25 @@ export default function FluxoCaixaTab() {
   }, []);
 
   const queryClient = useQueryClient();
-  const onBaixaSuccess = useCallback((updated: Partial<Movimentacao>) => {
+  const onBaixaSuccess = useCallback(async (updated: Partial<Movimentacao>) => {
     if (!baixaMov) return;
+
     setMovs((prev) => prev.map((x) => (x.id === baixaMov.id ? { ...x, ...updated } : x)));
     setToast({ type: "ok", text: "Baixa registrada com sucesso." });
     setBaixaMov(null);
     setExpandedId(null);
-    queryClient.invalidateQueries({ queryKey: ["balanco"] });
-  }, [baixaMov, queryClient]);
+
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["movimentacoes"] }),
+        queryClient.invalidateQueries({ queryKey: ["contas-receber"] }),
+        queryClient.invalidateQueries({ queryKey: ["balanco"] }),
+      ]);
+      await fetchMovs();
+    } catch (error) {
+      console.error("Erro ao sincronizar o fluxo de caixa após a baixa:", error);
+    }
+  }, [baixaMov, fetchMovs, queryClient]);
 
   const openNewMov = useCallback(() => {
     const caixa: "share" | "cliente" =

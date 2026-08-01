@@ -209,143 +209,44 @@ export function ContasReceber() {
   const loadContas = async () => {
     setIsLoading(true);
     try {
-      const { data: bankRecData, error: bankRecError } = await (supabase as any).from("movimentacoes").select(`
-        id, data:criado_em, descricao, valor, status, clientes_id, aeronave_id,
-        data_vencimento, boleto_url, nf_url, comprovante_url,
-        clientes:clientes_id(razao_social),
-        aeronave:aeronave_id(matricula)
-      `).eq("tipo", "receita").in("status", ["pendente", "pago", "parcial"]).order("criado_em", { ascending: false });
-
-      if (bankRecError) {
-        console.error("Erro ao carregar bank_reconciliations:", bankRecError);
-      }
-
-      // Nota: `controle_bancario` foi removido do sistema; apenas usamos `movimentacoes` (conciliação)
-      // para gerar contas a receber derivadas.
-
-      const contasFromBankRec = (bankRecData || []).map((rec: any) => {
-        const clientName = rec.clientes?.razao_social || "Cliente não especificado";
-        const aircraftReg = rec.aeronave?.matricula || "";
-        const valor = Math.abs(rec.valor ?? 0);
-
-        return {
-          id: rec.id,
-          numero: `BR-${rec.id.slice(0, 8)}`,
-          cliente_nome: clientName,
-          cliente_cnpj: "",
-          data_criacao: rec.data,
-          data_vencimento: rec.data_vencimento || rec.data,
-          valor: valor,
-          categoria: "Receita Cliente",
-          descricao: rec.descricao,
-          status: rec.status || "pendente",
-          arquivo_pdf_url: rec.nf_url || rec.comprovante_url || rec.boleto_url,
-          aeronave: aircraftReg,
-          referencia: rec.descricao,
-          isFromBankReconciliation: true,
-          bankReconciliationId: rec.id
-        };
-      });
-
-      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any).select("*").neq("status", "recebido").order("data_vencimento");
+      const { data: contasData, error: contasError } = await (supabase.from("contas_areceber") as any)
+        .select("*")
+        .neq("status", "recebido")
+        .order("data_vencimento");
 
       if (contasError) {
         toast.error(`Erro ao carregar: ${contasError.message}`);
         return;
       }
 
-      const fluxoIds = new Set<string>();
-      const bankRecIds = new Set(contasFromBankRec.map((c) => c.id));
+      const contasList = (contasData || []).map((conta: any) => {
+        const referencia = conta.movimentacao_id
+          ? (conta.descricao || "")
+          : (conta.descricao || "");
 
-      const contasManuals = await Promise.all(
-        (contasData || []).map(async (conta) => {
-          // Detecta se a conta manual já foi importada a partir do Fluxo de Caixa
-          // ou da Conciliação (movimentacoes). Antes comparávamos apenas o
-          // próprio `conta.id`, mas os registros importados têm ids diferentes
-          // (controle_bancario.id ou movimentacoes.id). Por isso agora verificamos
-          // `movimentacao_id` e `reference_id` contra os sets já carregados.
-          const isAlreadyImported = Boolean(
-            (conta.movimentacao_id && bankRecIds.has(conta.movimentacao_id)) ||
-            // fallback: se a referência vier em reference_id e apontar para movimentacoes
-            (conta.reference_id && bankRecIds.has(conta.reference_id))
-          );
-
-          // "referencia" não existe como coluna em contas_areceber; é derivada aqui a partir
-          // do vínculo com movimentacoes (movimentacao_id), quando existir.
-          let referencia = "";
-          let dataVencimentoFromBanco = conta.data_vencimento;
-          let isFromBankRec = false;
-
-          if (conta.movimentacao_id) {
-            const { data: bancarioData } = await (supabase as any).from("movimentacoes").select("descricao, data:criado_em").eq("id", conta.movimentacao_id).single();
-
-            if (bancarioData) {
-              referencia = bancarioData.descricao || referencia;
-              isFromBankRec = true;
-            }
-          }
-
-          return {
-            ...conta,
-            referencia,
-            data_vencimento: dataVencimentoFromBanco,
-            isAlreadyImported,
-            isFromBankReconciliation: isFromBankRec
-          };
-        })
-      );
-
-      const contasManuaisFiltradas = contasManuals.filter((c) => !c.isAlreadyImported);
-
-      const allIds = new Set<string>();
-      const duplicateIds = new Set<string>();
-
-      const checkDuplicates = (id: string) => {
-        if (allIds.has(id)) {
-          duplicateIds.add(id);
-        }
-        allIds.add(id);
-      };
-
-      contasFromBankRec.forEach((c) => checkDuplicates(c.id));
-      contasManuaisFiltradas.forEach((c) => checkDuplicates(c.id));
-
-      if (duplicateIds.size > 0) {
-        toast.warning(`Aviso: ${duplicateIds.size} registro(s) duplicado(s) detectado(s).`);
-      }
-
-      const todasContas = (() => {
-        const map = new Map<string, any>();
-        for (const c of [...contasFromBankRec, ...contasManuaisFiltradas]) {
-          if (!map.has(c.id)) {
-            map.set(c.id, c);
-          } else {
-            const existing = map.get(c.id);
-            map.set(c.id, {
-              ...existing,
-              ...c,
-              isFromBankReconciliation: !!existing.isFromBankReconciliation || !!c.isFromBankReconciliation
-            });
-          }
-        }
-        return Array.from(map.values());
-      })();
+        return {
+          ...conta,
+          referencia,
+          data_vencimento: conta.data_vencimento || null,
+          isFromBankReconciliation: false,
+          bankReconciliationId: null,
+        };
+      });
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const contasVencidas = todasContas.filter((conta) => {
+      const contasVencidas = contasList.filter((conta: any) => {
         if (conta.status !== "pendente") return false;
         const vencimento = parseLocalDate(conta.data_vencimento);
         return vencimento !== null && vencimento < today;
       });
 
       for (const conta of contasVencidas) {
-        // Mark overdue locally only; DB check constraints don't include "inadimplente"
         conta.status = "inadimplente";
       }
 
-      setContas(todasContas);
+      setContas(contasList);
     } catch (error: any) {
       toast.error(error.message || "Erro ao carregar contas a receber");
     }
@@ -584,22 +485,6 @@ export function ContasReceber() {
     try {
       console.log("Atualizando status de conta_areceber", { contaId, newStatus });
 
-      // Linha virtual (vinda de movimentacoes/conciliação bancária) não existe em contas_areceber:
-      // atualiza direto a movimentação correspondente.
-      if (conta?.isFromBankReconciliation) {
-        const movId = conta.bankReconciliationId || conta.id;
-        const { error: movErr } = await (supabase.from("movimentacoes") as any)
-          .update({ status: newStatus === "recebido" ? "pago" : newStatus, atualizado_em: new Date().toISOString() })
-          .eq("id", movId);
-        if (movErr) {
-          toast.error(`Erro ao atualizar movimentação: ${movErr.message}`);
-          return;
-        }
-        toast.success("Status atualizado com sucesso!");
-        loadContas();
-        return;
-      }
-
       const { data: changed, error } = await supabase.from("contas_areceber").update({ status: newStatus, atualizado_em: new Date().toISOString() }).eq("id", contaId).select("id,status");
       console.log("contas_areceber.update status result:", { contaId, newStatus, changed, error });
 
@@ -686,28 +571,18 @@ export function ContasReceber() {
         movimentacaoUpdate.comprovante_url = comprovanteUrl;
       }
 
-      // ─── 1. Tenta baixar a linha real em contas_areceber ────────────────────
-      // Não confiamos apenas na flag `isFromBankReconciliation`: o mesmo id pode
-      // aparecer nas duas origens. Tentamos o update e verificamos as linhas.
       let baixouAlgo = false;
 
-      if (!contasReceberData.isFromBankReconciliation) {
-        const { data: updatedRows, error: updateError } = await supabase
-          .from("contas_areceber")
-          .update(updateData)
-          .eq("id", contasReceberData.id)
-          .select("id,status,data_recebimento");
+      const { data: updatedRows, error: updateError } = await supabase
+        .from("contas_areceber")
+        .update(updateData)
+        .eq("id", contasReceberData.id)
+        .select("id,status,data_recebimento");
 
-        if (updateError) throw updateError;
-        baixouAlgo = !!updatedRows?.length;
-      }
+      if (updateError) throw updateError;
+      baixouAlgo = !!updatedRows?.length;
 
-      // ─── 2. Baixa a movimentação vinculada (ou a linha virtual) ─────────────
-      const movimentacaoId =
-        contasReceberData.movimentacao_id ||
-        contasReceberData.bankReconciliationId ||
-        (contasReceberData.isFromBankReconciliation ? contasReceberData.id : null);
-
+      const movimentacaoId = contasReceberData.movimentacao_id || null;
       let movimentacoesQuery = (supabase.from("movimentacoes") as any)
         .update(movimentacaoUpdate);
 
@@ -716,7 +591,7 @@ export function ContasReceber() {
       } else if (contasReceberData.reference_type && contasReceberData.reference_id) {
         movimentacoesQuery = movimentacoesQuery
           .eq("contas_areceber_id", contasReceberData.id)
-          .eq("reference_type", contasReceberData.reference_type.replace(":areceber", ":mov_share"))
+          .eq("reference_type", contasReceberData.reference_type)
           .eq("reference_id", contasReceberData.reference_id);
       } else {
         movimentacoesQuery = movimentacoesQuery.eq("contas_areceber_id", contasReceberData.id);
@@ -725,16 +600,6 @@ export function ContasReceber() {
       const { data: movRows, error: movimentacoesError } = await movimentacoesQuery.select("id");
       if (movimentacoesError) throw movimentacoesError;
       baixouAlgo = baixouAlgo || !!movRows?.length;
-
-      // ─── 3. Fallback: nada foi baixado — tenta a movimentação pelo próprio id ─
-      if (!baixouAlgo) {
-        const { data: fallbackRows, error: fallbackError } = await (supabase.from("movimentacoes") as any)
-          .update(movimentacaoUpdate)
-          .eq("id", contasReceberData.id)
-          .select("id");
-        if (fallbackError) throw fallbackError;
-        baixouAlgo = !!fallbackRows?.length;
-      }
 
       if (!baixouAlgo) {
         throw new Error(
@@ -751,6 +616,8 @@ export function ContasReceber() {
 
       toast.success("Conta marcada como recebida!");
       resetBankDialog();
+      await loadContas();
+      await new Promise((resolve) => setTimeout(resolve, 150));
       await loadContas();
     } catch (error: any) {
       console.error("Erro ao marcar como recebido:", error);

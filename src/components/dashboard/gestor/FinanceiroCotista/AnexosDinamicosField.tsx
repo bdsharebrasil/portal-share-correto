@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export type AnexoTipoId = "comprovante" | "recibo" | "nf" | "boleto" | "outro";
+export type AnexoTipoId = "comprovante" | "recibo" | "nf" | "boleto" | "demonstrativo" | "outro";
 
 export interface AnexoLinha {
   id: string;
@@ -28,11 +28,12 @@ export interface AnexoLinha {
 }
 
 const TIPOS: { id: AnexoTipoId; label: string }[] = [
-  { id: "comprovante", label: "Comprovante" },
-  { id: "recibo", label: "Recibo" },
-  { id: "nf", label: "Nota Fiscal" },
-  { id: "boleto", label: "Boleto" },
-  { id: "outro", label: "Outro documento" },
+  { id: "comprovante", label: "COMPROVANTE" },
+  { id: "recibo", label: "RECIBO" },
+  { id: "nf", label: "NOTA FISCAL" },
+  { id: "boleto", label: "BOLETO" },
+  { id: "demonstrativo", label: "DEMONSTRATIVO" },
+  { id: "outro", label: "OUTRO DOCUMENTO" },
 ];
 
 export function anexoTipoLabel(id: AnexoTipoId) {
@@ -109,8 +110,7 @@ export default function AnexosDinamicosField({
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          <Paperclip className="h-3.5 w-3.5 text-primary" />
-          Anexos do lançamento
+         
         </div>
         <Button
           type="button"
@@ -119,7 +119,7 @@ export default function AnexosDinamicosField({
           onClick={addLinha}
           className="h-8 gap-1.5 rounded-lg text-xs"
         >
-          <Plus className="h-3.5 w-3.5" /> Adicionar anexo
+          <Plus className="h-3.5 w-3.5" /> ADICIONAR ANEXO
         </Button>
       </div>
 

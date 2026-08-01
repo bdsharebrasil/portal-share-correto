@@ -20,37 +20,41 @@ interface Props {
 }
 
 const TIPOS = [
-  { id: "despesa", label: "Despesa" },
-  { id: "saida", label: "Saída" },
-  { id: "receita", label: "Receita" },
-  { id: "entrada", label: "Entrada" },
-  { id: "estorno", label: "Estorno" },
+  { id: "saida", label: "SAÍDA" },
+  { id: "entrada", label: "ENTRADA" },
+  { id: "estorno", label: "ESTORNO" },
 ];
 
 const TIPOS_RATEIO = [
-  { id: "FIXO", label: "Fixo" },
-  { id: "EXTRA", label: "Extra" },
-  { id: "VARIAVEL_POR_VOO", label: "Variável por voo" },
-  { id: "VARIAVEL_POR_HORA", label: "Variável por hora" },
+  { id: "FIXO", label: "FIXO" },
+  { id: "EXTRA", label: "EXTRA" },
+  { id: "VARIAVEL_POR_VOO", label: "VARIAVEL POR VOO" },
+  { id: "VARIAVEL_POR_HORA", label: "VARIAVEL POR HORA" },
 ];
 
 const STATUS = [
-  { id: "pendente", label: "Pendente" },
-  { id: "pago", label: "Pago" },
-  { id: "recebido", label: "Recebido" },
-  { id: "cancelado", label: "Cancelado" },
+  { id: "pendente", label: "PENDENTE" },
+  { id: "pago", label: "PAGO" },
+  { id: "aporte", label: "APORTE" },
+  { id: "cancelado", label: "CANCELADO" },
 ];
 
 const FORMAS = [
-  { id: "PIX", label: "Pix" },
+  { id: "PIX", label: "PIX" },
   { id: "TED", label: "TED" },
-  { id: "BOLETO", label: "Boleto" },
-  { id: "DINHEIRO", label: "Dinheiro" },
-  { id: "TRANSFERENCIA", label: "Transferência" },
-  { id: "DEBITO_AUTOMATICO", label: "Débito automático" },
+  { id: "BOLETO", label: "BOLETO" },
+  { id: "DINHEIRO", label: "DINHEIRO" },
+  { id: "CHEQUE", label: "CHEQUE" },
 ];
 
-const isEntradaTipo = (t: string) => t === "receita" || t === "entrada" || t === "estorno";
+const PERIODICIDADES = [
+  { id: "EVENTUAL", label: "EVENTUAL" },
+  { id: "MENSAL", label: "MENSAL" },
+  { id: "SEMESTRAL", label: "SEMESTRAL" },
+  { id: "ANUAL", label: "ANUAL" },
+];
+
+const isEntradaTipo = (t: string) => t === "receita" || t === "entrada" || t === "aporte"|| t === "estorno";
 
 const addMonths = (iso: string, n: number) => {
   if (!iso) return null;
@@ -93,8 +97,9 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
 
   const [form, setForm] = useState({
     descricao: "",
-    tipo: "despesa",
-    tipo_rateio: "EXTRA",
+    tipo: "DESPESA",
+    tipo_rateio: "VARIAVEL POR VOO",
+    periodicidade: "",
     clientes_id: "",
     socio_id: "",
     aeronave_id: "",
@@ -102,7 +107,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     subcategorias: [] as string[],
     valor_original: "",
     percentual_uso: "",
-    data_competencia: hoje,
+    data_competencia: "",
     data_vencimento: "",
     data_pagamento: "",
     status: "pendente",
@@ -110,12 +115,22 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     colaborador: "",
     fornecedor_nome: "",
     parcelado: false,
-    quantidade_parcelas: "2",
+    quantidade_parcelas: "1",
     numero_parcela: "1",
     observacoes: "",
   });
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const mostrarCamposPagamento = form.status === "pago";
+
+  const handleStatusChange = (id: string) => {
+    set({
+      status: id,
+      ...(id === "pago"
+        ? {}
+        : { data_pagamento: "", forma_pagamento: "", colaborador: "" }),
+    });
+  };
 
   useEffect(() => {
     supabase
@@ -224,7 +239,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
       label: `${s.nome || "—"} · cotista`,
     }));
     return [
-      { id: "EMPRESA", label: "Share Brasil (empresa)" },
+      { id: "EMPRESA", label: "SHARE BRASIL" },
       ...cls,
       ...socs,
       ...colabs,
@@ -285,15 +300,20 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     if (!form.clientes_id) return toast.error("Selecione o cliente.");
     if (!form.aeronave_id) return toast.error("Selecione a aeronave (necessária para o rateio e o balanço).");
 
+    const isPago = form.status === "pago";
+    if (isPago) {
+      if (!form.data_pagamento) return toast.error("Informe a data de pagamento.");
+      if (!form.forma_pagamento) return toast.error("Informe a forma de pagamento.");
+      if (!form.colaborador) return toast.error("Informe quem realizou o pagamento.");
+    }
 
     const parcelas = form.parcelado ? Math.max(1, Number(form.quantidade_parcelas) || 1) : 1;
     const valorParcela = Number((valorTotal / parcelas).toFixed(2));
     const primeira = form.parcelado ? Math.max(1, Number(form.numero_parcela) || 1) : 1;
 
-    // Sem coluna dedicada para subcategoria em `movimentacoes`, registramos como texto nas observações.
     const obsBase = form.observacoes.trim();
     const subcatLine = form.subcategorias.length ? `Subcategorias: ${form.subcategorias.join(", ")}` : "";
-    const observacoesFinal = [obsBase, subcatLine].filter(Boolean).join("\n") || null;
+    const observacoesFinal = [obsBase, subcatLine].filter(Boolean).join("\n");
 
     const anexosPatch = anexosToPatch(anexos);
 
@@ -312,17 +332,31 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     const cotistasDaAeronave = form.aeronave_id
       ? cotistas.filter((c: any) => c.id_aeronave === form.aeronave_id && c.id_clientes === form.clientes_id)
       : [];
-    const linhasRateioBase = cotistasDaAeronave.length
-      ? cotistasDaAeronave.map((c: any) => ({
-          socio_id: c.socios_id || form.socio_id || null,
-          socios_nome: socios.find((s: any) => s.id === (c.socios_id || form.socio_id))?.nome || null,
-          percentual: Number(c.percentual_sociedade ?? 100) || 100,
-        }))
-      : [{
-          socio_id: form.socio_id || null,
-          socios_nome: socios.find((s: any) => s.id === form.socio_id)?.nome || null,
-          percentual: 100,
-        }];
+
+    const cotistasComParticipacao = cotistasDaAeronave.filter(
+      (c: any) => Number(c.percentual_sociedade ?? 0) > 0,
+    );
+    const totalParticipacao = cotistasComParticipacao.reduce(
+      (sum: number, c: any) => sum + Number(c.percentual_sociedade ?? 0),
+      0,
+    );
+    const deveRatear =
+      cotistasComParticipacao.length > 1 ||
+      (cotistasComParticipacao.length === 1 && totalParticipacao < 100);
+
+    const linhasRateioBase = deveRatear
+      ? cotistasComParticipacao.length
+        ? cotistasComParticipacao.map((c: any) => ({
+            socio_id: c.socios_id || form.socio_id || null,
+            socios_nome: socios.find((s: any) => s.id === (c.socios_id || form.socio_id))?.nome || null,
+            percentual: Number(c.percentual_sociedade ?? 100) || 100,
+          }))
+        : [{
+            socio_id: form.socio_id || null,
+            socios_nome: socios.find((s: any) => s.id === form.socio_id)?.nome || null,
+            percentual: 100,
+          }]
+      : [];
 
     setSaving(true);
     try {
@@ -336,7 +370,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
         const sufixo = parcelas > 1 ? ` (${numeroParcela}/${parcelas})` : "";
         const vencimento = form.data_vencimento ? addMonths(form.data_vencimento, i) : null;
         const competencia = addMonths(form.data_competencia, i) || form.data_competencia;
-        const dataPagamento = i === 0 ? form.data_pagamento || null : null;
+        const dataPagamento = i === 0 ? (isPago ? form.data_pagamento || null : null) : null;
         const statusParcela = i === 0 ? form.status : "pendente";
         const pago = ["pago", "recebido"].includes(statusParcela);
 
@@ -358,8 +392,8 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           data_vencimento: vencimento,
           data_pagamento: dataPagamento,
           status: statusParcela,
-          forma_pagamento: form.forma_pagamento || null,
-          pago_por: form.colaborador || null,
+          forma_pagamento: isPago ? form.forma_pagamento || null : null,
+          pago_por: isPago ? form.colaborador || null : null,
           fornecedor_nome: form.fornecedor_nome || null,
           quantidade_parcelas: parcelas,
           numero_parcela: numeroParcela,
@@ -389,7 +423,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             tipo_rateio: form.tipo_rateio,
             fluxo: entrada ? "ENTRADA" : "SAIDA",
             data_emissao: competencia,
-            data_vencimento: vencimento || competencia,
+            data_vencimento: form.data_vencimento,
             data_pagamento: payload.data_pagamento,
             cliente_id: form.clientes_id || null,
             clientes_nome: clienteNome,
@@ -401,14 +435,14 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             percentual_uso: form.percentual_uso ? Number(form.percentual_uso) : null,
             descricao_despesa: payload.descricao,
             categoria_custo: form.categoria_id || null,
-            periodicidade: "MENSAL",
+            periodicidade: form.periodicidade,
             valor_total_despesa: valorParcela,
             valor_rateado: Number(((valorParcela * linha.percentual) / 100).toFixed(2)),
             valor_pago_real: pago ? Number(((valorParcela * linha.percentual) / 100).toFixed(2)) : 0,
             status: statusParcela,
-            pago_por: form.colaborador || clienteNome,
+            pago_por: isPago ? (form.colaborador || clienteNome) : null,
             pago_diretamente: true,
-            forma_pagamento: form.forma_pagamento || null,
+            forma_pagamento: isPago ? form.forma_pagamento || null : null,
             fornecedor_nome: form.fornecedor_nome || null,
             observacoes: observacoesFinal,
             subcategoria_1: form.subcategorias[0] || null,
@@ -424,8 +458,10 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             boleto_url: anexosPatch.boleto_url,
             recibo_url: anexosPatch.recibo_url,
           }));
-        const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioRows as any);
-        if (rateioErr) throw rateioErr;
+        if (rateioRows.length > 0) {
+          const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioRows as any);
+          if (rateioErr) throw rateioErr;
+        }
 
         // Gera o título financeiro correspondente (a pagar ou a receber)
         if (!entrada) {
@@ -486,7 +522,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
               data_criacao: competencia,
               data_vencimento: vencimento || competencia,
               data_pagamento: payload.data_pagamento,
-              status: jaLiquidado ? "recebido" : "pendente",
+              status: jaLiquidado ? "aguardando_reembolso" : "pendente",
               metodo_pagamento: form.forma_pagamento || null,
               movimentacao_id: (mov as any).id,
               reference_type: "movimentacao_cliente",
@@ -520,7 +556,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     <Card className="border-border/60">
       <CardHeader className="flex flex-row items-center justify-between pb-4">
         <CardTitle className="flex items-center gap-2 text-foreground">
-          <Users className="h-4 w-4 text-primary" /> Nova Movimentação — Caixa Cliente
+          <Users className="h-4 w-4 text-primary" /> NOVO LANÇAMENTO — Caixa Cliente
         </CardTitle>
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <X className="h-4 w-4" />
@@ -531,7 +567,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           <div className="lg:col-span-2">
             <Label>Descrição *</Label>
             <Input
-              placeholder="Ex: Hangaragem mensal, Manutenção aeronave"
+              placeholder="Ex: ADM E PILOTAGEM SHARE BRASIL"
               value={form.descricao}
               onChange={(e) => set({ descricao: e.target.value })}
             />
@@ -548,7 +584,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           </div>
 
           <div>
-            <Label>Tipo de rateio</Label>
+            <Label>TIPO DO RATEIO</Label>
             <SearchableCombobox
               items={TIPOS_RATEIO}
               value={form.tipo_rateio}
@@ -558,7 +594,17 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           </div>
 
           <div>
-            <Label>Cliente *</Label>
+            <Label>PERIODICIDADE</Label>
+            <SearchableCombobox
+              items={PERIODICIDADES}
+              value={form.periodicidade}
+              onChange={(id) => set({ periodicidade: id })}
+              placeholder="Selecione a periodicidade"
+            />
+          </div>
+
+          <div>
+            <Label>CLIENTE *</Label>
             <SearchableCombobox
               items={clienteItems}
               value={form.clientes_id}
@@ -580,7 +626,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           </div>
 
           <div>
-            <Label>Aeronave *</Label>
+            <Label>AERONAVE*</Label>
             <SearchableCombobox
               items={aeronaveItems}
               value={form.aeronave_id}
@@ -594,7 +640,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
 
 
           <div className="lg:col-span-2">
-            <Label>Categoria</Label>
+            <Label>CATEGORIA DA DESPESA</Label>
             <SearchableCombobox
               items={categoriaItems}
               value={form.categoria_id}
@@ -604,7 +650,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             />
           </div>
           <div>
-            <Label>% Uso</Label>
+            <Label>% PORCENTAGEM DE USO</Label>
             <Input
               type="number"
               step="0.01"
@@ -642,7 +688,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           )}
 
           <div>
-            <Label>Valor (R$) *</Label>
+            <Label>VALOR (R$) *</Label>
             <Input
               type="number"
               step="0.01"
@@ -653,46 +699,50 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           </div>
 
           <div>
-            <Label>Competência *</Label>
+            <Label> DATA DE EMISSÃO *</Label>
             <Input type="date" value={form.data_competencia} onChange={(e) => set({ data_competencia: e.target.value })} />
           </div>
           <div>
-            <Label>Vencimento</Label>
+            <Label>VENCIMENTO</Label>
             <Input type="date" value={form.data_vencimento} onChange={(e) => set({ data_vencimento: e.target.value })} />
           </div>
           <div>
-            <Label>Pagamento</Label>
-            <Input type="date" value={form.data_pagamento} onChange={(e) => set({ data_pagamento: e.target.value })} />
+            <Label>STATUS</Label>
+            <SearchableCombobox items={STATUS} value={form.status} onChange={handleStatusChange} placeholder="Status" />
           </div>
 
-          <div>
-            <Label>Status</Label>
-            <SearchableCombobox items={STATUS} value={form.status} onChange={(id) => set({ status: id })} placeholder="Status" />
-          </div>
-          <div>
-            <Label>Forma de pagamento</Label>
-            <SearchableCombobox
-              items={FORMAS}
-              value={form.forma_pagamento}
-              onChange={(id) => set({ forma_pagamento: id })}
-              placeholder="Forma"
-            />
-          </div>
-          <div>
-            <Label>Pago por</Label>
-            <SearchableCombobox
-              items={pagoPorItems}
-              value={form.colaborador}
-              onChange={(id) => set({ colaborador: id })}
-              placeholder="Cliente, cotista ou colaborador"
-              searchPlaceholder="Buscar pagador..."
-              allowFreeText
-            />
-          </div>
+          {mostrarCamposPagamento && (
+            <>
+              <div>
+                <Label>DATA PAGAMENTO</Label>
+                <Input type="date" value={form.data_pagamento} onChange={(e) => set({ data_pagamento: e.target.value })} />
+              </div>
+              <div>
+                <Label>FORMA DE PAGAMENTO</Label>
+                <SearchableCombobox
+                  items={FORMAS}
+                  value={form.forma_pagamento}
+                  onChange={(id) => set({ forma_pagamento: id })}
+                  placeholder="Forma"
+                />
+              </div>
+              <div>
+                <Label>PAGO POR</Label>
+                <SearchableCombobox
+                  items={pagoPorItems}
+                  value={form.colaborador}
+                  onChange={(id) => set({ colaborador: id })}
+                  placeholder="Cliente ou Share Brasil"
+                  searchPlaceholder="Buscar pagador..."
+                  allowFreeText
+                />
+              </div>
+            </>
+          )}
 
 
           <div className="lg:col-span-3">
-            <Label>Fornecedor</Label>
+            <Label>FORNECEDOR</Label>
             <SearchableCombobox
               items={fornecedores}
               value={form.fornecedor_nome}
@@ -704,18 +754,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           </div>
         </div>
 
-        {/* Documentos e anexos */}
-        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
-          <div className="flex items-center gap-2">
-            <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-            <Label className="mb-0">Documentos e Anexos</Label>
-          </div>
-          <AnexosDinamicosField
-            anexos={anexos}
-            onChange={setAnexos}
-            storagePrefix={`nova-mov-cliente/${tempId}`}
-          />
-        </div>
+        
 
         {/* Parcelamento */}
         <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
@@ -730,7 +769,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           {form.parcelado && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
-                <Label>Quantidade de parcelas</Label>
+                <Label>QUANTIDADE DE PARCELAS</Label>
                 <Input
                   type="number"
                   min="2"
@@ -739,7 +778,7 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
                 />
               </div>
               <div>
-                <Label>Parcela inicial</Label>
+                <Label>PARCELA INICIAL</Label>
                 <Input
                   type="number"
                   min="1"
@@ -760,6 +799,18 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           <Textarea rows={2} value={form.observacoes} onChange={(e) => set({ observacoes: e.target.value })} />
         </div>
 
+          {/* Documentos e anexos */}
+        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex items-center gap-2">
+            <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+            <Label className="mb-0">ANEXOS</Label>
+          </div>
+          <AnexosDinamicosField
+            anexos={anexos}
+            onChange={setAnexos}
+            storagePrefix={`nova-mov-cliente/${tempId}`}
+          />
+        </div>
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
           <Button type="button" onClick={salvar} disabled={saving}>

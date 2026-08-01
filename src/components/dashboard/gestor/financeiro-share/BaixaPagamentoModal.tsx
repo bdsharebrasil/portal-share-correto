@@ -182,6 +182,8 @@ export default function BaixaPagamentoModal({
   const [pagoDiretamente, setPagoDiretamente] = useState<boolean>(mov.pago_diretamente ?? true);
   const comReembolso = !pagoDiretamente;
   const [bancoNome, setBancoNome] = useState<string>("");
+  const [bancoSelecionadoId, setBancoSelecionadoId] = useState<string>("");
+  const [bancos, setBancos] = useState<{ id: string; label: string }[]>([]);
   const [anexos, setAnexos] = useState<AnexoRow[]>([
     { tipo_anexo: "comprovante", numero_doc: "", file_url: "" },
   ]);
@@ -204,6 +206,27 @@ export default function BaixaPagamentoModal({
       setSocios((data as SocioOption[]) || []);
     })();
   }, [mov.clientes_id]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("contas_bancarias")
+        .select("id, banco, numero_conta")
+        .order("banco");
+      const lista = (data ?? []).map((item: any) => ({
+        id: item.id,
+        label: `${item.banco || "Banco"}${item.numero_conta ? ` — ${item.numero_conta}` : ""}`,
+      }));
+      setBancos(lista);
+
+      if (!bancoNome && lista.length > 0) {
+        const match = lista.find((item) => item.label === bancoNome);
+        if (match) {
+          setBancoSelecionadoId(match.id);
+        }
+      }
+    })();
+  }, []);
 
   // Load rateio rows vinculados a essa movimentação
   useEffect(() => {
@@ -337,8 +360,11 @@ export default function BaixaPagamentoModal({
         .eq("id", mov.id);
       if (movErr) throw movErr;
 
-      // 2. Update contas_apagar if linked
-      if (mov.contas_apagar_id) {
+      // 2. Update contas_apagar only when the original payment was not a client-side
+      // reembolso flow. In that case, the receivable from the client should be the
+      // primary financial record, not the supplier payable.
+      const isClienteCaixa = norm(mov.tipo_caixa) === "cliente";
+      if (mov.contas_apagar_id && (!comReembolso || !isClienteCaixa)) {
         const valorPagoFornecedor = comReembolso
           ? valorTotal
           : rateioRows.length > 0
@@ -506,7 +532,7 @@ export default function BaixaPagamentoModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+        className="relative w-full max-w-5xl max-h-[95vh] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -586,13 +612,18 @@ export default function BaixaPagamentoModal({
           {comReembolso && (
             <div>
               <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Banco (pagamento pela Share)
+                Banco
               </label>
-              <input
-                value={bancoNome}
-                onChange={(e) => setBancoNome(e.target.value)}
-                placeholder="Ex: Itaú, Nubank..."
-                className={inputCls}
+              <UISearchableCombobox
+                items={bancos}
+                value={bancoSelecionadoId}
+                onChange={(id, label) => {
+                  setBancoSelecionadoId(id);
+                  setBancoNome(label);
+                }}
+                placeholder="Selecione o banco"
+                searchPlaceholder="Buscar banco..."
+                emptyMessage="Nenhum banco encontrado."
               />
             </div>
           )}
@@ -610,9 +641,7 @@ export default function BaixaPagamentoModal({
               color: pagoDiretamente ? "#67e8f9" : "#fbbf24",
             }}
           >
-            {pagoDiretamente
-              ? "Despesa paga diretamente — não passa pelo caixa share. Sem necessidade de reembolso."
-              : "Com Reembolso — a Share pagou o fornecedor. Esta despesa passa para o caixa share e gera uma conta a receber do cliente (aguardando reembolso). O rateio entre cotistas só será definido quando o cliente quitar o reembolso."}
+            {pagoDiretamente ? "Pago diretamente" : "Com reembolso"}
           </div>
 
           {/* Rateio entre cotistas — só se aplica quando o pagamento é direto,
