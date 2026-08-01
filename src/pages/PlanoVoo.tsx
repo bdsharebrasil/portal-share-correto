@@ -409,7 +409,7 @@ export default function PlanoVooPage() {
                         <div key={idx} className={`p-3 rounded-lg border ${n.priority === 'critical' ? 'bg-red-500/10 border-red-500/50' : n.priority === 'high' ? 'bg-orange-500/10 border-orange-500/50' : n.priority === 'medium' ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-blue-500/10 border-blue-500/50'}`}>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-mono text-xs text-muted-foreground">{n.number}</span>
-                            <Badge variant="outline" className="text-xs">{n.priority.toUpperCase()}</Badge>
+                            <Badge variant="outline" className="text-xs">{(n.priority ?? 'info').toUpperCase()}</Badge>
                           </div>
                           <p className="text-sm mb-1">{n.message}</p>
                           <div className="text-xs text-muted-foreground">
@@ -489,7 +489,7 @@ export default function PlanoVooPage() {
                       <div className="space-y-3 text-sm">
                         <div><span className="text-muted-foreground">Nome:</span> {r.nome}</div>
                         <div><span className="text-muted-foreground">Elevação:</span> {r.elevation}ft</div>
-                        <div><span className="text-muted-foreground">Coord:</span> {r.coordinates.lat.toFixed(2)}°, {r.coordinates.lng.toFixed(2)}°</div>
+                        <div><span className="text-muted-foreground">Coord:</span> {r.coordinates ? `${r.coordinates.lat.toFixed(2)}°, ${r.coordinates.lng.toFixed(2)}°` : '—'}</div>
                         {solar?.day && (
                           <div className="bg-orange-500/10 border border-orange-500/30 rounded p-2 text-xs">
                             Nascer: {solar.day.sunrise} | Pôr: {solar.day.sunset}
