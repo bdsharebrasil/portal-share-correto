@@ -118,7 +118,7 @@ const EditEmployeeFormComponent = memo(({
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_birth_date" className="text-muted-foreground font-medium">Data de Nascimento</Label>
-            <Input id="edit_birth_date" type="data" value={editEmployeeForm.birth_date || ""} onChange={e => onFieldChange("birth_date", e.target.value)} className="h-11 rounded-xl w-full" />
+            <Input id="edit_birth_date" type="date" value={editEmployeeForm.birth_date || ""} onChange={e => onFieldChange("birth_date", e.target.value)} className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_phone" className="text-muted-foreground font-medium">Telefone</Label>
@@ -126,11 +126,11 @@ const EditEmployeeFormComponent = memo(({
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_admission_date" className="text-muted-foreground font-medium">Data de Admissão</Label>
-            <Input id="edit_admission_date" type="data" value={editEmployeeForm.admission_date || ""} onChange={e => onFieldChange("admission_date", e.target.value)} className="h-11 rounded-xl w-full" />
+            <Input id="edit_admission_date" type="date" value={editEmployeeForm.admission_date || ""} onChange={e => onFieldChange("admission_date", e.target.value)} className="h-11 rounded-xl w-full" />
           </div>
           <div className="col-span-full space-y-2">
             <Label htmlFor="edit_address" className="text-muted-foreground font-medium">Endereço</Label>
-            <Input id="edit_address" value={editEmployeeForm.endereco || ""} onChange={e => onFieldChange("endereco", e.target.value)} placeholder="Rua, Número, Bairro, Cidade - Estado" className="h-11 rounded-xl w-full" />
+            <Input id="edit_address" value={editEmployeeForm.address || ""} onChange={e => onFieldChange("address", e.target.value)} placeholder="Rua, Número, Bairro, Cidade - Estado" className="h-11 rounded-xl w-full" />
           </div>
 
           <div className="space-y-2">
@@ -207,8 +207,8 @@ export default function GestaoFuncionarios() {
         rg: selectedEmployee.rg || "",
         canac: selectedEmployee.canac || "",
         birth_date: selectedEmployee.birth_date || "",
-        phone: selectedEmployee.telefone || "",
-        address: selectedEmployee.endereco || "",
+        phone: selectedEmployee.phone || "",
+        address: selectedEmployee.address || "",
         admission_date: selectedEmployee.admission_date || "",
         salary: selectedEmployee.salary || "",
         benefits: selectedEmployee.benefits || "",
@@ -270,7 +270,7 @@ export default function GestaoFuncionarios() {
           const {
             data: crewMember,
             error: crewError
-          } = await supabase.from("membros_tripulacao").select("id, status, canac").eq("usuario_id", profile.id).single();
+          } = await supabase.from("membros_tripulacao").select("id, status, canac, url_avatar").eq("user_id", profile.id).maybeSingle();
           if (crewError && crewError.code !== 'PGRST116') {
             console.error("Erro ao buscar crew member para", profile.full_name, "-", crewError.message || crewError);
           }
@@ -342,7 +342,7 @@ export default function GestaoFuncionarios() {
       }
       if (updatedData.new_photo_file) {
         const file = updatedData.new_photo_file;
-        const fileExt = file.nome.split('.').pop();
+        const fileExt = file.name.split('.').pop();
         const fileName = `${employeeId}_${Date.now()}.${fileExt}`;
         const filePath = `${employeeId}/${fileName}`;
         const {
@@ -366,8 +366,8 @@ export default function GestaoFuncionarios() {
         rg: updatedData.rg || null,
         canac: updatedData.canac || null,
         birth_date: updatedData.birth_date || null,
-        phone: updatedData.telefone || null,
-        address: updatedData.endereco || null,
+        telefone: updatedData.phone || null,
+        endereco: updatedData.address || null,
         admission_date: updatedData.admission_date || null,
         employment_status: updatedData.employment_status,
         avatar_url: newPhotoUrl
@@ -378,7 +378,7 @@ export default function GestaoFuncionarios() {
           error: salaryUpdateError
         } = await supabase.from("salaries").upsert([{
           user_profile: employeeId,
-          base_salary_liquid: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
+          base_salary_bruto: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
           benefit: updatedData.benefits || null,
           effective_date: new Date().toISOString().split('T')[0]
         } as any]);
@@ -483,16 +483,16 @@ export default function GestaoFuncionarios() {
         </CardHeader>
         <CardContent className="pt-6">
           <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 max-w-lg mx-auto mb-6 rounded-2xl p-1.5 h-auto bg-transparent border-2 border-border">
-              <TabsTrigger value="info" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Informações</TabsTrigger>
-              <TabsTrigger value="documentos" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Documentos</TabsTrigger>
-              <TabsTrigger value="vacation" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Férias</TabsTrigger>
-              <TabsTrigger value="statement" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Extrato</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 max-w-lg mx-auto mb-6 rounded-2xl p-1.5 h-auto bg-transparent border border-border/60">
+              <TabsTrigger value="info" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10">Informações</TabsTrigger>
+              <TabsTrigger value="documentos" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10">Documentos</TabsTrigger>
+              <TabsTrigger value="vacation" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10">Férias</TabsTrigger>
+              <TabsTrigger value="statement" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=active]:border-primary/50 data-[state=active]:bg-primary/10">Extrato</TabsTrigger>
             </TabsList>
 
             <TabsContent value="info" className="space-y-6 mt-0">
               {/* Dados Pessoais */}
-              <div className="border-2 border-border rounded-xl p-6 bg-muted/20 space-y-4">
+              <div className="border border-border/60 rounded-xl p-6 bg-muted/10 space-y-4">
                 <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
                   <UserIcon className="h-5 w-5 text-primary" />
                   Dados Pessoais
@@ -502,13 +502,13 @@ export default function GestaoFuncionarios() {
                   <DetailItem label="RG" value={selectedEmployee.rg} icon={<CreditCard className="h-4 w-4" />} />
                   <DetailItem label="CANAC" value={selectedEmployee.canac} icon={<Aperture className="h-4 w-4" />} />
                   <DetailItem label="Data de Nascimento" value={selectedEmployee.birth_date ? formatDateToBR(selectedEmployee.birth_date) : null} icon={<Calendar className="h-4 w-4" />} />
-                  <DetailItem label="Telefone" value={selectedEmployee.telefone} icon={<Phone className="h-4 w-4" />} />
-                  <DetailItem label="Endereço" value={selectedEmployee.endereco} icon={<Building className="h-4 w-4" />} fullWidth />
+                  <DetailItem label="Telefone" value={selectedEmployee.phone} icon={<Phone className="h-4 w-4" />} />
+                  <DetailItem label="Endereço" value={selectedEmployee.address} icon={<Building className="h-4 w-4" />} fullWidth />
                 </div>
               </div>
 
               {/* Informações Profissionais */}
-              <div className="border-2 border-border rounded-xl p-6 bg-muted/20 space-y-4">
+              <div className="border border-border/60 rounded-xl p-6 bg-muted/10 space-y-4">
                 <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
                   <Building className="h-5 w-5 text-primary" />
                   Informações Profissionais
@@ -523,7 +523,7 @@ export default function GestaoFuncionarios() {
               </div>
 
               {/* Dados Bancários */}
-              <div className="border-2 border-border rounded-xl p-6 bg-muted/20 space-y-4">
+              <div className="border border-border/60 rounded-xl p-6 bg-muted/10 space-y-4">
                 <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
                   <CreditCard className="h-5 w-5 text-primary" />
                   Dados Bancários
@@ -564,35 +564,35 @@ export default function GestaoFuncionarios() {
           </div>
 
           {/* Navegação de Tabs */}
-          <div className="bg-card/50 backdrop-blur-sm rounded-2xl p-2 border border-border/50 shadow-sm">
-            <TabsList className={`grid ${isAdmin || isGestorMaster ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'} gap-2 w-full bg-transparent p-0 border-2 border-border rounded-lg`}>
+          <div className="rounded-2xl p-2 border border-border/60 bg-card/40">
+            <TabsList className={`grid ${isAdmin || isGestorMaster ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'} gap-2 w-full bg-transparent p-0 border border-border/60 rounded-xl`}>
               <TabsTrigger value="funcionarios" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
                   data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
-                  data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border-blue-500 data-[state=active]:ring-2 data-[state=active]:ring-blue-400 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-background">
+                  data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:border-primary/50">
                 <Users className="w-4 h-4 mr-2" />
                 Funcionários
               </TabsTrigger>
               <TabsTrigger value="salarios" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
                   data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
-                  data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border-blue-500 data-[state=active]:ring-2 data-[state=active]:ring-blue-400 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-background">
+                  data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:border-primary/50">
                 <DollarSign className="w-4 h-4 mr-2" />
                 Salários
               </TabsTrigger>
               <TabsTrigger value="decimo" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
                   data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
-                  data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-teal-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border-emerald-500 data-[state=active]:ring-2 data-[state=active]:ring-emerald-400 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-background">
+                  data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:border-primary/50">
                 <DollarSign className="w-4 h-4 mr-2" />
                 13º Salário
               </TabsTrigger>
               <TabsTrigger value="ferias" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
                   data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
-                  data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border-blue-500 data-[state=active]:ring-2 data-[state=active]:ring-blue-400 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-background">
+                  data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:border-primary/50">
                 <Palmtree className="w-4 h-4 mr-2" />
                 Férias
               </TabsTrigger>
               {(isAdmin || isGestorMaster) && <TabsTrigger value="ponto" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border-indigo-900 data-[state=active]:ring-2 data-[state=active]:ring-violet-400 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-background">
+                    data-[state=active]:bg-primary/10 data-[state=active]:text-foreground data-[state=active]:border-primary/50">
                   <Clock className="w-4 h-4 mr-2" />
                   Ponto
                 </TabsTrigger>}
@@ -615,38 +615,35 @@ export default function GestaoFuncionarios() {
                 </div>
               </CardHeader>
               <CardContent className="p-6">
-                {isLoading ? <p className="text-center text-muted-foreground py-8">Carregando lista de funcionários...</p> : filteredEmployees.length === 0 ? <p className="text-center text-muted-foreground py-8">Nenhum funcionário encontrado.</p> : <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="employee-select" className="text-muted-foreground font-medium mb-2 block">Selecione um colaborador</Label>
-                      <Select value={selectedEmployee?.id || ""} onValueChange={employeeId => {
-                    const employee = filteredEmployees.find(e => e.id === employeeId);
-                    if (employee) {
-                      handleSelectEmployee(employee);
-                    }
-                  }}>
-                        <SelectTrigger id="employee-select" className="h-11 rounded-xl">
-                          <SelectValue placeholder="Escolha um colaborador..." />
-                        </SelectTrigger>
-                        <SelectContent side="bottom" className="rounded-xl max-h-64">
-                          {filteredEmployees.map(employee => <SelectItem key={employee.id} value={employee.id}>
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-6 w-6 border border-primary/20">
-                                  <AvatarImage src={employee.photo_url || undefined} alt={employee.full_name} />
-                                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                                    {employee.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col">
-                                  <span className="font-semibold">{employee.full_name}</span>
-                                  <span className="text-xs text-muted-foreground">{employee.email}</span>
-                                </div>
-                              </div>
-                            </SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                {isLoading ? <p className="text-center text-muted-foreground py-8">Carregando lista de funcionários...</p> : filteredEmployees.length === 0 ? <p className="text-center text-muted-foreground py-8">Nenhum funcionário encontrado.</p> : <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {filteredEmployees.map(employee => {
+                  const isSelected = selectedEmployee?.id === employee.id;
+                  return <button key={employee.id} onClick={() => handleSelectEmployee(employee)} className={`text-left rounded-2xl border p-4 transition-all ${isSelected ? "border-primary/60 bg-primary/5 shadow-sm" : "border-border/60 hover:border-border hover:bg-muted/30"}`}>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="h-11 w-11 border border-border/60">
+                              <AvatarImage src={employee.photo_url || undefined} alt={employee.full_name} />
+                              <AvatarFallback className="bg-muted text-muted-foreground text-sm font-semibold">
+                                {employee.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-foreground truncate">{employee.full_name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{employee.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                            {employee.roles.length > 0 && <Badge variant="secondary" className="rounded-full text-[11px] font-medium">
+                                {formatRoleLabel(employee.roles[0])}
+                              </Badge>}
+                            <Badge variant="outline" className="rounded-full text-[11px] capitalize">
+                              {employee.employment_status}
+                            </Badge>
+                          </div>
+                        </button>;
+                })}
                   </div>}
               </CardContent>
+
             </Card>
 
             {/* Employee Details Panel */}

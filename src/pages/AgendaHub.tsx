@@ -8,7 +8,7 @@ import { CircularNavButton } from "@/components/agenda/CircularNavButton";
 const Contatos = lazy(() => import("./agenda/Contatos"));
 const Clientes = lazy(() => import("./agenda/Clientes"));
 const Aniversarios = lazy(() => import("./agenda/Aniversarios"));
-const CalendarioFerias = lazy(() => import("./CalendarioFerias"));
+const Ferias = lazy(() => import("./Ferias").then((m) => ({ default: m.FeriasContent })));
 type TabId = "contatos" | "clientes" | "aniversarios" | "ferias";
 interface TabItem {
   id: TabId;
@@ -35,7 +35,7 @@ const DEFAULT_TABS: TabItem[] = [{
   id: "ferias",
   title: "Férias",
   icon: Calendar,
-  component: CalendarioFerias
+  component: Ferias
 }];
 export default function AgendaHub() {
   const [activeTab, setActiveTab] = useState<TabId>("contatos");

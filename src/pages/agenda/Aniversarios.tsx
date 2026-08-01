@@ -74,12 +74,12 @@ export default function Aniversarios() {
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Cake className="h-6 w-6 text-primary" />
+              <div className="p-2 rounded-2xl bg-slate-900/80 border border-slate-700">
+                <Cake className="h-6 w-6 text-slate-100" />
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">Aniversários</h1>
+              <h1 className="text-4xl font-bold text-slate-100">Aniversários</h1>
             </div>
-            <p className="text-muted-foreground mt-3">
+            <p className="text-slate-400 mt-3">
               Acompanhe e gerencie os aniversários dos seus contatos
             </p>
           </div>
@@ -87,61 +87,61 @@ export default function Aniversarios() {
             setEditingBirthday(null);
             setFormData({ nome: "", data_aniversario: "", empresa: "", category: "cliente" });
             setIsDialogOpen(true);
-          }} className="flex items-center gap-2 h-11 px-6 bg-gradient-to-r from-primary to-primary/90 hover:shadow-lg transition-all">
+          }} className="flex items-center gap-2 h-11 px-6 bg-slate-900/90 text-white border border-slate-700 hover:bg-slate-800 transition-all">
             <Plus className="h-5 w-5" />
             Novo Aniversário
           </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card onClick={() => setFilter("month")} className="cursor-pointer group hover:shadow-lg hover:border-blue-400 transition-all border-2 border-transparent">
+          <Card onClick={() => setFilter("month")} className="cursor-pointer group transition-all border border-slate-800/70 bg-slate-950/90 rounded-3xl shadow-sm hover:border-primary/50 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Este Mês</p>
-                  <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">{birthdaysThisMonth}</p>
+                  <p className="text-sm font-medium text-slate-400 mb-2">Este Mês</p>
+                  <p className="text-4xl font-bold text-slate-100">{birthdaysThisMonth}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 group-hover:scale-110 transition-transform">
-                  <Cake className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 rounded-2xl bg-slate-900/80 group-hover:scale-110 transition-transform">
+                  <Cake className="h-8 w-8 text-slate-100" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card onClick={() => setFilter("next7")} className="cursor-pointer group hover:shadow-lg hover:border-orange-400 transition-all border-2 border-transparent">
+          <Card onClick={() => setFilter("next7")} className="cursor-pointer group transition-all border border-slate-800/70 bg-slate-950/90 rounded-3xl shadow-sm hover:border-primary/50 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Próximos 7 dias</p>
-                  <p className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-orange-500 bg-clip-text text-transparent">{birthdaysNextSevenDays}</p>
+                  <p className="text-sm font-medium text-slate-400 mb-2">Próximos 7 dias</p>
+                  <p className="text-4xl font-bold text-slate-100">{birthdaysNextSevenDays}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-orange-100 dark:bg-orange-900/30 group-hover:scale-110 transition-transform">
-                  <Calendar className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+                <div className="p-3 rounded-2xl bg-slate-900/80 group-hover:scale-110 transition-transform">
+                  <Calendar className="h-8 w-8 text-slate-100" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card onClick={() => setFilter("all")} className="cursor-pointer group hover:shadow-lg hover:border-purple-400 transition-all border-2 border-transparent">
+          <Card onClick={() => setFilter("all")} className="cursor-pointer group transition-all border border-slate-800/70 bg-slate-950/90 rounded-3xl shadow-sm hover:border-primary/50 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Total de Aniversários</p>
-                  <p className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-purple-500 bg-clip-text text-transparent">{totalBirthdays}</p>
+                  <p className="text-sm font-medium text-slate-400 mb-2">Total de Aniversários</p>
+                  <p className="text-4xl font-bold text-slate-100">{totalBirthdays}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 group-hover:scale-110 transition-transform">
-                  <Cake className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                <div className="p-3 rounded-2xl bg-slate-900/80 group-hover:scale-110 transition-transform">
+                  <Cake className="h-8 w-8 text-slate-100" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="border-none shadow-lg">
-          <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-primary/10 pb-6">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Cake className="h-5 w-5 text-primary" />
+        <Card className="border border-slate-800/80 bg-slate-950/90 shadow-sm rounded-3xl">
+          <CardHeader className="border-b border-slate-800/70 pb-6">
+            <CardTitle className="flex items-center gap-3 text-xl text-slate-100">
+              <div className="p-2 rounded-2xl bg-slate-900/80 border border-slate-800/70">
+                <Cake className="h-5 w-5 text-slate-100" />
               </div>
               {filter === "next7" ? "Aniversários - Próximos 7 dias" : filter === "all" ? "Todos os Aniversários" : "Aniversariantes deste Mês"}
             </CardTitle>
@@ -167,23 +167,23 @@ export default function Aniversarios() {
                 {filteredBirthdays.map((birthday) => (
                   <div
                     key={birthday.id}
-                    className="group relative flex items-center justify-between p-5 border-2 border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-all duration-300 shadow-sm hover:shadow-md"
+                    className="group relative flex items-center justify-between p-5 border border-slate-800/70 rounded-3xl hover:border-primary/50 hover:bg-slate-900/70 transition-all duration-300 shadow-sm hover:shadow-md bg-slate-950/85"
                   >
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                        <Cake className="h-7 w-7 text-primary" />
+                      <div className="w-14 h-14 bg-slate-900/80 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <Cake className="h-7 w-7 text-slate-100" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-foreground">{birthday.nome}</h3>
+                        <h3 className="font-semibold text-lg text-slate-100">{birthday.nome}</h3>
                         {birthday.empresa && (
-                          <p className="text-sm text-muted-foreground mt-0.5">{birthday.empresa}</p>
+                          <p className="text-sm text-slate-400 mt-0.5">{birthday.empresa}</p>
                         )}
                       </div>
                     </div>
                     <div className="text-right flex flex-col items-end gap-2">
-                      <div className="text-xl font-bold text-primary">{birthday.displayDate}</div>
+                      <div className="text-xl font-bold text-slate-100">{birthday.displayDate}</div>
                       {getBirthdayCategoryLabel(birthday.category) && (
-                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20">{getBirthdayCategoryLabel(birthday.category)}</Badge>
+                        <Badge className="bg-slate-900/80 text-slate-100 hover:bg-slate-800">{getBirthdayCategoryLabel(birthday.category)}</Badge>
                       )}
                     </div>
 

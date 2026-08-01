@@ -119,15 +119,6 @@ export function GestorDashboard() {
       grid: 1
     },
     {
-      icon: Settings,
-      label: "Configurações",
-      route: "/gestor/configuracoes",
-      iconColor: "text-cyan-400",
-      iconBg: "bg-cyan-500/10",
-      hoverGlow: "hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)]",
-      grid: 2
-    },
-    {
       icon: DollarSign,
       label: "Financeiro Cotistas",
       route: "/gestor/financeiro-cotistas",
@@ -165,11 +156,11 @@ export function GestorDashboard() {
         {/* Hero */}
         <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-white/[0.06] shadow-2xl h-32 md:h-40 lg:h-48">
           <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 mix-blend-overlay"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 mix-blend-overlay"
             style={{ backgroundImage: `url(${aviationHero})` }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/70 via-background/45 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 lg:p-8">
             <div className="relative z-10 flex flex-col gap-2">
               <div className="flex items-center gap-2 mb-0.5">
@@ -256,19 +247,19 @@ export function GestorDashboard() {
           <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
             Ferramentas de Gestão
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {quickTools.map((tool) => (
               <button
                 key={tool.label}
                 onClick={() => navigate(tool.route)}
-                className={`flex items-center gap-3 md:gap-4 p-3 md:p-5 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-lg md:rounded-2xl border border-white/[0.05] transition-all duration-300 group ${tool.hoverGlow}`}
+                className={`flex items-center gap-3 md:gap-4 p-4 bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md rounded-3xl border border-white/[0.05] transition-all duration-300 group ${tool.hoverGlow}`}
               >
-                <div className={`p-2 md:p-3.5 rounded-lg md:rounded-xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg} flex-shrink-0`}>
-                  <tool.icon className={`h-5 md:h-6 w-5 md:w-6 ${tool.iconColor}`} strokeWidth={1.5} />
+                <div className={`p-3 rounded-3xl transition-transform duration-300 group-hover:scale-110 border border-white/[0.05] ${tool.iconBg} flex-shrink-0`}>
+                  <tool.icon className={`h-6 md:h-7 w-6 md:w-7 ${tool.iconColor}`} strokeWidth={1.5} />
                 </div>
 
                 <div className="flex flex-col items-start text-left min-w-0">
-                  <span className="text-xs md:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                  <span className="text-sm md:text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                     {tool.label}
                   </span>
                   <span className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
@@ -276,7 +267,7 @@ export function GestorDashboard() {
                   </span>
                 </div>
 
-                <ArrowRight className="h-3 md:h-4 w-3 md:w-4 ml-auto text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 flex-shrink-0" />
+                <ArrowRight className="h-4 md:h-5 w-4 md:w-5 ml-auto text-muted-foreground opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 flex-shrink-0" />
               </button>
             ))}
           </div>

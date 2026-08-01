@@ -70,9 +70,9 @@ const getLicenseStatus = (expiryDate: string | null | undefined): LicenseStatus 
 };
 
 const statusConfig: Record<LicenseStatus, { label: string; badgeColor: string; textColor: string; cardBg: string; cardBorder: string; Icon: typeof CheckCircle }> = {
-  active: { label: "ATIVA", badgeColor: "bg-emerald-500/20 border-emerald-500/50", textColor: "text-emerald-400", cardBg: "bg-gradient-to-r from-emerald-500/10 to-emerald-600/5", cardBorder: "border-emerald-500/30", Icon: CheckCircle },
-  expiring: { label: "VENCENDO", badgeColor: "bg-amber-500/20 border-amber-500/50", textColor: "text-amber-400", cardBg: "bg-gradient-to-r from-amber-500/10 to-amber-600/5", cardBorder: "border-amber-500/30", Icon: Clock },
-  expired: { label: "VENCIDA", badgeColor: "bg-red-500/20 border-red-500/50", textColor: "text-red-400", cardBg: "bg-gradient-to-r from-red-500/10 to-red-600/5", cardBorder: "border-red-500/30", Icon: XCircle },
+  active: { label: "ATIVA", badgeColor: "bg-emerald-500/20 border-emerald-500/40", textColor: "text-emerald-300", cardBg: "bg-slate-900/80", cardBorder: "border-emerald-500/20", Icon: CheckCircle },
+  expiring: { label: "VENCENDO", badgeColor: "bg-amber-500/20 border-amber-500/40", textColor: "text-amber-300", cardBg: "bg-slate-900/80", cardBorder: "border-amber-500/20", Icon: Clock },
+  expired: { label: "VENCIDA", badgeColor: "bg-red-500/20 border-red-500/40", textColor: "text-red-300", cardBg: "bg-slate-900/80", cardBorder: "border-red-500/20", Icon: XCircle },
 };
 
 export function CrewMemberCard({ member }: CrewMemberCardProps) {
@@ -113,26 +113,26 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
 
   return (
     <Card
-      className="group cursor-pointer bg-gradient-to-br from-slate-900/80 to-slate-950/80 border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 overflow-hidden"
+      className="group cursor-pointer bg-slate-950/80 border border-slate-800/70 hover:border-slate-700/80 hover:shadow-sm transition-all duration-200 overflow-hidden"
       onClick={() => navigate(`/tripulacao/${member.id}?tab=dados`)}
     >
       {/* Header */}
-      <div className="p-4 pb-3 border-b border-slate-800/50">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 ring-2 ring-cyan-500/30 group-hover:ring-cyan-500/50 transition-all flex-shrink-0">
+      <div className="p-3 pb-2 border-b border-slate-800/60">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-14 w-14 ring-1 ring-slate-700/70 flex-shrink-0">
             <AvatarImage src={displayAvatar} alt={displayName} className="object-cover" />
-            <AvatarFallback className="bg-slate-800 text-slate-300 font-semibold text-lg">
+            <AvatarFallback className="bg-slate-800 text-slate-300 font-semibold text-base">
               {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-foreground text-base leading-tight line-clamp-1 group-hover:text-cyan-400 transition-colors">
+            <h3 className="font-semibold text-slate-100 text-base leading-tight line-clamp-1">
               {displayName}
             </h3>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <Badge className="bg-cyan-500/30 border-cyan-400 text-cyan-300 text-xs font-mono px-2.5 py-1 font-bold border">
+              <Badge className="bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-semibold px-2.5 py-1 rounded-full">
                 ⚜ ANAC: {member.canac}
               </Badge>
             </div>
@@ -149,12 +149,12 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
 
       {/* Habilitações */}
       {!loading && displayLicenses.length > 0 && (
-        <div className="px-4 py-4 border-b border-slate-800/50">
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">
+        <div className="px-4 py-3 border-b border-slate-800/60">
+          <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em] font-semibold mb-3">
             Habilitações
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {displayLicenses.map((license) => {
               const expiryDate = license.tipo_habilitacao === 'CMA' ? license.validade_cma : license.data_validade;
               const status = getLicenseStatus(expiryDate);
@@ -163,11 +163,11 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
               return (
                 <div
                   key={license.id}
-                  className={`${config.cardBg} border ${config.cardBorder} rounded-lg p-3 hover:border-opacity-50 transition-colors`}
+                  className={`${config.cardBg} border ${config.cardBorder} rounded-2xl p-3 transition-colors`}
                 >
-                  <p className="text-xs font-semibold text-slate-300 mb-2">{license.tipo_habilitacao}</p>
-                  <p className="text-xs text-slate-400 mb-2">{formatDateToBR(expiryDate)}</p>
-                  <Badge className={`${config.badgeColor} ${config.textColor} text-xs font-semibold w-full justify-center border`}>
+                  <p className="text-xs font-semibold text-slate-200 mb-1">{license.tipo_habilitacao}</p>
+                  <p className="text-[11px] text-slate-400 mb-2">{formatDateToBR(expiryDate)}</p>
+                  <Badge className={`${config.badgeColor} ${config.textColor} text-[10px] font-semibold w-full justify-center border`}>
                     {config.label}
                   </Badge>
                 </div>
@@ -179,23 +179,23 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
 
       {/* CMA Info */}
       {cmaLicense && (
-        <div className={`px-4 py-4 border-b ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].cardBg} border-slate-800/50`}>
-          <div className="grid grid-cols-3 gap-3">
+        <div className={`px-4 py-3 border-b ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].cardBg} border-slate-800/60`}>
+          <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-300">
             <div className="text-center">
-              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-2">CMA</p>
-              <p className="text-sm font-bold text-slate-200">
+              <p className="uppercase tracking-[0.24em] text-slate-500 font-semibold mb-1">CMA</p>
+              <p className="font-semibold text-slate-100">
                 {cmaLicense.CMA === 'primeira' ? '1° Classe' : cmaLicense.CMA === 'segunda' ? '2° Classe' : cmaLicense.CMA}
               </p>
             </div>
-            <div className="text-center border-l border-r border-slate-700/50">
-              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-2">Validade</p>
-              <p className={`text-sm font-bold ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].textColor}`}>
+            <div className="text-center border-l border-r border-slate-800/60 px-2">
+              <p className="uppercase tracking-[0.24em] text-slate-500 font-semibold mb-1">Validade</p>
+              <p className={`font-semibold ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].textColor}`}>
                 {formatDateToBR(cmaLicense.validade_cma)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-2">FS/RH</p>
-              <p className="text-sm font-bold text-slate-200">
+              <p className="uppercase tracking-[0.24em] text-slate-500 font-semibold mb-1">FS/RH</p>
+              <p className="font-semibold text-slate-100">
                 {cmaLicense.FS_RH || '-'}
               </p>
             </div>
@@ -205,7 +205,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
 
       {/* Footer */}
       <div className="px-4 py-3 bg-slate-800/20 text-center border-t border-slate-800/50">
-        <p className="text-[10px] text-cyan-400/70 uppercase tracking-wider font-bold group-hover:text-cyan-300 transition-colors">
+        <p className="text-[10px] text-slate-400/70 uppercase tracking-wider font-bold transition-colors">
           Clique para ver mais
         </p>
       </div>

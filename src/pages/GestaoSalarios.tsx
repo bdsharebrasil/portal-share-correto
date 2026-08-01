@@ -16,7 +16,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { Pencil, Plus, X, Save, DollarSign, FileText, Plane, Zap } from "lucide-react";
 import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
-import { fetchCrewMembers } from "@/services/crew";
 import { PayslipsManagement } from "@/components/payslips/PayslipsManagement";
 import { AircraftSalariesMonthly } from "@/components/vencimentos/AircraftSalariesMonthly";
 import { EmployeeSalariesMonthly } from "@/components/vencimentos/EmployeeSalariesMonthly";
@@ -38,180 +37,92 @@ export const GestaoSalariosContent = () => {
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
+  // Tripulantes reais (a tabela de horas usa membros_tripulacao.id)
   const { data: crewMembers = [] } = useQuery({
-    queryKey: ["crew_members"],
-    queryFn: fetchCrewMembers,
-  });
-
-
-  // Query to get existing flight payments for the selected crew member and period
-  const flightPaymentsQuery: any = useQuery({
-    queryKey: ["flight_payments", selectedCrewMember, selectedMonth, selectedYear],
+    queryKey: ["membros_tripulacao_ativos"],
     queryFn: async () => {
-      if (!selectedCrewMember) return null;
-      try {
-        const { data, error } = await (supabase as any)
-          .from("flight_payments")
-          .select("*")
-          .eq("crew_member_id", selectedCrewMember)
-          .eq("month", selectedMonth)
-          .eq("year", selectedYear)
-          .maybeSingle();
-        if (error && error.code !== 'PGRST116') throw error;
-        return data || null;
-      } catch {
-        return null;
-      }
+      const { data, error } = await supabase
+        .from("membros_tripulacao")
+        .select("id, nome_completo, canac, status")
+        .eq("status", "ativo")
+        .order("nome_completo", { ascending: true });
+      if (error) throw error;
+      return (data || []).map((m: any) => ({ id: m.id, full_name: m.nome_completo, canac: m.canac }));
     },
-    enabled: !!selectedCrewMember,
   });
-  const flightPayment = flightPaymentsQuery.data as any;
 
+  // Horas voadas do mês por aeronave para o tripulante selecionado
   const { data: crewFlightHours = [] } = useQuery({
-    queryKey: ["crew_flight_hours", selectedCrewMember, selectedMonth, selectedYear],
+    queryKey: ["horas_voo_tripulante", selectedCrewMember, selectedMonth, selectedYear],
     queryFn: async () => {
       if (!selectedCrewMember) return [];
       const { data, error } = await supabase
-        .from("crew_flight_hours")
-        .select(`*, aircraft:aeronave_id ( registration, model )`)
-        .eq("crew_member_id", selectedCrewMember)
-        .eq("month", selectedMonth)
-        .eq("year", selectedYear);
+        .from("horas_voo_tripulante")
+        .select(`id, aeronave_id, horas_totais, mes, ano, aeronave:aeronave_id ( matricula, modelo )`)
+        .eq("membro_tripulacao_id", selectedCrewMember)
+        .eq("mes", selectedMonth)
+        .eq("ano", selectedYear);
       if (error) throw error;
-      return data as any[];
+      return (data || []).map((h: any) => ({ ...h, total_hours: Number(h.horas_totais) || 0 }));
     },
     enabled: !!selectedCrewMember,
   });
 
-  // Query para pegar as taxas de aeronaves por mês/ano
+  // Custo-hora vigente de cada aeronave para o mês/ano selecionado
   const { data: aircraftWithRates = [] } = useQuery({
     queryKey: ["aircraft_rates", selectedMonth, selectedYear],
     queryFn: async () => {
-      // Primeiro busca os dados de aircraft_hourly_rates
       const { data: rates, error: ratesError } = await supabase
-        .from('taxas_hora_aeronave')
-        .select("aeronave_id, hourly_rate, effective_date");
-
+        .from("taxas_hora_aeronave")
+        .select("aeronave_id, taxa_hora, data_vigencia")
+        .order("data_vigencia", { ascending: false });
       if (ratesError) throw ratesError;
 
-      // Busca dados básicos de aeronaves
       const { data: aircraft, error: aircraftError } = await supabase
-        .from('aeronave')
-        .select('id, matricula')
-        .eq("status", "ativa");
-
+        .from("aeronave")
+        .select("id, matricula, modelo");
       if (aircraftError) throw aircraftError;
 
-      // Monta mapa de rates por aeronave para o mês/ano selecionado
-      const ratesMap = new Map<string, { registration: string; hourly_rate: number }>();
+      const limite = new Date(selectedYear, selectedMonth, 0).getTime();
 
-      for (const plane of aircraft || []) {
-        // Encontra a taxa mais recente para este mês/ano
-        const applicableRate = (rates || []).find((r: any) => {
-          if (r.aeronave_id !== plane.id) return false;
-          const rateDate = new Date(r.effective_date);
-          const rateMonth = rateDate.getMonth() + 1;
-          const rateYear = rateDate.getFullYear();
-          return rateMonth === selectedMonth && rateYear === selectedYear;
-        });
-
-        // Se não encontrar exato para o mês, pega a mais recente anterior
-        let rate = applicableRate?.hourly_rate || 0;
-        if (!rate) {
-          const prevRate = (rates || [])
-            .filter((r: any) => r.aeronave_id === plane.id)
-            .sort((a: any, b: any) =>
-              new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime()
-            )[0];
-          rate = prevRate?.hourly_rate || 0;
-        }
-
-        if (rate > 0) {
-          ratesMap.set(plane.id, {
-            registration: plane.registration,
-            hourly_rate: rate,
-          });
-        }
-      }
-
-      // Converte para array
-      return Array.from(ratesMap.entries()).map(([id, data]) => ({
-        id,
-        ...data,
-      }));
+      return (aircraft || []).map((plane: any) => {
+        // taxa vigente = a mais recente com data_vigencia até o fim do mês selecionado
+        const vigente = (rates || []).find(
+          (r: any) => r.aeronave_id === plane.id && new Date(r.data_vigencia).getTime() <= limite
+        );
+        return {
+          id: plane.id,
+          registration: plane.matricula,
+          model: plane.modelo,
+          hourly_rate: Number(vigente?.taxa_hora) || 0,
+        };
+      });
     },
     enabled: !!selectedMonth && !!selectedYear,
   });
 
+  // Cálculo automático: horas voadas do mês × custo-hora da aeronave
+  const resumoCalculo = (() => {
+    let totalHoras = 0;
+    let totalValor = 0;
+    let horasSemTaxa = 0;
+    for (const h of crewFlightHours as any[]) {
+      const rate = aircraftWithRates.find((a: any) => a.id === h.aeronave_id)?.hourly_rate || 0;
+      const horas = Number(h.total_hours) || 0;
+      if (horas <= 0) continue;
+      totalHoras += horas;
+      totalValor += horas * rate;
+      if (rate <= 0) horasSemTaxa += horas;
+    }
+    return {
+      totalHoras,
+      totalValor: Math.round(totalValor * 100) / 100,
+      horasSemTaxa,
+    };
+  })();
 
-  const calculatePaymentMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedCrewMember) {
-        throw new Error("Selecione um funcionário");
-      }
 
-      if (crewFlightHours.length === 0) {
-        throw new Error("Nenhuma hora registrada para este período");
-      }
 
-      let totalHours = 0;
-      let calculatedAmount = 0;
-      let hoursWithoutRate = 0;
-
-      // Calculate payment based on crew flight hours and aircraft rates
-      for (const hours of crewFlightHours as any[]) {
-        const aircraftRate = aircraftWithRates.find((a: any) => a.id === hours.aeronave_id);
-
-        const flightHours = Number(hours.total_hours) || 0;
-        const hourlyRate = aircraftRate?.hourly_rate || 0;
-
-        if (flightHours > 0) {
-          totalHours += flightHours;
-          calculatedAmount += flightHours * hourlyRate;
-
-          // Rastreia se há horas sem taxa configurada
-          if (hourlyRate === 0) {
-            hoursWithoutRate += flightHours;
-          }
-        }
-      }
-
-      if (totalHours === 0) {
-        throw new Error("Nenhuma hora registrada para este período");
-      }
-
-      if (hoursWithoutRate > 0) {
-        throw new Error(`${hoursWithoutRate.toFixed(2)} hora(s) não possuem preço/hora configurado na tabela de valores por aeronave.`);
-      }
-
-      // Prepare payment data
-      const paymentData = {
-        crew_member_id: selectedCrewMember,
-        month: selectedMonth,
-        year: selectedYear,
-        total_hours: totalHours,
-        calculated_amount: Math.round(calculatedAmount * 100) / 100,
-        final_amount: Math.round(calculatedAmount * 100) / 100,
-        status: "calculated",
-      };
-
-      // Upsert into flight_payments table
-      const { error } = await (supabase as any)
-        .from("flight_payments")
-        .upsert([paymentData], {
-          onConflict: "crew_member_id,month,year",
-        });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["flight_payments", selectedCrewMember, selectedMonth, selectedYear] });
-      toast.success("Pagamento calculado com sucesso!");
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao calcular pagamento: ${error.message}`);
-    },
-  });
 
   if (isRolesLoading) {
     return (
@@ -317,9 +228,9 @@ export const GestaoSalariosContent = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label>Funcionário</Label>
+                  <Label>Tripulante</Label>
                   <Select value={selectedCrewMember} onValueChange={setSelectedCrewMember}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o funcionário" />
@@ -359,10 +270,6 @@ export const GestaoSalariosContent = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <h3 className="font-semibold">Horas de Voo por Aeronave</h3>
-                      <Button onClick={() => calculatePaymentMutation.mutate()} disabled={calculatePaymentMutation.isPending}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Calcular e Salvar Pagamento
-                      </Button>
                     </div>
                     {crewFlightHours.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
@@ -384,14 +291,14 @@ export const GestaoSalariosContent = () => {
                             const subtotal = Number(hours.total_hours) * (aircraftRate?.hourly_rate || 0);
                             const hasRate = aircraftRate && aircraftRate.hourly_rate > 0;
                             return (
-                              <TableRow key={hours.id} className={!hasRate ? "bg-red-50" : ""}>
+                              <TableRow key={hours.id} className={!hasRate ? "bg-destructive/5" : ""}>
                                 <TableCell className="font-semibold">{hours.aeronave?.matricula} - {hours.aeronave?.modelo}</TableCell>
                                 <TableCell>{Number(hours.total_hours).toFixed(2)}h</TableCell>
                                 <TableCell>
                                   {hasRate ? (
-                                    <span className="text-green-600 font-semibold">R$ {(aircraftRate?.hourly_rate || 0).toFixed(2)}</span>
+                                    <span className="text-emerald-500 font-semibold">R$ {(aircraftRate?.hourly_rate || 0).toFixed(2)}</span>
                                   ) : (
-                                    <span className="text-red-600 font-semibold bg-red-100 px-2 py-1 rounded text-xs">Sem preço</span>
+                                    <span className="text-destructive font-semibold bg-destructive/10 px-2 py-1 rounded text-xs">Sem preço</span>
                                   )}
                                 </TableCell>
                                 <TableCell className="font-bold">R$ {subtotal.toFixed(2)}</TableCell>
@@ -405,53 +312,37 @@ export const GestaoSalariosContent = () => {
                       const rate = aircraftWithRates.find((a: any) => a.id === h.aeronave_id);
                       return !rate || rate.hourly_rate === 0;
                     }) && (
-                      <div className="bg-red-50 border border-red-200 rounded p-3 mt-3">
-                        <p className="text-sm text-red-800">
+                      <div className="bg-destructive/5 border border-destructive/30 rounded-xl p-3 mt-3">
+                        <p className="text-sm text-destructive">
                           <strong>⚠️ Atenção:</strong> Algumas aeronaves não possuem preço/hora configurado. Configure os valores na aba "Aeronaves" antes de calcular o pagamento.
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {flightPayment ? (
-                    <Card className="bg-green-50 border-green-200">
+                  {crewFlightHours.length > 0 && (
+                    <Card className="border-emerald-500/30 bg-emerald-500/5">
                       <CardHeader>
-                        <CardTitle className="text-green-900">Resumo do Pagamento Calculado</CardTitle>
+                        <CardTitle className="text-emerald-500">Resumo do Pagamento (cálculo automático)</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="bg-white p-4 rounded-lg border">
-                              <Label className="text-xs text-muted-foreground">Total de Horas</Label>
-                              <p className="text-3xl font-bold text-blue-600 mt-1">{Number(flightPayment.total_hours).toFixed(2)}h</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-lg border">
-                              <Label className="text-xs text-muted-foreground">Pagamento por Voo</Label>
-                              <p className="text-3xl font-bold text-green-600 mt-1">R$ {Number(flightPayment.calculated_amount).toFixed(2)}</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-lg border">
-                              <Label className="text-xs text-muted-foreground">Total Geral</Label>
-                              <p className="text-3xl font-bold text-primary mt-1">R$ {Number(flightPayment.final_amount).toFixed(2)}</p>
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="bg-card p-4 rounded-xl border border-border/60">
+                            <Label className="text-xs text-muted-foreground">Total de Horas</Label>
+                            <p className="text-3xl font-bold text-foreground mt-1">{resumoCalculo.totalHoras.toFixed(2)}h</p>
                           </div>
-                          {flightPayment.notes && (
-                            <div>
-                              <Label className="text-sm font-semibold">Observações</Label>
-                              <p className="text-sm text-muted-foreground mt-1">{flightPayment.notes}</p>
-                            </div>
-                          )}
+                          <div className="bg-card p-4 rounded-xl border border-border/60">
+                            <Label className="text-xs text-muted-foreground">Horas sem preço</Label>
+                            <p className="text-3xl font-bold text-destructive mt-1">{resumoCalculo.horasSemTaxa.toFixed(2)}h</p>
+                          </div>
+                          <div className="bg-card p-4 rounded-xl border border-border/60">
+                            <Label className="text-xs text-muted-foreground">Valor a Pagar</Label>
+                            <p className="text-3xl font-bold text-primary mt-1">R$ {resumoCalculo.totalValor.toFixed(2)}</p>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
-                  ) : crewFlightHours.length > 0 ? (
-                    <Card className="bg-blue-50 border-blue-200">
-                      <CardContent className="pt-6">
-                        <p className="text-blue-900 text-sm">
-                          Clique em "Calcular e Salvar Pagamento" para registrar o pagamento deste funcionário.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ) : null}
+                  )}
                 </>
               )}
             </CardContent>

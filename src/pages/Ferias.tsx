@@ -21,7 +21,7 @@ import { ptBR } from "date-fns/locale";
 import { VacationRequestDialog } from "@/components/Ferias/VacationRequestDialog";
 import { VacationApprovalDialog } from "@/components/Ferias/VacationApprovalDialog";
 
-export default function Ferias() {
+export function FeriasContent() {
   const { hasAnyRole } = useUserRole();
   const queryClient = useQueryClient();
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -161,7 +161,7 @@ export default function Ferias() {
   };
 
   return (
-    <Layout>
+    <>
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -397,6 +397,14 @@ export default function Ferias() {
           onApprove={() => approveRequestMutation.mutate({ id: selectedRequest.id, approved: true })}
         />
       )}
+    </>
+  );
+}
+
+export default function Ferias() {
+  return (
+    <Layout>
+      <FeriasContent />
     </Layout>
   );
 }

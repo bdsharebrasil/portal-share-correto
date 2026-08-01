@@ -142,33 +142,33 @@ export default function TripulanteDetalhes() {
         : null;
 
     if (!expiryDate || isNaN(expiryDate.getTime()))
-      return { bg: "bg-gradient-to-r from-slate-500/10 to-slate-600/5", border: "border-slate-500/30 hover:border-slate-500/50" };
+      return { bg: "bg-slate-900/80", border: "border-slate-700/60" };
 
     const daysUntil = Math.floor((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    if (daysUntil < 0) return { bg: "bg-gradient-to-r from-red-500/10 to-red-600/5", border: "border-red-500/30 hover:border-red-500/50" };
-    if (daysUntil <= 60) return { bg: "bg-gradient-to-r from-yellow-500/10 to-yellow-600/5", border: "border-yellow-500/30 hover:border-yellow-500/50" };
-    return { bg: "bg-gradient-to-r from-green-500/10 to-green-600/5", border: "border-green-500/30 hover:border-green-500/50" };
+    if (daysUntil < 0) return { bg: "bg-slate-900/80", border: "border-red-500/30" };
+    if (daysUntil <= 60) return { bg: "bg-slate-900/80", border: "border-amber-500/30" };
+    return { bg: "bg-slate-900/80", border: "border-emerald-500/30" };
   };
 
   // tipo_habilitacao — campo real
   const getLicenseColorClass = (licenseType: string) => {
     const type = (licenseType || "").toLowerCase().trim();
     const colorMap: Record<string, { bg: string; border: string; text: string; labelText: string }> = {
-      ppl:       { bg: "bg-gradient-to-r from-blue-500/10 to-blue-600/5",    border: "border-blue-500/30",    text: "text-blue-300",    labelText: "text-blue-200" },
-      comercial: { bg: "bg-gradient-to-r from-purple-500/10 to-purple-600/5", border: "border-purple-500/30",  text: "text-purple-300",  labelText: "text-purple-200" },
-      ifr:       { bg: "bg-gradient-to-r from-emerald-500/10 to-emerald-600/5",border: "border-emerald-500/30",text: "text-emerald-300", labelText: "text-emerald-200" },
-      mpl:       { bg: "bg-gradient-to-r from-orange-500/10 to-orange-600/5", border: "border-orange-500/30",  text: "text-orange-300",  labelText: "text-orange-200" },
-      atpl:      { bg: "bg-gradient-to-r from-red-500/10 to-red-600/5",       border: "border-red-500/30",     text: "text-red-300",     labelText: "text-red-200" },
-      cpl:       { bg: "bg-gradient-to-r from-violet-500/10 to-violet-600/5", border: "border-violet-500/30",  text: "text-violet-300",  labelText: "text-violet-200" },
-      asel:      { bg: "bg-gradient-to-r from-cyan-500/10 to-cyan-600/5",     border: "border-cyan-500/30",    text: "text-cyan-300",    labelText: "text-cyan-200" },
-      ases:      { bg: "bg-gradient-to-r from-teal-500/10 to-teal-600/5",     border: "border-teal-500/30",    text: "text-teal-300",    labelText: "text-teal-200" },
-      mel:       { bg: "bg-gradient-to-r from-amber-500/10 to-amber-600/5",   border: "border-amber-500/30",   text: "text-amber-300",   labelText: "text-amber-200" },
-      mes:       { bg: "bg-gradient-to-r from-yellow-500/10 to-yellow-600/5", border: "border-yellow-500/30",  text: "text-yellow-300",  labelText: "text-yellow-200" },
+      ppl:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      comercial: { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      ifr:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      mpl:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      atpl:      { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      cpl:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      asel:      { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      ases:      { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      mel:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
+      mes:       { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" },
     };
     for (const [key, colors] of Object.entries(colorMap)) {
       if (type.includes(key) || key.includes(type)) return colors;
     }
-    return { bg: "bg-gradient-to-r from-slate-500/10 to-slate-600/5", border: "border-slate-500/30", text: "text-slate-300", labelText: "text-slate-200" };
+    return { bg: "bg-slate-900/80", border: "border-slate-700/60", text: "text-slate-300", labelText: "text-slate-400" };
   };
 
   // ── Documentos (storage) ───────────────────────────────────────────────────
@@ -234,181 +234,206 @@ export default function TripulanteDetalhes() {
 
   return (
     <Layout>
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-8">
         {/* Header do tripulante */}
-        <Card className="border-0 shadow-none bg-transparent">
-          <CardContent className="p-0">
-            <div className="relative rounded-xl bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-cyan-500/20 hover:border-cyan-500/40 text-white p-6">
+        <Card className="border border-slate-800/70 bg-slate-950/80 shadow-sm">
+          <CardContent className="p-0 overflow-hidden rounded-3xl">
+            <div className="relative bg-slate-950 border border-slate-800/70 p-5 md:p-6">
               <Button
                 variant="ghost"
                 onClick={() => navigate("/tripulacao")}
-                className="absolute right-4 top-4 h-10 w-10 p-0 bg-slate-700/50 hover:bg-slate-600 text-slate-200 rounded-full"
+                className="absolute right-4 top-4 h-10 w-10 p-0 bg-slate-900/80 hover:bg-slate-800 text-slate-200 rounded-full"
                 aria-label="Voltar"
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
 
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                <Avatar className="h-24 w-24 ring-4 ring-cyan-500/30 flex-shrink-0">
-                  {/* url_avatar — campo real do schema */}
+              <div className="flex flex-col xl:flex-row items-start xl:items-center gap-5">
+                <Avatar className="h-24 w-24 ring-1 ring-slate-700/70 flex-shrink-0">
                   <AvatarImage src={member.url_avatar || undefined} alt={member.nome_completo} className="object-cover" />
                   <AvatarFallback className="bg-slate-800 text-slate-300 font-bold text-2xl">
                     {(member.nome_completo || "?").split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="flex-1">
-                  {/* nome_completo — campo real */}
-                  <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">{member.nome_completo}</h1>
-                  <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-start sm:items-center">
-                    <Badge className="bg-cyan-500/30 border-cyan-400 text-cyan-300 text-xs md:text-sm font-mono px-3 py-1 font-bold border">
-                      ⚜ ANAC: {member.canac || "N/A"}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-white mb-3">{member.nome_completo}</h1>
+                  <div className="flex flex-wrap gap-3 items-center text-sm text-slate-300">
+                    <Badge className="bg-slate-900/80 border border-slate-700/60 text-slate-200 text-xs font-semibold px-3 py-1 rounded-full">
+                       ANAC: {member.canac || "N/A"}
                     </Badge>
-                    <div className="flex items-center gap-2 text-sm text-slate-300">
-                      <Calendar className="h-4 w-4 flex-shrink-0" />
-                      {/* data_nascimento — campo real */}
-                      <span>{member.data_nascimento ? formatBirthDateWithAge(member.data_nascimento) : "Data não informada"}</span>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-slate-400" />
+                      <span>{member.data_nascimento ? formatBirthDateWithAge(member.data_nascimento) : "Data de nascimento não informada"}</span>
                     </div>
+                    {member.status && (
+                      <Badge className="bg-slate-800/70 border-slate-700 text-slate-200 text-xs font-semibold px-3 py-1 rounded-full border">
+                        {member.status.toUpperCase()}
+                      </Badge>
+                    )}
                   </div>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Habilitações</p>
+                  <p className="mt-2 text-lg font-semibold text-white">{licenses.length}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Escalas futuras</p>
+                  <p className="mt-2 text-lg font-semibold text-white">{schedules.length}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Aprovações pendentes</p>
+                  <p className="mt-2 text-lg font-semibold text-white">{pendingApprovals.length}</p>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
+        <Card className="border border-slate-800/70 bg-slate-950/80 shadow-sm">
+          <CardContent className="p-5">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
               <CrewMemberNav activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab)} />
 
               {/* Dados */}
               <TabsContent value="dados" className="mt-6 space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Informações Pessoais</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <Label>Nome Completo</Label>
-                      {/* nome_completo — campo real */}
-                      <Input value={member.nome_completo || "—"} readOnly className="bg-muted/50" />
+                <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-5">
+                  <div className="flex items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h3 className="text-xl md:text-2xl font-semibold text-white">Informações Pessoais</h3>
+                      <p className="text-sm text-slate-400">Visão consolidada dos dados básicos e contato.</p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Data de Nascimento</Label>
-                      {/* data_nascimento — campo real */}
-                      <Input value={member.data_nascimento ? formatDateToBR(member.data_nascimento) : "—"} readOnly className="bg-muted/50" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Telefone</Label>
-                      <Input value={member.telefone || "—"} readOnly className="bg-muted/50" />
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-slate-500">
+                      <span className="rounded-full bg-slate-900/80 px-3 py-2">Perfil</span>
                     </div>
                   </div>
+                  <dl className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Nome completo</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.nome_completo || "—"}</dd>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Data de nascimento</dt>
+                      <dd className="mt-3 text-lg font-semibold text-white">{member.data_nascimento ? formatDateToBR(member.data_nascimento) : "—"}</dd>
+                    </div>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-900/80 p-4 md:col-span-2">
+                      <dt className="text-[10px] text-slate-500 uppercase tracking-[0.2em]">Telefone</dt>
+                      <dd className="mt-2 text-lg font-semibold text-white">{member.telefone || "—"}</dd>
+                    </div>
+                  </dl>
                 </div>
               </TabsContent>
 
               {/* Habilitações */}
               <TabsContent value="habilitacoes" className="mt-6 space-y-6">
                 <div className="flex justify-end">
-                  <Button onClick={() => setAddLicenseDialogOpen(true)}>
+                  <Button onClick={() => setAddLicenseDialogOpen(true)} className="bg-slate-700/90 hover:bg-slate-600/90 text-white shadow-sm">
                     <Plus className="mr-2 h-4 w-4" /> Nova Habilitação
                   </Button>
                 </div>
 
                 {isLicensesLoading ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">Carregando habilitações...</div>
+                  <div className="text-center py-12 text-sm text-slate-400">Carregando habilitações...</div>
                 ) : licenses.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">Nenhuma habilitação cadastrada</div>
+                  <div className="text-center py-12 text-sm text-slate-400">Nenhuma habilitação cadastrada</div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                     {/* Habilitações técnicas (sem CMA) */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Habilitações Técnicas</h3>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-4 mb-5">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">Habilitações Técnicas</h3>
+                          <p className="text-sm text-slate-400">Todas as licenças ativas e em acompanhamento.</p>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {licenses
                           .filter((lic: any) => !lic.CMA)
                           .map((lic: any) => {
                             const statusColor = getLicenseStatusColorClass(lic, false);
-                            // tipo_habilitacao — campo real
                             const typeColor = getLicenseColorClass(lic.tipo_habilitacao);
                             return (
-                              <div key={lic.id} className={`${statusColor.bg} border ${statusColor.border} rounded-lg p-4 transition-colors space-y-3`}>
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className={`font-semibold ${typeColor.labelText}`}>{lic.tipo_habilitacao}</div>
+                              <div key={lic.id} className={`${statusColor.bg} border ${statusColor.border} rounded-2xl p-4 transition-colors`}> 
+                                        <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="text-sm font-semibold text-slate-100">{lic.tipo_habilitacao}</div>
+                                    <p className="text-xs text-slate-400 mt-1">Licença técnica</p>
+                                  </div>
                                   {getLicenseStatusBadge(lic, false, () => handleEditLicense(lic, false))}
                                 </div>
-                                <div className="space-y-2 text-sm">
-                                  {/* data_validade — campo real */}
-                                  {lic.data_validade && (
-                                    <div className="flex justify-between text-xs border-t border-slate-700/50 pt-2 mt-2">
-                                      <span className="text-slate-500">Validade:</span>
-                                      <span className="text-slate-300 font-medium">{formatDateToBR(lic.data_validade)}</span>
+                                <div className="mt-4 text-sm space-y-3 text-slate-200">
+                                  {lic.data_validade ? (
+                                    <div className="flex justify-between text-xs text-slate-400">
+                                      <span>Validade</span>
+                                      <span className="font-medium text-slate-100">{formatDateToBR(lic.data_validade)}</span>
                                     </div>
-                                  )}
+                                  ) : null}
                                 </div>
-                                {/* observacao — campo real (não observacoes) */}
-                                {lic.observacao && (
-                                  <div className="text-xs text-slate-400 italic bg-slate-900/50 p-2 rounded border-l-2 border-cyan-500/50 mt-3">
+                                {lic.observacao ? (
+                                  <div className="mt-4 text-xs text-slate-400 italic bg-slate-900/60 p-3 rounded-2xl border border-slate-800/60">
                                     {lic.observacao}
                                   </div>
-                                )}
+                                ) : null}
                               </div>
                             );
                           })}
                       </div>
-                      {licenses.filter((lic: any) => !lic.CMA).length === 0 && (
-                        <div className="text-center py-8 text-slate-400 text-sm">Nenhuma habilitação técnica cadastrada</div>
-                      )}
                     </div>
 
                     {/* CMA */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Certificado Médico Aeronáutico</h3>
+                    <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-4 mb-5">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">Certificado Médico Aeronáutico</h3>
+                          <p className="text-sm text-slate-400">Controle de validade e informações complementares.</p>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {licenses
                           .filter((lic: any) => !!lic.CMA)
                           .map((lic: any) => {
                             const statusColor = getLicenseStatusColorClass(lic, true);
                             return (
-                              <div key={`${lic.id}-cma`} className={`${statusColor.bg} border ${statusColor.border} rounded-lg p-4 transition-colors space-y-3`}>
+                              <div key={`${lic.id}-cma`} className={`${statusColor.bg} border ${statusColor.border} rounded-2xl p-4 transition-colors`}> 
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
-                                    <div className="font-semibold text-cyan-300">CMA</div>
-                                    <p className="text-xs text-cyan-200 mt-1">Certificado Médico Aeronáutico</p>
+                                    <div className="text-sm font-semibold text-slate-100">CMA</div>
+                                    <p className="text-xs text-slate-400 mt-1">Certificado Médico Aeronáutico</p>
                                   </div>
                                   {getLicenseStatusBadge(lic, true, () => handleEditLicense(lic, true))}
                                 </div>
-                                <div className="space-y-2 text-sm">
-                                  {lic.CMA && (
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-slate-400">Classe:</span>
-                                      <span className="text-cyan-300 font-semibold">
-                                        {lic.CMA === 'primeira' ? '1° Classe' : lic.CMA === 'segunda' ? '2° Classe' : lic.CMA}
-                                      </span>
+                                <div className="mt-4 text-sm space-y-3 text-slate-200">
+                                  {lic.CMA ? (
+                                    <div className="flex justify-between text-xs text-slate-400">
+                                      <span>Classe</span>
+                                      <span className="font-medium text-slate-100">{lic.CMA === 'primeira' ? '1° Classe' : lic.CMA === 'segunda' ? '2° Classe' : lic.CMA}</span>
                                     </div>
-                                  )}
-                                  {lic.validade_cma && (
-                                    <div className="flex justify-between text-xs border-t border-cyan-500/20 pt-2 mt-2">
-                                      <span className="text-slate-400">Validade:</span>
-                                      <span className="text-slate-300 font-medium">{formatDateToBR(lic.validade_cma)}</span>
+                                  ) : null}
+                                  {lic.validade_cma ? (
+                                    <div className="flex justify-between text-xs text-slate-400">
+                                      <span>Validade</span>
+                                      <span className="font-medium text-slate-100">{formatDateToBR(lic.validade_cma)}</span>
                                     </div>
-                                  )}
-                                  {lic.FS_RH && (
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-slate-400">FS/RH:</span>
-                                      <span className="text-slate-300 font-medium">{lic.FS_RH}</span>
+                                  ) : null}
+                                  {lic.FS_RH ? (
+                                    <div className="flex justify-between text-xs text-slate-400">
+                                      <span>FS/RH</span>
+                                      <span className="font-medium text-slate-100">{lic.FS_RH}</span>
                                     </div>
-                                  )}
+                                  ) : null}
                                 </div>
-                                {lic.observacao && (
-                                  <div className="text-xs text-slate-400 italic bg-slate-900/50 p-2 rounded border-l-2 border-cyan-500/50 mt-3">
+                                {lic.observacao ? (
+                                  <div className="mt-4 text-xs text-slate-400 italic bg-slate-900/60 p-3 rounded-2xl border border-slate-800/60">
                                     {lic.observacao}
                                   </div>
-                                )}
+                                ) : null}
                               </div>
                             );
                           })}
                       </div>
-                      {licenses.filter((lic: any) => !!lic.CMA).length === 0 && (
-                        <div className="text-center py-8 text-slate-400 text-sm">Nenhum CMA cadastrado</div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -417,33 +442,34 @@ export default function TripulanteDetalhes() {
               {/* Escala (lancamentos_diario_bordo) */}
               <TabsContent value="escala" className="mt-6 space-y-4">
                 {isSchedulesLoading ? (
-                  <div className="text-sm text-muted-foreground">Carregando...</div>
+                  <div className="text-sm text-slate-400">Carregando...</div>
                 ) : schedules.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">Nenhuma escala programada</div>
+                  <div className="text-sm text-slate-400">Nenhuma escala programada</div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {(schedules as any[]).map((s: any) => (
-                      <div key={s.id} className="border rounded-lg p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="text-center">
-                            {/* data_registro — campo real */}
-                            <p className="text-2xl font-bold">{new Date(s.data_registro + 'T00:00:00').getDate()}</p>
-                            <p className="text-sm text-muted-foreground">{formatMonthShort(s.data_registro)}</p>
+                      <div key={s.id} className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-4 shadow-sm">
+                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="rounded-2xl bg-slate-900/80 p-3 text-center min-w-[70px]">
+                              <p className="text-3xl font-semibold text-white">{new Date(s.data_registro + 'T00:00:00').getDate()}</p>
+                              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{formatMonthShort(s.data_registro)}</p>
+                            </div>
+                            <div>
+                              <p className="text-lg font-semibold text-white">{s.aerodromo_partida} → {s.aerodromo_chegada}</p>
+                              <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-400">
+                                <span className="inline-flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  {s.natureza_voo}
+                                </span>
+                                {s.aeronave?.matricula && <span>{s.aeronave.matricula}</span>}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            {/* aerodromo_partida / aerodromo_chegada — campos reais */}
-                            <p className="font-semibold">{s.aerodromo_partida} → {s.aerodromo_chegada}</p>
-                            <p className="text-sm text-muted-foreground flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              {s.natureza_voo}
-                              {s.aeronave?.matricula && ` · ${s.aeronave.matricula}`}
-                            </p>
-                          </div>
+                          <Badge variant={s.confirmado ? 'default' : 'secondary'}>
+                            {s.confirmado ? 'Confirmado' : 'Pendente'}
+                          </Badge>
                         </div>
-                        {/* confirmado — campo real */}
-                        <Badge variant={s.confirmado ? 'default' : 'secondary'}>
-                          {s.confirmado ? 'Confirmado' : 'Pendente'}
-                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -457,24 +483,29 @@ export default function TripulanteDetalhes() {
 
               {/* Aprovações pendentes */}
               <TabsContent value="aprovacoes-pendentes" className="mt-6 space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Relatórios para Aprovação</h3>
+                <div className="rounded-2xl border border-slate-800/70 bg-slate-950/80 p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">Relatórios para Aprovação</h3>
+                      <p className="text-sm text-slate-400">Acompanhe as pendências e aprove no fluxo de voo.</p>
+                    </div>
+                  </div>
                   {isApprovalsLoading ? (
-                    <div className="text-center py-8 text-sm text-muted-foreground">Carregando relatórios pendentes...</div>
+                    <div className="text-center py-12 text-sm text-slate-400">Carregando relatórios pendentes...</div>
                   ) : pendingApprovals.length === 0 ? (
-                    <div className="text-center py-8 text-sm text-muted-foreground">Nenhum relatório pendente de aprovação</div>
+                    <div className="text-center py-12 text-sm text-slate-400">Nenhum relatório pendente de aprovação</div>
                   ) : (
                     <div className="space-y-4">
                       {pendingApprovals.map((report: any) => (
-                        <Card key={report.id} className="border-l-4 border-l-blue-500">
-                          <CardContent className="p-6">
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-lg mb-1">{report.numero_relatorio}</h4>
-                                <p className="text-sm text-muted-foreground">{report.cliente?.razao_social}</p>
-                                <div className="flex gap-4 mt-3 text-sm">
-                                  <span className="text-muted-foreground">📅 {formatDateToBR(report.data_inicio)} até {formatDateToBR(report.data_fim)}</span>
-                                  <span className="font-semibold text-green-600">R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</span>
+                        <Card key={report.id} className="border border-slate-800/70 bg-slate-950/85 shadow-sm rounded-2xl">
+                          <CardContent className="p-5">
+                            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-3">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-lg text-white mb-1">{report.numero_relatorio}</h4>
+                                <p className="text-sm text-slate-400 truncate">{report.cliente?.razao_social}</p>
+                                <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-400">
+                                  <span>📅 {formatDateToBR(report.data_inicio)} até {formatDateToBR(report.data_fim)}</span>
+                                  <span className="font-semibold text-slate-100">R$ {Number(report.total_valor || 0).toFixed(2).replace('.', ',')}</span>
                                 </div>
                               </div>
                               <Badge variant={report.crew_approval_status === 'pending' ? 'secondary' : 'destructive'}>
@@ -482,12 +513,12 @@ export default function TripulanteDetalhes() {
                               </Badge>
                             </div>
                             {report.crew_approval_notes && (
-                              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-900">
-                                <strong>Motivo da devolução:</strong> {report.crew_approval_notes}
+                              <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-100">
+                                <strong className="text-amber-200">Motivo da devolução:</strong> {report.crew_approval_notes}
                               </div>
                             )}
                             {report.crew_approval_status === 'pending' && (
-                              <Button onClick={() => window.open(`${window.location.origin}/#/aprovar-relatorio/${report.approval_token}`, '_blank')} className="w-full bg-blue-600 hover:bg-blue-700">
+                              <Button onClick={() => window.open(`${window.location.origin}/#/aprovar-relatorio/${report.approval_token}`, '_blank')} className="w-full bg-slate-700/90 hover:bg-slate-600/90 text-white shadow-sm">
                                 Revisar e Aprovar
                               </Button>
                             )}

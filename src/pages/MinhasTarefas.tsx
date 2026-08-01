@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import TarefasKanban from "@/components/tarefas/TarefasKanban";
 import TarefasLista from "@/components/tarefas/TarefasLista";
+import TarefasCalendario from "@/components/tarefas/TarefasCalendario";
 import TaskNotificationModal from "@/components/tarefas/TaskNotificationModal";
-import { CheckSquare, User, Users, LayoutGrid, List } from "lucide-react";
+import { CheckSquare, User, Users, LayoutGrid, List, CalendarDays } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +13,7 @@ export default function MinhasTarefas() {
   const { isAdmin, isGestorMaster } = useUserRole();
   const isManager = isAdmin || isGestorMaster;
   const [view, setView] = useState<"minhas" | "equipe">("minhas");
-  const [layout, setLayout] = useState<"kanban" | "lista">("kanban");
+  const [layout, setLayout] = useState<"kanban" | "lista" | "calendario">("kanban");
   const [userId, setUserId] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +128,19 @@ export default function MinhasTarefas() {
                 <List className="h-4 w-4" />
                 Lista
               </button>
+              <button
+                onClick={() => setLayout("calendario")}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                  layout === "calendario"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Visualização em Calendário"
+              >
+                <CalendarDays className="h-4 w-4" />
+                Calendário
+              </button>
             </div>
           </div>
         </div>
@@ -135,8 +149,10 @@ export default function MinhasTarefas() {
         <div className="rounded-2xl bg-[#0b0d12] border border-white/5 shadow-2xl overflow-hidden">
           {layout === "kanban" ? (
             <TarefasKanban myView={isManager && view === "minhas"} isManager={isManager} />
-          ) : (
+          ) : layout === "lista" ? (
             <TarefasLista myView={isManager && view === "minhas"} isManager={isManager} />
+          ) : (
+            <TarefasCalendario myView={isManager && view === "minhas"} isManager={isManager} />
           )}
         </div>
       </div>

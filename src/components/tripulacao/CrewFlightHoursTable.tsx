@@ -180,10 +180,10 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
   };
 
   return (
-    <Card className="bg-gradient-card border-border shadow-card rounded-lg">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Plane className="h-5 w-5 text-primary" />
+    <Card className="border border-slate-800/70 bg-slate-950/85 shadow-sm rounded-2xl">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800/70 pb-3 mb-3">
+        <CardTitle className="flex items-center gap-2 text-slate-100">
+          <Plane className="h-5 w-5 text-slate-100" />
           Horas de Voo por Aeronave
         </CardTitle>
         <Button
@@ -191,6 +191,7 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
           size="sm"
           onClick={handleRecalculate}
           disabled={isRecalculating}
+          className="h-9"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRecalculating ? "animate-spin" : ""}`} />
           Atualizar
@@ -205,11 +206,11 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
         ) : (
           <>
             {/* Filtros */}
-            <div className="bg-muted/50 border rounded-lg p-4 space-y-3">
+            <div className="bg-slate-900/70 border border-slate-800/70 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold">Filtros de Pesquisa</h3>
+                <h3 className="text-sm font-semibold text-slate-100">Filtros de Pesquisa</h3>
                 {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-8 px-2 text-xs">
+                  <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-8 px-2 text-xs text-slate-300">
                     <X className="h-3.5 w-3.5 mr-1" />
                     Limpar filtros
                   </Button>
@@ -255,25 +256,25 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
 
             {/* Totalizadores */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
-                <div className="text-xs text-muted-foreground">PIC (Comandante)</div>
-                <div className="text-2xl font-bold text-emerald-600">{formatHours(sum("pic_hours"))}</div>
+              <div className="bg-slate-900/70 border border-slate-800/70 rounded-2xl p-4">
+                <div className="text-xs text-slate-400">PIC (Comandante)</div>
+                <div className="text-2xl font-bold text-slate-100">{formatHours(sum("pic_hours"))}</div>
               </div>
-              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
-                <div className="text-xs text-muted-foreground">SIC (2º Piloto)</div>
-                <div className="text-2xl font-bold text-cyan-600">{formatHours(sum("sic_hours"))}</div>
+              <div className="bg-slate-900/70 border border-slate-800/70 rounded-2xl p-4">
+                <div className="text-xs text-slate-400">SIC (2º Piloto)</div>
+                <div className="text-2xl font-bold text-slate-100">{formatHours(sum("sic_hours"))}</div>
               </div>
-              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
-                <div className="text-xs text-muted-foreground">Total de Horas</div>
-                <div className="text-2xl font-bold text-primary">{formatHours(sum("total_hours"))}</div>
+              <div className="bg-slate-900/70 border border-slate-800/70 rounded-2xl p-4">
+                <div className="text-xs text-slate-400">Total de Horas</div>
+                <div className="text-2xl font-bold text-slate-100">{formatHours(sum("total_hours"))}</div>
               </div>
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <div className="text-xs text-muted-foreground">Horas IFR</div>
-                <div className="text-2xl font-bold text-blue-600">{formatHours(sum("ifr_hours"))}</div>
+              <div className="bg-slate-900/70 border border-slate-800/70 rounded-2xl p-4">
+                <div className="text-xs text-slate-400">Horas IFR</div>
+                <div className="text-2xl font-bold text-slate-100">{formatHours(sum("ifr_hours"))}</div>
               </div>
-              <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-                <div className="text-xs text-muted-foreground">Horas Noturnas</div>
-                <div className="text-2xl font-bold text-purple-600">{formatHours(sum("not_hours"))}</div>
+              <div className="bg-slate-900/70 border border-slate-800/70 rounded-2xl p-4">
+                <div className="text-xs text-slate-400">Horas Noturnas</div>
+                <div className="text-2xl font-bold text-slate-100">{formatHours(sum("not_hours"))}</div>
               </div>
             </div>
 
@@ -304,12 +305,12 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                         {monthNames[record.month - 1]} {record.year}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="bg-emerald-500/20 text-emerald-600 px-2 py-1 rounded text-xs font-semibold">
+                        <span className="bg-slate-900/70 text-slate-100 px-2 py-1 rounded text-xs font-semibold">
                           {formatHours(record.pic_hours)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="bg-cyan-500/20 text-cyan-600 px-2 py-1 rounded text-xs font-semibold">
+                        <span className="bg-slate-900/70 text-slate-100 px-2 py-1 rounded text-xs font-semibold">
                           {formatHours(record.sic_hours)}
                         </span>
                       </TableCell>
