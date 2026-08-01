@@ -172,16 +172,16 @@ export default function BaixaPagamentoModal({
   const valorRateadoBase = num(mov.valor_rateado) || num(mov.valor);
   const valorTotal = num(mov.valor_original) || valorRateadoBase;
   const valorOriginal = valorTotal;
-  const precisaReembolso = !!mov.reembolsavel;
 
   const [dataPagamento, setDataPagamento] = useState(
     new Date().toISOString().slice(0, 10),
   );
-  const [percentualUso, setPercentualUso] = useState<string>("");
-  const [pagoPor, setPagoPor] = useState<string>("");
-  const [valorRateado, setValorRateado] = useState<string>((valorRateadoBase || valorTotal).toFixed(2));
-  const [valorPagoReal, setValorPagoReal] = useState<string>(valorTotal.toFixed(2));
-  const [pagoDiretamente, setPagoDiretamente] = useState<boolean>(mov.pago_diretamente ?? false);
+  // true = "Pago Diretamente" (cliente pagou, sem reembolso da Share)
+  // false = "Com Reembolso" (a Share adiantou/pagou o fornecedor; vira conta a
+  //          receber do cliente, aguardando reembolso)
+  const [pagoDiretamente, setPagoDiretamente] = useState<boolean>(mov.pago_diretamente ?? true);
+  const comReembolso = !pagoDiretamente;
+  const [bancoNome, setBancoNome] = useState<string>("");
   const [anexos, setAnexos] = useState<AnexoRow[]>([
     { tipo_anexo: "comprovante", numero_doc: "", file_url: "" },
   ]);
@@ -305,28 +305,29 @@ export default function BaixaPagamentoModal({
     }
     setSaving(true);
     try {
-      const precisaAguardarReembolso = !!mov.reembolsavel && !pagoDiretamente;
+      const validAnexos = anexos.filter((a) => a.file_url);
+      const comprovante = validAnexos.find((a) => a.tipo_anexo === "comprovante");
+      const recibo = validAnexos.find((a) => a.tipo_anexo === "recibo");
+      const boleto = validAnexos.find((a) => a.tipo_anexo === "boleto");
+      const nf = validAnexos.find((a) => a.tipo_anexo === "nota_fiscal");
 
       const updatePayload: Record<string, any> = {
         data_pagamento: dataPagamento,
-        status: precisaAguardarReembolso
-          ? "aguardando_reembolso"
-          : entrada
-          ? "recebido"
-          : "pago",
         pago_diretamente: pagoDiretamente,
-        percentual_uso: percentualUso ? parseFloat(percentualUso) : null,
-        valor_rateado: parseFloat(valorRateado) || 0,
-        valor_pago_real: parseFloat(valorPagoReal) || 0,
-        pago_por: pagoPor || null,
+        status: comReembolso ? "aguardando_reembolso" : entrada ? "recebido" : "pago",
         atualizado_em: new Date().toISOString(),
       };
 
-      // If reembolsavel and pago_diretamente=false => needs reimbursement
-      if (mov.reembolsavel && !pagoDiretamente) {
+      if (comReembolso) {
+        // A despesa deixa de ser paga direto pelo caixa do cliente: a Share
+        // pagou o fornecedor e agora existe um valor a receber do cliente.
+        updatePayload.reembolsavel = true;
         updatePayload.reembolso_quitado = false;
-      } else if (mov.reembolsavel && pagoDiretamente) {
-        updatePayload.reembolso_quitado = true;
+        updatePayload.pago_por = "share";
+        updatePayload.banco_nome = bancoNome || null;
+      } else {
+        updatePayload.reembolsavel = false;
+        updatePayload.reembolso_quitado = false;
       }
 
       // 1. Update movimentacoes
@@ -337,22 +338,26 @@ export default function BaixaPagamentoModal({
       if (movErr) throw movErr;
 
       // 2. Update contas_apagar if linked
-      const validAnexos = anexos.filter((a) => a.file_url);
       if (mov.contas_apagar_id) {
-        const comprovanteUrl = validAnexos.find((a) => a.tipo_anexo === "comprovante")?.file_url || null;
+        const valorPagoFornecedor = comReembolso
+          ? valorTotal
+          : rateioRows.length > 0
+          ? rateioRows.reduce((s, r) => s + (Number(r.valor_pago_real) || 0), 0)
+          : valorTotal;
         await supabase
           .from("contas_apagar")
           .update({
             status: "paga",
             data_pagamento: dataPagamento,
-            comprovante_pagamento_url: comprovanteUrl,
-            banco_pagamento: pagoPor || null,
-            valor_pago: String(parseFloat(valorPagoReal) || 0),
+            comprovante_pagamento_url: comprovante?.file_url || null,
+            banco_pagamento: comReembolso ? bancoNome || null : null,
+            valor_pago: String(valorPagoFornecedor),
           })
           .eq("id", mov.contas_apagar_id);
       }
 
-      // 3. Update contas_areceber if linked
+      // 3. Update contas_areceber if linked (baixa de um recebimento já existente,
+      // por ex. o cliente pagando de volta um reembolso pendente)
       if (mov.contas_areceber_id) {
         await supabase
           .from("contas_areceber")
@@ -360,14 +365,15 @@ export default function BaixaPagamentoModal({
           .eq("id", mov.contas_areceber_id);
       }
 
-      // 3b. Despesa reembolsável: a Share adiantou → gera conta a receber do cliente
-      if (precisaAguardarReembolso && !mov.contas_areceber_id && mov.clientes_id) {
+      // 3b. Despesa passou a ser "Com Reembolso" nesta baixa: a Share adiantou o
+      // pagamento ao fornecedor → gera conta a receber do cliente, aguardando reembolso.
+      if (comReembolso && !mov.contas_areceber_id && mov.clientes_id) {
         const { data: cli } = await supabase
           .from("clientes")
           .select("id, razao_social, proprietario, cnpj")
           .eq("id", mov.clientes_id)
           .maybeSingle();
-        const valorReembolso = parseFloat(valorRateado) || valorRateadoBase || valorTotal;
+        const valorReembolso = valorRateadoBase || valorTotal;
         const { data: novaConta } = await supabase
           .from("contas_areceber")
           .insert({
@@ -380,7 +386,8 @@ export default function BaixaPagamentoModal({
             categoria: mov.categoria_nome || "REEMBOLSO",
             categoria_id: mov.categoria_id || null,
             descricao: `Reembolso — ${mov.descricao || ""}`.trim(),
-            status: "pendente",
+            status: "aguardando_reembolso",
+            comprovante_url: comprovante?.file_url || null,
             movimentacao_id: mov.id,
             reference_type: "reembolso_share",
             reference_id: mov.id,
@@ -413,10 +420,17 @@ export default function BaixaPagamentoModal({
         }
       }
 
-      // 5. Update rateio_despesas for this movimentacao
-      const comprovanteRateioUrl = validAnexos.find((a) => a.tipo_anexo === "comprovante")?.file_url || null;
-      if (rateioRows.length > 0) {
-        // Persistir ajustes individuais por cotista
+      // 5. Update rateio_despesas para esta movimentação
+      if (comReembolso) {
+        // O rateio real por cotista só é conhecido quando o cliente quitar o
+        // reembolso — por ora fica "parcial", sem pagador definido, e sem
+        // marcar como pago diretamente (o fornecedor foi pago pela Share).
+        await supabase
+          .from("rateio_despesas")
+          .update({ pago_por: null, status: "parcial", pago_diretamente: false })
+          .eq("despesa_id", mov.id);
+      } else if (rateioRows.length > 0) {
+        // Persistir ajustes individuais por cotista (uso, valor rateado, quem pagou)
         await Promise.all(
           rateioRows.map((r) =>
             supabase
@@ -428,7 +442,8 @@ export default function BaixaPagamentoModal({
                 pago_por: r.pago_por,
                 status: "pago",
                 data_pagamento: dataPagamento,
-                comprovante_url: comprovanteRateioUrl,
+                pago_diretamente: true,
+                comprovante_url: comprovante?.file_url || null,
               })
               .eq("id", r.id),
           ),
@@ -436,7 +451,13 @@ export default function BaixaPagamentoModal({
       } else {
         await supabase
           .from("rateio_despesas")
-          .update({ status: "pago", data_pagamento: dataPagamento, valor_pago_real: parseFloat(valorPagoReal) || 0, comprovante_url: comprovanteRateioUrl })
+          .update({
+            status: "pago",
+            data_pagamento: dataPagamento,
+            valor_pago_real: valorTotal,
+            pago_diretamente: true,
+            comprovante_url: comprovante?.file_url || null,
+          })
           .eq("despesa_id", mov.id);
       }
 
@@ -459,10 +480,6 @@ export default function BaixaPagamentoModal({
 
       // Also update the URL fields on movimentacoes for backward compat
       const urlUpdate: Record<string, any> = {};
-      const comprovante = validAnexos.find((a) => a.tipo_anexo === "comprovante");
-      const recibo = validAnexos.find((a) => a.tipo_anexo === "recibo");
-      const boleto = validAnexos.find((a) => a.tipo_anexo === "boleto");
-      const nf = validAnexos.find((a) => a.tipo_anexo === "nota_fiscal");
       if (comprovante) urlUpdate.comprovante_url = comprovante.file_url;
       if (recibo) urlUpdate.recibo_url = recibo.file_url;
       if (boleto) urlUpdate.boleto_url = boleto.file_url;
@@ -521,7 +538,7 @@ export default function BaixaPagamentoModal({
             </div>
           </div>
 
-          {/* Payment fields */}
+          {/* Data + Tipo de Pagamento */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
@@ -531,57 +548,6 @@ export default function BaixaPagamentoModal({
                 type="date"
                 value={dataPagamento}
                 onChange={(e) => setDataPagamento(e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Pago Por
-              </label>
-              <UISearchableCombobox
-                items={socios.map((s) => ({ id: s.nome, label: s.nome }))}
-                value={pagoPor}
-                onChange={(_id, label) => setPagoPor(label)}
-                placeholder={socios.length ? "Selecione o cotista..." : "Nenhum cotista"}
-                searchPlaceholder="Buscar cotista..."
-                emptyMessage="Nenhum cotista encontrado."
-                allowFreeText
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Percentual de Uso (%)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={percentualUso}
-                onChange={(e) => setPercentualUso(e.target.value)}
-                placeholder="Ex: 50.00"
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Valor Rateado (R$)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={valorRateado}
-                onChange={(e) => setValorRateado(e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
-                Valor Pago Real (R$)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={valorPagoReal}
-                onChange={(e) => setValorPagoReal(e.target.value)}
                 className={inputCls}
               />
             </div>
@@ -605,7 +571,7 @@ export default function BaixaPagamentoModal({
                   type="button"
                   onClick={() => setPagoDiretamente(false)}
                   className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                    !pagoDiretamente
+                    comReembolso
                       ? "border-amber-400/40 bg-amber-500/10 text-amber-300"
                       : "border-slate-700 bg-slate-800/60 text-slate-400 hover:text-slate-200"
                   }`}
@@ -616,7 +582,22 @@ export default function BaixaPagamentoModal({
             </div>
           </div>
 
-          {/* Info about pago_diretamente */}
+          {/* Banco usado pela Share, apenas quando vira reembolso */}
+          {comReembolso && (
+            <div>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                Banco (pagamento pela Share)
+              </label>
+              <input
+                value={bancoNome}
+                onChange={(e) => setBancoNome(e.target.value)}
+                placeholder="Ex: Itaú, Nubank..."
+                className={inputCls}
+              />
+            </div>
+          )}
+
+          {/* Info about pagoDiretamente / comReembolso */}
           <div
             className="rounded-lg border p-3 text-xs"
             style={{
@@ -631,11 +612,12 @@ export default function BaixaPagamentoModal({
           >
             {pagoDiretamente
               ? "Despesa paga diretamente — não passa pelo caixa share. Sem necessidade de reembolso."
-              : "Despesa com reembolso — terá uma saída do caixa cliente e um reembolso para o caixa share."}
+              : "Com Reembolso — a Share pagou o fornecedor. Esta despesa passa para o caixa share e gera uma conta a receber do cliente (aguardando reembolso). O rateio entre cotistas só será definido quando o cliente quitar o reembolso."}
           </div>
 
-          {/* Rateio entre cotistas — quando a despesa possui múltiplos rateios */}
-          {rateioRows.length > 0 && (
+          {/* Rateio entre cotistas — só se aplica quando o pagamento é direto,
+              já que no fluxo "Com Reembolso" o rateio real só é definido depois */}
+          {pagoDiretamente && rateioRows.length > 0 && (
             <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div>
