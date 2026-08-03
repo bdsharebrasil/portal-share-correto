@@ -19,16 +19,16 @@ export const APP_ROLE_VALUES = [
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: "Administrador",
-  financeiro_master: "Financeiro Master",
-  financeiro: "Financeiro",
-  operacoes: "Operações",
-  piloto_chefe: "Piloto Chefe",
-  tripulante: "Tripulante",
-  cotista: "Cotista",
+  financeiro_master: "FINANCEIRO MASTER",
+  financeiro: "FINANCEIRO",
+  operacoes: "OPERAÇÕES (CTM)",
+  piloto_chefe: "PILOTO CHEFE",
+  tripulante: "TRIPULANTE",
+  cotista: "COTISTA",
   gestor_master: "Gestor Master",
-  adm: "Administrador",
-  cliente: "Cliente",
-  coordenador_de_voo: "Coordenador de Voo",
+  adm: "ADMINISTRATIVO",
+  cliente: "CLIENTE",
+  coordenador_de_voo: "COORDENADOR DE VOO",
   rh: "RH",
 };
 

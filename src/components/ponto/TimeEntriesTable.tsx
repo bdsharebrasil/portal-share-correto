@@ -12,7 +12,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FileText, Upload, Check, X, Calendar, ChevronDown } from "lucide-react";
+import { FileText, Upload, Check, X, Calendar, ChevronDown, CalendarRange } from "lucide-react";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -62,6 +64,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [openCombobox, setOpenCombobox] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return users;
@@ -79,7 +82,7 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
   useEffect(() => {
     setLoading(true);
     loadEntries();
-  }, [viewAll, filterMonth, selectedUserId]);
+  }, [viewAll, filterMonth, selectedUserId, dateRange?.from, dateRange?.to]);
 
   const loadUsers = async () => {
     try {
@@ -116,8 +119,13 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
       if (!user) return;
 
       const [year, month] = filterMonth.split('-').map(Number);
-      const startDate = startOfMonth(new Date(year, month - 1));
-      const endDate = endOfMonth(new Date(year, month - 1));
+      let startDate = startOfMonth(new Date(year, month - 1));
+      let endDate = endOfMonth(new Date(year, month - 1));
+
+      if (dateRange?.from) {
+        startDate = dateRange.from;
+        endDate = dateRange.to ?? dateRange.from;
+      }
 
       let query = supabase
         .from('lancamento_ponto' as any)
@@ -314,15 +322,49 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
             <CardTitle>
               {viewAll ? 'Registro de Todos os Colaboradores' : 'Meus Registros de Ponto'}
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <Input
                 type="month"
                 value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value)}
-                className="w-[153px] rounded-[14px] mr-[3px] overflow-hidden"
+                onChange={(e) => {
+                  setDateRange(undefined);
+                  setFilterMonth(e.target.value);
+                }}
+                disabled={!!dateRange?.from}
+                className="w-[153px] rounded-[14px] overflow-hidden"
                 style={{ padding: "8px 12px 8px 9px", lineHeight: "21px" }}
               />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="rounded-[14px] justify-start font-normal">
+                    <CalendarRange className="mr-2 h-4 w-4" />
+                    {dateRange?.from
+                      ? dateRange.to
+                        ? `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`
+                        : format(dateRange.from, "dd/MM/yyyy")
+                      : "Período personalizado"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[9999]" align="end">
+                  <CalendarPicker
+                    mode="range"
+                    locale={ptBR}
+                    numberOfMonths={2}
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    className="pointer-events-auto"
+                  />
+                  {dateRange?.from && (
+                    <div className="flex justify-end border-t border-border p-2">
+                      <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
+                        Limpar período
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

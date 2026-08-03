@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 type AppRole = 
   | "admin"
@@ -62,9 +63,12 @@ const passwordStrength = (password: string): PasswordStrength => {
 };
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
   try {
     if (req.method !== "POST") {
-      return new Response("Method not allowed", { status: 405 });
+      return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     }
 
     let body: CreateUserRequest;
@@ -74,7 +78,7 @@ Deno.serve(async (req) => {
       console.error("JSON parse error:", parseError);
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -84,7 +88,7 @@ Deno.serve(async (req) => {
       console.error("Missing email or password");
       return new Response(
         JSON.stringify({ error: "email and password required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -92,7 +96,7 @@ Deno.serve(async (req) => {
       console.error("Missing role");
       return new Response(
         JSON.stringify({ error: "role required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -107,7 +111,7 @@ Deno.serve(async (req) => {
         }),
         {
           status: 400,
-          headers: { "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
@@ -128,7 +132,7 @@ Deno.serve(async (req) => {
       console.error("Auth user creation error:", authError);
       return new Response(
         JSON.stringify({ error: `Failed to create auth user: ${authError.message}` }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -138,7 +142,7 @@ Deno.serve(async (req) => {
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "user_creation_failed" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -154,7 +158,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           error: `Role assignment failed: ${roleError.message}`,
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -191,7 +195,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           error: `Profile creation failed: ${profileError.message}`,
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -202,13 +206,13 @@ Deno.serve(async (req) => {
         user: authData.user,
         success: true,
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: "internal_error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

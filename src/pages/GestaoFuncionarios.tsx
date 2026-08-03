@@ -21,8 +21,9 @@ import { DocumentUploadWidget } from "@/components/profile/DocumentUploadWidget"
 import { ThirteenthSalaryManager } from "@/components/vencimentos/ThirteenthSalaryManager";
 import { VacationManagement } from "@/components/Ferias/VacationManagement";
 import { EmployeeVacationTab } from "@/components/Ferias/EmployeeVacationTab";
-import { Users, FileText, Calendar, Building, Phone, Mail, CreditCard, DollarSign, User as UserIcon, Edit, Save, X, Aperture, Upload, Camera, Trash2, Clock, Palmtree, Search, Receipt } from "lucide-react";
+import { Users, FileText, Calendar, Building, Phone, Mail, CreditCard, DollarSign, User as UserIcon, Edit, Save, X, Aperture, Upload, Camera, Trash2, Clock, Palmtree, Search, Receipt, UserPlus } from "lucide-react";
 import EmployeeBankStatement from "@/components/profile/ExtratoBancarioFuncionario";
+import { NovoFuncionarioDialog } from "@/components/user-management/NovoFuncionarioDialog";
 import { APP_ROLE_VALUES, ROLE_LABELS, type AppRole } from "@/lib/roles";
 import { formatRoleLabel } from "@/lib/roles";
 interface CrewMemberData {
@@ -188,6 +189,7 @@ export default function GestaoFuncionarios() {
     isGestorMaster
   } = useUserRole();
   const canManage = isAdmin || isFinanceiroMaster || isGestorMaster;
+  const [isNewEmployeeOpen, setIsNewEmployeeOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editEmployeeForm, setEditEmployeeForm] = useState<EditEmployeeForm | null>(null);
@@ -553,6 +555,7 @@ export default function GestaoFuncionarios() {
       </>;
   };
   return <Layout>
+      <NovoFuncionarioDialog open={isNewEmployeeOpen} onOpenChange={setIsNewEmployeeOpen} />
       <div className="p-4 sm:p-6 lg:p-8 space-y-8">
         <Tabs defaultValue="funcionarios" className="space-y-8">
           {/* Header */}
@@ -608,9 +611,15 @@ export default function GestaoFuncionarios() {
                     <Users className="h-5 w-5 text-primary" />
                     Colaboradores ({filteredEmployees.length})
                   </CardTitle>
-                  <div className="relative w-full sm:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar funcionário..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-11 rounded-xl" />
+                  <div className="flex w-full sm:w-auto items-center gap-3">
+                    <div className="relative w-full sm:w-80">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Buscar funcionário..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-11 rounded-xl" />
+                    </div>
+                    <Button onClick={() => setIsNewEmployeeOpen(true)} className="h-11 rounded-xl whitespace-nowrap">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Criar Novo Funcionário
+                    </Button>
                   </div>
                 </div>
               </CardHeader>

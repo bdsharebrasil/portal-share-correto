@@ -302,13 +302,13 @@ export function EmployeeSalariesMonthly() {
   return (
     <div className="min-h-screen space-y-6 bg-[#fafafa] p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Salários</h1>
-        <p className="mt-1 text-sm text-zinc-500">Gestão mensal de colaboradores</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Salários</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Gestão mensal de colaboradores</p>
       </div>
 
       <div className="flex flex-wrap gap-3">
         <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(Number(value))}>
-          <SelectTrigger className="h-10 w-[140px] rounded-lg border-zinc-200 bg-white shadow-sm">
+          <SelectTrigger className="h-10 w-[140px] rounded-lg border-border bg-card shadow-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -319,7 +319,7 @@ export function EmployeeSalariesMonthly() {
         </Select>
 
         <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
-          <SelectTrigger className="h-10 w-[120px] rounded-lg border-zinc-200 bg-white shadow-sm">
+          <SelectTrigger className="h-10 w-[120px] rounded-lg border-border bg-card shadow-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -333,11 +333,11 @@ export function EmployeeSalariesMonthly() {
           placeholder="Buscar colaborador..."
           value={searchFilter}
           onChange={(event) => setSearchFilter(event.target.value)}
-          className="h-10 w-[260px] rounded-lg border-zinc-200 bg-white shadow-sm"
+          className="h-10 w-[260px] rounded-lg border-border bg-card shadow-sm"
         />
 
         <Select value={roleFilter || "all"} onValueChange={(value) => setRoleFilter(value === "all" ? "" : value)}>
-          <SelectTrigger className="h-10 w-[200px] rounded-lg border-zinc-200 bg-white shadow-sm">
+          <SelectTrigger className="h-10 w-[200px] rounded-lg border-border bg-card shadow-sm">
             <SelectValue placeholder="Função" />
           </SelectTrigger>
           <SelectContent>
@@ -356,25 +356,25 @@ export function EmployeeSalariesMonthly() {
           { label: "Total bruto", value: `R$ ${statistics.totalBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
           { label: "Média", value: `R$ ${statistics.averageBruto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <p className="text-xs text-zinc-500">{item.label}</p>
-            <p className="mt-1 text-xl font-semibold text-zinc-900">{item.value}</p>
+          <div key={item.label} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <p className="text-xs text-muted-foreground">{item.label}</p>
+            <p className="mt-1 text-xl font-semibold text-foreground">{item.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         {filteredEmployees.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="mb-3 h-8 w-8 text-zinc-400" />
-            <p className="font-medium text-zinc-700">Nenhum colaborador encontrado</p>
-            <p className="text-sm text-zinc-500">Tente ajustar seus filtros de busca.</p>
+            <Users className="mb-3 h-8 w-8 text-muted-foreground" />
+            <p className="font-medium text-foreground">Nenhum colaborador encontrado</p>
+            <p className="text-sm text-muted-foreground">Tente ajustar seus filtros de busca.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-zinc-200 bg-zinc-50">
-                <tr className="text-left text-zinc-500">
+              <thead className="border-b border-border bg-muted/40">
+                <tr className="text-left text-muted-foreground">
                   <th className="px-4 py-3 font-medium">Nome</th>
                   <th className="px-4 py-3 font-medium">Função</th>
                   <th className="px-4 py-3 font-medium">Bruto</th>
@@ -384,24 +384,24 @@ export function EmployeeSalariesMonthly() {
               </thead>
               <tbody>
                 {filteredEmployees.map((employee) => (
-                  <tr key={employee.id} className="border-b border-zinc-100 transition-colors hover:bg-zinc-50 last:border-0">
-                    <td className="px-4 py-3 font-medium text-zinc-900">
+                  <tr key={employee.id} className="border-b border-border/60 transition-colors hover:bg-muted/40 last:border-0">
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {employee.full_name}
-                      <div className="text-xs font-normal text-zinc-400">{employee.email}</div>
+                      <div className="text-xs font-normal text-muted-foreground">{employee.email}</div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">{employee.roles.map(formatRole).join(", ")}</td>
-                    <td className="px-4 py-3 text-zinc-700">
+                    <td className="px-4 py-3 text-muted-foreground">{employee.roles.map(formatRole).join(", ")}</td>
+                    <td className="px-4 py-3 text-foreground">
                       {employee.salary?.base_salary_bruto
                         ? `R$ ${Number(employee.salary.base_salary_bruto).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
                         : "-"}
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">
+                    <td className="px-4 py-3 text-foreground">
                       {employee.salary?.base_salary_liquid
                         ? `R$ ${Number(employee.salary.base_salary_liquid).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
                         : "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <Button variant="ghost" className="text-zinc-600 hover:text-black" onClick={() => handleEditClick(employee)}>
+                      <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => handleEditClick(employee)}>
                         Editar
                       </Button>
                     </td>
