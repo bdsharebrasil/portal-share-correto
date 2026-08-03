@@ -26,8 +26,8 @@ import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 
 interface NFSaida {
   id: string;
-  /** origem do registro: nota fiscal de saída ou recibo de saída */
-  origem?: "nf_saida" | "recibo_saida";
+  /** origem do registro: nota fiscal de saída, recibo de saída ou arquivo do storage */
+  origem?: "nf_saida" | "recibo_saida" | "storage_recebido_saida";
   numero: string | null;
 
   cliente_nome: string | null;
@@ -245,6 +245,7 @@ export default function NFSaidaTab() {
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
   const [documentType, setDocumentType] = useState<"nota" | "recibo">("nota");
   const [uploading, setUploading] = useState(false);
+  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
 
   // filtros e ordenação
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -266,13 +267,28 @@ export default function NFSaidaTab() {
     try {
       const [{ data: nfData, error: nfError }, { data: recData, error: recError }] = await Promise.all([
         supabase.from("notas_fiscais_saida").select("*").order("data_criacao", { ascending: false }),
-        supabase
-          .from("recibos_saida")
-          .select("*, aeronave:aeronave_id(matricula)")
-          .order("data_emissao", { ascending: false }),
+        supabase.from("recibos_saida").select("*").order("data_emissao", { ascending: false }),
       ]);
       if (nfError) throw nfError;
       if (recError) throw recError;
+
+      const aeronaveIds = Array.from(
+        new Set((recData ?? []).map((r: any) => r.aeronave_id).filter(Boolean))
+      ) as string[];
+
+      let aeronavesById = new Map<string, string>();
+      if (aeronaveIds.length > 0) {
+        const { data: aeronavesData, error: aeronavesError } = await supabase
+          .from("aeronave")
+          .select("id, matricula")
+          .in("id", aeronaveIds);
+
+        if (aeronavesError) throw aeronavesError;
+
+        aeronavesById = new Map(
+          (aeronavesData ?? []).map((a: any) => [a.id, a.matricula ?? ""])
+        );
+      }
 
       const nfs: NFSaida[] = (nfData ?? []).map((n: any) => ({ ...n, origem: "nf_saida" as const }));
       const recibos: NFSaida[] = (recData ?? []).map((r: any) => ({
@@ -291,7 +307,7 @@ export default function NFSaidaTab() {
         criado_em: r.criado_em,
         atualizado_em: r.atualizado_em,
         criado_por: r.usuario_id ?? null,
-        aeronave: r.aeronave?.matricula ?? null,
+        aeronave: aeronavesById.get(r.aeronave_id) ?? null,
         cliente_id: r.cliente_id,
         aircraft_id: r.aeronave_id,
         socio_id: r.socio_id,
@@ -301,7 +317,74 @@ export default function NFSaidaTab() {
         contas_areceber_id: r.contas_areceber_id,
       }));
 
-      const merged = [...nfs, ...recibos].sort((a, b) =>
+      const existingClientMap = new Map<string, Partial<NFSaida>>();
+      const registerClientMatch = (url: string | null | undefined, row: Partial<NFSaida>) => {
+        if (!url) return;
+        const normalizedUrl = url.trim();
+        if (!normalizedUrl) return;
+        existingClientMap.set(normalizedUrl, row);
+        try {
+          const parsed = new URL(normalizedUrl);
+          const filename = parsed.pathname.split("/").filter(Boolean).pop() || "";
+          if (filename) existingClientMap.set(filename, row);
+        } catch {}
+      };
+
+      [...nfs, ...recibos].forEach((row) => {
+        registerClientMatch(row.arquivo_pdf_url, row);
+        registerClientMatch((row as any).pdf_url, row);
+        registerClientMatch((row as any).nf_url, row);
+      });
+
+      let storageEntries: NFSaida[] = [];
+      try {
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from("nfs-share-saida")
+          .list("recibos", { limit: 100, offset: 0 });
+
+        if (!storageError) {
+          storageEntries = await Promise.all(
+            (storageData ?? [])
+              .filter((item: any) => item?.name && !item.name.startsWith("."))
+              .map(async (item: any) => {
+                const path = `recibos/${item.name}`;
+                const { data: publicUrlData } = supabase.storage.from("nfs-share-saida").getPublicUrl(path);
+                const publicUrl = publicUrlData?.publicUrl || null;
+                const nomeBase = item.name.replace(/\.[^.]+$/, "");
+                const matchedClient = publicUrl ? existingClientMap.get(publicUrl) ?? existingClientMap.get(item.name) : undefined;
+                return {
+                  id: `storage:${path}`,
+                  origem: "storage_recebido_saida" as const,
+                  numero: nomeBase || item.name,
+                  cliente_nome: matchedClient?.cliente_nome || "Recebido de saída",
+                  cliente_cnpj: matchedClient?.cliente_cnpj || null,
+                  data_criacao: matchedClient?.data_criacao || item.created_at || item.updated_at || null,
+                  data_vencimento: matchedClient?.data_vencimento || null,
+                  valor: matchedClient?.valor || null,
+                  categoria: matchedClient?.categoria || "Recebido de saída",
+                  descricao: matchedClient?.descricao || item.name,
+                  status: matchedClient?.status || "recebido",
+                  arquivo_pdf_url: publicUrl,
+                  criado_em: item.created_at || null,
+                  atualizado_em: item.updated_at || null,
+                  criado_por: null,
+                  aeronave: matchedClient?.aeronave || null,
+                  cliente_id: matchedClient?.cliente_id || null,
+                  aircraft_id: matchedClient?.aircraft_id || null,
+                  socio_id: matchedClient?.socio_id || null,
+                  categoria_id: matchedClient?.categoria_id || null,
+                  categoria_despesa_id: matchedClient?.categoria_despesa_id || null,
+                  categoria_despesa_subcategoria: matchedClient?.categoria_despesa_subcategoria || null,
+                  contas_areceber_id: matchedClient?.contas_areceber_id || null,
+                } as NFSaida;
+              })
+          );
+        }
+      } catch {
+        storageEntries = [];
+      }
+
+      const merged = [...nfs, ...recibos, ...storageEntries].sort((a, b) =>
         (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "")
       );
       setNotas(merged);
@@ -374,6 +457,13 @@ export default function NFSaidaTab() {
     });
     return sorted;
   }, [notas, dateFrom, dateTo, statusFilter, sortBy, sortDir]);
+
+  const toggleClientGroup = (clientName: string) => {
+    setExpandedClients((current) => ({
+      ...current,
+      [clientName]: !current[clientName],
+    }));
+  };
 
   // Agrupamento por cliente e priorização de pendentes para exibição visual
   const groupedNotas = useMemo(() => {
@@ -1013,66 +1103,82 @@ export default function NFSaidaTab() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(groupedNotas).map(([clienteNome, notasDoCliente]) => (
-                <React.Fragment key={clienteNome}>
-                  {/* Cabeçalho do Grupo */}
-                  <tr className="bg-slate-800/60 border-b border-slate-700">
-                    <td colSpan={10} className="px-3 py-2 text-sm font-bold text-slate-100">
-                      {clienteNome} <span className="text-xs font-normal text-slate-400 ml-1">({notasDoCliente.length} {notasDoCliente.length === 1 ? 'nota' : 'notas'})</span>
-                    </td>
-                  </tr>
-                  
-                  {/* Linhas das Notas */}
-                  {notasDoCliente.map((n) => {
-                    const isRecebido = (n.status ?? "").toLowerCase() === "recebido";
-                    const isPendente = (n.status ?? "").toLowerCase() === "pendente";
-                    
-                    return (
-                      <tr 
-                        key={n.id} 
-                        className={`border-b border-slate-800/50 transition-all ${
-                          isRecebido 
-                            ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100' 
-                            : isPendente 
-                              ? 'bg-slate-800/30 border-l-2 border-l-amber-500 hover:bg-slate-800/60' 
-                              : 'hover:bg-slate-800/30'
-                        }`}
-                      >
-                        <td className={`px-3 py-2 font-semibold ${isRecebido ? 'text-slate-400' : 'text-slate-200'}`}>{n.numero || "—"}</td>
-                        <td className="px-3 py-2 text-slate-400">{n.cliente_nome || "—"}</td>
-                        <td className="px-3 py-2 text-slate-400">{n.aeronave || "—"}</td>
-                        <td className="px-3 py-2 text-slate-400">{n.data_criacao || "—"}</td>
-                        <td className="px-3 py-2 text-slate-400">{n.data_vencimento || "—"}</td>
-                        <td className={`px-3 py-2 text-right font-semibold ${isRecebido ? 'text-slate-400' : 'text-cyan-300'}`}>{formatBRL(num(n.valor))}</td>
-                        <td className="px-3 py-2 text-slate-400">{n.categoria || "—"}</td>
-                        <td className="px-3 py-2"><StatusBadge status={n.status} /></td>
-                        <td className="px-3 py-2 text-center">
-                          {n.arquivo_pdf_url ? (
-                            <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 inline-flex items-center justify-center">
-                              <Download className="h-3.5 w-3.5" />
-                            </a>
-                          ) : <span className="text-slate-600">—</span>}
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex justify-end gap-1">
-                            {n.status === "pendente" && n.contas_areceber_id && (
-                              <button onClick={() => openBaixa(n)} title="Dar baixa (registrar recebimento)" className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px]">
-                                <Banknote className="h-3 w-3" />
-                              </button>
-                            )}
-                            <button onClick={() => openEdit(n)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
-                              <Pencil className="h-3 w-3" />
-                            </button>
-                            <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
+              {Object.entries(groupedNotas).map(([clienteNome, notasDoCliente]) => {
+                const isExpanded = expandedClients[clienteNome] ?? false;
+                return (
+                  <React.Fragment key={clienteNome}>
+                    <tr className="bg-slate-800/60 border-b border-slate-700">
+                      <td colSpan={10} className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleClientGroup(clienteNome)}
+                          className="flex w-full items-center justify-between text-left text-sm font-bold text-slate-100"
+                        >
+                          <span>
+                            {isExpanded ? "▾" : "▸"} {clienteNome}
+                            <span className="ml-2 text-xs font-normal text-slate-400">({notasDoCliente.length} {notasDoCliente.length === 1 ? 'nota' : 'notas'})</span>
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    {isExpanded && notasDoCliente.map((n) => {
+                      const isRecebido = (n.status ?? "").toLowerCase() === "recebido";
+                      const isPendente = (n.status ?? "").toLowerCase() === "pendente";
+
+                      return (
+                        <tr
+                          key={n.id}
+                          className={`border-b border-slate-800/50 transition-all ${
+                            isRecebido
+                              ? 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100'
+                              : isPendente
+                                ? 'bg-slate-800/30 border-l-2 border-l-amber-500 hover:bg-slate-800/60'
+                                : 'hover:bg-slate-800/30'
+                          }`}
+                        >
+                          <td className={`px-3 py-2 font-semibold ${isRecebido ? 'text-slate-400' : 'text-slate-200'}`}>{n.numero || "—"}</td>
+                          <td className="px-3 py-2 text-slate-400">{n.cliente_nome || "—"}</td>
+                          <td className="px-3 py-2 text-slate-400">{n.aeronave || "—"}</td>
+                          <td className="px-3 py-2 text-slate-400">{n.data_criacao || "—"}</td>
+                          <td className="px-3 py-2 text-slate-400">{n.data_vencimento || "—"}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${isRecebido ? 'text-slate-400' : 'text-cyan-300'}`}>{formatBRL(num(n.valor))}</td>
+                          <td className="px-3 py-2 text-slate-400">{n.categoria || "—"}</td>
+                          <td className="px-3 py-2"><StatusBadge status={n.status} /></td>
+                          <td className="px-3 py-2 text-center">
+                            {n.arquivo_pdf_url ? (
+                              <a href={n.arquivo_pdf_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 inline-flex items-center justify-center">
+                                <Download className="h-3.5 w-3.5" />
+                              </a>
+                            ) : <span className="text-slate-600">—</span>}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex justify-end gap-1">
+                              {n.origem === "storage_recebido_saida" ? (
+                                <span className="text-[10px] text-slate-500">Somente visualização</span>
+                              ) : (
+                                <>
+                                  {n.status === "pendente" && n.contas_areceber_id && (
+                                    <button onClick={() => openBaixa(n)} title="Dar baixa (registrar recebimento)" className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px]">
+                                      <Banknote className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                  <button onClick={() => openEdit(n)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                  <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
