@@ -289,7 +289,7 @@ export default function GestaoFuncionarios() {
         let latestBenefits: string | null = null;
         const {
           data: salaryData
-        } = await supabase.from("salaries").select("base_salary_bruto, benefit").eq("user_profile", profile.id).order("effective_date", {
+          } = await supabase.from("salarios").select("base_salary_bruto, benefit").eq("user_profile", profile.id).order("effective_date", {
           ascending: false
         }).limit(1);
         if (salaryData && salaryData.length > 0) {
@@ -378,7 +378,7 @@ export default function GestaoFuncionarios() {
       if (updatedData.salary !== selectedEmployee.salary || updatedData.benefits !== selectedEmployee.benefits) {
         const {
           error: salaryUpdateError
-        } = await supabase.from("salaries").upsert([{
+        } = await supabase.from("salarios").upsert([{
           user_profile: employeeId,
           base_salary_bruto: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
           benefit: updatedData.benefits || null,

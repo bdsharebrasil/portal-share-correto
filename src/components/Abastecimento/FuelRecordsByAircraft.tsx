@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import AnexosDinamicosField, { AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { format } from "date-fns";
 import { Combobox } from "@/components/ui/combobox";
 import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
@@ -230,11 +231,81 @@ export function FuelRecordsByAircraft({
     comprovante_url: ""
   });
 
+  const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
+
+  useEffect(() => {
+    setAnexos([
+      {
+        id: "comanda",
+        tipo: "outro",
+        numero: "COMANDA",
+        url: uploadedFiles.comanda_url || formData.comanda_url || null,
+        file: formData.comanda_file || null,
+        uploading: false,
+      },
+      {
+        id: "nota",
+        tipo: "nf",
+        numero: "NOTA FISCAL",
+        url: uploadedFiles.nota_url || formData.nota_url || null,
+        file: formData.nota_file || null,
+        uploading: false,
+      },
+      {
+        id: "boleto",
+        tipo: "boleto",
+        numero: "BOLETO",
+        url: uploadedFiles.boleto_url || formData.boleto_url || null,
+        file: formData.boleto_file || null,
+        uploading: false,
+      },
+      {
+        id: "comprovante",
+        tipo: "comprovante",
+        numero: "COMPROVANTE",
+        url: uploadedFiles.comprovante_url || formData.comprovante_url || null,
+        file: formData.comprovante_file || null,
+        uploading: false,
+      },
+    ]);
+  }, [uploadedFiles.comanda_url, uploadedFiles.nota_url, uploadedFiles.boleto_url, uploadedFiles.comprovante_url, formData.comanda_file, formData.nota_file, formData.boleto_file, formData.comprovante_file, formData.comanda_url, formData.nota_url, formData.boleto_url, formData.comprovante_url]);
+
+  const handleAnexosChange = (next: AnexoLinha[]) => {
+    setAnexos(next);
+    // map back to formData and uploadedFiles
+    const find = (id: string) => next.find(a => a.id === id);
+    const comanda = find('comanda');
+    const nota = find('nota');
+    const boleto = find('boleto');
+    const comprovante = find('comprovante');
+
+    setFormData(prev => ({
+      ...prev,
+      comanda_file: comanda?.file || null,
+      nota_file: nota?.file || null,
+      boleto_file: boleto?.file || null,
+      comprovante_file: comprovante?.file || null,
+      comanda_url: comanda?.url || "",
+      nota_url: nota?.url || "",
+      boleto_url: boleto?.url || "",
+      comprovante_url: comprovante?.url || "",
+    }));
+
+    setUploadedFiles(prev => ({
+      ...prev,
+      comanda_url: comanda?.url || "",
+      nota_url: nota?.url || "",
+      boleto_url: boleto?.url || "",
+      comprovante_url: comprovante?.url || "",
+    }));
+  };
+
   const [viewingAttachment, setViewingAttachment] = useState<{
     url: string;
     type: string;
     name: string;
   } | null>(null);
+
 
   useEffect(() => {
     const loadUserName = async () => {
@@ -659,13 +730,33 @@ export function FuelRecordsByAircraft({
     setUploadedFiles(prev => ({ ...prev, [urlKey]: "" }));
   };
 
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fileKey: 'comanda_file' | 'nota_file' | 'boleto_file' | 'comprovante_file',
+    urlKey: 'comanda_url' | 'nota_url' | 'boleto_url' | 'comprovante_url'
+  ) => {
+    const file = e.target.files?.[0] ?? null;
+    setFormData(prev => ({ ...prev, [fileKey]: file }));
+    if (file) {
+      try {
+        const preview = URL.createObjectURL(file);
+        setUploadedFiles(prev => ({ ...prev, [urlKey]: preview }));
+      } catch (err) {
+        // ignore preview errors
+      }
+    } else {
+      setUploadedFiles(prev => ({ ...prev, [urlKey]: "" }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.comanda.trim() && !editingRecord) {
       setShowConfirmation(true);
       return;
     }
-    setShowConfirmationSummary(true);
+    // executar atualização imediatamente
+    await saveRecord();
   };
 
   const criarLancamentosRateio = async (
@@ -796,7 +887,7 @@ export function FuelRecordsByAircraft({
     }
   };
 
-  const saveRecord = async () => {
+  async function saveRecord() {
     setIsUploading(true);
     setShowConfirmation(false);
     try {
@@ -1718,6 +1809,25 @@ export function FuelRecordsByAircraft({
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isUploading}>
                   Cancelar
                 </Button>
+                </div>
+
+              <div className="rounded-lg border border-border/50 p-4">
+                <AnexosDinamicosField
+                  anexos={anexos}
+                  onChange={handleAnexosChange}
+                  storagePrefix={`abastecimento/${editingRecord?.id || 'new'}`}
+                  bucket="abastecimento"
+                  onView={(url, name, type) => setViewingAttachment({ url, type: type || 'pdf', name: name || 'Anexo' })}
+                />
+              </div>
+
+
+
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isUploading}>
+                  Cancelar
+                </Button>
                 <Button type="submit" disabled={isUploading}>
                   {isUploading ? "Salvando..." : editingRecord ? "Atualizar" : "Criar"}
                 </Button>
@@ -1725,6 +1835,41 @@ export function FuelRecordsByAircraft({
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Visualizador de anexos em tela cheia (fora do dialog de edição) */}
+        <Dialog open={!!viewingAttachment} onOpenChange={(open) => !open && setViewingAttachment(null)}>
+          <DialogContent className="max-w-[96vw] w-[96vw] h-[94vh] p-0 flex flex-col overflow-hidden">
+            <DialogHeader className="px-4 py-3 border-b flex-row items-center justify-between gap-3 space-y-0">
+              <DialogTitle className="truncate text-base">{viewingAttachment?.name || "Anexo"}</DialogTitle>
+              <div className="flex items-center gap-2 pr-8">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => viewingAttachment && window.open(viewingAttachment.url, "_blank")}
+                >
+                  Abrir em nova aba
+                </Button>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-auto bg-muted/30 flex items-center justify-center p-2">
+              {viewingAttachment?.type === "pdf" ? (
+                <iframe
+                  src={viewingAttachment.url}
+                  title={viewingAttachment.name}
+                  className="w-full h-full border-0 bg-white rounded"
+                />
+              ) : viewingAttachment ? (
+                <img
+                  src={viewingAttachment.url}
+                  alt={viewingAttachment.name}
+                  className="max-w-full max-h-full object-contain rounded shadow-lg"
+                />
+              ) : null}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+
 
         <Button
           onClick={() => setIsExportModalOpen(true)}

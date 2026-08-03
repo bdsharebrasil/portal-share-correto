@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       abastecimentos: {
@@ -10290,7 +10315,6 @@ export type Database = {
       }
       user_profiles: {
         Row: {
-          address: string | null
           admission_date: string | null
           avatar_url: string | null
           bank_account: string | null
@@ -10306,16 +10330,16 @@ export type Database = {
           display_name: string | null
           email: string
           employment_status: string | null
+          endereco: string | null
           full_name: string
           id: string
-          phone: string | null
           rg: string | null
           salario: number | null
+          telefone: string | null
           tipo: string | null
           updated_at: string | null
         }
         Insert: {
-          address?: string | null
           admission_date?: string | null
           avatar_url?: string | null
           bank_account?: string | null
@@ -10331,16 +10355,16 @@ export type Database = {
           display_name?: string | null
           email: string
           employment_status?: string | null
+          endereco?: string | null
           full_name: string
           id: string
-          phone?: string | null
           rg?: string | null
           salario?: number | null
+          telefone?: string | null
           tipo?: string | null
           updated_at?: string | null
         }
         Update: {
-          address?: string | null
           admission_date?: string | null
           avatar_url?: string | null
           bank_account?: string | null
@@ -10356,11 +10380,12 @@ export type Database = {
           display_name?: string | null
           email?: string
           employment_status?: string | null
+          endereco?: string | null
           full_name?: string
           id?: string
-          phone?: string | null
           rg?: string | null
           salario?: number | null
+          telefone?: string | null
           tipo?: string | null
           updated_at?: string | null
         }
@@ -11355,6 +11380,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [

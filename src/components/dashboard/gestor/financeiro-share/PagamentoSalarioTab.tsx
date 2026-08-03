@@ -297,7 +297,7 @@ export function PagamentoSalarioTab() {
       }
       const updateData: any = {
         atualizado_em: new Date().toISOString(),
-        status_pagamento: newStatus
+        status: newStatus
       };
       if (parcela1 && parcela1 > 0) {
         updateData.valor_primeira_parcela = parcela1;
@@ -329,7 +329,7 @@ export function PagamentoSalarioTab() {
             data_primeira_parcela: parcela1 && parcela1 > 0 ? format(new Date(), "yyyy-MM-dd") : null,
             valor_segunda_parcela: parcela2 || 0,
             data_segunda_parcela: parcela2 && parcela2 > 0 ? format(new Date(), "yyyy-MM-dd") : null,
-            status_pagamento: newStatus,
+            status: newStatus,
             valor_bruto: (parcela1 || 0) + (parcela2 || 0),
             valor_liquido: (parcela1 || 0) + (parcela2 || 0)
           });

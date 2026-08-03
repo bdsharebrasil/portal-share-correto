@@ -116,7 +116,7 @@ export function EmployeeSalariesMonthly() {
     queryKey: ["all_salaries"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("salaries")
+        .from("salarios")
         .select("*")
         .order("effective_date", { ascending: false });
       if (error) throw error;
@@ -237,12 +237,12 @@ export function EmployeeSalariesMonthly() {
 
       if (data.salary_id) {
         const { error } = await supabase
-          .from("salaries")
+          .from("salarios")
           .update(salaryData)
           .eq("id", data.salary_id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("salaries").insert(salaryData);
+        const { error } = await supabase.from("salarios").insert(salaryData);
         if (error) throw error;
       }
     },

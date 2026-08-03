@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export type AnexoTipoId = "comprovante" | "recibo" | "nf" | "boleto" | "demonstrativo" | "outro";
+export type AnexoTipoId = "comprovante" | "recibo" | "nf" | "boleto" | "demonstrativo" | "outro" | "comanda";
 
 export interface AnexoLinha {
   id: string;
@@ -32,6 +32,7 @@ const TIPOS: { id: AnexoTipoId; label: string }[] = [
   { id: "recibo", label: "RECIBO" },
   { id: "nf", label: "NOTA FISCAL" },
   { id: "boleto", label: "BOLETO" },
+    { id: "comanda", label: "COMANDA" },
   { id: "demonstrativo", label: "DEMONSTRATIVO" },
   { id: "outro", label: "OUTRO DOCUMENTO" },
 ];
@@ -54,6 +55,7 @@ interface Props {
   storagePrefix: string;
   bucket?: string;
   className?: string;
+  onView?: (url: string, name?: string, type?: 'pdf' | 'image') => void;
 }
 
 /**
@@ -66,6 +68,7 @@ export default function AnexosDinamicosField({
   storagePrefix,
   bucket = "client-documents",
   className,
+  onView,
 }: Props) {
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -171,18 +174,35 @@ export default function AnexosDinamicosField({
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> Enviando...
                   </div>
-                ) : a.url ? (
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5 text-xs font-medium text-emerald-500 hover:bg-emerald-500/20 transition-colors truncate max-w-[160px]"
-                    title={a.file?.name || "Anexo"}
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="truncate">{a.file?.name || "Ver arquivo"}</span>
-                    <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                  </a>
+                  ) : a.url ? (
+                  onView ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ext = (a.url || "").split('.').pop() || "";
+                        const t = ext.toLowerCase() === 'pdf' ? 'pdf' : 'image';
+                        onView?.(a.url || '', a.file?.name, t);
+                      }}
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5 text-xs font-medium text-emerald-500 hover:bg-emerald-500/20 transition-colors truncate max-w-[160px]"
+                      title={a.file?.name || "Anexo"}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{a.file?.name || "Ver arquivo"}</span>
+                      <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                    </button>
+                  ) : (
+                    <a
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5 text-xs font-medium text-emerald-500 hover:bg-emerald-500/20 transition-colors truncate max-w-[160px]"
+                      title={a.file?.name || "Anexo"}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{a.file?.name || "Ver arquivo"}</span>
+                      <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                    </a>
+                  )
                 ) : (
                   <Button
                     type="button"

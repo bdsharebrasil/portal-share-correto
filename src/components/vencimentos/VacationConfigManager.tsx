@@ -64,8 +64,8 @@ export function VacationConfigManager() {
             .select("role")
             .eq("user_id", profile.id);
 
-          const { data: salaryData } = await (supabase as any)
-            .from("salaries")
+            const { data: salaryData } = await (supabase as any)
+            .from("salarios")
             .select("base_salary_bruto")
             .eq("user_profile", profile.id)
             .order("effective_date", { ascending: false })

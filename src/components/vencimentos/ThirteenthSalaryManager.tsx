@@ -90,7 +90,7 @@ export function ThirteenthSalaryManager() {
             .eq("user_id", profile.id);
 
           const { data: salaryDataArray } = await supabase
-            .from("salaries")
+            .from("salarios")
             .select("base_salary_bruto")
             .eq("user_profile", profile.id)
             .order("effective_date", { ascending: false })
@@ -306,7 +306,7 @@ export function ThirteenthSalaryManager() {
           valor_segunda_parcela: grossValue / 2,
           data_primeira_parcela: `${selectedYear}-11-01`,
           data_segunda_parcela: `${selectedYear}-12-01`,
-          status_pagamento: "calculated",
+          status: "calculated",
           atualizado_em: new Date().toISOString(),
         } as any);
 

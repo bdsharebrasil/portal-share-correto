@@ -201,9 +201,40 @@ export function NovoFuncionarioDialog({ open, onOpenChange }: Props) {
         },
       });
 
-      if (error) throw new Error(error.message || "Erro ao criar usuário.");
-      const userId = (data as any)?.user?.id;
-      if (!userId) throw new Error((data as any)?.error || "Resposta inválida ao criar usuário.");
+      let userId: string | undefined = undefined;
+
+      if (error) {
+        const msg = String(error.message || "").toLowerCase();
+        // Se o email já existe no Auth, tentar localizar o usuário via função `list-users`
+        if (msg.includes("already been registered") || msg.includes("already registered") || msg.includes("email")) {
+          const { data: listData, error: listError } = await supabase.functions.invoke("list-users");
+          if (listError) throw new Error(listError.message || "Erro ao buscar usuário existente.");
+          const existing = listData?.users?.find((u: any) => u.email === email);
+          if (!existing) throw new Error(error.message || "Usuário já existe, mas não foi possível localizar o ID.");
+          userId = existing.id;
+        } else {
+          throw new Error(error.message || "Erro ao criar usuário.");
+        }
+      }
+
+      if (!userId) {
+        userId = (data as any)?.user?.id;
+      }
+
+      if (!userId) {
+        // Se ainda não obteve ID, checar se a função retornou um erro no payload
+        const errMsg = (data as any)?.error || "Resposta inválida ao criar usuário.";
+        throw new Error(errMsg);
+      }
+
+        // Garantir que exista um perfil em `user_profiles` para este usuário (criar ou atualizar)
+        try {
+          const upsertPayload = { id: userId, email, ...profileData, is_authenticated_user: true };
+          const { error: upsertError } = await supabase.from("user_profiles").upsert([upsertPayload]);
+          if (upsertError) console.warn("Erro ao upsertar user_profiles:", upsertError.message || upsertError);
+        } catch (upsertErr) {
+          console.warn("Falha ao garantir perfil do usuário:", upsertErr);
+        }
 
       const file: Blob | File | null = croppedBlob ?? pdfFile;
       if (file) {
