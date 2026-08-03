@@ -1,10 +1,73 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType, Fragment } from "react";
 import {
-  Wallet, Scale, Gauge, HandCoins, CheckCircle2, ChevronDown,
+  Wallet, Scale, Gauge, CheckCircle2, ChevronDown,
   Plane, ReceiptText, Layers, FileText, ArrowRight, PlaneLanding,
   TrendingUp, Users, AlertCircle, BarChart3, Calculator,
 } from "lucide-react";
 import { formatBRL } from "@/lib/format";
+
+// COMPONENTE MODIFICADO AQUI:
+function CircularMetricCard({
+  icon: Icon,
+  label,
+  value,
+  subtitle,
+  percentage,
+  colorClass,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  subtitle?: string;
+  percentage: number;
+  colorClass: string;
+}) {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setProgress(percentage), 80);
+    return () => window.clearTimeout(timer);
+  }, [percentage]);
+
+  const radius = 48; // Aumentado de 44 para 48 para afastar a linha do número
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - progress / 100);
+
+  return (
+    // Removido o quadrado do fundo (borda, fundo, sombra) e mantido apenas o preenchimento
+    <div className="p-4">
+      <div className="relative mx-auto flex h-44 w-44 items-center justify-center">
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="50" r={radius} className="fill-none stroke-slate-800" strokeWidth="3" /> {/* Espessura reduzida de 8 para 3 */}
+          <circle
+            cx="50"
+            cy="50"
+            r={radius}
+            className={`fill-none ${colorClass}`}
+            strokeWidth="3" // Espessura reduzida de 8 para 3
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="round"
+            transform="rotate(-90 50 50)"
+            style={{ transition: "stroke-dashoffset 1s ease-out" }}
+          />
+        </svg>
+
+        <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-slate-100 shadow-xl shadow-cyan-500/10">
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{label}</p>
+            <p className="mt-2 text-lg font-semibold text-slate-100">{value}</p>
+            {subtitle && <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+// FIM DO COMPONENTE MODIFICADO
+
 import {
   type RateioRow, type VooRow,
   MESES, MESES_SHORT, norm, isSaida, formatDate, num,
@@ -41,7 +104,6 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
     Array.from({ length: 12 }, (_, index) => index + 1)
   );
   const [filtroCotista, setFiltroCotista] = useState("todos");
-  const [showEntradas, setShowEntradas] = useState(false);
   const [sortBy, setSortBy] = useState<"data" | "nome">("data");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedDiario, setExpandedDiario] = useState<string | null>(null);
@@ -50,7 +112,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [aba, setAba] = useState<AbaId>("visao-geral");
 
-  useEffect(() => { setFiltroCotista("todos"); setShowEntradas(false); }, [aeronaveId, ano, selectedMonths]);
+  useEffect(() => { setFiltroCotista("todos"); }, [aeronaveId, ano, selectedMonths]);
 
   const {
     loading, custoFixo, custoVariavel, custoTotal, entradasPeriodo,
@@ -59,6 +121,8 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
     monthlyBreakdown, composicaoPeriodo, diarioPorSocio, evolucaoPorSocio,
     composicaoPorSocio, categoriasPorSocio, voosEnriquecidos, rateiosPeriodo, voosPeriodo,
     resolveSocioName, catNameOf,
+    diarioMesMap,
+    refresh,
   } = useBalancoAeronave({ aeronaveId, ano, selectedMonths });
 
   const selectedSet = useMemo(() => new Set(selectedMonths), [selectedMonths]);
@@ -155,7 +219,6 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
             <div className="h-8 w-px bg-slate-700" />
             <StatMini label="Horas voadas" value={formatHours(horasPeriodo)} />
             <div className="h-8 w-px bg-slate-700" />
-            <StatMini label="Custo/h total" value={horasPeriodo > 0 ? formatBRL(custoMedioHoraTotal) : "—"} />
           </div>
         </div>
       </div>
@@ -175,7 +238,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
             >
               <Icon className="h-3.5 w-3.5" /> {t.label}
             </button>
-          );
+            );
         })}
       </div>
 
@@ -186,56 +249,68 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
           {aba === "visao-geral" && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <MetricCard icon={<Wallet className="h-4 w-4" />} label="Custo total" value={formatBRL(custoTotal)} tone="primary" />
-                <MetricCard icon={<Layers className="h-4 w-4" />} label="Custos fixos" value={formatBRL(custoFixo)} sub={custoTotal ? `${((custoFixo / custoTotal) * 100).toFixed(0)}% do total` : undefined} />
-                <MetricCard icon={<Gauge className="h-4 w-4" />} label="Custos variáveis" value={formatBRL(custoVariavel)} sub={custoTotal ? `${((custoVariavel / custoTotal) * 100).toFixed(0)}% do total` : undefined} />
-                <MetricCard icon={<HandCoins className="h-4 w-4" />} label="Entradas / créditos" value={formatBRL(entradasPeriodo)} tone="success" onClick={() => setShowEntradas((v) => !v)} expanded={showEntradas} hint="Ver por cotista" />
+                <div className="col-span-2 rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Plane className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Horas voadas — por mês</span>
+                  </div>
+                  <SimpleBarChart data={monthlyBreakdown.map(m => ({ key: `${ano}-${String(m.mes).padStart(2,'0')}`, horas: m.horas }))} dataKey="horas" color="#06b6d4" formatter={(v:number) => `${v.toFixed(1)} h`} heightClass="h-40" />
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Composição & evolução dos custos</span>
+                  </div>
+                  <div className="space-y-3">
+                    {composicaoPeriodo.slice(0,4).map((c, i) => <CategoryBar key={c.nome} label={c.nome} value={c.total} total={custoTotal} color={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    <div className="mt-3 text-xs text-slate-400">Evolução mensal exibida na aba Gráficos.</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ranking aeroportos */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <PlaneLanding className="h-4 w-4 text-cyan-400" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Aeroportos mais visitados</span>
+                </div>
+                <AirportRanking voos={voosPeriodo} diarioMesMap={diarioMesMap} selectedMonths={selectedMonths} ano={ano} />
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <CircularMetricCard
+                  icon={Wallet}
+                  label="Custo Total"
+                  value={formatBRL(custoTotal)}
+                  percentage={100}
+                  colorClass="stroke-cyan-400"
+                />
+                <CircularMetricCard
+                  icon={Layers}
+                  label="Custos Fixos"
+                  value={formatBRL(custoFixo)}
+                  subtitle={custoTotal ? `${((custoFixo / custoTotal) * 100).toFixed(0)}% do total` : undefined}
+                  percentage={custoTotal > 0 ? (custoFixo / custoTotal) * 100 : 0}
+                  colorClass="stroke-amber-400"
+                />
+                <CircularMetricCard
+                  icon={Gauge}
+                  label="Custos Variáveis"
+                  value={formatBRL(custoVariavel)}
+                  subtitle={custoTotal ? `${((custoVariavel / custoTotal) * 100).toFixed(0)}% do total` : undefined}
+                  percentage={custoTotal > 0 ? (custoVariavel / custoTotal) * 100 : 0}
+                  colorClass="stroke-fuchsia-400"
+                />
               </div>
 
               <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Plane className="h-4 w-4 text-cyan-400" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">Índice Geral da Aeronave — {periodLabel}</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                  <IndexStat label="Custo Total" value={formatBRL(custoTotal)} />
-                  <IndexStat label="Custo Variável" value={formatBRL(custoVariavel)} />
-                  <IndexStat label="Custo Fixo" value={formatBRL(custoFixo)} />
                   <IndexStat label="Horas Voadas" value={formatHours(horasPeriodo)} />
                   <IndexStat label="Custo/H (Var.)" value={horasPeriodo > 0 ? formatBRL(custoMedioHora) : "—"} />
                   <IndexStat label="Custo/H (Total)" value={horasPeriodo > 0 ? formatBRL(custoMedioHoraTotal) : "—"} />
-                  <IndexStat label="Total Pousos" value={String(totalPousos)} />
-                  <IndexStat label="Total Voos" value={String(voosPeriodo.length)} />
-                  <IndexStat label="Mês(s) selecionado(s)" value={String(selectedMonths.length)} />
-                </div>
-              </div>
-
-              <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: showEntradas ? "1fr" : "0fr" }}>
-                <div className="overflow-hidden">
-                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.05] p-5">
-                    <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-emerald-400">
-                      <HandCoins className="h-3.5 w-3.5" /> Entradas por cotista — {periodLabel}
-                    </div>
-                    {entradasPorCotista.length === 0 ? (
-                      <div className="text-sm text-slate-400">Nenhuma entrada registrada neste período.</div>
-                    ) : (
-                      <div className="space-y-3">
-                        {entradasPorCotista.map((c) => {
-                          const max = entradasPorCotista[0]?.valor || 1;
-                          const pct = (c.valor / max) * 100;
-                          return (
-                            <div key={c.id} className="flex items-center gap-4">
-                              <div className="w-32 shrink-0 truncate text-sm text-slate-300 sm:w-40">{c.nome}</div>
-                              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
-                                <div className="h-full rounded-full bg-emerald-500 transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
-                              </div>
-                              <div className="w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-emerald-400">{formatBRL(c.valor)}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -570,6 +645,7 @@ export default function BalancoAeronaveInterno({ aeronaveId, clienteId, matricul
               ano={ano}
               selectedMonths={selectedMonths}
               catMap={catMap}
+              onRefresh={refresh}
             />
           )}
         </>
@@ -598,270 +674,7 @@ function IndexStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MetricCard({ icon, label, value, sub, tone, onClick, expanded, hint }: { icon: React.ReactNode; label: string; value: string; sub?: string; tone?: "primary" | "success"; onClick?: () => void; expanded?: boolean; hint?: string }) {
-  const clickable = Boolean(onClick);
-  return (
-    <div
-      onClick={onClick}
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); } } : undefined}
-      className={`rounded-2xl border bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-400/30 ${clickable ? "cursor-pointer select-none" : ""} ${expanded ? "border-cyan-400/40 ring-1 ring-cyan-400/20" : "border-slate-800"}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${tone === "primary" ? "bg-cyan-500/15 text-cyan-400" : tone === "success" ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-800 text-slate-400"}`}>{icon}</span>
-        {clickable && <ChevronDown className={`mt-1.5 h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform duration-300 ${expanded ? "rotate-180 text-cyan-400" : ""}`} />}
-      </div>
-      <div className="mt-4 text-xs uppercase tracking-widest text-slate-500">{label}</div>
-      <div className={`mt-1.5 text-2xl font-bold tabular-nums ${tone === "primary" ? "text-cyan-400" : "text-slate-100"}`}>{value}</div>
-      {sub && <div className="mt-1.5 text-xs text-slate-400">{sub}</div>}
-      {clickable && hint && !sub && <div className="mt-1.5 text-xs text-slate-400/80">{hint}</div>}
-    </div>
-  );
-}
-
-function CotistaCard({ linha, selected, onClick }: { linha: any; selected?: boolean; onClick?: () => void }) {
-  const quitado = Math.abs(linha.saldo) <= 0.005;
-  const positivo = linha.saldo > 0.005;
-  const pctAlvo = Math.max(0, Math.min(100, linha.pctPago));
-  const [pctVisivel, setPctVisivel] = useState(0);
-  useEffect(() => {
-    setPctVisivel(0);
-    const t = setTimeout(() => setPctVisivel(pctAlvo), 60);
-    return () => clearTimeout(t);
-  }, [pctAlvo, linha.id]);
-
-  return (
-    <div
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); } }}
-      className={`group cursor-pointer select-none rounded-2xl border bg-slate-900/50 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-400/30 ${selected ? "border-cyan-400/50 bg-cyan-500/[0.05] ring-1 ring-cyan-400/30" : "border-slate-800"}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="truncate font-semibold text-slate-100">{linha.nome}</div>
-          <div className="mt-1 text-xs text-slate-500">Cota {linha.percentual}% · {formatHours(linha.horas)} · {linha.pousos} pousos</div>
-        </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${quitado ? "bg-emerald-500/15 text-emerald-400" : positivo ? "bg-sky-500/15 text-sky-400" : "bg-amber-500/15 text-amber-400"}`}>
-          {quitado ? "Quitado" : positivo ? "A receber" : "A pagar"}
-        </span>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-lg bg-slate-800/40 p-3">
-          <div className="text-[10px] uppercase tracking-widest text-slate-500">Débito</div>
-          <div className="mt-1 font-semibold tabular-nums text-slate-100">{formatBRL(linha.debito)}</div>
-        </div>
-        <div className="rounded-lg bg-slate-800/40 p-3">
-          <div className="text-[10px] uppercase tracking-widest text-slate-500">Crédito</div>
-          <div className="mt-1 font-semibold tabular-nums text-slate-100">{formatBRL(linha.credito)}</div>
-        </div>
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-slate-800/30 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-widest text-slate-500">Horas</div>
-          <div className="mt-0.5 text-xs font-bold text-cyan-400">{formatHours(linha.horas)}</div>
-        </div>
-        <div className="rounded-lg bg-slate-800/30 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-widest text-slate-500">Pousos</div>
-          <div className="mt-0.5 text-xs font-bold text-slate-200">{linha.pousos}</div>
-        </div>
-        <div className="rounded-lg bg-slate-800/30 p-2 text-center">
-          <div className="text-[9px] uppercase tracking-widest text-slate-500">Custo/H</div>
-          <div className="mt-0.5 text-xs font-bold text-amber-400">{linha.horas > 0 ? formatBRL(linha.debito / linha.horas) : "—"}</div>
-        </div>
-      </div>
-      <div className="mt-4">
-        <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-          <div className={`h-full rounded-full transition-[width] duration-700 ease-out ${linha.pctPago > 100 ? "bg-sky-500" : "bg-emerald-500"}`} style={{ width: `${pctVisivel}%` }} />
-        </div>
-        <div className="mt-1.5 text-[11px] text-slate-500">{quitado ? "100% pago" : `${Math.min(999, Math.round(linha.pctPago))}% do devido já foi pago`}</div>
-      </div>
-      <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-3">
-        <div className="text-xs uppercase tracking-widest text-slate-500">Saldo</div>
-        <div className={`text-lg font-bold tabular-nums ${quitado ? "text-emerald-400" : positivo ? "text-sky-400" : "text-amber-400"}`}>
-          {quitado ? formatBRL(0) : `${positivo ? "+" : ""}${formatBRL(linha.saldo)}`}
-        </div>
-      </div>
-      <div className="mt-3 flex items-center justify-end gap-1 text-[11px] font-medium text-slate-500 transition-colors group-hover:text-cyan-400">
-        {selected ? "Extrato aberto abaixo" : "Ver extrato deste sócio"}
-        <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-      </div>
-    </div>
-  );
-}
-
-function ExtratoCotista({ cotista, rateiosPeriodo, resolveSocioName, sortBy, sortDir, setSortBy, setSortDir, catNameOf }: any) {
-  const [q, setQ] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const linhas = useMemo(() => {
-    if (!cotista) return [];
-    return rateiosPeriodo
-      .filter((r: RateioRow) => keyOfParticipante(r.socio_id || null, r.cliente_id || null, resolveSocioName(r)) === cotista.id)
-      .map((r: RateioRow) => {
-        const rateado = num(r.valor_rateado);
-        const pct = num(r.percentual_uso ?? r.percentual_sociedade);
-        const total = num(r.valor_total_despesa);
-        const valor = rateado > 0 ? rateado : pct > 0 ? total * (pct / 100) : total;
-        return { r, valor, pct, socioNome: resolveSocioName(r) };
-      })
-      .sort((a: any, b: any) => {
-        let cmp = 0;
-        if (sortBy === "data") {
-          const da = a.r.data_pagamento || a.r.data_vencimento || a.r.data_emissao || "";
-          const db = b.r.data_pagamento || b.r.data_vencimento || b.r.data_emissao || "";
-          cmp = da.localeCompare(db);
-        } else {
-          cmp = norm(a.socioNome).localeCompare(norm(b.socioNome));
-        }
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-  }, [cotista, rateiosPeriodo, sortBy, sortDir, resolveSocioName]);
-
-  const filtrados = useMemo(() => {
-    if (!q.trim()) return linhas;
-    const n = norm(q);
-    return linhas.filter((l: any) => norm([l.r.fornecedor_nome, l.r.descricao_despesa, catNameOf(l.r), l.r.numero_doc, l.socioNome].join(" ")).includes(n));
-  }, [linhas, q, catNameOf]);
-
-  const totalSaida = filtrados.filter((l: any) => isSaida(l.r.fluxo)).reduce((s: number, l: any) => s + l.valor, 0);
-
-  return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-3">
-        <div className="flex items-start gap-3">
-          <span className="mt-1 h-8 w-1 rounded-full bg-cyan-400" />
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-cyan-400">Extrato do sócio</div>
-            <h2 className="mt-0.5 flex items-center gap-2 text-lg font-bold text-slate-100">
-              <ReceiptText className="h-5 w-5" /> {cotista?.nome}
-            </h2>
-            <div className="mt-1 text-xs text-slate-500">{filtrados.length} lançamento(s) · Total: {formatBRL(totalSaida)}</div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="rounded-lg border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-400">
-            <option value="data">Ordenar por Data</option>
-            <option value="nome">Ordenar por Nome</option>
-          </select>
-          <button onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")} className="rounded-lg border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800">
-            {sortDir === "asc" ? "↑ Crescente" : "↓ Decrescente"}
-          </button>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" className="w-48 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-400" />
-        </div>
-      </div>
-
-      {filtrados.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-400">Nenhum lançamento no período.</div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-800">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-900/60 text-[11px] uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="w-8 px-3 py-2.5" />
-                  <th className="px-3 py-2.5 text-left">Data</th>
-                  <th className="px-3 py-2.5 text-left">Sócio</th>
-                  <th className="px-3 py-2.5 text-left">Fornecedor</th>
-                  <th className="px-3 py-2.5 text-left">Descrição</th>
-                  <th className="px-3 py-2.5 text-left">Categoria</th>
-                  <th className="px-3 py-2.5 text-right">% uso</th>
-                  <th className="px-3 py-2.5 text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtrados.map((l: any) => {
-                  const isExpanded = expandedId === l.r.id;
-                  const status = statusOf(l.r);
-                  const catName = catNameOf(l.r);
-                  return <FragmentRow key={l.r.id} linha={l} expanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : l.r.id)} status={status} catName={catName} />;
-                })}
-              </tbody>
-              <tfoot className="bg-slate-900/40 text-xs">
-                <tr className="border-t border-slate-800">
-                  <td colSpan={7} className="px-3 py-2.5 text-right uppercase tracking-widest text-slate-500">Total</td>
-                  <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-slate-100">{formatBRL(totalSaida)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function FragmentRow({ linha, expanded, onToggle, status, catName }: any) {
-  return (
-    <>
-      <tr onClick={onToggle} className={`cursor-pointer border-t border-slate-800/60 transition-all ${expanded ? "border-l-2 border-l-cyan-400 bg-cyan-500/[0.06]" : "hover:bg-slate-800/30"}`}>
-        <td className="px-3 py-3 text-slate-500"><ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ${expanded ? "rotate-180 text-cyan-400" : ""}`} /></td>
-        <td className="px-3 py-3 text-slate-400">{formatDate(linha.r.data_pagamento || linha.r.data_vencimento || linha.r.data_emissao)}</td>
-        <td className="px-3 py-3 font-medium text-slate-200">{linha.socioNome}</td>
-        <td className="px-3 py-3 text-slate-200">{linha.r.fornecedor_nome || "—"}</td>
-        <td className="px-3 py-3 text-slate-400">{linha.r.descricao_despesa || "—"}</td>
-        <td className="px-3 py-3 text-slate-400">{catName}</td>
-        <td className="px-3 py-3 text-right text-slate-400">{linha.pct > 0 ? `${linha.pct.toFixed(0)}%` : "—"}</td>
-        <td className="px-3 py-3 text-right font-medium tabular-nums text-slate-100">{formatBRL(linha.valor)}</td>
-      </tr>
-      <tr className="border-t-0">
-        <td colSpan={8} className="p-0">
-          <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}>
-            <div className="overflow-hidden">
-              <div className="border-b border-slate-800/60 bg-slate-900/20 px-6 py-5">
-                <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-                  <Campo label="Sócio" value={linha.socioNome} />
-                  <Campo label="Fornecedor" value={linha.r.fornecedor_nome} />
-                  <Campo label="Descrição" value={linha.r.descricao_despesa} />
-                  <Campo label="Documento" value={linha.r.numero_doc || linha.r.numero_nf} />
-                  <Campo label="Categoria" value={catName} />
-                  <Campo label="Forma" value={linha.r.forma_pagamento} />
-                  <Campo label="Data" value={formatDate(linha.r.data_pagamento || linha.r.data_vencimento)} />
-                  <Campo label="Status" value={<span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.tone === "success" ? "bg-emerald-500/15 text-emerald-400" : status.tone === "warning" ? "bg-amber-500/15 text-amber-400" : "bg-rose-500/15 text-rose-400"}`}>{status.label}</span>} />
-                </div>
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <AnexoCard label="Nota Fiscal" url={linha.r.nf_url} />
-                  <AnexoCard label="Recibo" url={linha.r.recibo_url} />
-                  <AnexoCard label="Boleto" url={linha.r.boleto_url} />
-                </div>
-                <div className="mt-4 border-t border-slate-800/40 pt-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-2">Observações</div>
-                  <p className="text-xs leading-relaxed text-slate-400">{linha.r.observacoes || "Nenhuma observação registrada."}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </td>
-      </tr>
-    </>
-  );
-}
-
-function Campo({ label, value }: { label: string; value?: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
-      <div className="mt-1 text-sm font-medium tabular-nums text-slate-200">{value ?? "—"}</div>
-    </div>
-  );
-}
-
-function AnexoCard({ label, url }: { label: string; url?: string | null }) {
-  return (
-    <div className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${url ? "border-slate-700 bg-slate-800/40 hover:border-cyan-400/40" : "border-dashed border-slate-800 bg-slate-900/20 opacity-60"}`}>
-      <span className={`grid h-7 w-7 place-items-center rounded-md ${url ? "bg-cyan-500/15 text-cyan-400" : "bg-slate-800 text-slate-600"}`}><FileText className="h-3.5 w-3.5" /></span>
-      <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
-        <div className="mt-0.5 text-xs font-medium text-slate-300">{url ? "Anexo disponível" : "Não anexado"}</div>
-      </div>
-      {url && <a href={url} target="_blank" rel="noreferrer" className="ml-auto text-xs text-cyan-400 hover:underline">Abrir</a>}
-    </div>
-  );
-}
-
-export function SimpleBarChart({ data, dataKey, color, formatter, heightClass = "h-24" }: { data: any[]; dataKey: string; color: string; formatter: (v: number) => string; heightClass?: string }) {
+function SimpleBarChart({ data, dataKey, color, formatter, heightClass = "h-24" }: { data: any[]; dataKey: string; color: string; formatter: (v: number) => string; heightClass?: string }) {
   const max = Math.max(...data.map((d) => num(d[dataKey])), 1);
   return (
     <div className={`flex items-end gap-1 ${heightClass}`}>
@@ -882,7 +695,7 @@ export function SimpleBarChart({ data, dataKey, color, formatter, heightClass = 
   );
 }
 
-export function CategoryBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+function CategoryBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
   const pct = total > 0 ? (value / total) * 100 : 0;
   return (
     <div>
@@ -898,7 +711,7 @@ export function CategoryBar({ label, value, total, color }: { label: string; val
   );
 }
 
-export function DiarioSocioRow({ d, enriquecidos, isOpen, onToggle }: any) {
+function DiarioSocioRow({ d, enriquecidos, isOpen, onToggle }: any) {
   const [expandedVoo, setExpandedVoo] = useState<string | null>(null);
   return (
     <div className={`rounded-xl border transition-all ${isOpen ? "border-cyan-400/40 bg-cyan-500/[0.04]" : "border-slate-800 bg-slate-900/30"}`}>
@@ -911,7 +724,6 @@ export function DiarioSocioRow({ d, enriquecidos, isOpen, onToggle }: any) {
           <span className="text-slate-300">{d.voos} voos</span>
           <span className="text-cyan-400 font-medium">{formatHours(d.horas)}</span>
           <span className="text-slate-300">{d.pousos} pousos</span>
-          <span className="text-violet-400 hidden sm:inline">{formatHours(d.noturnas)} not.</span>
         </div>
       </button>
       <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
@@ -1115,6 +927,57 @@ export function SocioCategoriaCard({ nome, categorias, totalDespesas, isOpen, on
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AirportRanking({ voos, diarioMesMap, selectedMonths, ano }: { voos: VooRow[]; diarioMesMap: Map<string, string | null> | Record<string, any>; selectedMonths: number[]; ano: number }) {
+  const map = new Map<string, { code: string; count: number; lastVisit: string | null; hours: number; pousos: number }>();
+  voos.forEach((v) => {
+    const dest = (v.aerodromo_chegada || "").trim();
+    if (!dest) return;
+    const monthKey = v.data_registro ? v.data_registro.slice(0, 7) : null;
+    const base = monthKey && (diarioMesMap instanceof Map ? diarioMesMap.get(monthKey) : diarioMesMap[monthKey]);
+    if (base && base === dest) return; // exclude base
+    const cur = map.get(dest) || { code: dest, count: 0, lastVisit: null, hours: 0, pousos: 0 };
+    cur.count += 1;
+    const dt = v.data_registro ? new Date(v.data_registro + (v.data_registro.length <= 10 ? 'T00:00:00' : '')) : null;
+    if (dt) {
+      if (!cur.lastVisit) cur.lastVisit = v.data_registro;
+      else if (new Date(cur.lastVisit) < dt) cur.lastVisit = v.data_registro;
+    }
+    cur.hours += num(v.tempo_total) || num(v.tempo_voo);
+    cur.pousos += num(v.pousos_total);
+    map.set(dest, cur);
+  });
+  const arr = Array.from(map.values()).sort((a, b) => b.count - a.count);
+  if (arr.length === 0) return <div className="text-sm text-slate-400">Nenhum destino encontrado no período.</div>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-[11px] uppercase tracking-wider text-slate-500">
+          <tr>
+            <th className="px-3 py-2.5 text-left">Aeroporto</th>
+            <th className="px-3 py-2.5 text-left">ICAO</th>
+            <th className="px-3 py-2.5 text-right">Frequência</th>
+            <th className="px-3 py-2.5 text-right">Última Visita</th>
+            <th className="px-3 py-2.5 text-right">Total Horas</th>
+            <th className="px-3 py-2.5 text-right">Pousos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {arr.slice(0, 10).map((r) => (
+            <tr key={r.code} className="border-t border-slate-800/60 hover:bg-slate-800/20">
+              <td className="px-3 py-2.5 font-medium text-slate-200">{r.code}</td>
+              <td className="px-3 py-2.5 text-slate-300">{r.code}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-200">{r.count}x</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">{r.lastVisit ? formatDate(r.lastVisit) : "—"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-cyan-400 font-medium">{formatHours(r.hours)}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">{r.pousos}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

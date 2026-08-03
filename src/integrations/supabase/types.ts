@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       abastecimentos: {
@@ -436,6 +411,90 @@ export type Database = {
           valor?: number
         }
         Relationships: []
+      }
+      aircraft_valuation_history: {
+        Row: {
+          aircraft_id: string | null
+          confidence_score: number | null
+          created_at: string | null
+          depreciation_rate: number | null
+          estimated_market_value: number | null
+          id: string
+          make_model: string | null
+          matricula: string | null
+          monthly_hours: number | null
+          partner_share_value: number | null
+          partners_count: number | null
+          raw_response: Json | null
+          total_hours: number | null
+        }
+        Insert: {
+          aircraft_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          depreciation_rate?: number | null
+          estimated_market_value?: number | null
+          id?: string
+          make_model?: string | null
+          matricula?: string | null
+          monthly_hours?: number | null
+          partner_share_value?: number | null
+          partners_count?: number | null
+          raw_response?: Json | null
+          total_hours?: number | null
+        }
+        Update: {
+          aircraft_id?: string | null
+          confidence_score?: number | null
+          created_at?: string | null
+          depreciation_rate?: number | null
+          estimated_market_value?: number | null
+          id?: string
+          make_model?: string | null
+          matricula?: string | null
+          monthly_hours?: number | null
+          partner_share_value?: number | null
+          partners_count?: number | null
+          raw_response?: Json | null
+          total_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aircraft_valuation_history_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aircraft_valuation_history_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aircraft_valuation_history_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "aircraft_valuation_history_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "aircraft_valuation_history_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
       }
       anniversary_alerts: {
         Row: {
@@ -11296,9 +11355,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: [

@@ -43,7 +43,10 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
   const [ters, setTers] = useState<TERRow[]>([]);
   const [abastecimentos, setAbastecimentos] = useState<AbastecimentoRow[]>([]);
   const [contasApagar, setContasApagar] = useState<ContaApagarRow[]>([]);
+  const [diarioMeses, setDiarioMeses] = useState<Array<{ id: string; ano: number; mes: number; aerodromo_base: string | null }>>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+  const refresh = () => setReloadKey((k) => k + 1);
 
   useEffect(() => {
     supabase.from("expense_configu").select("id, expense_type").then(({ data }) => {
@@ -134,11 +137,18 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
         .lte("data_vencimento", `${ano}-12-31`) as any;
       setContasApagar((data || []) as unknown as ContaApagarRow[]);
     };
+    const fetchDiarioMes = async () => {
+      const { data } = await supabase.from("diario_mes")
+        .select("id, ano, mes, aerodromo_base")
+        .eq("aeronave_id", aeronaveId)
+        .eq("ano", ano);
+      setDiarioMeses((data || []) as any);
+    };
     const doAll = async () => {
       await fetchCotistas();
       const aeroRes = await supabase.from("aeronave").select("id, matricula").eq("id", aeronaveId).maybeSingle();
       const mat: string = aeroRes.data?.matricula || "";
-      await Promise.all([fetchRateios(), fetchVoos(), fetchMembros(), fetchTERs(), fetchAbastecimentos(), fetchContasApagar(mat)]);
+      await Promise.all([fetchRateios(), fetchVoos(), fetchMembros(), fetchTERs(), fetchAbastecimentos(), fetchContasApagar(mat), fetchDiarioMes()]);
     };
     doAll().finally(() => setLoading(false));
 
@@ -147,10 +157,11 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
       .on("postgres_changes", { event: "*", schema: "public", table: "rateio_despesas", filter: `aeronave_id=eq.${aeronaveId}` }, () => { void doAll(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "lancamentos_diario_bordo", filter: `aeronave_id=eq.${aeronaveId}` }, () => { void doAll(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "abastecimentos", filter: `aeronave_id=eq.${aeronaveId}` }, () => { void doAll(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "diario_mes", filter: `aeronave_id=eq.${aeronaveId}` }, () => { void doAll(); })
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  }, [aeronaveId, ano]);
+  }, [aeronaveId, ano, reloadKey]);
 
   const selectedSet = useMemo(() => new Set(selectedMonths), [selectedMonths]);
   const inSelected = (d?: string | null) => {
@@ -630,8 +641,19 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     return m;
   }, [voosPeriodo, membrosMap, abastByVoo, terByDate, contasApagar, rateiosPeriodo]);
 
+  // map mês (YYYY-MM) -> aerodromo_base
+  const diarioMesMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    diarioMeses.forEach((d) => {
+      const key = `${String(d.ano)}-${String(d.mes).padStart(2, "0")}`;
+      m.set(key, d.aerodromo_base || null);
+    });
+    return m;
+  }, [diarioMeses]);
+
   return {
     loading,
+    refresh,
     cotistas, sociosMap, clientesMap, catMap, membrosMap,
     custoFixo, custoVarHora, custoVarVoo, custoExtra, custoVariavel, custoTotal, entradasPeriodo,
     horasPeriodo, custoMedioHora, custoMedioHoraTotal, totalPousos,
@@ -639,6 +661,7 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     monthlyBreakdown, serieMensal, composicaoPeriodo,
     diarioPorSocio, evolucaoPorSocio, composicaoPorSocio, categoriasPorSocio,
     voosEnriquecidos, rateiosPeriodo, voosPeriodo,
+    diarioMeses, diarioMesMap,
     resolveSocioName, resolveVooSocioName, catNameOf,
   };
 }

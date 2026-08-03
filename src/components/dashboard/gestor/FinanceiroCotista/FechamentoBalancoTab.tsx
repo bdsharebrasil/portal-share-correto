@@ -25,6 +25,7 @@ interface FechamentoBalancoTabProps {
   ano: number;
   selectedMonths: number[];
   catMap: Map<string, string>;
+  onRefresh?: () => void;
 }
 
 const formatBRL = (n: number) =>
@@ -51,6 +52,7 @@ export function FechamentoBalancoTab({
   ano,
   selectedMonths,
   catMap,
+  onRefresh,
 }: FechamentoBalancoTabProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [editingRateio, setEditingRateio] = useState<RateioRow | null>(null);
@@ -108,13 +110,19 @@ export function FechamentoBalancoTab({
         conferido_em: conferido ? new Date().toISOString() : null,
         conferido_por: conferido ? userData?.user?.id ?? null : null,
       };
-      const { error } = await supabase.from("rateio_despesas").update(patch).eq("id", id);
+      const { data, error } = await supabase
+        .from("rateio_despesas")
+        .update(patch)
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("Nenhum registro atualizado (verifique permissões)");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["balanco-aeronave"] });
       qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
       qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      onRefresh?.();
     },
     onError: (e: any) => toast.error("Erro ao conferir: " + (e.message || "desconhecido")),
   });
@@ -136,6 +144,7 @@ export function FechamentoBalancoTab({
       qc.invalidateQueries({ queryKey: ["balanco-aeronave"] });
       qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
       qc.invalidateQueries({ queryKey: ["movimentacoes"] });
+      onRefresh?.();
     },
     onError: (e: any) => toast.error("Erro ao fechar mês: " + (e.message || "desconhecido")),
   });
@@ -554,6 +563,7 @@ export function FechamentoBalancoTab({
               setEditingRateio(null);
               qc.invalidateQueries({ queryKey: ["balanco-aeronave"] });
               qc.invalidateQueries({ queryKey: ["financeiro-cotista-detalhe"] });
+              onRefresh?.();
             }}
           />
         )}
