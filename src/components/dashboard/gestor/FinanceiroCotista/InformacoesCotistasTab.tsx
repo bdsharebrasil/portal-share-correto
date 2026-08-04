@@ -408,7 +408,7 @@ export function InformacoesCotistasTab({ aeronaveId, matricula, cotistas, ano }:
         <div className="flex flex-wrap items-center gap-3">
           <Select value={cotistaSel} onValueChange={setCotistaSel}>
             <SelectTrigger className="h-10 w-[200px] rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-colors">
-              <SelectValue placeholder="Cotista" />
+              <SelectValue placeholder="Selecionar" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os sócios</SelectItem>
@@ -577,14 +577,14 @@ export function InformacoesCotistasTab({ aeronaveId, matricula, cotistas, ano }:
         </Card>
       </div>
 
-      {/* ── Balanço da cota por cotista ──────────────────────────────────── */}
+      {/* ── Balanço da cota ─────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-3">
           <Users className="h-3.5 w-3.5" /> Balanço da cota
         </div>
         {comparativo.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-center space-y-2 border border-dashed border-border/50 rounded-2xl">
-            <p className="text-sm text-muted-foreground">Nenhum dado de sócio neste período.</p>
+            <p className="text-sm text-muted-foreground">Nenhum dado neste período.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

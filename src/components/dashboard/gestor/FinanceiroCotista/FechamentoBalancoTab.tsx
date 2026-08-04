@@ -95,11 +95,35 @@ export function FechamentoBalancoTab({
     [rateiosDoPeriodo]
   );
 
+  // Agrupa despesas pelo despesa_id para mostrar uma única linha por despesa
+  const despesasAgrupadas = useMemo(() => {
+    const grouped = new Map<string, RateioRow[]>();
+    
+    despesas.forEach((r) => {
+      const key = r.despesa_id || `solo-${r.id}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(r);
+    });
+
+    // Retorna um array de grupos, cada um com o representante (primeira) e os outros
+    return Array.from(grouped.values()).map((grupo) => ({
+      representante: grupo[0],
+      todos: grupo,
+      numCotistas: grupo.length,
+      valorTotal: num(grupo[0].valor_total_despesa), // Pega o total apenas uma vez (mesmo para todos os rateios)
+      valorPagoTotal: grupo.reduce((s, r) => s + num(r.valor_pago_real), 0),
+      todosConferidos: grupo.every((r) => r.conferido),
+      algumConferido: grupo.some((r) => r.conferido),
+    }));
+  }, [despesas]);
+
   const totalConferido = useMemo(
-    () => despesas.filter((d) => d.conferido).length,
-    [despesas]
+    () => despesasAgrupadas.filter((g) => g.todosConferidos).length,
+    [despesasAgrupadas]
   );
-  const totalLancamentos = despesas.length;
+  const totalLancamentos = despesasAgrupadas.length;
   const todosConferidos = totalLancamentos > 0 && totalConferido === totalLancamentos;
 
   const conferirMutation = useMutation({
@@ -129,7 +153,9 @@ export function FechamentoBalancoTab({
 
   const fecharMesMutation = useMutation({
     mutationFn: async () => {
-      const ids = despesas.filter((d) => !d.conferido).map((d) => d.id);
+      const ids = despesasAgrupadas
+        .filter((g) => !g.todosConferidos)
+        .flatMap((g) => g.todos.map((r) => r.id));
       if (ids.length === 0) return;
       const { data: userData } = await supabase.auth.getUser();
       const now = new Date().toISOString();
@@ -303,17 +329,16 @@ export function FechamentoBalancoTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/40">
-              {despesas.length === 0 ? (
+              {despesasAgrupadas.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumnCount} className="px-4 py-10 text-center text-xs font-medium text-slate-500">
                     Nenhum lançamento encontrado no período selecionado.
                   </td>
                 </tr>
               ) : (
-                despesas.map((r, idx) => {
-                  const isExpanded = expandedRow === r.id;
-                  const outrosRateios = findRateiosDaMesmaDespesa(r);
-                  const hasOutrosRateios = outrosRateios.length > 0;
+                despesasAgrupadas.map((grupo, idx) => {
+                  const r = grupo.representante;
+                  const isExpanded = expandedRow === (r.despesa_id || r.id);
                   const anexos = [
                     { label: "NF", url: r.nf_url },
                     { label: "Comprovante", url: r.comprovante_url },
@@ -325,20 +350,19 @@ export function FechamentoBalancoTab({
 
                   const st = statusOf(r);
                   const clienteOuSocio = r.pago_por || "—";
-                  const valorPago = num(r.valor_pago_real);
-                  const valorOutroSocio = outrosRateios.reduce((s, o) => s + num(o.valor_rateado), 0);
+                  const temMultiplosCotistas = grupo.numCotistas > 1;
 
                   return (
-                    <Fragment key={r.id}>
+                    <Fragment key={r.despesa_id || r.id}>
                       {/* Linha Principal da Tabela */}
                       <tr
                         className={`group transition-all duration-200 divide-x divide-slate-700/20 ${
-                          r.conferido ? "bg-emerald-950/10 hover:bg-emerald-950/20" : "bg-transparent hover:bg-slate-800/40"
+                          grupo.todosConferidos ? "bg-emerald-950/10 hover:bg-emerald-950/20" : "bg-transparent hover:bg-slate-800/40"
                         }`}
                       >
                         <td className="px-3 py-2 text-center">
                           <button
-                            onClick={() => setExpandedRow(isExpanded ? null : r.id)}
+                            onClick={() => setExpandedRow(isExpanded ? null : (r.despesa_id || r.id))}
                             className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-400 focus:outline-none"
                           >
                             {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -359,10 +383,10 @@ export function FechamentoBalancoTab({
                           {r.numero_doc || "—"}
                         </td>
                         <td className={`px-3 py-2 text-slate-200 font-semibold truncate max-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>
-                          {r.fornecedor_nome || "—"}
+                          {r.fornecedor_nome || "—"} {temMultiplosCotistas && <span className="text-cyan-400 text-[9px]">({grupo.numCotistas})</span>}
                         </td>
                         <td className={`px-3 py-2 text-slate-300 font-medium truncate max-w-[110px] ${columnVisible("cliente") ? "" : "hidden"}`}>
-                          {clienteOuSocio}
+                          {temMultiplosCotistas ? `${grupo.numCotistas} sócios` : (clienteOuSocio)}
                         </td>
                         <td className={`px-3 py-2 text-slate-400 max-w-[180px] truncate ${columnVisible("descricao") ? "" : "hidden"}`} title={r.descricao_despesa || ""}>
                           {r.descricao_despesa || "—"}
@@ -371,22 +395,27 @@ export function FechamentoBalancoTab({
                           {r.percentual_uso != null ? `${num(r.percentual_uso)}%` : "—"}
                         </td>
                         <td className={`px-3 py-2 text-right tabular-nums font-bold text-slate-200 ${columnVisible("total") ? "" : "hidden"}`}>
-                          {formatBRL(num(r.valor_total_despesa))}
+                          {formatBRL(grupo.valorTotal)}
                         </td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${valorPago > 0 ? "text-emerald-600" : "text-slate-500"} ${columnVisible("pago") ? "" : "hidden"}`}>
-                          {formatBRL(valorPago)}
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${grupo.valorPagoTotal > 0 ? "text-emerald-600" : "text-slate-500"} ${columnVisible("pago") ? "" : "hidden"}`}>
+                          {formatBRL(grupo.valorPagoTotal)}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <button
-                            onClick={() => conferirMutation.mutate({ id: r.id, conferido: !r.conferido })}
+                            onClick={() => {
+                              const idsParaConferir = grupo.todos.map(r => r.id);
+                              idsParaConferir.forEach((id) => {
+                                conferirMutation.mutate({ id, conferido: !grupo.todosConferidos });
+                              });
+                            }}
                             disabled={conferirMutation.isPending}
                             className={`inline-flex min-w-[75px] items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold transition-all shadow-sm ${
-                              r.conferido
+                              grupo.todosConferidos
                                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30"
                                 : "bg-slate-800 text-slate-300 border border-slate-600 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/40"
                             }`}
                           >
-                            {r.conferido ? (
+                            {grupo.todosConferidos ? (
                               <><CheckCircle2 className="h-3 w-3" /> Ok</>
                             ) : (
                               <><Circle className="h-3 w-3" /> Conferir</>
@@ -435,31 +464,33 @@ export function FechamentoBalancoTab({
                                   </div>
                                 </div>
 
-                                {/* Coluna 2: Estrutura de Rateio (STATUS, SOCIEDADE, VALOR OUTRO SÓCIO) */}
+                                {/* Coluna 2: Dados da Despesa */}
                                 <div className="space-y-2.5 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
                                   <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
-                                    Estrutura de Rateio
+                                    Informações da Despesa
                                   </h4>
                                   <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                                    <span className="text-[10px] text-slate-400">STATUS</span>
-                                    <span className={`inline-flex items-center justify-center rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wide ${
-                                      st.tone === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" :
-                                      st.tone === "warning" ? "border-amber-500/40 bg-amber-500/10 text-amber-400" :
-                                      "border-red-500/40 bg-red-500/10 text-red-400"
-                                    }`}>
-                                      {st.label}
+                                    <span className="text-[10px] text-slate-400">Data Emissão</span>
+                                    <span className="text-[10px] font-bold text-slate-200">
+                                      {formatDate(r.data_emissao || r.data_vencimento)}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                                    <span className="text-[10px] text-slate-400">SOCIEDADE</span>
-                                    <span className="text-[10px] font-bold text-slate-200 text-right">
-                                      {hasOutrosRateios ? sociedadeLabel(r, outrosRateios) : "—"}
+                                    <span className="text-[10px] text-slate-400">Data Vencimento</span>
+                                    <span className="text-[10px] font-bold text-slate-200">
+                                      {formatDate(r.data_vencimento)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                                    <span className="text-[10px] text-slate-400">Data Pagamento</span>
+                                    <span className={`text-[10px] font-bold ${r.data_pagamento ? "text-emerald-400" : "text-slate-500"}`}>
+                                      {r.data_pagamento ? formatDate(r.data_pagamento) : "—"}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-slate-400">VALOR OUTRO SÓCIO</span>
+                                    <span className="text-[10px] text-slate-400">Valor Total</span>
                                     <span className="text-[10px] font-bold text-cyan-400">
-                                      {hasOutrosRateios ? formatBRL(valorOutroSocio) : "—"}
+                                      {formatBRL(grupo.valorTotal)}
                                     </span>
                                   </div>
                                 </div>
@@ -468,14 +499,8 @@ export function FechamentoBalancoTab({
                                 <div className="flex flex-col space-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
                                   <div className="flex items-center justify-between">
                                     <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
-                                      Histórico / Notas
+                                      Observações
                                     </h4>
-                                    <button
-                                      onClick={() => setEditingRateio(r)}
-                                      className="flex items-center gap-1 rounded border border-slate-600 bg-slate-800 px-2 py-0.5 text-[9px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/20 hover:text-cyan-300 shadow-sm"
-                                    >
-                                      <Edit2 className="h-3 w-3" /> Editar
-                                    </button>
                                   </div>
                                   <div className="flex-1 rounded bg-slate-950/50 p-2 border border-slate-800/80">
                                     <p className="text-[10px] italic text-slate-400">
@@ -486,37 +511,63 @@ export function FechamentoBalancoTab({
 
                               </div>
 
-                              {/* Sócios (Se houver rateio) */}
-                              {hasOutrosRateios && (
+                              {/* Cotistas Envolvidos no Rateio */}
+                              {temMultiplosCotistas && (
                                 <div className="mt-3 rounded-lg border border-slate-800 bg-slate-900/30 p-3">
-                                  <h4 className="mb-2 text-[9px] font-bold uppercase tracking-widest text-slate-500">
-                                    Divisão (Mesma Despesa)
+                                  <h4 className="mb-3 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                                    Cotistas Envolvidos no Rateio ({grupo.numCotistas})
                                   </h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                    {[r, ...outrosRateios].map((o) => (
-                                      <div key={o.id} className="flex items-center justify-between rounded-md border border-slate-800/80 bg-slate-900/80 px-3 py-1.5 shadow-sm">
-                                        <div className="flex flex-col">
-                                          <span className="text-[10px] font-bold text-slate-200 truncate w-24">
-                                            {o.socios_nome || o.clientes_nome || "—"}
-                                          </span>
-                                          <span className="text-[9px] text-slate-500">
-                                            Quota: {o.percentual_sociedade != null ? `${num(o.percentual_sociedade)}%` : "—"}
+                                    {grupo.todos.map((o, i) => {
+                                      const oStatus = statusOf(o);
+                                      const statusColors = {
+                                        success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+                                        warning: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+                                        danger: "border-red-500/30 bg-red-500/10 text-red-400",
+                                      };
+                                      const statusIcons = {
+                                        success: "✓",
+                                        warning: "⊙",
+                                        danger: "⚠",
+                                      };
+                                      return (
+                                      <div key={`${o.id}-${i}`} className="rounded-md border border-slate-700/50 bg-slate-900/50 p-3 space-y-2">
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] font-bold text-slate-200 truncate">
+                                              {o.socios_nome || o.clientes_nome || "—"}
+                                            </p>
+                                            <p className="text-[9px] text-slate-500 mt-0.5">
+                                              Quota: {o.percentual_sociedade != null ? `${num(o.percentual_sociedade)}%` : "—"}
+                                            </p>
+                                          </div>
+                                          <span className={`rounded border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 ml-2 ${
+                                            statusColors[oStatus.tone]
+                                          }`}>
+                                            {statusIcons[oStatus.tone]} {oStatus.label}
                                           </span>
                                         </div>
-                                        <div className="flex flex-col items-end gap-0.5">
-                                          <span className="text-[10px] font-bold text-cyan-400 tabular-nums">
-                                            {formatBRL(num(o.valor_rateado))}
-                                          </span>
-                                          <span className={`rounded border px-1 py-0.5 text-[8px] font-bold uppercase tracking-wider ${
-                                            o.conferido
-                                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                                              : "border-slate-600 bg-slate-800 text-slate-400"
-                                          }`}>
-                                            {o.conferido ? "Ok" : "Pend."}
-                                          </span>
+                                        <div className="border-t border-slate-700/50 pt-2 space-y-1">
+                                          <div className="flex justify-between text-[9px]">
+                                            <span className="text-slate-500">Valor Rateado:</span>
+                                            <span className="text-cyan-400 font-semibold">{formatBRL(num(o.valor_rateado))}</span>
+                                          </div>
+                                          {o.valor_pago_real > 0 && (
+                                            <div className="flex justify-between text-[9px]">
+                                              <span className="text-slate-500">Pago:</span>
+                                              <span className="text-emerald-400 font-semibold">{formatBRL(num(o.valor_pago_real))}</span>
+                                            </div>
+                                          )}
+                                          {o.data_pagamento && (
+                                            <div className="flex justify-between text-[9px]">
+                                              <span className="text-slate-500">Data Pag.:</span>
+                                              <span className="text-slate-300 font-semibold">{formatDate(o.data_pagamento)}</span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
-                                    ))}
+                                    );
+                                    })}
                                   </div>
                                 </div>
                               )}
@@ -529,7 +580,7 @@ export function FechamentoBalancoTab({
                 })
               )}
             </tbody>
-            {despesas.length > 0 && (
+            {despesasAgrupadas.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-slate-700 bg-slate-900 shadow-inner">
                   <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("pago") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
@@ -537,12 +588,12 @@ export function FechamentoBalancoTab({
                   </td>
                   {columnVisible("total") && (
                     <td className="px-3 py-3 text-right tabular-nums font-black text-slate-100 text-xs">
-                      {formatBRL(despesas.reduce((s, d) => s + num(d.valor_total_despesa), 0))}
+                      {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorTotal, 0))}
                     </td>
                   )}
                   {columnVisible("pago") && (
                     <td className="px-3 py-3 text-right tabular-nums font-black text-cyan-400 text-xs">
-                      {formatBRL(despesas.reduce((s, d) => s + num(d.valor_pago_real), 0))}
+                      {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorPagoTotal, 0))}
                     </td>
                   )}
                   <td />
