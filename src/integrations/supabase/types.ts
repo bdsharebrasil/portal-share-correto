@@ -6881,6 +6881,8 @@ export type Database = {
           data_vencimento: string | null
           descricao: string
           despesa_cliente_direto_id: string | null
+          enviado_por_email: boolean
+          enviado_por_email_em: string | null
           forma_pagamento: string | null
           fornecedor_nome: string | null
           grupo_custo: string | null
@@ -6930,6 +6932,8 @@ export type Database = {
           data_vencimento?: string | null
           descricao: string
           despesa_cliente_direto_id?: string | null
+          enviado_por_email?: boolean
+          enviado_por_email_em?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
           grupo_custo?: string | null
@@ -6979,6 +6983,8 @@ export type Database = {
           data_vencimento?: string | null
           descricao?: string
           despesa_cliente_direto_id?: string | null
+          enviado_por_email?: boolean
+          enviado_por_email_em?: string | null
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
           grupo_custo?: string | null

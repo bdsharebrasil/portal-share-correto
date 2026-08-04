@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Receipt, MapPin, DollarSign, Play, Coffee, LogOut, Pause,
   ArrowUpRight, CalendarDays, CheckCircle2, Timer,
-  Plane, BookOpen, MessageSquare, Plus, AlertTriangle, AlertCircle, Clock, Send
+  Plane, BookOpen, MessageSquare, Plus, AlertTriangle, AlertCircle, Clock, Send, Mail
 } from "lucide-react";
 import { SolicitacaoPagamentoModal } from "@/components/dashboard/financeiro/SolicitacaoPagamentoModal";
 import TravelReportsTracking from "@/components/dashboard/financeiro/TravelReportsTracking";
@@ -250,6 +250,14 @@ export function FinanceiroDashboard() {
       iconBg: "bg-cyan-500/10",
       hoverGlow: "hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)]",
       action: () => setTimeClockHistoryOpen(true)
+    },
+    {
+      icon: Mail,
+      label: "EMAIL",
+      route: "/financeiro/emails",
+      iconColor: "text-sky-400",
+      iconBg: "bg-sky-500/10",
+      hoverGlow: "hover:border-sky-500/50 hover:shadow-[0_0_20px_rgba(14,165,233,0.15)]",
     }
   ];
 

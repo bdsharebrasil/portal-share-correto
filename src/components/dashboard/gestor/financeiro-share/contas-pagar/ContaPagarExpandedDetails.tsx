@@ -8,6 +8,7 @@ import {
   EnviarEmailClienteDialog,
   type AnexoEmail,
 } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
+import { HistoricoEmailsEnviados } from "@/components/dashboard/financeiro/HistoricoEmailsEnviados";
 
 interface Props {
   conta: any;
@@ -23,6 +24,7 @@ interface EmailLog {
 export function ContaPagarExpandedDetails({ conta }: Props) {
   const [emails, setEmails] = useState<EmailLog[]>([]);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [historicoKey, setHistoricoKey] = useState(0);
 
   const parseLocalDate = (dateString: string): Date | null => {
     if (!dateString) return null;
@@ -54,7 +56,8 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
     { url: conta.infraero_url, label: "Documento Infraero", filename: "infraero.pdf" },
   ].filter((a): a is AnexoEmail => !!a.url);
 
-  const enviadoEm = emails.find((e) => e.status === "enviado") || emails[0] || null;
+  const enviadoEm = emails.find((e) => e.status === "enviado") || null;
+  const ultimo = emails[0] || null;
 
   return (
     <div className="px-6 py-5 bg-muted/30 border-t border-border/50 space-y-4 animate-in fade-in slide-in-from-top-1">
@@ -67,6 +70,24 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
             {emails.length > 1 && ` (${emails.length} envios)`}
           </p>
         </div>
+      )}
+
+      {!enviadoEm && ultimo && ultimo.status !== "enviado" && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2">
+          <Mail className="h-4 w-4 text-red-500 shrink-0" />
+          <p className="text-xs text-red-500 font-medium">
+            Última tentativa de envio falhou em {format(new Date(ultimo.criado_em), "dd/MM/yyyy 'às' HH:mm")} — veja o
+            histórico abaixo.
+          </p>
+        </div>
+      )}
+
+      {emails.length > 0 && (
+        <HistoricoEmailsEnviados
+          referenceIds={conta.id ? [String(conta.id)] : []}
+          referenceType="contas_apagar"
+          refreshKey={historicoKey}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -196,7 +217,10 @@ export function ContaPagarExpandedDetails({ conta }: Props) {
         tipo="contas_apagar"
         referenceType="contas_apagar"
         referenceIds={conta.id ? [String(conta.id)] : []}
-        onEnviado={carregarEmails}
+        onEnviado={() => {
+          carregarEmails();
+          setHistoricoKey((k) => k + 1);
+        }}
       />
     </div>
   );

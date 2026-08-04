@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Mail, Paperclip, Send, CheckCircle2 } from "lucide-react";
+import { Loader2, Mail, Paperclip, Send, CheckCircle2, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { HistoricoEmailsEnviados } from "./HistoricoEmailsEnviados";
+import { marcarMovimentacoesEnviadasPorEmail } from "@/lib/movimentacoesEmailFlag";
 
 export interface AnexoEmail {
   filename: string;
@@ -41,6 +43,8 @@ interface Props {
   tipo?: string;
   referenceType?: string;
   referenceIds?: string[];
+  /** Números de documento (recibo, NF, boleto) para marcar as movimentações relacionadas. */
+  numerosDocumento?: string[];
   onEnviado?: () => void;
 }
 
@@ -58,17 +62,20 @@ export function EnviarEmailClienteDialog({
   tipo = "solicitacao_pagamento",
   referenceType = "contas_apagar",
   referenceIds = [],
+  numerosDocumento = [],
   onEnviado,
 }: Props) {
   const [contatos, setContatos] = useState<Contato[]>([]);
   const [loadingContatos, setLoadingContatos] = useState(false);
   const [destinatario, setDestinatario] = useState("");
-  const [cc, setCc] = useState("");
+  const [ccList, setCcList] = useState<string[]>([]);
+  const [ccInput, setCcInput] = useState("");
   const [assunto, setAssunto] = useState(assuntoSugerido);
   const [mensagem, setMensagem] = useState(mensagemSugerida);
   const [selecionados, setSelecionados] = useState<string[]>(anexos.map((a) => a.url));
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [historicoKey, setHistoricoKey] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -126,6 +133,22 @@ export function EnviarEmailClienteDialog({
     [anexos, selecionados],
   );
 
+  const adicionarCc = (raw?: string) => {
+    const fonte = (raw ?? ccInput) || "";
+    const novos = fonte
+      .split(/[,;\s]+/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    const invalidos = novos.filter((v) => !isEmail(v));
+    if (invalidos.length > 0) {
+      toast.error(`E-mail inválido: ${invalidos.join(", ")}`);
+      return;
+    }
+    if (novos.length === 0) return;
+    setCcList((prev) => Array.from(new Set([...prev, ...novos])));
+    setCcInput("");
+  };
+
   const enviar = async () => {
     if (!isEmail(destinatario)) {
       toast.error("Informe um e-mail válido para o cliente");
@@ -142,10 +165,21 @@ export function EnviarEmailClienteDialog({
 
     setEnviando(true);
     try {
+      const ccFinal = Array.from(
+        new Set([
+          ...ccList,
+          ...ccInput
+            .split(/[,;\s]+/)
+            .map((v) => v.trim())
+            .filter((v) => isEmail(v)),
+        ]),
+      );
+
       const { data, error } = await supabase.functions.invoke("enviar-email-cliente", {
         body: {
           to: destinatario.trim(),
-          cc: cc.trim() || null,
+          cc: ccFinal.length === 0 ? null : ccFinal.length === 1 ? ccFinal[0] : ccFinal,
+          cc_list: ccFinal,
           assunto: assunto.trim(),
           mensagem: mensagem.trim(),
           anexos: anexosSelecionados,
@@ -165,11 +199,13 @@ export function EnviarEmailClienteDialog({
 
       setEnviado(true);
       toast.success("E-mail enviado ao cliente");
+      await marcarMovimentacoesEnviadasPorEmail({ referenceIds, numerosDocumento });
       onEnviado?.();
     } catch (e) {
       toast.error(`Falha ao enviar e-mail: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setEnviando(false);
+      setHistoricoKey((k) => k + 1);
     }
   };
 
@@ -214,19 +250,51 @@ export function EnviarEmailClienteDialog({
             </Select>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>Para *</Label>
+          <div className="grid gap-2">
+            <Label>Para *</Label>
+            <Input
+              value={destinatario}
+              onChange={(e) => setDestinatario(e.target.value)}
+              placeholder="cliente@empresa.com"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Cópia (opcional — vários e-mails)</Label>
+            <div className="flex gap-2">
               <Input
-                value={destinatario}
-                onChange={(e) => setDestinatario(e.target.value)}
-                placeholder="cliente@empresa.com"
+                value={ccInput}
+                onChange={(e) => setCcInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === "," || e.key === ";") {
+                    e.preventDefault();
+                    adicionarCc();
+                  }
+                }}
+                onBlur={() => ccInput.trim() && adicionarCc()}
+                placeholder="financeiro@empresa.com (Enter para adicionar)"
               />
+              <Button type="button" variant="outline" size="icon" onClick={() => adicionarCc()}>
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-            <div className="grid gap-2">
-              <Label>Cópia (opcional)</Label>
-              <Input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="financeiro@empresa.com" />
-            </div>
+            {ccList.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {ccList.map((mail) => (
+                  <Badge key={mail} variant="secondary" className="gap-1 pr-1">
+                    {mail}
+                    <button
+                      type="button"
+                      onClick={() => setCcList((prev) => prev.filter((m) => m !== mail))}
+                      className="rounded-full hover:bg-background/60 p-0.5"
+                      aria-label={`Remover ${mail}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -273,6 +341,12 @@ export function EnviarEmailClienteDialog({
               <CheckCircle2 className="h-3.5 w-3.5" /> E-mail enviado ao cliente
             </Badge>
           )}
+
+          <HistoricoEmailsEnviados
+            referenceIds={referenceIds}
+            referenceType={referenceType}
+            refreshKey={historicoKey}
+          />
         </div>
 
         <DialogFooter className="gap-2">

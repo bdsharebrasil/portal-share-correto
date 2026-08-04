@@ -35,6 +35,8 @@ export interface MovimentacaoRow {
   boleto_url: string | null;
   recibo_url: string | null;
   status: string | null;
+  enviado_por_email: boolean;
+  enviado_por_email_em: string | null;
 }
 
 // movimentacoes.tipo pode ser: 'receita' | 'entrada' | 'saida' | 'despesa'
@@ -68,6 +70,8 @@ export function useMovimentacoes() {
           boleto_url,
           recibo_url,
           conta_bancaria,
+          enviado_por_email,
+          enviado_por_email_em,
           banco_nome,
           aeronave_id,
           clientes_id,
@@ -173,6 +177,8 @@ export function useMovimentacoes() {
           boleto_url: row.boleto_url,
           recibo_url: row.recibo_url,
           status: row.status,
+          enviado_por_email: !!row.enviado_por_email,
+          enviado_por_email_em: row.enviado_por_email_em || null,
         };
       });
     },

@@ -11,6 +11,7 @@ interface Props {
   tipo?: string;
   referenceType?: string;
   referenceIds?: string[];
+  numerosDocumento?: string[];
   label?: string;
   size?: "default" | "sm" | "lg" | "icon";
   variant?: "default" | "outline" | "ghost" | "secondary";
@@ -33,6 +34,7 @@ export function EnviarEmailClienteButton({
   tipo = "documento",
   referenceType = "documento",
   referenceIds = [],
+  numerosDocumento = [],
   label = "Enviar por e-mail",
   size = "sm",
   variant = "outline",
@@ -71,6 +73,7 @@ export function EnviarEmailClienteButton({
         tipo={tipo}
         referenceType={referenceType}
         referenceIds={referenceIds}
+        numerosDocumento={numerosDocumento}
         onEnviado={onEnviado}
       />
     </>
