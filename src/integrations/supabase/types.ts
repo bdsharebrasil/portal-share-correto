@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       abastecimentos: {
@@ -5300,6 +5275,13 @@ export type Database = {
             foreignKeyName: "crew_licenses_crew_member_id_fkey"
             columns: ["membro_tripulacao_id"]
             isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_licenses_crew_member_id_fkey"
+            columns: ["membro_tripulacao_id"]
+            isOneToOne: false
             referencedRelation: "membros_tripulacao"
             referencedColumns: ["id"]
           },
@@ -5677,6 +5659,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "crew_flight_hours_crew_member_id_fkey"
+            columns: ["membro_tripulacao_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "crew_flight_hours_crew_member_id_fkey"
@@ -7117,7 +7106,7 @@ export type Database = {
       notas_fiscais_saida: {
         Row: {
           aeronave: string | null
-          aircraft_id: string | null
+          aeronave_id: string | null
           arquivo_pdf_url: string | null
           atualizado_em: string | null
           categoria: string
@@ -7141,7 +7130,7 @@ export type Database = {
         }
         Insert: {
           aeronave?: string | null
-          aircraft_id?: string | null
+          aeronave_id?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           categoria: string
@@ -7165,7 +7154,7 @@ export type Database = {
         }
         Update: {
           aeronave?: string | null
-          aircraft_id?: string | null
+          aeronave_id?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           categoria?: string
@@ -7252,36 +7241,36 @@ export type Database = {
             referencedColumns: ["aeronave"]
           },
           {
-            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "notas_fiscais_saida_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "notas_fiscais_saida_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "disponibilidade_aeronave"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "notas_fiscais_saida_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_aeronave_totais"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "notas_fiscais_saida_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_despesas_aeronave"
             referencedColumns: ["aeronave_id"]
           },
           {
-            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "notas_fiscais_saida_aeronave_id_fkey"
+            columns: ["aeronave_id"]
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
@@ -9006,6 +8995,13 @@ export type Database = {
             foreignKeyName: "scheduling_crew_config_crew_member_id_fkey"
             columns: ["crew_member_id"]
             isOneToOne: true
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduling_crew_config_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: true
             referencedRelation: "membros_tripulacao"
             referencedColumns: ["id"]
           },
@@ -10607,6 +10603,60 @@ export type Database = {
           },
         ]
       }
+      crew_members: {
+        Row: {
+          atualizado_em: string | null
+          canac: string | null
+          cpf: string | null
+          criado_em: string | null
+          data_admissao: string | null
+          data_nascimento: string | null
+          endereco: string | null
+          full_name: string | null
+          id: string | null
+          nome_completo: string | null
+          rg: string | null
+          status: string | null
+          telefone: string | null
+          url_avatar: string | null
+          user_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          canac?: string | null
+          cpf?: string | null
+          criado_em?: string | null
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          endereco?: string | null
+          full_name?: string | null
+          id?: string | null
+          nome_completo?: string | null
+          rg?: string | null
+          status?: string | null
+          telefone?: string | null
+          url_avatar?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          canac?: string | null
+          cpf?: string | null
+          criado_em?: string | null
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          endereco?: string | null
+          full_name?: string | null
+          id?: string | null
+          nome_completo?: string | null
+          rg?: string | null
+          status?: string | null
+          telefone?: string | null
+          url_avatar?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       diario_mes_com_disponivel: {
         Row: {
           aerodromo_base: string | null
@@ -11380,9 +11430,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: [

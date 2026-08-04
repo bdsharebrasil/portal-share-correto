@@ -479,6 +479,16 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
         if (possible.length) setAnexos(possible);
       }
 
+      if (initialData.origem_recibo_reembolso) {
+        setGerarContasAPagar(true);
+        setGerarContasAReceber(true);
+        setGerarCaixaCliente(false);
+        setReferenciaDuplicada({
+          tipo: "recibo",
+          id: initialData.reference_id || null,
+          mensagem: initialData.numero_recibo ? `Origem: recibo de reembolso ${initialData.numero_recibo}` : null,
+        });
+      }
       if (initialData.taxa_origem === "INFRAERO" || initialData.taxa_origem === "DECEA") {
         setTaxaOrigem(initialData.taxa_origem);
       }
@@ -1385,6 +1395,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
       const referenciaTipo = referenciaDuplicada?.tipo || null;
       const referenciaId = referenciaDuplicada?.id ?? null;
+      const isReembolsoRecibo = Boolean(initialData?.origem_recibo_reembolso);
       const fonteDespesa = referenciaTipo || "solicitacao_pagamento";
       const isAllClients = clienteId === "__all__";
       
@@ -1682,6 +1693,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
           try {
             for (const linha of clienteLinhas) {
+              // Recibo de reembolso: a visao do cliente vive apenas em rateio_despesas.
+              if (isReembolsoRecibo) continue;
               const info = getClienteAeronaveInfo(linha.clienteId);
               const pctCliente = Number(String(linha.percentualUsoCliente).replace(",", ".")) || 0;
               const overrideStr = linha.valorClienteOverride;
@@ -1735,12 +1748,12 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
             const reciboUrlLinha = anexoRecibo?.url || (isTaxasMode ? getTaxaReciboUrlForCliente(linha.cliente_id) : null) || getReciboUrlForCliente(linha.cliente_id) || reciboUrl;
             
             return {
-              despesa_id: movimentacaoIdsPorCliente[linha.cliente_id], fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
+              despesa_id: movimentacaoIdsPorCliente[linha.cliente_id] || shareMovId, fonte_despesa: fonteDespesa, tipo_rateio: tipoRateioFinal, fluxo: "SAÍDA",
               data_emissao: dataComp, data_vencimento: dataVenc, numero_boleto: boletoNum, numero_nf: numeroNfLinha, numero_doc: numeroDocLinha, numero_recibo: reciboNumLinha, fornecedor_nome: fornecedorNomeFinal,
               cliente_id: linha.cliente_id, clientes_nome: linha.cliente_nome, socio_id: linha.socio_id, socios_nome: linha.socios_nome, pago_diretamente: false,
               aeronave_id: aeronaveId || null, aeronave_registro: aeronaveSel?.matricula || null, percentual_sociedade: linha.percentual_sociedade_original, percentual_uso: linha.percentual_uso,
               descricao_despesa: descricao, descricao: descricao, categoria_custo: tipoDespesa || null, periodicidade, valor_total_despesa: valorNumericoFinal, valor_rateado: linha.valor_rateado,
-              status: statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
+              status: isReembolsoRecibo ? "PENDENTE" : statusMov, observacoes: obsFinal || null, boleto_url: boletoUrl, nf_url: nfUrlLinha, recibo_url: reciboUrlLinha, comprovante_url: comprovanteUrlLinha, demonstrativo_url: demonstrativoUrl, subcategoria_1: subcategoria1Val, subcategoria_2: subcategoria2Val, subcategoria_3: subcategoria3Val, subcategoria_4: subcategoria4Val,
               pago_por: resolverPagoPorSolicitacao({ socioNome: linha.socio_nome || null, clienteNome: linha.cliente_nome || null, socioCount: linhasRateioMultiCliente.length }),
               abastecimento_id: referenciaTipo === "abastecimento" ? referenciaId : null,
             };
@@ -1800,7 +1813,8 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 throw arSyncErr;
               }
             } else {
-              await supabaseClient.from("contas_areceber").insert({
+              const descricaoCliente = clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao;
+              const { data: carRow } = await supabaseClient.from("contas_areceber").insert({
                 numero: docNum || reciboNum || `SP-${Date.now()}`,
                 cliente_id: linha.clienteId,
                 cliente_nome: info?.razaoSocial || "",
@@ -1809,11 +1823,43 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 data_vencimento: dataVenc,
                 valor: valorCliente,
                 categoria: tipoDespesaLabel || "SOLICITAÇÃO DE PAGAMENTO",
-                descricao: clienteLinhas.length > 1 ? `${descricao} — ${info?.razaoSocial || "Cliente"}` : descricao,
+                descricao: descricaoCliente,
                 status: "pendente",
                 aeronave: aeronaveSel?.matricula || null,
                 reference_type: referenciaTipo || "solicitacao_pagamento",
                 reference_id: referenciaTipo && referenciaId ? referenciaId : null,
+                boleto_url: boletoUrl || null,
+              } as any).select("id").single();
+
+              // Entrada pendente no Caixa Share aguardando o reembolso do cliente
+              await supabaseClient.from("movimentacoes").insert({
+                descricao: `Reembolso — ${descricaoCliente}`,
+                tipo: "entrada",
+                tipo_caixa: "share",
+                status: "aguardando_reembolso",
+                categoria_id: categoriaContaId,
+                valor: valorCliente,
+                valor_rateado: valorCliente,
+                valor_original: valorNumericoFinal,
+                data_competencia: dataComp,
+                data_vencimento: dataVenc,
+                aeronave_id: aeronaveId || null,
+                clientes_id: linha.clienteId,
+                reembolsavel: true,
+                reembolso_quitado: false,
+                numero_recibo: reciboNum,
+                numero_nf: nfNum,
+                numero_boleto: boletoNum,
+                numero_doc: docNum,
+                recibo_url: reciboUrl,
+                nf_url: nfUrl,
+                boleto_url: boletoUrl,
+                contas_areceber_id: (carRow as any)?.id || null,
+                contas_apagar_id: capId || null,
+                observacoes: obsFinal || null,
+                reference_type: referenciaTipo || "solicitacao_pagamento",
+                reference_id: referenciaTipo && referenciaId ? referenciaId : null,
+                criado_por: userId,
               } as any);
             }
           }

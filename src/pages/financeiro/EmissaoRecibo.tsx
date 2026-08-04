@@ -278,7 +278,8 @@ export default function EmissaoRecibo() {
 
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
-      const sendToProgramacao = isReembolso && Boolean(formData.enviarParaProgramacao);
+      // Recibo do tipo reembolso SEMPRE aciona a Programação de Pagamento (sem perguntar)
+      const sendToProgramacao = isReembolso;
       // sinaliza para uso posterior
       originalForm.__sendToProgramacao = sendToProgramacao;
       const isRateado = originalForm.reembolsoRateado === true;
@@ -996,6 +997,11 @@ export default function EmissaoRecibo() {
                   socio_id: socioId,
                 }]
               : [],
+            // Origem: recibo de reembolso -> gera CAP (Share) + CAR por cliente + movimentações + rateio
+            origem_recibo_reembolso: true,
+            reference_type: "recibo",
+            reference_id: r.id,
+            recibo_url: r.pdf_url || null,
           };
 
           setSolicitacaoInitialData(initial);

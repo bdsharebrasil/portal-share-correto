@@ -302,7 +302,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
 
   const [pagadores, setPagadores] = useState<any[]>([makeEmptyPagador()]);
   const [anexos, setAnexos] = useState<any[]>([makeEmptyAnexo()]);
-  const [enviarParaProgramacao, setEnviarParaProgramacao] = useState(false);
+  // Recibo do tipo reembolso SEMPRE segue para a Programação de Pagamento (sem perguntar)
 
   const [aircrafts, setAircrafts] = useState<any[]>([]);
   const [expenseConfigs, setExpenseConfigs] = useState<any[]>([]);
@@ -588,7 +588,7 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
         dataMaxPagamento: formData.prazoMaximoQuitacao || null,
         pagadores: pagadores.map((p) => ({ ...p })),
         anexos: anexos.filter((a) => a.tipo).map((a) => ({ tipo: a.tipo, numeroDocumento: a.numeroDocumento, file: a.file })),
-        enviarParaProgramacao,
+        enviarParaProgramacao: isReembolso,
         originalFormData: flatOriginalFormData,
       };
 
@@ -868,13 +868,9 @@ export function ReceiptWizardUI({ clientesAtivos = [], favoritePayers = [], isGe
             )}
 
             {isReembolso && (
-              <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 mt-4">
-                <Checkbox
-                  id="programacao"
-                  checked={enviarParaProgramacao}
-                  label="Deseja enviar esse recibo para programação de pagamento?"
-                  onCheckedChange={setEnviarParaProgramacao}
-                />
+              <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 mt-4 text-sm text-emerald-300">
+                Ao finalizar, este recibo de reembolso será enviado automaticamente para a
+                <strong> Programação de Pagamento</strong> (Contas a Pagar, Contas a Receber, Movimentações e Rateio).
               </div>
             )}
           </div>
