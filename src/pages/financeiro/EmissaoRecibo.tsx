@@ -70,6 +70,12 @@ const parseCurrencyInput = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const normalizeFinanceCategory = (value: string | null | undefined) => {
+  const normalized = (value || "").trim();
+  if (!normalized) return "Clientes";
+  return normalized.length > 20 ? normalized.slice(0, 20).trimEnd() : normalized;
+};
+
 const buildReceiptPdfData = ({
   receiptData,
   receiptType,
@@ -84,39 +90,47 @@ const buildReceiptPdfData = ({
   notaFiscalUrl: string | null;
   originalForm: any;
   companySettings: any;
-}) => ({
-  ...receiptData,
-  receipt_number: receiptData.numero_recibo,
-  payer_name: receiptData.nome_pagador,
-  payer_document: receiptData.documento_pagador,
-  payer_address: receiptData.endereco_pagador,
-  payer_city: receiptData.cidade_pagador,
-  payer_uf: receiptData.uf_pagador,
-  service_description: receiptData.descricao_servico,
-  receipt_type: receiptType,
-  issue_date: receiptData.data_emissao,
-  max_payment_date: receiptData.data_max_pagamento,
-  payment_method: receiptData.forma_pagamento,
-  boleto_url: boletoUrl,
-  
-  nf_url: notaFiscalUrl,
- 
-  data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
-  numero_documento_decea: originalForm.numeroDocumentoDecea || null,
-  competencia_decea: originalForm.competenciaDecea || null,
-  numero_documento_infraero: originalForm.numeroDocumentoInfraero || null,
-  competencia_infraero: originalForm.competenciaInfraero || null,
-  emissor: companySettings
-    ? {
-        razao_social: companySettings.razao_social,
-        cnpj: companySettings.cnpj,
-        telefone: companySettings.telefone,
-        endereco: companySettings.endereco,
-        cidade: companySettings.cidade,
-        cep: companySettings.cep,
-      }
-    : null,
-});
+}) => {
+  const serviceDescription =
+    receiptData?.descricao_servico ||
+    receiptData?.service_description ||
+    originalForm?.servicoDescricao ||
+    receiptData?.descricao ||
+    null;
+
+  return {
+    ...receiptData,
+    receipt_number: receiptData.numero_recibo,
+    payer_name: receiptData.nome_pagador,
+    payer_document: receiptData.documento_pagador,
+    payer_address: receiptData.endereco_pagador,
+    payer_city: receiptData.cidade_pagador,
+    payer_uf: receiptData.uf_pagador,
+    service_description: serviceDescription,
+    descricao_servico: serviceDescription,
+    receipt_type: receiptType,
+    issue_date: receiptData.data_emissao,
+    max_payment_date: receiptData.data_max_pagamento,
+    payment_method: receiptData.forma_pagamento,
+    boleto_url: boletoUrl,
+    nf_url: notaFiscalUrl,
+    data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
+    numero_documento_decea: originalForm.numeroDocumentoDecea || null,
+    competencia_decea: originalForm.competenciaDecea || null,
+    numero_documento_infraero: originalForm.numeroDocumentoInfraero || null,
+    competencia_infraero: originalForm.competenciaInfraero || null,
+    emissor: companySettings
+      ? {
+          razao_social: companySettings.razao_social,
+          cnpj: companySettings.cnpj,
+          telefone: companySettings.telefone,
+          endereco: companySettings.endereco,
+          cidade: companySettings.cidade,
+          cep: companySettings.cep,
+        }
+      : null,
+  };
+};
 
 export default function EmissaoRecibo() {
   const [userId, setUserId] = useState<string>("");
@@ -713,8 +727,6 @@ export default function EmissaoRecibo() {
                   status: "pendente",
                   data_vencimento: dataVencimento,
                   categoria_id: originalForm.reembolsoCategoriaId || null,
-                  boleto: boletoUrl,
-                  nota_fiscal: notaFiscalUrl || deceeaUrl || infraeroUrl,
                   observacoes: `Rateio - ${sharePercentage}% propriedade / ${percentual}% uso. ${
                     ac.id_clientes === originalForm.clienteId
                       ? "Cliente pagou o valor total de"

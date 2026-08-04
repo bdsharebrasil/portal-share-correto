@@ -21,6 +21,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { parseDateValue } from "@/utils/timeClockDates";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -127,6 +128,18 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
 
   const getEntryForDate = (date: Date): TimeEntry | undefined => {
     return entries.find((entry) => entry.data_entrada === format(date, "yyyy-MM-dd"));
+  };
+
+  const formatEntryDate = (value: string | Date | null | undefined) => {
+    const parsed = parseDateValue(value);
+    if (!parsed) return "";
+    return format(parsed, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  };
+
+  const formatEntryTime = (value: string | Date | null | undefined) => {
+    const parsed = parseDateValue(value);
+    if (!parsed) return "-";
+    return format(parsed, "HH:mm");
   };
 
   const openDay = (date: Date) => {
@@ -314,7 +327,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
                     <span className="font-semibold text-white">
-                      {format(new Date(entry.data_entrada), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      {formatEntryDate(entry.data_entrada)}
                     </span>
                     <Badge
                       className={cn(
@@ -339,7 +352,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                           <Play className="h-3 w-3 text-emerald-400" />
                           <span className="text-slate-400">Entrada:</span>
                           <span className="font-mono font-semibold text-white">
-                            {format(new Date(entry.entrada_hora), "HH:mm")}
+                            {formatEntryTime(entry.entrada_hora)}
                           </span>
                         </div>
 
@@ -348,7 +361,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                             <Coffee className="h-3 w-3 text-amber-400" />
                             <span className="text-slate-400">Almoço:</span>
                             <span className="font-mono font-semibold text-white">
-                              {format(new Date(entry.inicio_almoco), "HH:mm")}
+                              {formatEntryTime(entry.inicio_almoco)}
                             </span>
                           </div>
                         )}
@@ -358,7 +371,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                             <Play className="h-3 w-3 text-blue-400" />
                             <span className="text-slate-400">Retorno:</span>
                             <span className="font-mono font-semibold text-white">
-                              {format(new Date(entry.fim_almoco), "HH:mm")}
+                              {formatEntryTime(entry.fim_almoco)}
                             </span>
                           </div>
                         )}
@@ -368,7 +381,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
                             <LogOut className="h-3 w-3 text-red-400" />
                             <span className="text-slate-400">Saída:</span>
                             <span className="font-mono font-semibold text-white">
-                              {format(new Date(entry.saida_hora), "HH:mm")}
+                              {formatEntryTime(entry.saida_hora)}
                             </span>
                           </div>
                         )}

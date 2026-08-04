@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { parseDateValue } from "@/utils/timeClockDates";
 
 interface TimeEntry {
   id: string;
@@ -467,18 +468,18 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
                   <TableCell>{entry.user_profiles?.full_name || '-'}</TableCell>
                 )}
                 <TableCell>
-                  {format(new Date(entry.data_entrada), 'dd/MM/yyyy', { locale: ptBR })}
+                  {format(parseDateValue(entry.data_entrada) ?? new Date(), 'dd/MM/yyyy', { locale: ptBR })}
                 </TableCell>
                 <TableCell>
-                  {entry.entrada_hora ? format(new Date(entry.entrada_hora), 'HH:mm') : '-'}
+                  {entry.entrada_hora ? format(parseDateValue(entry.entrada_hora) ?? new Date(), 'HH:mm') : '-'}
                 </TableCell>
                 <TableCell>
                   {entry.inicio_almoco && entry.fim_almoco
-                    ? `${format(new Date(entry.inicio_almoco), 'HH:mm')} - ${format(new Date(entry.fim_almoco), 'HH:mm')}`
+                    ? `${format(parseDateValue(entry.inicio_almoco) ?? new Date(), 'HH:mm')} - ${format(parseDateValue(entry.fim_almoco) ?? new Date(), 'HH:mm')}`
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  {entry.saida_hora ? format(new Date(entry.saida_hora), 'HH:mm') : '-'}
+                  {entry.saida_hora ? format(parseDateValue(entry.saida_hora) ?? new Date(), 'HH:mm') : '-'}
                 </TableCell>
                 <TableCell>{entry.horas_totais ? `${entry.horas_totais}h` : '-'}</TableCell>
                 <TableCell>{getStatusBadge(entry)}</TableCell>

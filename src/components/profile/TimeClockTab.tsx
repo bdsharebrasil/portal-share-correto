@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { parseDateValue } from "@/utils/timeClockDates";
 import {
   Clock,
   FileText,
@@ -283,7 +284,8 @@ export function TimeClockTab() {
 
   const formatTime = (isoDate: string | null) => {
     if (!isoDate) return "-";
-    return format(new Date(isoDate), "HH:mm");
+    const parsed = parseDateValue(isoDate);
+    return parsed ? format(parsed, "HH:mm") : "-";
   };
 
   const getCorrectionTypeLabel = (type: string) =>
@@ -496,7 +498,7 @@ export function TimeClockTab() {
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-medium">
-                            {format(new Date(item.data_registro), "dd/MM/yyyy")}
+                            {format(parseDateValue(item.data_registro) ?? new Date(), "dd/MM/yyyy")}
                           </span>
                           {getStatusBadge(item.status)}
                         </div>
@@ -537,7 +539,7 @@ export function TimeClockTab() {
                       <div key={item.id} className="p-3 rounded-lg bg-background/50 border border-border">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-medium">
-                            {format(new Date(item.data_entrada), "dd/MM/yyyy")}
+                            {format(parseDateValue(item.data_entrada) ?? new Date(), "dd/MM/yyyy")}
                           </span>
                           {getStatusBadge(item.status)}
                         </div>

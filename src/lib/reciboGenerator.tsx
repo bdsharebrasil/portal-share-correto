@@ -318,6 +318,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
 
   const isReembolso = data.receipt_type === 'reembolso';
   const emissor = data.emissor;
+  const descriptionText = data.service_description || data.descricao_servico || data.descricao || '—';
 
   // Parse issue date for signature
   const issueDate = data.issue_date ? new Date(data.issue_date + 'T12:00:00') : new Date();
@@ -414,7 +415,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             {/* Table Row */}
             <View style={styles.tableRow}>
               <Text style={{ ...styles.tableCell, flex: 3, textAlign: 'left' }}>
-                {data.service_description || '—'}
+                {descriptionText}
               </Text>
               <Text style={{ ...styles.tableCell, flex: 1.2 }}>
                 {docNumber || '—'}
@@ -531,7 +532,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
         </View>
         <View style={{ flexDirection: 'row' }}>
           <View style={{ ...styles.descriptionContent, flex: 1 }}>
-            <Text style={styles.descriptionText}>{data.service_description || '—'}</Text>
+            <Text style={styles.descriptionText}>{descriptionText}</Text>
           </View>
           <View style={{ alignItems: 'flex-end', paddingLeft: 10 }}>
             <View style={styles.totalBox}>
