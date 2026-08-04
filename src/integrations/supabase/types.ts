@@ -8809,6 +8809,7 @@ export type Database = {
           observacoes: string | null
           pdf_url: string | null
           percentual: number | null
+          recibo_url: string | null
           socio_id: string | null
           socios_cliente: string | null
           status: string | null
@@ -8853,6 +8854,7 @@ export type Database = {
           observacoes?: string | null
           pdf_url?: string | null
           percentual?: number | null
+          recibo_url?: string | null
           socio_id?: string | null
           socios_cliente?: string | null
           status?: string | null
@@ -8897,6 +8899,7 @@ export type Database = {
           observacoes?: string | null
           pdf_url?: string | null
           percentual?: number | null
+          recibo_url?: string | null
           socio_id?: string | null
           socios_cliente?: string | null
           status?: string | null

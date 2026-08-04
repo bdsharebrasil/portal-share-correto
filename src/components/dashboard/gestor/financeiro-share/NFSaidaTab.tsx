@@ -17,10 +17,17 @@ import {
   Banknote,
   Filter,
   SlidersHorizontal,
+  Mail,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import {
+  EnviarEmailClienteDialog,
+  type AnexoEmail,
+} from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
+import { ReciboSaidaPreviewModal } from "./ReciboSaidaPreviewModal";
+import { normalizeReceiptForPdf } from "@/hooks/useReceiptPdfGenerator";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -262,6 +269,11 @@ export default function NFSaidaTab() {
   const [baixaForm, setBaixaForm] = useState<BaixaFormState>(emptyBaixaForm);
   const [baixaSaving, setBaixaSaving] = useState(false);
   const [baixaUploading, setBaixaUploading] = useState(false);
+  const [emailTarget, setEmailTarget] = useState<NFSaida | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  // prévia do recibo de saída (gerar PDF → salvar → enviar por e-mail)
+  const [reciboPreview, setReciboPreview] = useState<{ pdfData: any; payload: any } | null>(null);
+  const [reciboSavedUrl, setReciboSavedUrl] = useState<string | null>(null);
 
   const fetchNotas = useCallback(async () => {
     setLoading(true);
@@ -347,6 +359,12 @@ export default function NFSaidaTab() {
           storageEntries = await Promise.all(
             (storageData ?? [])
               .filter((item: any) => item?.name && !item.name.startsWith("."))
+              // não duplica arquivos que já pertencem a uma nota/recibo registrado
+              .filter((item: any) => {
+                const { data: pu } = supabase.storage.from("nfs-share-saida").getPublicUrl(`recibos/${item.name}`);
+                const url = pu?.publicUrl || "";
+                return !existingClientMap.has(url) && !existingClientMap.has(item.name);
+              })
               .map(async (item: any) => {
                 const path = `recibos/${item.name}`;
                 const { data: publicUrlData } = supabase.storage.from("nfs-share-saida").getPublicUrl(path);
@@ -402,26 +420,34 @@ export default function NFSaidaTab() {
   useEffect(() => {
     const loadFormData = async () => {
       const [
-        { data: clientesData },
-        { data: sociosData },
-        { data: aeronavesData },
-        { data: categoriasData },
-        { data: expenseConfigData },
-        { data: bancosData },
-      ] = await Promise.all([
+        clientesResult,
+        sociosResult,
+        aeronavesResult,
+        categoriasResult,
+        expenseConfigResult,
+        bancosResult,
+      ] = await Promise.allSettled([
         supabase.from("clientes").select("id, razao_social, proprietario, cnpj").order("razao_social"),
-        supabase.from("socios").select("id, cliente_id, nome, cpf"),
+        supabase.from("socios").select("id, clientes_id, nome, cpf").order("nome"),
         supabase.from("aeronave").select("id, matricula").order("matricula"),
         supabase.from("categorias_movimentacao").select("id, nome").eq("ativo", true).order("nome"),
         supabase.from("expense_configu").select("id, expense_type, subcategoria_1, subcategoria_2, subcategoria_3, subcategoria_4, categoria_pai").order("expense_type"),
         supabase.from("contas_bancarias").select("id, banco, numero_conta").eq("ativo", true).order("banco"),
       ]);
+
+      const clientesData = clientesResult.status === "fulfilled" ? (clientesResult.value.data || []) : [];
+      const sociosData = sociosResult.status === "fulfilled" ? (sociosResult.value.data || []) : [];
+      const aeronavesData = aeronavesResult.status === "fulfilled" ? (aeronavesResult.value.data || []) : [];
+      const categoriasData = categoriasResult.status === "fulfilled" ? (categoriasResult.value.data || []) : [];
+      const expenseConfigData = expenseConfigResult.status === "fulfilled" ? (expenseConfigResult.value.data || []) : [];
+      const bancosData = bancosResult.status === "fulfilled" ? (bancosResult.value.data || []) : [];
+
       setClientes([
-        ...(clientesData || []).map((cliente) => ({ id: `cliente:${cliente.id}`, clienteId: cliente.id, socioId: null as string | null, nome: cliente.razao_social || cliente.proprietario || "Cliente", documento: cliente.cnpj || "", tipo: "Cliente" })),
-        ...(sociosData || []).map((socio) => ({ id: `socio:${socio.id}`, clienteId: socio.cliente_id, socioId: socio.id as string | null, nome: socio.nome, documento: socio.cpf || "", tipo: "Sócio" })),
+        ...(clientesData || []).map((cliente: any) => ({ id: `cliente:${cliente.id}`, clienteId: cliente.id, socioId: null as string | null, nome: cliente.razao_social || cliente.proprietario || "Cliente", documento: cliente.cnpj || "", tipo: "Cliente" })),
+        ...(sociosData || []).map((socio: any) => ({ id: `socio:${socio.id}`, clienteId: socio.clientes_id ?? socio.cliente_id ?? null, socioId: socio.id as string | null, nome: socio.nome, documento: socio.cpf || "", tipo: "Sócio" })),
       ]);
       setAeronaves(aeronavesData || []);
-      setCategorias((categoriasData || []).filter((categoria) => CATEGORIAS_PERMITIDAS.has(categoria.nome.trim().toUpperCase())));
+      setCategorias((categoriasData || []).filter((categoria: any) => CATEGORIAS_PERMITIDAS.has((categoria.nome || "").trim().toUpperCase())));
       setDespesaOptions(buildDespesaOptions((expenseConfigData || []) as ExpenseConfigRow[]));
       setContasBancarias(bancosData || []);
     };
@@ -595,7 +621,10 @@ export default function NFSaidaTab() {
     });
     if (movShareError) throw movShareError;
 
-    const { error: movClienteError } = await supabase.from("movimentacoes").insert({
+    /* O rateio de despesas exige um vínculo com a movimentação de despesa do cliente.
+       Mesmo para recibos de saída, criamos esse registro para manter o fluxo consistente. */
+    let movClienteId: string | null = null;
+    const { data: movCliente, error: movClienteError } = await supabase.from("movimentacoes").insert({
       descricao: descricaoLancamento,
       tipo: "despesa",
       tipo_caixa: "cliente",
@@ -609,13 +638,14 @@ export default function NFSaidaTab() {
       clientes_id: params.clienteId,
       socio_id: params.socioId,
       status: "pendente",
-      numero_nf: params.origem === "nf_saida" ? params.numero : null,
-      numero_recibo: params.origem === "recibo_saida" ? params.numero : null,
+      numero_nf: isRecibo ? null : params.numero,
+      numero_recibo: isRecibo ? params.numero : null,
       contas_areceber_id: areceber.id,
       reference_type: `${params.origem}:${params.origemId}:mov_cliente`,
       reference_id: params.origemId,
-    });
+    }).select("id").single();
     if (movClienteError) throw movClienteError;
+    movClienteId = movCliente?.id ?? null;
 
     /* ── 4ª perna: rateio de despesas (conta pendente no caixa do cliente) ── */
     let percentualSociedade: number | null = null;
@@ -635,7 +665,7 @@ export default function NFSaidaTab() {
       fonte_despesa: params.origem,
       tipo_rateio: "FIXO",
       fluxo: "SAIDA",
-      periodicidade: "eventual",
+      periodicidade: isRecibo ? "mensal" : "eventual",
       data_emissao: params.dataEmissao,
       data_vencimento: params.dataVencimento || params.dataEmissao,
       numero_doc: params.numero,
@@ -645,7 +675,8 @@ export default function NFSaidaTab() {
       cliente_id: params.clienteId,
       clientes_nome: params.clienteNome,
       socio_id: params.socioId,
-      pago_por: params.socioId || params.clienteId,
+      // pago_por só é preenchido na baixa do recebimento
+      pago_por: null,
       aeronave_id: params.aeronaveId,
       aeronave_registro: params.aeronaveMatricula,
       percentual_sociedade: percentualSociedade,
@@ -655,10 +686,13 @@ export default function NFSaidaTab() {
       valor_rateado: params.valor,
       status: "PENDENTE",
       categoria_custo: params.categoriaDespesaId,
+      subcategoria_1: isRecibo ? "ADM SHARE - RECIBO" : (params.categoriaDespesaNome || null),
+      despesa_id: movClienteId,
       nf_url: isRecibo ? null : anexoUrl,
       recibo_url: isRecibo ? anexoUrl : null,
     });
     if (rateioError) throw rateioError;
+
 
 
 
@@ -671,6 +705,31 @@ export default function NFSaidaTab() {
 
     return areceber.id as string;
   }, []);
+
+  const buildNumeroRecibo = useCallback(async (numeroInformado: string) => {
+    const numeroBase = numeroInformado.trim().replace(/^REC-/i, "");
+    if (!numeroBase) return null;
+
+    let codigoCliente: string | null = null;
+    if (form.cliente_id) {
+      let query = supabase
+        .from("cotistas_aeronave")
+        .select("codigo_cliente")
+        .eq("id_clientes", form.cliente_id)
+        .not("codigo_cliente", "is", null);
+      if (form.aircraft_id) query = query.eq("id_aeronave", form.aircraft_id);
+      if (form.socio_id) query = query.eq("socios_id", form.socio_id);
+
+      const { data, error } = await query.limit(1).maybeSingle();
+      if (error) {
+        console.error("Erro ao buscar codigo_cliente para recibo de saída:", error);
+      }
+      codigoCliente = (data?.codigo_cliente as string | undefined)?.trim()?.toUpperCase() || null;
+    }
+
+    const prefixo = codigoCliente || "CLI";
+    return `REC-${prefixo}${numeroBase}`;
+  }, [form.cliente_id, form.aircraft_id, form.socio_id]);
 
   const save = async () => {
     if (!form.numero.trim()) { setToast({ type: "err", text: `Informe o número ${documentType === "nota" ? "da nota" : "do recibo"}.` }); return; }
@@ -685,41 +744,47 @@ export default function NFSaidaTab() {
 
       if (documentType === "recibo") {
         const descricaoServico = form.descricao.trim() || "Serviços aeronáuticos";
-        const { data: inserted, error } = await supabase.from("recibos_saida").insert({
-          numero_recibo: form.numero.trim(), tipo_recibo: form.categoria, categoria_id: form.categoria_id || null,
-          categoria_despesa_id: form.categoria_despesa_id || null,
-          categoria_despesa_subcategoria: form.categoria_despesa_subcategoria || null,
-          nome_categoria: form.categoria, cliente_id: form.cliente_id || null, socio_id: form.socio_id || null, aeronave_id: form.aircraft_id || null,
-          nome_pagador: form.cliente_nome.trim(), documento_pagador: form.cliente_cnpj.trim(),
-          data_emissao: form.data_criacao, data_vencimento: form.data_vencimento || null,
-          valor: Number(form.valor) || 0, valor_total: Number(form.valor) || 0,
-          descricao_servico: descricaoServico, status: form.status,
-          pdf_url: form.arquivo_pdf_url.trim() || null,
-        }).select("id").single();
-        if (error) throw error;
+        const numeroRecibo = await buildNumeroRecibo(form.numero.trim());
+        if (!numeroRecibo) {
+          setToast({ type: "err", text: "Informe o número do recibo." });
+          return;
+        }
 
-        await syncSaidaFinancialLegs({
-          origem: "recibo_saida",
-          origemId: inserted.id,
-          numero: form.numero.trim(),
-          clienteNome: form.cliente_nome.trim(),
-          clienteCnpj: form.cliente_cnpj.trim(),
-          clienteId: form.cliente_id || null,
-          socioId: form.socio_id || null,
-          aeronaveId: form.aircraft_id || null,
-          aeronaveMatricula: form.aeronave || null,
-          categoriaReceitaId: form.categoria_id || null,
-          categoriaReceitaNome: form.categoria,
-          categoriaDespesaId: form.categoria_despesa_id || null,
-          categoriaDespesaNome: categoriaDespesaNome,
+        // evita recibos duplicados com o mesmo número
+        const { data: jaExiste } = await supabase
+          .from("recibos_saida")
+          .select("id")
+          .eq("numero_recibo", numeroRecibo)
+          .maybeSingle();
+        if (jaExiste?.id) {
+          setToast({ type: "err", text: `Já existe um recibo de saída com o número ${numeroRecibo}.` });
+          return;
+        }
+
+        const pdfData = await normalizeReceiptForPdf({
+          receipt_number: numeroRecibo,
+          payer_name: form.cliente_nome.trim(),
+          payer_document: form.cliente_cnpj.trim(),
+          service_description: descricaoServico,
+          receipt_type: "pagamento",
+          issue_date: form.data_criacao,
+          max_payment_date: dataVencimentoFinal,
+          nome_categoria: form.categoria,
           valor: Number(form.valor) || 0,
-          dataEmissao: form.data_criacao,
-          dataVencimento: dataVencimentoFinal,
-          descricao: descricaoServico,
-          arquivoUrl: form.arquivo_pdf_url.trim() || null,
         });
-        setToast({ type: "ok", text: "Recibo de saída criado e lançamentos financeiros gerados." });
-        fetchNotas();
+
+        setReciboPreview({
+          pdfData,
+          payload: {
+            numeroRecibo,
+            descricaoServico,
+            dataVencimentoFinal,
+            categoriaDespesaNome,
+          },
+        });
+        setReciboSavedUrl(null);
+        return;
+
 
       } else {
         const payload = {
@@ -769,6 +834,96 @@ export default function NFSaidaTab() {
     } finally { setSaving(false); }
   };
 
+  /** Confirma a prévia: sobe o PDF, grava 1 único recibo e gera as pernas financeiras. */
+  const confirmReciboSave = async (blob: Blob) => {
+    if (!reciboPreview || reciboSavedUrl) return;
+    const { numeroRecibo, descricaoServico, dataVencimentoFinal, categoriaDespesaNome } = reciboPreview.payload;
+    setSaving(true); setToast(null);
+    try {
+      const path = `recibos/${crypto.randomUUID()}.pdf`;
+      const { error: upErr } = await supabase.storage
+        .from("nfs-share-saida")
+        .upload(path, blob, { contentType: "application/pdf", upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("nfs-share-saida").getPublicUrl(path);
+      const reciboUrl = urlData?.publicUrl || null;
+
+      const { data: inserted, error } = await supabase.from("recibos_saida").insert({
+        numero_recibo: numeroRecibo, tipo_recibo: form.categoria, categoria_id: form.categoria_id || null,
+        categoria_despesa_id: form.categoria_despesa_id || null,
+        categoria_despesa_subcategoria: form.categoria_despesa_subcategoria || null,
+        subcategoria_1: "ADM SHARE - RECIBO",
+        nome_categoria: form.categoria, cliente_id: form.cliente_id || null, socio_id: form.socio_id || null,
+        aeronave_id: form.aircraft_id || null,
+        nome_pagador: form.cliente_nome.trim(), documento_pagador: form.cliente_cnpj.trim(),
+        data_emissao: form.data_criacao, data_vencimento: form.data_vencimento || null,
+        valor: Number(form.valor) || 0, valor_total: Number(form.valor) || 0,
+        descricao_servico: descricaoServico, status: form.status,
+        pdf_url: reciboUrl,
+        recibo_url: reciboUrl,
+      }).select("id").single();
+      if (error) throw error;
+
+      await syncSaidaFinancialLegs({
+        origem: "recibo_saida",
+        origemId: inserted.id,
+        numero: numeroRecibo,
+        clienteNome: form.cliente_nome.trim(),
+        clienteCnpj: form.cliente_cnpj.trim(),
+        clienteId: form.cliente_id || null,
+        socioId: form.socio_id || null,
+        aeronaveId: form.aircraft_id || null,
+        aeronaveMatricula: form.aeronave || null,
+        categoriaReceitaId: form.categoria_id || null,
+        categoriaReceitaNome: form.categoria,
+        categoriaDespesaId: form.categoria_despesa_id || null,
+        categoriaDespesaNome: categoriaDespesaNome,
+        valor: Number(form.valor) || 0,
+        dataEmissao: form.data_criacao,
+        dataVencimento: dataVencimentoFinal,
+        descricao: descricaoServico,
+        arquivoUrl: reciboUrl,
+      });
+
+      setReciboSavedUrl(reciboUrl);
+      setEmailTarget({
+        id: inserted.id,
+        origem: "recibo_saida",
+        numero: numeroRecibo,
+        cliente_nome: form.cliente_nome.trim(),
+        cliente_cnpj: form.cliente_cnpj.trim(),
+        data_criacao: form.data_criacao,
+        data_vencimento: dataVencimentoFinal,
+        valor: Number(form.valor) || 0,
+        categoria: form.categoria,
+        descricao: descricaoServico,
+        status: form.status,
+        arquivo_pdf_url: reciboUrl,
+        criado_em: null, atualizado_em: null, criado_por: null,
+        aeronave: form.aeronave || null,
+        cliente_id: form.cliente_id || null,
+        aircraft_id: form.aircraft_id || null,
+        socio_id: form.socio_id || null,
+        categoria_id: form.categoria_id || null,
+        categoria_despesa_id: form.categoria_despesa_id || null,
+        categoria_despesa_subcategoria: form.categoria_despesa_subcategoria || null,
+        contas_areceber_id: null,
+      } as NFSaida);
+
+      setToast({ type: "ok", text: "Recibo de saída salvo com PDF e lançamentos financeiros gerados." });
+      fetchNotas();
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao salvar o recibo." });
+    } finally { setSaving(false); }
+  };
+
+  const closeReciboPreview = () => {
+    setReciboPreview(null);
+    if (reciboSavedUrl) { setReciboSavedUrl(null); closeForm(); }
+  };
+
+
+
   const confirmDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
@@ -785,6 +940,11 @@ export default function NFSaidaTab() {
   };
 
   /* ─────────────── dar baixa (registrar recebimento) ─────────────── */
+
+  const openEmail = (n: NFSaida) => {
+    setEmailTarget(n);
+    setEmailOpen(true);
+  };
 
   const openBaixa = (n: NFSaida) => { setBaixaTarget(n); setBaixaForm(emptyBaixaForm); };
   const closeBaixa = () => { setBaixaTarget(null); setBaixaForm(emptyBaixaForm); };
@@ -854,6 +1014,8 @@ export default function NFSaidaTab() {
         data_pagamento: baixaForm.data_pagamento,
         valor_pago_real: Number(baixaTarget.valor) || null,
         comprovante_url: baixaForm.comprovante_url || null,
+        // pago_por só é preenchido após a baixa do recebimento
+        pago_por: baixaTarget.socio_id || baixaTarget.cliente_id || null,
         atualizado_em: agora,
       }).eq("fonte_despesa", baixaTarget.origem || "nf_saida").eq("numero_doc", baixaTarget.numero);
       if (rateioBaixaErr) throw rateioBaixaErr;
@@ -1159,6 +1321,14 @@ export default function NFSaidaTab() {
                                 <span className="text-[10px] text-slate-500">Somente visualização</span>
                               ) : (
                                 <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEmail(n)}
+                                    title="Enviar por e-mail ao cliente"
+                                    className="border border-cyan-900/50 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/40 rounded px-2 py-1 text-[10px]"
+                                  >
+                                    <Mail className="h-3 w-3" />
+                                  </button>
                                   {n.status === "pendente" && n.contas_areceber_id && (
                                     <button onClick={() => openBaixa(n)} title="Dar baixa (registrar recebimento)" className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px]">
                                       <Banknote className="h-3 w-3" />
@@ -1183,6 +1353,35 @@ export default function NFSaidaTab() {
             </tbody>
           </table>
         </div>
+      )}
+
+      <ReciboSaidaPreviewModal
+        open={!!reciboPreview}
+        data={reciboPreview?.pdfData ?? null}
+        saving={saving}
+        savedUrl={reciboSavedUrl}
+        onClose={closeReciboPreview}
+        onConfirm={confirmReciboSave}
+        onSendEmail={() => {
+          if (emailTarget) {
+            setEmailOpen(true);
+          }
+        }}
+      />
+
+
+      {emailTarget && (
+        <EnviarEmailClienteDialog
+          open={emailOpen}
+          onOpenChange={setEmailOpen}
+          clienteId={emailTarget.cliente_id || null}
+          assuntoSugerido={`${emailTarget.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal"} de saída ${emailTarget.numero || "sem número"}${emailTarget.cliente_nome ? ` — ${emailTarget.cliente_nome}` : ""}`}
+          mensagemSugerida={`Olá${emailTarget.cliente_nome ? ` ${emailTarget.cliente_nome}` : ""},\n\nSegue a documentação referente ao ${emailTarget.origem === "recibo_saida" ? "recibo" : "documento fiscal"} de saída emitido pela Share.\n\nNúmero: ${emailTarget.numero || "—"}\nValor: ${formatBRL(num(emailTarget.valor))}\nData de emissão: ${emailTarget.data_criacao || "—"}\n\nOs documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`}
+          anexos={emailTarget.arquivo_pdf_url ? [{ url: emailTarget.arquivo_pdf_url, label: emailTarget.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal", filename: getFileNameFromUrl(emailTarget.arquivo_pdf_url) }] : []}
+          tipo={emailTarget.origem === "recibo_saida" ? "recibo_saida" : "nf_saida"}
+          referenceType={emailTarget.origem === "recibo_saida" ? "recibos_saida" : "notas_fiscais_saida"}
+          referenceIds={emailTarget.id ? [emailTarget.id] : []}
+        />
       )}
 
       {/* delete modal */}
