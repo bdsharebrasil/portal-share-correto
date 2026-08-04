@@ -119,9 +119,10 @@ interface SyncSaidaParams {
 
 
 const CATEGORIAS_PERMITIDAS = new Set([
-  "N.F DIARIAS DE VOO - ADM SHARE - RECIBO",
+  "N.F DIARIAS DE VOO",
   "ADM E PILOTAGEM - N.F",
-  "N.F ADM - Somente adm de aeronaves",
+  "N.F ADM SHARE",
+ "ADM SHARE - RECIBO",
   "ADM E PILOTAGEM - RECIBO",
 ].map((nome) => nome.toUpperCase()));
 
