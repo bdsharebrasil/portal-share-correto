@@ -22,12 +22,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { EnviarEmailClienteButton } from "@/components/dashboard/financeiro/EnviarEmailClienteButton";
 import {
   EnviarEmailClienteDialog,
   type AnexoEmail,
 } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
 import { ReciboSaidaPreviewModal } from "./ReciboSaidaPreviewModal";
 import { normalizeReceiptForPdf } from "@/hooks/useReceiptPdfGenerator";
+import { formatDate } from "@/lib/receiptUtils";
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -330,80 +332,7 @@ export default function NFSaidaTab() {
         contas_areceber_id: r.contas_areceber_id,
       }));
 
-      const existingClientMap = new Map<string, Partial<NFSaida>>();
-      const registerClientMatch = (url: string | null | undefined, row: Partial<NFSaida>) => {
-        if (!url) return;
-        const normalizedUrl = url.trim();
-        if (!normalizedUrl) return;
-        existingClientMap.set(normalizedUrl, row);
-        try {
-          const parsed = new URL(normalizedUrl);
-          const filename = parsed.pathname.split("/").filter(Boolean).pop() || "";
-          if (filename) existingClientMap.set(filename, row);
-        } catch {}
-      };
-
-      [...nfs, ...recibos].forEach((row) => {
-        registerClientMatch(row.arquivo_pdf_url, row);
-        registerClientMatch((row as any).pdf_url, row);
-        registerClientMatch((row as any).nf_url, row);
-      });
-
-      let storageEntries: NFSaida[] = [];
-      try {
-        const { data: storageData, error: storageError } = await supabase.storage
-          .from("nfs-share-saida")
-          .list("recibos", { limit: 100, offset: 0 });
-
-        if (!storageError) {
-          storageEntries = await Promise.all(
-            (storageData ?? [])
-              .filter((item: any) => item?.name && !item.name.startsWith("."))
-              // não duplica arquivos que já pertencem a uma nota/recibo registrado
-              .filter((item: any) => {
-                const { data: pu } = supabase.storage.from("nfs-share-saida").getPublicUrl(`recibos/${item.name}`);
-                const url = pu?.publicUrl || "";
-                return !existingClientMap.has(url) && !existingClientMap.has(item.name);
-              })
-              .map(async (item: any) => {
-                const path = `recibos/${item.name}`;
-                const { data: publicUrlData } = supabase.storage.from("nfs-share-saida").getPublicUrl(path);
-                const publicUrl = publicUrlData?.publicUrl || null;
-                const nomeBase = item.name.replace(/\.[^.]+$/, "");
-                const matchedClient = publicUrl ? existingClientMap.get(publicUrl) ?? existingClientMap.get(item.name) : undefined;
-                return {
-                  id: `storage:${path}`,
-                  origem: "storage_recebido_saida" as const,
-                  numero: nomeBase || item.name,
-                  cliente_nome: matchedClient?.cliente_nome || "Recebido de saída",
-                  cliente_cnpj: matchedClient?.cliente_cnpj || null,
-                  data_criacao: matchedClient?.data_criacao || item.created_at || item.updated_at || null,
-                  data_vencimento: matchedClient?.data_vencimento || null,
-                  valor: matchedClient?.valor || null,
-                  categoria: matchedClient?.categoria || "Recebido de saída",
-                  descricao: matchedClient?.descricao || item.name,
-                  status: matchedClient?.status || "recebido",
-                  arquivo_pdf_url: publicUrl,
-                  criado_em: item.created_at || null,
-                  atualizado_em: item.updated_at || null,
-                  criado_por: null,
-                  aeronave: matchedClient?.aeronave || null,
-                  cliente_id: matchedClient?.cliente_id || null,
-                  aircraft_id: matchedClient?.aircraft_id || null,
-                  socio_id: matchedClient?.socio_id || null,
-                  categoria_id: matchedClient?.categoria_id || null,
-                  categoria_despesa_id: matchedClient?.categoria_despesa_id || null,
-                  categoria_despesa_subcategoria: matchedClient?.categoria_despesa_subcategoria || null,
-                  contas_areceber_id: matchedClient?.contas_areceber_id || null,
-                } as NFSaida;
-              })
-          );
-        }
-      } catch {
-        storageEntries = [];
-      }
-
-      const merged = [...nfs, ...recibos, ...storageEntries].sort((a, b) =>
+      const merged = [...nfs, ...recibos].sort((a, b) =>
         (b.data_criacao ?? "").localeCompare(a.data_criacao ?? "")
       );
       setNotas(merged);
@@ -1303,8 +1232,8 @@ export default function NFSaidaTab() {
                           <td className={`px-3 py-2 font-semibold ${isRecebido ? 'text-slate-400' : 'text-slate-200'}`}>{n.numero || "—"}</td>
                           <td className="px-3 py-2 text-slate-400">{n.cliente_nome || "—"}</td>
                           <td className="px-3 py-2 text-slate-400">{n.aeronave || "—"}</td>
-                          <td className="px-3 py-2 text-slate-400">{n.data_criacao || "—"}</td>
-                          <td className="px-3 py-2 text-slate-400">{n.data_vencimento || "—"}</td>
+                          <td className="px-3 py-2 text-slate-400">{n.data_criacao ? formatDate(n.data_criacao) : "—"}</td>
+                          <td className="px-3 py-2 text-slate-400">{n.data_vencimento ? formatDate(n.data_vencimento) : "—"}</td>
                           <td className={`px-3 py-2 text-right font-semibold ${isRecebido ? 'text-slate-400' : 'text-cyan-300'}`}>{formatBRL(num(n.valor))}</td>
                           <td className="px-3 py-2 text-slate-400">{n.categoria || "—"}</td>
                           <td className="px-3 py-2"><StatusBadge status={n.status} /></td>
@@ -1320,15 +1249,24 @@ export default function NFSaidaTab() {
                               {n.origem === "storage_recebido_saida" ? (
                                 <span className="text-[10px] text-slate-500">Somente visualização</span>
                               ) : (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => openEmail(n)}
-                                    title="Enviar por e-mail ao cliente"
-                                    className="border border-cyan-900/50 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/40 rounded px-2 py-1 text-[10px]"
-                                  >
-                                    <Mail className="h-3 w-3" />
-                                  </button>
+                                <div className="flex flex-col gap-1">
+                                  <EnviarEmailClienteButton
+                                    stopPropagation
+                                    size="icon"
+                                    variant="outline"
+                                    clienteId={n.cliente_id || null}
+                                    tipo={n.origem === "recibo_saida" ? "recibo_saida" : "nf_saida"}
+                                    referenceType={n.origem === "recibo_saida" ? "recibos_saida" : "notas_fiscais_saida"}
+                                    referenceIds={n.id ? [n.id] : []}
+                                    assuntoSugerido={`${n.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal"} de saída ${n.numero || "sem número"}${n.cliente_nome ? ` — ${n.cliente_nome}` : ""}`}
+                                    mensagemSugerida={`Olá${n.cliente_nome ? ` ${n.cliente_nome}` : ""},\n\nSegue a documentação referente ao ${n.origem === "recibo_saida" ? "recibo" : "documento fiscal"} de saída emitido pela Share.\n\nNúmero: ${n.numero || "—"}\nValor: ${formatBRL(num(n.valor))}\nData de emissão: ${n.data_criacao ? formatDate(n.data_criacao) : "—"}\n\nOs documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`}
+                                    anexos={
+                                      n.arquivo_pdf_url
+                                        ? [{ url: n.arquivo_pdf_url, label: n.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal", filename: getFileNameFromUrl(n.arquivo_pdf_url) }]
+                                        : []
+                                    }
+                                    className="bg-cyan-900/10 text-cyan-300 border border-cyan-900/50 hover:bg-cyan-900/20 rounded"
+                                  />
                                   {n.status === "pendente" && n.contas_areceber_id && (
                                     <button onClick={() => openBaixa(n)} title="Dar baixa (registrar recebimento)" className="border border-emerald-900/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/40 rounded px-2 py-1 text-[10px]">
                                       <Banknote className="h-3 w-3" />
@@ -1340,7 +1278,7 @@ export default function NFSaidaTab() {
                                   <button onClick={() => setDeleteId(n.id)} className="border border-red-900/50 bg-red-950/40 text-red-300 hover:bg-red-900/40 rounded px-2 py-1 text-[10px]">
                                     <Trash2 className="h-3 w-3" />
                                   </button>
-                                </>
+                                </div>
                               )}
                             </div>
                           </td>
@@ -1376,7 +1314,7 @@ export default function NFSaidaTab() {
           onOpenChange={setEmailOpen}
           clienteId={emailTarget.cliente_id || null}
           assuntoSugerido={`${emailTarget.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal"} de saída ${emailTarget.numero || "sem número"}${emailTarget.cliente_nome ? ` — ${emailTarget.cliente_nome}` : ""}`}
-          mensagemSugerida={`Olá${emailTarget.cliente_nome ? ` ${emailTarget.cliente_nome}` : ""},\n\nSegue a documentação referente ao ${emailTarget.origem === "recibo_saida" ? "recibo" : "documento fiscal"} de saída emitido pela Share.\n\nNúmero: ${emailTarget.numero || "—"}\nValor: ${formatBRL(num(emailTarget.valor))}\nData de emissão: ${emailTarget.data_criacao || "—"}\n\nOs documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`}
+          mensagemSugerida={`Olá${emailTarget.cliente_nome ? ` ${emailTarget.cliente_nome}` : ""},\n\nSegue a documentação referente ao ${emailTarget.origem === "recibo_saida" ? "recibo" : "documento fiscal"} de saída emitido pela Share.\n\nNúmero: ${emailTarget.numero || "—"}\nValor: ${formatBRL(num(emailTarget.valor))}\nData de emissão: ${emailTarget.data_criacao ? formatDate(emailTarget.data_criacao) : "—"}\n\nOs documentos estão disponíveis nos links abaixo.\n\nAtenciosamente,\nEquipe Share Brasil`}
           anexos={emailTarget.arquivo_pdf_url ? [{ url: emailTarget.arquivo_pdf_url, label: emailTarget.origem === "recibo_saida" ? "Recibo" : "Nota Fiscal", filename: getFileNameFromUrl(emailTarget.arquivo_pdf_url) }] : []}
           tipo={emailTarget.origem === "recibo_saida" ? "recibo_saida" : "nf_saida"}
           referenceType={emailTarget.origem === "recibo_saida" ? "recibos_saida" : "notas_fiscais_saida"}
