@@ -41,7 +41,7 @@ const HIDEABLE_COLUMNS = [
   ["descricao", "Descrição"],
   ["uso", "% Uso"],
   ["total", "Vlr. Total"],
-  ["pago", "Vlr. Pago"],
+  ["rateado", "Vlr. Rateado"],
 ] as const;
 
 export function FechamentoBalancoTab({
@@ -58,6 +58,9 @@ export function FechamentoBalancoTab({
   const [editingRateio, setEditingRateio] = useState<RateioRow | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showColumnMenu, setShowColumnMenu] = useState(false);
+  type SortBy = "vencimento" | "pagamento" | "fornecedor" | "cliente" | "descricao" | "total" | "rateado";
+  const [sortBy, setSortBy] = useState<SortBy>("vencimento");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const qc = useQueryClient();
 
   const toggleColumn = (column: string) => {
@@ -71,6 +74,25 @@ export function FechamentoBalancoTab({
 
   const columnVisible = (column: string) => !hiddenColumns.has(column);
   const visibleColumnCount = 2 + HIDEABLE_COLUMNS.length - hiddenColumns.size;
+
+  const sortLabels: Record<SortBy, string> = {
+    vencimento: "Vencimento",
+    pagamento: "Pagamento",
+    fornecedor: "Fornecedor",
+    cliente: "Cliente",
+    descricao: "Descrição",
+    total: "Total",
+    rateado: "Rateado",
+  };
+
+  const toggleSort = (field: SortBy) => {
+    if (sortBy === field) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir("asc");
+    }
+  };
 
   // Drag to scroll refs and state
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -113,11 +135,46 @@ export function FechamentoBalancoTab({
       todos: grupo,
       numCotistas: grupo.length,
       valorTotal: num(grupo[0].valor_total_despesa), // Pega o total apenas uma vez (mesmo para todos os rateios)
+      valorRateado: grupo.reduce((s, r) => s + num(r.valor_rateado), 0),
       valorPagoTotal: grupo.reduce((s, r) => s + num(r.valor_pago_real), 0),
       todosConferidos: grupo.every((r) => r.conferido),
       algumConferido: grupo.some((r) => r.conferido),
     }));
   }, [despesas]);
+
+  const sortedDespesasAgrupadas = useMemo(() => {
+    const rows = despesasAgrupadas.map((grupo) => {
+      const r = grupo.representante;
+      const cliente = !!r.clientes_nome && !!r.socios_nome ? r.clientes_nome : (r.pago_por || "");
+      const sortValue: string | number = (() => {
+        switch (sortBy) {
+          case "vencimento": return r.data_vencimento || "";
+          case "pagamento": return r.data_pagamento || "";
+          case "fornecedor": return r.fornecedor_nome || "";
+          case "cliente": return cliente;
+          case "descricao": return r.descricao_despesa || "";
+          case "total": return grupo.valorTotal;
+          case "rateado": return grupo.valorRateado;
+          default: return "";
+        }
+      })();
+      return { grupo, sortValue };
+    });
+
+    rows.sort((a, b) => {
+      const aVal = a.sortValue;
+      const bVal = b.sortValue;
+      let cmp = 0;
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        cmp = aVal - bVal;
+      } else {
+        cmp = String(aVal).localeCompare(String(bVal), "pt-BR", { sensitivity: "base" });
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return rows.map((row) => row.grupo);
+  }, [despesasAgrupadas, sortBy, sortDir]);
 
   const totalConferido = useMemo(
     () => despesasAgrupadas.filter((g) => g.todosConferidos).length,
@@ -256,7 +313,7 @@ export function FechamentoBalancoTab({
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative overflow-visible">
             <button
               onClick={() => setShowColumnMenu((current) => !current)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
@@ -267,7 +324,7 @@ export function FechamentoBalancoTab({
               COLUNAS
             </button>
             {showColumnMenu && (
-              <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl">
+              <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl">
                 {HIDEABLE_COLUMNS.map(([id, label]) => (
                   <button
                     key={id}
@@ -282,6 +339,23 @@ export function FechamentoBalancoTab({
             )}
           </div>
 
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleSort("vencimento")}
+              className={`inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300 ${sortBy === "vencimento" ? "border-cyan-500 text-cyan-300" : ""}`}
+              title="Ordenar por vencimento"
+            >
+              {sortLabels.vencimento}
+              <span className="text-[10px]">{sortBy === "vencimento" ? (sortDir === "asc" ? "↑" : "↓") : ""}</span>
+            </button>
+            <button
+              onClick={() => setSortDir((current) => (current === "asc" ? "desc" : "asc"))}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+              title="Alternar ordem crescente/decrescente"
+            >
+              {sortDir === "asc" ? "Crescente" : "Decrescente"}
+            </button>
+          </div>
           <button
             onClick={() => fecharMesMutation.mutate()}
             disabled={!todosConferidos || fecharMesMutation.isPending}
@@ -323,8 +397,20 @@ export function FechamentoBalancoTab({
                 <th className={`px-3 py-2 text-left font-bold ${columnVisible("cliente") ? "" : "hidden"}`}>Cliente</th>
                 <th className={`px-3 py-2 text-left font-bold min-w-[160px] ${columnVisible("descricao") ? "" : "hidden"}`}>Descrição</th>
                 <th className={`px-3 py-2 text-right font-bold ${columnVisible("uso") ? "" : "hidden"}`}>% Uso</th>
-                <th className={`px-3 py-2 text-right font-bold ${columnVisible("total") ? "" : "hidden"}`}>Vlr. Total</th>
-                <th className={`px-3 py-2 text-right font-bold ${columnVisible("pago") ? "" : "hidden"}`}>Vlr. Pago</th>
+                <th
+                  onClick={() => toggleSort("total")}
+                  className={`px-3 py-2 text-right font-bold cursor-pointer select-none ${columnVisible("total") ? "" : "hidden"}`}
+                  title="Ordenar por total"
+                >
+                  Vlr. Total {sortBy === "total" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                </th>
+                <th
+                  onClick={() => toggleSort("rateado")}
+                  className={`px-3 py-2 text-right font-bold cursor-pointer select-none ${columnVisible("rateado") ? "" : "hidden"}`}
+                  title="Ordenar por valor rateado"
+                >
+                  Vlr. Rateado {sortBy === "rateado" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                </th>
                 <th className="px-3 py-2 text-center font-bold">Ações</th>
               </tr>
             </thead>
@@ -336,7 +422,7 @@ export function FechamentoBalancoTab({
                   </td>
                 </tr>
               ) : (
-                despesasAgrupadas.map((grupo, idx) => {
+                sortedDespesasAgrupadas.map((grupo, idx) => {
                   const r = grupo.representante;
                   const isExpanded = expandedRow === (r.despesa_id || r.id);
                   const anexos = [
@@ -349,7 +435,9 @@ export function FechamentoBalancoTab({
                   ].filter((a) => a.url);
 
                   const st = statusOf(r);
-                  const clienteOuSocio = r.pago_por || "—";
+                  const hasClienteAndSocio = !!r.clientes_nome && !!r.socios_nome;
+                  const clienteDisplay = hasClienteAndSocio ? r.clientes_nome : (r.pago_por || "—");
+                  const docDisplay = r.numero_nf || r.numero_doc || r.numero_recibo || "—";
                   const temMultiplosCotistas = grupo.numCotistas > 1;
 
                   return (
@@ -380,13 +468,13 @@ export function FechamentoBalancoTab({
                           {r.data_pagamento ? formatDate(r.data_pagamento) : "---"}
                         </td>
                         <td className={`px-3 py-2 font-mono text-cyan-400/90 text-[10px] ${columnVisible("documento") ? "" : "hidden"}`}>
-                          {r.numero_doc || "—"}
+                          {docDisplay}
                         </td>
                         <td className={`px-3 py-2 text-slate-200 font-semibold truncate max-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>
                           {r.fornecedor_nome || "—"} {temMultiplosCotistas && <span className="text-cyan-400 text-[9px]">({grupo.numCotistas})</span>}
                         </td>
                         <td className={`px-3 py-2 text-slate-300 font-medium truncate max-w-[110px] ${columnVisible("cliente") ? "" : "hidden"}`}>
-                          {temMultiplosCotistas ? `${grupo.numCotistas} sócios` : (clienteOuSocio)}
+                          {temMultiplosCotistas ? `${grupo.numCotistas} sócios` : clienteDisplay}
                         </td>
                         <td className={`px-3 py-2 text-slate-400 max-w-[180px] truncate ${columnVisible("descricao") ? "" : "hidden"}`} title={r.descricao_despesa || ""}>
                           {r.descricao_despesa || "—"}
@@ -397,8 +485,8 @@ export function FechamentoBalancoTab({
                         <td className={`px-3 py-2 text-right tabular-nums font-bold text-slate-200 ${columnVisible("total") ? "" : "hidden"}`}>
                           {formatBRL(grupo.valorTotal)}
                         </td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${grupo.valorPagoTotal > 0 ? "text-emerald-600" : "text-slate-500"} ${columnVisible("pago") ? "" : "hidden"}`}>
-                          {formatBRL(grupo.valorPagoTotal)}
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${grupo.valorRateado > 0 ? "text-cyan-400" : "text-slate-500"} ${columnVisible("rateado") ? "" : "hidden"}`}>
+                          {formatBRL(grupo.valorRateado)}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <button
@@ -493,6 +581,12 @@ export function FechamentoBalancoTab({
                                       {formatBRL(grupo.valorTotal)}
                                     </span>
                                   </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-slate-400">Valor Pago Real</span>
+                                    <span className="text-[10px] font-bold text-emerald-400">
+                                      {formatBRL(grupo.valorPagoTotal)}
+                                    </span>
+                                  </div>
                                 </div>
 
                                 {/* Coluna 3: Notas / Edição */}
@@ -583,7 +677,7 @@ export function FechamentoBalancoTab({
             {despesasAgrupadas.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-slate-700 bg-slate-900 shadow-inner">
-                  <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("pago") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
+                  <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("rateado") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
                     TOTAL DO MÊS:
                   </td>
                   {columnVisible("total") && (
@@ -591,9 +685,9 @@ export function FechamentoBalancoTab({
                       {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorTotal, 0))}
                     </td>
                   )}
-                  {columnVisible("pago") && (
+                  {columnVisible("rateado") && (
                     <td className="px-3 py-3 text-right tabular-nums font-black text-cyan-400 text-xs">
-                      {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorPagoTotal, 0))}
+                      {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorRateado, 0))}
                     </td>
                   )}
                   <td />

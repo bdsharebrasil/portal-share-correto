@@ -349,8 +349,16 @@ export default function FluxoCaixaTab() {
       case "caixa_share":    list = list.filter((m) => isShare(m) || pagoPelaShare(m)); break;
       case "caixa_cliente":  list = list.filter((m) => !isShare(m)); break;
       case "contas_pagar":   list = list.filter((m) => {
-        const pending = !isEntrada(m) && !m.data_pagamento;
-        if (!pending) return false;
+        const isPayable = !isEntrada(m);
+        const kind = statusOf(m).kind;
+        const isPaid = kind === "pago" || kind === "reembolsado" || kind === "deposito";
+        const isPendingOrOverdue = isPayable && !isPaid;
+        if (!isPayable) return false;
+        if (statusFilter === "pago") {
+          return isPaid && (contasCaixa === "share" ? isShare(m) : !isShare(m));
+        }
+        // Default behavior for Contas a Pagar: show only open payables (pendente/vencido).
+        if (!isPendingOrOverdue) return false;
         return contasCaixa === "share" ? isShare(m) : !isShare(m);
       }); break;
       // Contas a Receber: entradas share em aberto + tudo que está aguardando
