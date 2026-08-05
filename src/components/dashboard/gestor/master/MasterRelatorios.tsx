@@ -22,7 +22,7 @@ interface Movimentacao {
   id: string;
   descricao: string;
   tipo: string;
-  valor: number | string;
+  valor_rateado: number | string;
   data_competencia: string;
   data_vencimento: string | null;
   data_pagamento: string | null;
@@ -30,13 +30,14 @@ interface Movimentacao {
   status: string;
   tipo_caixa: string | null;
   fornecedor_nome: string | null;
-  categoria?: string | null;
+  categoria_id?: string | null;
+  categoria_nome?: string | null;
 }
 
 const isEntrada = (tipo: string) => ["entrada", "receita"].includes(String(tipo).toLowerCase());
 const isPago = (mov: Movimentacao) => mov.status === "pago" || Boolean(mov.data_pagamento);
 const isReembolso = (mov: Movimentacao) =>
-  `${mov.descricao ?? ""} ${mov.categoria ?? ""}`.toLowerCase().includes("reembols");
+  `${mov.descricao ?? ""} ${mov.categoria_nome ?? ""}`.toLowerCase().includes("reembols");
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 const formatDate = (value: string | null) =>
@@ -57,7 +58,7 @@ export default function MasterRelatorios() {
       const [movRes, clientsRes] = await Promise.all([
         supabase
           .from("movimentacoes")
-          .select("id, descricao, tipo, valor, data_competencia, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria")
+          .select("id, descricao, tipo, valor_rateado, data_competencia, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_id, categoria_nome")
           .eq("tipo_caixa", "share")
           .gte("data_competencia", startDate)
           .lte("data_competencia", endDate)
@@ -83,8 +84,8 @@ export default function MasterRelatorios() {
     const movimentacoes = data?.movimentacoes || [];
     const entradas = movimentacoes.filter((m) => isEntrada(m.tipo));
     const saidas = movimentacoes.filter((m) => !isEntrada(m.tipo));
-    const entradasPagas = entradas.filter(isPago).reduce((t, m) => t + Number(m.valor), 0);
-    const saidasPagas = saidas.filter(isPago).reduce((t, m) => t + Number(m.valor), 0);
+    const entradasPagas = entradas.filter(isPago).reduce((t, m) => t + Number(m.valor_rateado), 0);
+    const saidasPagas = saidas.filter(isPago).reduce((t, m) => t + Number(m.valor_rateado), 0);
 
     type Row = { id: string; nome: string; receita: number; custo: number; reembolso: number; pendente: number; vencido: number; lancamentos: number };
     const porCliente = new Map<string, Row>();
@@ -101,7 +102,7 @@ export default function MasterRelatorios() {
     movimentacoes.forEach((m) => {
       if (!m.clientes_id) return;
       const row = get(m.clientes_id);
-      const valor = Number(m.valor);
+      const valor = Number(m.valor_rateado);
       row.lancamentos += 1;
       if (isEntrada(m.tipo)) {
         if (isPago(m)) row.receita += valor;
@@ -145,7 +146,7 @@ export default function MasterRelatorios() {
     const header = ["Data", "Descrição", "Tipo", "Cliente", "Vencimento", "Pagamento", "Status", "Valor"];
     const lines = movimentacoesFiltradas.map((m) =>
       [m.data_competencia, m.descricao, m.tipo, clientNames.get(m.clientes_id || "") || m.fornecedor_nome || "-",
-        m.data_vencimento || "", m.data_pagamento || "", m.status, Number(m.valor).toFixed(2)]
+        m.data_vencimento || "", m.data_pagamento || "", m.status, Number(m.valor_rateado).toFixed(2)]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
     );
     const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
@@ -210,11 +211,11 @@ export default function MasterRelatorios() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <SummaryCard title="Entrou no caixa" value={analise.entradas} icon={<ArrowUpRight className="h-5 w-5" />} tone="success" />
-              <SummaryCard title="Saiu do caixa" value={analise.saidas} icon={<ArrowDownRight className="h-5 w-5" />} tone="danger" />
-              <SummaryCard title="Saldo do período" value={analise.saldo} icon={<Wallet className="h-5 w-5" />} tone={analise.saldo >= 0 ? "primary" : "danger"} />
-              <SummaryCard title="A receber" value={analise.totalPendente} icon={<AlertTriangle className="h-5 w-5" />} tone="warning" />
-              <SummaryCard title="Reembolsos pagos" value={analise.totalReembolso} icon={<Undo2 className="h-5 w-5" />} tone="primary" />
+              <SummaryCard title="Entrou no caixa" value={analise.entradas} icon={<ArrowUpRight className="h-5 w-5" />} />
+              <SummaryCard title="Saiu do caixa" value={analise.saidas} icon={<ArrowDownRight className="h-5 w-5" />} />
+              <SummaryCard title="Saldo do período" value={analise.saldo} icon={<Wallet className="h-5 w-5" />} />
+              <SummaryCard title="A receber" value={analise.totalPendente} icon={<AlertTriangle className="h-5 w-5" />} />
+              <SummaryCard title="Reembolsos pagos" value={analise.totalReembolso} icon={<Undo2 className="h-5 w-5" />} />
             </div>
 
             <Card className="min-w-0">
@@ -260,12 +261,12 @@ export default function MasterRelatorios() {
               <TabsContent value="lucrativos">
                 <RankingTable
                   title="Clientes que mais dão lucro"
-                  icon={<TrendingUp className="h-4 w-4 text-emerald-400" />}
+                  icon={<TrendingUp className="h-4 w-4 text-primary" />}
                   rows={analise.maisLucrativos.slice(0, 15)}
                   columns={[
-                    { label: "Receita", render: (r) => <span className="text-emerald-400">{formatCurrency(r.receita)}</span> },
-                    { label: "Custo", render: (r) => <span className="text-destructive">{formatCurrency(r.custo)}</span> },
-                    { label: "Lucro", align: "right", render: (r) => <span className={`font-semibold ${r.lucro >= 0 ? "text-emerald-400" : "text-destructive"}`}>{formatCurrency(r.lucro)}</span> },
+                    { label: "Receita", render: (r) => <span className="text-primary">{formatCurrency(r.receita)}</span> },
+                    { label: "Custo", render: (r) => <span className="text-primary">{formatCurrency(r.custo)}</span> },
+                    { label: "Lucro", align: "right", render: (r) => <span className={`font-semibold ${r.lucro >= 0 ? "text-primary" : "text-destructive"}`}>{formatCurrency(r.lucro)}</span> },
                   ]}
                 />
               </TabsContent>
@@ -273,12 +274,12 @@ export default function MasterRelatorios() {
               <TabsContent value="menos">
                 <RankingTable
                   title="Clientes que menos dão lucro"
-                  icon={<TrendingDown className="h-4 w-4 text-destructive" />}
+                  icon={<TrendingDown className="h-4 w-4 text-primary" />}
                   rows={analise.menosLucrativos.slice(0, 15)}
                   columns={[
-                    { label: "Receita", render: (r) => <span className="text-emerald-400">{formatCurrency(r.receita)}</span> },
-                    { label: "Custo", render: (r) => <span className="text-destructive">{formatCurrency(r.custo)}</span> },
-                    { label: "Lucro", align: "right", render: (r) => <span className={`font-semibold ${r.lucro >= 0 ? "text-emerald-400" : "text-destructive"}`}>{formatCurrency(r.lucro)}</span> },
+                    { label: "Receita", render: (r) => <span className="text-primary">{formatCurrency(r.receita)}</span> },
+                    { label: "Custo", render: (r) => <span className="text-primary">{formatCurrency(r.custo)}</span> },
+                    { label: "Lucro", align: "right", render: (r) => <span className={`font-semibold ${r.lucro >= 0 ? "text-primary" : "text-destructive"}`}>{formatCurrency(r.lucro)}</span> },
                   ]}
                 />
               </TabsContent>
@@ -321,8 +322,8 @@ export default function MasterRelatorios() {
                               <td className="px-3 py-3">{m.descricao}</td>
                               <td className="px-3 py-3">{clientNames.get(m.clientes_id || "") || m.fornecedor_nome || "-"}</td>
                               <td className="px-3 py-3">{m.status}</td>
-                              <td className={`px-3 py-3 text-right font-semibold ${isEntrada(m.tipo) ? "text-emerald-400" : "text-destructive"}`}>
-                                {isEntrada(m.tipo) ? "+" : "-"}{formatCurrency(Number(m.valor))}
+                              <td className="px-3 py-3 text-right font-semibold text-primary">
+                                {isEntrada(m.tipo) ? "+" : "-"}{formatCurrency(Number(m.valor_rateado))}
                               </td>
                             </tr>
                           ))}
@@ -376,15 +377,9 @@ function RankingTable({ title, rows, columns, icon }: any) {
   );
 }
 
-function SummaryCard({ title, value, icon, tone }: { title: string; value: number; icon: React.ReactNode; tone: "success" | "danger" | "primary" | "warning" }) {
-  const styles = {
-    success: "border-emerald-500/30 text-emerald-400",
-    danger: "border-destructive/30 text-destructive",
-    primary: "border-primary/30 text-primary",
-    warning: "border-amber-500/30 text-amber-400",
-  };
+function SummaryCard({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) {
   return (
-    <Card className={`min-w-0 ${styles[tone]}`}>
+    <Card className="min-w-0 border-primary/30 text-primary">
       <CardContent className="flex items-center justify-between gap-3 p-5">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground truncate">{title}</p>

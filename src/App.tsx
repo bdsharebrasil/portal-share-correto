@@ -64,6 +64,8 @@ import ConfiguracoesFiscais from "./components/dashboard/gestor/financeiro-share
 
 import Master from "./components/dashboard/gestor/master/Master";
 import MasterColaboradores from "./components/dashboard/gestor/master/MasterColaboradores";
+import ComparativoAeronaves from "./pages/gestor/ComparativoAeronaves";
+
 import DashboardOperacoes from "./pages/DashboardOperacoes";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import DashboardGestorPage from "./pages/DashboardGestorPage";
@@ -247,6 +249,14 @@ const App = () => {
                               </RoleProtected>
                             )
                           } />
+                          <Route path="/gestor/master/aeronaves" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <ComparativoAeronaves />
+                              </RoleProtected>
+                            )
+                          } />
+
                           <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
                           <Route path="/documentos" element={renderProtected(<Documentos />)} />
                           <Route path="/senhas" element={renderProtected(<Senhas />)} />

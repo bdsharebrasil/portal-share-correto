@@ -90,11 +90,27 @@ export default {
         'folder-tab': 'hsl(var(--folder-tab))',
         'folder-front': 'hsl(var(--folder-front))',
         success: 'hsl(var(--success))',
-        warning: 'hsl(var(--warning))'
+        warning: 'hsl(var(--warning))',
+
+        navy: {
+    950: '#080c14',
+    900: '#0f1623',
+    850: '#111827',
+    800: '#131d2e',
+    700: '#1c293f',
+  },
+  cyan: {
+    DEFAULT: '#22d3ee',
+    dim: '#06b6d4',
+    faint: 'rgba(34,211,238,0.12)',
+  }
+
       },
       fontFamily: {
-        display: ['Space Grotesk', 'sans-serif'],
-        body: ['Noto Sans', 'sans-serif']
+  sans: ['Inter', 'sans-serif'],
+  display: ['Inter', 'sans-serif'],
+  body: ['Inter', 'sans-serif'],
+
       },
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',

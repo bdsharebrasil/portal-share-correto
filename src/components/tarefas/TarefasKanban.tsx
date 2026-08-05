@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   Calendar,
   Search,
+  Inbox,
 } from "lucide-react";
 import { getEquipe, equipesDoUsuario, type Equipe } from "@/lib/tarefas-teams";
 import { cn } from "@/lib/utils";
@@ -36,8 +37,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-
 // ============================================================
+// NOTA DE MIGRAÇÃO (rodar uma vez no Supabase antes de usar este arquivo):
+//
+//   alter table public.tarefas
+//     add column if not exists status_por_usuario jsonb not null default '{}'::jsonb;
+//
+// Depois disso, rode `supabase gen types typescript` de novo pra atualizar
+// o Database type — esse arquivo já lida com o campo via cast local
+// (StatusMap) enquanto os types gerados não são atualizados.
+// ============================================================
+
 const COLUMNS = [
   { id: "a-fazer", label: "A Fazer", dot: "bg-zinc-400" },
   { id: "em-andamento", label: "Em Andamento", dot: "bg-amber-400" },
@@ -54,6 +64,7 @@ const PRIORITY = {
 
 type Priority = keyof typeof PRIORITY;
 type Status = (typeof COLUMNS)[number]["id"];
+type StatusMap = Record<string, string>;
 
 // Map de status legacy (banco) -> coluna kanban
 function statusToColumn(s: string | null | undefined): Status {
@@ -84,6 +95,27 @@ function statusToColumn(s: string | null | undefined): Status {
   }
 }
 
+/**
+ * Status "efetivo" de uma tarefa para uma pessoa específica.
+ *
+ * Antes, todas as pessoas atribuídas a uma tarefa compartilhavam a mesma
+ * coluna `status` — então quando uma pessoa movia o card, o card "andava"
+ * para todo mundo, como se todos tivessem concluído junto.
+ *
+ * Agora cada responsável tem sua própria entrada em `status_por_usuario`
+ * (um JSON { userId: status }). Se a pessoa ainda não tem entrada própria
+ * (tarefas antigas, ou tarefa recém-criada), cai no `status` legado como
+ * ponto de partida — mas a partir da primeira mudança, o andamento dela
+ * passa a ser só dela.
+ */
+function getEffectiveStatus(task: Tarefa, viewerId: string | null): string {
+  if (viewerId) {
+    const own = task.status_por_usuario?.[viewerId];
+    if (own) return own;
+  }
+  return task.status;
+}
+
 interface UserOption {
   id: string;
   full_name: string | null;
@@ -97,6 +129,7 @@ interface Tarefa {
   titulo: string;
   descricao: string | null;
   status: string;
+  status_por_usuario: StatusMap | null;
   prioridade: string;
   criado_por: string | null;
   prazo: string | null;
@@ -130,21 +163,6 @@ function userName(u: UserOption | undefined): string {
   if (!u) return "—";
   return u.full_name || u.display_name || u.email || "—";
 }
-function userColor(id: string | null | undefined): string {
-  if (!id) return "hsl(215 15% 45%)";
-  // Paleta desaturada — os avatares servem para identificar, não decorar.
-  const palette = [
-    "hsl(200 30% 45%)",
-    "hsl(40 35% 45%)",
-    "hsl(260 25% 50%)",
-    "hsl(150 25% 40%)",
-    "hsl(10 30% 50%)",
-    "hsl(320 20% 48%)",
-  ];
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return palette[h % palette.length];
-}
 
 function Avatar({
   user,
@@ -155,14 +173,14 @@ function Avatar({
   size?: number;
   ring?: boolean;
 }) {
-  const color = userColor(user?.id);
-  const ringClass = ring ? "ring-2 ring-zinc-900" : "";
+  const label = userName(user);
+  const ringClass = ring ? "ring-2 ring-background" : "";
   if (user?.avatar_url) {
     return (
       <img
         src={user.avatar_url}
-        alt={userName(user)}
-        title={userName(user)}
+        alt={label}
+        title={label}
         className={`rounded-full object-cover shrink-0 ${ringClass}`}
         style={{ width: size, height: size }}
         onError={(e) => {
@@ -173,21 +191,16 @@ function Avatar({
   }
   return (
     <div
-      title={userName(user)}
-      className={`flex items-center justify-center rounded-full font-semibold text-white shrink-0 ${ringClass}`}
-      style={{
-        width: size,
-        height: size,
-        background: color,
-        fontSize: size * 0.4,
-      }}
+      title={label}
+      className={`flex items-center justify-center rounded-full bg-muted text-muted-foreground font-semibold shrink-0 ${ringClass}`}
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
     >
       {userInitials(user)}
     </div>
   );
 }
 
-/** Pilha de avatares sobrepostos, com "+N" para o excedente — como na referência. */
+/** Pilha de avatares sobrepostos, com "+N" para o excedente. */
 function AvatarStack({
   users,
   max = 3,
@@ -207,8 +220,8 @@ function AvatarStack({
       ))}
       {overflow > 0 && (
         <div
-          className="flex items-center justify-center rounded-full bg-zinc-800 text-zinc-300 ring-2 ring-zinc-900 font-semibold shrink-0"
-          style={{ width: size, height: size, fontSize: size * 0.38 }}
+          className="flex items-center justify-center rounded-full bg-muted text-muted-foreground ring-2 ring-background font-semibold shrink-0"
+          style={{ width: size, height: size, fontSize: size * 0.36 }}
         >
           +{overflow}
         </div>
@@ -227,7 +240,7 @@ function TeamBadges({ equipes }: { equipes: string[] | null | undefined }) {
         return (
           <span
             key={id}
-            className="inline-flex items-center gap-1 rounded-md bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300"
+            className="inline-flex items-center gap-1 rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-foreground/80"
           >
             <span
               className="w-1.5 h-1.5 rounded-full shrink-0"
@@ -241,22 +254,23 @@ function TeamBadges({ equipes }: { equipes: string[] | null | undefined }) {
   );
 }
 
-/** Indicador de progresso compacto, em anel — substitui a barra full-width. */
+/** Indicador de progresso compacto, em anel. */
 function CircularProgress({ value, size = 15 }: { value: number; size?: number }) {
   const v = Math.max(0, Math.min(100, value || 0));
   const r = size / 2 - 1.5;
   const c = 2 * Math.PI * r;
   const offset = c - (v / 100) * c;
-  const color = v >= 100 ? "#34d399" : v > 0 ? "#60a5fa" : "#52525b";
+  const colorClass = v >= 100 ? "text-emerald-400" : v > 0 ? "text-primary" : "text-muted-foreground/40";
   return (
     <div className="flex items-center gap-1" title={`${v}% concluído`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90 shrink-0">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="#3f3f46" strokeWidth={2} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} className="text-muted-foreground/20" stroke="currentColor" strokeWidth={2} fill="none" />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={color}
+          className={colorClass}
+          stroke="currentColor"
           strokeWidth={2}
           fill="none"
           strokeDasharray={c}
@@ -264,7 +278,7 @@ function CircularProgress({ value, size = 15 }: { value: number; size?: number }
           strokeLinecap="round"
         />
       </svg>
-      <span className="text-[11px] font-medium text-zinc-400">{v}%</span>
+      <span className="text-[11px] font-medium text-muted-foreground">{v}%</span>
     </div>
   );
 }
@@ -274,6 +288,40 @@ function PriorityIcon({ priority }: { priority: string | null | undefined }) {
   const p = PRIORITY[key];
   const Icon = p.icon;
   return <Icon size={14} className={`${p.color} shrink-0`} strokeWidth={2.25} />;
+}
+
+/**
+ * Pequena legenda de bolinhas mostrando em que coluna cada responsável está,
+ * pra dar visibilidade do andamento coletivo sem misturar o status de
+ * ninguém — cada bolinha reflete o `status_por_usuario` daquela pessoa.
+ */
+function StatusLegend({
+  task,
+  users,
+}: {
+  task: Tarefa;
+  users: (UserOption | undefined)[];
+}) {
+  const assignees = users.filter(Boolean) as UserOption[];
+  if (assignees.length <= 1) return null;
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {assignees.map((u) => {
+        const col = statusToColumn(getEffectiveStatus(task, u.id));
+        const dot = COLUMNS.find((c) => c.id === col)?.dot || "bg-zinc-400";
+        return (
+          <span
+            key={u.id}
+            title={`${userName(u)}: ${COLUMNS.find((c) => c.id === col)?.label}`}
+            className="inline-flex items-center gap-1 rounded-full bg-muted/40 pl-0.5 pr-1.5 py-0.5"
+          >
+            <Avatar user={u} size={14} ring={false} />
+            <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -473,7 +521,7 @@ export default function TarefasKanban({
         console.error(tarefasRes.error);
         toast.error("Erro ao carregar tarefas");
       } else {
-        setTarefas((tarefasRes.data || []) as Tarefa[]);
+        setTarefas((tarefasRes.data || []) as unknown as Tarefa[]);
       }
       if (!usersRes.error) {
         setUsers((usersRes.data || []) as UserOption[]);
@@ -533,18 +581,18 @@ export default function TarefasKanban({
         (payload) => {
           setTarefas((prev) => {
             if (payload.eventType === "INSERT") {
-              const n = payload.new as Tarefa;
+              const n = payload.new as unknown as Tarefa;
               if (n.origem === "lista") return prev;
               if (prev.find((t) => t.id === n.id)) return prev;
               return [n, ...prev];
             }
             if (payload.eventType === "UPDATE") {
-              const n = payload.new as Tarefa;
+              const n = payload.new as unknown as Tarefa;
               if (n.origem === "lista") return prev;
               return prev.map((t) => (t.id === n.id ? n : t));
             }
             if (payload.eventType === "DELETE") {
-              const o = payload.old as Tarefa;
+              const o = payload.old as unknown as Tarefa;
               return prev.filter((t) => t.id !== o.id);
             }
             return prev;
@@ -587,7 +635,7 @@ export default function TarefasKanban({
   const PRIORITY_ORDER: Record<Priority, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 };
 
   const getColTasks = (colId: Status) => {
-    const list = visibleTasks.filter((t) => statusToColumn(t.status) === colId);
+    const list = visibleTasks.filter((t) => statusToColumn(getEffectiveStatus(t, me)) === colId);
     const mode = colSort[colId];
     if (mode === "prioridade") {
       return [...list].sort(
@@ -608,12 +656,25 @@ export default function TarefasKanban({
   };
 
   // -------------------------------------------------- Mutations
+
+  /**
+   * Quem pode usar a troca rápida (drag-and-drop / seletor no card).
+   * A troca rápida sempre reflete o status individual de quem está
+   * manuseando o board — então só faz sentido diretamente quando:
+   *  - a pessoa logada é uma das responsáveis (mexe no próprio status), ou
+   *  - a tarefa tem um único responsável e quem mexe é o criador/gestor
+   *    (não há ambiguidade sobre de quem é o status).
+   * Tarefas com vários responsáveis, onde eu não sou um deles, só dá pra
+   * administrar pelo detalhe da tarefa (status por pessoa).
+   */
   const canChangeStatus = (task: Tarefa): boolean => {
-    if (isManager) return true;
-    return task.criado_por === me || (task.atribuido_para || []).includes(me || "");
+    const assignees = task.atribuido_para || [];
+    if (assignees.includes(me || "")) return true;
+    if (assignees.length <= 1) return isManager || task.criado_por === me;
+    return false;
   };
 
-  const handleStatusChange = async (id: string, newStatus: Status) => {
+  const handleStatusChange = async (id: string, newStatus: Status, targetUserId?: string) => {
     const task = tarefas.find((t) => t.id === id);
     if (!task) return;
 
@@ -622,13 +683,31 @@ export default function TarefasKanban({
       return;
     }
 
+    const assignees = task.atribuido_para || [];
+    const forUser = targetUserId || (assignees.includes(me || "") ? me : assignees[0]) || me;
+    if (!forUser) return;
+
+    const mergedMap: StatusMap = { ...(task.status_por_usuario || {}), [forUser]: newStatus };
+    const syncLegacy = assignees.length <= 1;
+
     const previous = tarefas;
     setTarefas((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
+      prev.map((t) =>
+        t.id === id
+          ? { ...t, status_por_usuario: mergedMap, status: syncLegacy ? newStatus : t.status }
+          : t,
+      ),
     );
+
+    const updatePayload: Record<string, unknown> = {
+      status_por_usuario: mergedMap,
+      atualizado_em: new Date().toISOString(),
+    };
+    if (syncLegacy) updatePayload.status = newStatus;
+
     const { error } = await supabase
       .from("tarefas")
-      .update({ status: newStatus, atualizado_em: new Date().toISOString() })
+      .update(updatePayload as Database["public"]["Tables"]["tarefas"]["Update"])
       .eq("id", id);
     if (error) {
       toast.error("Erro ao atualizar status");
@@ -697,6 +776,7 @@ export default function TarefasKanban({
       criado_por: me,
       prioridade: form.prioridade,
       status: form.status,
+      status_por_usuario: {},
       prazo: form.prazo || null,
       publico: form.publico || (form.equipes && form.equipes.length > 0),
       origem: "kanban",
@@ -735,14 +815,14 @@ export default function TarefasKanban({
       total: visibleTasks.length,
       urgente: visibleTasks.filter((t) => t.prioridade === "urgente").length,
       concluido: visibleTasks.filter(
-        (t) => statusToColumn(t.status) === "concluido",
+        (t) => statusToColumn(getEffectiveStatus(t, me)) === "concluido",
       ).length,
     };
-  }, [visibleTasks]);
+  }, [visibleTasks, me]);
 
   if (loading || roleLoading) {
     return (
-      <div className="p-8 text-center text-sm text-zinc-500">
+      <div className="p-8 text-center text-sm text-muted-foreground">
         Carregando tarefas...
       </div>
     );
@@ -760,15 +840,16 @@ export default function TarefasKanban({
         : "Suas tarefas");
 
   return (
-    <div className="bg-zinc-950 rounded-xl border border-zinc-800/80 text-zinc-200 font-sans overflow-hidden flex flex-col h-full">
+    <div className="rounded-2xl border border-border/60 bg-card/40 text-foreground font-sans overflow-hidden flex flex-col h-full">
       {/* Sub-header */}
-      <div className="border-b border-zinc-800/80 px-5 py-4 flex items-center justify-between flex-wrap gap-3">
+      <div className="border-b border-border/60 px-5 py-4 flex items-center justify-between flex-wrap gap-3">
         <div className="flex gap-5 items-center flex-wrap">
           <div>
-            <h1 className="text-base font-semibold tracking-tight text-zinc-50">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Kanban</p>
+            <h1 className="text-2xl font-semibold text-foreground">
               {headingTitle}
             </h1>
-            <p className="text-xs text-zinc-500 mt-0.5">{headingSubtitle}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{headingSubtitle}</p>
           </div>
 
           <div className="hidden md:flex gap-1.5">
@@ -779,10 +860,10 @@ export default function TarefasKanban({
             ].map((s) => (
               <div
                 key={s.label}
-                className="flex items-baseline gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.03] border border-zinc-800/80"
+                className="flex items-baseline gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/60"
               >
-                <span className="text-sm font-semibold text-zinc-100">{s.val}</span>
-                <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                <span className="text-sm font-semibold text-foreground">{s.val}</span>
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   {s.label}
                 </span>
               </div>
@@ -795,7 +876,7 @@ export default function TarefasKanban({
             setDefaultStatus("a-fazer");
             setCreateOpen(true);
           }}
-          className="flex items-center gap-1.5 bg-zinc-100 text-zinc-900 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white"
+          className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-primary text-primary-foreground text-sm font-medium transition-opacity hover:opacity-90"
         >
           <Plus size={14} />
           Nova Tarefa
@@ -814,30 +895,30 @@ export default function TarefasKanban({
               onDragOver={(e) => { e.preventDefault(); setDragOver(col.id); }}
               onDrop={(e) => { e.preventDefault(); handleDrop(col.id); setDragOver(null); }}
               onDragLeave={() => setDragOver(null)}
-              className={`w-[280px] shrink-0 rounded-lg p-2.5 flex flex-col transition-colors duration-150 border ${
-                isOver ? "bg-white/[0.03] border-zinc-700" : "bg-transparent border-transparent"
+              className={`w-[280px] shrink-0 rounded-xl p-2.5 flex flex-col transition-colors duration-150 border ${
+                isOver ? "bg-primary/10 border-primary/60" : "bg-background/30 border-border/40"
               }`}
             >
               {/* Header da Coluna */}
               <div className="flex items-center justify-between mb-3 px-1">
                 <div className="flex items-center gap-2">
                   <span className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
-                  <span className="font-medium text-[13px] text-zinc-200">{col.label}</span>
-                  <span className="text-[11px] text-zinc-500">{colTasks.length}</span>
+                  <span className="font-medium text-[13px] text-foreground">{col.label}</span>
+                  <span className="text-[11px] text-muted-foreground">{colTasks.length}</span>
                 </div>
                 <div className="relative flex items-center gap-0.5">
                   <button
                     onClick={() => { setDefaultStatus(col.id); setCreateOpen(true); }}
-                    className="w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:bg-white/5 hover:text-zinc-200 transition-colors"
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
                   >
                     <Plus size={14} />
                   </button>
                   <button
                     onClick={() => setOpenColMenu((prev) => (prev === col.id ? null : col.id))}
-                    className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                       openColMenu === col.id
-                        ? "bg-white/10 text-zinc-100"
-                        : "text-zinc-500 hover:bg-white/5 hover:text-zinc-200"
+                        ? "bg-muted/70 text-foreground"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     }`}
                   >
                     <MoreHorizontal size={14} />
@@ -847,8 +928,8 @@ export default function TarefasKanban({
                     <>
                       {/* Camada invisível pra fechar o menu ao clicar fora */}
                       <div className="fixed inset-0 z-40" onClick={() => setOpenColMenu(null)} />
-                      <div className="absolute right-0 top-7 z-50 w-48 rounded-md border border-zinc-800 bg-zinc-900 py-1 shadow-lg">
-                        <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                      <div className="absolute right-0 top-7 z-50 w-48 rounded-xl border border-border/60 bg-card py-1 shadow-lg">
+                        <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                           Ordenar por
                         </div>
                         {[
@@ -862,8 +943,8 @@ export default function TarefasKanban({
                               setColSort((prev) => ({ ...prev, [col.id]: opt.key }));
                               setOpenColMenu(null);
                             }}
-                            className={`w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-white/5 ${
-                              colSort[col.id] === opt.key ? "text-zinc-100 font-medium" : "text-zinc-400"
+                            className={`w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-muted/40 ${
+                              colSort[col.id] === opt.key ? "text-foreground font-medium" : "text-muted-foreground"
                             }`}
                           >
                             {opt.label}
@@ -871,7 +952,7 @@ export default function TarefasKanban({
                         ))}
                         {col.id === "concluido" && (
                           <>
-                            <div className="my-1 border-t border-zinc-800" />
+                            <div className="my-1 border-t border-border/60" />
                             <button
                               onClick={() => {
                                 setOpenColMenu(null);
@@ -892,35 +973,37 @@ export default function TarefasKanban({
               {/* Lista de Tarefas */}
               <div className="flex flex-col gap-2 flex-1">
                 {colTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-24 border border-dashed border-zinc-800 rounded-lg text-zinc-600">
-                    <span className="text-[11px]">Nenhuma tarefa</span>
+                  <div className="flex flex-col items-center justify-center gap-1.5 h-24 rounded-xl border border-dashed border-border/50 text-center">
+                    <Inbox className="h-4 w-4 text-muted-foreground/60" />
+                    <span className="text-[11px] text-muted-foreground">Nenhuma tarefa</span>
                   </div>
                 ) : (
                   colTasks.map((task) => {
                     const assignedUsers = (task.atribuido_para || []).map((id) => userById.get(id));
                     const canDelete = task.criado_por === me || (isManager && task.publico);
                     const isDragging = dragId === task.id;
+                    const draggable = canChangeStatus(task);
 
                     return (
                       <div
                         key={task.id}
-                        draggable
-                        onDragStart={(e) => { setDragId(task.id); e.dataTransfer.effectAllowed = "move"; }}
+                        draggable={draggable}
+                        onDragStart={(e) => { if (!draggable) { e.preventDefault(); return; } setDragId(task.id); e.dataTransfer.effectAllowed = "move"; }}
                         onDragEnd={() => setDragId(null)}
                         onClick={() => setDetailTask(task)}
-                        className={`group relative bg-zinc-900 rounded-lg p-3 cursor-grab active:cursor-grabbing border border-zinc-800/80 transition-colors duration-150 ${
-                          isDragging ? "opacity-40" : "hover:border-zinc-700"
-                        }`}
+                        className={`group relative rounded-xl border border-border/60 bg-background/40 p-4 transition-colors duration-150 ${
+                          draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+                        } ${isDragging ? "opacity-40" : "hover:border-border"}`}
                       >
                         <div className="flex justify-between items-start gap-2 mb-1.5">
-                          <h3 className="text-[13px] font-medium text-zinc-100 leading-snug line-clamp-2">
+                          <h3 className="text-[13px] font-medium text-foreground leading-snug line-clamp-2">
                             {task.titulo}
                           </h3>
                           <PriorityIcon priority={task.prioridade} />
                         </div>
 
                         {task.descricao && (
-                          <p className="text-[11.5px] text-zinc-500 leading-snug line-clamp-2 mb-2">
+                          <p className="text-[11.5px] text-muted-foreground leading-snug line-clamp-2 mb-2">
                             {task.descricao}
                           </p>
                         )}
@@ -931,8 +1014,14 @@ export default function TarefasKanban({
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/60">
-                          <div className="flex items-center gap-2.5 text-zinc-500">
+                        {assignedUsers.length > 1 && (
+                          <div className="mb-2">
+                            <StatusLegend task={task} users={assignedUsers} />
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                          <div className="flex items-center gap-2.5 text-muted-foreground">
                             {task.prazo && (
                               <div className="flex items-center gap-1 text-[11px]">
                                 <Calendar size={11} />
@@ -951,15 +1040,15 @@ export default function TarefasKanban({
 
                         {/* Ações — só aparecem no hover, discretas */}
                         <div
-                          className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-900/95 backdrop-blur-sm rounded-md p-0.5"
+                          className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-card/95 border border-border/60 backdrop-blur-sm rounded-md p-0.5"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {canChangeStatus(task) && (
+                          {draggable && (
                             <select
-                              value={statusToColumn(task.status)}
+                              value={statusToColumn(getEffectiveStatus(task, me))}
                               onChange={(e) => void handleStatusChange(task.id, e.target.value as Status)}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-[10px] bg-zinc-800 border border-zinc-700 rounded px-1 py-0.5 text-zinc-300 cursor-pointer hover:bg-zinc-700 transition-colors"
+                              className="text-[10px] bg-background border border-border rounded px-1 py-0.5 text-foreground cursor-pointer hover:bg-muted/40 transition-colors"
                             >
                               {COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                             </select>
@@ -967,7 +1056,7 @@ export default function TarefasKanban({
                           {canDelete && (
                             <button
                               onClick={(e) => { e.stopPropagation(); void handleDelete(task.id); }}
-                              className="p-1 text-zinc-500 hover:text-rose-400 rounded transition-colors"
+                              className="p-1 text-muted-foreground hover:text-rose-400 rounded transition-colors"
                               title="Excluir"
                             >
                               <Trash2 size={12} />
@@ -1113,6 +1202,11 @@ function CreateModal({
                   emptyMessage="Nenhum usuário encontrado."
                 />
               </div>
+              {form.atribuido_para.length > 1 && (
+                <p className="text-[10.5px] text-muted-foreground mt-1">
+                  Mais de um responsável: cada um vai ter seu próprio andamento no board.
+                </p>
+              )}
             </div>
           )}
 
@@ -1130,8 +1224,8 @@ function CreateModal({
                     onClick={() => setForm((prev) => ({ ...prev, prioridade: key }))}
                     className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[11px] font-medium border transition-colors ${
                       active
-                        ? "bg-white/5 border-zinc-600 text-zinc-100"
-                        : "bg-transparent border-border text-muted-foreground hover:bg-white/5"
+                        ? "bg-muted/50 border-border text-foreground"
+                        : "bg-transparent border-border text-muted-foreground hover:bg-muted/40"
                     }`}
                   >
                     <Icon size={12} className={p.color} />
@@ -1210,6 +1304,59 @@ function CreateModal({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ============================================================
+// StatusPorPessoa: controle de status individual por responsável,
+// usado no detalhe da tarefa quando há mais de um assignee.
+// ============================================================
+function StatusPorPessoa({
+  task,
+  users,
+  meId,
+  canManage,
+  onChange,
+}: {
+  task: Tarefa;
+  users: UserOption[];
+  meId: string | null;
+  canManage: boolean;
+  onChange: (userId: string, status: Status) => void;
+}) {
+  const userById = useMemo(() => {
+    const m = new Map<string, UserOption>();
+    users.forEach((u) => m.set(u.id, u));
+    return m;
+  }, [users]);
+
+  const assignees = task.atribuido_para || [];
+  if (assignees.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      {assignees.map((uid) => {
+        const u = userById.get(uid);
+        const currentCol = statusToColumn(getEffectiveStatus(task, uid));
+        const editable = uid === meId || canManage || task.criado_por === meId;
+        return (
+          <div key={uid} className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar user={u} size={20} ring={false} />
+              <span className="text-xs font-medium text-foreground truncate">{userName(u)}</span>
+            </div>
+            <select
+              value={currentCol}
+              disabled={!editable}
+              onChange={(e) => onChange(uid, e.target.value as Status)}
+              className="text-[11px] bg-background border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {COLUMNS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1295,7 +1442,10 @@ function DetailDialog({
     .map((id) => userById.get(id))
     .filter(Boolean) as UserOption[];
   const creator = task.criado_por ? userById.get(task.criado_por) : undefined;
-  const canEditStatus = task.criado_por === meId || canManage;
+  const soleAssigneeId = (task.atribuido_para || [])[0];
+  const canEditSoleStatus =
+    (task.atribuido_para || []).length <= 1 &&
+    (soleAssigneeId === meId || canManage || task.criado_por === meId);
 
   const handleSend = async () => {
     if (!text.trim() || !meId) return;
@@ -1311,10 +1461,18 @@ function DetailDialog({
     setText("");
   };
 
-  const handleStatus = async (s: Status) => {
+  const handleStatusForUser = async (userId: string, s: Status) => {
+    const merged: StatusMap = { ...(task.status_por_usuario || {}), [userId]: s };
+    const syncLegacy = (task.atribuido_para || []).length <= 1;
+    const payload: Record<string, unknown> = {
+      status_por_usuario: merged,
+      atualizado_em: new Date().toISOString(),
+    };
+    if (syncLegacy) payload.status = s;
+
     const { error } = await supabase
       .from("tarefas")
-      .update({ status: s, atualizado_em: new Date().toISOString() })
+      .update(payload as Database["public"]["Tables"]["tarefas"]["Update"])
       .eq("id", task.id);
     if (error) toast.error("Erro ao atualizar status");
     else toast.success("Status atualizado");
@@ -1365,26 +1523,44 @@ function DetailDialog({
             )}
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">
-              Status
-              {!canEditStatus && (
-                <span className="ml-2 text-[10px] text-amber-500">
-                  (Somente leitura - apenas o criador pode editar)
-                </span>
-              )}
-            </label>
-            <select
-              defaultValue={statusToColumn(task.status)}
-              onChange={(e) => canEditStatus && void handleStatus(e.target.value as Status)}
-              disabled={!canEditStatus}
-              className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {COLUMNS.map((c) => (
-                <option key={c.id} value={c.id}>{c.label}</option>
-              ))}
-            </select>
-          </div>
+          {assignedUsers.length > 1 ? (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Status por pessoa</label>
+              <div className="mt-1">
+                <StatusPorPessoa
+                  task={task}
+                  users={users}
+                  meId={meId}
+                  canManage={canManage}
+                  onChange={(uid, s) => void handleStatusForUser(uid, s)}
+                />
+              </div>
+              <p className="text-[10.5px] text-muted-foreground mt-1.5">
+                Cada responsável tem seu próprio andamento — mudar o status de uma pessoa não afeta as demais.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">
+                Status
+                {!canEditSoleStatus && (
+                  <span className="ml-2 text-[10px] text-amber-500">
+                    (Somente leitura - apenas o responsável, criador ou gestor podem editar)
+                  </span>
+                )}
+              </label>
+              <select
+                value={statusToColumn(getEffectiveStatus(task, soleAssigneeId ?? meId))}
+                onChange={(e) => canEditSoleStatus && void handleStatusForUser(soleAssigneeId ?? meId ?? "", e.target.value as Status)}
+                disabled={!canEditSoleStatus}
+                className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {COLUMNS.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">

@@ -75,6 +75,12 @@ export const API_ENDPOINTS = {
   nearestAirport: (lat: number, lon: number) =>
     `${_base}${_prefix}/nearest?lat=${lat}&lon=${lon}`,
 
+  // Avaliação de aeronave (Windsock) — POST
+  aircraftValuation: `${_base}${_prefix}/aircraft-valuation` as string,
+
+  // Estimativa de mercado americano (catálogo FAA / Windsock) — POST
+  usAircraftEstimate: `${_base}${_prefix}/us-aircraft-estimate` as string,
+
   // Alternados próximos
   geilocNearby: (lat: number, lon: number) =>
     `${_base}${_prefix}/geiloc/nearby?lat=${lat}&lon=${lon}`,
