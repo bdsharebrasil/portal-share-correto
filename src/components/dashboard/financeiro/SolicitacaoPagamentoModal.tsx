@@ -31,6 +31,7 @@ import {
   resolverClienteParaRateio,
   resolverFornecedorSolicitacao,
   resolverPagoPorSolicitacao,
+  resolverTipoRateioPadraoParaDespesa,
   validarSomaPercentualClientes,
   ClienteLinhaRateioInput,
 } from "@/components/dashboard/financeiro/solicitacaoPagamentoValidators";
@@ -251,7 +252,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const [descricao, setDescricao] = useState("");
   const [valorTotal, setValorTotal] = useState("");
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("EVENTUAL");
-  const [tipoRateio, setTipoRateio] = useState("FIXO");
+  const [tipoRateio, setTipoRateio] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
   const [fornecedorNome, setFornecedorNome] = useState("");
@@ -572,6 +573,16 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
   const isSubcat2Sel = !!(tipoDespesaSel?.subcategoria_2 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_2);
   const isSubcat3Sel = !!(tipoDespesaSel?.subcategoria_3 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_3);
   const isSubcat4Sel = !!(tipoDespesaSel?.subcategoria_4 && subcategoriaSel && subcategoriaSel === tipoDespesaSel.subcategoria_4);
+
+  useEffect(() => {
+    const labelDespesa = (tipoDespesaBase || tipoDespesaLabel || "").trim();
+    const tipoRateioAutomatico = resolverTipoRateioPadraoParaDespesa(labelDespesa);
+    if (tipoRateioAutomatico) {
+      setTipoRateio(tipoRateioAutomatico);
+    } else {
+      setTipoRateio("");
+    }
+  }, [tipoDespesaBase, tipoDespesaLabel]);
 
   useEffect(() => {
     if (!open || !isReciboFirstMode || !aeronaveId) {
@@ -1155,7 +1166,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
     setModo(null); setCategoriaShareId(""); setCategoriaShareLabel("");
     setAeronaveId(""); 
     setTipoDespesa(""); setTipoDespesaLabel(""); setDescricao(""); setValorTotal("");
-    setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio("FIXO"); setObservacoes("");
+    setPercentualUso("100"); setPeriodicidade("EVENTUAL"); setTipoRateio(""); setObservacoes("");
     setFornecedorId(""); setFornecedorNome("");
     setDataEmissao(new Date()); setDataVencimento(new Date()); setAnexos([]);
     setGerarContasAPagar(true); setGerarContasAReceber(false); setGerarCaixaCliente(false);
@@ -2068,7 +2079,27 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
               {aeronaveId && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <Label>2. Tipo de rateio *</Label>
+                  <Label>2. Tipo de despesa *</Label>
+                  <SearchableCombobox
+                    items={tiposDespesa.map((t) => ({ id: t.id, label: t.expense_type }))}
+                    value={tipoDespesa} onChange={(id, label) => {
+                      const existente = tiposDespesa.find((t) => t.id === id);
+                      if (existente) {
+                        setTipoDespesa(id);
+                        setTipoDespesaBase(existente.expense_type);
+                        setTipoDespesaLabel(existente.expense_type);
+                        setSubcategoriaSel("");
+                      }
+                      else if (label) { const labelUpper = up(label); if (window.confirm(`Adicionar novo tipo "${labelUpper}"?`)) criarTipoDespesa(labelUpper); }
+                    }}
+                    placeholder="Selecione o tipo" allowFreeText
+                  />
+                </div>
+              )}
+
+              {aeronaveId && tipoDespesa && (
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <Label>3. Tipo de rateio *</Label>
                   <Select value={tipoRateio} onValueChange={setTipoRateio}>
                     <SelectTrigger><SelectValue placeholder="Selecione o tipo de rateio" /></SelectTrigger>
                     <SelectContent>
@@ -2083,7 +2114,7 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
 
               {aeronaveId && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <Label>2. Clientes e Sócios *</Label>
+                  <Label>4. Clientes e Sócios *</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs text-muted-foreground">Cliente</Label>
@@ -2112,9 +2143,9 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                 </div>
               )}
 
-              {aeronaveId && tipoRateio && (
+              {aeronaveId && tipoDespesa && tipoRateio && (
                 <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <Label>3. Periodicidade *</Label>
+                  <Label>5. Periodicidade *</Label>
                   <Select value={periodicidade} onValueChange={(v) => setPeriodicidade(v as Periodicidade)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -2124,26 +2155,6 @@ export function SolicitacaoPagamentoModal({ open, onOpenChange, initialData, onO
                       <SelectItem value="EVENTUAL">EVENTUAL</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              )}
-
-              {aeronaveId && tipoRateio && periodicidade && (
-                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <Label>4. Tipo de despesa *</Label>
-                  <SearchableCombobox
-                    items={tiposDespesa.map((t) => ({ id: t.id, label: t.expense_type }))}
-                    value={tipoDespesa} onChange={(id, label) => {
-                      const existente = tiposDespesa.find((t) => t.id === id);
-                      if (existente) {
-                        setTipoDespesa(id);
-                        setTipoDespesaBase(existente.expense_type);
-                        setTipoDespesaLabel(existente.expense_type);
-                        setSubcategoriaSel("");
-                      }
-                      else if (label) { const labelUpper = up(label); if (window.confirm(`Adicionar novo tipo "${labelUpper}"?`)) criarTipoDespesa(labelUpper); }
-                    }}
-                    placeholder="Selecione o tipo" allowFreeText
-                  />
                 </div>
               )}
 

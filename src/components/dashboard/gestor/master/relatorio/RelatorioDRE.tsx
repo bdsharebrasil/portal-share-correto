@@ -35,10 +35,10 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
       const endDate = endOfMonth(startDate);
 
       const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("*")
-        .gte("data", format(startDate, "yyyy-MM-dd"))
-        .lte("data", format(endDate, "yyyy-MM-dd"));
+        .from("movimentacoes")
+        .select("id, tipo, valor, categoria_id")
+        .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
+        .lte("data_competencia", format(endDate, "yyyy-MM-dd"));
 
       if (error) throw error;
       return data || [];
@@ -61,11 +61,11 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
     if (!transacoes) return null;
 
     const receitas = transacoes
-      .filter((t) => t.tipo_movimento === "entrada")
+      .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
       .reduce((acc, t) => acc + Number(t.valor), 0);
 
     const despesas = transacoes
-      .filter((t) => t.tipo_movimento === "saida")
+      .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
       .reduce((acc, t) => acc + Number(t.valor), 0);
 
     // Agrupar por categoria
@@ -74,7 +74,8 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
 
     transacoes.forEach((t) => {
       const categoria = getCategoriaName(t.categoria_id);
-      if (t.tipo_movimento === "entrada") {
+      const tipoMovimento = t.tipo === "receita" || t.tipo === "entrada" ? "entrada" : "saida";
+      if (tipoMovimento === "entrada") {
         receitasPorCategoria[categoria] = (receitasPorCategoria[categoria] || 0) + Number(t.valor);
       } else {
         despesasPorCategoria[categoria] = (despesasPorCategoria[categoria] || 0) + Number(t.valor);

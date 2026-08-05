@@ -233,43 +233,6 @@ export function FuelRecordsByAircraft({
 
   const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
 
-  useEffect(() => {
-    setAnexos([
-      {
-        id: "comanda",
-        tipo: "outro",
-        numero: "COMANDA",
-        url: uploadedFiles.comanda_url || formData.comanda_url || null,
-        file: formData.comanda_file || null,
-        uploading: false,
-      },
-      {
-        id: "nota",
-        tipo: "nf",
-        numero: "NOTA FISCAL",
-        url: uploadedFiles.nota_url || formData.nota_url || null,
-        file: formData.nota_file || null,
-        uploading: false,
-      },
-      {
-        id: "boleto",
-        tipo: "boleto",
-        numero: "BOLETO",
-        url: uploadedFiles.boleto_url || formData.boleto_url || null,
-        file: formData.boleto_file || null,
-        uploading: false,
-      },
-      {
-        id: "comprovante",
-        tipo: "comprovante",
-        numero: "COMPROVANTE",
-        url: uploadedFiles.comprovante_url || formData.comprovante_url || null,
-        file: formData.comprovante_file || null,
-        uploading: false,
-      },
-    ]);
-  }, [uploadedFiles.comanda_url, uploadedFiles.nota_url, uploadedFiles.boleto_url, uploadedFiles.comprovante_url, formData.comanda_file, formData.nota_file, formData.boleto_file, formData.comprovante_file, formData.comanda_url, formData.nota_url, formData.boleto_url, formData.comprovante_url]);
-
   const handleAnexosChange = (next: AnexoLinha[]) => {
     setAnexos(next);
     // map back to formData and uploadedFiles

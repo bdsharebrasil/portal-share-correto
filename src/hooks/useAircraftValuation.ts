@@ -2,12 +2,37 @@ import { useCallback, useState } from "react";
 import { API_ENDPOINTS } from "@/config/api";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface ValuationUncertaintyInterval {
+  lower: number;
+  upper: number;
+}
+
+export interface ValuationUncertaintyPrimary extends ValuationUncertaintyInterval {
+  confidence?: string;
+}
+
+export interface ValuationUncertainty {
+  intervals?: Record<string, ValuationUncertaintyInterval>;
+  primary?: ValuationUncertaintyPrimary;
+}
+
+export interface ValuationKeyDriver {
+  category: string;
+  contribution: number;
+  pct_of_adjustment?: number;
+  direction?: "positive" | "negative";
+}
+
 export interface ValuationResult {
   estimated_market_value: number;
   confidence?: number | null;
-  uncertainty?: number | null;
+  uncertainty?: ValuationUncertainty | null;
   as_of?: string | null;
   valuation_mode?: string | null;
+  explanation_summary?: string | null;
+  key_drivers?: ValuationKeyDriver[] | null;
+  base_value?: number | null;
+  total_adjustment?: number | null;
   updated_at?: string;
   query?: Record<string, unknown>;
 }

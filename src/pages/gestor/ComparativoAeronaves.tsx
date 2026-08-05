@@ -162,19 +162,53 @@ export default function ComparativoAeronaves() {
             </div>
             {estimateError && <p className="text-sm text-destructive">{estimateError}</p>}
             {estimate && (
-              <div className="flex flex-wrap items-center gap-6 rounded-lg border border-primary/30 bg-primary/5 p-4">
-                <div>
-                  <p className="text-xs uppercase text-muted-foreground">Valor estimado</p>
-                  <p className="text-2xl font-bold text-primary">{usd(estimate.estimated_market_value)}</p>
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-6 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Valor estimado</p>
+                    <p className="text-2xl font-bold text-primary">{usd(estimate.estimated_market_value)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Confiança</p>
+                    <p className="font-semibold">
+                      {estimate.confidence != null ? `${Math.round(Number(estimate.confidence))}%` : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Modo</p>
+                    <p className="font-semibold">{estimate.valuation_mode || "—"}</p>
+                  </div>
+                  {estimate.as_of && (
+                    <div>
+                      <p className="text-xs uppercase text-muted-foreground">Data base</p>
+                      <p className="font-semibold">{estimate.as_of}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="text-xs uppercase text-muted-foreground">Confiança</p>
-                  <p className="font-semibold">{estimate.confidence != null ? `${Math.round(Number(estimate.confidence) * 100)}%` : "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase text-muted-foreground">Modo</p>
-                  <p className="font-semibold">{estimate.valuation_mode || "—"}</p>
-                </div>
+
+                {/* Explicação da avaliação */}
+                {estimate.explanation_summary && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-4">
+                    <p className="text-sm text-muted-foreground">{estimate.explanation_summary}</p>
+                  </div>
+                )}
+
+                {/* Principais fatores */}
+                {Array.isArray(estimate.key_drivers) && estimate.key_drivers.length > 0 && (
+                  <div className="rounded-lg border border-border p-4">
+                    <p className="mb-3 text-xs uppercase text-muted-foreground">Principais fatores</p>
+                    <div className="space-y-2">
+                      {estimate.key_drivers.map((driver: any) => (
+                        <div key={driver.category} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="text-muted-foreground">{driver.category}</span>
+                          <span className={`font-semibold ${driver.direction === "negative" ? "text-destructive" : "text-emerald-600"}`}>
+                            {driver.contribution >= 0 ? "+" : ""}{usd(driver.contribution)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

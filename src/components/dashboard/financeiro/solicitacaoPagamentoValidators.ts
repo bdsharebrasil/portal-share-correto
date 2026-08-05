@@ -77,6 +77,15 @@ export function normalizarTipoRateio(value: string | null | undefined): TipoRate
   return "FIXO";
 }
 
+export function resolverTipoRateioPadraoParaDespesa(label: string | null | undefined): TipoRateio | null {
+  const normalized = (label || "").normalize("NFD").replace(/[^\w\s]/g, "").trim().toUpperCase();
+
+  if (!normalized) return null;
+  if (normalized.includes("COMBUST")) return "VARIAVEL_POR_HORA";
+  if (normalized.includes("ADM") && (normalized.includes("SHARE") || normalized.includes("TRIP"))) return "FIXO";
+  return null;
+}
+
 export function resolverPagoPorSolicitacao(params: {
   socioNome?: string | null;
   clienteNome?: string | null;

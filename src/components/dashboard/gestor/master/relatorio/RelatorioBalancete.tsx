@@ -35,10 +35,10 @@ export const RelatorioBalancete = ({ onBack, isStandalone = true }: RelatorioBal
       const endDate = endOfMonth(startDate);
 
       const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("*")
-        .gte("data", format(startDate, "yyyy-MM-dd"))
-        .lte("data", format(endDate, "yyyy-MM-dd"));
+        .from("movimentacoes")
+        .select("id, tipo, valor, categoria_id, data_competencia, data_vencimento, data_pagamento")
+        .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
+        .lte("data_competencia", format(endDate, "yyyy-MM-dd"));
 
       if (error) throw error;
       return data || [];
@@ -82,7 +82,8 @@ export const RelatorioBalancete = ({ onBack, isStandalone = true }: RelatorioBal
         categorias[categoria] = { debito: 0, credito: 0 };
       }
 
-      if (t.tipo_movimento === "entrada") {
+      const tipoMovimento = t.tipo === "receita" || t.tipo === "entrada" ? "entrada" : "saida";
+      if (tipoMovimento === "entrada") {
         categorias[categoria].credito += Number(t.valor);
       } else {
         categorias[categoria].debito += Number(t.valor);

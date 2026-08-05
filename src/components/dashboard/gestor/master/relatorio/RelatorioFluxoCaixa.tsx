@@ -28,11 +28,11 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
       const endDate = endOfMonth(startDate);
 
       const { data, error } = await supabase
-        .from("controle_bancario")
-        .select("*")
-        .gte("data", format(startDate, "yyyy-MM-dd"))
-        .lte("data", format(endDate, "yyyy-MM-dd"))
-        .order("data", { ascending: true });
+        .from("movimentacoes")
+        .select("id, tipo, valor, data_competencia, data_vencimento, data_pagamento")
+        .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
+        .lte("data_competencia", format(endDate, "yyyy-MM-dd"))
+        .order("data_competencia", { ascending: true });
 
       if (error) throw error;
       return data || [];
@@ -66,14 +66,14 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
     
     days.forEach((day) => {
       const dayStr = format(day, "yyyy-MM-dd");
-      const transacoesDia = transacoes.filter((t) => t.data === dayStr);
+      const transacoesDia = transacoes.filter((t) => (t.data_competencia || t.data_pagamento || t.data_vencimento || "") === dayStr);
       
       const entradas = transacoesDia
-        .filter((t) => t.tipo_movimento === "entrada")
+        .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
         .reduce((acc, t) => acc + Number(t.valor), 0);
       
       const saidas = transacoesDia
-        .filter((t) => t.tipo_movimento === "saida")
+        .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
         .reduce((acc, t) => acc + Number(t.valor), 0);
 
       saldoAcumulado += entradas - saidas;
@@ -89,11 +89,11 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
     });
 
     const totalEntradas = transacoes
-      .filter((t) => t.tipo_movimento === "entrada")
+      .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
       .reduce((acc, t) => acc + Number(t.valor), 0);
 
     const totalSaidas = transacoes
-      .filter((t) => t.tipo_movimento === "saida")
+      .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
       .reduce((acc, t) => acc + Number(t.valor), 0);
 
     return {

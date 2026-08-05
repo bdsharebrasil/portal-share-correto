@@ -14,6 +14,7 @@ import {
   resolverFornecedorSolicitacao,
   resolverPagoPorSolicitacao,
   resolverSubcategoriaSelecionadaParaPayload,
+  resolverTipoRateioPadraoParaDespesa,
 } from "../solicitacaoPagamentoValidators";
 
 describe("solicitacaoPagamentoValidators", () => {
@@ -49,6 +50,23 @@ describe("solicitacaoPagamentoValidators", () => {
     it("deve retornar FIXO para valores desconhecidos", () => {
       expect(normalizarTipoRateio("")).toBe("FIXO");
       expect(normalizarTipoRateio("qualquer coisa")).toBe("FIXO");
+    });
+  });
+
+  describe("resolverTipoRateioPadraoParaDespesa", () => {
+    it("define variável por hora para combustíveis", () => {
+      expect(resolverTipoRateioPadraoParaDespesa("Combustíveis")).toBe("VARIAVEL_POR_HORA");
+      expect(resolverTipoRateioPadraoParaDespesa("COMBUSTÍVEIS")).toBe("VARIAVEL_POR_HORA");
+    });
+
+    it("define fixo para despesas adm/share", () => {
+      expect(resolverTipoRateioPadraoParaDespesa("ADM SHARE BRASIL")).toBe("FIXO");
+      expect(resolverTipoRateioPadraoParaDespesa("ADM E TRIP SHARE BRASIL")).toBe("FIXO");
+    });
+
+    it("não força um tipo automático para outras categorias", () => {
+      expect(resolverTipoRateioPadraoParaDespesa("Despesas de viagem")).toBeNull();
+      expect(resolverTipoRateioPadraoParaDespesa("Manutenção")).toBeNull();
     });
   });
 

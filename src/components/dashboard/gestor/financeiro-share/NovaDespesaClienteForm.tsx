@@ -12,6 +12,10 @@ import AnexosDinamicosField, {
   type AnexoLinha,
   type AnexoTipoId,
 } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
+import AbastecimentoInlineFields, {
+  emptyAbastecimento,
+  type AbastecimentoFields,
+} from "./AbastecimentoInlineFields";
 import { X, Save, Users, Paperclip } from "lucide-react";
 
 interface Props {
@@ -94,6 +98,14 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     { id: string; nome: string; label: string; source: "favorito" | "combustivel" }[]
   >([]);
   const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
+
+  const [abast, setAbast] = useState<AbastecimentoFields>(() => emptyAbastecimento(""));
+  const [fornecedorAbastecimentoNome, setFornecedorAbastecimentoNome] = useState<string | null>(null);
+  const setAbastPatch = (patch: Partial<AbastecimentoFields>) =>
+    setAbast((a) => {
+      const next = { ...a, ...patch };
+      return JSON.stringify(next) === JSON.stringify(a) ? a : next;
+    });
 
   const [form, setForm] = useState({
     descricao: "",
@@ -268,6 +280,22 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     [selectedCategoria],
   );
 
+  /** Categoria de combustível abre o bloco de abastecimento. */
+  const isCombustivel = useMemo(
+    () => !!categoriaNome && /combust/i.test(categoriaNome),
+    [categoriaNome],
+  );
+
+  // Ao marcar combustível, herda a data de emissão como data do abastecimento.
+  useEffect(() => {
+    if (isCombustivel && !abast.data && form.data_competencia) {
+      setAbastPatch({ data: form.data_competencia });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCombustivel, form.data_competencia]);
+
+
+
   const subcategoriaOptions = useMemo(() => {
     if (!selectedCategoria) return [];
     return [
@@ -303,6 +331,14 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
     if (!form.data_competencia) return toast.error("Informe a data de competência.");
     if (!form.clientes_id) return toast.error("Selecione o cliente.");
     if (!form.aeronave_id) return toast.error("Selecione a aeronave (necessária para o rateio e o balanço).");
+
+    if (isCombustivel) {
+      if (!abast.data) return toast.error("Informe a data do abastecimento.");
+      if (!abast.abastecedor_id) return toast.error("Selecione o abastecedor.");
+      if (!abast.combustivel_tipo) return toast.error("Informe o tipo de combustível.");
+      if (!Number(abast.litros)) return toast.error("Informe os litros abastecidos.");
+      if (!Number(abast.valor_unitario)) return toast.error("Informe o valor unitário do combustível.");
+    }
 
     const isPago = form.status === "pago";
     if (isPago) {
@@ -417,6 +453,51 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           .single();
         if (error) throw error;
         if (i === 0) paiId = (mov as any).id;
+
+        // Categoria combustível → grava também o abastecimento e vincula à movimentação
+        if (isCombustivel && i === 0) {
+          const trecho = [abast.origem_aerodromo, abast.destino_aerodromo].filter(Boolean).join(" X ");
+          const { data: ab, error: abErr } = await supabase
+            .from("abastecimentos")
+            .insert({
+              id_clientes: form.clientes_id,
+              aeronave_id: form.aeronave_id,
+              abastecedor_id: abast.abastecedor_id || null,
+              abastecedor: fornecedorAbastecimentoNome,
+              data: abast.data,
+              trecho,
+              local: abast.local || "",
+              comanda: abast.comanda || null,
+              litros: Number(abast.litros) || 0,
+              valor_unitario: Number(abast.valor_unitario) || 0,
+              abastecimento_galoes: abast.abastecimento_galoes ? Number(abast.abastecimento_galoes) : null,
+              tipo_combustivel: abast.combustivel_tipo || null,
+              nf: abast.nf || null,
+              descricao: abast.combustivel_tipo ? `Combustível: ${abast.combustivel_tipo.toUpperCase()}` : null,
+              status: isPago ? "pago" : "em aberto",
+              data_pagamento: isPago ? form.data_pagamento || null : null,
+              forma_pagamento: isPago ? form.forma_pagamento || null : null,
+              tipo_faturamento: isPago ? form.forma_pagamento || null : null,
+              observacao: observacoesFinal || null,
+              nota_url: anexosPatch.nf_url,
+              boleto_url: anexosPatch.boleto_url,
+              comprovante_url: anexosPatch.comprovante_url,
+              comprovante_pagamento: anexosPatch.comprovante_url,
+            } as any)
+            .select("id")
+            .single();
+          if (abErr) throw abErr;
+          if (ab?.id) {
+            await supabase
+              .from("movimentacoes")
+              .update({ reference_type: "abastecimento", reference_id: ab.id } as any)
+              .eq("id", (mov as any).id);
+            (mov as any).reference_type = "abastecimento";
+            (mov as any).reference_id = ab.id;
+          }
+        }
+
+
 
         const jaLiquidado = ["pago", "recebido", "cancelado"].includes(payload.status);
 
@@ -569,6 +650,17 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="lg:col-span-3">
+            <Label>CATEGORIA DA DESPESA *</Label>
+            <SearchableCombobox
+              items={categoriaItems}
+              value={form.categoria_id}
+              onChange={(id) => set({ categoria_id: id })}
+              placeholder="Selecione a categoria"
+              searchPlaceholder="Buscar categoria..."
+            />
+          </div>
+
           <div className="lg:col-span-2">
             <Label>Descrição *</Label>
             <Input
@@ -644,16 +736,6 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
 
 
 
-          <div className="lg:col-span-2">
-            <Label>CATEGORIA DA DESPESA</Label>
-            <SearchableCombobox
-              items={categoriaItems}
-              value={form.categoria_id}
-              onChange={(id) => set({ categoria_id: id })}
-              placeholder="Selecione a categoria"
-              searchPlaceholder="Buscar categoria..."
-            />
-          </div>
           <div>
             <Label>% PORCENTAGEM DE USO</Label>
             <Input
@@ -692,16 +774,18 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
             </div>
           )}
 
-          <div>
-            <Label>VALOR (R$) *</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.valor_original}
-              onChange={(e) => set({ valor_original: e.target.value })}
-            />
-          </div>
+          {!isCombustivel && (
+            <div>
+              <Label>VALOR (R$) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.valor_original}
+                onChange={(e) => set({ valor_original: e.target.value })}
+              />
+            </div>
+          )}
 
           <div>
             <Label> DATA DE EMISSÃO *</Label>
@@ -746,18 +830,37 @@ export default function NovaDespesaClienteForm({ onCancel, onSaved }: Props) {
           )}
 
 
-          <div className="lg:col-span-3">
-            <Label>FORNECEDOR</Label>
-            <SearchableCombobox
-              items={fornecedores}
-              value={form.fornecedor_nome}
-              onChange={(id) => set({ fornecedor_nome: id })}
-              placeholder="Selecione o fornecedor"
-              searchPlaceholder="Buscar fornecedor..."
-              allowFreeText
-            />
-          </div>
+          {!isCombustivel && (
+            <div className="lg:col-span-3">
+              <Label>FORNECEDOR</Label>
+              <SearchableCombobox
+                items={fornecedores}
+                value={form.fornecedor_nome}
+                onChange={(id) => set({ fornecedor_nome: id })}
+                placeholder="Selecione o fornecedor"
+                searchPlaceholder="Buscar fornecedor..."
+                allowFreeText
+              />
+            </div>
+          )}
         </div>
+
+        {isCombustivel && (
+          <AbastecimentoInlineFields
+            value={abast}
+            onChange={setAbastPatch}
+            onTotalChange={(total, fornecedorNome) => {
+              setFornecedorAbastecimentoNome(fornecedorNome);
+              setForm((f) => ({
+                ...f,
+                valor_original: total ? String(total) : f.valor_original,
+                fornecedor_nome: fornecedorNome || f.fornecedor_nome,
+              }));
+            }}
+          />
+        )}
+
+
 
         
 
