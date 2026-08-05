@@ -352,6 +352,33 @@ export type Database = {
         }
         Relationships: []
       }
+      aeronave_live_status: {
+        Row: {
+          aeronave_id: string
+          destino_atual: string | null
+          id: string
+          origem_atual: string | null
+          status: string
+          ultimo_update: string | null
+        }
+        Insert: {
+          aeronave_id: string
+          destino_atual?: string | null
+          id?: string
+          origem_atual?: string | null
+          status?: string
+          ultimo_update?: string | null
+        }
+        Update: {
+          aeronave_id?: string
+          destino_atual?: string | null
+          id?: string
+          origem_atual?: string | null
+          status?: string
+          ultimo_update?: string | null
+        }
+        Relationships: []
+      }
       agendamento_pagamentos: {
         Row: {
           atualizado_por: string | null
@@ -409,6 +436,51 @@ export type Database = {
           notas?: string | null
           status?: string | null
           valor?: number
+        }
+        Relationships: []
+      }
+      agendamento_voo: {
+        Row: {
+          aeronave_id: string
+          atualizado_em: string | null
+          criado_em: string | null
+          data_partida: string
+          data_retorno: string | null
+          destino: string
+          id: string
+          observacoes: string | null
+          origem: string
+          passageiros: number | null
+          status: string
+          user_profile_id: string
+        }
+        Insert: {
+          aeronave_id: string
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data_partida: string
+          data_retorno?: string | null
+          destino: string
+          id?: string
+          observacoes?: string | null
+          origem: string
+          passageiros?: number | null
+          status?: string
+          user_profile_id: string
+        }
+        Update: {
+          aeronave_id?: string
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data_partida?: string
+          data_retorno?: string | null
+          destino?: string
+          id?: string
+          observacoes?: string | null
+          origem?: string
+          passageiros?: number | null
+          status?: string
+          user_profile_id?: string
         }
         Relationships: []
       }
@@ -8326,6 +8398,7 @@ export type Database = {
           atualizado_em: string | null
           boleto_url: string | null
           categoria_custo: string | null
+          categoria_nome: string | null
           cliente_id: string | null
           clientes_nome: string | null
           comprovante_url: string | null
@@ -8344,6 +8417,7 @@ export type Database = {
           forma_pagamento: string | null
           fornecedor_nome: string | null
           id: string
+          movimentacao_origem_id: string | null
           nf_url: string | null
           numero_boleto: string | null
           numero_doc: string | null
@@ -8376,6 +8450,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           categoria_custo?: string | null
+          categoria_nome?: string | null
           cliente_id?: string | null
           clientes_nome?: string | null
           comprovante_url?: string | null
@@ -8394,6 +8469,7 @@ export type Database = {
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
           id?: string
+          movimentacao_origem_id?: string | null
           nf_url?: string | null
           numero_boleto?: string | null
           numero_doc?: string | null
@@ -8426,6 +8502,7 @@ export type Database = {
           atualizado_em?: string | null
           boleto_url?: string | null
           categoria_custo?: string | null
+          categoria_nome?: string | null
           cliente_id?: string | null
           clientes_nome?: string | null
           comprovante_url?: string | null
@@ -8444,6 +8521,7 @@ export type Database = {
           forma_pagamento?: string | null
           fornecedor_nome?: string | null
           id?: string
+          movimentacao_origem_id?: string | null
           nf_url?: string | null
           numero_boleto?: string | null
           numero_doc?: string | null
@@ -10772,6 +10850,147 @@ export type Database = {
           pousos_totais: number | null
         }
         Relationships: []
+      }
+      vw_balanco_cotistas: {
+        Row: {
+          abastecimento_id: string | null
+          aeronave_registro: string | null
+          boleto_url: string | null
+          categoria_custo: string | null
+          clientes_nome: string | null
+          comprovante_url: string | null
+          conferido: boolean | null
+          conferido_em: string | null
+          conferido_por: string | null
+          data_emissao: string | null
+          data_pagamento: string | null
+          data_vencimento: string | null
+          demonstrativo_url: string | null
+          descricao_despesa: string | null
+          fluxo: string | null
+          forma_pagamento: string | null
+          fornecedor_nome: string | null
+          nf_url: string | null
+          numero_boleto: string | null
+          numero_doc: string | null
+          numero_nf: string | null
+          numero_recibo: string | null
+          observacoes: string | null
+          pago_por: string | null
+          percentual_sociedade: number | null
+          percentual_uso: number | null
+          periodicidade: string | null
+          recibo_url: string | null
+          relatorio_url: string | null
+          socios_nome: string | null
+          status: string | null
+          subcategoria_1: string | null
+          subcategoria_2: string | null
+          subcategoria_3: string | null
+          subcategoria_4: string | null
+          tipo_rateio: string | null
+          valor_pago_real: number | null
+          valor_rateado: number | null
+          valor_total_despesa: number | null
+        }
+        Insert: {
+          abastecimento_id?: string | null
+          aeronave_registro?: string | null
+          boleto_url?: string | null
+          categoria_custo?: string | null
+          clientes_nome?: string | null
+          comprovante_url?: string | null
+          conferido?: boolean | null
+          conferido_em?: string | null
+          conferido_por?: string | null
+          data_emissao?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          demonstrativo_url?: string | null
+          descricao_despesa?: string | null
+          fluxo?: string | null
+          forma_pagamento?: string | null
+          fornecedor_nome?: string | null
+          nf_url?: string | null
+          numero_boleto?: string | null
+          numero_doc?: string | null
+          numero_nf?: string | null
+          numero_recibo?: string | null
+          observacoes?: string | null
+          pago_por?: string | null
+          percentual_sociedade?: number | null
+          percentual_uso?: number | null
+          periodicidade?: string | null
+          recibo_url?: string | null
+          relatorio_url?: string | null
+          socios_nome?: string | null
+          status?: string | null
+          subcategoria_1?: string | null
+          subcategoria_2?: string | null
+          subcategoria_3?: string | null
+          subcategoria_4?: string | null
+          tipo_rateio?: string | null
+          valor_pago_real?: number | null
+          valor_rateado?: number | null
+          valor_total_despesa?: number | null
+        }
+        Update: {
+          abastecimento_id?: string | null
+          aeronave_registro?: string | null
+          boleto_url?: string | null
+          categoria_custo?: string | null
+          clientes_nome?: string | null
+          comprovante_url?: string | null
+          conferido?: boolean | null
+          conferido_em?: string | null
+          conferido_por?: string | null
+          data_emissao?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          demonstrativo_url?: string | null
+          descricao_despesa?: string | null
+          fluxo?: string | null
+          forma_pagamento?: string | null
+          fornecedor_nome?: string | null
+          nf_url?: string | null
+          numero_boleto?: string | null
+          numero_doc?: string | null
+          numero_nf?: string | null
+          numero_recibo?: string | null
+          observacoes?: string | null
+          pago_por?: string | null
+          percentual_sociedade?: number | null
+          percentual_uso?: number | null
+          periodicidade?: string | null
+          recibo_url?: string | null
+          relatorio_url?: string | null
+          socios_nome?: string | null
+          status?: string | null
+          subcategoria_1?: string | null
+          subcategoria_2?: string | null
+          subcategoria_3?: string | null
+          subcategoria_4?: string | null
+          tipo_rateio?: string | null
+          valor_pago_real?: number | null
+          valor_rateado?: number | null
+          valor_total_despesa?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rateio_despesas_abastecimento_id_fkey"
+            columns: ["abastecimento_id"]
+            isOneToOne: false
+            referencedRelation: "abastecimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_categoria_custo_fkey"
+            columns: ["categoria_custo"]
+            isOneToOne: false
+            referencedRelation: "expense_configu"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_categorias_aeronave: {
         Row: {

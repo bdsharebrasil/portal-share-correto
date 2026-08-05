@@ -36,22 +36,37 @@ const parseErro = (erro: string | null) => {
 export function HistoricoEmailsEnviados({ referenceIds = [], referenceType, refreshKey = 0, className }: Props) {
   const [rows, setRows] = useState<EmailEnviadoRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
-    if (referenceIds.length === 0) {
+    const filteredReferenceIds = referenceIds.filter(Boolean).map(String);
+    if (filteredReferenceIds.length === 0 && !referenceType) {
       setRows([]);
+      setError(null);
       return;
     }
+
     setLoading(true);
+    setError(null);
     try {
       let q = (supabase as any)
         .from("emails_enviados")
         .select("id, destinatario, cc, assunto, status, erro_mensagem, criado_em, tipo")
-        .in("reference_id", referenceIds.map(String))
         .order("criado_em", { ascending: false });
+
       if (referenceType) q = q.eq("reference_type", referenceType);
-      const { data } = await q;
-      setRows((data || []) as EmailEnviadoRow[]);
+      if (filteredReferenceIds.length > 0) {
+        q = q.in("reference_id", filteredReferenceIds);
+      }
+
+      const { data, error: queryError } = await q;
+      if (queryError) {
+        console.error("HistoricoEmailsEnviados query failed:", queryError);
+        setError(queryError.message || "Erro ao carregar histórico de e-mails");
+        setRows([]);
+      } else {
+        setRows((data || []) as EmailEnviadoRow[]);
+      }
     } finally {
       setLoading(false);
     }
@@ -62,7 +77,7 @@ export function HistoricoEmailsEnviados({ referenceIds = [], referenceType, refr
     carregar();
   }, [carregar, refreshKey]);
 
-  if (referenceIds.length === 0) return null;
+  if (referenceIds.length === 0 && !referenceType) return null;
 
   return (
     <div className={`space-y-2 rounded-lg border border-border/60 p-3 ${className || ""}`}>
@@ -76,8 +91,11 @@ export function HistoricoEmailsEnviados({ referenceIds = [], referenceType, refr
         </Button>
       </div>
 
-      {rows.length === 0 && !loading && (
+      {rows.length === 0 && !loading && !error && (
         <p className="text-xs text-muted-foreground">Nenhum e-mail enviado ainda para este documento.</p>
+      )}
+      {error && (
+        <p className="text-xs text-red-500">{error}</p>
       )}
 
       <div className="space-y-1.5 max-h-56 overflow-y-auto">

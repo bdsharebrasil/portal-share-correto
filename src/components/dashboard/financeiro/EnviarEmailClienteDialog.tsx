@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { HistoricoEmailsEnviados } from "./HistoricoEmailsEnviados";
 import { marcarMovimentacoesEnviadasPorEmail } from "@/lib/movimentacoesEmailFlag";
+import { verificarEmailJaEnviado } from "@/lib/emailJaEnviado";
 
 export interface AnexoEmail {
   filename: string;
@@ -76,6 +77,7 @@ export function EnviarEmailClienteDialog({
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [historicoKey, setHistoricoKey] = useState(0);
+  const [forcarEnvio, setForcarEnvio] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -149,7 +151,7 @@ export function EnviarEmailClienteDialog({
     setCcInput("");
   };
 
-  const enviar = async () => {
+  const enviar = async (ignorarDuplicado = false) => {
     if (!isEmail(destinatario)) {
       toast.error("Informe um e-mail válido para o cliente");
       return;
@@ -161,6 +163,36 @@ export function EnviarEmailClienteDialog({
     if (!mensagem.trim()) {
       toast.error("Escreva a mensagem do e-mail");
       return;
+    }
+
+    if (!ignorarDuplicado && !forcarEnvio) {
+      const duplicado = await verificarEmailJaEnviado({
+        destinatario,
+        referenceIds,
+        referenceType,
+        assunto,
+      });
+      if (duplicado) {
+        const quando = new Date(duplicado.criado_em).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        toast.warning("Este e-mail já foi enviado", {
+          description: `${duplicado.destinatario} já recebeu este documento em ${quando}.`,
+          duration: 8000,
+          action: {
+            label: "Enviar novamente",
+            onClick: () => {
+              setForcarEnvio(true);
+              void enviar(true);
+            },
+          },
+        });
+        return;
+      }
     }
 
     setEnviando(true);
@@ -353,7 +385,7 @@ export function EnviarEmailClienteDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={enviando}>
             {enviado ? "Fechar" : "Não enviar"}
           </Button>
-          <Button onClick={enviar} disabled={enviando} className="bg-sky-600 hover:bg-sky-500 text-white">
+          <Button onClick={() => enviar()} disabled={enviando} className="bg-sky-600 hover:bg-sky-500 text-white">
             {enviando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
             {enviado ? "Enviar novamente" : "Enviar e-mail"}
           </Button>

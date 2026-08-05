@@ -1,35 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Mail, Send, History, RefreshCw, Loader2, PlusCircle, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Mail, Send, History, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { EnviarEmailClienteDialog } from "@/components/dashboard/financeiro/EnviarEmailClienteDialog";
-import { HistoricoEmailsEnviados } from "@/components/dashboard/financeiro/HistoricoEmailsEnviados";
+import { HistoricoEmailsGeral } from "@/components/dashboard/financeiro/HistoricoEmailsGeral";
+import { verificarEmailJaEnviado } from "@/lib/emailJaEnviado";
 
 interface Contato {
   id: string;
   nome: string;
   email: string;
   origem: "cliente" | "socio";
-}
-
-interface MovimentacaoEmailResumo {
-  id: string;
-  descricao?: string | null;
-  numero_recibo?: string | null;
-  numero_nf?: string | null;
-  valor?: number | null;
-  tipo?: string | null;
-  enviado_por_email?: boolean | null;
-  enviado_por_email_em?: string | null;
-  criado_em?: string | null;
 }
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -46,10 +33,7 @@ export default function EmailsPage() {
   const [mensagem, setMensagem] = useState("Olá, segue uma atualização financeira referente ao dashboard da Share Brasil.");
   const [enviando, setEnviando] = useState(false);
   const [historicoKey, setHistoricoKey] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
   const [view, setView] = useState<"envio" | "historico">("envio");
-  const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEmailResumo[]>([]);
-  const [loadingMovimentacoes, setLoadingMovimentacoes] = useState(false);
 
   const referenceIds = useMemo(() => (user?.id ? [user.id] : []), [user?.id]);
 
@@ -101,7 +85,7 @@ export default function EmailsPage() {
     setCcInput("");
   };
 
-  const enviar = async () => {
+  const enviar = async (ignorarDuplicado = false) => {
     if (!isEmail(destinatario)) {
       toast.error("Informe um e-mail válido para o destinatário");
       return;
@@ -113,6 +97,25 @@ export default function EmailsPage() {
     if (!mensagem.trim()) {
       toast.error("Escreva a mensagem do e-mail");
       return;
+    }
+
+    if (!ignorarDuplicado) {
+      const duplicado = await verificarEmailJaEnviado({ destinatario, assunto });
+      if (duplicado) {
+        const quando = new Date(duplicado.criado_em).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        toast.warning("Este e-mail já foi enviado", {
+          description: `${duplicado.destinatario} já recebeu "${duplicado.assunto || assunto}" em ${quando}.`,
+          duration: 8000,
+          action: { label: "Enviar novamente", onClick: () => void enviar(true) },
+        });
+        return;
+      }
     }
 
     setEnviando(true);
@@ -155,40 +158,6 @@ export default function EmailsPage() {
       toast.error(`Falha ao enviar e-mail: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setEnviando(false);
-    }
-  };
-
-  const carregarMovimentacoes = async () => {
-    if (!user?.id) return;
-    setLoadingMovimentacoes(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from("movimentacoes")
-        .select("id, descricao, numero_recibo, numero_nf, valor, tipo, enviado_por_email, enviado_por_email_em, criado_em")
-        .or(`reference_id.eq.${user.id},contas_apagar_id.eq.${user.id},contas_areceber_id.eq.${user.id}`)
-        .order("criado_em", { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-      setMovimentacoes((data || []) as MovimentacaoEmailResumo[]);
-    } catch (e) {
-      console.error("Erro ao carregar movimentações para histórico", e);
-    } finally {
-      setLoadingMovimentacoes(false);
-    }
-  };
-
-  useEffect(() => {
-    carregarMovimentacoes();
-  }, [user?.id, historicoKey]);
-
-  const refreshHistory = async () => {
-    setRefreshing(true);
-    try {
-      setHistoricoKey((k) => k + 1);
-      toast.success("Histórico atualizado");
-    } finally {
-      setRefreshing(false);
     }
   };
 
@@ -291,7 +260,7 @@ export default function EmailsPage() {
                 <Textarea rows={8} value={mensagem} onChange={(e) => setMensagem(e.target.value)} />
               </div>
 
-              <Button onClick={enviar} disabled={enviando} className="w-full bg-sky-600 hover:bg-sky-500 text-white">
+              <Button onClick={() => enviar()} disabled={enviando} className="w-full bg-sky-600 hover:bg-sky-500 text-white">
                 {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 {enviando ? "Enviando..." : "Enviar e-mail"}
               </Button>
@@ -299,62 +268,14 @@ export default function EmailsPage() {
           </div>
         ) : (
           <div className="rounded-2xl border border-border/60 bg-card/70 p-4 md:p-5 shadow-sm backdrop-blur-sm">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-emerald-500" />
-                <h2 className="text-lg font-semibold">Histórico</h2>
+            <div className="mb-4 flex items-center gap-2">
+              <History className="h-4 w-4 text-emerald-500" />
+              <div>
+                <h2 className="text-lg font-semibold">E-mails enviados</h2>
+                <p className="text-xs text-muted-foreground">Clique em uma linha para ver a mensagem e os anexos.</p>
               </div>
-              <Button variant="outline" size="sm" onClick={refreshHistory} disabled={refreshing}>
-                {refreshing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
-                Atualizar
-              </Button>
             </div>
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border/60 bg-background/40 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Movimentações</p>
-                {loadingMovimentacoes ? (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Carregando registros...
-                  </div>
-                ) : movimentacoes.length === 0 ? (
-                  <p className="mt-2 text-sm text-muted-foreground">Nenhuma movimentação encontrada.</p>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {movimentacoes.map((mov) => (
-                      <div key={mov.id} className="rounded-md border border-border/50 bg-card/50 p-3 text-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{mov.descricao || "Movimentação"}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Recibo: {mov.numero_recibo || "—"} • NF: {mov.numero_nf || "—"}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            {mov.enviado_por_email ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-600">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> enviado
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">
-                                <AlertCircle className="h-3.5 w-3.5" /> pendente
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                          <span>Tipo: {mov.tipo || "—"}</span>
-                          <span>Valor: {mov.valor != null ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(mov.valor)) : "—"}</span>
-                          {mov.enviado_por_email_em && <span>Enviado em: {new Date(mov.enviado_por_email_em).toLocaleString("pt-BR")}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <HistoricoEmailsEnviados referenceType="dashboard_financeiro" referenceIds={referenceIds} refreshKey={historicoKey} className="border-0 bg-transparent p-0" />
-            </div>
+            <HistoricoEmailsGeral refreshKey={historicoKey} />
           </div>
         )}
       </div>
