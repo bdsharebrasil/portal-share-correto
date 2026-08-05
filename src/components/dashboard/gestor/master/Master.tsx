@@ -22,17 +22,17 @@ export function DashboardHeader({ onExport }: DashboardHeaderProps) {
 type Role = 'admin' |  'gestor_master';
     return (
       <Layout>
-        <div className="space-y-6 pb-8">
+        <div className="w-full max-w-full min-w-0 space-y-4 sm:space-y-6 pb-8 overflow-x-hidden">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <div className="flex items-center gap-3 mb-1">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <LayoutDashboard className="w-6 h-6 text-primary" />
+                <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                  <LayoutDashboard className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                 </div>
-                <h1 className="text-2xl font-bold text-foreground">Master</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">Master</h1>
               </div>
-              <p className="text-muted-foreground capitalize">{currentDate}</p>
+              <p className="text-sm text-muted-foreground capitalize truncate">{currentDate}</p>
             </div>
           </div>
   
@@ -43,15 +43,22 @@ type Role = 'admin' |  'gestor_master';
           <StatsGrid />
   
           {/* Charts */}
-          <ChartSection />
+          <div className="w-full min-w-0 overflow-hidden">
+            <ChartSection />
+          </div>
   
           {/* Activity Feed */}
-          <ActivityFeed />
+          <div className="w-full min-w-0 overflow-hidden">
+            <ActivityFeed />
+          </div>
   
           {/* Pipeline Table - Full width */}
-          <PipelineTable />
+          <div className="w-full min-w-0 overflow-hidden">
+            <PipelineTable />
+          </div>
         </div>
       </Layout>
     );
+
   }
 export default DashboardHeader;
