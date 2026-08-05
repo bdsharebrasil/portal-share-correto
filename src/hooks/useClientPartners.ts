@@ -24,7 +24,7 @@ export function useClientPartners(clientId: string | null) {
       const { data, error } = await supabase
         .from("socios")
         .select("*")
-        .eq("cliente_id", clientId)
+        .eq("clientes_id", clientId)
         .order("nome");
 
       if (error) {
