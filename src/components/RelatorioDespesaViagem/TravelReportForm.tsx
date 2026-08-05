@@ -249,7 +249,7 @@ export function TravelReportForm({
       const { data, error } = await supabase
         .from("socios")
         .select("id, nome, cpf")
-        .eq("cliente_id", clientId)
+        .eq("clientes_id", clientId)
         .order("nome");
       if (error || !data) { setPartners([]); return; }
       setPartners(data.map((p: any, i: number) => ({ id: p.id, nome: p.nome, cpf: p.cpf, index: i })));
