@@ -352,33 +352,6 @@ export type Database = {
         }
         Relationships: []
       }
-      aeronave_live_status: {
-        Row: {
-          aeronave_id: string
-          destino_atual: string | null
-          id: string
-          origem_atual: string | null
-          status: string
-          ultimo_update: string | null
-        }
-        Insert: {
-          aeronave_id: string
-          destino_atual?: string | null
-          id?: string
-          origem_atual?: string | null
-          status?: string
-          ultimo_update?: string | null
-        }
-        Update: {
-          aeronave_id?: string
-          destino_atual?: string | null
-          id?: string
-          origem_atual?: string | null
-          status?: string
-          ultimo_update?: string | null
-        }
-        Relationships: []
-      }
       agendamento_pagamentos: {
         Row: {
           atualizado_por: string | null
@@ -834,6 +807,30 @@ export type Database = {
           id?: string
           nome?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      categorias_calendario: {
+        Row: {
+          cor: string
+          created_at: string
+          id: string
+          nome: string
+          usuario_id: string
+        }
+        Insert: {
+          cor: string
+          created_at?: string
+          id?: string
+          nome: string
+          usuario_id: string
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          usuario_id?: string
         }
         Relationships: []
       }
@@ -6448,6 +6445,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
+          },
+        ]
+      }
+      lembretes_calendario: {
+        Row: {
+          cor_categoria_id: string | null
+          created_at: string
+          data: string
+          descricao: string | null
+          hora: string | null
+          id: string
+          titulo: string
+          updated_at: string
+          usuario_id: string
+          visibilidade: string
+        }
+        Insert: {
+          cor_categoria_id?: string | null
+          created_at?: string
+          data: string
+          descricao?: string | null
+          hora?: string | null
+          id?: string
+          titulo: string
+          updated_at?: string
+          usuario_id: string
+          visibilidade?: string
+        }
+        Update: {
+          cor_categoria_id?: string | null
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          hora?: string | null
+          id?: string
+          titulo?: string
+          updated_at?: string
+          usuario_id?: string
+          visibilidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lembretes_calendario_cor_categoria_id_fkey"
+            columns: ["cor_categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_calendario"
+            referencedColumns: ["id"]
           },
         ]
       }
