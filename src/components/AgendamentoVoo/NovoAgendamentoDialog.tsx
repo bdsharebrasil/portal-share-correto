@@ -21,6 +21,7 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   aeronaves: Aeronave[];
   diaSelecionado: Date;
+  selectedAeronaveId?: string | null;
 }
 
 interface ClienteOption {
@@ -42,7 +43,7 @@ function useClientesLista() {
   });
 }
 
-export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSelecionado }: Props) {
+export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSelecionado, selectedAeronaveId }: Props) {
   const { criarSolicitacao } = useAgendamentoMutations();
   const { data: clientes = [] } = useClientesLista();
   const [form, setForm] = useState({
@@ -59,8 +60,14 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
   });
 
   useEffect(() => {
-    if (open) setForm((f) => ({ ...f, data_agendada: format(diaSelecionado, "yyyy-MM-dd") }));
-  }, [open, diaSelecionado]);
+    if (open) {
+      setForm((f) => ({
+        ...f,
+        data_agendada: format(diaSelecionado, "yyyy-MM-dd"),
+        aeronave_id: selectedAeronaveId ?? f.aeronave_id,
+      }));
+    }
+  }, [open, diaSelecionado, selectedAeronaveId]);
 
   const salvar = () => {
     const payload: Partial<Solicitacao> = {

@@ -11112,6 +11112,36 @@ export type Database = {
           },
         ]
       }
+      historico_status_solicitacao: {
+        Row: {
+          id: string
+          solicitacao_id: string
+          status_anterior: string | null
+          status_novo: string
+          alterado_por: string | null
+          alterado_em: string
+          observacao: string | null
+        }
+        Insert: {
+          id?: string
+          solicitacao_id: string
+          status_anterior?: string | null
+          status_novo: string
+          alterado_por?: string | null
+          alterado_em?: string
+          observacao?: string | null
+        }
+        Update: {
+          id?: string
+          solicitacao_id?: string
+          status_anterior?: string | null
+          status_novo?: string
+          alterado_por?: string | null
+          alterado_em?: string
+          observacao?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       ciclos_voo_ativos: {

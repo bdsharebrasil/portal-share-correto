@@ -36,6 +36,7 @@ export interface Solicitacao {
   origem: string | null;
   destino: string | null;
   data_agendada: string;
+  horario_previsto_agendamento?: string | null;
   data_partida?: string | null;
   horario_partida: string | null;
   horario_acionamento?: string | null;
@@ -154,11 +155,11 @@ export function useSolicitacoes() {
     queryFn: async (): Promise<Solicitacao[]> => {
       const { data, error } = await sb
         .from("solicitacoes_reserva_voo")
-        .select("*")
-        .order("data_agendada", { ascending: true })
-        .order("horario_partida", { ascending: true });
+          .select("*")
+          .order("data_agendada", { ascending: true })
+          .order("horario_previsto_agendamento", { ascending: true });
       if (error) throw error;
-      const rows = (data ?? []) as Solicitacao[];
+      const rowsRaw = (data ?? []) as any[];
 
       const clienteIds = [...new Set(rows.map((r) => r.cliente_id).filter(Boolean))] as string[];
       const aeronaveIds = [...new Set(rows.map((r) => r.aeronave_id).filter(Boolean))] as string[];
@@ -175,11 +176,14 @@ export function useSolicitacoes() {
       const clientes = new Map<string, any>((clientesRes.data ?? []).map((c: any) => [c.id, c]));
       const aeronaves = new Map<string, any>((aeronavesRes.data ?? []).map((a: any) => [a.id, a]));
 
-      return rows.map((r) => ({
+      return rowsRaw.map((r) => ({
         ...r,
+        horario_previsto_agendamento: r.horario_previsto_agendamento ?? null,
+        // backward-compatible alias used across the UI
+        horario_partida: r.horario_previsto_agendamento ?? r.horario_partida ?? null,
         cliente_nome: r.cliente_id ? clientes.get(r.cliente_id)?.razao_social ?? null : null,
         aeronave: r.aeronave_id ? aeronaves.get(r.aeronave_id) ?? null : null,
-      }));
+      } as Solicitacao));
     },
   });
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,11 @@ import {
   useSolicitacoes,
   useStatusFrota,
   useTripulantes,
+  type Solicitacao,
 } from "@/hooks/useAgendamentoVoo";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import { DetalhesVooDialog } from "@/components/AgendamentoVoo/DetalhesVooDialog";
 
 export default function PainelAgendamentos() {
   useAgendamentoRealtime();
@@ -31,6 +34,12 @@ export default function PainelAgendamentos() {
   const [mes, setMes] = useState(new Date());
   const [diaSelecionado, setDiaSelecionado] = useState(new Date());
   const [novoAberto, setNovoAberto] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Solicitacao | null>(null);
+  const [detalhesAberto, setDetalhesAberto] = useState(false);
+  const [selectedAeronaveIdForNew, setSelectedAeronaveIdForNew] = useState<string | null>(null);
+  const [hasHandledAircraftLink, setHasHandledAircraftLink] = useState(false);
+  const [searchParams] = useSearchParams();
+  const aeronaveIdSelecionada = searchParams.get("aeronaveId");
 
   const { data: aeronaves = [] } = useAeronavesAgendamento();
   const { data: solicitacoes = [] } = useSolicitacoes();
@@ -52,6 +61,23 @@ export default function PainelAgendamentos() {
     [aeronaves, configsAgendamento],
   );
 
+  useEffect(() => {
+    if (!aeronaveIdSelecionada || hasHandledAircraftLink || solicitacoes.length === 0) return;
+
+    const activeBooking = solicitacoes.find(
+      (s) => s.aeronave_id === aeronaveIdSelecionada && ["em_voo", "em_rota"].includes(s.status),
+    );
+
+    if (activeBooking) {
+      setSelectedBooking(activeBooking);
+      setDetalhesAberto(true);
+    } else {
+      setSelectedAeronaveIdForNew(aeronaveIdSelecionada);
+      setNovoAberto(true);
+    }
+
+    setHasHandledAircraftLink(true);
+  }, [aeronaveIdSelecionada, hasHandledAircraftLink, solicitacoes]);
 
   return (
     <Layout>
@@ -75,7 +101,10 @@ export default function PainelAgendamentos() {
 
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <CronogramaVoos solicitacoes={solicitacoes} />
+            <CronogramaVoos solicitacoes={solicitacoes} onSelect={(voo) => {
+              setSelectedBooking(voo);
+              setDetalhesAberto(true);
+            }} />
           </div>
           <CalendarioEscala
             mes={mes}
@@ -109,11 +138,26 @@ export default function PainelAgendamentos() {
         />
       </div>
 
+      <DetalhesVooDialog
+        voo={selectedBooking}
+        open={detalhesAberto}
+        onOpenChange={(open) => {
+          if (!open) setSelectedBooking(null);
+          setDetalhesAberto(open);
+        }}
+      />
+
       <NovoAgendamentoDialog
         open={novoAberto}
-        onOpenChange={setNovoAberto}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedAeronaveIdForNew(null);
+          }
+          setNovoAberto(open);
+        }}
         aeronaves={aeronavesAgendaveis}
         diaSelecionado={diaSelecionado}
+        selectedAeronaveId={selectedAeronaveIdForNew}
       />
     </Layout>
   );

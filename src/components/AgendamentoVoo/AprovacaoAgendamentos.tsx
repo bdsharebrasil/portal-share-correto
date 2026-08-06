@@ -60,7 +60,6 @@ interface BookingRequest {
   origem: string | null;
   destino: string | null;
   data_agendada: string;
-  horario_partida: string | null;
   dias_duracao: number | null;
   qtd_passageiros: number | null;
   status: "pendente" | "confirmado" | "em_voo" | "concluido" | "rejeitado" | "cancelado";

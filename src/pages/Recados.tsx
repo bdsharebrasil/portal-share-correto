@@ -51,7 +51,6 @@ interface RecadosRow {
   criado_em?: string | null;
   created_at?: string | null;
   atualizado_em?: string | null;
-  updated_at?: string | null;
 }
 
 interface UserProfile {
@@ -213,9 +212,7 @@ export default function Recados() {
 
         const author = authorMap.get(msg.autor_id)!;
 
-        const createdAt = (msg as { criado_em?: string | null; created_at?: string | null }).criado_em
-          ?? (msg as { criado_em?: string | null; created_at?: string | null }).created_at
-          ?? new Date().toISOString();
+        const createdAt = msg.criado_em ?? msg.created_at ?? new Date().toISOString();
 
         return {
           id: msg.id,
@@ -225,9 +222,9 @@ export default function Recados() {
           content: msg.mensagem,
           departamento: msg.departamento,
           is_pinned: msg.fixado || false,
-          created_at: createdAt,
           is_read: currentUserId ? (msg.lido_por?.includes(currentUserId) || false) : false,
-          lido_por: msg.lido_por || []
+          lido_por: msg.lido_por || [],
+          created_at: createdAt,
         } as Message;
       })
     );
@@ -563,7 +560,7 @@ export default function Recados() {
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ptBR })}
+                              {formatDistanceToNow(new Date((msg as any).criado_em), { addSuffix: true, locale: ptBR })}
                             </span>
                             <Popover>
                               <PopoverTrigger asChild>

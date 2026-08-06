@@ -158,7 +158,7 @@ export function FleetStatusCards() {
             <div
               key={ac.id}
               className={`bg-card/80 rounded-lg border-l-4 ${statusInfo.borderColor} border border-border p-4 hover:bg-card transition-all cursor-pointer`}
-              onClick={() => navigate("/painel-agendamentos")}
+              onClick={() => navigate(`/painel-agendamentos?aeronaveId=${encodeURIComponent(ac.id)}`)}
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
