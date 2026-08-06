@@ -75,7 +75,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
           {voos.map((voo) => {
             const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
             const emRota = voo.status === "em_rota";
-            const temPouso = Boolean(voo.horario_pouso || voo.horario_corte);
+            const temPouso = Boolean(voo.horario_pouso);
             
             const Icon = temPouso ? CheckCircle2 : emRota ? Plane : CircleDot;
             const expanded = expandedId === voo.id;
