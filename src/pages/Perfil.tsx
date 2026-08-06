@@ -38,6 +38,7 @@ type FormState = {
   tipo: ContactType | "";
   cpf: string;
   rg: string;
+  canac: string;
   birth_date: string;
   bank_name: string;
   bank_agency: string;
@@ -133,6 +134,7 @@ export default function Perfil() {
         tipo: "",
         cpf: p.cpf ?? "",
         rg: p.rg ?? "",
+        canac: p.canac ?? "",
         birth_date: p.birth_date ?? "",
         bank_name: p.bank_name ?? "",
         bank_agency: p.bank_agency ?? "",
@@ -435,6 +437,7 @@ export default function Perfil() {
         endereco: formState.endereco, // Corrigido para bater com a interface
         cpf: formState.cpf,
         rg: formState.rg,
+        canac: formState.canac,
         birth_date: formState.birth_date,
         bank_name: formState.bank_name,
         bank_agency: formState.bank_agency,
@@ -601,6 +604,10 @@ export default function Perfil() {
                   <div className="space-y-2">
                     <Label>RG</Label>
                     <Input name="rg" value={formState.rg} onChange={handleInputChange} disabled={!isEditing} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CANAC</Label>
+                    <Input name="canac" value={formState.canac} onChange={handleInputChange} disabled={!isEditing} />
                   </div>
                   <div className="space-y-2">
                     <Label>Data de Nascimento</Label>
