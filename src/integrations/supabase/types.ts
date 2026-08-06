@@ -2469,6 +2469,62 @@ export type Database = {
           },
         ]
       }
+      ctm_aprovacoes_ordem_servico: {
+        Row: {
+          acao: string | null
+          atualizado_em: string
+          comentarios: string | null
+          criado_em: string
+          data_acao: string | null
+          id: string
+          motivo_rejeicao: string | null
+          nivel_aprovacao: number
+          ordem_servico_id: string
+          revisado_em: string | null
+          status: string
+          submetido_em: string
+          user_id: string | null
+        }
+        Insert: {
+          acao?: string | null
+          atualizado_em?: string
+          comentarios?: string | null
+          criado_em?: string
+          data_acao?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          nivel_aprovacao?: number
+          ordem_servico_id: string
+          revisado_em?: string | null
+          status?: string
+          submetido_em?: string
+          user_id?: string | null
+        }
+        Update: {
+          acao?: string | null
+          atualizado_em?: string
+          comentarios?: string | null
+          criado_em?: string
+          data_acao?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          nivel_aprovacao?: number
+          ordem_servico_id?: string
+          revisado_em?: string | null
+          status?: string
+          submetido_em?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_aprovacoes_ordem_servico_ordem_servico_id_fkey"
+            columns: ["ordem_servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_categoria: {
         Row: {
           ativo: boolean | null
@@ -2688,6 +2744,53 @@ export type Database = {
           },
         ]
       }
+      ctm_documentos_oas: {
+        Row: {
+          atualizado_em: string
+          caminho_arquivo: string | null
+          criado_em: string
+          enviado_por: string | null
+          id: string
+          nome_arquivo: string
+          ordem_servico_id: string
+          tamanho_bytes: number | null
+          tipo_arquivo: string | null
+          url_arquivo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          caminho_arquivo?: string | null
+          criado_em?: string
+          enviado_por?: string | null
+          id?: string
+          nome_arquivo: string
+          ordem_servico_id: string
+          tamanho_bytes?: number | null
+          tipo_arquivo?: string | null
+          url_arquivo: string
+        }
+        Update: {
+          atualizado_em?: string
+          caminho_arquivo?: string | null
+          criado_em?: string
+          enviado_por?: string | null
+          id?: string
+          nome_arquivo?: string
+          ordem_servico_id?: string
+          tamanho_bytes?: number | null
+          tipo_arquivo?: string | null
+          url_arquivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_documentos_oas_ordem_servico_id_fkey"
+            columns: ["ordem_servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_ordem_acompanhamento_servico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_execucoes: {
         Row: {
           criado_em: string | null
@@ -2901,6 +3004,50 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
+          },
+        ]
+      }
+      ctm_itens_orcamento: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          descricao: string
+          id: string
+          ordenacao: number
+          quantidade: number
+          servico_id: string
+          subtotal: number
+          valor_unitario: number
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          descricao: string
+          id?: string
+          ordenacao?: number
+          quantidade?: number
+          servico_id: string
+          subtotal?: number
+          valor_unitario?: number
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          descricao?: string
+          id?: string
+          ordenacao?: number
+          quantidade?: number
+          servico_id?: string
+          subtotal?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_itens_orcamento_servico_id_fkey"
+            columns: ["servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_orcamentos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3123,6 +3270,112 @@ export type Database = {
             columns: ["categoria_id"]
             isOneToOne: false
             referencedRelation: "ctm_categoria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_orcamentos: {
+        Row: {
+          aeronave_id: string
+          aprovado_em: string | null
+          atualizado_em: string
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          detalhes_orcamento: Json | null
+          id: string
+          itens_orcamento: Json | null
+          itens_servico_id: string | null
+          nome_fornecedor: string | null
+          notas: string | null
+          numero_orcamento: string
+          status: string
+          status_aprovacao: string
+          submetido_em: string | null
+          tipo_fornecedor: string | null
+          valor_total: number
+        }
+        Insert: {
+          aeronave_id: string
+          aprovado_em?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          detalhes_orcamento?: Json | null
+          id?: string
+          itens_orcamento?: Json | null
+          itens_servico_id?: string | null
+          nome_fornecedor?: string | null
+          notas?: string | null
+          numero_orcamento?: string
+          status?: string
+          status_aprovacao?: string
+          submetido_em?: string | null
+          tipo_fornecedor?: string | null
+          valor_total?: number
+        }
+        Update: {
+          aeronave_id?: string
+          aprovado_em?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          detalhes_orcamento?: Json | null
+          id?: string
+          itens_orcamento?: Json | null
+          itens_servico_id?: string | null
+          nome_fornecedor?: string | null
+          notas?: string | null
+          numero_orcamento?: string
+          status?: string
+          status_aprovacao?: string
+          submetido_em?: string | null
+          tipo_fornecedor?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_orcamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_orcamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_orcamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_orcamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_orcamentos_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_orcamentos_itens_servico_id_fkey"
+            columns: ["itens_servico_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_ordem_acompanhamento_servico"
             referencedColumns: ["id"]
           },
         ]
@@ -3383,6 +3636,129 @@ export type Database = {
             foreignKeyName: "weight_balance_aircraft_id_fkey"
             columns: ["aeronave_id"]
             isOneToOne: true
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+        ]
+      }
+      ctm_programa_manutencao: {
+        Row: {
+          aeronave_id: string
+          alerta_antecedencia_dias: number
+          alerta_antecedencia_horas: number
+          alerta_antecedencia_pousos: number
+          atualizado_em: string
+          base_legal: string | null
+          categoria: string
+          criado_em: string
+          criado_por: string | null
+          grupo: string | null
+          id: string
+          intervalo_ciclos: number | null
+          intervalo_horas: number | null
+          intervalo_meses: number | null
+          intervalo_pousos: number | null
+          item: string
+          obrigatorio: boolean
+          observacoes: string | null
+          referencia: string | null
+          responsavel: string | null
+          status: string
+          tipo_controle: string
+          ultima_execucao_ciclos: number | null
+          ultima_execucao_data: string | null
+          ultima_execucao_horas: number | null
+          ultima_execucao_pousos: number | null
+        }
+        Insert: {
+          aeronave_id: string
+          alerta_antecedencia_dias?: number
+          alerta_antecedencia_horas?: number
+          alerta_antecedencia_pousos?: number
+          atualizado_em?: string
+          base_legal?: string | null
+          categoria?: string
+          criado_em?: string
+          criado_por?: string | null
+          grupo?: string | null
+          id?: string
+          intervalo_ciclos?: number | null
+          intervalo_horas?: number | null
+          intervalo_meses?: number | null
+          intervalo_pousos?: number | null
+          item: string
+          obrigatorio?: boolean
+          observacoes?: string | null
+          referencia?: string | null
+          responsavel?: string | null
+          status?: string
+          tipo_controle?: string
+          ultima_execucao_ciclos?: number | null
+          ultima_execucao_data?: string | null
+          ultima_execucao_horas?: number | null
+          ultima_execucao_pousos?: number | null
+        }
+        Update: {
+          aeronave_id?: string
+          alerta_antecedencia_dias?: number
+          alerta_antecedencia_horas?: number
+          alerta_antecedencia_pousos?: number
+          atualizado_em?: string
+          base_legal?: string | null
+          categoria?: string
+          criado_em?: string
+          criado_por?: string | null
+          grupo?: string | null
+          id?: string
+          intervalo_ciclos?: number | null
+          intervalo_horas?: number | null
+          intervalo_meses?: number | null
+          intervalo_pousos?: number | null
+          item?: string
+          obrigatorio?: boolean
+          observacoes?: string | null
+          referencia?: string | null
+          responsavel?: string | null
+          status?: string
+          tipo_controle?: string
+          ultima_execucao_ciclos?: number | null
+          ultima_execucao_data?: string | null
+          ultima_execucao_horas?: number | null
+          ultima_execucao_pousos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_programa_manutencao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_programa_manutencao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "disponibilidade_aeronave"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ctm_programa_manutencao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_aeronave_totais"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_programa_manutencao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ctm_programa_manutencao_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
           },
@@ -8170,6 +8546,110 @@ export type Database = {
         }
         Relationships: []
       }
+      propostas: {
+        Row: {
+          abertura: string | null
+          aeronave: string | null
+          atualizado_em: string | null
+          base: string | null
+          cliente: string
+          criado_em: string | null
+          data: string | null
+          desconto: number | null
+          fechamento: string | null
+          id: string
+          itens: Json
+          marca: string | null
+          mostrar_vantagens: boolean | null
+          nome: string
+          numero: string
+          pasta_id: string
+          sem_nota: boolean | null
+          user_id: string
+          validade: number | null
+          vantagens: string | null
+        }
+        Insert: {
+          abertura?: string | null
+          aeronave?: string | null
+          atualizado_em?: string | null
+          base?: string | null
+          cliente: string
+          criado_em?: string | null
+          data?: string | null
+          desconto?: number | null
+          fechamento?: string | null
+          id?: string
+          itens?: Json
+          marca?: string | null
+          mostrar_vantagens?: boolean | null
+          nome: string
+          numero: string
+          pasta_id: string
+          sem_nota?: boolean | null
+          user_id: string
+          validade?: number | null
+          vantagens?: string | null
+        }
+        Update: {
+          abertura?: string | null
+          aeronave?: string | null
+          atualizado_em?: string | null
+          base?: string | null
+          cliente?: string
+          criado_em?: string | null
+          data?: string | null
+          desconto?: number | null
+          fechamento?: string | null
+          id?: string
+          itens?: Json
+          marca?: string | null
+          mostrar_vantagens?: boolean | null
+          nome?: string
+          numero?: string
+          pasta_id?: string
+          sem_nota?: boolean | null
+          user_id?: string
+          validade?: number | null
+          vantagens?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas_pastas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propostas_pastas: {
+        Row: {
+          atualizado_em: string | null
+          criado_em: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          user_id: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       purchase_request_approvals: {
         Row: {
           acao: string
@@ -11474,6 +11954,14 @@ export type Database = {
           valor_rateado: number
         }[]
       }
+      processar_correcao_ponto: {
+        Args: {
+          p_aprovar: boolean
+          p_correcao_id: string
+          p_motivo_rejeicao?: string
+        }
+        Returns: undefined
+      }
       processar_demonstrativo_voo: {
         Args: {
           p_aeronave_id: string
@@ -11487,6 +11975,14 @@ export type Database = {
           p_valor_total: number
         }
         Returns: Json
+      }
+      processar_justificativa_ausencia: {
+        Args: {
+          p_aprovar: boolean
+          p_justificativa_id: string
+          p_motivo_rejeicao?: string
+        }
+        Returns: undefined
       }
       recalcular_cadeia_celula: {
         Args: {
@@ -11530,6 +12026,7 @@ export type Database = {
         | "rh"
         | "adm"
         | "coordenador_de_voo"
+        | "contabilidade"
       cma_classe: "1º classe" | "2º classe"
       contact_type: "Colaboradores" | "Fornecedores" | "Hoteis" | "Cliente"
     }
@@ -11672,6 +12169,7 @@ export const Constants = {
         "rh",
         "adm",
         "coordenador_de_voo",
+        "contabilidade",
       ],
       cma_classe: ["1º classe", "2º classe"],
       contact_type: ["Colaboradores", "Fornecedores", "Hoteis", "Cliente"],

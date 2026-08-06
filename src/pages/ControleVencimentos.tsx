@@ -55,13 +55,13 @@ export default function ControleVencimentos() {
       if (crew) {
         for (const member of crew) {
           const { data: licenses } = await supabase
-            .from('crew_licenses')
+            .from('habilitacoes_tripulante')
             .select('*')
-            .eq('crew_member_id', member.id);
+            .eq('membro_tripulacao_id', member.id);
 
           for (const license of licenses || []) {
-            if (license.expiry_date) {
-              const expiryDate = new Date(license.expiry_date);
+            if (license.data_validade) {
+              const expiryDate = new Date(license.data_validade);
               expiryDate.setHours(0, 0, 0, 0);
               const diasRestantes = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               tripulacaoTotal++;

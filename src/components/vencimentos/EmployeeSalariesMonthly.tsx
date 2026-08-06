@@ -15,11 +15,11 @@ import { Save, Loader2, Users } from "lucide-react";
 
 interface EmployeeSalary {
   id: string;
-  user_profile: string;
-  base_salary_bruto: number | null;
-  base_salary_liquid: number | null;
-  benefit: string | null;
-  effective_date: string;
+  id_usuario: string;
+  salario_bruto: number | null;
+  salario_liquido: number | null;
+  beneficios: string | null;
+  data_vigencia: string;
   updated_at: string;
 }
 
@@ -43,9 +43,9 @@ export function EmployeeSalariesMonthly() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState({
-    base_salary_bruto: "",
-    base_salary_liquid: "",
-    benefit: "",
+     salario_bruto: "",
+    salario_liquido: "",
+    beneficios: "",
   });
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -81,7 +81,7 @@ export function EmployeeSalariesMonthly() {
       const { data: profiles, error: profilesError } = await (supabase as any)
         .from("user_profiles")
         .select("*")
-        .eq("status", "ativo")
+        .eq("employment_status", "ativo")
         .order("full_name", { ascending: true });
 
       if (profilesError) throw profilesError;
@@ -117,8 +117,10 @@ export function EmployeeSalariesMonthly() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("salarios")
-        .select("*")
-        .order("effective_date", { ascending: false });
+        .select(
+          "id, id_usuario, salario_bruto, salario_liquido, beneficios , data_vigencia "
+        )
+        .order("data_vigencia", { ascending: false });
       if (error) throw error;
       return data as EmployeeSalary[];
     },
@@ -135,8 +137,8 @@ export function EmployeeSalariesMonthly() {
   const employeesWithSalaries = useMemo(() => {
     const mapped = employees.map((emp) => {
       const currentMonthSalary = allSalaries.find((s) => {
-        if (s.user_profile !== emp.id) return false;
-        const { month, year } = getMonthYearFromDate(s.effective_date);
+        if (s.id_usuario !== emp.id) return false;
+        const { month, year } = getMonthYearFromDate(s.data_vigencia);
         return month === selectedMonth && year === selectedYear;
       });
 
@@ -144,8 +146,8 @@ export function EmployeeSalariesMonthly() {
 
       if (!currentMonthSalary) {
         const mostRecentSalary = allSalaries.find((s) => {
-          if (s.user_profile !== emp.id) return false;
-          const { month, year } = getMonthYearFromDate(s.effective_date);
+          if (s.id_usuario !== emp.id) return false;
+          const { month, year } = getMonthYearFromDate(s.data_vigencia);
           const salaryDate = new Date(year, month - 1);
           const selectedDate = new Date(selectedYear, selectedMonth - 1);
           return salaryDate <= selectedDate;
@@ -181,9 +183,9 @@ export function EmployeeSalariesMonthly() {
   }, [employeesWithSalaries, searchFilter, roleFilter]);
 
   const statistics = useMemo(() => {
-    const salariesInMonth = filteredEmployees.filter(emp => emp.salary?.base_salary_bruto);
-    const totalBruto = salariesInMonth.reduce((sum, emp) => sum + (emp.salary?.base_salary_bruto || 0), 0);
-    const totalLiquido = salariesInMonth.reduce((sum, emp) => sum + (emp.salary?.base_salary_liquid || 0), 0);
+    const salariesInMonth = filteredEmployees.filter(emp => emp.salary?. salario_bruto);
+    const totalBruto = salariesInMonth.reduce((sum, emp) => sum + (emp.salary?.salario_bruto || 0), 0);
+    const totalLiquido = salariesInMonth.reduce((sum, emp) => sum + (emp.salary?.salario_liquido || 0), 0);
     const averageBruto = salariesInMonth.length > 0 ? totalBruto / salariesInMonth.length : 0;
 
     return {
@@ -227,12 +229,12 @@ export function EmployeeSalariesMonthly() {
       const effectiveDate = `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`;
 
       const salaryData = {
-        user_profile: data.employee_id,
-        base_salary_bruto: editFormData.base_salary_bruto ? parseFloat(editFormData.base_salary_bruto) : null,
-        base_salary_liquid: editFormData.base_salary_liquid ? parseFloat(editFormData.base_salary_liquid) : null,
-        benefit: editFormData.benefit || null,
-        effective_date: effectiveDate,
-        updated_at: new Date().toISOString(),
+        id_usuario: data.employee_id,
+        salario_bruto: editFormData. salario_bruto ? parseFloat(editFormData. salario_bruto) : null,
+        salario_liquido: editFormData. salario_liquido ? parseFloat(editFormData. salario_liquido) : null,
+        beneficios: editFormData.beneficios || null,
+        data_vigencia: effectiveDate,
+        atualizado_em: new Date().toISOString(),
       };
 
       if (data.salary_id) {
@@ -252,7 +254,7 @@ export function EmployeeSalariesMonthly() {
       setEditingId(null);
       setIsDialogOpen(false);
       setSelectedEmployee(null);
-      setEditFormData({ base_salary_bruto: "", base_salary_liquid: "", benefit: "" });
+      setEditFormData({ salario_bruto: "", salario_liquido: "", beneficios: "" });
     },
     onError: (error: any) => {
       toast.error(`Erro ao salvar salário: ${error.message}`);
@@ -263,9 +265,9 @@ export function EmployeeSalariesMonthly() {
     if (!isAllowed) return;
     setSelectedEmployee(employee);
     setEditFormData({
-      base_salary_bruto: employee.salary?.base_salary_bruto?.toString() || "",
-      base_salary_liquid: employee.salary?.base_salary_liquid?.toString() || "",
-      benefit: employee.salary?.benefit || "",
+       salario_bruto: employee.salary?.salario_bruto?.toString() || "",
+      salario_liquido: employee.salary?.salario_liquido?.toString() || "",
+      beneficios: employee.salary?.beneficios || "",
     });
     setIsDialogOpen(true);
   };
@@ -391,13 +393,13 @@ export function EmployeeSalariesMonthly() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{employee.roles.map(formatRole).join(", ")}</td>
                     <td className="px-4 py-3 text-foreground">
-                      {employee.salary?.base_salary_bruto
-                        ? `R$ ${Number(employee.salary.base_salary_bruto).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                      {employee.salary?.salario_bruto
+                        ? `R$ ${Number(employee.salary.salario_bruto).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
                         : "-"}
                     </td>
                     <td className="px-4 py-3 text-foreground">
-                      {employee.salary?.base_salary_liquid
-                        ? `R$ ${Number(employee.salary.base_salary_liquid).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                      {employee.salary?.salario_liquido
+                        ? `R$ ${Number(employee.salary.salario_liquido).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
                         : "-"}
                     </td>
                     <td className="px-4 py-3">
@@ -431,8 +433,8 @@ export function EmployeeSalariesMonthly() {
                 id="dialog-bruto"
                 type="number"
                 step="0.01"
-                value={editFormData.base_salary_bruto}
-                onChange={(e) => setEditFormData({ ...editFormData, base_salary_bruto: e.target.value })}
+                value={editFormData.salario_bruto}
+                onChange={(e) => setEditFormData({ ...editFormData, salario_bruto: e.target.value })}
                 placeholder="0.00"
                 className="mt-2 h-11 rounded-xl"
                 autoFocus

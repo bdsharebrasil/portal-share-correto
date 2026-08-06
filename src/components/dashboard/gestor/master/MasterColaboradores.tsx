@@ -13,7 +13,7 @@ export function MasterColaboradores() {
         {/* Header com botão voltar */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/financeiro/master")}
+            onClick={() => navigate("/gestor/master")}
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

@@ -19,6 +19,11 @@ export default {
     },
     extend: {
       colors: {
+        ctm: {
+          teal: '#2dd4bf',
+          'teal-light': '#5eead4',
+          navy: '#0f1628'
+        },
         border: {
           DEFAULT: 'hsl(var(--border))',
           subtle: '#1a2540'

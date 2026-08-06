@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronDown, ChevronUp, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import AnexosDinamicosField, { AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { format } from "date-fns";
@@ -169,6 +169,7 @@ export function FuelRecordsByAircraft({
   const [filterPartner, setFilterPartner] = useState<string>("all");
   const [searchText, setSearchText] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [dateSortAsc, setDateSortAsc] = useState<boolean>(false);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [currentClientId, setCurrentClientId] = useState<string>(client.id);
@@ -592,6 +593,14 @@ export function FuelRecordsByAircraft({
     setCurrentPage(1);
   };
 
+  const getRecordSortTime = (record: FuelRecord) => {
+    const dateToUse = (record.status === "pago" && record.data_pagamento)
+      ? record.data_pagamento
+      : record.data;
+    const parsed = new Date(dateToUse + "T00:00:00");
+    return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
+  };
+
   const getFilteredRecords = () => {
     let filtered = records;
 
@@ -632,10 +641,16 @@ export function FuelRecordsByAircraft({
       });
     }
 
+    filtered = [...filtered].sort((a, b) => {
+      const diff = getRecordSortTime(a) - getRecordSortTime(b);
+      return dateSortAsc ? diff : -diff;
+    });
+
     return filtered;
   };
 
   const filteredRecords = getFilteredRecords();
+  const hasPartnerColumn = records.some(record => Boolean(resolveFuelRecordPartnerName(record)));
   const itemsPerPage = 10;
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -1189,13 +1204,14 @@ export function FuelRecordsByAircraft({
     const totalLitros = exportRecords.reduce((sum, r) => sum + r.litros, 0);
     const totalValue = exportRecords.reduce((sum, r) => sum + r.valor_total, 0);
 
+    const hasExportPartnerColumn = exportRecords.some(r => Boolean(resolveFuelRecordPartnerName(r)));
     const rowsHtml = exportRecords.map(r => `
       <tr>
         <td>${formatDateBrazil(r.data, "dd/MM/yyyy")}</td>
         <td>${r.trecho || "-"}</td>
         <td>${r.local || "-"}</td>
         <td>${r.comanda || "-"}</td>
-        <td>${resolveFuelRecordPartnerName(r) || "-"}</td>
+        ${hasExportPartnerColumn ? `<td>${resolveFuelRecordPartnerName(r) || "-"}</td>` : ""}
         <td class="text-right">${r.litros.toFixed(2)}</td>
         <td class="text-right">R$ ${r.valor_unitario.toFixed(2)}</td>
         <td class="text-right">R$ ${r.valor_total.toFixed(2)}</td>
@@ -1240,7 +1256,7 @@ export function FuelRecordsByAircraft({
                 <th>TRECHOS</th>
                 <th>LOCAL ABAST</th>
                 <th>COMANDA</th>
-                <th>SÓCIO</th>
+                ${hasExportPartnerColumn ? `<th>SÓCIO</th>` : ""}
                 <th class="text-right">LITROS</th>
                 <th class="text-right">VALOR LITRO</th>
                 <th class="text-right">VALOR TOTAL</th>
@@ -1252,7 +1268,7 @@ export function FuelRecordsByAircraft({
             </tbody>
             <tfoot class="totals">
               <tr>
-                <td colspan="5" class="text-right">TOTAIS</td>
+                <td colspan="${hasExportPartnerColumn ? 5 : 4}" class="text-right">TOTAIS</td>
                 <td class="text-right">${totalLitros.toFixed(2)}</td>
                 <td></td>
                 <td class="text-right">R$ ${totalValue.toFixed(2)}</td>
@@ -1293,38 +1309,42 @@ export function FuelRecordsByAircraft({
 
       {records.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border border-border/50 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
+          <Card className="border border-border/40 bg-slate-950/80 shadow-lg shadow-slate-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Registros</p>
-                  <p className="text-3xl font-bold text-foreground">{displayTotalRecords}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Total de Registros</p>
+                  <p className="text-2xl font-semibold text-white">{displayTotalRecords}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-primary/30" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border border-border/50 bg-gradient-to-br from-success/5 via-transparent to-transparent">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
+          <Card className="border border-border/40 bg-slate-950/80 shadow-lg shadow-slate-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total de Litros</p>
-                  <p className="text-3xl font-bold text-foreground">{displayTotalLitros.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">litros</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Total de Litros</p>
+                  <p className="text-2xl font-semibold text-white">{displayTotalLitros.toFixed(2)} L</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-success/30" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card className="border border-border/50 bg-gradient-to-br from-orange-500/10 via-transparent to-transparent relative overflow-hidden">
-            <CardContent className="p-5 relative z-10">
-              <div className="flex items-center justify-between">
+          <Card className="border border-border/40 bg-slate-950/80 shadow-lg shadow-slate-950/20 overflow-hidden">
+            <CardContent className="p-4 relative z-10">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">Gasto Total</p>
-                  <p className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">R$ {displayTotalValue.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-2">valor total</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Gasto Total</p>
+                  <p className="text-2xl font-semibold bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">R$ {displayTotalValue.toFixed(2)}</p>
                 </div>
-                <TrendingUp className="h-10 w-10 text-orange-500/40" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-300">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1893,13 +1913,22 @@ export function FuelRecordsByAircraft({
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow className="border-b border-border/50 hover:bg-transparent">
-                  <TableHead className="font-semibold text-foreground">Data</TableHead>
+                  <TableHead className="font-semibold text-foreground">
+                    <button
+                      type="button"
+                      onClick={() => setDateSortAsc(prev => !prev)}
+                      className="inline-flex items-center gap-2 text-left"
+                    >
+                      Data
+                      {dateSortAsc ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </button>
+                  </TableHead>
                   <TableHead className="font-semibold text-foreground">Trecho</TableHead>
                   <TableHead className="font-semibold text-foreground">Local</TableHead>
                   <TableHead className="font-semibold text-foreground">Comanda</TableHead>
                   <TableHead className="font-semibold text-foreground">N.F</TableHead>
                   <TableHead className="font-semibold text-foreground">Fornecedor</TableHead>
-                  <TableHead className="font-semibold text-foreground">Sócio</TableHead>
+                  {hasPartnerColumn && <TableHead className="font-semibold text-foreground">Sócio</TableHead>}
                   <TableHead className="font-semibold text-foreground">Status</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Litros</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Valor Unit.</TableHead>
@@ -1919,10 +1948,36 @@ export function FuelRecordsByAircraft({
                     </TableCell>
                     <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
                     <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
-                    <TableCell className="font-mono text-foreground">{record.comanda || "-"}</TableCell>
-                    <TableCell className="font-mono text-foreground">{record.nf || "-"}</TableCell>
+                    <TableCell className="font-mono text-foreground">
+                      {record.comanda_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewingAttachment({ url: record.comanda_url!, type: 'pdf', name: 'Comanda' })}
+                          className="text-sky-400 hover:text-sky-200 hover:underline"
+                        >
+                          {record.comanda || "-"}
+                        </button>
+                      ) : (
+                        record.comanda || "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-foreground">
+                      {record.nota_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewingAttachment({ url: record.nota_url!, type: 'pdf', name: 'Nota Fiscal' })}
+                          className="text-sky-400 hover:text-sky-200 hover:underline"
+                        >
+                          {record.nf || "-"}
+                        </button>
+                      ) : (
+                        record.nf || "-"
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground font-medium">{resolveFuelRecordPartnerName(record) || "-"}</TableCell>
+                    {hasPartnerColumn && (
+                      <TableCell className="text-muted-foreground font-medium">{resolveFuelRecordPartnerName(record) || "-"}</TableCell>
+                    )}
                     <TableCell>
                       {record.status === "pago" ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">

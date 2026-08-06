@@ -26,6 +26,8 @@ interface FechamentoBalancoTabProps {
   selectedMonths: number[];
   catMap: Map<string, string>;
   onRefresh?: () => void;
+  onVerNaTela?: () => void;
+  onExportPDF?: () => void;
 }
 
 const formatBRL = (n: number) =>
@@ -53,6 +55,8 @@ export function FechamentoBalancoTab({
   selectedMonths,
   catMap,
   onRefresh,
+  onVerNaTela,
+  onExportPDF,
 }: FechamentoBalancoTabProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [editingRateio, setEditingRateio] = useState<RateioRow | null>(null);
@@ -355,6 +359,27 @@ export function FechamentoBalancoTab({
             >
               {sortDir === "asc" ? "Crescente" : "Decrescente"}
             </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onVerNaTela && (
+              <button
+                onClick={onVerNaTela}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+                title="Ver relatório dos meses fechados na tela"
+              >
+                <Eye className="h-3.5 w-3.5" /> VER NA TELA
+              </button>
+            )}
+            {onExportPDF && (
+              <button
+                onClick={onExportPDF}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+                title="Exportar PDF"
+              >
+                <FileText className="h-3.5 w-3.5" /> EXPORTAR PDF
+              </button>
+            )}
           </div>
           <button
             onClick={() => fecharMesMutation.mutate()}

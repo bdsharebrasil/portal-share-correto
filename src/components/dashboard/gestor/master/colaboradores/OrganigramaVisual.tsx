@@ -11,6 +11,20 @@ interface Departamento {
   departamento_pai_id: string | null;
 }
 
+interface Colaborador {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
+interface ColaboradorDepartamento {
+  id: string;
+  colaborador_id: string;
+  departamento_id: string;
+  cargo: string | null;
+  colaborador?: Colaborador;
+}
+
 interface OrgNode {
   depto: Departamento;
   children: OrgNode[];
@@ -27,6 +41,28 @@ export function OrganigramaVisual() {
 
       if (error) throw error;
       return data as Departamento[];
+    },
+  });
+
+  const { data: membros = [] } = useQuery({
+    queryKey: ["colaborador-departamento"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("colaborador_departamento")
+        .select("id, colaborador_id, departamento_id, cargo");
+
+      if (error) throw error;
+
+      const colaboradorIds = data.map((m: any) => m.colaborador_id);
+      const { data: colaboradoresData } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", colaboradorIds);
+
+      return (data as ColaboradorDepartamento[]).map((m) => ({
+        ...m,
+        colaborador: colaboradoresData?.find((c) => c.id === m.colaborador_id) ?? undefined,
+      }));
     },
   });
 
@@ -58,6 +94,10 @@ export function OrganigramaVisual() {
 
   const tree = buildTree();
 
+  const getMembrosDoDepto = (deptId: string) => {
+    return membros.filter((m) => m.departamento_id === deptId);
+  };
+
   const DepartamentoNode = ({ node, level = 0 }: { node: OrgNode; level?: number }) => {
     const hasChildren = node.children.length > 0;
     const backgroundColor = node.depto.cor || "#3b82f6";
@@ -70,6 +110,27 @@ export function OrganigramaVisual() {
           style={{ backgroundColor }}
         >
           {node.depto.nome}
+        </div>
+
+        <div className="mt-3 w-full max-w-xs">
+          {getMembrosDoDepto(node.depto.id).map((membro) => (
+            <div
+              key={membro.id}
+              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2 mt-2"
+            >
+              <div className="h-8 w-8 rounded-full bg-slate-800 text-xs font-bold text-white flex items-center justify-center">
+                {membro.colaborador ? membro.colaborador.full_name.slice(0, 2).toUpperCase() : "?"}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-white truncate">
+                  {membro.colaborador?.full_name || "Colaborador"}
+                </p>
+                {membro.cargo && (
+                  <p className="text-[11px] text-slate-300 truncate">{membro.cargo}</p>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Se tem filhos, mostra linha conectora e filhos */}

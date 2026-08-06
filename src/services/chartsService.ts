@@ -100,7 +100,7 @@ function parseChartsData(rawData: any): ChartData[] {
         'IAP': 6,
         'AIRPORT': 7,
       };
-      return (typeOrder[a.tipo] || 99) - (typeOrder[b.tipo] || 99);
+      return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
     });
 }
 

@@ -25,7 +25,7 @@ interface EmployeeDetailsDialogProps {
     email: string;
     avatar_url?: string | null;
     salary?: {
-      base_salary_bruto: number;
+       salario_bruto: number;
     } | null;
     thirteenth?: {
       gross_value: number;
@@ -147,8 +147,8 @@ export function EmployeeDetailsDialog({
                     Salário Base Registrado
                   </p>
                   <p className="text-2xl font-bold text-foreground mt-2">
-                    {employee.salary?.base_salary_bruto
-                      ? formatCurrency(employee.salary.base_salary_bruto)
+                    {employee.salary?. salario_bruto
+                      ? formatCurrency(employee.salary.salario_bruto)
                       : "Não registrado"}
                   </p>
                 </div>

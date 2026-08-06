@@ -43,7 +43,7 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
   const [ters, setTers] = useState<TERRow[]>([]);
   const [abastecimentos, setAbastecimentos] = useState<AbastecimentoRow[]>([]);
   const [contasApagar, setContasApagar] = useState<ContaApagarRow[]>([]);
-  const [diarioMeses, setDiarioMeses] = useState<Array<{ id: string; ano: number; mes: number; aerodromo_base: string | null }>>([]);
+  const [diarioMeses, setDiarioMeses] = useState<Array<{ id: string; ano: number; mes: number; aerodromo_base: string | null; fechado?: boolean | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = () => setReloadKey((k) => k + 1);
@@ -139,7 +139,7 @@ export function useBalancoAeronave({ aeronaveId, ano, selectedMonths, participan
     };
     const fetchDiarioMes = async () => {
       const { data } = await supabase.from("diario_mes")
-        .select("id, ano, mes, aerodromo_base")
+        .select("id, ano, mes, aerodromo_base, fechado")
         .eq("aeronave_id", aeronaveId)
         .eq("ano", ano);
       setDiarioMeses((data || []) as any);

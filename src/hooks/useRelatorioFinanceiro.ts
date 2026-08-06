@@ -71,14 +71,28 @@ export function useRelatorioFinanceiro() {
       const startDate = startOfMonth(new Date(parseInt(yI), parseInt(mI) - 1));
       const endDate = endOfMonth(new Date(parseInt(yF), parseInt(mF) - 1));
 
-      const { data, error } = await (supabase as any).from("controle_bancario")
-        .select("id, data, tipo_movimento, valor, descricao, categoria_id, grupo_categoria, client_id, client_name, aeronave_id, aeronave_registro, status")
-        .gte("data", format(startDate, "yyyy-MM-dd"))
-        .lte("data", format(endDate, "yyyy-MM-dd"))
-        .order("data", { ascending: false });
+      const { data, error } = await (supabase as any).from("movimentacoes")
+        .select("id, descricao, tipo, valor_rateado, valor_original, categoria_id, grupo_custo, clientes_id, aeronave_id, status, data_competencia, data_vencimento, data_pagamento")
+        .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
+        .lte("data_competencia", format(endDate, "yyyy-MM-dd"))
+        .order("data_competencia", { ascending: false });
 
       if (error) throw error;
-      return (data || []) as TransacaoCompleta[];
+      return ((data || []) as any[]).map((row) => ({
+        id: row.id,
+        data: row.data_pagamento || row.data_vencimento || row.data_competencia,
+        tipo_movimento: row.tipo === "receita" || row.tipo === "entrada" ? "entrada" : "saida",
+        valor: Number(row.valor_rateado ?? row.valor_original ?? 0),
+        descricao: row.descricao,
+        categoria_id: row.categoria_id,
+        grupo_categoria: row.grupo_custo ?? null,
+        client_id: row.clientes_id ?? null,
+        client_name: null,
+        aeronave_id: row.aeronave_id ?? null,
+        aeronave_registro: null,
+        status: row.status,
+      })) as TransacaoCompleta[];
+
     },
   });
 

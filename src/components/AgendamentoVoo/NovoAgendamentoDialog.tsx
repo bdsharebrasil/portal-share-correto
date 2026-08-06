@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Aeronave, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import { type Aeronave, type Solicitacao, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
 
 interface Props {
   open: boolean;
@@ -23,16 +23,21 @@ interface Props {
   diaSelecionado: Date;
 }
 
+interface ClienteOption {
+  id: string;
+  razao_social: string;
+}
+
 function useClientesLista() {
-  return useQuery({
+  return useQuery<ClienteOption[]>({
     queryKey: ["agv", "clientes-lista"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("clientes")
         .select("id, razao_social")
         .order("razao_social");
       if (error) throw error;
-      return (data ?? []) as Array<{ id: string; razao_social: string }>;
+      return (data ?? []) as ClienteOption[];
     },
   });
 }
@@ -57,23 +62,23 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
     if (open) setForm((f) => ({ ...f, data_agendada: format(diaSelecionado, "yyyy-MM-dd") }));
   }, [open, diaSelecionado]);
 
-  const salvar = () =>
-    criarSolicitacao.mutate(
-      {
-        cliente_id: form.cliente_id || null,
-        aeronave_id: form.aeronave_id || null,
-        origem: form.origem.toUpperCase() || null,
-        destino: form.destino.toUpperCase() || null,
-        data_agendada: form.data_agendada,
-        horario_partida: form.horario_partida || null,
-        horario_chegada: form.horario_chegada || null,
-        dias_duracao: Number(form.dias_duracao) || 1,
-        qtd_passageiros: Number(form.qtd_passageiros) || 1,
-        observacoes: form.observacoes || null,
-        status: "pendente",
-      } as any,
-      { onSuccess: () => onOpenChange(false) },
-    );
+  const salvar = () => {
+    const payload: Partial<Solicitacao> = {
+      cliente_id: form.cliente_id || null,
+      aeronave_id: form.aeronave_id || null,
+      origem: form.origem.toUpperCase() || null,
+      destino: form.destino.toUpperCase() || null,
+      data_agendada: form.data_agendada,
+      horario_partida: form.horario_partida || null,
+      horario_chegada: form.horario_chegada || null,
+      dias_duracao: Number(form.dias_duracao) || 1,
+      qtd_passageiros: Number(form.qtd_passageiros) || 1,
+      observacoes: form.observacoes || null,
+      status: "pendente",
+    };
+
+    criarSolicitacao.mutate(payload, { onSuccess: () => onOpenChange(false) });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

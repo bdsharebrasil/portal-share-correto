@@ -47,20 +47,29 @@ const CHART_COLORS = [
 ];
 
 export function useDashboardGestorData(currentDate: Date) {
-  // Buscar transações do controle bancário
+  // Buscar transações de `movimentacoes` (a antiga `controle_bancario` não existe mais)
   const { data: transacoes = [], isLoading: isLoadingTransacoes } = useQuery({
     queryKey: ["dashboard-gestor-transacoes"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("controle_bancario")
+      const { data, error } = await (supabase as any).from("movimentacoes")
         .select(`
           *,
           categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria)
         `)
-        .order("data", { ascending: false });
+        .order("data_competencia", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+
+      return (data || []).map((row: any) => ({
+        ...row,
+        data: row.data_pagamento || row.data_vencimento || row.data_competencia,
+        tipo_movimento:
+          row.tipo === "receita" || row.tipo === "entrada" ? "entrada" : "saida",
+        valor: Number(row.valor_rateado ?? row.valor_original ?? 0),
+        grupo_categoria: row.grupo_custo ?? row.categoria_nome ?? null,
+      }));
     },
+
   });
 
   // Calcular dados mensais para gráficos (últimos 6 meses)

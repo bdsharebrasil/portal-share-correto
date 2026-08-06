@@ -1,13 +1,13 @@
-import { CalendarCheck, FileText, Book, Users, Fuel, Clock } from "lucide-react";
+import { CalendarCheck, FileText, Book, Users, Fuel, Clock, Wrench } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const tools = [
   { icon: CalendarCheck, label: "Agendamentos", route: "/painel-agendamentos", color: "text-teal-400" },
-  { icon: FileText, label: "Plano de Voo", route: "/plano-voo", color: "text-blue-400" },
-  { icon: Book, label: "Diário de Bordo", route: "/diario-bordo", color: "text-cyan-400" },
+  { icon: FileText, label: "Plano de Voo", route: "/plano-voo", color: "text-MedSpringGreen-400" },
+  { icon: Book, label: "Diário de Bordo", route: "/diario-bordo", color: "text-green-600" },
   { icon: Users, label: "Tripulação", route: "/tripulacao", color: "text-purple-400" },
   { icon: Fuel, label: "Abastecimento", route: "/abastecimento", color: "text-orange-400" },
-  { icon: Clock, label: "Vencimentos", route: "/vencimentos", color: "text-red-400" },
+  { icon: Wrench, label: "CTM", route: "/ctm", color: "text-red-400" },
 ];
 
 export function OperationsTools() {

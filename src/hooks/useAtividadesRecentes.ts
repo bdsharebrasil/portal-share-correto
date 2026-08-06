@@ -14,9 +14,11 @@ export function useAtividadesRecentes() {
   return useQuery({
     queryKey: ["atividades-recentes"],
     queryFn: async (): Promise<Atividade[]> => {
-      const { data, error } = await (supabase as any).from("controle_bancario")
-        .select("id, descricao, valor, status, tipo_movimento, data")
-        .order("data", { ascending: false })
+      const { data, error } = await (supabase as any).from("movimentacoes")
+        .select(
+          "id, descricao, valor_rateado, valor_original, status, tipo, data_pagamento, data_vencimento, data_competencia"
+        )
+        .order("data_competencia", { ascending: false })
         .limit(10);
 
       if (error) throw error;
@@ -25,12 +27,16 @@ export function useAtividadesRecentes() {
         data?.map((item: any) => ({
           id: item.id,
           descricao: item.descricao,
-          valor: Number(item.valor),
+          valor: Number(item.valor_rateado ?? item.valor_original ?? 0),
           status: item.status || "pending",
-          tipo_movimento: item.tipo_movimento,
-          timeAgo: getTimeAgo(item.data),
+          tipo_movimento:
+            item.tipo === "receita" || item.tipo === "entrada" ? "entrada" : "saida",
+          timeAgo: getTimeAgo(
+            item.data_pagamento || item.data_vencimento || item.data_competencia
+          ),
         })) || []
       );
+
     },
   });
 }

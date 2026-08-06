@@ -14,7 +14,7 @@ import { Loader2, DollarSign, Calendar, CheckCircle2, Clock, AlertCircle, Info }
 
 interface ThirteenthSalary {
   id: string;
-  user_profile: string;
+  id_usuario: string;
   year: number;
   gross_value: number;
   net_value: number;
@@ -28,7 +28,7 @@ interface ThirteenthSalary {
 
 interface SalaryPayment {
   id: string;
-  user_profile: string;
+  id_usuario: string;
   base_salary_holerite: number | null;
   created_at: string;
 }
@@ -38,7 +38,7 @@ interface EmployeeWithThirteenth {
   full_name: string;
   email: string;
   roles: string[];
-  salary: { base_salary_bruto: number } | null;
+  salary: {  salario_bruto: number } | null;
   thirteenth: ThirteenthSalary | undefined;
   firstInstallmentDate: string | null;
   secondInstallmentDate: string | null;
@@ -91,9 +91,9 @@ export function ThirteenthSalaryManager() {
 
           const { data: salaryDataArray } = await supabase
             .from("salarios")
-            .select("base_salary_bruto")
-            .eq("user_profile", profile.id)
-            .order("effective_date", { ascending: false })
+            .select("salario_bruto")
+            .eq("id_usuario", profile.id)
+            .order("data_vigencia", { ascending: false })
             .limit(1);
 
           const salaryData = salaryDataArray && salaryDataArray.length > 0 ? salaryDataArray[0] : null;
@@ -104,7 +104,7 @@ export function ThirteenthSalaryManager() {
             full_name: profile.full_name,
             email: profile.email || "",
             roles,
-            salary: salaryData ? { base_salary_bruto: salaryData.base_salary_bruto } : null,
+            salary: salaryData ? { salario_bruto: salaryData.salario_bruto } : null,
             photo_url: (profile as any).avatar_url || null,
           };
         })
@@ -161,7 +161,7 @@ export function ThirteenthSalaryManager() {
   const employeesWithThirteenth = useMemo(() => {
     return employees.map((emp) => {
       const thirteenthForYear = allThirteenthSalaries.find(
-        (s) => s.user_profile === emp.id && s.year === selectedYear
+        (s) => s.id_usuario === emp.id && s.year === selectedYear
       );
 
       // Usar apenas o registro de employee_thirteenth_salary para determinar status
@@ -213,7 +213,7 @@ export function ThirteenthSalaryManager() {
         !emp.secondInstallmentDate;
 
       if (bothPending) {
-        const salary = selectedEmployee.salary?.base_salary_bruto || 0;
+        const salary = selectedEmployee.salary?.salario_bruto || 0;
         setBaseSalary(Number(salary));
         setMonthsWorked(12);
         setIsCalculated(false);
@@ -358,9 +358,9 @@ export function ThirteenthSalaryManager() {
           <div className="bg-muted/50 rounded-xl p-4 border border-border">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Salário Base</Label>
             <div className="mt-3">
-              {selectedEmployee.salary?.base_salary_bruto ? (
+              {selectedEmployee.salary?.salario_bruto ? (
                 <p className="text-2xl font-bold text-foreground">
-                  R$ {Number(selectedEmployee.salary.base_salary_bruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {Number(selectedEmployee.salary.salario_bruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               ) : (
                 <p className="text-muted-foreground italic">Não registrado</p>
@@ -442,7 +442,7 @@ export function ThirteenthSalaryManager() {
 
     const vac = selectedEmployee as any;
     const days = vac?.total_vacation_days ?? "—";
-    const valorBruto = vac?.vacation_gross_value ?? (selectedEmployee.salary?.base_salary_bruto ? (selectedEmployee.salary.base_salary_bruto).toFixed(2) : "—");
+    const valorBruto = vac?.vacation_gross_value ?? (selectedEmployee.salary?.salario_bruto ? (selectedEmployee.salary.salario_bruto).toFixed(2) : "—");
     const dataAgendada = vac?.scheduled_date ? formatDate(vac.scheduled_date) : "Pendente";
     const status = vac?.payment_status ? (vac.payment_status === 'paid' ? 'Pago' : vac.payment_status) : 'Pendente';
     const dataPagamento = vac && vac.payment_status === 'paid' ? (vac.atualizado_em ? formatDate(vac.atualizado_em) : '—') : 'Pendente';

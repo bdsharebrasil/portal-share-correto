@@ -27,10 +27,7 @@ export default function ControleAbastecimento() {
         <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-                <Fuel className="h-3 w-3" />
-                Abastecimentos por Cliente
-              </span>
+             
               <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-foreground">
                 Controle de Abastecimento
               </h1>
@@ -45,14 +42,14 @@ export default function ControleAbastecimento() {
           <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b border-border/60 bg-transparent p-0">
             <TabsTrigger
               value="records"
-              className="gap-2 rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+              className="gap-2 rounded-[0.65rem] border-b-2 border-transparent bg-transparent px-3 py-2 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
             >
               <Users className="h-4 w-4" />
               Histórico de Abastecimentos
             </TabsTrigger>
             <TabsTrigger
               value="suppliers"
-              className="gap-2 rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+              className="gap-2 rounded-[0.65rem] border-b-2 border-transparent bg-transparent px-3 py-2 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
             >
               <Fuel className="h-4 w-4" />
               Fornecedores

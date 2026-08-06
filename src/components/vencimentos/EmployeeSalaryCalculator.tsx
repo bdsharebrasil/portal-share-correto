@@ -25,7 +25,7 @@ interface Employee {
   full_name: string;
   email: string;
   salary: {
-    base_salary_bruto: number;
+     salario_bruto: number;
   } | null;
   photo_url?: string | null;
   roles: string[];
@@ -33,7 +33,7 @@ interface Employee {
 
 interface ThirteenthSalary {
   id: string;
-  user_profile: string;
+  id_usuario: string;
   year: number;
   gross_value: number;
   net_value: number;
@@ -47,7 +47,7 @@ interface ThirteenthSalary {
 
 interface VacationConfig {
   id: string;
-  user_profile: string;
+  id_usuario: string;
   year: number;
   working_months: number;
   total_vacation_days: number;
@@ -144,7 +144,7 @@ export function EmployeeSalaryCalculator() {
             id: profile.id,
             full_name: profile.full_name,
             email: profile.email || "",
-            salary: baseSalary ? { base_salary_bruto: baseSalary } : null,
+            salary: baseSalary ? { salario_bruto: baseSalary } : null,
             photo_url: (profile as any).avatar_url,
             roles: [],
           };
@@ -179,7 +179,7 @@ export function EmployeeSalaryCalculator() {
         .select("*")
         .order("year", { ascending: false });
       if (error) throw error;
-      return (data || []) as VacationConfig[];
+      return (data || []) as unknown as VacationConfig[];
     },
     enabled: isAllowed,
   });
@@ -199,14 +199,14 @@ export function EmployeeSalaryCalculator() {
   const selectedEmployeeThirteenth = useMemo(() => {
     if (!selectedEmployee) return null;
     return allThirteenthSalaries.find(
-      (s) => s.user_profile === selectedEmployee.id && s.year === selectedYear
+      (s) => s.id_usuario === selectedEmployee.id && s.year === selectedYear
     );
   }, [selectedEmployee, allThirteenthSalaries, selectedYear]);
 
   const selectedEmployeeVacation = useMemo(() => {
     if (!selectedEmployee) return null;
     return allVacationConfigs.find(
-      (v) => v.user_profile === selectedEmployee.id && v.year === selectedYear
+      (v) => v.id_usuario === selectedEmployee.id && v.year === selectedYear
     );
   }, [selectedEmployee, allVacationConfigs, selectedYear]);
 
@@ -216,9 +216,9 @@ export function EmployeeSalaryCalculator() {
 
     // Preencher formulário de décimo terceiro
     let workedMonths = 12;
-    if (selectedEmployeeThirteenth?.gross_value && selectedEmployee.salary?.base_salary_bruto) {
+    if (selectedEmployeeThirteenth?.gross_value && selectedEmployee.salary?.salario_bruto) {
       // Calcular meses trabalhados a partir do valor bruto: gross_value = (base_salary / 12) * months
-      const monthlyAvo = selectedEmployee.salary.base_salary_bruto / 12;
+      const monthlyAvo = selectedEmployee.salary.salario_bruto / 12;
       workedMonths = Math.round(selectedEmployeeThirteenth.gross_value / monthlyAvo);
       workedMonths = Math.max(1, Math.min(12, workedMonths)); // Garantir que está entre 1-12
     }
@@ -285,7 +285,7 @@ export function EmployeeSalaryCalculator() {
       if (!selectedEmployee) throw new Error("Nenhum funcionário selecionado");
 
       const workingMonths = parseInt(vacationForm.working_months);
-      const baseSalary = selectedEmployee.salary?.base_salary_bruto || 0;
+      const baseSalary = selectedEmployee.salary?.salario_bruto || 0;
 
       const thirdValue = workingMonths === 12
         ? baseSalary / 3
@@ -296,7 +296,7 @@ export function EmployeeSalaryCalculator() {
         : (baseSalary / 12) * workingMonths + ((baseSalary / 12) * workingMonths / 3);
 
       const vacationData = {
-        user_profile: selectedEmployee.id,
+        id_usuario: selectedEmployee.id,
         year: selectedYear,
         working_months: workingMonths,
         total_vacation_days: parseInt(vacationForm.total_vacation_days),
@@ -311,11 +311,11 @@ export function EmployeeSalaryCalculator() {
       if (selectedEmployeeVacation?.id) {
         const { error } = await supabase
           .from("employee_vacation_config")
-          .update(vacationData)
+          .update(vacationData as any)
           .eq("id", selectedEmployeeVacation.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("employee_vacation_config").insert(vacationData);
+        const { error } = await supabase.from("employee_vacation_config").insert(vacationData as any);
         if (error) throw error;
       }
     },
@@ -330,7 +330,7 @@ export function EmployeeSalaryCalculator() {
 
   const handleCalculateThirteenth = () => {
     if (!selectedEmployee?.salary) return;
-    const baseSalary = selectedEmployee.salary.base_salary_bruto;
+    const baseSalary = selectedEmployee.salary.salario_bruto;
     const workedMonths = parseInt(thirteenthForm.worked_months) || 12;
 
     const { gross, net } = calculateThirteenth(baseSalary, workedMonths);
@@ -416,7 +416,7 @@ export function EmployeeSalaryCalculator() {
                   <div className="flex items-center gap-2 mt-1 text-cyan-400">
                     <DollarSign className="h-4 w-4" />
                     <p className="text-sm font-semibold">
-                      Salário Base: R$ {selectedEmployee.salary.base_salary_bruto.toFixed(2)}
+                      Salário Base: R$ {selectedEmployee.salary.salario_bruto.toFixed(2)}
                     </p>
                   </div>
                 )}
@@ -623,7 +623,7 @@ export function EmployeeSalaryCalculator() {
                     <div className="pt-3 border-t border-blue-700">
                       <p className="text-xs text-blue-300 font-semibold mb-1">Informações do Cálculo</p>
                       <p className="text-xs text-blue-200">
-                        Salário Base: R$ {selectedEmployee.salary.base_salary_bruto.toFixed(2)}
+                        Salário Base: R$ {selectedEmployee.salary.salario_bruto.toFixed(2)}
                       </p>
                       <p className="text-xs text-blue-200">
                         Meses Trabalhados: {thirteenthForm.worked_months}/12
@@ -704,13 +704,13 @@ export function EmployeeSalaryCalculator() {
                       {parseInt(vacationForm.working_months) === 12 ? (
                         <>
                           <p className="text-sm text-gray-300 mb-2">
-                            <strong>Salário:</strong> R$ {selectedEmployee.salary.base_salary_bruto.toFixed(2)}
+                            <strong>Salário:</strong> R$ {selectedEmployee.salary.salario_bruto.toFixed(2)}
                           </p>
                           <p className="text-sm text-gray-300 mb-2">
-                            <strong>Terço:</strong> Salário ÷ 3 = R$ {(selectedEmployee.salary.base_salary_bruto / 3).toFixed(2)}
+                            <strong>Terço:</strong> Salário ÷ 3 = R$ {(selectedEmployee.salary.salario_bruto / 3).toFixed(2)}
                           </p>
                           <p className="text-sm text-gray-300">
-                            <strong>Total Bruto:</strong> Salário + Terço = R$ {(selectedEmployee.salary.base_salary_bruto + selectedEmployee.salary.base_salary_bruto / 3).toFixed(2)}
+                            <strong>Total Bruto:</strong> Salário + Terço = R$ {(selectedEmployee.salary.salario_bruto + selectedEmployee.salary.salario_bruto / 3).toFixed(2)}
                           </p>
                         </>
                       ) : (
@@ -719,13 +719,13 @@ export function EmployeeSalaryCalculator() {
                             <strong>Salário Proporcional:</strong> (Salário ÷ 12) × {vacationForm.working_months} meses
                           </p>
                           <p className="text-sm text-gray-300 mb-2">
-                            Valor: R$ {((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)).toFixed(2)}
+                            Valor: R$ {((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)).toFixed(2)}
                           </p>
                           <p className="text-sm text-gray-300 mb-2">
-                            <strong>Terço Proporcional:</strong> Valor ÷ 3 = R$ {(((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) / 3).toFixed(2)}
+                            <strong>Terço Proporcional:</strong> Valor ÷ 3 = R$ {(((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) / 3).toFixed(2)}
                           </p>
                           <p className="text-sm text-gray-300">
-                            <strong>Total Bruto:</strong> R$ {(((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) + (((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) / 3)).toFixed(2)}
+                            <strong>Total Bruto:</strong> R$ {(((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) + (((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) / 3)).toFixed(2)}
                           </p>
                         </>
                       )}
@@ -736,8 +736,8 @@ export function EmployeeSalaryCalculator() {
                         <p className="text-xs text-gray-400 mb-1">Terço</p>
                         <p className="text-lg font-bold text-green-400">
                           R$ {(parseInt(vacationForm.working_months) === 12
-                            ? selectedEmployee.salary.base_salary_bruto / 3
-                            : ((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) / 3
+                            ? selectedEmployee.salary.salario_bruto / 3
+                            : ((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) / 3
                           ).toFixed(2)}
                         </p>
                       </div>
@@ -745,8 +745,8 @@ export function EmployeeSalaryCalculator() {
                         <p className="text-xs text-gray-400 mb-1">Valor Bruto</p>
                         <p className="text-lg font-bold text-green-400">
                           R$ {(parseInt(vacationForm.working_months) === 12
-                            ? selectedEmployee.salary.base_salary_bruto + selectedEmployee.salary.base_salary_bruto / 3
-                            : ((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) + (((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) / 3)
+                            ? selectedEmployee.salary.salario_bruto + selectedEmployee.salary.salario_bruto / 3
+                            : ((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) + (((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) / 3)
                           ).toFixed(2)}
                         </p>
                       </div>
@@ -754,8 +754,8 @@ export function EmployeeSalaryCalculator() {
                         <p className="text-xs text-gray-400 mb-1">Valor Líquido</p>
                         <p className="text-lg font-bold text-green-400">
                           R$ {(parseInt(vacationForm.working_months) === 12
-                            ? selectedEmployee.salary.base_salary_bruto + selectedEmployee.salary.base_salary_bruto / 3
-                            : ((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) + (((selectedEmployee.salary.base_salary_bruto / 12) * parseInt(vacationForm.working_months)) / 3)
+                            ? selectedEmployee.salary.salario_bruto + selectedEmployee.salary.salario_bruto / 3
+                            : ((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) + (((selectedEmployee.salary.salario_bruto / 12) * parseInt(vacationForm.working_months)) / 3)
                           ).toFixed(2)}
                         </p>
                       </div>

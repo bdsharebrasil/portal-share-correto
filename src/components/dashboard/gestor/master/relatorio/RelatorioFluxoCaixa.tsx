@@ -29,7 +29,7 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("id, tipo, valor, data_competencia, data_vencimento, data_pagamento")
+        .select("id, tipo, valor_rateado, valor_original, data_competencia, data_vencimento, data_pagamento")
         .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
         .lte("data_competencia", format(endDate, "yyyy-MM-dd"))
         .order("data_competencia", { ascending: true });
@@ -70,11 +70,11 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
       
       const entradas = transacoesDia
         .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+        .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
       
       const saidas = transacoesDia
         .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
-        .reduce((acc, t) => acc + Number(t.valor), 0);
+        .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
 
       saldoAcumulado += entradas - saidas;
 
@@ -90,11 +90,11 @@ export const RelatorioFluxoCaixa = ({ onBack, isStandalone = true }: RelatorioFl
 
     const totalEntradas = transacoes
       .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
 
     const totalSaidas = transacoes
       .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
 
     return {
       fluxoDiario,

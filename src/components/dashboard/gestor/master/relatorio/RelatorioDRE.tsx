@@ -36,7 +36,7 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("id, tipo, valor, categoria_id")
+        .select("id, tipo, valor_rateado, valor_original, categoria_id")
         .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
         .lte("data_competencia", format(endDate, "yyyy-MM-dd"));
 
@@ -62,11 +62,11 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
 
     const receitas = transacoes
       .filter((t) => t.tipo === "receita" || t.tipo === "entrada")
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
 
     const despesas = transacoes
       .filter((t) => t.tipo !== "receita" && t.tipo !== "entrada")
-      .reduce((acc, t) => acc + Number(t.valor), 0);
+      .reduce((acc, t) => acc + Number(t.valor_rateado ?? t.valor_original ?? 0), 0);
 
     // Agrupar por categoria
     const receitasPorCategoria: Record<string, number> = {};
@@ -76,9 +76,9 @@ export const RelatorioDRE = ({ onBack, isStandalone = true }: RelatorioDREProps)
       const categoria = getCategoriaName(t.categoria_id);
       const tipoMovimento = t.tipo === "receita" || t.tipo === "entrada" ? "entrada" : "saida";
       if (tipoMovimento === "entrada") {
-        receitasPorCategoria[categoria] = (receitasPorCategoria[categoria] || 0) + Number(t.valor);
+        receitasPorCategoria[categoria] = (receitasPorCategoria[categoria] || 0) + Number(t.valor_rateado ?? t.valor_original ?? 0);
       } else {
-        despesasPorCategoria[categoria] = (despesasPorCategoria[categoria] || 0) + Number(t.valor);
+        despesasPorCategoria[categoria] = (despesasPorCategoria[categoria] || 0) + Number(t.valor_rateado ?? t.valor_original ?? 0);
       }
     });
 

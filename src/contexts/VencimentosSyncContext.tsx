@@ -50,7 +50,7 @@ export function VencimentosSyncProvider({ children }: { children: React.ReactNod
       .channel('crew_license_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'crew_licenses' },
+        { event: '*', schema: 'public', table: 'habilitacoes_tripulante' },
         (payload: any) => {
           triggerUpdate({
             type: payload.eventType === 'INSERT' ? 'create' : payload.eventType === 'UPDATE' ? 'update' : 'delete',

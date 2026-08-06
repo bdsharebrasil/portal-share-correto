@@ -58,6 +58,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
           descricao,
           grupo_custo,
           valor_rateado,
+          valor_original,
           data_vencimento,
           status,
           tipo,
@@ -86,7 +87,7 @@ export function useInadimplencia(options: UseInadimplenciaOptions = {}) {
           cliente_nome: movimentacao.clientes?.razao_social || "Cliente desconhecido",
           descricao: movimentacao.descricao,
           categoria: movimentacao.grupo_custo || null,
-          valor: Number(movimentacao.valor_rateado),
+          valor: Number(movimentacao.valor_rateado ?? movimentacao.valor_original ?? 0),
           data_vencimento: movimentacao.data_vencimento,
           dias_atraso: differenceInDays(new Date(), parseISO(movimentacao.data_vencimento)),
         }))

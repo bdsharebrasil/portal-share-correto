@@ -45,6 +45,13 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/components/ui/use-toast";
 
+interface ClienteLookup {
+  id: string;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  email: string | null;
+}
+
 interface BookingRequest {
   id: string;
   cliente_id: string | null;
@@ -90,17 +97,17 @@ export default function AprovacaoAgendamentos() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const rows = (data || []) as BookingRequest[];
-      const clienteIds = [...new Set(rows.map(r => r.cliente_id).filter(Boolean))];
+      const rows = (data ?? []) as BookingRequest[];
+      const clienteIds = Array.from(new Set(rows.map((r) => r.cliente_id).filter((id): id is string => Boolean(id))));
 
       const { data: clientes } = clienteIds.length
         ? await supabase
             .from("clientes")
             .select("id, razao_social, nome_fantasia, email")
-            .in("id", clienteIds as string[])
-        : { data: [] as any[] };
+            .in("id", clienteIds)
+        : { data: [] as ClienteLookup[] };
 
-      const byId = new Map((clientes || []).map((c: any) => [c.id, c]));
+      const byId = new Map<string, ClienteLookup>((clientes ?? []).map((c) => [c.id, c]));
 
       return rows.map(r => ({
         ...r,
@@ -137,10 +144,11 @@ export default function AprovacaoAgendamentos() {
       });
       setSelectedBooking(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
       toast({
         title: "Erro ao aprovar",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     }
@@ -179,17 +187,18 @@ export default function AprovacaoAgendamentos() {
       setBookingToReject(null);
       setRejectionReason("");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
       toast({
         title: "Erro ao rejeitar",
-        description: error.message,
+        description: message,
         variant: "destructive"
       });
     }
   });
 
   // Group bookings by aircraft
-  const groupedByAircraft = (bookings || []).reduce(
+  const groupedByAircraft = (bookings ?? []).reduce<Record<string, BookingRequest[]>>(
     (acc, booking) => {
       const aircraftKey = booking.aeronave?.matricula || "Desconhecido";
       if (!acc[aircraftKey]) {
@@ -198,7 +207,7 @@ export default function AprovacaoAgendamentos() {
       acc[aircraftKey].push(booking);
       return acc;
     },
-    {} as Record<string, BookingRequest[]>
+    {}
   );
 
   const stats = {

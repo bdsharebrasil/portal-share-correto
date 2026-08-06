@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { CronogramaVoos } from "@/components/agendamento/CronogramaVoos";
-import { CalendarioEscala } from "@/components/agendamento/CalendarioEscala";
-import { SolicitacoesReserva } from "@/components/agendamento/SolicitacoesReserva";
-import { PainelFrota } from "@/components/agendamento/PainelFrota";
-import { EscalaTripulacao } from "@/components/agendamento/EscalaTripulacao";
-import { NovoAgendamentoDialog } from "@/components/agendamento/NovoAgendamentoDialog";
+import { CronogramaVoos } from "@/components/AgendamentoVoo/CronogramaVoos";
+import { CalendarioEscala } from "@/components/AgendamentoVoo/CalendarioEscala";
+import { SolicitacoesReserva } from "@/components/AgendamentoVoo/SolicitacoesReserva";
+import { PainelFrota } from "@/components/AgendamentoVoo/PainelFrota";
+import { EscalaTripulacao } from "@/components/AgendamentoVoo/EscalaTripulacao";
+import { NovoAgendamentoDialog } from "@/components/AgendamentoVoo/NovoAgendamentoDialog";
 import {
   calcularDisponibilidadeTripulante,
   isAgendamentoHabilitado,

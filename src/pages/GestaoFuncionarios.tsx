@@ -289,12 +289,17 @@ export default function GestaoFuncionarios() {
         let latestBenefits: string | null = null;
         const {
           data: salaryData
-          } = await supabase.from("salarios").select("base_salary_bruto, benefit").eq("user_profile", profile.id).order("effective_date", {
-          ascending: false
-        }).limit(1);
+          } = await supabase
+            .from("salarios")
+            .select("salario_bruto, beneficios")
+            .eq("id_usuario", profile.id)
+            .order("data_vigencia", {
+              ascending: false
+            })
+            .limit(1);
         if (salaryData && salaryData.length > 0) {
-          latestSalary = salaryData[0].base_salary_bruto ? salaryData[0].base_salary_bruto.toString() : null;
-          latestBenefits = salaryData[0].benefit;
+          latestSalary = salaryData[0].salario_bruto ? salaryData[0].salario_bruto.toString() : null;
+          latestBenefits = salaryData[0].beneficios;
         }
         return {
           id: profile.id,
@@ -379,10 +384,12 @@ export default function GestaoFuncionarios() {
         const {
           error: salaryUpdateError
         } = await supabase.from("salarios").upsert([{
-          user_profile: employeeId,
-          base_salary_bruto: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
-          benefit: updatedData.benefits || null,
-          effective_date: new Date().toISOString().split('T')[0]
+          id_usuario: employeeId,
+          salario_bruto: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
+          salario_liquido: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
+          beneficios: updatedData.benefits || null,
+          data_vigencia: new Date().toISOString().split('T')[0],
+          atualizado_em: new Date().toISOString()
         } as any]);
         if (salaryUpdateError) console.error("Erro ao atualizar salário/benefício:", salaryUpdateError);
       }

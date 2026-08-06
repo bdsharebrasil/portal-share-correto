@@ -15,7 +15,7 @@ import { Loader2, Palmtree, Calendar, CheckCircle2, AlertCircle } from "lucide-r
 
 interface VacationConfig {
   id: string;
-  user_profile: string;
+  id_usuario: string;
   year: number;
   working_months: number;
   total_vacation_days: number;
@@ -66,9 +66,9 @@ export function VacationConfigManager() {
 
             const { data: salaryData } = await (supabase as any)
             .from("salarios")
-            .select("base_salary_bruto")
-            .eq("user_profile", profile.id)
-            .order("effective_date", { ascending: false })
+            .select("salario_bruto")
+            .eq("id_usuario", profile.id)
+            .order("data_vigencia", { ascending: false })
             .limit(1)
             .single();
 
@@ -79,7 +79,7 @@ export function VacationConfigManager() {
             full_name: profile.full_name,
             email: profile.email || "",
             roles,
-            salary: salaryData ? { base_salary_bruto: salaryData.base_salary_bruto } : null,
+            salary: salaryData ? { salario_bruto: salaryData.salario_bruto } : null,
           };
         })
       );
@@ -123,7 +123,7 @@ export function VacationConfigManager() {
   const employeesWithVacation = useMemo(() => {
     return employees.map((emp) => {
       const vacationForYear = allVacationConfigs.find(
-        (v) => v.user_profile === emp.id && v.year === selectedYear
+        (v) => v.id_usuario === emp.id && v.year === selectedYear
       );
 
       // Verificar se há pagamento de férias para este funcionário
@@ -275,8 +275,8 @@ export function VacationConfigManager() {
                   <div className="mt-3">
                     {selectedEmployee.vacation?.vacation_gross_value ? (
                       <p className="text-2xl font-bold text-foreground">{formatCurrency(selectedEmployee.vacation.vacation_gross_value)}</p>
-                    ) : selectedEmployee.salary?.base_salary_bruto ? (
-                      <p className="text-2xl font-bold text-foreground">{formatCurrency(selectedEmployee.salary.base_salary_bruto)}</p>
+                    ) : selectedEmployee.salary?.salario_bruto ? (
+                      <p className="text-2xl font-bold text-foreground">{formatCurrency(selectedEmployee.salary.salario_bruto)}</p>
                     ) : (
                       <p className="text-sm text-muted-foreground">Pendente</p>
                     )}

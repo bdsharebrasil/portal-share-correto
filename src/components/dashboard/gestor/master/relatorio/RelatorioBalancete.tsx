@@ -36,7 +36,7 @@ export const RelatorioBalancete = ({ onBack, isStandalone = true }: RelatorioBal
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("id, tipo, valor, categoria_id, data_competencia, data_vencimento, data_pagamento")
+        .select("id, tipo, valor_rateado, valor_original, categoria_id, data_competencia, data_vencimento, data_pagamento")
         .gte("data_competencia", format(startDate, "yyyy-MM-dd"))
         .lte("data_competencia", format(endDate, "yyyy-MM-dd"));
 
@@ -84,9 +84,9 @@ export const RelatorioBalancete = ({ onBack, isStandalone = true }: RelatorioBal
 
       const tipoMovimento = t.tipo === "receita" || t.tipo === "entrada" ? "entrada" : "saida";
       if (tipoMovimento === "entrada") {
-        categorias[categoria].credito += Number(t.valor);
+        categorias[categoria].credito += Number(t.valor_rateado ?? t.valor_original ?? 0);
       } else {
-        categorias[categoria].debito += Number(t.valor);
+        categorias[categoria].debito += Number(t.valor_rateado ?? t.valor_original ?? 0);
       }
     });
 

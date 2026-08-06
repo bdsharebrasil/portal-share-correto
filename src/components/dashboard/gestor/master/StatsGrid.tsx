@@ -23,7 +23,6 @@ export function StatsGrid() {
         .from("user_profiles")
         .select("*", { count: "exact", head: true })
         .eq("tipo", "colaborador")
-        .eq("employment_status", "ativo");
       if (error) throw error;
       return count || 0;
     },
@@ -38,7 +37,7 @@ export function StatsGrid() {
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("valor, tipo, status, data_pagamento, data_competencia, tipo_caixa")
+        .select("valor_rateado, valor_original, tipo, status, data_pagamento, data_competencia, tipo_caixa")
         .eq("tipo_caixa", "share")
         .gte("data_competencia", firstDay)
         .lte("data_competencia", lastDay)
@@ -46,7 +45,7 @@ export function StatsGrid() {
       
       if (error) throw error;
       return data?.filter((item) => ["entrada", "receita"].includes(item.tipo) && (item.status === "pago" || item.data_pagamento))
-        .reduce((sum, item) => sum + Number(item.valor), 0) || 0;
+        .reduce((sum, item) => sum + Number(item.valor_rateado ?? item.valor_original ?? 0), 0) || 0;
     },
   });
 
@@ -59,7 +58,7 @@ export function StatsGrid() {
 
       const { data, error } = await supabase
         .from("movimentacoes")
-        .select("valor, tipo, status, data_pagamento, data_competencia, tipo_caixa")
+        .select("valor_rateado, valor_original, tipo, status, data_pagamento, data_competencia, tipo_caixa")
         .eq("tipo_caixa", "share")
         .gte("data_competencia", firstDay)
         .lte("data_competencia", lastDay)
@@ -67,7 +66,7 @@ export function StatsGrid() {
       
       if (error) throw error;
       return data?.filter((item) => ["saida", "despesa"].includes(item.tipo) && (item.status === "pago" || item.data_pagamento))
-        .reduce((sum, item) => sum + Number(item.valor), 0) || 0;
+        .reduce((sum, item) => sum + Number(item.valor_rateado ?? item.valor_original ?? 0), 0) || 0;
     },
   });
 

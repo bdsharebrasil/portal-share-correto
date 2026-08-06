@@ -49,6 +49,7 @@ import ValeAlimentacao from "./pages/ValeAlimentacao";
 import ValeCombustivel from "./pages/ValeCombustivel";
 import PortalCliente from "./pages/PortalCliente";
 import Aerodromos from "./pages/Aerodromos";
+import CTM from "./pages/CTM";
 import Aeronaves from "./pages/Aeronaves";
 import AeronaveDetalhes from "./pages/AeronaveDetalhes";
 import GestaoSalarios from "./pages/GestaoSalarios";
@@ -64,6 +65,8 @@ import ConfiguracoesFiscais from "./components/dashboard/gestor/financeiro-share
 
 import Master from "./components/dashboard/gestor/master/Master";
 import MasterColaboradores from "./components/dashboard/gestor/master/MasterColaboradores";
+import CriarProposta from "./components/dashboard/gestor/master/CriarProposta";
+
 import ComparativoAeronaves from "./pages/gestor/ComparativoAeronaves";
 
 import DashboardOperacoes from "./pages/DashboardOperacoes";
@@ -256,6 +259,14 @@ const App = () => {
                               </RoleProtected>
                             )
                           } />
+                          <Route path="/gestor/master/proposta" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <CriarProposta />
+                              </RoleProtected>
+                            )
+                          } />
+
 
                           <Route path="/agenda" element={renderProtected(<AgendaHub />)} />
                           <Route path="/documentos" element={renderProtected(<Documentos />)} />
@@ -302,6 +313,8 @@ const App = () => {
                           />
                           <Route path="/hora-banco/:aircraftId" element={renderProtected(<BancoHorasWrapper />)} />
 
+                          <Route path="/ctm" element={renderProtected(<CTM />)} />
+                          <Route path="/ctm/:aircraftId" element={renderProtected(<CTM />)} />
                           <Route path="/aerodromos" element={renderProtected(<Aerodromos />)} />
                           <Route path="/aeronaves" element={renderProtected(<Aeronaves />)} />
                           <Route path="/aeronaves/:id" element={renderProtected(<AeronaveDetalhes />)} />
