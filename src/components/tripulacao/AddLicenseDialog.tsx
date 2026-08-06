@@ -41,6 +41,21 @@ export function AddLicenseDialog({
   const [validadeCma, setValidadeCma] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const normalizeDateValue = (value?: string | null) => {
+    if (!value) return "";
+
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    if (/^\d{2}\/\d{2}\/\d{2,4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split("/");
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      return `${fullYear}-${month}-${day}`;
+    }
+
+    return trimmed.split("T")[0];
+  };
+
   const isCMA = licenseType === "CMA";
 
   const resetForm = () => {
@@ -139,8 +154,8 @@ export function AddLicenseDialog({
                 Data de Validade *
               </Label>
               <Input
-                type="data"
-                value={expiryDate}
+                type="date"
+                value={normalizeDateValue(expiryDate)}
                 onChange={(e) => setExpiryDate(e.target.value)}
                 className="bg-transparent border-[#1d1d72] text-white"
               />
@@ -169,8 +184,8 @@ export function AddLicenseDialog({
                   Validade do CMA *
                 </Label>
                 <Input
-                  type="data"
-                  value={validadeCma}
+                  type="date"
+                  value={normalizeDateValue(validadeCma)}
                   onChange={(e) => setValidadeCma(e.target.value)}
                   className="bg-transparent border-[#1d1d72] text-white"
                 />

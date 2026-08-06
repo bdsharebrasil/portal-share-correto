@@ -3,6 +3,7 @@ import { PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Solicitacao, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import { Solicitacao, useAgendamentoMutations, useTripulantes } from "@/hooks/useAgendamentoVoo";
 
 interface Props {
   voo: Solicitacao | null;
@@ -23,20 +24,34 @@ const nowHHMM = () => new Date().toISOString().slice(11, 16);
 
 export function IniciarVooDialog({ voo, open, onOpenChange }: Props) {
   const { iniciarVoo } = useAgendamentoMutations();
+  const { data: tripulantes = [] } = useTripulantes();
   const [acionamento, setAcionamento] = useState("");
   const [decolagem, setDecolagem] = useState("");
+  const [picId, setPicId] = useState("");
+  const [sicId, setSicId] = useState("");
+  const [passageirosConfirmados, setPassageirosConfirmados] = useState("1");
 
   useEffect(() => {
     if (open) {
       setAcionamento(nowHHMM());
       setDecolagem("");
+      setPicId(voo?.piloto_id ?? "");
+      setSicId(voo?.copiloto_id ?? "");
+      setPassageirosConfirmados(String(voo?.qtd_passageiros ?? 1));
     }
-  }, [open]);
+  }, [open, voo]);
 
   const submit = () => {
     if (!voo || !acionamento || !decolagem) return;
     iniciarVoo.mutate(
-      { solicitacao: voo, horarioAcionamento: acionamento, horarioDecolagem: decolagem },
+      {
+        solicitacao: voo,
+        horarioAcionamento: acionamento,
+        horarioDecolagem: decolagem,
+        pilotoId: picId || null,
+        copilotoId: sicId || null,
+        qtdPassageiros: Number(passageirosConfirmados) || 1,
+      },
       { onSuccess: () => onOpenChange(false) },
     );
   };
@@ -74,6 +89,53 @@ export function IniciarVooDialog({ voo, open, onOpenChange }: Props) {
               value={decolagem}
               onChange={(e) => setDecolagem(e.target.value)}
               className="font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="pic">PIC</Label>
+            <Select value={picId} onValueChange={setPicId}>
+              <SelectTrigger id="pic">
+                <SelectValue placeholder="Selecione o comandante" />
+              </SelectTrigger>
+              <SelectContent>
+                {tripulantes.map((tripulante) => (
+                  <SelectItem key={tripulante.id} value={tripulante.id}>
+                    {tripulante.nome_completo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sic">SIC</Label>
+            <Select value={sicId} onValueChange={setSicId}>
+              <SelectTrigger id="sic">
+                <SelectValue placeholder="Opcional" />
+              </SelectTrigger>
+              <SelectContent>
+                {tripulantes
+                  .filter((tripulante) => tripulante.id !== picId)
+                  .map((tripulante) => (
+                    <SelectItem key={tripulante.id} value={tripulante.id}>
+                      {tripulante.nome_completo}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="passageiros">Passageiros confirmados</Label>
+            <Input
+              id="passageiros"
+              type="number"
+              min="1"
+              value={passageirosConfirmados}
+              onChange={(e) => setPassageirosConfirmados(e.target.value)}
             />
           </div>
         </div>

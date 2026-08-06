@@ -49,6 +49,21 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const normalizeDateValue = (value?: string | null) => {
+    if (!value) return '';
+
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    if (/^\d{2}\/\d{2}\/\d{2,4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split('/');
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      return `${fullYear}-${month}-${day}`;
+    }
+
+    return trimmed.split('T')[0];
+  };
+
   useEffect(() => {
     if (crewMember) {
       setFormData({
@@ -289,9 +304,9 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                   <Label htmlFor="birth_date">Data de Nascimento *</Label>
                   <Input
                     id="birth_date"
-                    type="data"
+                    type="date"
                     required
-                    value={formData.data_nascimento}
+                    value={normalizeDateValue(formData.data_nascimento)}
                     onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
                   />
                 </div>
@@ -430,9 +445,9 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                           <div className="space-y-1">
                             <Label className="text-xs">Vencimento *</Label>
                             <Input
-                              type="data"
+                              type="date"
                               required
-                              value={license.data_validade || ''}
+                              value={normalizeDateValue(license.data_validade || '')}
                               onChange={(e) => updateLicense(index, 'data_validade', e.target.value)}
                             />
                           </div>

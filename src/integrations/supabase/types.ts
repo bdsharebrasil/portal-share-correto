@@ -9770,6 +9770,7 @@ export type Database = {
           copiloto_id: string | null
           criado_em: string | null
           data_agendada: string
+          data_partida: string | null
           destino: string
           dias_duracao: number
           horario_acionamento: string | null
@@ -9795,6 +9796,7 @@ export type Database = {
           copiloto_id?: string | null
           criado_em?: string | null
           data_agendada: string
+          data_partida?: string | null
           destino: string
           dias_duracao?: number
           horario_acionamento?: string | null
@@ -9820,6 +9822,7 @@ export type Database = {
           copiloto_id?: string | null
           criado_em?: string | null
           data_agendada?: string
+          data_partida?: string | null
           destino?: string
           dias_duracao?: number
           horario_acionamento?: string | null

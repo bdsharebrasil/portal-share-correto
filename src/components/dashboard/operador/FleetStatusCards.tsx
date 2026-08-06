@@ -101,7 +101,7 @@ export function FleetStatusCards() {
   };
 
   return (
-    <div className="bg-card/50 backdrop-blur-sm rounded-xl border border-border p-4">
+    <div className="bg-card/50 backdrop-blur rounded-xl border border-border p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Plane className="h-5 w-5 text-primary" />
@@ -122,7 +122,7 @@ export function FleetStatusCards() {
         {aircraft.slice(0, 3).map((ac) => {
           const currentStatus = liveStatuses[ac.id] || ac.status;
           const statusInfo = getStatusInfo(currentStatus);
-          const isInFlight = ['em_voo', 'em_rota', 'ativo'].includes((currentStatus ?? '').toLowerCase());
+          const isInFlight = ['disponivel', 'em_rota', ].includes((currentStatus ?? '').toLowerCase());
 
           return (
             <div
@@ -161,9 +161,7 @@ export function FleetStatusCards() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-[10px] uppercase">
-                    {isInFlight ? "ETA" : "Próx. Voo"}
-                  </p>
+                 
                   <p className="text-foreground font-medium flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     --:--

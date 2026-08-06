@@ -52,6 +52,21 @@ export function LicenseExpiryDialog({
   const [fsRh, setFsRh] = useState(license?.FS_RH || "");
   const [isLoading, setIsLoading] = useState(false);
 
+  const normalizeDateValue = (value?: string | null) => {
+    if (!value) return "";
+
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    if (/^\d{2}\/\d{2}\/\d{2,4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split("/");
+      const fullYear = year.length === 2 ? `20${year}` : year;
+      return `${fullYear}-${month}-${day}`;
+    }
+
+    return trimmed.split("T")[0];
+  };
+
   const handleSave = async () => {
     if (!license?.id || !expiryDate) {
       toast.error("Selecione uma data válida");
@@ -173,8 +188,8 @@ export function LicenseExpiryDialog({
                 <Label htmlFor="expiry-date">Validade do CMA</Label>
                 <Input
                   id="expiry-date"
-                  type="data"
-                  value={expiryDate}
+                  type="date"
+                  value={normalizeDateValue(expiryDate)}
                   onChange={(e) => setExpiryDate(e.target.value)}
                   className="w-full"
                 />
@@ -192,8 +207,8 @@ export function LicenseExpiryDialog({
                 <Label htmlFor="expiry-date">Nova Data de Validade</Label>
                 <Input
                   id="expiry-date"
-                  type="data"
-                  value={expiryDate}
+                  type="date"
+                  value={normalizeDateValue(expiryDate)}
                   onChange={(e) => setExpiryDate(e.target.value)}
                   className="w-full"
                 />

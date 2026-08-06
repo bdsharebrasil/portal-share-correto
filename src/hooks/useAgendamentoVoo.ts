@@ -36,11 +36,15 @@ export interface Solicitacao {
   origem: string | null;
   destino: string | null;
   data_agendada: string;
+  data_partida?: string | null;
   horario_partida: string | null;
+  horario_acionamento?: string | null;
+  horario_decolagem?: string | null;
   horario_chegada: string | null;
   dias_duracao: number | null;
   qtd_passageiros: number | null;
   status: string;
+  iniciado_em?: string | null;
   observacoes: string | null;
   motivo_rejeicao: string | null;
   piloto_id: string | null;
@@ -450,7 +454,19 @@ export function useAgendamentoMutations() {
 
   const alterarStatusVoo = useMutation({
     mutationFn: async ({ solicitacao, status }: { solicitacao: Solicitacao; status: SolicitacaoStatus }) => {
-      const { error } = await sb.from("solicitacoes_reserva_voo").update({ status }).eq("id", solicitacao.id);
+      const updateData: Record<string, unknown> = { status };
+
+      if (status === "em_rota") {
+        updateData.data_partida = format(new Date(), "yyyy-MM-dd");
+        updateData.iniciado_em = solicitacao.iniciado_em ?? new Date().toISOString();
+        updateData.horario_acionamento = solicitacao.horario_acionamento ?? null;
+        updateData.horario_decolagem = solicitacao.horario_decolagem ?? null;
+        updateData.piloto_id = solicitacao.piloto_id ?? null;
+        updateData.copiloto_id = solicitacao.copiloto_id ?? null;
+        updateData.qtd_passageiros = solicitacao.qtd_passageiros ?? 1;
+      }
+
+      const { error } = await sb.from("solicitacoes_reserva_voo").update(updateData).eq("id", solicitacao.id);
       if (error) throw error;
 
       if (solicitacao.aeronave_id) {
@@ -503,10 +519,16 @@ export function useAgendamentoMutations() {
       solicitacao,
       horarioAcionamento,
       horarioDecolagem,
+      pilotoId,
+      copilotoId,
+      qtdPassageiros,
     }: {
       solicitacao: Solicitacao;
       horarioAcionamento: string;
       horarioDecolagem: string;
+      pilotoId?: string | null;
+      copilotoId?: string | null;
+      qtdPassageiros?: number;
     }) => {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id ?? null;
@@ -533,13 +555,19 @@ export function useAgendamentoMutations() {
         .single();
       if (cicloErr) throw cicloErr;
 
+      const passageirosConfirmados = Math.max(1, qtdPassageiros ?? solicitacao.qtd_passageiros ?? 1);
+
       const { error } = await sb
         .from("solicitacoes_reserva_voo")
         .update({
           status: "em_rota",
+          data_partida: format(new Date(), "yyyy-MM-dd"),
           horario_acionamento: horarioAcionamento ? `${horarioAcionamento}:00` : null,
           horario_decolagem: horarioDecolagem ? `${horarioDecolagem}:00` : null,
           iniciado_em: new Date().toISOString(),
+          piloto_id: pilotoId ?? solicitacao.piloto_id ?? null,
+          copiloto_id: copilotoId ?? solicitacao.copiloto_id ?? null,
+          qtd_passageiros: passageirosConfirmados,
           ciclo_voo_id: ciclo?.id ?? null,
         })
         .eq("id", solicitacao.id);
