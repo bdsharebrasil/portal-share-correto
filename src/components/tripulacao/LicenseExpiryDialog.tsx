@@ -51,6 +51,7 @@ export function LicenseExpiryDialog({
   const [cmaClass, setCmaClass] = useState(license?.CMA || "");
   const [fsRh, setFsRh] = useState(license?.FS_RH || "");
   const [isLoading, setIsLoading] = useState(false);
+  const licenseLabel = license?.license_type ?? license?.tipo_habilitacao ?? "";
 
   const normalizeDateValue = (value?: string | null) => {
     if (!value) return "";
@@ -145,7 +146,7 @@ export function LicenseExpiryDialog({
       <DialogContent className={isCMA ? "sm:max-w-md" : "sm:max-w-md"}>
         <DialogHeader>
           <DialogTitle>
-            {isCMA ? "Editar CMA" : `Atualizar Validade - ${license?.license_type}`}
+            {isCMA ? "Editar CMA" : `Atualizar Validade - ${licenseLabel}`}
           </DialogTitle>
         </DialogHeader>
 

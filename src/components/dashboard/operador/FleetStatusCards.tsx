@@ -14,11 +14,18 @@ interface AeronaveStatus {
   status_atual?: string;
 }
 
+interface VooAtivo {
+  aeronave_id: string;
+  origem: string | null;
+  destino: string | null;
+  status: string | null;
+}
+
 const statusConfig: Record<string, { bg: string; text: string; label: string; borderColor: string; icon: string; textColor: string }> = {
   ativa: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
-  ativo: { bg: "bg-primary/20", text: "text-primary", label: "Em Voo", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
-  em_voo: { bg: "bg-primary/20", text: "text-primary", label: "Em Voo", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
-  em_rota: { bg: "bg-primary/20", text: "text-primary", label: "Em Rota", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
+  ativo: { bg: "bg-amber-500/20", text: "text-amber-400", label: "Em Voo", borderColor: "border-l-amber-400", icon: "plane", textColor: "text-amber-400" },
+  em_voo: { bg: "bg-amber-500/20", text: "text-amber-400", label: "Em Voo", borderColor: "border-l-amber-400", icon: "plane", textColor: "text-amber-400" },
+  em_rota: { bg: "bg-amber-500/20", text: "text-amber-400", label: "Em Rota", borderColor: "border-l-amber-400", icon: "plane", textColor: "text-amber-400" },
   reservado: { bg: "bg-cyan-500/20", text: "text-cyan-400", label: "Reservado", borderColor: "border-l-cyan-400", icon: "plane", textColor: "text-cyan-400" },
   disponivel: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
   atrasado: { bg: "bg-destructive/20", text: "text-destructive", label: "Atrasado", borderColor: "border-l-destructive", icon: "alert", textColor: "text-destructive" },
@@ -46,6 +53,26 @@ export function FleetStatusCards() {
     refetchInterval: 5000,
     refetchIntervalInBackground: true,
   });
+
+  const aircraftIds = (aircraft as Array<{ id: string }>).map((ac) => ac.id);
+  const { data: activeFlights = [] } = useQuery({
+    queryKey: ["aircraft-fleet-active-bookings", aircraftIds.join(",")],
+    queryFn: async () => {
+      if (!aircraftIds.length) return [];
+
+      const { data, error } = await supabase
+        .from("solicitacoes_reserva_voo")
+        .select("aeronave_id, origem, destino, status")
+        .in("aeronave_id", aircraftIds)
+        .in("status", ["em_voo", "em_rota"]);
+
+      if (error) throw error;
+      return (data || []) as VooAtivo[];
+    },
+    enabled: aircraftIds.length > 0,
+  });
+
+  const activeFlightsMap = new Map((activeFlights as VooAtivo[]).map((flight) => [flight.aeronave_id, flight]));
 
   // Subscribe to live status updates
   useEffect(() => {
@@ -122,7 +149,10 @@ export function FleetStatusCards() {
         {aircraft.slice(0, 3).map((ac) => {
           const currentStatus = liveStatuses[ac.id] || ac.status;
           const statusInfo = getStatusInfo(currentStatus);
-          const isInFlight = ['disponivel', 'em_rota', ].includes((currentStatus ?? '').toLowerCase());
+          const normalizedStatus = (currentStatus ?? '').toLowerCase().trim();
+          const isInFlight = ['em_voo', 'em_rota', 'ativo'].includes(normalizedStatus);
+          const activeFlight = activeFlightsMap.get(ac.id);
+          const shouldShowRoute = isInFlight && Boolean(activeFlight);
 
           return (
             <div
@@ -150,24 +180,15 @@ export function FleetStatusCards() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <p className="text-muted-foreground text-[10px] uppercase">
-                    {isInFlight ? "Destino" : "Localização"}
-                  </p>
+              {shouldShowRoute ? (
+                <div className="text-xs">
+                  <p className="text-muted-foreground text-[10px] uppercase">Trecho</p>
                   <p className="text-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    {ac.base || "N/A"}
+                    {activeFlight?.origem ?? "—"} → {activeFlight?.destino ?? "—"}
                   </p>
                 </div>
-                <div>
-                 
-                  <p className="text-foreground font-medium flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    --:--
-                  </p>
-                </div>
-              </div>
+              ) : null}
             </div>
           );
         })}
