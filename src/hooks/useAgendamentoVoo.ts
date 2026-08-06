@@ -40,6 +40,7 @@ export interface Solicitacao {
   horario_partida: string | null;
   horario_acionamento?: string | null;
   horario_decolagem?: string | null;
+  horario_pouso?: string | null;
   horario_chegada: string | null;
   dias_duracao: number | null;
   qtd_passageiros: number | null;
@@ -112,6 +113,23 @@ export interface ConfigAgendamentoAeronave {
 
 const sb = supabase as any;
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
+
+async function registrarHistoricoStatus(
+  solicitacaoId: string,
+  statusAnterior: string | null,
+  statusNovo: string,
+  alteradoPor: string | null,
+  observacao?: string | null,
+) {
+  await sb.from("historico_status_solicitacao").insert({
+    solicitacao_id: solicitacaoId,
+    status_anterior: statusAnterior,
+    status_novo: statusNovo,
+    alterado_por: alteradoPor,
+    alterado_em: new Date().toISOString(),
+    observacao: observacao ?? null,
+  });
+}
 
 /* ------------------------------- Queries -------------------------------- */
 
@@ -454,13 +472,17 @@ export function useAgendamentoMutations() {
 
   const alterarStatusVoo = useMutation({
     mutationFn: async ({ solicitacao, status }: { solicitacao: Solicitacao; status: SolicitacaoStatus }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id ?? null;
       const updateData: Record<string, unknown> = { status };
 
+      const statusAnterior = solicitacao.status;
       if (status === "em_rota") {
-        updateData.data_partida = format(new Date(), "yyyy-MM-dd");
+        updateData.data_partida = solicitacao.data_partida ?? format(new Date(), "yyyy-MM-dd");
         updateData.iniciado_em = solicitacao.iniciado_em ?? new Date().toISOString();
         updateData.horario_acionamento = solicitacao.horario_acionamento ?? null;
         updateData.horario_decolagem = solicitacao.horario_decolagem ?? null;
+        updateData.horario_pouso = solicitacao.horario_pouso ?? null;
         updateData.piloto_id = solicitacao.piloto_id ?? null;
         updateData.copiloto_id = solicitacao.copiloto_id ?? null;
         updateData.qtd_passageiros = solicitacao.qtd_passageiros ?? 1;
@@ -468,6 +490,8 @@ export function useAgendamentoMutations() {
 
       const { error } = await sb.from("solicitacoes_reserva_voo").update(updateData).eq("id", solicitacao.id);
       if (error) throw error;
+
+      await registrarHistoricoStatus(solicitacao.id, statusAnterior, status, userId);
 
       if (solicitacao.aeronave_id) {
         const statusAeronave =
@@ -517,15 +541,19 @@ export function useAgendamentoMutations() {
   const iniciarVoo = useMutation({
     mutationFn: async ({
       solicitacao,
+      dataPartida,
       horarioAcionamento,
       horarioDecolagem,
+      horarioPouso,
       pilotoId,
       copilotoId,
       qtdPassageiros,
     }: {
       solicitacao: Solicitacao;
+      dataPartida: string;
       horarioAcionamento: string;
       horarioDecolagem: string;
+      horarioPouso?: string;
       pilotoId?: string | null;
       copilotoId?: string | null;
       qtdPassageiros?: number;
@@ -557,14 +585,41 @@ export function useAgendamentoMutations() {
 
       const passageirosConfirmados = Math.max(1, qtdPassageiros ?? solicitacao.qtd_passageiros ?? 1);
 
+      const { data: lastLeg, error: lastLegError } = await sb
+        .from("pernas_voo")
+        .select("numero_perna")
+        .eq("solicitacao_id", solicitacao.id)
+        .order("numero_perna", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastLegError) throw lastLegError;
+      const nextLegNumber = (lastLeg?.numero_perna ?? 0) + 1;
+
+      const { error: legError } = await sb.from("pernas_voo").insert({
+        solicitacao_id: solicitacao.id,
+        numero_perna: nextLegNumber,
+        data_perna: dataPartida,
+        origem: solicitacao.origem ?? "",
+        destino: solicitacao.destino ?? "",
+        horario_acionamento: horarioAcionamento ? `${horarioAcionamento}:00` : null,
+        horario_decolagem: horarioDecolagem ? `${horarioDecolagem}:00` : null,
+        horario_pouso: horarioPouso ? `${horarioPouso}:00` : null,
+        horario_corte: new Date().toISOString(),
+        qtd_passageiros: passageirosConfirmados,
+        observacoes: `Perna ${nextLegNumber} iniciada para agendamento ${solicitacao.id}`,
+      });
+      if (legError) throw legError;
+
       const { error } = await sb
         .from("solicitacoes_reserva_voo")
         .update({
           status: "em_rota",
-          data_partida: format(new Date(), "yyyy-MM-dd"),
+          data_partida: dataPartida,
           horario_acionamento: horarioAcionamento ? `${horarioAcionamento}:00` : null,
           horario_decolagem: horarioDecolagem ? `${horarioDecolagem}:00` : null,
-          iniciado_em: new Date().toISOString(),
+          horario_pouso: horarioPouso ? `${horarioPouso}:00` : null,
+          iniciado_em: solicitacao.iniciado_em ?? new Date().toISOString(),
           piloto_id: pilotoId ?? solicitacao.piloto_id ?? null,
           copiloto_id: copilotoId ?? solicitacao.copiloto_id ?? null,
           qtd_passageiros: passageirosConfirmados,
@@ -578,10 +633,12 @@ export function useAgendamentoMutations() {
           localizacao_atual: solicitacao.origem ?? null,
           ultima_partida: new Date().toISOString(),
           chegada_prevista: solicitacao.horario_chegada
-            ? `${solicitacao.data_agendada}T${solicitacao.horario_chegada}`
+            ? `${dataPartida}T${solicitacao.horario_chegada}`
             : null,
         });
       }
+
+      await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "em_rota", userId, `Perna ${nextLegNumber} registrada`);
 
       await sb
         .from("escala_tripulacao")
@@ -596,6 +653,68 @@ export function useAgendamentoMutations() {
       qc.invalidateQueries({ queryKey: ["aircraft-fleet"] });
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao iniciar voo"),
+  });
+
+  const concluirVoo = useMutation({
+    mutationFn: async ({
+      solicitacao,
+      horarioPouso,
+    }: {
+      solicitacao: Solicitacao;
+      horarioPouso: string;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id ?? null;
+
+      const { data: lastLeg, error: lastLegError } = await sb
+        .from("pernas_voo")
+        .select("id, numero_perna")
+        .eq("solicitacao_id", solicitacao.id)
+        .order("numero_perna", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastLegError) throw lastLegError;
+      if (lastLeg?.id) {
+        const { error: updateLegError } = await sb
+          .from("pernas_voo")
+          .update({ horario_pouso: `${horarioPouso}:00` })
+          .eq("id", lastLeg.id);
+        if (updateLegError) throw updateLegError;
+      }
+
+      const { error } = await sb
+        .from("solicitacoes_reserva_voo")
+        .update({
+          status: "concluido",
+          horario_pouso: `${horarioPouso}:00`,
+        })
+        .eq("id", solicitacao.id);
+      if (error) throw error;
+
+      if (solicitacao.aeronave_id) {
+        await upsertStatusAeronave(solicitacao.aeronave_id, "disponivel", null, {
+          localizacao_atual: solicitacao.destino ?? null,
+        });
+
+        await sb
+          .from("ciclos_voo")
+          .update({ status: "concluido", concluido_em: new Date().toISOString() })
+          .eq("aeronave_id", solicitacao.aeronave_id)
+          .eq("data_voo", solicitacao.data_agendada)
+          .in("status", ["planejado", "em_andamento"]);
+      }
+
+      await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "concluido", userId, `Pouso registrado em ${horarioPouso}`);
+    },
+    onSuccess: () => {
+      toast.success("Voo concluído com horário de pouso registrado");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["ciclos-voo"] });
+      qc.invalidateQueries({ queryKey: ["active-flight-cycles"] });
+      qc.invalidateQueries({ queryKey: ["aircraft-fleet"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao concluir voo"),
   });
 
   const definirStatusAeronave = useMutation({
@@ -688,7 +807,7 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao excluir voo"),
   });
 
-  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, iniciarVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
+  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, iniciarVoo, concluirVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
 }
 
 async function upsertStatusAeronave(

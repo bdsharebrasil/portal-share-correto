@@ -21,12 +21,14 @@ interface Props {
 }
 
 const nowHHMM = () => new Date().toISOString().slice(11, 16);
+const todayYYYYMMDD = () => new Date().toISOString().slice(0, 10);
 
 export function IniciarVooDialog({ voo, open, onOpenChange }: Props) {
   const { iniciarVoo } = useAgendamentoMutations();
   const { data: tripulantes = [] } = useTripulantes();
   const [acionamento, setAcionamento] = useState("");
   const [decolagem, setDecolagem] = useState("");
+  const [dataPartida, setDataPartida] = useState("");
   const [picId, setPicId] = useState("");
   const [sicId, setSicId] = useState("");
   const [passageirosConfirmados, setPassageirosConfirmados] = useState("1");
@@ -35,6 +37,7 @@ export function IniciarVooDialog({ voo, open, onOpenChange }: Props) {
     if (open) {
       setAcionamento(nowHHMM());
       setDecolagem("");
+      setDataPartida(voo?.data_partida ?? voo?.data_agendada ?? todayYYYYMMDD());
       setPicId(voo?.piloto_id ?? "");
       setSicId(voo?.copiloto_id ?? "");
       setPassageirosConfirmados(String(voo?.qtd_passageiros ?? 1));
@@ -42,10 +45,11 @@ export function IniciarVooDialog({ voo, open, onOpenChange }: Props) {
   }, [open, voo]);
 
   const submit = () => {
-    if (!voo || !acionamento || !decolagem) return;
+    if (!voo || !acionamento || !decolagem || !dataPartida) return;
     iniciarVoo.mutate(
       {
         solicitacao: voo,
+        dataPartida,
         horarioAcionamento: acionamento,
         horarioDecolagem: decolagem,
         pilotoId: picId || null,
@@ -71,6 +75,16 @@ export function IniciarVooDialog({ voo, open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="data-partida">Data de partida real</Label>
+            <Input
+              id="data-partida"
+              type="date"
+              value={dataPartida}
+              onChange={(e) => setDataPartida(e.target.value)}
+              className="font-mono"
+            />
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="acionamento">Acionamento (AC)</Label>
             <Input

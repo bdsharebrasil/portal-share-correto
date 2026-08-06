@@ -138,7 +138,7 @@ export function FleetStatusCards() {
           variant="ghost"
           size="sm"
           className="text-primary hover:text-primary/80"
-          onClick={() => navigate("/aeronaves")}
+          onClick={() => navigate("/painel-agendamentos")}
         >
           Ver Todas Aeronaves
           <ArrowRight className="ml-1 h-4 w-4" />

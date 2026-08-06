@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { ConcluirVooDialog } from "./ConcluirVooDialog";
 import { IniciarVooDialog } from "./IniciarVooDialog";
 import { utcToBrasilia } from "@/lib/timezone-utils";
 
@@ -45,6 +46,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Solicitacao | null>(null);
   const [iniciarTarget, setIniciarTarget] = useState<Solicitacao | null>(null);
+  const [concluirTarget, setConcluirTarget] = useState<Solicitacao | null>(null);
 
   const voos = useMemo(
     () =>
@@ -102,18 +104,36 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       </span>
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {format(parseISO(voo.data_agendada), "dd 'de' MMM", { locale: ptBR })}
+                      {format(parseISO(voo.data_partida || voo.data_agendada), "dd 'de' MMM", { locale: ptBR })}
                       {voo.cliente_nome ? ` · ${voo.cliente_nome}` : ""}
                     </p>
                   </button>
                   <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>{meta.label}</span>
-                  <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{voo.horario_partida?.slice(0, 5) ?? "--:--"} UTC</span>
-                    {voo.horario_partida && (
-                      <span className="text-muted-foreground/70">· {utcToBrasilia(voo.horario_partida)} BSB</span>
-                    )}
+                  <span className="text-xs text-muted-foreground block mb-1">
+                    {voo.data_partida && voo.data_partida !== voo.data_agendada
+                      ? `Agendado: ${format(parseISO(voo.data_agendada), "dd/MM")}`
+                      : null}
                   </span>
+                  {voo.status === "em_rota" || voo.status === "em_voo" ? (
+                    <div className="flex flex-col gap-1 text-sm font-semibold tabular-nums text-foreground">
+                      <span>AC {voo.horario_acionamento?.slice(0, 5) ?? "--:--"} UTC</span>
+                      <span>DEP {voo.horario_decolagem?.slice(0, 5) ?? "--:--"} UTC</span>
+                      {voo.horario_pouso ? <span>ARR {voo.horario_pouso.slice(0, 5)} UTC</span> : null}
+                    </div>
+                  ) : voo.status === "concluido" ? (
+                    <div className="flex items-center gap-2 text-sm font-semibold tabular-nums text-foreground">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>ARR {voo.horario_pouso?.slice(0, 5) ?? voo.horario_chegada?.slice(0, 5) ?? "--:--"} UTC</span>
+                    </div>
+                  ) : (
+                    <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{voo.horario_partida?.slice(0, 5) ?? "--:--"} UTC</span>
+                      {voo.horario_partida && (
+                        <span className="text-muted-foreground/70">· {utcToBrasilia(voo.horario_partida)} BSB</span>
+                      )}
+                    </span>
+                  )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -138,7 +158,7 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                         <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Iniciar voo
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => handleStatusChange(voo, "concluido")}
+                        onClick={() => setConcluirTarget(voo)}
                         disabled={!emVoo}
                       >
                         <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Concluir voo
@@ -170,6 +190,11 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
         voo={iniciarTarget}
         open={!!iniciarTarget}
         onOpenChange={(open) => !open && setIniciarTarget(null)}
+      />
+      <ConcluirVooDialog
+        voo={concluirTarget}
+        open={!!concluirTarget}
+        onOpenChange={(open) => !open && setConcluirTarget(null)}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
