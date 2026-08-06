@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Plus, X, Save, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
+type WeightBalance = Database['public']['Tables']['ctm_peso_balanceamento']['Row'];
+type WeightBalanceItem = Database['public']['Tables']['ctm_itens_peso_balanceamento']['Row'];
+type WeightBalanceItemInsert = Database['public']['Tables']['ctm_itens_peso_balanceamento']['Insert'];
+
 export function PesoBalanceamentoTab({ aircraftId }: { aircraftId: string }) {
-  const [wb, setWb] = useState<any | null>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [wb, setWb] = useState<WeightBalance | null>(null);
+  const [items, setItems] = useState<WeightBalanceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ descricao: '', peso_sem_combustivel: '', braco_posicao: '', momento: '' });
@@ -31,11 +36,25 @@ export function PesoBalanceamentoTab({ aircraftId }: { aircraftId: string }) {
     try {
       let wbId = wb?.id;
       if (!wbId) {
-        const { data: insWb, error: wbErr } = await supabase.from('ctm_peso_balanceamento').insert({ aeronave_id: aircraftId, peso_vazio_padrao: 0, braco_cg_padrao: 0, mac_comprimento: 0, lemac_distancia: 0, peso_maximo_decolagem: 0, peso_maximo_pouso: 0 }).select('id');
-        if (wbErr) { toast.error('Erro criando balanceamento'); setLoading(false); return; }
-        wbId = insWb && insWb[0] ? insWb[0].id : undefined;
+        const { data: insWb, error: wbErr } = await supabase
+          .from('ctm_peso_balanceamento')
+          .insert({
+            aeronave_id: aircraftId,
+            peso_vazio_padrao: 0,
+            braco_cg_padrao: 0,
+            peso_maximo_decolagem: 0,
+            peso_maximo_pouso: 0,
+            cg_limite_dianteiro: 0,
+            cg_limite_traseiro: 0,
+            mac_comprimento: 0,
+            lemac_distancia: 0,
+          })
+          .select('id')
+          .single();
+        if (wbErr || !insWb?.id) { toast.error('Erro criando balanceamento'); setLoading(false); return; }
+        wbId = insWb.id;
       }
-      const payload = {
+      const payload: WeightBalanceItemInsert = {
         peso_balanceamento_id: wbId,
         descricao: form.descricao,
         categoria: null,
