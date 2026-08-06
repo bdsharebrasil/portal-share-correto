@@ -164,7 +164,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
     try {
       if (hasSystemAccess) {
         // COM acesso ao sistema - criar via edge function
-        const email = `${data.login}@share.com`;
+        const email = `${data.login}@share-brasil.com`;
         const role = data.department ? DEPARTMENT_TO_ROLE_MAP[data.department] || "adm" : "adm";
 
         const profileData: Record<string, any> = {
@@ -321,7 +321,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
 
     setIsLoading(true);
     try {
-      const email = `${data.login.trim()}@share.com`;
+      const email = `${data.login.trim()}@share-brasil.com`;
 
       console.log("Sending create-user request with:", {
         email,
@@ -459,10 +459,10 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                                     type="text"
                                     className="flex-1 px-3 py-2 bg-transparent outline-none"
                                     value={field.value}
-                                    onChange={(e) => field.onChange(e.target.value.replace("@share.com", ""))}
+                                    onChange={(e) => field.onChange(e.target.value.replace("@share-brasil.com", ""))}
                                   />
                                   <div className="px-3 py-2 bg-muted text-muted-foreground font-semibold whitespace-nowrap border-l border-input">
-                                    @share
+                                    @share-brasil.com
                                   </div>
                                 </div>
                               </FormControl>
