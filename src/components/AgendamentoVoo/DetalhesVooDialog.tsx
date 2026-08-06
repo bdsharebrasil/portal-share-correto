@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations } from "@/hooks/useAgendamentoVoo";
+import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, useTripulantes } from "@/hooks/useAgendamentoVoo";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
@@ -20,9 +20,17 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+interface StatusHistory {
+  status_anterior: string | null;
+  status_novo: string;
+  alterado_por: string | null;
+  alterado_em: string;
+  observacao: string | null;
+}
+
 // Mapeamento dos status reais configurados no banco de dados
 function statusLabel(status: string, voo?: Solicitacao) {
-  if (voo?.horario_pouso || voo?.horario_corte) return "Pousado";
+  if (voo?.horario_pouso) return "Pousado";
   switch (status) {
     case "pendente":
       return "Pendente";
@@ -30,6 +38,8 @@ function statusLabel(status: string, voo?: Solicitacao) {
       return "Agendado";
     case "em_rota":
       return "Em Rota";
+    case "concluido":
+      return "Concluído";
     case "rejeitado":
       return "Rejeitado";
     case "cancelado":
@@ -41,8 +51,9 @@ function statusLabel(status: string, voo?: Solicitacao) {
 
 export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
   const { alterarStatusVoo } = useAgendamentoMutations();
+  const { data: tripulantes = [], isLoading: tripulantesLoading } = useTripulantes();
 
-  const { data: history = [], isLoading: historyLoading } = useQuery<any[]>({
+  const { data: history = [], isLoading: historyLoading } = useQuery<StatusHistory[]>({
     queryKey: ["historico-status", voo?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,7 +70,12 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
 
   if (!voo) return null;
 
-  const temPouso = Boolean(voo.horario_pouso || voo.horario_corte);
+  const temPouso = Boolean(voo.horario_pouso);
+  const nomeTripulante = (id: string | null) => {
+    if (!id) return "Não informado";
+    if (tripulantesLoading) return "Carregando...";
+    return tripulantes.find((tripulante) => tripulante.id === id)?.nome_completo ?? "Tripulante não encontrado";
+  };
 
   const handleStatusUpdate = (novoStatus: SolicitacaoStatus) => {
     alterarStatusVoo.mutate({ solicitacao: voo, status: novoStatus });
@@ -67,7 +83,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Detalhes do Voo</DialogTitle>
           <DialogDescription>
@@ -76,7 +92,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-border bg-background/80 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Status</p>
               <Badge className="mt-2 bg-primary/10 text-primary">{statusLabel(voo.status, voo)}</Badge>
@@ -87,7 +103,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-border bg-background/80 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Agendado</p>
               <p className="mt-2 text-sm text-foreground">
@@ -114,14 +130,14 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-xl border border-border bg-background/80 p-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="min-w-0 rounded-xl border border-border bg-background/80 p-4">
               <Label className="text-xs text-muted-foreground">Piloto</Label>
-              <p className="mt-1 text-sm text-foreground">{voo.piloto_id ?? "Não informado"}</p>
+              <p className="mt-1 break-words text-sm text-foreground">{nomeTripulante(voo.piloto_id)}</p>
             </div>
-            <div className="rounded-xl border border-border bg-background/80 p-4">
+            <div className="min-w-0 rounded-xl border border-border bg-background/80 p-4">
               <Label className="text-xs text-muted-foreground">Copiloto</Label>
-              <p className="mt-1 text-sm text-foreground">{voo.copiloto_id ?? "Não informado"}</p>
+              <p className="mt-1 break-words text-sm text-foreground">{nomeTripulante(voo.copiloto_id)}</p>
             </div>
             <div className="rounded-xl border border-border bg-background/80 p-4">
               <Label className="text-xs text-muted-foreground">Passageiros</Label>
@@ -155,11 +171,11 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
               <p className="mt-2 text-sm text-muted-foreground">Nenhuma alteração registrada ainda.</p>
             ) : (
               <div className="mt-3 space-y-3 max-h-48 overflow-y-auto">
-                {history.map((item: any, index: number) => (
+                {history.map((item, index) => (
                   <div key={index} className="rounded-lg bg-background/50 p-3 border border-border">
-                    <div className="flex items-center justify-between gap-2 text-[11px] uppercase text-muted-foreground">
+                    <div className="flex flex-col gap-1 text-[11px] uppercase text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                       <span>{format(parseISO(item.alterado_em), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
-                      <span>{item.alterado_por ?? "Sistema"}</span>
+                      <span className="break-all sm:text-right">{item.alterado_por ?? "Sistema"}</span>
                     </div>
                     <p className="mt-1 text-sm text-foreground">
                       {item.status_anterior ? `${statusLabel(item.status_anterior)} → ` : ""}
@@ -172,7 +188,7 @@ export function DetalhesVooDialog({ voo, open, onOpenChange }: Props) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Fechar
             </Button>
