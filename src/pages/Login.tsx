@@ -79,8 +79,8 @@ const Login = () => {
     }
     setIsSubmitting(true);
     try {
-      // Formata o email com @share.com
-      const formattedEmail = `${email.trim()}@share.com`;
+      // Formata o email com @share-brasil.com
+      const formattedEmail = `${email.trim()}@share-brasil.com`;
       if (rememberEmail) {
         localStorage.setItem("login_email", email.trim());
       } else {
@@ -199,7 +199,7 @@ const Login = () => {
               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
               <Input id="email" type="text" value={email} onChange={event => handleEmailChange(event.target.value)} placeholder="nome-usuario" autoComplete="off" disabled={isSubmitting} className={`h-12 rounded-2xl border-2 transition-all bg-white/5 pl-10 pr-28 text-base text-white placeholder:text-white/40 focus-visible:bg-white/10 focus-visible:ring-offset-0 ${email.trim().length > 0 ? isEmailValid() ? "border-green-400/50 focus-visible:border-green-400 focus-visible:ring-2 focus-visible:ring-green-400/50" : "border-red-400/50 focus-visible:border-red-400 focus-visible:ring-2 focus-visible:ring-red-400/50" : "border-white/10 focus-visible:border-[#38d7ff] focus-visible:ring-2 focus-visible:ring-[#38d7ff]"}`} />
               <span className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${email.trim().length > 0 ? isEmailValid() ? "bg-green-400/20 text-green-400" : "bg-red-500/20 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]" : "bg-gray/10 text-[#2ad1ff] drop-shadow-[0_0_6px_rgba(42,209,255,0.5)]"}`}>
-                @share
+                @share-brasil.com
               </span>
             </div>
             <p className="text-xs text-white/50 mt-1">
