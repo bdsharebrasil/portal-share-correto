@@ -33,6 +33,8 @@ const TIPO_SUBCATEGORIA: Record<TipoDemo, string> = {
   POUSO: "TARIFA DE POUSO",
 };
 
+const WORKER_URL = "https://api-workers.sharebrasil.workers.dev";
+
 interface DemoItem {
   data: string;
   hora?: string;
@@ -218,10 +220,21 @@ export default function ImportarDemonstrativoTab() {
     setIsAnalyzing(true);
     try {
       const { base64, mimeType } = await fileToBase64(file);
-      const { data, error } = await supabase.functions.invoke("demonstrativo-ocr", {
-        body: { imageBase64: base64, mimeType, tipo },
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) throw new Error("Sessão expirada. Faça login novamente.");
+
+      const resp = await fetch(`${WORKER_URL}/api/demonstrativo-ocr`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ imageBase64: base64, mimeType, tipo }),
       });
-      if (error) throw error;
+
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || "Falha ao processar o demonstrativo");
       const res = data as DemoResult;
 
       const datasIso = Array.from(new Set(res.itens.map((i) => toIso(i.data)).filter(Boolean) as string[]));

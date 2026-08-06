@@ -161,6 +161,48 @@ export function ControleManutencaoTab({ aircraftId, registration, horasCelula }:
       })
       .eq('id', item.id);
     if (error) return toast.error('Erro ao registrar execução');
+    // Registrar execução no histórico (ctm_execucoes)
+    try {
+      // tentar localizar item em ctm_itens_aeronave por nome override
+      const { data: found } = await supabase
+        .from('ctm_itens_aeronave')
+        .select('id')
+        .eq('aeronave_id', aircraftId)
+        .eq('nome_item_override', item.item)
+        .limit(1);
+      let itemAeronaveId: string | undefined = (found && found[0]) ? (found[0] as any).id : undefined;
+      if (!itemAeronaveId) {
+        const { data: ins, error: insErr } = await supabase
+          .from('ctm_itens_aeronave')
+          .insert({
+            aeronave_id: aircraftId,
+            modelo_item_id: null,
+            nome_item_override: item.item,
+            intervalo_horas_override: null,
+            intervalo_pousos_override: null,
+            intervalo_meses_override: null,
+            ativo: true,
+          })
+          .select('id');
+        if (insErr) console.error('Erro criando ctm_itens_aeronave', insErr);
+        else if (ins && ins[0]) itemAeronaveId = (ins[0] as any).id;
+      }
+
+      if (itemAeronaveId) {
+        const { error: execErr } = await supabase.from('ctm_execucoes').insert({
+          item_aeronave_id: itemAeronaveId,
+          data_execucao: hoje,
+          horas_aeronave_na_execucao: estado.horas || null,
+          pousos_aeronave_na_execucao: estado.pousos || null,
+          oficina: null,
+          ordem_servico: null,
+          observacoes: null,
+        });
+        if (execErr) console.error('Erro gravando ctm_execucoes', execErr);
+      }
+    } catch (e) {
+      console.error('Erro no fluxo de execucao CTM:', e);
+    }
     toast.success(`"${item.item}" marcado como executado hoje`);
     loadItens();
   }
@@ -453,6 +495,37 @@ function ItemForm({ aircraftId, initial, onClose, onSaved }: {
       setSaving(false);
       return;
     }
+    // Garantir existência do item em ctm_itens_aeronave (mapeamento para histórico)
+    try {
+      const itemName = form.item;
+      const { data: existing } = await supabase.from('ctm_itens_aeronave')
+        .select('id')
+        .eq('aeronave_id', aircraftId)
+        .eq('nome_item_override', itemName)
+        .limit(1);
+
+      if (!existing || existing.length === 0) {
+        const { error: insErr } = await supabase.from('ctm_itens_aeronave').insert({
+          aeronave_id: aircraftId,
+          modelo_item_id: null,
+          nome_item_override: itemName,
+          intervalo_horas_override: null,
+          intervalo_pousos_override: null,
+          intervalo_meses_override: null,
+          ativo: true,
+        });
+        if (insErr) console.error('Erro criando ctm_itens_aeronave', insErr);
+      } else if (initial && initial.item !== form.item) {
+        // Se o item foi renomeado, atualizar correspondência existente
+        const existingId = (existing && existing[0]) ? (existing[0] as any).id : null;
+        if (existingId) {
+          await supabase.from('ctm_itens_aeronave').update({ nome_item_override: itemName }).eq('id', existingId);
+        }
+      }
+    } catch (e) {
+      console.error('Erro garantindo ctm_itens_aeronave:', e);
+    }
+
     toast.success(initial ? 'Item atualizado' : 'Item adicionado ao programa');
     onSaved();
   }

@@ -5,10 +5,18 @@ import {
   Plane, Clock, RotateCcw, Wrench, FileText, Package, AlertTriangle,
   BookOpen, BarChart3, Droplets, ArrowLeft, Map, ShieldCheck, DollarSign,
 } from "lucide-react";
+import { Gauge } from 'lucide-react';
 import { ControleManutencaoTab } from "@/components/dashboard/operador/ctm/ControleManutencaoTab";
 import { MediasAeronavesTab } from "@/components/dashboard/operador/ctm/MediasAeronavesTab";
 import { OrcamentosTab } from "@/components/dashboard/operador/ctm/OrcamentosTab";
+import { OASTab } from "@/components/dashboard/operador/ctm/OASTab";
+import { RASTab } from "@/components/dashboard/operador/ctm/RASTab";
+import { AnaliseOleoTab } from "@/components/dashboard/operador/ctm/AnaliseOleoTab";
+import { RastreamentoTab } from "@/components/dashboard/operador/ctm/RastreamentoTab";
+import { DirectivesTab } from "@/components/dashboard/operador/ctm/DirectivesTab";
+import { PecasTab } from "@/components/dashboard/operador/ctm/PecasTab";
 import { MapaComponenteTab } from "@/components/dashboard/operador/ctm/MapaComponenteTab";
+import { PesoBalanceamentoTab } from "@/components/dashboard/operador/ctm/PesoBalanceamentoTab";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-type TabId = "visao" | "programa" | "medias" | "oas" | "ras" | "orcamentos" | "componentes" | "rastreamento" | "oleo" | "diretrizes" | "pecas";
+type TabId = "visao" | "programa" | "medias" | "oas" | "ras" | "orcamentos" | "componentes" | "rastreamento" | "oleo" | "diretrizes" | "pecas" | "peso";
 
 const TABS: { id: TabId; label: string; icon: typeof Wrench }[] = [
   { id: "visao", label: "Visão Geral", icon: BarChart3 },
@@ -27,6 +35,7 @@ const TABS: { id: TabId; label: string; icon: typeof Wrench }[] = [
   { id: "orcamentos", label: "Orçamentos", icon: DollarSign },
   { id: "componentes", label: "Mapa de Componente", icon: Map },
   { id: "pecas", label: "Peças Trocadas", icon: Package },
+  { id: "peso", label: "Peso & Balanceamento", icon: Gauge },
   { id: "rastreamento", label: "Rastreamento", icon: RotateCcw },
   { id: "oleo", label: "Análise de Óleo", icon: Droplets },
   { id: "diretrizes", label: "AD & SB", icon: AlertTriangle },
@@ -193,12 +202,26 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
     },
   });
 
-  const oas = useCtmTable("oas", aircraftId, "data_entrada");
-  const ras = useCtmTable("ras", aircraftId, "data_entrada");
+  const oas = useCtmTable("ctm_ordem_acompanhamento_servico", aircraftId, "data_entrada");
+  const ras = useCtmTable("ctm_ras", aircraftId, "data_entrada");
   const componentes = useCtmTable("ctm_mapa_componente", aircraftId, "nome");
-  const rastreamento = useCtmTable("rastreamento", aircraftId, "nome_item");
-  const oleo = useCtmTable("analise_oleo", aircraftId, "data_analise");
-  const diretrizes = useCtmTable("diretriz", aircraftId, "data_vencimento");
+  const oleo = useCtmTable("ctm_analise_oleo", aircraftId, "data_analise");
+  const diarioMes = useQuery({
+    queryKey: ["ctm", "diario_mes", aircraftId],
+    enabled: !!aircraftId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("diario_mes")
+        .select("celula_atual_ttotal, celula_atual_tvoo, celula_prox_revisao_ttotal, celula_prox_revisao_tvoo, celula_disponivel_ttotal, celula_disponivel_tvoo")
+        .eq("aeronave_id", aircraftId)
+        .order("ano", { ascending: false })
+        .order("mes", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+  });
 
   // Estatísticas rápidas
   const stats = useMemo(() => {
@@ -207,7 +230,9 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
     const totalComp = (componentes.data ?? []).length;
     const horasCelula = aircraft?.horas_celula_atual !== null && aircraft?.horas_celula_atual !== undefined
       ? `${Number(aircraft.horas_celula_atual).toFixed(1)}h`
-      : "—";
+      : diarioMes.data
+        ? `${Number(diarioMes.data.celula_atual_ttotal ?? diarioMes.data.celula_atual_tvoo ?? 0).toFixed(1)}h`
+        : "—";
 
     return [
       { label: "Horas Célula", value: horasCelula, icon: Clock, color: "text-amber-400" },
@@ -215,7 +240,7 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
       { label: "Total RAS", value: String(totalRas), icon: BookOpen, color: "text-indigo-400" },
       { label: "Componentes", value: String(totalComp), icon: Map, color: "text-emerald-400" },
     ];
-  }, [oas.data, ras.data, componentes.data, aircraft]);
+  }, [oas.data, ras.data, componentes.data, aircraft, diarioMes.data]);
 
   const pecas = useMemo(() => {
     return (ras.data ?? []).flatMap((r: any) => r.pecas_trocadas || []);
@@ -345,52 +370,21 @@ function AircraftDetail({ aircraftId }: { aircraftId: string }) {
 
         {tab === "orcamentos" && <OrcamentosTab aircraftId={aircraftId} />}
 
-        {tab === "oas" && ((oas.data ?? []).length
-          ? (oas.data ?? []).map((o: any) => (
-              <Row key={o.id} title={`OAS #${o.numero ?? "—"} · ${o.tipo_manutencao ?? "—"}`}
-                subtitle={`${dt(o.data_entrada)} → ${dt(o.data_saida)} · ${o.oficina_nome ?? "Oficina N/D"} · ${brl(o.total_geral)}`}
-                right={<StatusBadge status={o.status} />} />
-            ))
-          : <EmptyState text="Nenhuma OAS registrada" />)}
+        {tab === "oas" && <OASTab aircraftId={aircraftId} />}
 
-        {tab === "ras" && ((ras.data ?? []).length
-          ? (ras.data ?? []).map((r: any) => (
-              <Row key={r.id} title={`RAS #${r.numero ?? "—"} · ${r.tipo_manutencao ?? "—"}`}
-                subtitle={`${dt(r.data_entrada)} → ${dt(r.data_saida)} · Trabalho ${brl(r.total_trabalho)} · Peças ${brl(r.total_pecas)} · Total ${brl(r.total_geral)}`}
-                right={<StatusBadge status={r.status} />} />
-            ))
-          : <EmptyState text="Nenhum RAS registrado" />)}
+        {tab === "ras" && <RASTab aircraftId={aircraftId} />}
 
         {tab === "componentes" && <MapaComponenteTab aircraftId={aircraftId} />}
 
-        {tab === "pecas" && (pecas.length
-          ? pecas.map((p: any) => (
-              <Row key={p.id} title={p.descricao ?? "Peça"}
-                subtitle={`Removido ${p.p_n_removido ?? "—"} → Instalado ${p.p_n_instalado ?? "—"} · Qtd ${p.quantidade ?? 1} · ${p.fornecedor ?? "—"}`} />
-            ))
-          : <EmptyState text="Nenhuma peça trocada registrada" />)}
+        {tab === "pecas" && <PecasTab aircraftId={aircraftId} />}
 
-        {tab === "rastreamento" && ((rastreamento.data ?? []).length
-          ? (rastreamento.data ?? []).map((r: any) => (
-              <Row key={r.id} title={`${r.nome_item ?? "Item"} · ${r.tipo_controle ?? "—"}`}
-                subtitle={`${String(r.mes ?? "").padStart(2, "0")}/${r.ano ?? "—"} · Última troca ${dt(r.data_ultima_troca)} · Restantes ${r.horas_restantes ?? "—"}h`} />
-            ))
-          : <EmptyState text="Nenhum rastreamento registrado" />)}
+        {tab === "peso" && <PesoBalanceamentoTab aircraftId={aircraftId} />}
 
-        {tab === "oleo" && ((oleo.data ?? []).length
-          ? (oleo.data ?? []).map((o: any) => (
-              <Row key={o.id} title={`Análise de ${dt(o.data_analise)}`}
-                subtitle={`Fe ${o.ferro ?? "—"} · Cu ${o.cobre ?? "—"} · Al ${o.aluminio ?? "—"} · Si ${o.silicio ?? "—"} · Visc. ${o.viscosidade ?? "—"}`} />
-            ))
-          : <EmptyState text="Nenhuma análise de óleo registrada" />)}
+        {tab === "rastreamento" && <RastreamentoTab aircraftId={aircraftId} />}
 
-        {tab === "diretrizes" && ((diretrizes.data ?? []).length
-          ? (diretrizes.data ?? []).map((d: any) => (
-              <Row key={d.id} title={`${d.tipo ?? "AD/SB"} ${d.numero ?? ""} — ${d.titulo ?? ""}`}
-                subtitle={`Vencimento ${dt(d.data_vencimento)} · Horas ${d.devido_horas ?? "—"} · ${d.responsavel ?? "—"}`}
-                right={<StatusBadge status={d.status} />} />
-            ))
-          : <EmptyState text="Nenhuma AD/SB registrada" />)}
+        {tab === "oleo" && <AnaliseOleoTab aircraftId={aircraftId} />}
+
+        {tab === "diretrizes" && <DirectivesTab aircraftId={aircraftId} />}
       </div>
     </div>
   );

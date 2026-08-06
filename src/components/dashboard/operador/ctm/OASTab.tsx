@@ -15,12 +15,7 @@ export function OASTab({ aircraftId }: OASTabProps) {
   async function loadOAS() {
     const { data, error } = await supabase
       .from('ctm_ordem_acompanhamento_servico')
-      .select(`
-        *,
-        ctm_servicos(id, descricao, valor, status_aprovacao, fornecedor, status_pagamento),
-        ctm_pecas(id, descricao, valor_total, valor_unitario, fornecedor, numero_peca, numero_serie, quantidade),
-        ctm_aprovacoes_ordem_servico(id, status, submetido_em, revisado_em, motivo_rejeicao)
-      `)
+      .select(`*, ctm_aprovacoes_ordem_servico(id, status, submetido_em, revisado_em, motivo_rejeicao)`)
       .eq('aeronave_id', aircraftId)
       .order('created_at', { ascending: false });
     console.log('OAS:', data, error);
@@ -56,9 +51,9 @@ export function OASTab({ aircraftId }: OASTabProps) {
       ) : (
         <div className="space-y-3">
           {list.map(oas => {
-            const totalServicos = (oas.ctm_servicos || []).reduce((s: number, i: any) => s + Number(i.valor || 0), 0);
-            const totalPecas = (oas.ctm_pecas || []).reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0);
-            const total = totalServicos + totalPecas;
+            const totalServicos = oas.total_mao_obra ?? 0;
+            const totalPecas = oas.total_pecas ?? 0;
+            const total = (oas.total_geral ?? (totalServicos + totalPecas)) as number;
             const aprovacao = oas.ctm_aprovacoes_ordem_servico?.[0];
             return (
               <div key={oas.id} onClick={() => setSelected(oas)} className="ctm-card-hover p-5 group">
@@ -226,6 +221,8 @@ function NovaOASForm({ aircraftId, onClose, onSaved }: {
 function OASDetail({ oas, onBack, aircraftId }: { oas: any; onBack: () => void; aircraftId: string }) {
   const [docs, setDocs] = useState<any[]>([]);
   const [orcamentos, setOrcamentos] = useState<any[]>([]);
+  const [execucoes, setExecucoes] = useState<any[]>([]);
+  const [pecas, setPecas] = useState<any[]>([]);
 
   useEffect(() => {
     supabase.from('ctm_documentos_oas').select('*').eq('ordem_servico_id', oas.id)
@@ -234,10 +231,18 @@ function OASDetail({ oas, onBack, aircraftId }: { oas: any; onBack: () => void; 
     supabase.from('ctm_orcamentos').select('*, ctm_itens_orcamento(*)')
       .eq('itens_servico_id', oas.id)
       .then(({ data }) => { if (data) setOrcamentos(data); });
+
+    // Buscar execuções relacionadas pela referência ordem_servico (campo livre)
+    supabase.from('ctm_execucoes').select('*').eq('ordem_servico', oas.id)
+      .then(({ data }) => { if (data) setExecucoes(data); });
+
+    // Buscar peças trocadas vinculadas à ordem
+    supabase.from('ctm_pecas_trocadas').select('*').eq('ordem_servico_id', oas.id)
+      .then(({ data }) => { if (data) setPecas(data); });
   }, [oas.id]);
 
-  const totalServicos = (oas.ctm_servicos || []).reduce((s: number, i: any) => s + Number(i.valor || 0), 0);
-  const totalPecas = (oas.ctm_pecas || []).reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0);
+  const totalServicos = oas.total_mao_obra ?? (execucoes.reduce((s: number, i: any) => s + Number(i.valor || 0), 0) as number);
+  const totalPecas = oas.total_pecas ?? (pecas.reduce((s: number, i: any) => s + Number(i.valor_total || 0), 0) as number);
   const aprovacao = oas.ctm_aprovacoes_ordem_servico?.[0];
 
   return (
@@ -278,52 +283,51 @@ function OASDetail({ oas, onBack, aircraftId }: { oas: any; onBack: () => void; 
           </div>
 
           {/* Serviços */}
-          {oas.ctm_servicos?.length > 0 && (
+          {execucoes?.length > 0 && (
             <div className="ctm-card p-5">
               <h3 className="font-semibold mb-3 teal-text">Serviços / Mão de Obra</h3>
               <div className="space-y-2">
-                {oas.ctm_servicos.map((s: any) => (
+                {execucoes.map((s: any) => (
                   <div key={s.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{s.descricao}</p>
-                      <p className="text-xs text-muted-foreground">{s.fornecedor}{s.condicoes_pagamento && ` · ${s.condicoes_pagamento}`}</p>
+                      <p className="text-sm font-medium">{s.ordem_servico || s.oficina || s.observacoes || 'Serviço'}</p>
+                      <p className="text-xs text-muted-foreground">{s.oficina || ''}{s.observacoes && ` · ${s.observacoes}`}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      {s.status_aprovacao && <AprovBadge status={s.status_aprovacao} small />}
-                      <p className="text-sm font-bold">R$ {Number(s.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-sm font-bold">{s.horas_aeronave_na_execucao ? `${s.horas_aeronave_na_execucao} h` : '—'}</p>
                     </div>
                   </div>
                 ))}
                 <div className="flex justify-between text-sm font-semibold pt-2">
                   <span className="text-muted-foreground">Subtotal MO</span>
-                  <span>R$ {totalServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span>{typeof totalServicos === 'number' ? `R$ ${totalServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : totalServicos}</span>
                 </div>
               </div>
             </div>
           )}
 
           {/* Peças */}
-          {oas.ctm_pecas?.length > 0 && (
+          {pecas?.length > 0 && (
             <div className="ctm-card p-5">
               <h3 className="font-semibold mb-3 teal-text">Peças Aplicadas</h3>
               <div className="space-y-2">
-                {oas.ctm_pecas.map((p: any) => (
+                {pecas.map((p: any) => (
                   <div key={p.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                     <div className="flex-1">
                       <p className="text-sm font-medium">{p.descricao}</p>
                       <p className="text-xs text-muted-foreground">
                         {p.fornecedor}
-                        {p.numero_peca && ` · P/N: ${p.numero_peca}`}
-                        {p.numero_serie && ` · S/N: ${p.numero_serie}`}
+                        {p.p_n_instalado && ` · P/N: ${p.p_n_instalado}`}
+                        {p.s_n_instalado && ` · S/N: ${p.s_n_instalado}`}
                         {p.quantidade && ` · Qtd: ${p.quantidade}`}
                       </p>
                     </div>
-                    <p className="text-sm font-bold ml-4">R$ {Number(p.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-sm font-bold ml-4">—</p>
                   </div>
                 ))}
                 <div className="flex justify-between text-sm font-semibold pt-2">
                   <span className="text-muted-foreground">Subtotal Peças</span>
-                  <span>R$ {totalPecas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  <span>R$ {Number(totalPecas || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
