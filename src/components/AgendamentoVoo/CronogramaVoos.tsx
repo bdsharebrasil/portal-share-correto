@@ -21,17 +21,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
 import { ConcluirVooDialog } from "./ConcluirVooDialog";
 import { IniciarVooDialog } from "./IniciarVooDialog";
 import { utcToBrasilia } from "@/lib/timezone-utils";
 
+// Mapeamento ajustado com base nos status permitidos na CHECK constraint do PostgreSQL:
+// ('pendente', 'confirmado', 'em_rota', 'rejeitado', 'cancelado')
 const STATUS_META: Record<string, { label: string; badge: string; dot: string }> = {
   pendente: { label: "Pendente", badge: "bg-muted text-muted-foreground", dot: "text-muted-foreground" },
   confirmado: { label: "Agendado", badge: "bg-primary/15 text-primary", dot: "text-primary" },
-  em_voo: { label: "Em Voo", badge: "bg-amber-500/15 text-amber-500", dot: "text-amber-500" },
-  em_rota: { label: "Em Rota", badge: "bg-amber-500/20 text-amber-400", dot: "text-amber-400" },
-  concluido: { label: "Pousado", badge: "bg-emerald-500/15 text-emerald-500", dot: "text-emerald-500" },
+  em_rota: { label: "Em Rota", badge: "bg-amber-500/20 text-amber-400", dot: "text-amber-400 font-semibold" },
   rejeitado: { label: "Rejeitado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
   cancelado: { label: "Cancelado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
 };
@@ -51,13 +50,12 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const voos = useMemo(
     () =>
       solicitacoes
-        .filter((s) => ["confirmado", "em_voo", "em_rota", "concluido", "cancelado", "pendente"].includes(s.status))
+        .filter((s) => ["confirmado", "em_rota", "cancelado", "pendente"].includes(s.status))
         .filter((s) => vooCobreDia(s, format(new Date(), "yyyy-MM-dd")) || s.data_agendada >= format(new Date(), "yyyy-MM-dd"))
         .slice(0, 6),
     [solicitacoes],
   );
 
-  // CORRIGIDO: agora envia { solicitacao, status } igual à assinatura da mutation
   const handleStatusChange = (voo: Solicitacao, newStatus: SolicitacaoStatus) => {
     alterarStatusVoo.mutate({ solicitacao: voo, status: newStatus });
   };
@@ -76,16 +74,22 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
           <span className="absolute left-[9px] top-2 bottom-2 w-px bg-border" aria-hidden />
           {voos.map((voo) => {
             const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
-            const emVoo = voo.status === "em_voo" || voo.status === "em_rota";
-            const Icon = voo.status === "concluido" ? CheckCircle2 : emVoo ? Plane : CircleDot;
+            const emRota = voo.status === "em_rota";
+            const temPouso = Boolean(voo.horario_pouso || voo.horario_corte);
+            
+            const Icon = temPouso ? CheckCircle2 : emRota ? Plane : CircleDot;
             const expanded = expandedId === voo.id;
+
+            // Ajuste dos horários vindos do banco
+            const horarioAgendado = voo.horario_previsto_agendamento?.slice(0, 5) ?? "--:--";
+
             return (
               <li key={voo.id} className="relative">
                 <Icon className={cn("absolute -left-7 top-4 h-[18px] w-[18px] bg-card", meta.dot)} />
                 <div
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-left transition-colors hover:border-primary/50",
-                    emVoo && "border-amber-500/40 bg-amber-500/5",
+                    emRota && "border-amber-500/40 bg-amber-500/5",
                     voo.status === "cancelado" && "border-destructive/30 bg-destructive/5",
                   )}
                 >
@@ -108,32 +112,38 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       {voo.cliente_nome ? ` · ${voo.cliente_nome}` : ""}
                     </p>
                   </button>
-                  <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>{meta.label}</span>
-                  <span className="text-xs text-muted-foreground block mb-1">
-                    {voo.data_partida && voo.data_partida !== voo.data_agendada
-                      ? `Agendado: ${format(parseISO(voo.data_agendada), "dd/MM")}`
-                      : null}
+                  
+                  <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>
+                    {temPouso ? "Pousado" : meta.label}
                   </span>
-                  {voo.status === "em_rota" || voo.status === "em_voo" ? (
-                    <div className="flex flex-col gap-1 text-sm font-semibold tabular-nums text-foreground">
+                  
+                  {voo.data_partida && voo.data_partida !== voo.data_agendada && (
+                    <span className="text-xs text-muted-foreground block mb-1">
+                      Agendado: {format(parseISO(voo.data_agendada), "dd/MM")}
+                    </span>
+                  )}
+
+                  {emRota ? (
+                    <div className="flex flex-col gap-1 text-xs font-semibold tabular-nums text-foreground">
                       <span>AC {voo.horario_acionamento?.slice(0, 5) ?? "--:--"} UTC</span>
                       <span>DEP {voo.horario_decolagem?.slice(0, 5) ?? "--:--"} UTC</span>
-                      {voo.horario_pouso ? <span>ARR {voo.horario_pouso.slice(0, 5)} UTC</span> : null}
+                      {voo.horario_pouso && <span>ARR {voo.horario_pouso.slice(0, 5)} UTC</span>}
                     </div>
-                  ) : voo.status === "concluido" ? (
+                  ) : temPouso ? (
                     <div className="flex items-center gap-2 text-sm font-semibold tabular-nums text-foreground">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>ARR {voo.horario_pouso?.slice(0, 5) ?? voo.horario_chegada?.slice(0, 5) ?? "--:--"} UTC</span>
+                      <span>ARR {voo.horario_pouso?.slice(0, 5) ?? "--:--"} UTC</span>
                     </div>
                   ) : (
                     <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-foreground">
                       <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{voo.horario_partida?.slice(0, 5) ?? "--:--"} UTC</span>
-                      {voo.horario_partida && (
-                        <span className="text-muted-foreground/70">· {utcToBrasilia(voo.horario_partida)} BSB</span>
+                      <span>{horarioAgendado} UTC</span>
+                      {voo.horario_previsto_agendamento && (
+                        <span className="text-muted-foreground/70">· {utcToBrasilia(voo.horario_previsto_agendamento)} BSB</span>
                       )}
                     </span>
                   )}
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -153,15 +163,15 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setIniciarTarget(voo)}
-                        disabled={emVoo || voo.status === "concluido"}
+                        disabled={emRota || temPouso}
                       >
                         <PlayCircle className="mr-2 h-4 w-4 text-amber-500" /> Iniciar voo
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => setConcluirTarget(voo)}
-                        disabled={!emVoo}
+                        disabled={!emRota}
                       >
-                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Concluir voo
+                        <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" /> Registrar Pouso
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => handleStatusChange(voo, "cancelado")}

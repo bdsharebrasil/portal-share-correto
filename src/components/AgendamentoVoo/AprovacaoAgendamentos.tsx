@@ -60,6 +60,8 @@ interface BookingRequest {
   origem: string | null;
   destino: string | null;
   data_agendada: string;
+  horario_previsto_agendamento?: string | null;
+  horario_partida?: string | null;
   dias_duracao: number | null;
   qtd_passageiros: number | null;
   status: "pendente" | "confirmado" | "em_voo" | "concluido" | "rejeitado" | "cancelado";
@@ -384,7 +386,7 @@ export default function AprovacaoAgendamentos() {
                               </div>
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Clock className="h-4 w-4" />
-                                {booking.horario_partida?.slice(0, 5)}
+                                {(booking.horario_previsto_agendamento ?? booking.horario_partida)?.slice(0, 5)}
                               </div>
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Users className="h-4 w-4" />
@@ -538,7 +540,7 @@ export default function AprovacaoAgendamentos() {
                 <div>
                   <label className="text-sm font-semibold text-foreground">Horário</label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {selectedBooking.horario_partida?.slice(0, 5)}
+                    {(selectedBooking.horario_previsto_agendamento ?? selectedBooking.horario_partida)?.slice(0, 5)}
                   </p>
                 </div>
               </div>
