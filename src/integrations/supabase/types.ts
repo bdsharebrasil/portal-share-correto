@@ -439,51 +439,6 @@ export type Database = {
         }
         Relationships: []
       }
-      agendamento_voo: {
-        Row: {
-          aeronave_id: string
-          atualizado_em: string | null
-          criado_em: string | null
-          data_partida: string
-          data_retorno: string | null
-          destino: string
-          id: string
-          observacoes: string | null
-          origem: string
-          passageiros: number | null
-          status: string
-          user_profile_id: string
-        }
-        Insert: {
-          aeronave_id: string
-          atualizado_em?: string | null
-          criado_em?: string | null
-          data_partida: string
-          data_retorno?: string | null
-          destino: string
-          id?: string
-          observacoes?: string | null
-          origem: string
-          passageiros?: number | null
-          status?: string
-          user_profile_id: string
-        }
-        Update: {
-          aeronave_id?: string
-          atualizado_em?: string | null
-          criado_em?: string | null
-          data_partida?: string
-          data_retorno?: string | null
-          destino?: string
-          id?: string
-          observacoes?: string | null
-          origem?: string
-          passageiros?: number | null
-          status?: string
-          user_profile_id?: string
-        }
-        Relationships: []
-      }
       aircraft_valuation_history: {
         Row: {
           aircraft_id: string | null

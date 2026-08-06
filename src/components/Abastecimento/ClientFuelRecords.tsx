@@ -335,26 +335,30 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
               {filteredClients.map((client) => (
                 <Card
                   key={client.id}
-                  className="cursor-pointer border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group"
+                  className="group cursor-pointer overflow-hidden border border-border/60 bg-gradient-to-br from-card to-muted/10 transition-all duration-200 hover:border-primary/50 hover:shadow-xl"
                   onClick={() => handleClientClick(client)}
                 >
                   <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Building2 className="h-4 w-4 text-primary" />
-                          <p className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
-                            {client.razao_social}
-                          </p>
-                        </div>
-                        {client.cotistas_aeronave && client.cotistas_aeronave.length > 0 && (
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-2">
-                            <Plane className="h-3.5 w-3.5" />
-                            {client.cotistas_aeronave.length} aeronave{client.cotistas_aeronave.length > 1 ? 's' : ''}
-                          </div>
-                        )}
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                        <Building2 className="h-5 w-5" />
                       </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-0.5" />
+                      <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1">
+                        <Plane className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Aeronaves</span>
+                        <span className="font-mono text-sm font-bold text-foreground">
+                          {String(client.cotistas_aeronave?.length || 0).padStart(2, "0")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-lg font-bold uppercase tracking-tight text-foreground transition-colors group-hover:text-primary">
+                      {client.razao_social}
+                    </p>
+
+                    <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                      Ver detalhes
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </div>
                   </CardContent>
                 </Card>
@@ -405,26 +409,29 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
                   {aircrafts.map((aircraft) => (
                     <Card
                       key={aircraft.id}
-                      className="cursor-pointer border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group"
+                      className="group cursor-pointer overflow-hidden border border-border/60 bg-gradient-to-br from-card to-muted/10 transition-all duration-200 hover:border-primary/50 hover:shadow-xl"
                       onClick={() => handleAircraftClick(aircraft)}
                     >
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Plane className="h-4 w-4 text-primary" />
-                              <p className="font-bold text-foreground text-lg group-hover:text-primary transition-colors font-mono">
-                                {aircraft.matricula}
-                              </p>
+                          <span className="inline-flex items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 font-mono text-sm font-bold tracking-wider text-primary">
+                            {aircraft.matricula}
+                          </span>
+                          <ChevronRight className="mt-1 h-5 w-5 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                        </div>
+                        <div className="mt-4 space-y-1.5">
+                          {aircraft.modelo && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Modelo</span>
+                              <span className="font-medium text-foreground">{aircraft.modelo}</span>
                             </div>
-                            {aircraft.modelo && (
-                              <p className="text-sm text-muted-foreground">{aircraft.modelo}</p>
-                            )}
-                            {aircraft.ano && (
-                              <p className="text-xs text-muted-foreground mt-1">Ano: {aircraft.ano}</p>
-                            )}
-                          </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
+                          )}
+                          {aircraft.ano && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Ano</span>
+                              <span className="font-medium text-foreground">{aircraft.ano}</span>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -454,26 +461,32 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
                   </CardContent>
                 </Card>
               ) : (
-                <Card className="border border-border/50 overflow-x-auto">
+                <Card className="overflow-x-auto border border-border/60 bg-card/60">
                   <CardContent className="p-0">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Aeronave</TableHead>
-                          <TableHead>Litros</TableHead>
-                          <TableHead>Valor Total</TableHead>
-                          <TableHead>Cliente</TableHead>
+                        <TableRow className="border-border/60 hover:bg-transparent">
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Data</TableHead>
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Aeronave</TableHead>
+                          <TableHead className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Cliente</TableHead>
+                          <TableHead className="text-right text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Litros</TableHead>
+                          <TableHead className="text-right text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Valor Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {borrowedRecords.map((record) => (
-                          <TableRow key={record.id}>
-                            <TableCell>{formatDateBrazil(record.data)}</TableCell>
-                            <TableCell>{record.aeronave?.matricula || record.aeronave_id || '—'}</TableCell>
-                            <TableCell>{record.litros?.toFixed(2) ?? '—'}</TableCell>
-                            <TableCell>{record.valor_total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) ?? '—'}</TableCell>
-                            <TableCell>{selectedClient.razao_social}</TableCell>
+                          <TableRow key={record.id} className="border-border/40 hover:bg-muted/30">
+                            <TableCell className="text-sm font-medium text-foreground">{formatDateBrazil(record.data)}</TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-xs font-bold text-primary">
+                                {record.aeronave?.matricula || record.aeronave_id || '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm uppercase text-muted-foreground">{selectedClient.razao_social}</TableCell>
+                            <TableCell className="text-right font-mono text-sm text-foreground">{record.litros?.toFixed(2) ?? '—'} L</TableCell>
+                            <TableCell className="text-right font-mono text-sm font-semibold text-foreground">
+                              {record.valor_total?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) ?? '—'}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

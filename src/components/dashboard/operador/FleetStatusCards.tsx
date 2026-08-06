@@ -48,13 +48,13 @@ export function FleetStatusCards() {
   // Subscribe to live status updates
   useEffect(() => {
     const channel = supabase
-      .channel("aircraft-live-updates")
+      .channel("status-tempo-real-aeronave-cards")
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "aircraft_live_status",
+          table: "status_tempo_real_aeronave",
         },
         (payload) => {
           if (payload.new) {

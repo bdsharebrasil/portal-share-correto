@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -71,19 +71,31 @@ export default function AnexosDinamicosField({
   onView,
 }: Props) {
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
+  // Mantém sempre a versão mais recente das linhas para evitar que updates
+  // assíncronos (upload) sobrescrevam edições feitas em outras linhas.
+  const anexosRef = useRef(anexos);
+  useEffect(() => {
+    anexosRef.current = anexos;
+  }, [anexos]);
 
   const updateLinha = useCallback(
     (id: string, patch: Partial<AnexoLinha>) => {
-      onChange(anexos.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+      const next = anexosRef.current.map((a) => (a.id === id ? { ...a, ...patch } : a));
+      anexosRef.current = next;
+      onChange(next);
     },
-    [anexos, onChange]
+    [onChange]
   );
 
-  const removeLinha = (id: string) => onChange(anexos.filter((a) => a.id !== id));
+  const removeLinha = (id: string) => {
+    const next = anexosRef.current.filter((a) => a.id !== id);
+    anexosRef.current = next;
+    onChange(next);
+  };
 
-  const addLinha = () =>
-    onChange([
-      ...anexos,
+  const addLinha = () => {
+    const next: AnexoLinha[] = [
+      ...anexosRef.current,
       {
         id: crypto.randomUUID(),
         tipo: "comprovante",
@@ -92,7 +104,10 @@ export default function AnexosDinamicosField({
         file: null,
         uploading: false,
       },
-    ]);
+    ];
+    anexosRef.current = next;
+    onChange(next);
+  };
 
   const handleFile = async (id: string, file: File) => {
     updateLinha(id, { file, uploading: true });
@@ -153,10 +168,12 @@ export default function AnexosDinamicosField({
               {/* Numero */}
               <Input
                 value={a.numero}
+                inputMode="numeric"
                 onChange={(e) => updateLinha(a.id, { numero: e.target.value })}
-                placeholder="Número / referência (opcional)"
+                placeholder=""
                 className="h-9 rounded-lg text-sm"
               />
+
 
               {/* Upload area */}
               <div className="flex items-center gap-2 min-w-[160px]">

@@ -10,9 +10,12 @@ import { EscalaTripulacao } from "@/components/agendamento/EscalaTripulacao";
 import { NovoAgendamentoDialog } from "@/components/agendamento/NovoAgendamentoDialog";
 import {
   calcularDisponibilidadeTripulante,
+  isAgendamentoHabilitado,
   useAeronavesAgendamento,
   useAgendamentoRealtime,
+  useConfigAgendamento,
   useDatasBloqueadas,
+  useDisponibilidadeAeronave,
   useEscala,
   useFerias,
   useSolicitacoes,
@@ -36,11 +39,19 @@ export default function PainelAgendamentos() {
   const { data: escala = [] } = useEscala();
   const { data: bloqueios = [] } = useDatasBloqueadas();
   const { data: statusFrota = [] } = useStatusFrota();
+  const { data: disponibilidadeFrota = [] } = useDisponibilidadeAeronave();
+  const { data: configsAgendamento = [] } = useConfigAgendamento();
 
   const disponibilidade = useMemo(
     () => tripulantes.map((t) => calcularDisponibilidadeTripulante(t, diaSelecionado, ferias, escala)),
     [tripulantes, diaSelecionado, ferias, escala],
   );
+
+  const aeronavesAgendaveis = useMemo(
+    () => aeronaves.filter((a) => isAgendamentoHabilitado(a.id, configsAgendamento)),
+    [aeronaves, configsAgendamento],
+  );
+
 
   return (
     <Layout>
@@ -83,6 +94,8 @@ export default function PainelAgendamentos() {
               aeronaves={aeronaves}
               bloqueios={bloqueios}
               statusFrota={statusFrota}
+              disponibilidade={disponibilidadeFrota}
+              configs={configsAgendamento}
               dia={diaSelecionado}
             />
           </div>
@@ -99,7 +112,7 @@ export default function PainelAgendamentos() {
       <NovoAgendamentoDialog
         open={novoAberto}
         onOpenChange={setNovoAberto}
-        aeronaves={aeronaves}
+        aeronaves={aeronavesAgendaveis}
         diaSelecionado={diaSelecionado}
       />
     </Layout>

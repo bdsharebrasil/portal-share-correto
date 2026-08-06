@@ -3,39 +3,40 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
+/**
+ * Realtime das tabelas de agendamento:
+ * solicitacoes_reserva_voo, datas_bloqueadas_voo, status_tempo_real_aeronave,
+ * ciclos_voo e lancamentos_diario_bordo.
+ */
 export function useRealtimeBookings() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Canal para flight_booking_requests
+    const invalidateAgendamentos = () => {
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes-reserva-voo'] });
+      queryClient.invalidateQueries({ queryKey: ['agv'] });
+    };
+
     const bookingsChannel = supabase
-      .channel('realtime-bookings')
+      .channel('realtime-solicitacoes-reserva-voo')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'flight_booking_requests',
-        },
+        { event: '*', schema: 'public', table: 'solicitacoes_reserva_voo' },
         (payload: any) => {
-          console.log('Booking change:', payload);
-          
-          // Invalidar queries relacionadas
-          queryClient.invalidateQueries({ queryKey: ['flight-booking-requests'] });
-          
-          // Notificações baseadas no evento
+          invalidateAgendamentos();
+
           if (payload.eventType === 'INSERT') {
             toast({
               title: '✈️ Nova Solicitação de Voo',
-              description: `${payload.new.origin} → ${payload.new.destination}`,
+              description: `${payload.new?.origem ?? '?'} → ${payload.new?.destino ?? '?'}`,
             });
           } else if (payload.eventType === 'UPDATE') {
-            if (payload.new.status === 'confirmado' && payload.old?.status !== 'confirmado') {
+            if (payload.new?.status === 'confirmado' && payload.old?.status !== 'confirmado') {
               toast({
                 title: '✅ Reserva Confirmada',
                 description: 'Uma reserva foi aprovada',
               });
-            } else if (payload.new.status === 'em_voo' && payload.old?.status !== 'em_voo') {
+            } else if (payload.new?.status === 'em_voo' && payload.old?.status !== 'em_voo') {
               toast({
                 title: '🛫 Voo Iniciado',
                 description: 'Ciclo de voo em andamento',
@@ -46,72 +47,56 @@ export function useRealtimeBookings() {
       )
       .subscribe();
 
-    // Canal para blocked_flight_dates
     const blockedDatesChannel = supabase
-      .channel('realtime-blocked-dates')
+      .channel('realtime-datas-bloqueadas-voo')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'blocked_flight_dates',
-        },
+        { event: '*', schema: 'public', table: 'datas_bloqueadas_voo' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['blocked-flight-dates'] });
+          queryClient.invalidateQueries({ queryKey: ['datas-bloqueadas-voo'] });
+          queryClient.invalidateQueries({ queryKey: ['agv'] });
         }
       )
       .subscribe();
 
-    // Canal para aircraft_live_status
     const statusChannel = supabase
-      .channel('realtime-aircraft-status')
+      .channel('realtime-status-tempo-real-aeronave')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'aircraft_live_status',
-        },
+        { event: '*', schema: 'public', table: 'status_tempo_real_aeronave' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['aircraft-live-status'] });
+          queryClient.invalidateQueries({ queryKey: ['status-tempo-real-aeronave'] });
+          queryClient.invalidateQueries({ queryKey: ['disponibilidade-aeronave'] });
+          queryClient.invalidateQueries({ queryKey: ['agv'] });
         }
       )
       .subscribe();
 
-    // Canal para flight_cycles
     const cyclesChannel = supabase
-      .channel('realtime-flight-cycles')
+      .channel('realtime-ciclos-voo')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'flight_cycles',
-        },
+        { event: '*', schema: 'public', table: 'ciclos_voo' },
         (payload: any) => {
+          queryClient.invalidateQueries({ queryKey: ['ciclos-voo'] });
           queryClient.invalidateQueries({ queryKey: ['flight-cycles'] });
           queryClient.invalidateQueries({ queryKey: ['active-flight-cycles'] });
-          
+
           if (payload.eventType === 'INSERT') {
             toast({
               title: '🛫 Novo Ciclo de Voo Iniciado',
-              description: `${payload.new.origin_icao} → ${payload.new.destination_icao}`,
+              description: `${payload.new?.origem_icao ?? '?'} → ${payload.new?.destino_icao ?? '?'}`,
             });
           }
         }
       )
       .subscribe();
 
-    // Canal para lancamentos_diario_bordo
     const logbookChannel = supabase
       .channel('realtime-logbook')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'lancamentos_diario_bordo',
-        },
+        { event: '*', schema: 'public', table: 'lancamentos_diario_bordo' },
         () => {
           queryClient.invalidateQueries({ queryKey: ['logbook-entries'] });
           queryClient.invalidateQueries({ queryKey: ['active-flight-cycles'] });

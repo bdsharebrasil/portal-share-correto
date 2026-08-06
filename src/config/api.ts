@@ -76,7 +76,7 @@ export const API_ENDPOINTS = {
     `${_base}${_prefix}/nearest?lat=${lat}&lon=${lon}`,
 
   // Avaliação de aeronave (Windsock) — POST
-  aircraftValuation: `${_base}${_prefix}/valuations` as string,
+  aircraftValuation: `${_base}${_prefix}/valuation` as string,
 
   // Estimativa de mercado americano (catálogo FAA / Windsock) — POST
   usAircraftEstimate: `${_base}${_prefix}/us-aircraft-estimate` as string,

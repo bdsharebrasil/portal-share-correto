@@ -24,29 +24,38 @@ export default function ControleAbastecimento() {
   return (
     <Layout>
       <div className="p-6 space-y-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg">
-              <Fuel className="h-6 w-6 text-primary" />
+        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                <Fuel className="h-3 w-3" />
+                Abastecimentos por Cliente
+              </span>
+              <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-foreground">
+                Controle de Abastecimento
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Histórico de consumo, notas, comandas e pagamentos realizados
+              </p>
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-              Controle de Abastecimento
-            </h1>
           </div>
-          <p className="text-muted-foreground ml-12 text-base">
-            Gerencie fornecedores, rastreie consumo de combustível e mantenha registros detalhados de abastecimento
-          </p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md bg-muted/50 p-1 rounded-lg">
-            <TabsTrigger value="suppliers" className="gap-2 text-base">
+          <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b border-border/60 bg-transparent p-0">
+            <TabsTrigger
+              value="records"
+              className="gap-2 rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
+              <Users className="h-4 w-4" />
+              Histórico de Abastecimentos
+            </TabsTrigger>
+            <TabsTrigger
+              value="suppliers"
+              className="gap-2 rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 text-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+            >
               <Fuel className="h-4 w-4" />
               Fornecedores
-            </TabsTrigger>
-            <TabsTrigger value="records" className="gap-2 text-base">
-              <Users className="h-4 w-4" />
-              Registros por Cliente
             </TabsTrigger>
           </TabsList>
 
@@ -59,6 +68,6 @@ export default function ControleAbastecimento() {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>);
-
+    </Layout>
+  );
 }

@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import AnexosDinamicosField, { AnexoLinha } from "@/components/dashboard/gestor/FinanceiroCotista/AnexosDinamicosField";
 import { format } from "date-fns";
 import { Combobox } from "@/components/ui/combobox";
 import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -163,7 +163,6 @@ export function FuelRecordsByAircraft({
   const [clientPartners, setClientPartners] = useState<Partner[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
@@ -185,11 +184,16 @@ export function FuelRecordsByAircraft({
   const [dueDateCalendarOpen, setDueDateCalendarOpen] = useState(false);
 
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
+  const aerodromeItems = (aerodromes || []).map((a: any) => ({
+    id: a.designativo as string,
+    label: `${a.designativo}${a.nome ? ` — ${a.nome}` : ""}`,
+  }));
+  const nomeAerodromo = (designativo: string) =>
+    (aerodromes || []).find((a: any) => a.designativo === designativo)?.nome || "";
   const [bankInstitutions, setBankInstitutions] = useState<BankInstitution[]>([]);
 
   const [selectedFlightInfo, setSelectedFlightInfo] = useState<any>(null);
   const [previousDayFlightInfo, setPreviousDayFlightInfo] = useState<any>(null);
-  const [showConfirmationSummary, setShowConfirmationSummary] = useState(false);
 
   const [formData, setFormData] = useState({
     data: "",
@@ -233,35 +237,16 @@ export function FuelRecordsByAircraft({
 
   const [anexos, setAnexos] = useState<AnexoLinha[]>([]);
 
+  // As linhas de anexo são a fonte da verdade. Nada é sobrescrito aqui —
+  // a conversão para as colunas do banco acontece apenas no momento de salvar.
   const handleAnexosChange = (next: AnexoLinha[]) => {
     setAnexos(next);
-    // map back to formData and uploadedFiles
-    const find = (id: string) => next.find(a => a.id === id);
-    const comanda = find('comanda');
-    const nota = find('nota');
-    const boleto = find('boleto');
-    const comprovante = find('comprovante');
-
-    setFormData(prev => ({
-      ...prev,
-      comanda_file: comanda?.file || null,
-      nota_file: nota?.file || null,
-      boleto_file: boleto?.file || null,
-      comprovante_file: comprovante?.file || null,
-      comanda_url: comanda?.url || "",
-      nota_url: nota?.url || "",
-      boleto_url: boleto?.url || "",
-      comprovante_url: comprovante?.url || "",
-    }));
-
-    setUploadedFiles(prev => ({
-      ...prev,
-      comanda_url: comanda?.url || "",
-      nota_url: nota?.url || "",
-      boleto_url: boleto?.url || "",
-      comprovante_url: comprovante?.url || "",
-    }));
   };
+
+  const anexoUrlPorTipo = (lista: AnexoLinha[], tipo: string) =>
+    lista.find((a) => a.tipo === tipo && a.url)?.url || "";
+  const anexoNumeroPorTipo = (lista: AnexoLinha[], tipo: string) =>
+    lista.find((a) => a.tipo === tipo && a.numero?.trim())?.numero?.trim() || "";
 
   const [viewingAttachment, setViewingAttachment] = useState<{
     url: string;
@@ -300,30 +285,49 @@ export function FuelRecordsByAircraft({
 
       const linkedIds = (linkedAbast || []).map((a: any) => a.logbook_entry_id).filter(Boolean);
 
-      let query = (supabase as any)
-        .from('lancamentos_diario_bordo')
-        .select('id, data_registro, departure_aerodrome:aerodromo_partida, arrival_aerodrome:aerodromo_chegada, trecho, combustivel_adicionado, fuel_liters, clientes_id, tempo_total')
-        .eq('aeronave_id', aircraft.id)
-        .gt('combustivel_adicionado', 0)
-        .order('data_registro', { ascending: false })
-        .limit(50);
+      // Colunas conferidas contra o schema real da tabela lancamentos_diario_bordo.
+      // "fuel_liters" foi removido daqui pois não existe na tabela — ele fazia o
+      // select inteiro falhar silenciosamente e a lista de voos ficava sempre vazia.
+      const baseSelect =
+        'id, data_registro, departure_aerodrome:aerodromo_partida, arrival_aerodrome:aerodromo_chegada, trecho, combustivel_adicionado, litros_combustivel_inicio_voo, clientes_id, tempo_total';
+
+      const buildQuery = (clientId?: string) => {
+        let q = (supabase as any)
+          .from('lancamentos_diario_bordo')
+          .select(baseSelect)
+          .eq('aeronave_id', aircraft.id)
+          .order('data_registro', { ascending: false })
+          .limit(100);
+        if (clientId) q = q.eq('clientes_id', clientId);
+        return q;
+      };
 
       const effectiveClientId = formData.client_id || client.id;
-      if (effectiveClientId) {
-        query = query.eq('clientes_id', effectiveClientId);
-      }
-
-      const { data: flights, error } = await query;
+      let { data: flights, error } = await buildQuery(effectiveClientId);
       if (error) {
         console.error('Error loading logbook flights:', error);
+        toast.error(`Erro ao carregar voos do diário de bordo: ${getErrorMessage(error)}`);
         setLogbookFlights([]);
         return;
+      }
+
+      // Se o filtro por cliente não retornar voos, mostra todos os voos da aeronave.
+      if (!flights || flights.length === 0) {
+        const fallback = await buildQuery();
+        if (fallback.error) {
+          console.error('Error loading logbook flights (fallback):', fallback.error);
+          toast.error(`Erro ao carregar voos do diário de bordo: ${getErrorMessage(fallback.error)}`);
+          setLogbookFlights([]);
+          return;
+        }
+        flights = fallback.data || [];
       }
 
       const availableFlights = (flights || []).filter((f: any) => !linkedIds.includes(f.id));
       setLogbookFlights(availableFlights);
     } catch (err) {
       console.error('Error loading logbook flights:', err);
+      toast.error(`Erro ao carregar voos do diário de bordo: ${getErrorMessage(err)}`);
       setLogbookFlights([]);
     } finally {
       setLoadingFlights(false);
@@ -712,13 +716,11 @@ export function FuelRecordsByAircraft({
     }
   };
 
+  // Submit simplificado: antes havia uma etapa de "confirmação" quando a comanda
+  // vinha vazia, mas o AlertDialog correspondente nunca era renderizado — então
+  // o botão "Criar" parecia sem ação. Agora o submit salva diretamente.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.comanda.trim() && !editingRecord) {
-      setShowConfirmation(true);
-      return;
-    }
-    // executar atualização imediatamente
     await saveRecord();
   };
 
@@ -852,7 +854,6 @@ export function FuelRecordsByAircraft({
 
   async function saveRecord() {
     setIsUploading(true);
-    setShowConfirmation(false);
     try {
       if (!formData.data || !formData.data.trim()) {
         toast.error("Campo obrigatório: Data não pode estar vazia");
@@ -896,23 +897,19 @@ export function FuelRecordsByAircraft({
         return;
       }
 
-      let comandaUrl = uploadedFiles.comanda_url;
-      let notaUrl = uploadedFiles.nota_url;
-      let boletoUrl = uploadedFiles.boleto_url;
-      let comprovanteUrl = uploadedFiles.comprovante_url;
+      // Anexos adicionados manualmente pelo usuário têm prioridade; caso a linha
+      // não exista, mantém o arquivo que já estava salvo no registro.
+      let comandaUrl = anexoUrlPorTipo(anexos, "comanda") || uploadedFiles.comanda_url;
+      let notaUrl = anexoUrlPorTipo(anexos, "nf") || uploadedFiles.nota_url;
+      let boletoUrl = anexoUrlPorTipo(anexos, "boleto") || uploadedFiles.boleto_url;
+      let comprovanteUrl =
+        anexoUrlPorTipo(anexos, "comprovante") ||
+        anexoUrlPorTipo(anexos, "recibo") ||
+        uploadedFiles.comprovante_url;
 
-      if (formData.comanda_file) {
-        comandaUrl = (await uploadFile(formData.comanda_file, "comanda")) || "";
-      }
-      if (formData.nota_file) {
-        notaUrl = (await uploadFile(formData.nota_file, "nota-fiscal")) || "";
-      }
-      if (formData.boleto_file) {
-        boletoUrl = (await uploadFile(formData.boleto_file, "boleto")) || "";
-      }
-      if (formData.comprovante_file) {
-        comprovanteUrl = (await uploadFile(formData.comprovante_file, "comprovante-pagamento")) || "";
-      }
+      const comandaNumero = anexoNumeroPorTipo(anexos, "comanda") || formData.comanda;
+      const nfNumero = anexoNumeroPorTipo(anexos, "nf") || formData.nf;
+
 
       let statusFinal = formData.status || "em aberto";
       if (statusFinal === "pago") {
@@ -952,7 +949,7 @@ export function FuelRecordsByAircraft({
         data: isoDateString,
         trecho: formData.trecho || "",
         local: formData.local || "",
-        comanda: formData.comanda || null,
+        comanda: comandaNumero || null,
         litros: litros,
         valor_unitario: valorUnitario,
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
@@ -972,7 +969,7 @@ export function FuelRecordsByAircraft({
         data_pagamento: statusFinal === "pago" ? formData.data_pagamento : null,
         criado_por: currentUserName || null,
         logbook_entry_id: (linkToLogbook && selectedFlightId) ? selectedFlightId : null,
-        nf: formData.nf || null,
+        nf: nfNumero || null,
         tipo_combustivel: formData.combustivel_tipo || null,
         descricao: formData.combustivel_tipo ? `Combustível: ${formData.combustivel_tipo.toUpperCase()}` : null,
       };
@@ -1055,8 +1052,8 @@ export function FuelRecordsByAircraft({
       data: record.data,
       trecho: record.trecho || "",
       local: record.local || "",
-      origem_aerodromo: "",
-      destino_aerodromo: "",
+      origem_aerodromo: (record.trecho || "").split(/\s*[xX]\s*/)[0]?.trim() || "",
+      destino_aerodromo: (record.trecho || "").split(/\s*[xX]\s*/)[1]?.trim() || "",
       comanda: record.comanda || "",
       litros: record.litros.toString(),
       valor_unitario: record.valor_unitario.toString(),
@@ -1089,6 +1086,17 @@ export function FuelRecordsByAircraft({
       boleto_url: record.boleto_url || "",
       comprovante_url: record.comprovante_pagamento || record.comprovante_url || ""
     });
+    // Só cria linhas de anexo para os documentos que realmente existem.
+    const linhas: AnexoLinha[] = [];
+    const push = (tipo: AnexoLinha["tipo"], url: string | null | undefined, numero?: string | null) => {
+      if (!url) return;
+      linhas.push({ id: crypto.randomUUID(), tipo, numero: numero || "", url, file: null, uploading: false });
+    };
+    push("comanda", record.comanda_url, record.comanda);
+    push("nf", record.nota_url, record.nf);
+    push("boleto", record.boleto_url);
+    push("comprovante", record.comprovante_pagamento || record.comprovante_url);
+    setAnexos(linhas);
     setIsDialogOpen(true);
   };
 
@@ -1143,6 +1151,7 @@ export function FuelRecordsByAircraft({
       comprovante_url: ""
     });
     setEditingRecord(null);
+    setAnexos([]);
     setLinkToLogbook(false);
     setSelectedFlightId("");
     setLogbookFlights([]);
@@ -1430,6 +1439,7 @@ export function FuelRecordsByAircraft({
                       if (!checked) {
                         setSelectedFlightId("");
                         setLogbookFlights([]);
+                        setSelectedFlightInfo(null);
                       }
                     }}
                   />
@@ -1477,46 +1487,61 @@ export function FuelRecordsByAircraft({
                           <p className="text-xs font-semibold mb-1 text-primary">✈️ Trecho Selecionado</p>
                           <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} x ${selectedFlightInfo.arrival_aerodrome}`}</p>
                         </div>
+                        {(selectedFlightInfo.litros_combustivel_inicio_voo !== null && selectedFlightInfo.litros_combustivel_inicio_voo !== undefined) && (
+                          <div>
+                            <p className="text-xs font-semibold mb-1 text-primary">⛽ Combustível Antes do Abastecimento</p>
+                            <p className="text-sm font-medium text-foreground">{selectedFlightInfo.litros_combustivel_inicio_voo}L</p>
+                          </div>
+                        )}
+                        {(selectedFlightInfo.combustivel_adicionado !== null && selectedFlightInfo.combustivel_adicionado !== undefined) && (
+                          <div>
+                            <p className="text-xs font-semibold mb-1 text-primary">⛽ Litros Abastecidos</p>
+                            <p className="text-sm font-medium text-foreground">{selectedFlightInfo.combustivel_adicionado}L</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
               </div>
 
-              {!linkToLogbook && (
-                <div>
-                  <Label className="text-sm font-semibold mb-2 block">Data do Abastecimento</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      value={formData.data ? formatDateBrazil(formData.data, "dd/MM/yyyy") : ""} readOnly
-                      placeholder="dd/mm/aaaa"
-                      className="mt-1 h-9 text-sm"
-                    />
-                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="icon" className="mt-1" type="button">
-                          <CalendarIcon className="h-4 w-4" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="end">
-                        <UICalendar
-                          mode="single"
-                          selected={formData.data ? new Date(formData.data + "T00:00:00") : undefined}
-                          onSelect={(date) => {
-                            if (!date) return;
-                            setFormData(prev => ({
-                              ...prev,
-                              data: format(date, "yyyy-MM-dd"),
-                            }));
-                            setCalendarOpen(false);
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Data do Abastecimento</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={formData.data ? formatDateBrazil(formData.data, "dd/MM/yyyy") : ""} readOnly
+                    placeholder="dd/mm/aaaa"
+                    className="mt-1 h-9 text-sm"
+                  />
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon" className="mt-1" type="button">
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <UICalendar
+                        mode="single"
+                        selected={formData.data ? new Date(formData.data + "T00:00:00") : undefined}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          setFormData(prev => ({
+                            ...prev,
+                            data: format(date, "yyyy-MM-dd"),
+                          }));
+                          setCalendarOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              )}
+                {linkToLogbook && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Preenchida automaticamente ao selecionar um voo — ajuste aqui se necessário.
+                  </p>
+                )}
+              </div>
 
               <div>
                 <Label className="text-sm font-semibold mb-2 block">Cliente e Sócios</Label>
@@ -1577,13 +1602,41 @@ export function FuelRecordsByAircraft({
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Origem <span className="text-red-500">*</span></Label>
+                  <SearchableCombobox
+                    items={aerodromeItems}
+                    value={formData.origem_aerodromo}
+                    onChange={(id) => setFormData(prev => ({ ...prev, origem_aerodromo: id || "" }))}
+                    placeholder={isLoadingAerodromes ? "Carregando..." : "Selecione o aeródromo"}
+                    searchPlaceholder="Buscar por designativo ou nome..."
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Destino <span className="text-red-500">*</span></Label>
+                  <SearchableCombobox
+                    items={aerodromeItems}
+                    value={formData.destino_aerodromo}
+                    onChange={(id) => setFormData(prev => ({ ...prev, destino_aerodromo: id || "" }))}
+                    placeholder={isLoadingAerodromes ? "Carregando..." : "Selecione o aeródromo"}
+                    searchPlaceholder="Buscar por designativo ou nome..."
+                  />
+                </div>
+              </div>
+
               <div>
                 <Label className="text-xs text-muted-foreground">Trecho <span className="text-red-500">*</span></Label>
-                <Input value={formData.trecho} onChange={e => setFormData({
-                  ...formData,
-                  trecho: e.target.value
-                })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" required />
+                <Input value={formData.trecho} readOnly placeholder="Preenchido automaticamente" className="mt-1 h-9 text-sm bg-muted/40" required />
+                {(nomeAerodromo(formData.origem_aerodromo) || nomeAerodromo(formData.destino_aerodromo)) && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {nomeAerodromo(formData.origem_aerodromo) || formData.origem_aerodromo}
+                    {" → "}
+                    {nomeAerodromo(formData.destino_aerodromo) || formData.destino_aerodromo}
+                  </p>
+                )}
               </div>
+
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
@@ -1768,12 +1821,6 @@ export function FuelRecordsByAircraft({
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isUploading}>
-                  Cancelar
-                </Button>
-                </div>
-
               <div className="rounded-lg border border-border/50 p-4">
                 <AnexosDinamicosField
                   anexos={anexos}
@@ -1783,9 +1830,6 @@ export function FuelRecordsByAircraft({
                   onView={(url, name, type) => setViewingAttachment({ url, type: type || 'pdf', name: name || 'Anexo' })}
                 />
               </div>
-
-
-
 
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isUploading}>

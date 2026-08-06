@@ -612,25 +612,23 @@ export default function TarefasKanban({
   }, [users]);
 
   // -------------------------------------------------- Filtragem
+  // Cada usuário vê somente as tarefas que criou ou que lhe foram atribuídas.
   const visibleTasks = useMemo(() => {
-    if (isManager) {
-      if (myView) {
-        return tarefas.filter(
-          (t) => t.criado_por === me && t.publico === false,
-        );
-      }
-      return tarefas.filter(
-        (t) => t.criado_por === me && t.publico === true,
+    if (!me) return [];
+    const mine = tarefas.filter(
+      (t) => t.criado_por === me || (t.atribuido_para || []).includes(me),
+    );
+    if (!isManager) return mine;
+    if (myView) {
+      return mine.filter(
+        (t) => t.criado_por === me && (t.atribuido_para || []).every((a) => a === me),
       );
     }
-    return tarefas.filter((t) => {
-      if (t.criado_por === me && t.publico === false) return true;
-      if ((t.atribuido_para || []).includes(me || "") && t.publico === true) return true;
-      const eq = (t.equipes || []) as string[];
-      if (eq.length && eq.some((id) => myTeams.includes(id as Equipe))) return true;
-      return false;
-    });
-  }, [tarefas, me, myView, isManager, myTeams]);
+    return mine.filter(
+      (t) => t.criado_por === me && (t.atribuido_para || []).some((a) => a !== me),
+    );
+  }, [tarefas, me, myView, isManager]);
+
 
   const PRIORITY_ORDER: Record<Priority, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 };
 

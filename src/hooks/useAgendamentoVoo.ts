@@ -66,6 +66,15 @@ export interface DataBloqueada {
   frota_inteira: boolean | null;
 }
 
+export interface DisponibilidadeAeronave {
+  id: string;
+  registro: string;
+  modelo: string | null;
+  status_atual: string | null;
+  localizacao_atual: string | null;
+  dias_bloqueados: number | null;
+}
+
 export interface StatusFrota {
   id: string;
   aeronave_id: string;
@@ -73,6 +82,14 @@ export interface StatusFrota {
   localizacao_atual: string | null;
   chegada_prevista: string | null;
 }
+
+export interface ConfigAgendamentoAeronave {
+  id: string;
+  aeronave_id: string;
+  habilitado_agendamento: boolean;
+  atualizado_em: string | null;
+}
+
 
 const sb = supabase as any;
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
@@ -206,7 +223,42 @@ export function useStatusFrota() {
   });
 }
 
+export function useDisponibilidadeAeronave() {
+  return useQuery({
+    queryKey: ["agv", "disponibilidade-aeronave"],
+    queryFn: async (): Promise<DisponibilidadeAeronave[]> => {
+      const { data, error } = await sb
+        .from("disponibilidade_aeronave")
+        .select("id, registro, modelo, status_atual, localizacao_atual, dias_bloqueados")
+        .order("registro");
+      if (error) throw error;
+      return (data ?? []) as DisponibilidadeAeronave[];
+    },
+  });
+}
+
+export function useConfigAgendamento() {
+  return useQuery({
+    queryKey: ["agv", "config-agendamento"],
+    queryFn: async (): Promise<ConfigAgendamentoAeronave[]> => {
+      const { data, error } = await sb
+        .from("config_agendamento_aeronave")
+        .select("id, aeronave_id, habilitado_agendamento, atualizado_em");
+      if (error) throw error;
+      return (data ?? []) as ConfigAgendamentoAeronave[];
+    },
+  });
+}
+
+/** Aeronave habilitada quando não há config (default) ou quando habilitado_agendamento = true */
+export function isAgendamentoHabilitado(aeronaveId: string, configs: ConfigAgendamentoAeronave[]) {
+  const cfg = configs.find((c) => c.aeronave_id === aeronaveId);
+  return cfg ? cfg.habilitado_agendamento : true;
+}
+
 /* ------------------------------ Realtime -------------------------------- */
+
+
 
 export function useAgendamentoRealtime() {
   const qc = useQueryClient();
@@ -221,11 +273,20 @@ export function useAgendamentoRealtime() {
           });
         }
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "config_agendamento_aeronave" }, () => {
+        qc.invalidateQueries({ queryKey: ["agv", "config-agendamento"] });
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "escala_tripulacao" }, () => {
         qc.invalidateQueries({ queryKey: ["agv", "escala"] });
       })
+
       .on("postgres_changes", { event: "*", schema: "public", table: "status_tempo_real_aeronave" }, () => {
         qc.invalidateQueries({ queryKey: ["agv", "status-frota"] });
+        qc.invalidateQueries({ queryKey: ["agv", "disponibilidade-aeronave"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "datas_bloqueadas_voo" }, () => {
+        qc.invalidateQueries({ queryKey: ["agv", "bloqueios"] });
+        qc.invalidateQueries({ queryKey: ["agv", "disponibilidade-aeronave"] });
       })
       .subscribe();
 
@@ -379,6 +440,28 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao atualizar aeronave"),
   });
 
+  const definirAgendamentoHabilitado = useMutation({
+    mutationFn: async ({ aeronaveId, habilitado }: { aeronaveId: string; habilitado: boolean }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await sb.from("config_agendamento_aeronave").upsert(
+        {
+          aeronave_id: aeronaveId,
+          habilitado_agendamento: habilitado,
+          atualizado_em: new Date().toISOString(),
+          atualizado_por: userData?.user?.id ?? null,
+        },
+        { onConflict: "aeronave_id" },
+      );
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(vars.habilitado ? "Aeronave liberada para agendamento" : "Aeronave bloqueada para agendamento");
+      qc.invalidateQueries({ queryKey: ["agv", "config-agendamento"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao atualizar configuração de agendamento"),
+  });
+
+
   const criarEscala = useMutation({
     mutationFn: async (payload: Partial<EscalaItem>) => {
       const { data: userData } = await supabase.auth.getUser();
@@ -430,7 +513,7 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao excluir voo"),
   });
 
-  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, definirStatusAeronave, criarEscala, removerEscala, excluirSolicitacao };
+  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
 }
 
 async function upsertStatusAeronave(aeronaveId: string, status: string, vooId: string | null) {

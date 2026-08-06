@@ -47,20 +47,20 @@ import { toast } from "@/components/ui/use-toast";
 
 interface BookingRequest {
   id: string;
-  client_id: string;
-  aeronave_id: string;
-  aircraft?: any;
-  origin: string;
-  destination: string;
-  scheduled_date: string;
-  departure_time: string;
-  duration_days: number;
-  passenger_count: number;
-  status: "pendente" | "confirmado" | "rejeitado" | "cancelado";
-  notes?: string;
-  rejection_reason?: string;
-  created_at: string;
-  user?: any;
+  cliente_id: string | null;
+  aeronave_id: string | null;
+  aeronave?: { id: string; matricula: string; modelo: string | null } | null;
+  origem: string | null;
+  destino: string | null;
+  data_agendada: string;
+  horario_partida: string | null;
+  dias_duracao: number | null;
+  qtd_passageiros: number | null;
+  status: "pendente" | "confirmado" | "em_voo" | "concluido" | "rejeitado" | "cancelado";
+  observacoes?: string | null;
+  motivo_rejeicao?: string | null;
+  criado_em: string;
+  cliente?: { nome: string | null; email: string | null } | null;
 }
 
 export default function AprovacaoAgendamentos() {
@@ -76,17 +76,11 @@ export default function AprovacaoAgendamentos() {
 
   // Fetch booking requests
   const { data: bookings, isLoading, error, refetch } = useQuery({
-    queryKey: ["flight-booking-requests", filterStatus],
+    queryKey: ["solicitacoes-reserva-voo", filterStatus],
     queryFn: async () => {
       let query = supabase
-        .from("flight_booking_requests")
-        .select(
-          `
-          *,
-          aircraft:aeronave_id(id, registration, model),
-          user:client_id(id, full_name, email)
-        `
-        )
+        .from("solicitacoes_reserva_voo")
+        .select("*, aeronave:aeronave_id(id, matricula, modelo)")
         .order("criado_em", { ascending: false });
 
       if (filterStatus !== "all") {
@@ -95,7 +89,28 @@ export default function AprovacaoAgendamentos() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as BookingRequest[];
+
+      const rows = (data || []) as BookingRequest[];
+      const clienteIds = [...new Set(rows.map(r => r.cliente_id).filter(Boolean))];
+
+      const { data: clientes } = clienteIds.length
+        ? await supabase
+            .from("clientes")
+            .select("id, razao_social, nome_fantasia, email")
+            .in("id", clienteIds as string[])
+        : { data: [] as any[] };
+
+      const byId = new Map((clientes || []).map((c: any) => [c.id, c]));
+
+      return rows.map(r => ({
+        ...r,
+        cliente: r.cliente_id
+          ? {
+              nome: byId.get(r.cliente_id)?.razao_social ?? byId.get(r.cliente_id)?.nome_fantasia ?? null,
+              email: byId.get(r.cliente_id)?.email ?? null,
+            }
+          : null,
+      }));
     }
   });
 
@@ -103,18 +118,18 @@ export default function AprovacaoAgendamentos() {
   const approveMutation = useMutation({
     mutationFn: async (bookingId: string) => {
       const { error } = await supabase
-        .from("flight_booking_requests")
+        .from("solicitacoes_reserva_voo")
         .update({
           status: "confirmado",
-          approved_at: new Date().toISOString(),
-          approved_by: (await supabase.auth.getUser()).data.user?.id
+          aprovado_em: new Date().toISOString(),
+          aprovado_por: (await supabase.auth.getUser()).data.user?.id
         })
         .eq("id", bookingId);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["flight-booking-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["solicitacoes-reserva-voo"] });
       toast({
         title: "Agendamento aprovado!",
         description: "O cliente será notificado da aprovação.",
@@ -141,19 +156,19 @@ export default function AprovacaoAgendamentos() {
       reason: string;
     }) => {
       const { error } = await supabase
-        .from("flight_booking_requests")
+        .from("solicitacoes_reserva_voo")
         .update({
           status: "rejeitado",
-          rejection_reason: reason,
-          approved_at: new Date().toISOString(),
-          approved_by: (await supabase.auth.getUser()).data.user?.id
+          motivo_rejeicao: reason,
+          aprovado_em: new Date().toISOString(),
+          aprovado_por: (await supabase.auth.getUser()).data.user?.id
         })
         .eq("id", bookingId);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["flight-booking-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["solicitacoes-reserva-voo"] });
       toast({
         title: "Agendamento rejeitado",
         description: "O cliente foi notificado da rejeição.",
@@ -336,7 +351,7 @@ export default function AprovacaoAgendamentos() {
                             {/* Client and Status */}
                             <div className="flex items-center justify-between gap-2">
                               <h4 className="text-base font-semibold text-foreground">
-                                {booking.user?.full_name || "Cliente"}
+                                {booking.cliente?.nome || "Cliente"}
                               </h4>
                               <Badge variant="outline" className={getStatusColor(booking.status)}>
                                 {getStatusIcon(booking.status)}
@@ -345,45 +360,45 @@ export default function AprovacaoAgendamentos() {
                             </div>
 
                             {/* Email */}
-                            <p className="text-sm text-muted-foreground">{booking.user?.email}</p>
+                            <p className="text-sm text-muted-foreground">{booking.cliente?.email}</p>
 
                             {/* Flight Details */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <MapPin className="h-4 w-4" />
-                                {booking.origin} → {booking.destination}
+                                {booking.origem} → {booking.destino}
                               </div>
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Calendar className="h-4 w-4" />
-                                {format(new Date(booking.scheduled_date), "dd/MM/yyyy", {
+                                {format(new Date(booking.data_agendada), "dd/MM/yyyy", {
                                   locale: ptBR
                                 })}
                               </div>
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Clock className="h-4 w-4" />
-                                {booking.departure_time}
+                                {booking.horario_partida?.slice(0, 5)}
                               </div>
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Users className="h-4 w-4" />
-                                {booking.passenger_count} pax - {booking.duration_days} dia(s)
+                                {booking.qtd_passageiros} pax - {booking.dias_duracao} dia(s)
                               </div>
                             </div>
 
                             {/* Notes */}
-                            {booking.notes && (
+                            {booking.observacoes && (
                               <div className="mt-3 p-2 bg-card rounded border border-border/50">
                                 <p className="text-xs text-muted-foreground">
-                                  <span className="font-semibold">Observações:</span> {booking.notes}
+                                  <span className="font-semibold">Observações:</span> {booking.observacoes}
                                 </p>
                               </div>
                             )}
 
                             {/* Rejection Reason */}
-                            {booking.rejection_reason && (
+                            {booking.motivo_rejeicao && (
                               <div className="mt-3 p-2 bg-red-500/10 rounded border border-red-500/20">
                                 <p className="text-xs text-red-600">
                                   <span className="font-semibold">Motivo da rejeição:</span>{" "}
-                                  {booking.rejection_reason}
+                                  {booking.motivo_rejeicao}
                                 </p>
                               </div>
                             )}
@@ -462,7 +477,7 @@ export default function AprovacaoAgendamentos() {
             <DialogHeader>
               <DialogTitle>Detalhes do Agendamento</DialogTitle>
               <DialogDescription>
-                Solicitação de {selectedBooking.user?.full_name}
+                Solicitação de {selectedBooking.cliente?.nome}
               </DialogDescription>
             </DialogHeader>
 
@@ -479,8 +494,8 @@ export default function AprovacaoAgendamentos() {
               {/* Client Info */}
               <div>
                 <label className="text-sm font-semibold text-foreground">Cliente</label>
-                <p className="text-sm text-muted-foreground mt-1">{selectedBooking.user?.full_name}</p>
-                <p className="text-sm text-muted-foreground">{selectedBooking.user?.email}</p>
+                <p className="text-sm text-muted-foreground mt-1">{selectedBooking.cliente?.nome}</p>
+                <p className="text-sm text-muted-foreground">{selectedBooking.cliente?.email}</p>
               </div>
 
               {/* Aircraft */}
@@ -495,11 +510,11 @@ export default function AprovacaoAgendamentos() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-semibold text-foreground">Origem</label>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedBooking.origin}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedBooking.origem}</p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-foreground">Destino</label>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedBooking.destination}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedBooking.destino}</p>
                 </div>
               </div>
 
@@ -507,7 +522,7 @@ export default function AprovacaoAgendamentos() {
                 <div>
                   <label className="text-sm font-semibold text-foreground">Data</label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {format(new Date(selectedBooking.scheduled_date), "dd/MM/yyyy", {
+                    {format(new Date(selectedBooking.data_agendada), "dd/MM/yyyy", {
                       locale: ptBR
                     })}
                   </p>
@@ -515,7 +530,7 @@ export default function AprovacaoAgendamentos() {
                 <div>
                   <label className="text-sm font-semibold text-foreground">Horário</label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {selectedBooking.departure_time}
+                    {selectedBooking.horario_partida?.slice(0, 5)}
                   </p>
                 </div>
               </div>
@@ -524,31 +539,31 @@ export default function AprovacaoAgendamentos() {
                 <div>
                   <label className="text-sm font-semibold text-foreground">Duração</label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {selectedBooking.duration_days} dia(s)
+                    {selectedBooking.dias_duracao} dia(s)
                   </p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-foreground">Passageiros</label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {selectedBooking.passenger_count}
+                    {selectedBooking.qtd_passageiros}
                   </p>
                 </div>
               </div>
 
-              {selectedBooking.notes && (
+              {selectedBooking.observacoes && (
                 <div>
                   <label className="text-sm font-semibold text-foreground">Observações</label>
                   <p className="text-sm text-muted-foreground mt-1 bg-card rounded p-2">
-                    {selectedBooking.notes}
+                    {selectedBooking.observacoes}
                   </p>
                 </div>
               )}
 
-              {selectedBooking.rejection_reason && (
+              {selectedBooking.motivo_rejeicao && (
                 <div>
                   <label className="text-sm font-semibold text-foreground">Motivo da Rejeição</label>
                   <p className="text-sm text-red-600 mt-1 bg-red-500/10 rounded p-2">
-                    {selectedBooking.rejection_reason}
+                    {selectedBooking.motivo_rejeicao}
                   </p>
                 </div>
               )}
@@ -565,7 +580,7 @@ export default function AprovacaoAgendamentos() {
               <AlertDialogTitle>Rejeitar Agendamento?</AlertDialogTitle>
               <AlertDialogDescription>
                 Você está rejeitando a solicitação de agendamento de{" "}
-                <span className="font-semibold text-foreground">{bookingToReject.user?.full_name}</span>
+                <span className="font-semibold text-foreground">{bookingToReject.cliente?.nome}</span>
                 . Informe o motivo da rejeição.
               </AlertDialogDescription>
             </AlertDialogHeader>

@@ -279,7 +279,7 @@ interface Tarefa {
   descricao: string | null;
   status: string | null;
   prioridade: string | null;
-  atribuido_para: string | null;
+  atribuido_para: string[] | string | null;
   criado_por: string | null;
   prazo: string | null;
   publico: boolean | null;
@@ -289,6 +289,12 @@ interface Tarefa {
   progresso?: number | null;
 }
 
+function assignees(t: Tarefa): string[] {
+  const a = t.atribuido_para;
+  if (!a) return [];
+  return Array.isArray(a) ? a.filter(Boolean) : [a];
+}
+
 interface Comentario {
   id: string;
   tarefa_id: string;
@@ -296,6 +302,7 @@ interface Comentario {
   comentario: string;
   criado_em: string | null;
 }
+
 
 function userInitials(u: UserOption | undefined): string {
   if (!u) return "?";
@@ -501,35 +508,35 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     return m;
   }, [users]);
 
-  // Filter visible tasks
+  // Visibilidade: cada usuário vê apenas as tarefas que criou
+  // ou as que foram atribuídas a ele.
   const visibleTasks = useMemo(() => {
+    if (!me) return [];
+    const mine = tarefas.filter(
+      (t) => t.criado_por === me || assignees(t).includes(me),
+    );
     if (actualIsManager) {
+      // "Minhas": criadas por mim e não delegadas a outra pessoa
       if (myView) {
-        // "Minhas": apenas tarefas PRIVADAS criadas por ele
-        return tarefas.filter(
-          (t) => t.criado_por === me && t.publico === false,
+        return mine.filter(
+          (t) =>
+            t.criado_por === me &&
+            assignees(t).every((a) => a === me),
         );
       }
-      // "Equipe": apenas tarefas PÚBLICAS criadas por ele (delegadas)
-      return tarefas.filter(
-        (t) => t.criado_por === me && t.publico === true,
+      // "Equipe": tarefas que deleguei a outras pessoas
+      return mine.filter(
+        (t) => t.criado_por === me && assignees(t).some((a) => a !== me),
       );
     }
-    // Usuário comum
-    return tarefas.filter((t) => {
-      if (t.criado_por === me && t.publico === false) return true;
-      if (t.atribuido_para === me && t.publico === true) return true;
-      const eq = (t.equipes || []) as string[];
-      if (eq.length && eq.some((id) => myTeams.includes(id as Equipe))) return true;
-      return false;
-    });
+    return mine;
   }, [tarefas, me, myView, actualIsManager]);
 
   // Separa tarefas pendentes e concluídas
   const { pending, completed } = useMemo(() => {
     return {
-      pending: visibleTasks.filter((t) => t.status !== "concluido"),
-      completed: visibleTasks.filter((t) => t.status === "concluido"),
+      pending: visibleTasks.filter((t) => normalizeTaskStatus(t.status) !== "concluido"),
+      completed: visibleTasks.filter((t) => normalizeTaskStatus(t.status) === "concluido"),
     };
   }, [visibleTasks]);
 
@@ -537,9 +544,10 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
     return (
       actualIsManager ||
       task.criado_por === me ||
-      task.atribuido_para === me
+      assignees(task).includes(me || "")
     );
   };
+
 
   const handleToggleTask = async (taskId: string, isComplete: boolean) => {
     const task = tarefas.find((t) => t.id === taskId);
@@ -602,28 +610,22 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
   const handleCreate = async (form: {
     titulo: string;
     descricao: string;
-    atribuido_para: string;
     prazo: string;
     prioridade: string;
-    publico: boolean;
-    equipes: string[];
-    progresso: number;
   }) => {
     if (!me) return;
-    const assignedRaw = form.atribuido_para || me;
-    const assignedId = Array.isArray(assignedRaw) ? (assignedRaw[0] as string) : assignedRaw;
     const payload = {
       titulo: form.titulo,
       descricao: form.descricao || null,
-      atribuido_para: assignedId ? [assignedId] : [me],
+      atribuido_para: [me],
       criado_por: me,
       prioridade: form.prioridade,
       status: "a-fazer",
       prazo: form.prazo || null,
-      publico: form.publico || (form.equipes && form.equipes.length > 0),
+      publico: false,
       origem: "lista",
-      equipes: form.equipes || [],
-      progresso: Math.max(0, Math.min(100, form.progresso || 0)),
+      equipes: [],
+      progresso: 0,
     } as unknown as Database["public"]["Tables"]["tarefas"]["Insert"];
     const { data, error } = await supabase.from("tarefas").insert(payload).select().single();
     if (error) {
@@ -631,24 +633,18 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
       toast.error("Erro ao criar tarefa");
       return;
     }
-
-    // Criar notificação para o usuário atribuído (se diferente do criador)
-    if (data && assignedId && assignedId !== me) {
-      const usuario = users.find((u) => u.id === assignedId);
-      const nomeCriador = users.find((u) => u.id === me)?.full_name || me;
-
-      await supabase.from("tarefas_notificacoes").insert({
-        id_da_tarefa: data.id,
-        user_id: assignedId,
-        mensagem: `${nomeCriador} delegou uma nova tarefa: "${form.titulo}"`,
-        lido: false,
-      });
+    if (data) {
+      setTarefas((prev) =>
+        prev.some((t) => t.id === (data as Tarefa).id)
+          ? prev
+          : [data as unknown as Tarefa, ...prev],
+      );
     }
-
 
     toast.success("Tarefa criada");
     setCreateOpen(false);
   };
+
 
   if (loading || roleLoading) {
     return (
@@ -707,16 +703,12 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                 </div>
               ) : (
                 pending.map((task) => {
-                  const assigned = task.atribuido_para
-                    ? userById.get(task.atribuido_para)
-                    : undefined;
-                  const canDelete =
-                    task.criado_por === me || (actualIsManager && task.publico);
+                  const canDelete = task.criado_por === me || actualIsManager;
 
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center gap-3 p-4 bg-[#15181e] border border-white/5 rounded-xl hover:border-white/10 hover:-translate-y-0.5 hover:shadow-xl transition-all group"
+                      className="flex items-center gap-3 px-4 py-3 bg-[#15181e] border border-white/5 rounded-xl hover:border-white/10 transition-colors group"
                     >
                       <input
                         type="checkbox"
@@ -724,14 +716,14 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                         onChange={(e) =>
                           void handleToggleTask(task.id, e.target.checked)
                         }
-                        className="w-5 h-5 rounded border-white/20 accent-cyan-500 cursor-pointer"
+                        className="w-5 h-5 rounded border-white/20 accent-cyan-500 cursor-pointer shrink-0"
                       />
 
                       <div
                         className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => setDetailTask(task)}
                       >
-                        <div className="font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors">
+                        <div className="font-medium text-slate-100 group-hover:text-cyan-400 transition-colors truncate">
                           {task.titulo}
                         </div>
                         {task.descricao && (
@@ -739,91 +731,27 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
                             {task.descricao}
                           </div>
                         )}
-                        {(task.equipes && task.equipes.length > 0) && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {task.equipes.map((id) => {
-                              const e = getEquipe(id);
-                              if (!e) return null;
-                              return (
-                                <span
-                                  key={id}
-                                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                                  style={{ color: e.color, background: e.bg, borderColor: e.border }}
-                                >
-                                  <Users2 size={9} /> {e.short}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {(task.progresso ?? 0) > 0 && (
-                          <div className="mt-2 max-w-xs">
-                            <div className="flex items-center justify-between mb-0.5">
-                              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Progresso</span>
-                              <span className="text-[10px] font-bold text-slate-300">{task.progresso}%</span>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                              <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400" style={{ width: `${task.progresso}%` }} />
-                            </div>
-                          </div>
-                        )}
                       </div>
 
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-300 bg-white/5 border border-white/10 px-2 py-1 rounded-full">
-                            {taskStatusLabel(task.status)}
-                          </span>
-                          {canEditTaskStatus(task) ? (
-                            <select
-                              value={normalizeTaskStatus(task.status)}
-                              onChange={(e) =>
-                                void handleChangeStatus(task.id, e.target.value)
-                              }
-                              className="text-xs bg-black/40 text-slate-200 border border-white/10 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
-                            >
-                              <option value="a-fazer">A Fazer</option>
-                              <option value="em-andamento">Em Andamento</option>
-                              <option value="revisao">Revisão</option>
-                              <option value="concluido">Concluído</option>
-                            </select>
-                          ) : null}
-                        </div>
+                      {task.prazo && (
+                        <span className="text-xs text-slate-400 shrink-0">
+                          {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                        </span>
+                      )}
 
-                        <div className="flex items-center gap-3">
-                          {task.prazo && (
-                            <div className="text-xs text-slate-400 bg-white/5 border border-white/5 px-2 py-1 rounded">
-                              📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/5 border border-white/5 px-2 py-1 rounded" title={`${commentCounts[task.id] || 0} comentário(s)`}>
-                            <MessageSquare size={12} /> {commentCounts[task.id] || 0}
-                          </div>
-                          <Avatar user={assigned} size={28} />
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {canDelete && (
                         <button
-                          onClick={() => void setDetailTask(task)}
-                          className="p-1.5 text-slate-500 hover:text-cyan-400 transition-colors"
-                          title="Abrir"
+                          onClick={() => void handleDelete(task.id)}
+                          className="p-1.5 text-slate-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                          title="Excluir"
                         >
-                          <MessageSquare size={16} />
+                          <Trash2 size={16} />
                         </button>
-                        {canDelete && (
-                          <button
-                            onClick={() => void handleDelete(task.id)}
-                            className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors"
-                            title="Excluir"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   );
                 })
+
               )}
             </div>
           </div>
@@ -842,70 +770,50 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
 
               <div className="space-y-2">
                 {completed.map((task) => {
-                  const assigned = task.atribuido_para
-                    ? userById.get(task.atribuido_para)
-                    : undefined;
-                  const canDelete =
-                    task.criado_por === me || (actualIsManager && task.publico);
+                  const canDelete = task.criado_por === me || actualIsManager;
 
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl hover:shadow-md transition-all group line-through text-slate-500"
+                      className="flex items-center gap-3 px-4 py-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl transition-colors group"
                     >
                       <input
                         type="checkbox"
-                        defaultChecked
+                        checked
                         onChange={(e) =>
                           void handleToggleTask(task.id, e.target.checked)
                         }
-                        className="w-5 h-5 rounded border-emerald-300 text-emerald-600 cursor-pointer"
+                        className="w-5 h-5 rounded accent-emerald-500 cursor-pointer shrink-0"
                       />
 
                       <div
-                        className="flex-1 cursor-pointer hover:text-emerald-700 transition-colors"
+                        className="flex-1 min-w-0 cursor-pointer"
                         onClick={() => setDetailTask(task)}
                       >
-                        <div className="font-medium text-foreground">
+                        <div className="font-medium text-slate-500 line-through truncate">
                           {task.titulo}
                         </div>
-                        {task.descricao && (
-                          <div className="text-sm line-clamp-1">
-                            {task.descricao}
-                          </div>
-                        )}
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        {task.prazo && (
-                          <div className="text-xs bg-emerald-100 px-2 py-1 rounded">
-                            📅 {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                          </div>
-                        )}
-                        <Avatar user={assigned} size={28} />
+                      {task.prazo && (
+                        <span className="text-xs text-slate-500 shrink-0">
+                          {new Date(task.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                        </span>
+                      )}
 
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => void setDetailTask(task)}
-                            className="p-1.5 text-slate-500 hover:text-emerald-600 transition-colors"
-                            title="Abrir"
-                          >
-                            <MessageSquare size={16} />
-                          </button>
-                          {canDelete && (
-                            <button
-                              onClick={() => void handleDelete(task.id)}
-                              className="p-1.5 text-slate-500 hover:text-red-600 transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                      {canDelete && (
+                        <button
+                          onClick={() => void handleDelete(task.id)}
+                          className="p-1.5 text-slate-600 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                          title="Excluir"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
+
               </div>
             </div>
           )}
@@ -917,10 +825,8 @@ export default function TarefasLista({ myView = false, isManager = false }: Prop
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onSave={handleCreate}
-        users={users}
-        canAssignOthers={actualIsManager}
-        meId={me}
       />
+
 
       {/* Detail Dialog */}
       <DetailDialog
@@ -941,66 +847,34 @@ function CreateListaModal({
   open,
   onClose,
   onSave,
-  users,
-  canAssignOthers,
-  meId,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (f: {
     titulo: string;
     descricao: string;
-    atribuido_para: string;
     prazo: string;
     prioridade: string;
-    publico: boolean;
-    equipes: string[];
-    progresso: number;
   }) => Promise<void>;
-  users: UserOption[];
-  canAssignOthers: boolean;
-  meId: string | null;
 }) {
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
-    atribuido_para: meId || "",
     prazo: "",
     prioridade: "media",
-    publico: canAssignOthers,
-    equipes: [] as string[],
-    progresso: 0,
   });
 
   useEffect(() => {
     if (open) {
-      setForm({
-        titulo: "",
-        descricao: "",
-        atribuido_para: meId || "",
-        prazo: "",
-        prioridade: "media",
-        publico: canAssignOthers,
-        equipes: [],
-        progresso: 0,
-      });
+      setForm({ titulo: "", descricao: "", prazo: "", prioridade: "media" });
     }
-  }, [open, meId, canAssignOthers]);
-
-  const toggleEquipe = (id: string) => {
-    setForm((p) => ({
-      ...p,
-      equipes: p.equipes.includes(id)
-        ? p.equipes.filter((e) => e !== id)
-        : [...p.equipes, id],
-    }));
-  };
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="w-[calc(100%-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Nova Tarefa em Lista</DialogTitle>
+          <DialogTitle>Nova Tarefa</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -1009,9 +883,7 @@ function CreateListaModal({
             </label>
             <input
               value={form.titulo}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, titulo: e.target.value }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
               placeholder="Descreva a tarefa..."
               className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
             />
@@ -1022,48 +894,19 @@ function CreateListaModal({
             </label>
             <textarea
               value={form.descricao}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, descricao: e.target.value }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
               placeholder="Detalhes (opcional)"
               rows={2}
               className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
             />
           </div>
-
-          {canAssignOthers && (
-            <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                Atribuir para
-              </label>
-              <select
-                value={form.atribuido_para}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, atribuido_para: e.target.value }))
-                }
-                className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
-              >
-                <option value={meId || ""}>Eu mesmo</option>
-                {users
-                  .filter((u) => u.id !== meId)
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.full_name || u.display_name || u.email}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          )}
-
           <div>
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Prioridade
             </label>
             <select
               value={form.prioridade}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, prioridade: e.target.value }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, prioridade: e.target.value }))}
               className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
             >
               <option value="baixa">Baixa</option>
@@ -1072,7 +915,6 @@ function CreateListaModal({
               <option value="urgente">Urgente</option>
             </select>
           </div>
-
           <div>
             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
               Prazo
@@ -1080,72 +922,8 @@ function CreateListaModal({
             <input
               type="date"
               value={form.prazo}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, prazo: e.target.value }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, prazo: e.target.value }))}
               className="w-full mt-1 bg-background border border-border rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-
-          {!canAssignOthers && (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={form.publico}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, publico: e.target.checked }))
-                }
-              />
-              Tornar visível para administradores
-            </label>
-          )}
-
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-              Atribuir para equipes
-            </label>
-            <div className="grid grid-cols-1 gap-2 mt-1">
-              {EQUIPES.map((e) => {
-                const active = form.equipes.includes(e.id);
-                return (
-                  <label
-                    key={e.id}
-                    className="flex items-center gap-2 rounded-md border border-border bg-background/50 px-3 py-2 cursor-pointer hover:bg-background transition"
-                    style={active ? { borderColor: e.border, background: e.bg } : undefined}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={active}
-                      onChange={() => toggleEquipe(e.id)}
-                      className="w-4 h-4"
-                    />
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border"
-                      style={{ color: e.color, background: e.bg, borderColor: e.border }}
-                    >
-                      {e.label}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                Progresso
-              </label>
-              <span className="text-xs font-bold text-foreground">{form.progresso}%</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={form.progresso}
-              onChange={(e) => setForm((p) => ({ ...p, progresso: Number(e.target.value) }))}
-              className="w-full mt-2 accent-cyan-500"
             />
           </div>
         </div>
@@ -1170,6 +948,7 @@ function CreateListaModal({
     </Dialog>
   );
 }
+
 
 // ============================================================
 // DetailDialog
@@ -1249,9 +1028,7 @@ function DetailDialog({
 
   if (!task) return null;
 
-  const assigned = task.atribuido_para
-    ? userById.get(task.atribuido_para)
-    : undefined;
+  const assigned = userById.get(assignees(task)[0] || "");
   const creator = task.criado_por ? userById.get(task.criado_por) : undefined;
 
   const handleSend = async () => {

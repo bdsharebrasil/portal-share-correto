@@ -127,12 +127,22 @@ export default function TarefasCalendario({
   }, [users]);
 
   const visibleTasks = useMemo(() => {
-    if (!isManager || !me) return tarefas;
-    return tarefas.filter((t) => {
-      const mine = t.criado_por === me || (t.atribuido_para || []).includes(me);
-      return myView ? mine : !mine || (t.atribuido_para || []).length > 0;
-    });
+    if (!me) return [];
+    // Cada usuário vê apenas o que criou ou o que lhe foi atribuído
+    const mine = tarefas.filter(
+      (t) => t.criado_por === me || (t.atribuido_para || []).includes(me),
+    );
+    if (!isManager) return mine;
+    if (myView) {
+      return mine.filter(
+        (t) => t.criado_por === me && (t.atribuido_para || []).every((a) => a === me),
+      );
+    }
+    return mine.filter(
+      (t) => t.criado_por === me && (t.atribuido_para || []).some((a) => a !== me),
+    );
   }, [tarefas, myView, isManager, me]);
+
 
   const withDate = useMemo(
     () => visibleTasks.filter((t) => !!t.prazo),
