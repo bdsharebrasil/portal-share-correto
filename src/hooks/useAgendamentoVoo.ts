@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { addDays, format, isWithinInterval, parseISO } from "date-fns";
+
+type PernaVooInsert = Database["public"]["Tables"]["pernas_voo"]["Insert"];
+type PernaVooUpdate = Database["public"]["Tables"]["pernas_voo"]["Update"];
 
 export type SolicitacaoStatus =
   | "pendente"
@@ -653,7 +657,7 @@ export function useAgendamentoMutations() {
       if (lastLegError) throw lastLegError;
       const nextLegNumber = (lastLeg?.numero_perna ?? 0) + 1;
 
-      const { error: legError } = await sb.from("pernas_voo").insert({
+      const pernaVoo: PernaVooInsert = {
         solicitacao_id: solicitacao.id,
         numero_perna: nextLegNumber,
         data_perna: dataPartida,
@@ -665,7 +669,8 @@ export function useAgendamentoMutations() {
         horario_corte: new Date().toISOString(),
         qtd_passageiros: passageirosConfirmados,
         observacoes: `Perna ${nextLegNumber} iniciada para agendamento ${solicitacao.id}`,
-      });
+      };
+      const { error: legError } = await sb.from("pernas_voo").insert(pernaVoo);
       if (legError) throw legError;
 
       const { error } = await sb
@@ -731,9 +736,10 @@ export function useAgendamentoMutations() {
 
       if (lastLegError) throw lastLegError;
       if (lastLeg?.id) {
+        const pernaVoo: PernaVooUpdate = { horario_pouso: `${horarioPouso}:00` };
         const { error: updateLegError } = await sb
           .from("pernas_voo")
-          .update({ horario_pouso: `${horarioPouso}:00` })
+          .update(pernaVoo)
           .eq("id", lastLeg.id);
         if (updateLegError) throw updateLegError;
       }
