@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plane, CircleDot, CheckCircle2, Clock, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle } from "lucide-react";
+import { Plane, CircleDot, CheckCircle2, Clock, History, MoreVertical, Trash2, XCircle, PlayCircle, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Solicitacao, SolicitacaoStatus, useAgendamentoMutations, vooCobreDia } from "@/hooks/useAgendamentoVoo";
 import {
@@ -25,12 +25,12 @@ import { ConcluirVooDialog } from "./ConcluirVooDialog";
 import { IniciarVooDialog } from "./IniciarVooDialog";
 import { utcToBrasilia } from "@/lib/timezone-utils";
 
-// Mapeamento ajustado com base nos status permitidos na CHECK constraint do PostgreSQL:
-// ('pendente', 'confirmado', 'em_rota', 'rejeitado', 'cancelado')
+// Mapeamento dos status permitidos na CHECK constraint do PostgreSQL.
 const STATUS_META: Record<string, { label: string; badge: string; dot: string }> = {
   pendente: { label: "Pendente", badge: "bg-muted text-muted-foreground", dot: "text-muted-foreground" },
   confirmado: { label: "Agendado", badge: "bg-primary/15 text-primary", dot: "text-primary" },
   em_rota: { label: "Em Rota", badge: "bg-amber-500/20 text-amber-400", dot: "text-amber-400 font-semibold" },
+  concluido: { label: "Concluído", badge: "bg-emerald-500/15 text-emerald-400", dot: "text-emerald-400" },
   rejeitado: { label: "Rejeitado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
   cancelado: { label: "Cancelado", badge: "bg-destructive/15 text-destructive", dot: "text-destructive" },
 };
@@ -47,13 +47,21 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
   const [iniciarTarget, setIniciarTarget] = useState<Solicitacao | null>(null);
   const [concluirTarget, setConcluirTarget] = useState<Solicitacao | null>(null);
 
+  const hoje = format(new Date(), "yyyy-MM-dd");
   const voos = useMemo(
     () =>
       solicitacoes
         .filter((s) => ["confirmado", "em_rota", "cancelado", "pendente"].includes(s.status))
-        .filter((s) => vooCobreDia(s, format(new Date(), "yyyy-MM-dd")) || s.data_agendada >= format(new Date(), "yyyy-MM-dd"))
+        .filter((s) => vooCobreDia(s, hoje) || s.data_agendada >= hoje)
         .slice(0, 6),
-    [solicitacoes],
+    [solicitacoes, hoje],
+  );
+  const historico = useMemo(
+    () =>
+      solicitacoes
+        .filter((s) => s.status === "concluido" || s.data_agendada < hoje)
+        .sort((a, b) => (b.data_partida ?? b.data_agendada).localeCompare(a.data_partida ?? a.data_agendada)),
+    [solicitacoes, hoje],
   );
 
   const handleStatusChange = (voo: Solicitacao, newStatus: SolicitacaoStatus) => {
@@ -195,6 +203,48 @@ export function CronogramaVoos({ solicitacoes, onSelect }: Props) {
           })}
         </ol>
       )}
+
+      <section className="mt-5 border-t border-border pt-5" aria-label="Histórico de voos">
+        <header className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold text-foreground">Histórico de voos</h3>
+          </div>
+          <span className="text-xs text-muted-foreground">{historico.length} registro(s)</span>
+        </header>
+        {historico.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum voo concluído ou anterior.</p>
+        ) : (
+          <div className="space-y-2">
+            {historico.map((voo) => {
+              const meta = STATUS_META[voo.status] ?? STATUS_META.pendente;
+              const dataVoo = voo.data_partida ?? voo.data_agendada;
+              return (
+                <button
+                  key={voo.id}
+                  type="button"
+                  onClick={() => onSelect?.(voo)}
+                  className="flex w-full items-center gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-2 text-left transition-colors hover:border-primary/50"
+                >
+                  <History className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {voo.aeronave?.matricula ?? "Aeronave —"} · {voo.origem ?? "—"} → {voo.destino ?? "—"}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {format(parseISO(dataVoo), "dd/MM/yyyy", { locale: ptBR })}
+                      {voo.horario_pouso ? ` · ARR ${voo.horario_pouso.slice(0, 5)} UTC` : ""}
+                    </span>
+                  </span>
+                  <span className={cn("shrink-0 rounded-md px-2 py-1 text-[11px] font-medium", meta.badge)}>
+                    {voo.horario_pouso ? "Pousado" : meta.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <IniciarVooDialog
         voo={iniciarTarget}
