@@ -4,7 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { addDays, format, isWithinInterval, parseISO } from "date-fns";
 
-export type SolicitacaoStatus = "pendente" | "confirmado" | "em_voo" | "concluido" | "rejeitado" | "cancelado";
+export type SolicitacaoStatus =
+  | "pendente"
+  | "confirmado"
+  | "em_voo"
+  | "em_rota"
+  | "concluido"
+  | "rejeitado"
+  | "cancelado";
+
+/** Dia (yyyy-MM-dd) coberto por um voo considerando dias_duracao */
+export function vooCobreDia(s: { data_agendada: string; dias_duracao?: number | null }, dia: string) {
+  const dias = Math.max(1, s.dias_duracao ?? 1);
+  const fim = format(addDays(parseISO(s.data_agendada), dias - 1), "yyyy-MM-dd");
+  return s.data_agendada <= dia && dia <= fim;
+}
 
 export interface Aeronave {
   id: string;
@@ -44,6 +58,7 @@ export interface Tripulante {
   url_avatar: string | null;
   telefone: string | null;
   validade_cma: string | null;
+  source?: "membros_tripulacao" | "tripulacao";
 }
 
 export interface EscalaItem {
@@ -151,13 +166,39 @@ export function useTripulantes() {
   return useQuery({
     queryKey: ["agv", "tripulantes"],
     queryFn: async (): Promise<Tripulante[]> => {
-      const { data, error } = await sb
-        .from("membros_tripulacao")
-        .select("id, user_id, nome_completo, status, url_avatar, telefone")
-        .eq("status", "ativo")
-        .order("nome_completo");
-      if (error) throw error;
-      const membros = (data ?? []) as Tripulante[];
+      const [membrosRes, tripulacaoRes] = await Promise.all([
+        sb
+          .from("membros_tripulacao")
+          .select("id, user_id, nome_completo, status, url_avatar, telefone")
+          .eq("status", "ativo")
+          .order("nome_completo"),
+        sb
+          .from("tripulacao")
+          .select("id, nome_completo, status, url_avatar, telefone")
+          .eq("status", "ativo")
+          .order("nome_completo"),
+      ]);
+
+      if (membrosRes.error) throw membrosRes.error;
+      if (tripulacaoRes.error) throw tripulacaoRes.error;
+
+      const membros = (membrosRes.data ?? []).map((m: any) => ({
+        ...m,
+        user_id: m.user_id ?? null,
+        validade_cma: null,
+        source: "membros_tripulacao" as const,
+      })) as Tripulante[];
+
+      const tripulacao = (tripulacaoRes.data ?? []).map((t: any) => ({
+        id: t.id,
+        user_id: null,
+        nome_completo: t.nome_completo,
+        status: t.status,
+        url_avatar: t.url_avatar ?? null,
+        telefone: t.telefone ?? null,
+        validade_cma: null,
+        source: "tripulacao" as const,
+      })) as Tripulante[];
 
       const { data: habs } = await sb
         .from("habilitacoes_tripulante")
@@ -171,7 +212,10 @@ export function useTripulantes() {
         if (!atual || v > atual) cmaPorMembro.set(h.membro_tripulacao_id, v);
       });
 
-      return membros.map((m) => ({ ...m, validade_cma: cmaPorMembro.get(m.id) ?? null }));
+      return [
+        ...membros.map((m) => ({ ...m, validade_cma: cmaPorMembro.get(m.id) ?? null })),
+        ...tripulacao,
+      ];
     },
   });
 }
@@ -355,6 +399,12 @@ export function useAgendamentoMutations() {
 
       await bloquearDiasDoVoo(solicitacao, userId);
 
+      if (solicitacao.aeronave_id) {
+        await upsertStatusAeronave(solicitacao.aeronave_id, "reservado", solicitacao.id, {
+          localizacao_atual: solicitacao.origem ?? null,
+        });
+      }
+
       const dias = Math.max(1, solicitacao.dias_duracao ?? 1);
       const dataFim = iso(addDays(parseISO(solicitacao.data_agendada), dias - 1));
       const escalas = [
@@ -404,8 +454,32 @@ export function useAgendamentoMutations() {
       if (error) throw error;
 
       if (solicitacao.aeronave_id) {
-        const statusAeronave = status === "em_voo" ? "em_voo" : status === "concluido" ? "disponivel" : null;
-        if (statusAeronave) await upsertStatusAeronave(solicitacao.aeronave_id, statusAeronave, solicitacao.id);
+        const statusAeronave =
+          status === "em_voo" || status === "em_rota"
+            ? "em_voo"
+            : status === "concluido"
+              ? "disponivel"
+              : status === "confirmado"
+                ? "reservado"
+                : status === "cancelado" || status === "rejeitado"
+                  ? "disponivel"
+                  : null;
+        if (statusAeronave) {
+          await upsertStatusAeronave(
+            solicitacao.aeronave_id,
+            statusAeronave,
+            statusAeronave === "disponivel" ? null : solicitacao.id,
+            status === "concluido" ? { localizacao_atual: solicitacao.destino ?? null } : undefined,
+          );
+        }
+      }
+      if (status === "concluido" && solicitacao.aeronave_id) {
+        await sb
+          .from("ciclos_voo")
+          .update({ status: "concluido", concluido_em: new Date().toISOString() })
+          .eq("aeronave_id", solicitacao.aeronave_id)
+          .eq("data_voo", solicitacao.data_agendada)
+          .in("status", ["planejado", "em_andamento"]);
       }
       if (status === "cancelado" && solicitacao.aeronave_id) {
         await sb
@@ -421,6 +495,79 @@ export function useAgendamentoMutations() {
       invalidate();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao atualizar status"),
+  });
+
+  /** Inicia o voo: registra acionamento/decolagem, muda status para em_rota e cria o ciclo de voo */
+  const iniciarVoo = useMutation({
+    mutationFn: async ({
+      solicitacao,
+      horarioAcionamento,
+      horarioDecolagem,
+    }: {
+      solicitacao: Solicitacao;
+      horarioAcionamento: string;
+      horarioDecolagem: string;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id ?? null;
+      const dias = Math.max(1, solicitacao.dias_duracao ?? 1);
+      const dataRetorno = iso(addDays(parseISO(solicitacao.data_agendada), dias - 1));
+
+      const { data: ciclo, error: cicloErr } = await sb
+        .from("ciclos_voo")
+        .insert({
+          cliente_id: solicitacao.cliente_id,
+          aeronave_id: solicitacao.aeronave_id,
+          icao_origem: (solicitacao.origem ?? "").toUpperCase(),
+          icao_destino: (solicitacao.destino ?? "").toUpperCase(),
+          data_voo: solicitacao.data_agendada,
+          data_retorno: dias > 1 ? dataRetorno : null,
+          tipo_voo: "ida_volta",
+          pernoite: dias > 1,
+          status: "em_execucao",
+          responsavel_id: userId,
+          iniciado_em: new Date().toISOString(),
+          observacoes: `Ciclo gerado automaticamente do agendamento ${solicitacao.id}`,
+        })
+        .select("id")
+        .single();
+      if (cicloErr) throw cicloErr;
+
+      const { error } = await sb
+        .from("solicitacoes_reserva_voo")
+        .update({
+          status: "em_rota",
+          horario_acionamento: horarioAcionamento ? `${horarioAcionamento}:00` : null,
+          horario_decolagem: horarioDecolagem ? `${horarioDecolagem}:00` : null,
+          iniciado_em: new Date().toISOString(),
+          ciclo_voo_id: ciclo?.id ?? null,
+        })
+        .eq("id", solicitacao.id);
+      if (error) throw error;
+
+      if (solicitacao.aeronave_id) {
+        await upsertStatusAeronave(solicitacao.aeronave_id, "em_voo", solicitacao.id, {
+          localizacao_atual: solicitacao.origem ?? null,
+          ultima_partida: new Date().toISOString(),
+          chegada_prevista: solicitacao.horario_chegada
+            ? `${solicitacao.data_agendada}T${solicitacao.horario_chegada}`
+            : null,
+        });
+      }
+
+      await sb
+        .from("escala_tripulacao")
+        .update({ status: "em_voo" })
+        .eq("solicitacao_id", solicitacao.id);
+    },
+    onSuccess: () => {
+      toast.success("Voo iniciado — aeronave em rota e ciclo de voo criado");
+      qc.invalidateQueries({ queryKey: ["agv"] });
+      qc.invalidateQueries({ queryKey: ["ciclos-voo"] });
+      qc.invalidateQueries({ queryKey: ["active-flight-cycles"] });
+      qc.invalidateQueries({ queryKey: ["aircraft-fleet"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao iniciar voo"),
   });
 
   const definirStatusAeronave = useMutation({
@@ -513,10 +660,15 @@ export function useAgendamentoMutations() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao excluir voo"),
   });
 
-  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
+  return { criarSolicitacao, aprovar, rejeitar, alterarStatusVoo, iniciarVoo, definirStatusAeronave, definirAgendamentoHabilitado, criarEscala, removerEscala, excluirSolicitacao };
 }
 
-async function upsertStatusAeronave(aeronaveId: string, status: string, vooId: string | null) {
+async function upsertStatusAeronave(
+  aeronaveId: string,
+  status: string,
+  vooId: string | null,
+  extra?: Record<string, unknown>,
+) {
   const { data: userData } = await supabase.auth.getUser();
   const { data: existente } = await sb
     .from("status_tempo_real_aeronave")
@@ -530,6 +682,7 @@ async function upsertStatusAeronave(aeronaveId: string, status: string, vooId: s
     voo_atual_id: vooId,
     atualizado_por: userData?.user?.id ?? null,
     atualizado_em: new Date().toISOString(),
+    ...(extra ?? {}),
   };
 
   if (existente?.id) {

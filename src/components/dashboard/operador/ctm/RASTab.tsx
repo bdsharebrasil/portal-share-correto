@@ -255,8 +255,6 @@ function NovoRASForm({ aircraftId, onClose, onSaved }: {
         descricao: form.descricao || null,
         horas_celula_entrada: form.horas_celula_entrada ? Number(form.horas_celula_entrada) : null,
         horas_celula_saida: form.horas_celula_saida ? Number(form.horas_celula_saida) : null,
-        oficina_nome: form.oficina_nome || null,
-        mecanico_responsavel: form.mecanico_responsavel || null,
         total_trabalho: laborTotal,
         total_pecas: partsTotal,
         total_geral: laborTotal + partsTotal,

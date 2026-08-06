@@ -255,7 +255,7 @@ export function EmployeeSalaryCalculator() {
         data_segunda_parcela: thirteenthForm.second_installment_date || null,
         valor_primeira_parcela: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) * 0.5 : 0,
         valor_segunda_parcela: thirteenthForm.gross_value ? parseFloat(thirteenthForm.gross_value) * 0.5 : 0,
-        status: thirteenthForm.payment_status,
+        status_pagamento: thirteenthForm.payment_status,
         atualizado_em: new Date().toISOString(),
       };
 

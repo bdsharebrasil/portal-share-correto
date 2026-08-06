@@ -130,17 +130,19 @@ export default function Contatos() {
         return;
       }
 
+      const { uf: _uf, ...payload } = formData;
+
       if (editingContato) {
         const { error } = await supabase
           .from("contatos")
-          .update(formData)
+          .update(payload)
           .eq("id", editingContato.id);
         if (error) throw error;
         toast({ title: "Sucesso", description: "Contato atualizado com sucesso" });
       } else {
         const { error } = await supabase
           .from("contatos")
-          .insert([formData]);
+          .insert([payload]);
         if (error) throw error;
         toast({ title: "Sucesso", description: "Contato cadastrado com sucesso" });
       }

@@ -156,7 +156,7 @@ export default function VencimentosTripulacao() {
       const field = editingHabilitacao.habilitacao.tipo === 'habilitacao' ? 'data_validade' : 'validade_cma';
       const { error } = await supabase
         .from('habilitacoes_tripulante')
-        .update({ [field]: newDate })
+        .update({ [field]: newDate } as never)
         .eq('id', editingHabilitacao.habilitacao.licenseId);
 
       if (error) throw error;

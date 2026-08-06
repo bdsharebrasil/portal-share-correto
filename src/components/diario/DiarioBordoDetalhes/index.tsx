@@ -1807,6 +1807,35 @@ function NovoVooInline({
     [tripulantes]);
   const sicTrip = useMemo(() => tripOptions.find(t => t.id === sicId), [tripOptions, sicId]);
 
+  // Voo pré-iniciado (agendamento em rota) para esta aeronave
+  const [vooEmRota, setVooEmRota] = useState<any | null>(null);
+  const [prefillAplicado, setPrefillAplicado] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("solicitacoes_reserva_voo")
+        .select("*")
+        .eq("aeronave_id", aeronave.id)
+        .in("status", ["em_rota", "em_voo"])
+        .order("data_agendada", { ascending: false })
+        .limit(1);
+      setVooEmRota((data as any[])?.[0] ?? null);
+    })();
+  }, [aeronave.id]);
+
+  const aplicarPrefill = () => {
+    if (!vooEmRota) return;
+    setData(vooEmRota.data_agendada ?? data);
+    setOrigem((vooEmRota.origem ?? "").toUpperCase());
+    setDestino((vooEmRota.destino ?? "").toUpperCase());
+    if (vooEmRota.horario_acionamento) setAcionamento(String(vooEmRota.horario_acionamento).slice(0, 5));
+    if (vooEmRota.horario_decolagem) setDecolagem(String(vooEmRota.horario_decolagem).slice(0, 5));
+    if (vooEmRota.piloto_id) setPicId(vooEmRota.piloto_id);
+    if (vooEmRota.copiloto_id) setSicId(vooEmRota.copiloto_id);
+    if (vooEmRota.cliente_id) setClienteId(vooEmRota.cliente_id);
+    setPrefillAplicado(true);
+  };
+
   useEffect(() => {
     if (!clienteId) { setAbastecimentosCliente([]); return; }
     (async () => {
@@ -1933,7 +1962,30 @@ function NovoVooInline({
         <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"><X className="w-4 h-4" /></button>
       </div>
       <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+        {vooEmRota && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-amber-300">
+                Voo em rota · {vooEmRota.origem ?? "—"} → {vooEmRota.destino ?? "—"}
+              </p>
+              <p className="text-[10px] text-amber-200/70">
+                {vooEmRota.data_agendada}
+                {vooEmRota.horario_acionamento ? ` · AC ${String(vooEmRota.horario_acionamento).slice(0, 5)}` : ""}
+                {vooEmRota.horario_decolagem ? ` · DEP ${String(vooEmRota.horario_decolagem).slice(0, 5)}` : ""}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={aplicarPrefill}
+              disabled={prefillAplicado}
+              className="shrink-0 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-500/30 disabled:opacity-50"
+            >
+              {prefillAplicado ? "Dados carregados" : "Carregar dados do voo"}
+            </button>
+          </div>
+        )}
         <Section title="Identificação">
+
           <Field label="Data (dd/mm/aa)">
             <DateBRInput value={data} onChange={setData} />
           </Field>

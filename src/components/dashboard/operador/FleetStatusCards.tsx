@@ -18,6 +18,8 @@ const statusConfig: Record<string, { bg: string; text: string; label: string; bo
   ativa: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
   ativo: { bg: "bg-primary/20", text: "text-primary", label: "Em Voo", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
   em_voo: { bg: "bg-primary/20", text: "text-primary", label: "Em Voo", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
+  em_rota: { bg: "bg-primary/20", text: "text-primary", label: "Em Rota", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
+  reservado: { bg: "bg-cyan-500/20", text: "text-cyan-400", label: "Reservado", borderColor: "border-l-cyan-400", icon: "plane", textColor: "text-cyan-400" },
   disponivel: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
   atrasado: { bg: "bg-destructive/20", text: "text-destructive", label: "Atrasado", borderColor: "border-l-destructive", icon: "alert", textColor: "text-destructive" },
   solo: { bg: "bg-primary/20", text: "text-primary", label: "Solo", borderColor: "border-l-primary", icon: "zap", textColor: "text-primary" },
@@ -120,7 +122,7 @@ export function FleetStatusCards() {
         {aircraft.slice(0, 3).map((ac) => {
           const currentStatus = liveStatuses[ac.id] || ac.status;
           const statusInfo = getStatusInfo(currentStatus);
-          const isInFlight = currentStatus?.toLowerCase() === 'em_voo' || currentStatus?.toLowerCase() === 'ativo';
+          const isInFlight = ['em_voo', 'em_rota', 'ativo'].includes((currentStatus ?? '').toLowerCase());
 
           return (
             <div

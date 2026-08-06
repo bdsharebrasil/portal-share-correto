@@ -16,15 +16,21 @@ import { PortalClienteDashboard } from "@/pages/PortalCliente";
 function OperacoesKPIs() {
   const today = format(new Date(), "yyyy-MM-dd");
 
+  // Voos de hoje: considera voos de múltiplos dias cuja duração cobre a data atual
   const { data: voosHoje = 0 } = useQuery({
     queryKey: ["kpi-voos-hoje", today],
     queryFn: async () => {
-      const { count } = await (supabase as any)
+      const { data } = await (supabase as any)
         .from("solicitacoes_reserva_voo")
-        .select("id", { count: "exact", head: true })
-        .eq("data_agendada", today)
-        .in("status", ["confirmado", "aprovado", "em_voo"]);
-      return count ?? 0;
+        .select("data_agendada, dias_duracao, status")
+        .lte("data_agendada", today)
+        .in("status", ["confirmado", "aprovado", "em_voo", "em_rota"]);
+      return ((data as any[]) ?? []).filter((s) => {
+        const dias = Math.max(1, Number(s.dias_duracao ?? 1));
+        const inicio = new Date(`${s.data_agendada}T00:00:00`);
+        const fim = new Date(inicio.getTime() + (dias - 1) * 86400000);
+        return today <= format(fim, "yyyy-MM-dd");
+      }).length;
     },
     refetchInterval: 30000,
   });
@@ -35,7 +41,8 @@ function OperacoesKPIs() {
       const { count } = await (supabase as any)
         .from("solicitacoes_reserva_voo")
         .select("id", { count: "exact", head: true })
-        .gte("data_agendada", today);
+        .gte("data_agendada", today)
+        .not("status", "in", '("rejeitado","cancelado")');
       return count ?? 0;
     },
     refetchInterval: 30000,
@@ -52,6 +59,7 @@ function OperacoesKPIs() {
     },
     refetchInterval: 30000,
   });
+
 
 
   const kpis = [

@@ -9765,15 +9765,19 @@ export type Database = {
           aprovado_em: string | null
           aprovado_por: string | null
           atualizado_em: string | null
+          ciclo_voo_id: string | null
           cliente_id: string | null
           copiloto_id: string | null
           criado_em: string | null
           data_agendada: string
           destino: string
           dias_duracao: number
+          horario_acionamento: string | null
           horario_chegada: string | null
+          horario_decolagem: string | null
           horario_partida: string
           id: string
+          iniciado_em: string | null
           motivo_rejeicao: string | null
           observacoes: string | null
           origem: string
@@ -9786,15 +9790,19 @@ export type Database = {
           aprovado_em?: string | null
           aprovado_por?: string | null
           atualizado_em?: string | null
+          ciclo_voo_id?: string | null
           cliente_id?: string | null
           copiloto_id?: string | null
           criado_em?: string | null
           data_agendada: string
           destino: string
           dias_duracao?: number
+          horario_acionamento?: string | null
           horario_chegada?: string | null
+          horario_decolagem?: string | null
           horario_partida: string
           id?: string
+          iniciado_em?: string | null
           motivo_rejeicao?: string | null
           observacoes?: string | null
           origem: string
@@ -9807,15 +9815,19 @@ export type Database = {
           aprovado_em?: string | null
           aprovado_por?: string | null
           atualizado_em?: string | null
+          ciclo_voo_id?: string | null
           cliente_id?: string | null
           copiloto_id?: string | null
           criado_em?: string | null
           data_agendada?: string
           destino?: string
           dias_duracao?: number
+          horario_acionamento?: string | null
           horario_chegada?: string | null
+          horario_decolagem?: string | null
           horario_partida?: string
           id?: string
+          iniciado_em?: string | null
           motivo_rejeicao?: string | null
           observacoes?: string | null
           origem?: string
@@ -9824,6 +9836,20 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "solicitacoes_reserva_voo_ciclo_voo_id_fkey"
+            columns: ["ciclo_voo_id"]
+            isOneToOne: false
+            referencedRelation: "ciclos_voo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_reserva_voo_ciclo_voo_id_fkey"
+            columns: ["ciclo_voo_id"]
+            isOneToOne: false
+            referencedRelation: "ciclos_voo_ativos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "solicitacoes_reserva_voo_cliente_id_fkey"
             columns: ["cliente_id"]
