@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import { X, Save, Wallet } from "lucide-react";
 
 interface Props {
@@ -58,8 +59,6 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
   const [categorias, setCategorias] = useState<any[]>([]);
   const [bancos, setBancos] = useState<any[]>([]);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
-  const [fornecedores, setFornecedores] = useState<{ id: string; label: string }[]>([]);
-
   const [form, setForm] = useState({
     descricao: "",
     tipo: "despesa",
@@ -101,22 +100,6 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
       .order("full_name")
       .then(({ data }) => setColaboradores(data ?? []));
 
-    Promise.all([
-      supabase.from("fornecedores_favoritos").select("id,nome_completo,apelido").order("nome_completo"),
-      supabase.from("fornecedores_combustivel").select("id,nome_fornecedor,nome_cidade").order("nome_fornecedor"),
-    ]).then(([fav, comb]) => {
-      const list = [
-        ...(fav.data ?? []).map((f: any) => ({
-          id: f.nome_completo,
-          label: f.apelido ? `${f.nome_completo} (${f.apelido})` : f.nome_completo,
-        })),
-        ...(comb.data ?? []).map((f: any) => ({
-          id: f.nome_fornecedor,
-          label: `${f.nome_fornecedor}${f.nome_cidade ? ` — ${f.nome_cidade}` : ""} · combustível`,
-        })),
-      ];
-      setFornecedores(list);
-    });
   }, []);
 
   const entrada = isEntradaTipo(form.tipo);
@@ -393,13 +376,10 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
           </div>
           <div className="lg:col-span-2">
             <Label>Fornecedor</Label>
-            <SearchableCombobox
-              items={fornecedores}
+            <FornecedorPickerCombo
               value={form.fornecedor_nome}
-              onChange={(id) => set({ fornecedor_nome: id })}
-              placeholder="Selecione o fornecedor"
-              searchPlaceholder="Buscar fornecedor..."
-              allowFreeText
+              onChange={(nome) => set({ fornecedor_nome: nome })}
+              className="w-full"
             />
           </div>
         </div>
