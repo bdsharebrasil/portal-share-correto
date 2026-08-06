@@ -718,13 +718,18 @@ export function useAgendamentoMutations() {
   const concluirVoo = useMutation({
     mutationFn: async ({
       solicitacao,
+      dataPerna,
       horarioPouso,
+      horarioCorte,
     }: {
       solicitacao: Solicitacao;
+      dataPerna: string;
       horarioPouso: string;
+      horarioCorte: string;
     }) => {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id ?? null;
+      const horarioCorteIso = new Date(`${dataPerna}T${horarioCorte}:00Z`).toISOString();
 
       const { data: lastLeg, error: lastLegError } = await sb
         .from("pernas_voo")
@@ -736,7 +741,11 @@ export function useAgendamentoMutations() {
 
       if (lastLegError) throw lastLegError;
       if (lastLeg?.id) {
-        const pernaVoo: PernaVooUpdate = { horario_pouso: `${horarioPouso}:00` };
+        const pernaVoo: PernaVooUpdate = {
+          data_perna: dataPerna,
+          horario_pouso: `${horarioPouso}:00`,
+          horario_corte: horarioCorteIso,
+        };
         const { error: updateLegError } = await sb
           .from("pernas_voo")
           .update(pernaVoo)
@@ -748,7 +757,9 @@ export function useAgendamentoMutations() {
         .from("solicitacoes_reserva_voo")
         .update({
           status: "concluido",
+          data_partida: dataPerna,
           horario_pouso: `${horarioPouso}:00`,
+          horario_corte: horarioCorteIso,
         })
         .eq("id", solicitacao.id);
       if (error) throw error;
@@ -766,10 +777,16 @@ export function useAgendamentoMutations() {
           .in("status", ["planejado", "em_andamento"]);
       }
 
-      await registrarHistoricoStatus(solicitacao.id, solicitacao.status, "concluido", userId, `Pouso registrado em ${horarioPouso}`);
+      await registrarHistoricoStatus(
+        solicitacao.id,
+        solicitacao.status,
+        "concluido",
+        userId,
+        `Pouso registrado em ${horarioPouso} e corte em ${horarioCorte}`,
+      );
     },
     onSuccess: () => {
-      toast.success("Voo concluído com horário de pouso registrado");
+      toast.success("Voo concluído com pouso, data e corte registrados");
       invalidate();
       qc.invalidateQueries({ queryKey: ["ciclos-voo"] });
       qc.invalidateQueries({ queryKey: ["active-flight-cycles"] });
