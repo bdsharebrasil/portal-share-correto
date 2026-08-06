@@ -5,57 +5,53 @@ import { OrgChartEditableTab } from "./OrgChartEditableTab";
 import { OrganigramaVisual } from "./OrganigramaVisual";
 import { FeriasDecimosTab } from "./FeriasDecimosTab";
 import { EstruturaDepartamentosTab } from "./EstruturaDepartamentosTab";
+import { PageHeader, SectionCard, tabsListClass, tabTriggerClass } from "../ui/Premium";
 
 export function Colaboradores() {
-  return <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Colaboradores</h1>
-        <p className="text-muted-foreground">
-          Gestão de colaboradores, organograma e benefícios
-        </p>
-      </div>
+  return (
+    <div className="w-full max-w-full min-w-0 space-y-5 overflow-x-hidden">
+      <PageHeader
+        icon={Users}
+        title="Colaboradores"
+        subtitle="Gestão de pessoas, organograma e benefícios"
+      />
 
-      <Tabs defaultValue="lista" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="lista" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Lista</span>
+      <Tabs defaultValue="lista" className="w-full min-w-0 space-y-4">
+        <TabsList className={tabsListClass}>
+          <TabsTrigger value="lista" className={tabTriggerClass}>
+            <Users className="h-4 w-4" /> Lista
           </TabsTrigger>
-          <TabsTrigger value="organograma-editavel" className="flex items-center gap-2">
-            <Network className="h-4 w-4" />
-            <span className="hidden sm:inline">Organograma </span>
+          <TabsTrigger value="organograma-editavel" className={tabTriggerClass}>
+            <Network className="h-4 w-4" /> Organograma
           </TabsTrigger>
-          <TabsTrigger value="estrutura" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Estrutura</span>
+          <TabsTrigger value="estrutura" className={tabTriggerClass}>
+            <Building2 className="h-4 w-4" /> Estrutura
           </TabsTrigger>
-          <TabsTrigger value="ferias-decimos" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span className="hidden sm:inline">Férias e 13º</span>
+          <TabsTrigger value="ferias-decimos" className={tabTriggerClass}>
+            <Calendar className="h-4 w-4" /> Férias e 13º
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="lista">
+        <TabsContent value="lista" className="min-w-0 focus-visible:outline-none">
           <ColaboradoresListTab />
         </TabsContent>
-        <TabsContent value="organograma-editavel">
+        <TabsContent value="organograma-editavel" className="min-w-0 focus-visible:outline-none">
           <OrgChartEditableTab />
         </TabsContent>
-        <TabsContent value="estrutura" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Estrutura Organizacional</h2>
-              <p className="text-sm text-muted-foreground">
-                Visualização hierárquica dos departamentos
-              </p>
-            </div>
-            <EstruturaDepartamentosTab triggerOnly />
-          </div>
-          <OrganigramaVisual />
+        <TabsContent value="estrutura" className="min-w-0 space-y-4 focus-visible:outline-none">
+          <SectionCard
+            title="Estrutura organizacional"
+            subtitle="Visualização hierárquica dos departamentos"
+            icon={Building2}
+            action={<EstruturaDepartamentosTab triggerOnly />}
+          >
+            <OrganigramaVisual />
+          </SectionCard>
         </TabsContent>
-        <TabsContent value="ferias-decimos">
+        <TabsContent value="ferias-decimos" className="min-w-0 focus-visible:outline-none">
           <FeriasDecimosTab />
         </TabsContent>
       </Tabs>
-    </div>;
+    </div>
+  );
 }
