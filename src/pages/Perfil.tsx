@@ -97,7 +97,7 @@ export default function Perfil() {
 
   const [formState, setFormState] = useState<FormState>({
     full_name: "", display_name: "", telefone: "", endereco: "", tipo: "",
-    cpf: "", rg: "", birth_date: "", bank_name: "", bank_agency: "", bank_account: "", bank_pix: ""
+    cpf: "", rg: "", canac: "", birth_date: "", bank_name: "", bank_agency: "", bank_account: "", bank_pix: ""
   });
 
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -156,7 +156,7 @@ export default function Perfil() {
 
   const displayName = useMemo(() => formState.display_name || formState.full_name || profile?.full_name || user?.email || "Usuário", [formState.display_name, formState.full_name, profile?.full_name, user?.email]);
   const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
-  const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.atualizado_em), [profile?.atualizado_em]);
+  const accountUpdatedAt = useMemo(() => formatTimestamp(profile?.updated_at), [profile?.updated_at]);
   const isProfileBusy = isUpdating || avatarUploading;
   const userId = user?.id ?? "";
 
@@ -652,15 +652,15 @@ export default function Perfil() {
           )}
 
           <TabsContent value="documentos" className="mt-6">
-            <EmployeeDocumentsManager userId={userId} />
+            <EmployeeDocumentsManager userId={userId} userName={displayName} />
           </TabsContent>
 
           <TabsContent value="extrato" className="mt-6">
-            <EmployeeBankStatement userId={userId} />
+            <EmployeeBankStatement employeeId={userId} employeeName={displayName} />
           </TabsContent>
 
           <TabsContent value="viagens" className="mt-6">
-            <TravelReportApprovalsTab />
+            <TravelReportApprovalsTab userId={userId} />
           </TabsContent>
 
           <TabsContent value="ferias" className="mt-6">

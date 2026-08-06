@@ -78,6 +78,13 @@ const EditEmployeeFormComponent = memo(({
   setIsEditing: (value: boolean) => void;
 }) => {
   if (!editEmployeeForm || !selectedEmployee) return null;
+
+  const handleTextInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (!name) return;
+    onFieldChange(name as keyof EditEmployeeForm, value);
+  }, [onFieldChange]);
+
   return <div className="pr-4 max-h-none">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1 flex flex-col items-center">
@@ -99,48 +106,48 @@ const EditEmployeeFormComponent = memo(({
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <div className="col-span-full space-y-2">
             <Label htmlFor="edit_full_name" className="text-muted-foreground font-medium">Nome Completo <span className="text-destructive">*</span></Label>
-            <Input id="edit_full_name" value={editEmployeeForm.full_name} onChange={e => onFieldChange("full_name", e.target.value)} placeholder="Nome completo do funcionário" className="h-11 rounded-xl w-full" />
+            <Input id="edit_full_name" name="full_name" value={editEmployeeForm.full_name} onChange={handleTextInputChange} placeholder="Nome completo do funcionário" className="h-11 rounded-xl w-full" />
           </div>
           <div className="col-span-full space-y-2">
             <Label htmlFor="edit_email" className="text-muted-foreground font-medium">Email <span className="text-destructive">*</span></Label>
-            <Input id="edit_email" type="email" value={editEmployeeForm.email} onChange={e => onFieldChange("email", e.target.value)} placeholder="email@example.com" className="h-11 rounded-xl w-full" />
+            <Input id="edit_email" name="email" type="email" value={editEmployeeForm.email} onChange={handleTextInputChange} placeholder="email@example.com" className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_cpf" className="text-muted-foreground font-medium">CPF</Label>
-            <Input id="edit_cpf" value={editEmployeeForm.cpf || ""} onChange={e => onFieldChange("cpf", e.target.value)} placeholder="XXX.XXX.XXX-XX" className="h-11 rounded-xl w-full" />
+            <Input id="edit_cpf" name="cpf" value={editEmployeeForm.cpf || ""} onChange={handleTextInputChange} placeholder="XXX.XXX.XXX-XX" className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_rg" className="text-muted-foreground font-medium">RG</Label>
-            <Input id="edit_rg" value={editEmployeeForm.rg || ""} onChange={e => onFieldChange("rg", e.target.value)} placeholder="X.XXX.XXX" className="h-11 rounded-xl w-full" />
+            <Input id="edit_rg" name="rg" value={editEmployeeForm.rg || ""} onChange={handleTextInputChange} placeholder="X.XXX.XXX" className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_canac" className="text-muted-foreground font-medium">CANAC</Label>
-            <Input id="edit_canac" value={editEmployeeForm.canac || ""} onChange={e => onFieldChange("canac", e.target.value)} placeholder="Número CANAC" className="h-11 rounded-xl w-full" />
+            <Input id="edit_canac" name="canac" value={editEmployeeForm.canac || ""} onChange={handleTextInputChange} placeholder="Número CANAC" className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_birth_date" className="text-muted-foreground font-medium">Data de Nascimento</Label>
-            <Input id="edit_birth_date" type="date" value={editEmployeeForm.birth_date || ""} onChange={e => onFieldChange("birth_date", e.target.value)} className="h-11 rounded-xl w-full" />
+            <Input id="edit_birth_date" name="birth_date" type="date" value={editEmployeeForm.birth_date || ""} onChange={handleTextInputChange} className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_phone" className="text-muted-foreground font-medium">Telefone</Label>
-            <Input id="edit_phone" value={editEmployeeForm.phone || ""} onChange={e => onFieldChange("phone", e.target.value)} placeholder="(XX) XXXX-XXXX" className="h-11 rounded-xl w-full" />
+            <Input id="edit_phone" name="phone" value={editEmployeeForm.phone || ""} onChange={handleTextInputChange} placeholder="(XX) XXXX-XXXX" className="h-11 rounded-xl w-full" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit_admission_date" className="text-muted-foreground font-medium">Data de Admissão</Label>
-            <Input id="edit_admission_date" type="date" value={editEmployeeForm.admission_date || ""} onChange={e => onFieldChange("admission_date", e.target.value)} className="h-11 rounded-xl w-full" />
+            <Input id="edit_admission_date" name="admission_date" type="date" value={editEmployeeForm.admission_date || ""} onChange={handleTextInputChange} className="h-11 rounded-xl w-full" />
           </div>
           <div className="col-span-full space-y-2">
             <Label htmlFor="edit_address" className="text-muted-foreground font-medium">Endereço</Label>
-            <Input id="edit_address" value={editEmployeeForm.address || ""} onChange={e => onFieldChange("address", e.target.value)} placeholder="Rua, Número, Bairro, Cidade - Estado" className="h-11 rounded-xl w-full" />
+            <Input id="edit_address" name="address" value={editEmployeeForm.address || ""} onChange={handleTextInputChange} placeholder="Rua, Número, Bairro, Cidade - Estado" className="h-11 rounded-xl w-full" />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="edit_salary" className="text-muted-foreground font-medium">Salário (Base)</Label>
-            <Input id="edit_salary" type="number" step="0.01" value={editEmployeeForm.salary || ""} onChange={e => onFieldChange("salary", e.target.value)} placeholder="R$ 0.00" className="h-11 rounded-xl w-full" />
+            <Input id="edit_salary" name="salary" type="number" step="0.01" value={editEmployeeForm.salary || ""} onChange={handleTextInputChange} placeholder="R$ 0.00" className="h-11 rounded-xl w-full" />
           </div>
           <div className="col-span-full space-y-2">
             <Label htmlFor="edit_benefits" className="text-muted-foreground font-medium">Benefícios</Label>
-            <Input id="edit_benefits" value={editEmployeeForm.benefits || ""} onChange={e => onFieldChange("benefits", e.target.value)} placeholder="Plano de saúde, vale alimentação..." className="h-11 rounded-xl w-full" />
+            <Input id="edit_benefits" name="benefits" value={editEmployeeForm.benefits || ""} onChange={handleTextInputChange} placeholder="Plano de saúde, vale alimentação..." className="h-11 rounded-xl w-full" />
           </div>
 
           <div className="space-y-2">

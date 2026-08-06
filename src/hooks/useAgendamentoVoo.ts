@@ -36,25 +36,69 @@ export interface Solicitacao {
   origem: string | null;
   destino: string | null;
   data_agendada: string;
-  horario_previsto_agendamento?: string | null;
+  horario_previsto_agendamento: string | null;
   data_partida?: string | null;
-  horario_partida: string | null;
   horario_acionamento?: string | null;
   horario_decolagem?: string | null;
   horario_pouso?: string | null;
-  horario_chegada: string | null;
+  horario_corte?: string | null;
   dias_duracao: number | null;
   qtd_passageiros: number | null;
   status: string;
-  iniciado_em?: string | null;
   observacoes: string | null;
   motivo_rejeicao: string | null;
   piloto_id: string | null;
   copiloto_id: string | null;
+  aprovado_por?: string | null;
+  aprovado_em?: string | null;
+  ciclo_voo_id?: string | null;
   criado_em: string;
+  atualizado_em?: string | null;
+  /** alias derivado (somente leitura) de horario_previsto_agendamento */
+  horario_partida?: string | null;
+  /** derivado de clientes.razao_social */
   cliente_nome?: string | null;
   aeronave?: Aeronave | null;
 }
+
+/** Campos realmente existentes em solicitacoes_reserva_voo */
+const SOLICITACAO_COLUMNS = [
+  "cliente_id",
+  "aeronave_id",
+  "origem",
+  "destino",
+  "data_agendada",
+  "horario_previsto_agendamento",
+  "dias_duracao",
+  "qtd_passageiros",
+  "status",
+  "observacoes",
+  "motivo_rejeicao",
+  "aprovado_por",
+  "aprovado_em",
+  "piloto_id",
+  "copiloto_id",
+  "horario_acionamento",
+  "horario_decolagem",
+  "horario_pouso",
+  "horario_corte",
+  "ciclo_voo_id",
+  "data_partida",
+] as const;
+
+/** Remove campos inexistentes no schema e resolve o alias horario_partida */
+export function sanitizeSolicitacaoPayload(payload: Record<string, any>) {
+  const src = { ...payload };
+  if (src.horario_partida && !src.horario_previsto_agendamento) {
+    src.horario_previsto_agendamento = src.horario_partida;
+  }
+  const out: Record<string, any> = {};
+  SOLICITACAO_COLUMNS.forEach((col) => {
+    if (src[col] !== undefined) out[col] = src[col];
+  });
+  return out;
+}
+
 
 export interface Tripulante {
   id: string;
@@ -161,8 +205,8 @@ export function useSolicitacoes() {
       if (error) throw error;
       const rowsRaw = (data ?? []) as any[];
 
-      const clienteIds = [...new Set(rows.map((r) => r.cliente_id).filter(Boolean))] as string[];
-      const aeronaveIds = [...new Set(rows.map((r) => r.aeronave_id).filter(Boolean))] as string[];
+      const clienteIds = [...new Set(rowsRaw.map((r) => r.cliente_id).filter(Boolean))] as string[];
+      const aeronaveIds = [...new Set(rowsRaw.map((r) => r.aeronave_id).filter(Boolean))] as string[];
 
       const [clientesRes, aeronavesRes] = await Promise.all([
         clienteIds.length
@@ -388,7 +432,16 @@ export function useAgendamentoMutations() {
 
   const criarSolicitacao = useMutation({
     mutationFn: async (payload: Partial<Solicitacao>) => {
-      const { error } = await sb.from("solicitacoes_reserva_voo").insert(payload);
+      const row = sanitizeSolicitacaoPayload(payload as Record<string, any>);
+
+      // Colunas NOT NULL no schema
+      if (!row.aeronave_id) throw new Error("Selecione a aeronave");
+      if (!row.origem) throw new Error("Informe a origem");
+      if (!row.destino) throw new Error("Informe o destino");
+      if (!row.data_agendada) throw new Error("Informe a data do voo");
+      if (!row.horario_previsto_agendamento) throw new Error("Informe o horário previsto de partida");
+
+      const { error } = await sb.from("solicitacoes_reserva_voo").insert(row);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -483,7 +536,7 @@ export function useAgendamentoMutations() {
       const statusAnterior = solicitacao.status;
       if (status === "em_rota") {
         updateData.data_partida = solicitacao.data_partida ?? format(new Date(), "yyyy-MM-dd");
-        updateData.iniciado_em = solicitacao.iniciado_em ?? new Date().toISOString();
+        updateData.horario_corte = solicitacao.horario_corte ?? new Date().toISOString();
         updateData.horario_acionamento = solicitacao.horario_acionamento ?? null;
         updateData.horario_decolagem = solicitacao.horario_decolagem ?? null;
         updateData.horario_pouso = solicitacao.horario_pouso ?? null;
@@ -623,7 +676,7 @@ export function useAgendamentoMutations() {
           horario_acionamento: horarioAcionamento ? `${horarioAcionamento}:00` : null,
           horario_decolagem: horarioDecolagem ? `${horarioDecolagem}:00` : null,
           horario_pouso: horarioPouso ? `${horarioPouso}:00` : null,
-          iniciado_em: solicitacao.iniciado_em ?? new Date().toISOString(),
+          horario_corte: solicitacao.horario_corte ?? new Date().toISOString(),
           piloto_id: pilotoId ?? solicitacao.piloto_id ?? null,
           copiloto_id: copilotoId ?? solicitacao.copiloto_id ?? null,
           qtd_passageiros: passageirosConfirmados,
@@ -636,9 +689,7 @@ export function useAgendamentoMutations() {
         await upsertStatusAeronave(solicitacao.aeronave_id, "em_voo", solicitacao.id, {
           localizacao_atual: solicitacao.origem ?? null,
           ultima_partida: new Date().toISOString(),
-          chegada_prevista: solicitacao.horario_chegada
-            ? `${dataPartida}T${solicitacao.horario_chegada}`
-            : null,
+          chegada_prevista: null,
         });
       }
 

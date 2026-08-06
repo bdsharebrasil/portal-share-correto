@@ -52,8 +52,7 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
     origem: "",
     destino: "",
     data_agendada: format(diaSelecionado, "yyyy-MM-dd"),
-    horario_partida: "",
-    horario_chegada: "",
+    horario_previsto_agendamento: "",
     dias_duracao: "1",
     qtd_passageiros: "1",
     observacoes: "",
@@ -69,15 +68,21 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
     }
   }, [open, diaSelecionado, selectedAeronaveId]);
 
+  const camposObrigatoriosOk =
+    !!form.aeronave_id &&
+    !!form.origem &&
+    !!form.destino &&
+    !!form.data_agendada &&
+    !!form.horario_previsto_agendamento;
+
   const salvar = () => {
     const payload: Partial<Solicitacao> = {
       cliente_id: form.cliente_id || null,
-      aeronave_id: form.aeronave_id || null,
-      origem: form.origem.toUpperCase() || null,
-      destino: form.destino.toUpperCase() || null,
+      aeronave_id: form.aeronave_id,
+      origem: form.origem.toUpperCase(),
+      destino: form.destino.toUpperCase(),
       data_agendada: form.data_agendada,
-      horario_partida: form.horario_partida || null,
-      horario_chegada: form.horario_chegada || null,
+      horario_previsto_agendamento: `${form.horario_previsto_agendamento}:00`.slice(0, 8),
       dias_duracao: Number(form.dias_duracao) || 1,
       qtd_passageiros: Number(form.qtd_passageiros) || 1,
       observacoes: form.observacoes || null,
@@ -86,6 +91,7 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
 
     criarSolicitacao.mutate(payload, { onSuccess: () => onOpenChange(false) });
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -147,7 +153,7 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Data</Label>
               <Input
@@ -157,22 +163,15 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
               />
             </div>
             <div className="space-y-2">
-              <Label>Partida</Label>
+              <Label>Horário previsto (UTC)</Label>
               <Input
                 type="time"
-                value={form.horario_partida}
-                onChange={(e) => setForm((f) => ({ ...f, horario_partida: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Chegada</Label>
-              <Input
-                type="time"
-                value={form.horario_chegada}
-                onChange={(e) => setForm((f) => ({ ...f, horario_chegada: e.target.value }))}
+                value={form.horario_previsto_agendamento}
+                onChange={(e) => setForm((f) => ({ ...f, horario_previsto_agendamento: e.target.value }))}
               />
             </div>
           </div>
+
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -208,7 +207,7 @@ export function NovoAgendamentoDialog({ open, onOpenChange, aeronaves, diaSeleci
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button disabled={!form.data_agendada || criarSolicitacao.isPending} onClick={salvar}>
+          <Button disabled={!camposObrigatoriosOk || criarSolicitacao.isPending} onClick={salvar}>
             Criar agendamento
           </Button>
         </DialogFooter>

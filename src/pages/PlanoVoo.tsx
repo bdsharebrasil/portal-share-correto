@@ -100,6 +100,8 @@ export default function PlanoVooPage() {
   const { getNOTAMs, getMultipleNOTAMs, getROTAER, validateFlightPlan, loading: aiswebLoading, error: aiswebError } = useAISWeb();
   const { flightPlans, createFlightPlan, deleteFlightPlan } = useFlightPlans();
   const { routes: preferredRoutes, loading: loadingRoutes, fetchRoutes } = usePreferredRoutes();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const toggleSidebar = useCallback(() => setIsSidebarOpen((value) => !value), []);
   const { solarData: originSolar } = useSolarData(formData.origin || null);
   const { solarData: destSolar } = useSolarData(formData.destination || null);
 
@@ -262,6 +264,7 @@ export default function PlanoVooPage() {
       route: formData.route || 'DCT', status: 'draft', calculations, validation,
       weather: { origin: originWeather, destination: destWeather, timestamp: Date.now() },
     });
+    setIsSidebarOpen(false);
   }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, user, crewMembers]);
 
   // Load plan into form
@@ -273,20 +276,24 @@ export default function PlanoVooPage() {
     <Layout>
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
         {/* Sidebar */}
-        <FlightPlanSidebar
-          aerodromes={aerodromes}
-          aeronaves={aeronaves}
-          formData={formData}
-          onFormChange={handleFormChange}
-          calcs={legCalcs}
-          preferredRoutes={preferredRoutes}
-          loadingRoutes={loadingRoutes}
-          onSavePlan={handleSavePlan}
-          onLoadPlan={handleLoadPlan}
-          onCalculate={handleCalculate}
-          isCalculating={isValidating}
-          crewMembers={crewMembers}
-        />
+        <div className={isSidebarOpen ? 'w-80' : 'w-0'}>
+          {isSidebarOpen && (
+            <FlightPlanSidebar
+              aerodromes={aerodromes}
+              aeronaves={aeronaves}
+              formData={formData}
+              onFormChange={handleFormChange}
+              calcs={legCalcs}
+              preferredRoutes={preferredRoutes}
+              loadingRoutes={loadingRoutes}
+              onSavePlan={handleSavePlan}
+              onLoadPlan={handleLoadPlan}
+              onCalculate={handleCalculate}
+              isCalculating={isValidating}
+              crewMembers={crewMembers}
+            />
+          )}
+        </div>
 
         {/* Map */}
         <div className="flex-1 relative">

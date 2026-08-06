@@ -149,59 +149,59 @@ export const GestaoSalariosContent = () => {
 
 
       <Tabs defaultValue="salaries" className="w-full">
-    <TabsList className="flex gap-2 bg-transparent p-0 border-0 w-full overflow-x-auto">
+    <TabsList className="flex gap-3 rounded-3xl border border-white/10 bg-slate-950/80 p-2 shadow-card w-full overflow-x-auto">
       <TabsTrigger
         value="salaries"
-        className="rounded-lg overflow-hidden transition-all p-0 flex-1 min-w-max data-[state=inactive]:hover:shadow-md data-[state=active]:bg-gradient-to-br data-[state=active]:from-blue-500/20 data-[state=active]:to-cyan-500/10"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-blue-500/40 rounded-lg overflow-hidden px-3 py-2 flex flex-col items-center gap-1 w-full h-full">
-          <div className="rounded p-1.5">
-            <DollarSign className="h-4 w-4 text-blue-600" />
+        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-slate-900/80 p-2">
+            <DollarSign className="h-4 w-4 text-blue-400" />
           </div>
           <div className="text-center">
-            <p className="font-medium text-xs text-foreground">Salários</p>
+            <p className="font-semibold text-sm text-foreground">Salários</p>
           </div>
         </div>
       </TabsTrigger>
 
       <TabsTrigger
         value="payslips"
-        className="rounded-lg overflow-hidden transition-all p-0 flex-1 min-w-max data-[state=inactive]:hover:shadow-md data-[state=active]:bg-gradient-to-br data-[state=active]:from-emerald-500/20 data-[state=active]:to-teal-500/10"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-emerald-500/40 rounded-lg overflow-hidden px-3 py-2 flex flex-col items-center gap-1 w-full h-full">
-          <div className="rounded p-1.5">
-            <FileText className="h-4 w-4 text-emerald-600" />
+        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-slate-900/80 p-2">
+            <FileText className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="text-center">
-            <p className="font-medium text-xs text-foreground">Holerites</p>
+            <p className="font-semibold text-sm text-foreground">Holerites</p>
           </div>
         </div>
       </TabsTrigger>
 
       <TabsTrigger
         value="flights"
-        className="rounded-lg overflow-hidden transition-all p-0 flex-1 min-w-max data-[state=inactive]:hover:shadow-md data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500/20 data-[state=active]:to-amber-500/10"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-orange-500/40 rounded-lg overflow-hidden px-3 py-2 flex flex-col items-center gap-1 w-full h-full">
-          <div className="rounded p-1.5">
-            <Plane className="h-4 w-4 text-orange-600" />
+        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-slate-900/80 p-2">
+            <Plane className="h-4 w-4 text-orange-400" />
           </div>
           <div className="text-center">
-            <p className="font-medium text-xs text-foreground">Pagamentos por Voo</p>
+            <p className="font-semibold text-sm text-foreground">Pagamentos por Voo</p>
           </div>
         </div>
       </TabsTrigger>
 
       <TabsTrigger
         value="aeronave"
-        className="rounded-lg overflow-hidden transition-all p-0 flex-1 min-w-max data-[state=inactive]:hover:shadow-md data-[state=active]:bg-gradient-to-br data-[state=active]:from-violet-500/20 data-[state=active]:to-purple-500/10"
+        className="rounded-3xl overflow-hidden transition-all p-0 flex-1 min-w-[180px] data-[state=inactive]:bg-white/5 data-[state=inactive]:text-slate-300 data-[state=inactive]:hover:bg-white/10 data-[state=active]:bg-transparent"
       >
-        <div className="border border-violet-500/40 rounded-lg overflow-hidden px-3 py-2 flex flex-col items-center gap-1 w-full h-full">
-          <div className="rounded p-1.5">
-            <Zap className="h-4 w-4 text-violet-600" />
+        <div className="border border-white/10 rounded-3xl bg-slate-950/90 px-4 py-3 flex flex-col items-center gap-2 w-full h-full transition">
+          <div className="rounded-2xl bg-slate-900/80 p-2">
+            <Zap className="h-4 w-4 text-violet-400" />
           </div>
           <div className="text-center">
-            <p className="font-medium text-xs text-foreground">Aeronaves</p>
+            <p className="font-semibold text-sm text-foreground">Aeronaves</p>
           </div>
         </div>
       </TabsTrigger>

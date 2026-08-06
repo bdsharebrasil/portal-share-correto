@@ -55,7 +55,7 @@ export function SolicitarVooCliente() {
     origem: "",
     destino: "",
     data_agendada: hoje,
-    horario_partida: "",
+    horario_previsto_agendamento: "",
     dias_duracao: "1",
     qtd_passageiros: "1",
     observacoes: "",
@@ -128,11 +128,11 @@ export function SolicitarVooCliente() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Partida</Label>
+                <Label>Partida (UTC)</Label>
                 <Input
                   type="time"
-                  value={form.horario_partida}
-                  onChange={(e) => setForm((f) => ({ ...f, horario_partida: e.target.value }))}
+                  value={form.horario_previsto_agendamento}
+                  onChange={(e) => setForm((f) => ({ ...f, horario_previsto_agendamento: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -161,16 +161,22 @@ export function SolicitarVooCliente() {
               Cancelar
             </Button>
             <Button
-              disabled={!form.destino || criarSolicitacao.isPending}
+              disabled={
+                !form.aeronave_id ||
+                !form.origem ||
+                !form.destino ||
+                !form.horario_previsto_agendamento ||
+                criarSolicitacao.isPending
+              }
               onClick={() =>
                 criarSolicitacao.mutate(
                   {
-                    cliente_id: clienteId,
-                    aeronave_id: form.aeronave_id || null,
-                    origem: form.origem || null,
+                    cliente_id: clienteId ?? null,
+                    aeronave_id: form.aeronave_id,
+                    origem: form.origem,
                     destino: form.destino,
                     data_agendada: form.data_agendada,
-                    horario_partida: form.horario_partida || null,
+                    horario_previsto_agendamento: `${form.horario_previsto_agendamento}:00`.slice(0, 8),
                     dias_duracao: Number(form.dias_duracao) || 1,
                     qtd_passageiros: Number(form.qtd_passageiros) || 1,
                     observacoes: form.observacoes || null,

@@ -59,7 +59,9 @@ export function SolicitacoesReserva({ solicitacoes, disponibilidade }: Props) {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {s.origem ?? "—"} → {s.destino ?? "—"} ·{" "}
                     {format(parseISO(s.data_agendada), "dd/MM", { locale: ptBR })}
-                    {s.horario_partida ? ` · ${s.horario_partida.slice(0, 5)} UTC · ${utcToBrasilia(s.horario_partida)} BSB` : ""}
+                    {s.horario_previsto_agendamento
+                      ? ` · ${s.horario_previsto_agendamento.slice(0, 5)} UTC · ${utcToBrasilia(s.horario_previsto_agendamento)} BSB`
+                      : ""}
                   </p>
                   {s.qtd_passageiros ? (
                     <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">

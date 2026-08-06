@@ -15,10 +15,10 @@ export function UpcomingFlightsPanel() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("solicitacoes_reserva_voo")
-        .select("id, aeronave_id, origem, destino, data_agendada, horario_partida, qtd_passageiros, status")
+        .select("id, aeronave_id, origem, destino, data_agendada, horario_previsto_agendamento, qtd_passageiros, status")
         .gte("data_agendada", new Date().toISOString().split("T")[0])
         .order("data_agendada", { ascending: true })
-        .order("horario_partida", { ascending: true })
+        .order("horario_previsto_agendamento", { ascending: true })
         .limit(4);
       if (error) throw error;
 
@@ -31,7 +31,7 @@ export function UpcomingFlightsPanel() {
       return (data || []).map((flight: any) => ({
         id: flight.id,
         flight_date: flight.data_agendada,
-        flight_time: flight.horario_partida,
+        flight_time: flight.horario_previsto_agendamento,
         origin: flight.origem,
         destination: flight.destino,
         passengers: flight.qtd_passageiros,

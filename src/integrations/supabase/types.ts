@@ -5675,13 +5675,6 @@ export type Database = {
             foreignKeyName: "crew_licenses_crew_member_id_fkey"
             columns: ["membro_tripulacao_id"]
             isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crew_licenses_crew_member_id_fkey"
-            columns: ["membro_tripulacao_id"]
-            isOneToOne: false
             referencedRelation: "membros_tripulacao"
             referencedColumns: ["id"]
           },
@@ -5924,6 +5917,44 @@ export type Database = {
           },
         ]
       }
+      historico_status_solicitacao: {
+        Row: {
+          alterado_em: string | null
+          alterado_por: string | null
+          id: string
+          observacao: string | null
+          solicitacao_id: string
+          status_anterior: string | null
+          status_novo: string
+        }
+        Insert: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          id?: string
+          observacao?: string | null
+          solicitacao_id: string
+          status_anterior?: string | null
+          status_novo: string
+        }
+        Update: {
+          alterado_em?: string | null
+          alterado_por?: string | null
+          id?: string
+          observacao?: string | null
+          solicitacao_id?: string
+          status_anterior?: string | null
+          status_novo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_status_solicitacao_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_reserva_voo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       horas_mensais_consolidadas: {
         Row: {
           aeronave_id: string
@@ -6059,13 +6090,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "crew_flight_hours_crew_member_id_fkey"
-            columns: ["membro_tripulacao_id"]
-            isOneToOne: false
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "crew_flight_hours_crew_member_id_fkey"
@@ -8313,6 +8337,65 @@ export type Database = {
           },
         ]
       }
+      pernas_voo: {
+        Row: {
+          atualizado_em: string | null
+          criado_em: string | null
+          data_perna: string
+          destino: string
+          horario_acionamento: string | null
+          horario_corte: string | null
+          horario_decolagem: string | null
+          horario_pouso: string | null
+          id: string
+          numero_perna: number
+          observacoes: string | null
+          origem: string
+          qtd_passageiros: number | null
+          solicitacao_id: string
+        }
+        Insert: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data_perna: string
+          destino: string
+          horario_acionamento?: string | null
+          horario_corte?: string | null
+          horario_decolagem?: string | null
+          horario_pouso?: string | null
+          id?: string
+          numero_perna?: number
+          observacoes?: string | null
+          origem: string
+          qtd_passageiros?: number | null
+          solicitacao_id: string
+        }
+        Update: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          data_perna?: string
+          destino?: string
+          horario_acionamento?: string | null
+          horario_corte?: string | null
+          horario_decolagem?: string | null
+          horario_pouso?: string | null
+          id?: string
+          numero_perna?: number
+          observacoes?: string | null
+          origem?: string
+          qtd_passageiros?: number | null
+          solicitacao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pernas_voo_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_reserva_voo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planos_voo: {
         Row: {
           aeronave_id: string | null
@@ -9561,13 +9644,6 @@ export type Database = {
             foreignKeyName: "scheduling_crew_config_crew_member_id_fkey"
             columns: ["crew_member_id"]
             isOneToOne: true
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "scheduling_crew_config_crew_member_id_fkey"
-            columns: ["crew_member_id"]
-            isOneToOne: true
             referencedRelation: "membros_tripulacao"
             referencedColumns: ["id"]
           },
@@ -9774,11 +9850,11 @@ export type Database = {
           destino: string
           dias_duracao: number
           horario_acionamento: string | null
-          horario_chegada: string | null
+          horario_corte: string | null
           horario_decolagem: string | null
-          horario_partida: string
+          horario_pouso: string | null
+          horario_previsto_agendamento: string
           id: string
-          iniciado_em: string | null
           motivo_rejeicao: string | null
           observacoes: string | null
           origem: string
@@ -9800,11 +9876,11 @@ export type Database = {
           destino: string
           dias_duracao?: number
           horario_acionamento?: string | null
-          horario_chegada?: string | null
+          horario_corte?: string | null
           horario_decolagem?: string | null
-          horario_partida: string
+          horario_pouso?: string | null
+          horario_previsto_agendamento: string
           id?: string
-          iniciado_em?: string | null
           motivo_rejeicao?: string | null
           observacoes?: string | null
           origem: string
@@ -9826,11 +9902,11 @@ export type Database = {
           destino?: string
           dias_duracao?: number
           horario_acionamento?: string | null
-          horario_chegada?: string | null
+          horario_corte?: string | null
           horario_decolagem?: string | null
-          horario_partida?: string
+          horario_pouso?: string | null
+          horario_previsto_agendamento?: string
           id?: string
-          iniciado_em?: string | null
           motivo_rejeicao?: string | null
           observacoes?: string | null
           origem?: string
@@ -11112,36 +11188,6 @@ export type Database = {
           },
         ]
       }
-      historico_status_solicitacao: {
-        Row: {
-          id: string
-          solicitacao_id: string
-          status_anterior: string | null
-          status_novo: string
-          alterado_por: string | null
-          alterado_em: string
-          observacao: string | null
-        }
-        Insert: {
-          id?: string
-          solicitacao_id: string
-          status_anterior?: string | null
-          status_novo: string
-          alterado_por?: string | null
-          alterado_em?: string
-          observacao?: string | null
-        }
-        Update: {
-          id?: string
-          solicitacao_id?: string
-          status_anterior?: string | null
-          status_novo?: string
-          alterado_por?: string | null
-          alterado_em?: string
-          observacao?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       ciclos_voo_ativos: {
@@ -11227,60 +11273,6 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
         ]
-      }
-      crew_members: {
-        Row: {
-          atualizado_em: string | null
-          canac: string | null
-          cpf: string | null
-          criado_em: string | null
-          data_admissao: string | null
-          data_nascimento: string | null
-          endereco: string | null
-          full_name: string | null
-          id: string | null
-          nome_completo: string | null
-          rg: string | null
-          status: string | null
-          telefone: string | null
-          url_avatar: string | null
-          user_id: string | null
-        }
-        Insert: {
-          atualizado_em?: string | null
-          canac?: string | null
-          cpf?: string | null
-          criado_em?: string | null
-          data_admissao?: string | null
-          data_nascimento?: string | null
-          endereco?: string | null
-          full_name?: string | null
-          id?: string | null
-          nome_completo?: string | null
-          rg?: string | null
-          status?: string | null
-          telefone?: string | null
-          url_avatar?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          atualizado_em?: string | null
-          canac?: string | null
-          cpf?: string | null
-          criado_em?: string | null
-          data_admissao?: string | null
-          data_nascimento?: string | null
-          endereco?: string | null
-          full_name?: string | null
-          id?: string | null
-          nome_completo?: string | null
-          rg?: string | null
-          status?: string | null
-          telefone?: string | null
-          url_avatar?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
       }
       diario_mes_com_disponivel: {
         Row: {
