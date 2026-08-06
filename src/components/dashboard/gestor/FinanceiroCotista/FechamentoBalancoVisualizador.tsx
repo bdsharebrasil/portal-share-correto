@@ -414,7 +414,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
               SEÇÃO 1 — CENTRO DE LANÇAMENTO DE CUSTOS
               ════════════════════════════════════════════════════════════════ */}
           <section>
-            <TituloSecao numero="{1}" titulo="Centro de Lançamento de Custos"/>
+            <TituloSecao numero={1} titulo="Centro de Lançamento de Custos"/>
 
             {despesasAgrupadas.length === 0 ? (
               <Vazio texto="Nenhum lançamento encontrado para este período."/>
@@ -450,12 +450,12 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                       <Th>Pago Por</Th>
                       <Th className="border-r border-slate-700/50" right>Valor Pago</Th>
                       {cotistas.map((c) => (
-                        <Th className="text-cyan-600/80" key="{`h-pct-${c.id}`}" right>
+                        <Th key={`h-pct-${c.id}`} className="text-cyan-600/80" right>
                           {abrev(c.nome)} %
                         </Th>
                       ))}
                       {cotistas.map((c) => (
-                        <Th className="text-emerald-600/80 border-l border-slate-700/30" key="{`h-rat-${c.id}`}" right>
+                        <Th key={`h-rat-${c.id}`} className="text-emerald-600/80 border-l border-slate-700/30" right>
                           {abrev(c.nome)} R$
                         </Th>
                       ))}
@@ -478,7 +478,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                           }
                         >
                           <Td mono>{fmtDate(dataRef)}</Td>
-                          <Td "—"} dim="{doc" mono>{doc}</Td>
+                          <Td mono dim={doc === "—"}>{doc}</Td>
                           <Td>{ref.fornecedor_nome || "—"}</Td>
                           <Td max="180px">{ref.descricao_despesa || "—"}</Td>
                           <Td upper>{ref.categoria_custo || "—"}</Td>
@@ -492,7 +492,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                             const r = rateioDeC(rateios, c.id);
                             const pct = Number(r?.percentual_uso ?? r?.percentual_sociedade ?? 0);
                             return (
-                              <Td 0} dim="{pct" key="{`pct-${c.id}`}" mono right>
+                              <Td key={`pct-${c.id}`} dim={pct === 0} mono right>
                                 {pct > 0 ? `${NUM(pct, 4)}%` : "0,0000%"}
                               </Td>
                             );
@@ -501,7 +501,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                             const r = rateioDeC(rateios, c.id);
                             const val = Number(r?.valor_rateado ?? 0);
                             return (
-                              <Td 0} className="border-l border-slate-700/20" dim="{val" key="{`rat-${c.id}`}" mono right>
+                              <Td key={`rat-${c.id}`} className="border-l border-slate-700/20" dim={val === 0} mono right>
                                 {val > 0 ? BRL(val) : "R$ —"}
                               </Td>
                             );
@@ -538,7 +538,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
               SEÇÃO 2 — ANÁLISE DE CUSTO (pivot + barras)
               ════════════════════════════════════════════════════════════════ */}
           <section>
-            <TituloSecao numero="{2}" titulo="Análise de Custo"/>
+            <TituloSecao numero={2} titulo="Análise de Custo"/>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Tabela pivot */}
@@ -548,7 +548,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                     <tr className="bg-slate-900 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                       <Th className="text-left">Categoria</Th>
                       {cotistas.map((c) => (
-                        <Th key="{c.id}" right>{c.nome}</Th>
+                        <Th key={c.id} right>{c.nome}</Th>
                       ))}
                       <Th className="text-slate-200" right>Total Geral</Th>
                     </tr>
@@ -564,7 +564,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                         >
                           <Td className="font-medium text-slate-300" upper>{cat}</Td>
                           {cotistas.map((c) => (
-                            <Td dim="{!byC.get(c.id)}" key="{c.id}" mono right>
+                            <Td key={c.id} dim={!byC.get(c.id)} mono right>
                               {byC.get(c.id) ? BRL(byC.get(c.id)!) : "—"}
                             </Td>
                           ))}
@@ -642,7 +642,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
               SEÇÃO 3 — BALANÇO DE CUSTOS (matriz "a receber de")
               ════════════════════════════════════════════════════════════════ */}
           <section>
-            <TituloSecao numero="{3}" titulo="Balanço de Custos — A Receber De"/>
+            <TituloSecao numero={3} titulo="Balanço de Custos — A Receber De"/>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Matriz */}
@@ -757,14 +757,14 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
               SEÇÃO 4 — RESUMO GERAL POR COTISTA
               ════════════════════════════════════════════════════════════════ */}
           <section>
-            <TituloSecao numero="{4}" titulo="Resumo Geral por Cotista"/>
+            <TituloSecao numero={4} titulo="Resumo Geral por Cotista"/>
 
             {/* KPIs globais da aeronave */}
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <KpiCard accent="cyan" label="Total Geral" value="{BRL(totalGeral)}"/>
-              <KpiCard accent="sky" label="Horas Voadas" value="{hhMM(totalHorasAeronave)}"/>
-              <KpiCard accent="indigo" label="Pousos" value="{String(totalPousos)}"/>
-              <KpiCard 0)} L`} accent="amber" label="Abastecimento" value="{`${NUM(totalLitros,"/>
+              <KpiCard accent="cyan" label="Total Geral" value={BRL(totalGeral)}/>
+              <KpiCard accent="sky" label="Horas Voadas" value={hhMM(totalHorasAeronave)}/>
+              <KpiCard accent="indigo" label="Pousos" value={String(totalPousos)}/>
+              <KpiCard accent="amber" label="Abastecimento" value={`${NUM(totalLitros, 0)} L`}/>
             </div>
 
             {/* Um card por cotista */}
@@ -781,14 +781,14 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                       <p className="text-[9px] uppercase tracking-widest text-slate-600 mb-1">
                         Custos Fixos
                       </p>
-                      <LinhaResumo label="ADM e Pilotagem" value="{c.fixo}"/>
+                      <LinhaResumo label="ADM e Pilotagem" value={c.fixo}/>
                     </div>
 
                     <div className="space-y-1.5 border-t border-slate-800 pt-2">
                       <p className="text-[9px] uppercase tracking-widest text-slate-600 mb-1">
                         Custos Variáveis
                       </p>
-                      <LinhaResumo label="Variáveis" value="{c.variavel}"/>
+                      <LinhaResumo label="Variáveis" value={c.variavel}/>
                     </div>
 
                     <div className="border-t border-slate-700/50 pt-2 flex justify-between items-center">
@@ -802,16 +802,16 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
                           Operacional
                         </p>
                         {c.horas > 0 && (
-                          <LinhaResumo isText label="Horas voadas" value="{hhMM(c.horas)}"/>
+                          <LinhaResumo isText label="Horas voadas" value={hhMM(c.horas)}/>
                         )}
                         {c.pousos > 0 && (
-                          <LinhaResumo isText label="Pousos" value="{String(c.pousos)}"/>
+                          <LinhaResumo isText label="Pousos" value={String(c.pousos)}/>
                         )}
                         {c.litros > 0 && (
-                          <LinhaResumo 0)} L`} isText label="Abastecimento" value="{`${NUM(c.litros,"/>
+                          <LinhaResumo isText label="Abastecimento" value={`${NUM(c.litros, 0)} L`}/>
                         )}
                         {c.custoHora > 0 && (
-                          <LinhaResumo isText label="Custo/Hora" value="{BRL(c.custoHora)}"/>
+                          <LinhaResumo isText label="Custo/Hora" value={BRL(c.custoHora)}/>
                         )}
                       </div>
                     )}
@@ -825,7 +825,7 @@ export function RelatorioPDFCompleto({ aeronaveId, onClose }: Props) {
               SEÇÃO 5 — DIÁRIO ESPELHO
               ════════════════════════════════════════════════════════════════ */}
           <section>
-            <TituloSecao numero="{5}" titulo="Diário Espelho"/>
+            <TituloSecao numero={5} titulo="Diário Espelho"/>
 
             {!data?.voos || data.voos.length === 0 ? (
               <Vazio texto="Nenhum voo registrado neste período."/>
@@ -1056,6 +1056,6 @@ function inferirPrazo(cat: string | null, tipo: string | null): string {
   if (t.includes("LONGO")) return "LONGO PRAZO";
   if (t.includes("CURTO") || t.includes("VOO") || t.includes("COMBUSTIVEL") || t.includes("COMBUSTÍVEL"))
     return "CURTO PRAZO";
-  
+
   return "MÉDIO PRAZO";
 }
