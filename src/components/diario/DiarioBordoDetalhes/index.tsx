@@ -152,7 +152,7 @@ const NATUREZAS = [
   "SA - Serviço Aéreo",
   "TN - Transporte Não Regular/Táxi Aéreo",
   "TR - Traslado",
-  "VOO TESTE",
+  "VOO_TESTE",
 ];
 const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
@@ -1905,7 +1905,7 @@ function NovoVooInline({
     } finally { setSaving(false); }
   };
 
-  if (showAbastForm && clienteId) {
+  if (showAbastForm) {
     return (
       <div className="p-5">
         <AbastecimentoModal
@@ -2397,6 +2397,27 @@ function AbastecimentoModal({
       setSaving(false);
     }
   };
+
+  if (!clienteId) {
+    return createPortal(
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+        <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+          className="flex w-full max-w-md flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-700/50 p-4 shrink-0">
+            <h3 className="text-sm font-bold text-white">Abastecimentos</h3>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="p-5 text-center">
+            <p className="text-sm text-slate-300">Selecione um cliente antes de buscar os abastecimentos ou criar um novo.</p>
+          </div>
+          <div className="flex justify-end border-t border-slate-700/50 p-4 shrink-0">
+            <button onClick={onClose} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">Fechar</button>
+          </div>
+        </motion.div>
+      </div>,
+      document.body
+    );
+  }
 
   if (showForm) {
     return createPortal(
