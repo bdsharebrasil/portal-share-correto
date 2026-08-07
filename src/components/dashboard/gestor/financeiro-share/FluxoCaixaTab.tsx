@@ -78,13 +78,27 @@ interface Movimentacao {
   pago_por: string | null;
 }
 
-interface Categoria { id: string; nome: string }
+interface Categoria { id: string; nome: string; grupo_categoria: string | null }
 interface Pessoa { id: string; nome: string | null }
 
 /* ─────────────────────────── helpers ─────────────────────────── */
 
 const norm = (s?: string | null) =>
   (s ?? "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+const GRUPOS_EMPRESA = [
+  "DESPESAS EMPRESA",
+  "DESPESAS EMPRESA - BANCO",
+  "DESPESAS PARTICULARES",
+  "FOLHA DE PAGAMENTO",
+  "IMPOSTOS",
+  "RECEITAS OPERACIONAIS",
+];
+
+const isGrupoEmpresa = (grupo: string | null | undefined) =>
+  !!grupo && GRUPOS_EMPRESA.some((g) => norm(grupo) === norm(g));
+const isGrupoReembolsavel = (grupo: string | null | undefined) =>
+  !!grupo && norm(grupo) === norm("DESPESAS REEMBOLSÁVEIS");
 
 const num = (v: string | number | null | undefined) => Number(v) || 0;
 
@@ -167,14 +181,15 @@ function StatusDot({ m }: { m: Movimentacao }) {
 
 /* ─────────────────────────── tabs ─────────────────────────── */
 
-type TabKey = "caixa_share" | "caixa_cliente" | "contas_pagar" | "contas_receber";
+type TabKey = "caixa_share" | "caixa_cliente" | "despesas_reembolsaveis" | "contas_pagar" | "contas_receber";
 type FlowFilter = "todos" | "saidas" | "entradas";
 
 const TABS: { key: TabKey; label: string; icon: React.FC<any> }[] = [
-  { key: "caixa_share",    label: "Caixa Share",      icon: Layers },
-  { key: "caixa_cliente",  label: "Caixa Cliente",    icon: Wallet },
-  { key: "contas_pagar",   label: "Contas a Pagar",   icon: TrendingDown },
-  { key: "contas_receber", label: "Contas a Receber", icon: TrendingUp },
+  { key: "caixa_share",             label: "Caixa Share",             icon: Layers },
+  { key: "caixa_cliente",           label: "Caixa Cliente",           icon: Wallet },
+  { key: "despesas_reembolsaveis",  label: "Despesas Reembolsáveis",  icon: HandCoins },
+  { key: "contas_pagar",            label: "Contas a Pagar",          icon: TrendingDown },
+  { key: "contas_receber",          label: "Contas a Receber",        icon: TrendingUp },
 ];
 
 /* ─────────────────────────── main component ─────────────────────────── */
@@ -182,6 +197,7 @@ const TABS: { key: TabKey; label: string; icon: React.FC<any> }[] = [
 export default function FluxoCaixaTab() {
   const [movs, setMovs] = useState<Movimentacao[]>([]);
   const [categorias, setCategorias] = useState<Record<string, string>>({});
+  const [categoriaGrupos, setCategoriaGrupos] = useState<Record<string, string>>({});
   const [categoriasCliente, setCategoriasCliente] = useState<Record<string, string>>({});
   const [categoriaCustoPorDespesa, setCategoriaCustoPorDespesa] = useState<Record<string, string>>({});
   const [pessoas, setPessoas] = useState<Record<string, Pessoa>>({});
@@ -237,11 +253,16 @@ export default function FluxoCaixaTab() {
 
   /* ── categorias ── */
   useEffect(() => {
-    supabase.from("categorias_movimentacao").select("id,nome").eq("ativo", true)
+    supabase.from("categorias_movimentacao").select("id,nome,grupo_categoria").eq("ativo", true)
       .then(({ data }) => {
         const map: Record<string, string> = {};
-        (data ?? []).forEach((c: Categoria) => { map[c.id] = c.nome; });
+        const grupos: Record<string, string> = {};
+        (data ?? []).forEach((c: Categoria) => {
+          map[c.id] = c.nome;
+          if (c.grupo_categoria) grupos[c.id] = c.grupo_categoria;
+        });
         setCategorias(map);
+        setCategoriaGrupos(grupos);
       });
   }, []);
 
@@ -327,6 +348,14 @@ export default function FluxoCaixaTab() {
     return categoriasCliente[categoriaCusto ?? ""] || categoriaCusto || "—";
   }, [categorias, categoriasCliente, categoriaCustoPorDespesa]);
 
+  const grupoOf = useCallback((m: Movimentacao) => {
+    if (isShare(m)) {
+      return categoriaGrupos[m.categoria_id ?? ""] || null;
+    }
+    const categoriaCusto = categoriaCustoPorDespesa[m.id] || m.categoria_id;
+    return categoriaGrupos[categoriaCusto ?? ""] || null;
+  }, [categoriaGrupos, categoriaCustoPorDespesa]);
+
   const subcategoriasOf = useCallback(
     (m: Movimentacao) => subcatsPorDespesa[m.id] ?? [],
     [subcatsPorDespesa],
@@ -344,9 +373,15 @@ export default function FluxoCaixaTab() {
   const filteredMovs = useMemo(() => {
     let list = movs;
     switch (activeTab) {
-      // Caixa Share: lançamentos do caixa share + despesas de cliente que a Share
-      // pagou e aguarda reembolso (o dinheiro saiu do caixa da Share).
-      case "caixa_share":    list = list.filter((m) => isShare(m) || pagoPelaShare(m)); break;
+      // Caixa Share: lançamentos do caixa share (despesas da empresa) + despesas de
+      // cliente que a Share pagou e aguarda reembolso (o dinheiro saiu do caixa da Share).
+      case "caixa_share":    list = list.filter((m) => isShare(m) || pagoPelaShare(m));
+        list = list.filter((m) => isGrupoEmpresa(grupoOf(m)));
+        break;
+      // Despesas Reembolsáveis: apenas lançamentos caixa share do grupo reembolsável.
+      case "despesas_reembolsaveis": list = list.filter((m) =>
+        (isShare(m) || pagoPelaShare(m)) && isGrupoReembolsavel(grupoOf(m))
+      ); break;
       case "caixa_cliente":  list = list.filter((m) => !isShare(m)); break;
       case "contas_pagar":   list = list.filter((m) => {
         const isPayable = !isEntrada(m);
@@ -400,7 +435,7 @@ export default function FluxoCaixaTab() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, sortBy, sortDir, contasCaixa, dateOf]);
+  }, [movs, activeTab, flowFilter, search, resolveName, categoriaOf, dateFrom, dateTo, statusFilter, sortBy, sortDir, contasCaixa, dateOf, grupoOf]);
 
   /* ── pagination ── */
   const totalPages = Math.max(1, Math.ceil(filteredMovs.length / itemsPerPage));
@@ -526,7 +561,7 @@ export default function FluxoCaixaTab() {
   }, [filteredMovs, activeTab, resolveName]);
 
   // Cores dinâmicas globais para a Tabela e Tabs
-  const isShareActive = activeTab === "caixa_share" || (activeTab === "contas_pagar" && contasCaixa === "share") || activeTab === "contas_receber";
+  const isShareActive = activeTab === "caixa_share" || activeTab === "despesas_reembolsaveis" || (activeTab === "contas_pagar" && contasCaixa === "share") || activeTab === "contas_receber";
   const isClienteActive = activeTab === "caixa_cliente" || (activeTab === "contas_pagar" && contasCaixa === "cliente");
 
   const tableHeaderBg = isShareActive ? "rgba(16,185,129,0.08)" : isClienteActive ? "rgba(59,130,246,0.08)" : "rgba(0,0,0,0.2)";

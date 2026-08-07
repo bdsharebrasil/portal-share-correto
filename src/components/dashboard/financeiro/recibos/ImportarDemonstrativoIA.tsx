@@ -33,7 +33,9 @@ const TIPO_SUBCATEGORIA: Record<TipoDemo, string> = {
   POUSO: "TARIFA DE POUSO",
 };
 
-const WORKER_URL = "https://api-workers.sharebrasil.workers.dev";
+import { AIS_API_BASE_URL } from "@/config/api";
+
+const WORKER_URL = AIS_API_BASE_URL.replace(/\/$/, "");
 
 interface DemoItem {
   data: string;
