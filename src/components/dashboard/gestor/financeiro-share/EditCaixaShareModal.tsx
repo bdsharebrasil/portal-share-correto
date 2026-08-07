@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { agruparCategoriasPorGrupo } from "./categoryFilters";
 import AnexosDinamicosField, {
   type AnexoLinha,
   type AnexoTipoId,
@@ -97,8 +98,9 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("categorias_movimentacao")
-        .select("id, nome, tipo, reembolsavel")
+        .select("id, nome, tipo, grupo_categoria, reembolsavel")
         .eq("ativo", true)
+        .order("grupo_categoria")
         .order("nome");
       return (data ?? []) as any[];
     },
@@ -116,12 +118,31 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
     },
   });
 
-  const catOptions = categorias.map((c) => ({ id: c.id, label: c.nome }));
+  const [grupoCategoriaSelecionado, setGrupoCategoriaSelecionado] = useState("");
+
+  const gruposCategoria = useMemo(() => agruparCategoriasPorGrupo(categorias), [categorias]);
+  const categoriasDoGrupo = useMemo(
+    () => gruposCategoria.find((g) => g.grupo === grupoCategoriaSelecionado)?.categorias ?? [],
+    [gruposCategoria, grupoCategoriaSelecionado],
+  );
+
   const bancoOptions = bancos.map((b) => ({
     id: b.banco,
     label: `${b.banco}${b.numero_conta ? ` — ${b.numero_conta}` : ""}`,
   }));
   const contaOptions = bancos.map((b) => ({ id: b.numero_conta || b.banco, label: b.numero_conta || b.banco }));
+
+  useEffect(() => {
+    const categoria = categorias.find((x) => x.id === mov.categoria_id);
+    if (categoria) {
+      setGrupoCategoriaSelecionado(categoria.grupo_categoria || "SEM GRUPO");
+      return;
+    }
+
+    if (!mov.categoria_id) {
+      setGrupoCategoriaSelecionado("");
+    }
+  }, [categorias, mov.categoria_id]);
 
   // Auto-marcar "reembolsavel" quando a categoria escolhida for reembolsável
   useEffect(() => {
@@ -189,7 +210,26 @@ export default function EditCaixaShareModal({ movId, mov: movInit, onClose, onSa
               </div>
               <div className="md:col-span-2">
                 <label className={labelCls}>Categoria (categorias_movimentacao)</label>
-                <SearchableCombobox items={catOptions} value={mov.categoria_id || ""} onChange={(v) => setM("categoria_id", v)} placeholder="Selecione a categoria" searchPlaceholder="Buscar categoria..." />
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <SearchableCombobox
+                    items={gruposCategoria.map((g) => ({ id: g.grupo, label: g.grupo }))}
+                    value={grupoCategoriaSelecionado}
+                    onChange={(v) => {
+                      setGrupoCategoriaSelecionado(v);
+                      setM("categoria_id", "");
+                    }}
+                    placeholder="Selecione o grupo"
+                    searchPlaceholder="Buscar grupo..."
+                  />
+                  <SearchableCombobox
+                    items={categoriasDoGrupo.map((c: any) => ({ id: c.id, label: c.nome }))}
+                    value={mov.categoria_id || ""}
+                    onChange={(v) => setM("categoria_id", v)}
+                    placeholder={grupoCategoriaSelecionado ? "Selecione a subcategoria" : "Escolha o grupo primeiro"}
+                    searchPlaceholder="Buscar subcategoria..."
+                    disabled={!grupoCategoriaSelecionado}
+                  />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Status</label>

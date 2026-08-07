@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import { X, Save, Wallet } from "lucide-react";
-import { categoriaCorrespondeAoTipo, formatarCategoriaParaLabel } from "./categoryFilters";
+import { agruparCategoriasPorGrupo } from "./categoryFilters";
 
 interface Props {
   onCancel: () => void;
@@ -60,6 +60,7 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
   const [categorias, setCategorias] = useState<any[]>([]);
   const [bancos, setBancos] = useState<any[]>([]);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
+  const [grupoCategoriaSelecionado, setGrupoCategoriaSelecionado] = useState("");
   const [form, setForm] = useState({
     descricao: "",
     tipo: "despesa",
@@ -105,18 +106,27 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
   const entrada = isEntradaTipo(form.tipo);
 
-  /** Categorias separadas por entrada/saída e agrupadas por grupo_categoria. */
-  const categoriaItems = useMemo(() => {
-    const filtradas = categorias.filter((c: any) => categoriaCorrespondeAoTipo(form.tipo, c.tipo));
-    return filtradas
-      .sort((a: any, b: any) =>
-        `${a.grupo_categoria || "ZZZ"}${a.nome}`.localeCompare(`${b.grupo_categoria || "ZZZ"}${b.nome}`),
-      )
-      .map((c: any) => ({
-        id: c.id,
-        label: formatarCategoriaParaLabel(c),
-      }));
-  }, [categorias, form.tipo]);
+  const gruposCategoria = useMemo(
+    () => agruparCategoriasPorGrupo(categorias, form.tipo),
+    [categorias, form.tipo],
+  );
+
+  const categoriasDoGrupo = useMemo(
+    () => gruposCategoria.find((g) => g.grupo === grupoCategoriaSelecionado)?.categorias ?? [],
+    [gruposCategoria, grupoCategoriaSelecionado],
+  );
+
+  useEffect(() => {
+    const categoriaAtual = categorias.find((c: any) => c.id === form.categoria_id);
+    if (categoriaAtual) {
+      setGrupoCategoriaSelecionado(categoriaAtual.grupo_categoria || "SEM GRUPO");
+      return;
+    }
+
+    if (!form.categoria_id) {
+      setGrupoCategoriaSelecionado("");
+    }
+  }, [categorias, form.categoria_id]);
 
   const bancoItems = useMemo(
     () =>
@@ -304,14 +314,28 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
           <div className="lg:col-span-2">
             <Label>Categoria ({entrada ? "entradas" : "saídas"})</Label>
-            <SearchableCombobox
-              items={categoriaItems}
-              value={form.categoria_id}
-              onChange={(id) => set({ categoria_id: id })}
-              placeholder="Selecione a categoria"
-              searchPlaceholder="Buscar por grupo ou categoria..."
-              emptyMessage="Nenhuma categoria para este tipo."
-            />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <SearchableCombobox
+                items={gruposCategoria.map((g) => ({ id: g.grupo, label: g.grupo }))}
+                value={grupoCategoriaSelecionado}
+                onChange={(id) => {
+                  setGrupoCategoriaSelecionado(id);
+                  set({ categoria_id: "" });
+                }}
+                placeholder="Selecione o grupo"
+                searchPlaceholder="Buscar grupo..."
+                emptyMessage="Nenhum grupo disponível."
+              />
+              <SearchableCombobox
+                items={categoriasDoGrupo.map((c: any) => ({ id: c.id, label: c.nome }))}
+                value={form.categoria_id}
+                onChange={(id) => set({ categoria_id: id })}
+                placeholder={grupoCategoriaSelecionado ? "Selecione a subcategoria" : "Escolha o grupo primeiro"}
+                searchPlaceholder="Buscar subcategoria..."
+                emptyMessage="Nenhuma subcategoria neste grupo."
+                disabled={!grupoCategoriaSelecionado}
+              />
+            </div>
           </div>
 
           <div>

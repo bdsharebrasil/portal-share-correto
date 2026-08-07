@@ -4,6 +4,7 @@ import { X, Loader2, Check, Upload, HandCoins, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/format";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { quitarReembolsoLegs } from "@/lib/reembolsoSync";
 
 interface MovLike {
   id: string;
@@ -114,42 +115,16 @@ export default function ReembolsoModal({
     }
     setSaving(true);
     try {
-      const quitado = valorRecebido + 0.01 >= valorEsperado;
-      const patch: Record<string, any> = {
-        reembolso_quitado: quitado,
-        status: quitado ? "reembolsado" : "reembolso parcial",
-        pago_por: pagador,
-        valor_pago_real: valorRecebido,
-        atualizado_em: new Date().toISOString(),
-      };
-      if (comprovante) patch.comprovante_url = comprovante;
-      if (obs) patch.observacoes = obs;
-
-      const { error: e1 } = await supabase.from("movimentacoes").update(patch).eq("id", mov.id);
-      if (e1) throw e1;
-
-      if (mov.contas_areceber_id) {
-        await supabase
-          .from("contas_areceber")
-          .update({
-            status: quitado ? "recebido" : "parcial",
-            data_pagamento: data,
-            data_recebimento: data,
-            banco_recebimento: banco || null,
-            comprovante_url: comprovante || null,
-          } as any)
-          .eq("id", mov.contas_areceber_id);
-      }
-
-      await supabase
-        .from("rateio_despesas")
-        .update({
-          pago_por: pagador,
-          valor_pago_real: valorRecebido,
-          data_pagamento: data,
-          status: quitado ? "reembolsado" : "parcial",
-        } as any)
-        .eq("despesa_id", mov.id);
+      const { patch } = await quitarReembolsoLegs({
+        movId: mov.id,
+        valorRecebido,
+        valorEsperado,
+        data,
+        pagador,
+        banco: banco || null,
+        comprovante: comprovante || null,
+        observacoes: obs || null,
+      });
 
       onSuccess(patch);
       onClose();

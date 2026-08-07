@@ -11,6 +11,35 @@ export function categoriaCorrespondeAoTipo(tipoSelecionado: string, categoriaTip
   return false;
 }
 
+export function agruparCategoriasPorGrupo(
+  categorias: Array<{ nome?: string | null; grupo_categoria?: string | null; tipo?: string | null }> = [],
+  tipoSelecionado?: string,
+) {
+  const filtradas = categorias.filter((categoria) => {
+    if (!tipoSelecionado) return true;
+    return categoriaCorrespondeAoTipo(tipoSelecionado, categoria?.tipo ?? null);
+  });
+
+  const grupos = new Map<string, typeof filtradas>();
+
+  filtradas.forEach((categoria) => {
+    const grupo = String(categoria?.grupo_categoria || 'SEM GRUPO').trim() || 'SEM GRUPO';
+    if (!grupos.has(grupo)) {
+      grupos.set(grupo, []);
+    }
+    grupos.get(grupo)?.push(categoria);
+  });
+
+  return Array.from(grupos.entries())
+    .map(([grupo, lista]) => ({
+      grupo,
+      categorias: [...lista].sort((a, b) =>
+        String(a?.nome || '').localeCompare(String(b?.nome || '')),
+      ),
+    }))
+    .sort((a, b) => a.grupo.localeCompare(b.grupo));
+}
+
 export function formatarCategoriaParaLabel(categoria: { nome?: string | null; grupo_categoria?: string | null }) {
   const nome = String(categoria?.nome || '').trim();
   const grupo = String(categoria?.grupo_categoria || '').trim();

@@ -34,6 +34,57 @@ import EditLancamentoModal from "./EditLancamentoModal";
 import AttachmentViewerModal from "./AttachmentViewerModal";
 import NovaDespesaShareForm from "./NovaDespesaShareForm";
 import NovaDespesaClienteForm from "./NovaDespesaClienteForm";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
+
+/* ───────────── coluna redimensionável (estilo Excel) ───────────── */
+
+function ResizableTh({
+  colId,
+  width,
+  onResize,
+  className = "",
+  children,
+}: {
+  colId: string;
+  width?: number;
+  onResize: (id: string, w: number) => void;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const startX = e.clientX;
+    const startW = width ?? th.getBoundingClientRect().width;
+    const move = (ev: MouseEvent) => onResize(colId, Math.max(60, startW + (ev.clientX - startX)));
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  return (
+    <th
+      className={`relative group/th ${className}`}
+      style={width ? { width, minWidth: width, maxWidth: width } : undefined}
+    >
+      <div className="truncate">{children}</div>
+      <span
+        onMouseDown={startDrag}
+        onDoubleClick={(e) => { e.stopPropagation(); onResize(colId, 120); }}
+        className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize select-none bg-transparent hover:bg-primary/50 group-hover/th:bg-border transition-colors"
+      />
+    </th>
+  );
+}
+
 
 /* ─────────────────────────── types ─────────────────────────── */
 
@@ -224,6 +275,9 @@ export default function FluxoCaixaTab() {
   const [statusFilter, setStatusFilter] = useState<"todos" | "pendente" | "pago" | "vencido">("todos");
   const [contasCaixa, setContasCaixa] = useState<"share" | "cliente">("share");
   const [dateMode, setDateMode] = useState<"pagamento" | "emissao">("pagamento");
+  const { columnWidths, setColumnWidth } = useColumnWidths("fluxo-caixa-share", {
+    data: 130, descricao: 260, categoria: 150, cliente: 170, valor: 130, status: 130, docs: 90,
+  });
   const [reembolsoMov, setReembolsoMov] = useState<Movimentacao | null>(null);
   const [sociosPorCliente, setSociosPorCliente] = useState<Record<string, string[]>>({});
   const [subcatsPorDespesa, setSubcatsPorDespesa] = useState<Record<string, string[]>>({});
@@ -749,7 +803,7 @@ export default function FluxoCaixaTab() {
             <thead>
               <tr className="border-b border-border bg-muted/30" style={{ transition: 'background 0.3s ease' }}>
                 <th className="w-4 px-4 py-3" />
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                <ResizableTh colId="data" width={columnWidths.data} onResize={setColumnWidth} className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => setDateMode((v) => (v === "pagamento" ? "emissao" : "pagamento"))}
@@ -759,14 +813,15 @@ export default function FluxoCaixaTab() {
                     Data {dateMode === "pagamento" ? "Pagamento" : "Emissão"}
                     <ChevronDown className="h-3 w-3" />
                   </button>
-                </th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Descrição</th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Categoria</th>
-                <th className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Cliente</th>
-                <th className="text-right px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Valor</th>
-                <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Status</th>
-                <th className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Docs</th>
+                </ResizableTh>
+                <ResizableTh colId="descricao" width={columnWidths.descricao} onResize={setColumnWidth} className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Descrição</ResizableTh>
+                <ResizableTh colId="categoria" width={columnWidths.categoria} onResize={setColumnWidth} className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Categoria</ResizableTh>
+                <ResizableTh colId="cliente" width={columnWidths.cliente} onResize={setColumnWidth} className="text-left px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Cliente</ResizableTh>
+                <ResizableTh colId="valor" width={columnWidths.valor} onResize={setColumnWidth} className="text-right px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Valor</ResizableTh>
+                <ResizableTh colId="status" width={columnWidths.status} onResize={setColumnWidth} className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Status</ResizableTh>
+                <ResizableTh colId="docs" width={columnWidths.docs} onResize={setColumnWidth} className="text-center px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Docs</ResizableTh>
                 <th className="w-8 px-3 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Ações</th>
+
               </tr>
             </thead>
             <tbody>

@@ -839,7 +839,7 @@ export type Database = {
           ativo: boolean | null
           atualizado_em: string | null
           criado_em: string | null
-          criado_por: string
+          criado_por: string | null
           descricao: string | null
           grupo_categoria: string | null
           id: string
@@ -851,7 +851,7 @@ export type Database = {
           ativo?: boolean | null
           atualizado_em?: string | null
           criado_em?: string | null
-          criado_por: string
+          criado_por?: string | null
           descricao?: string | null
           grupo_categoria?: string | null
           id?: string
@@ -863,7 +863,7 @@ export type Database = {
           ativo?: boolean | null
           atualizado_em?: string | null
           criado_em?: string | null
-          criado_por?: string
+          criado_por?: string | null
           descricao?: string | null
           grupo_categoria?: string | null
           id?: string
@@ -7799,6 +7799,47 @@ export type Database = {
             columns: ["socio_id"]
             isOneToOne: false
             referencedRelation: "socios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificacao_whatsapp_config: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string | null
+          criado_em: string | null
+          id: string
+          solicitacao_id: string | null
+          telefone_comandante: string | null
+          telefone_coordenacao_1: string | null
+          telefone_coordenacao_2: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string | null
+          criado_em?: string | null
+          id?: string
+          solicitacao_id?: string | null
+          telefone_comandante?: string | null
+          telefone_coordenacao_1?: string | null
+          telefone_coordenacao_2?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string | null
+          criado_em?: string | null
+          id?: string
+          solicitacao_id?: string | null
+          telefone_comandante?: string | null
+          telefone_coordenacao_1?: string | null
+          telefone_coordenacao_2?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacao_whatsapp_config_solicitacao_id_fkey"
+            columns: ["solicitacao_id"]
+            isOneToOne: false
+            referencedRelation: "solicitacoes_reserva_voo"
             referencedColumns: ["id"]
           },
         ]
