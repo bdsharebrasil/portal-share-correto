@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import FornecedorPickerCombo from "./FornecedorPickerCombo";
 import { X, Save, Wallet } from "lucide-react";
+import { categoriaCorrespondeAoTipo, formatarCategoriaParaLabel } from "./categoryFilters";
 
 interface Props {
   onCancel: () => void;
@@ -106,19 +107,16 @@ export default function NovaDespesaShareForm({ onCancel, onSaved }: Props) {
 
   /** Categorias separadas por entrada/saída e agrupadas por grupo_categoria. */
   const categoriaItems = useMemo(() => {
-    const filtradas = categorias.filter((c: any) => {
-      const t = (c.tipo || "").toLowerCase();
-      return entrada ? t === "receita" || t === "entrada" : t === "despesa" || t === "saida";
-    });
+    const filtradas = categorias.filter((c: any) => categoriaCorrespondeAoTipo(form.tipo, c.tipo));
     return filtradas
       .sort((a: any, b: any) =>
         `${a.grupo_categoria || "ZZZ"}${a.nome}`.localeCompare(`${b.grupo_categoria || "ZZZ"}${b.nome}`),
       )
       .map((c: any) => ({
         id: c.id,
-        label: `${c.grupo_categoria || "SEM GRUPO"} › ${String(c.nome).trim()}`,
+        label: formatarCategoriaParaLabel(c),
       }));
-  }, [categorias, entrada]);
+  }, [categorias, form.tipo]);
 
   const bancoItems = useMemo(
     () =>

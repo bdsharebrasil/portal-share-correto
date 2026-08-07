@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Wallet,
   Building2,
+  Search,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -65,20 +66,19 @@ interface Fornecedor {
 type SubTab = "caixa_share" | "caixa_cliente" | "contas" | "fornecedores";
 
 const CATEGORIAS_TIPO = [
-  { value: "receita", label: "Receita" },
-  { value: "despesa", label: "Despesa" },
-  { value: "entrada", label: "Entrada" },
-  { value: "saida", label: "Saída" },
-  { value: "reembolso", label: "Reembolso" },
+  { value: "receita", label: "RECEITA" },
+  { value: "despesa", label: "DESPESA" },
+  { value: "entrada", label: "ENTRADA" },
+  { value: "saida", label: "SAÍDA" },
 ];
 
 const CONTAS_TIPO = [{ value: "corrente", label: "Corrente" }];
 
 const FORNECEDOR_CATEGORIAS = [
-  { value: "share", label: "Share" },
-  { value: "particular", label: "Particular" },
-  { value: "ambos", label: "Ambos" },
-  { value: "nenhum", label: "Nenhum" },
+  { value: "share", label: "SHARE" },
+  { value: "particular", label: "PARTICULAR" },
+  { value: "ambos", label: "AMBOS" },
+  { value: "nenhum", label: "NENHUM" },
 ];
 
 const TIPO_BADGE_CFG: Record<string, { bg: string; color: string; border: string }> = {
@@ -122,6 +122,96 @@ function FornecedorCatBadge({ cat }: { cat: string | null }) {
     >
       {label}
     </span>
+  );
+}
+
+/* ─────────────────────────── combobox pesquisável ─────────────────────────── */
+
+interface ComboboxPesquisavelProps {
+  valor: string;
+  onChange: (valor: string) => void;
+  opcoes: string[];
+  placeholder?: string;
+  borderColor?: string;
+}
+
+function ComboboxPesquisavel({ valor, onChange, opcoes, placeholder, borderColor }: ComboboxPesquisavelProps) {
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState(valor);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setBusca(valor);
+  }, [valor]);
+
+  useEffect(() => {
+    function handleClickFora(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setAberto(false);
+        setBusca(valor);
+      }
+    }
+    document.addEventListener("mousedown", handleClickFora);
+    return () => document.removeEventListener("mousedown", handleClickFora);
+  }, [valor]);
+
+  const buscaNormalizada = busca.trim().toLowerCase();
+  const opcoesFiltradas = opcoes.filter((o) => o.toLowerCase().includes(buscaNormalizada));
+  const existeExato = opcoes.some((o) => o.toLowerCase() === buscaNormalizada);
+  const mostrarCriarNovo = busca.trim().length > 0 && !existeExato;
+
+  const selecionar = (novoValor: string) => {
+    onChange(novoValor);
+    setBusca(novoValor);
+    setAberto(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search className="h-3.5 w-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          className={inputCls + " pl-8"}
+          style={borderColor ? { borderColor } : undefined}
+          value={busca}
+          onChange={(e) => {
+            setBusca(e.target.value);
+            onChange(e.target.value);
+            setAberto(true);
+          }}
+          onFocus={() => setAberto(true)}
+          placeholder={placeholder}
+          autoComplete="off"
+        />
+      </div>
+      {aberto && (opcoesFiltradas.length > 0 || mostrarCriarNovo) && (
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 shadow-xl max-h-52 overflow-y-auto">
+          {opcoesFiltradas.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => selecionar(o)}
+              className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center justify-between"
+            >
+              {o}
+              {o.toLowerCase() === valor.trim().toLowerCase() && (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              )}
+            </button>
+          ))}
+          {mostrarCriarNovo && (
+            <button
+              type="button"
+              onClick={() => selecionar(busca.trim())}
+              className="w-full text-left px-3 py-2 text-sm text-cyan-300 hover:bg-slate-800 flex items-center gap-2 border-t border-slate-800"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Criar novo grupo "{busca.trim()}"
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -279,6 +369,11 @@ function CaixaSharePanel() {
     fetchItems();
   }, [fetchItems]);
 
+  // Grupos já existentes, derivados dos itens carregados, para alimentar o combobox.
+  const gruposExistentes = Array.from(
+    new Set(items.map((c) => c.grupo_categoria?.trim()).filter((g): g is string => !!g))
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
   const openNew = () => {
     setForm({ nome: "", tipo: "despesa", grupo_categoria: "", reembolsavel: false, descricao: "" });
     setEditingId(null);
@@ -308,6 +403,14 @@ function CaixaSharePanel() {
     setSaving(true);
     setToast(null);
     try {
+      // Busca o usuário autenticado para gravar o criado_por corretamente.
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      const usuarioId = authData?.user?.id;
+      if (!usuarioId) {
+        throw new Error("Usuário não autenticado. Faça login novamente.");
+      }
+
       const payload = {
         nome: form.nome.trim(),
         tipo: form.tipo,
@@ -326,7 +429,7 @@ function CaixaSharePanel() {
       } else {
         const { error } = await supabase.from("categorias_movimentacao").insert({
           ...payload,
-          criado_por: "00000000-0000-0000-0000-000000000000",
+          criado_por: usuarioId,
           criado_em: new Date().toISOString(),
         });
         if (error) throw error;
@@ -367,7 +470,6 @@ function CaixaSharePanel() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: GREEN }} />
-       
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
@@ -407,7 +509,13 @@ function CaixaSharePanel() {
             </div>
             <div>
               <label className={labelCls}>Grupo de Categoria</label>
-              <input className={inputCls} value={form.grupo_categoria} onChange={(e) => setForm({ ...form, grupo_categoria: e.target.value })} />
+              <ComboboxPesquisavel
+                valor={form.grupo_categoria}
+                onChange={(v) => setForm({ ...form, grupo_categoria: v })}
+                opcoes={gruposExistentes}
+                placeholder="Buscar grupo existente ou digitar um novo..."
+                borderColor="rgba(16,185,129,0.3)"
+              />
             </div>
             <div className="flex items-end gap-2 pb-1">
               <input
@@ -625,7 +733,6 @@ function CaixaClientePanel() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 rounded-full" style={{ background: BLUE }} />
-       
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
@@ -782,7 +889,9 @@ function CaixaClientePanel() {
   );
 }
 
-/* ─────────────────────────── contas panel ─────────────────────────── */
+/* ─────────────────────────── contas panel (contas_bancarias) ─────────────────────────── */
+
+const AMBER = "#f59e0b";
 
 function ContasPanel() {
   const [items, setItems] = useState<ContaBancaria[]>([]);
@@ -793,7 +902,12 @@ function ContasPanel() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [form, setForm] = useState({ banco: "", numero_conta: "", tipo_conta: "corrente", ativo: true });
+  const [form, setForm] = useState({
+    banco: "",
+    numero_conta: "",
+    tipo_conta: "corrente",
+    ativo: true,
+  });
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -818,7 +932,12 @@ function ContasPanel() {
     setShowForm(true);
   };
   const openEdit = (c: ContaBancaria) => {
-    setForm({ banco: c.banco ?? "", numero_conta: c.numero_conta ?? "", tipo_conta: c.tipo_conta ?? "corrente", ativo: c.ativo ?? true });
+    setForm({
+      banco: c.banco ?? "",
+      numero_conta: c.numero_conta ?? "",
+      tipo_conta: c.tipo_conta ?? "corrente",
+      ativo: c.ativo ?? true,
+    });
     setEditingId(c.id);
     setShowForm(true);
   };
@@ -835,13 +954,28 @@ function ContasPanel() {
     setSaving(true);
     setToast(null);
     try {
-      const payload = { banco: form.banco.trim(), numero_conta: form.numero_conta.trim() || null, tipo_conta: form.tipo_conta, ativo: form.ativo };
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      const usuarioId = authData?.user?.id;
+      if (!usuarioId) {
+        throw new Error("Usuário não autenticado. Faça login novamente.");
+      }
+
+      const payload = {
+        banco: form.banco.trim(),
+        numero_conta: form.numero_conta.trim() || null,
+        tipo_conta: form.tipo_conta,
+        ativo: form.ativo,
+      };
       if (editingId) {
         const { error } = await supabase.from("contas_bancarias").update(payload).eq("id", editingId);
         if (error) throw error;
         setToast({ type: "ok", text: "Conta atualizada." });
       } else {
-        const { error } = await supabase.from("contas_bancarias").insert({ ...payload, criado_por: "00000000-0000-0000-0000-000000000000" });
+        const { error } = await supabase.from("contas_bancarias").insert({
+          ...payload,
+          criado_por: usuarioId,
+        });
         if (error) throw error;
         setToast({ type: "ok", text: "Conta criada." });
       }
@@ -872,11 +1006,14 @@ function ContasPanel() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full" style={{ background: AMBER }} />
+      </div>
       <div className="flex justify-end gap-2">
         <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
         </button>
-        <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: "#06b6d4" }}>
+        <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: AMBER }}>
           <Plus className="h-4 w-4" /> Nova Conta
         </button>
       </div>
@@ -884,9 +1021,11 @@ function ContasPanel() {
       <Toast toast={toast} />
 
       {showForm && (
-        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(245,158,11,0.25)", background: "rgba(15,23,42,0.7)" }}>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-100">{editingId ? "Editar Conta" : "Nova Conta Bancária"}</h3>
+            <h3 className="text-sm font-bold" style={{ color: AMBER }}>
+              {editingId ? "Editar Conta" : "Nova Conta"}
+            </h3>
             <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
               <X className="h-4 w-4" />
             </button>
@@ -894,7 +1033,7 @@ function ContasPanel() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Banco *</label>
-              <input className={inputCls} value={form.banco} onChange={(e) => setForm({ ...form, banco: e.target.value })} />
+              <input className={inputCls} style={{ borderColor: "rgba(245,158,11,0.3)" }} value={form.banco} onChange={(e) => setForm({ ...form, banco: e.target.value })} />
             </div>
             <div>
               <label className={labelCls}>Número da Conta</label>
@@ -911,9 +1050,16 @@ function ContasPanel() {
               </select>
             </div>
             <div className="flex items-end gap-2 pb-1">
-              <input id="conta-ativo" type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} className="h-4 w-4 accent-cyan-400" />
-              <label htmlFor="conta-ativo" className="text-sm text-slate-200">
-                Ativo
+              <input
+                id="ativoConta"
+                type="checkbox"
+                checked={form.ativo}
+                onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+                className="h-4 w-4"
+                style={{ accentColor: AMBER }}
+              />
+              <label htmlFor="ativoConta" className="text-sm text-slate-200">
+                Ativa
               </label>
             </div>
           </div>
@@ -921,7 +1067,7 @@ function ContasPanel() {
             <button onClick={closeForm} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">
               Cancelar
             </button>
-            <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: "#06b6d4" }}>
+            <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: AMBER }}>
               {saving ? "Salvando..." : "Salvar"}
             </button>
           </div>
@@ -931,18 +1077,18 @@ function ContasPanel() {
       {loading ? (
         <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(245,158,11,0.2)", background: "rgba(15,23,42,0.7)" }}>
           Nenhuma conta bancária cadastrada.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(245,158,11,0.2)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700" style={{ color: AMBER }}>
                 <th className="px-3 py-2">Banco</th>
                 <th className="px-3 py-2">Número da Conta</th>
                 <th className="px-3 py-2">Tipo</th>
-                <th className="px-3 py-2">Ativo</th>
+                <th className="px-3 py-2">Ativa</th>
                 <th className="px-3 py-2 text-right">Ações</th>
               </tr>
             </thead>
@@ -951,8 +1097,12 @@ function ContasPanel() {
                 <tr key={c.id} className="border-b border-slate-800 hover:bg-slate-800/30">
                   <td className="px-3 py-2 text-slate-200 font-semibold">{c.banco || "—"}</td>
                   <td className="px-3 py-2 text-slate-300">{c.numero_conta || "—"}</td>
-                  <td className="px-3 py-2 text-slate-300">{CONTAS_TIPO.find((t) => t.value === (c.tipo_conta ?? ""))?.label || c.tipo_conta || "—"}</td>
-                  <td className="px-3 py-2">{c.ativo ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <span className="text-slate-600">—</span>}</td>
+                  <td className="px-3 py-2 text-slate-300">
+                    {CONTAS_TIPO.find((t) => t.value === c.tipo_conta)?.label || c.tipo_conta || "—"}
+                  </td>
+                  <td className="px-3 py-2">
+                    {c.ativo ? <CheckCircle2 className="h-4 w-4" style={{ color: AMBER }} /> : <span className="text-slate-600">—</span>}
+                  </td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
                       <button onClick={() => openEdit(c)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">
@@ -972,7 +1122,7 @@ function ContasPanel() {
 
       <DeleteModal
         open={!!deleteId}
-        title="Excluir conta bancária"
+        title="Excluir conta"
         message="Tem certeza que deseja excluir esta conta bancária? Esta ação não pode ser desfeita."
         onCancel={() => setDeleteId(null)}
         onConfirm={confirmDelete}
@@ -982,10 +1132,13 @@ function ContasPanel() {
   );
 }
 
-/* ─────────────────────────── fornecedores panel ─────────────────────────── */
+/* ─────────────────────────── fornecedores panel (fornecedores_favoritos) ─────────────────────────── */
+
+const PURPLE = "#a855f7";
 
 function FornecedoresPanel() {
   const [items, setItems] = useState<Fornecedor[]>([]);
+  const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -996,9 +1149,9 @@ function FornecedoresPanel() {
   const [form, setForm] = useState({
     nome_completo: "",
     apelido: "",
-    documento: "",
     cidade: "",
     telefone: "",
+    documento: "",
     categoria: "nenhum",
     conta_pagamento: "",
   });
@@ -1016,12 +1169,28 @@ function FornecedoresPanel() {
     }
   }, []);
 
+  const fetchContas = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from("contas_bancarias").select("*").eq("ativo", true).order("banco", { ascending: true });
+      if (error) throw error;
+      setContas((data ?? []) as ContaBancaria[]);
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message || "Erro ao carregar contas de pagamento." });
+    }
+  }, []);
+
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]);
+    fetchContas();
+  }, [fetchItems, fetchContas]);
+
+  const contaLabel = (id: string | null) => {
+    const c = contas.find((x) => x.id === id);
+    return c ? `${c.banco}${c.numero_conta ? " — " + c.numero_conta : ""}` : null;
+  };
 
   const openNew = () => {
-    setForm({ nome_completo: "", apelido: "", documento: "", cidade: "", telefone: "", categoria: "nenhum", conta_pagamento: "" });
+    setForm({ nome_completo: "", apelido: "", cidade: "", telefone: "", documento: "", categoria: "nenhum", conta_pagamento: "" });
     setEditingId(null);
     setShowForm(true);
   };
@@ -1029,10 +1198,10 @@ function FornecedoresPanel() {
     setForm({
       nome_completo: f.nome_completo ?? "",
       apelido: f.apelido ?? "",
-      documento: f.documento ?? "",
       cidade: f.cidade ?? "",
       telefone: f.telefone ?? "",
-      categoria: (f.categoria ?? "nenhum").toLowerCase(),
+      documento: f.documento ?? "",
+      categoria: f.categoria ?? "nenhum",
       conta_pagamento: f.conta_pagamento ?? "",
     });
     setEditingId(f.id);
@@ -1045,20 +1214,27 @@ function FornecedoresPanel() {
 
   const save = async () => {
     if (!form.nome_completo.trim()) {
-      setToast({ type: "err", text: "Informe o nome." });
+      setToast({ type: "err", text: "Informe o nome completo." });
       return;
     }
     setSaving(true);
     setToast(null);
     try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      const usuarioId = authData?.user?.id;
+      if (!usuarioId) {
+        throw new Error("Usuário não autenticado. Faça login novamente.");
+      }
+
       const payload = {
         nome_completo: form.nome_completo.trim(),
         apelido: form.apelido.trim() || null,
-        documento: form.documento.trim() || null,
         cidade: form.cidade.trim() || null,
         telefone: form.telefone.trim() || null,
+        documento: form.documento.trim() || null,
         categoria: form.categoria,
-        conta_pagamento: form.conta_pagamento.trim() || null,
+        conta_pagamento: form.conta_pagamento || null,
       };
       if (editingId) {
         const { error } = await supabase
@@ -1068,8 +1244,11 @@ function FornecedoresPanel() {
         if (error) throw error;
         setToast({ type: "ok", text: "Fornecedor atualizado." });
       } else {
-        const { data: authData } = await supabase.auth.getUser();
-        const { error } = await supabase.from("fornecedores_favoritos").insert({ ...payload, criado_por: authData?.user?.id ?? "", criado_em: new Date().toISOString() } as never);
+        const { error } = await supabase.from("fornecedores_favoritos").insert({
+          ...payload,
+          criado_por: usuarioId,
+          criado_em: new Date().toISOString(),
+        });
         if (error) throw error;
         setToast({ type: "ok", text: "Fornecedor criado." });
       }
@@ -1100,11 +1279,14 @@ function FornecedoresPanel() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full" style={{ background: PURPLE }} />
+      </div>
       <div className="flex justify-end gap-2">
         <button onClick={fetchItems} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-3 py-2 text-sm inline-flex items-center gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
         </button>
-        <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: "#06b6d4" }}>
+        <button onClick={openNew} className="text-slate-950 rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center gap-2" style={{ background: PURPLE }}>
           <Plus className="h-4 w-4" /> Novo Fornecedor
         </button>
       </div>
@@ -1112,9 +1294,11 @@ function FornecedoresPanel() {
       <Toast toast={toast} />
 
       {showForm && (
-        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-5 space-y-4" style={{ border: "1px solid rgba(168,85,247,0.25)", background: "rgba(15,23,42,0.7)" }}>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-100">{editingId ? "Editar Fornecedor" : "Novo Fornecedor"}</h3>
+            <h3 className="text-sm font-bold" style={{ color: PURPLE }}>
+              {editingId ? "Editar Fornecedor" : "Novo Fornecedor"}
+            </h3>
             <button onClick={closeForm} className="text-slate-400 hover:text-slate-200">
               <X className="h-4 w-4" />
             </button>
@@ -1122,15 +1306,16 @@ function FornecedoresPanel() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Nome Completo *</label>
-              <input className={inputCls} value={form.nome_completo} onChange={(e) => setForm({ ...form, nome_completo: e.target.value })} />
+              <input
+                className={inputCls}
+                style={{ borderColor: "rgba(168,85,247,0.3)" }}
+                value={form.nome_completo}
+                onChange={(e) => setForm({ ...form, nome_completo: e.target.value })}
+              />
             </div>
             <div>
               <label className={labelCls}>Apelido</label>
               <input className={inputCls} value={form.apelido} onChange={(e) => setForm({ ...form, apelido: e.target.value })} />
-            </div>
-            <div>
-              <label className={labelCls}>Documento</label>
-              <input className={inputCls} value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
             </div>
             <div>
               <label className={labelCls}>Cidade</label>
@@ -1139,6 +1324,10 @@ function FornecedoresPanel() {
             <div>
               <label className={labelCls}>Telefone</label>
               <input className={inputCls} value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Documento (CPF/CNPJ)</label>
+              <input className={inputCls} value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
             </div>
             <div>
               <label className={labelCls}>Categoria</label>
@@ -1152,14 +1341,21 @@ function FornecedoresPanel() {
             </div>
             <div className="md:col-span-2">
               <label className={labelCls}>Conta de Pagamento</label>
-              <input className={inputCls} value={form.conta_pagamento} onChange={(e) => setForm({ ...form, conta_pagamento: e.target.value })} />
+              <select className={inputCls + " cursor-pointer"} value={form.conta_pagamento} onChange={(e) => setForm({ ...form, conta_pagamento: e.target.value })}>
+                <option value="">Nenhuma</option>
+                {contas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.banco}{c.numero_conta ? ` — ${c.numero_conta}` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={closeForm} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded-lg px-4 py-2 text-sm">
               Cancelar
             </button>
-            <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: "#06b6d4" }}>
+            <button onClick={save} disabled={saving} className="text-slate-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ background: PURPLE }}>
               {saving ? "Salvando..." : "Salvar"}
             </button>
           </div>
@@ -1169,35 +1365,33 @@ function FornecedoresPanel() {
       {loading ? (
         <div className="text-sm text-slate-400 py-10 text-center">Carregando...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="rounded-2xl p-10 text-center text-sm text-slate-400" style={{ border: "1px solid rgba(168,85,247,0.2)", background: "rgba(15,23,42,0.7)" }}>
           Nenhum fornecedor cadastrado.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(30,41,59,0.8)", background: "rgba(15,23,42,0.7)" }}>
+        <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid rgba(168,85,247,0.2)", background: "rgba(15,23,42,0.7)" }}>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700">
-                <th className="px-3 py-2">Nome / Apelido</th>
-                <th className="px-3 py-2">Documento</th>
+              <tr className="text-left text-[10px] font-bold uppercase tracking-wider border-b border-slate-700" style={{ color: PURPLE }}>
+                <th className="px-3 py-2">Nome</th>
                 <th className="px-3 py-2">Cidade</th>
                 <th className="px-3 py-2">Telefone</th>
                 <th className="px-3 py-2">Categoria</th>
+                <th className="px-3 py-2">Conta de Pagamento</th>
                 <th className="px-3 py-2 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
               {items.map((f) => (
                 <tr key={f.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                  <td className="px-3 py-2">
-                    <div className="text-slate-200 font-semibold">{f.nome_completo || "—"}</div>
-                    {f.apelido && <div className="text-slate-400 text-[11px]">{f.apelido}</div>}
+                  <td className="px-3 py-2 text-slate-200 font-semibold">
+                    {f.nome_completo || "—"}
+                    {f.apelido && <span className="text-slate-500 font-normal"> ({f.apelido})</span>}
                   </td>
-                  <td className="px-3 py-2 text-slate-300">{f.documento || "—"}</td>
                   <td className="px-3 py-2 text-slate-300">{f.cidade || "—"}</td>
                   <td className="px-3 py-2 text-slate-300">{f.telefone || "—"}</td>
-                  <td className="px-3 py-2">
-                    <FornecedorCatBadge cat={f.categoria} />
-                  </td>
+                  <td className="px-3 py-2"><FornecedorCatBadge cat={f.categoria} /></td>
+                  <td className="px-3 py-2 text-slate-300">{contaLabel(f.conta_pagamento) || "—"}</td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-1">
                       <button onClick={() => openEdit(f)} className="border border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-800 rounded px-2 py-1 text-[10px]">

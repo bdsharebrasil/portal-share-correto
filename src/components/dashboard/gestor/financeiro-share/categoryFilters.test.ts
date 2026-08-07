@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { categoriaCorrespondeAoTipo, formatarCategoriaParaLabel } from './categoryFilters';
+
+test('filtra categorias exatamente pelo tipo selecionado', () => {
+  assert.equal(categoriaCorrespondeAoTipo('despesa', 'despesa'), true);
+  assert.equal(categoriaCorrespondeAoTipo('despesa', 'saida'), false);
+  assert.equal(categoriaCorrespondeAoTipo('saida', 'saida'), true);
+  assert.equal(categoriaCorrespondeAoTipo('receita', 'receita'), true);
+  assert.equal(categoriaCorrespondeAoTipo('entrada', 'entrada'), true);
+  assert.equal(categoriaCorrespondeAoTipo('receita', 'entrada'), false);
+  assert.equal(categoriaCorrespondeAoTipo('estorno', 'receita'), true);
+});
+
+test('formata o rótulo com grupo e subcategoria', () => {
+  assert.equal(
+    formatarCategoriaParaLabel({ nome: 'Internet', grupo_categoria: 'DESPESAS EMPRESA' }),
+    'DESPESAS EMPRESA › Internet',
+  );
+  assert.equal(
+    formatarCategoriaParaLabel({ nome: 'Recebimento', grupo_categoria: '' }),
+    'SEM GRUPO › Recebimento',
+  );
+});
