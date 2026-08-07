@@ -35,6 +35,7 @@ import AttachmentViewerModal from "./AttachmentViewerModal";
 import NovaDespesaShareForm from "./NovaDespesaShareForm";
 import NovaDespesaClienteForm from "./NovaDespesaClienteForm";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
+import { resolverSubcategoriasAtivas } from "./categoryFilters";
 
 /* ───────────── coluna redimensionável (estilo Excel) ───────────── */
 
@@ -342,17 +343,28 @@ export default function FluxoCaixaTab() {
       const rateioMap: Record<string, string> = {};
       const subMap: Record<string, string[]> = {};
       const conferidoMap: Record<string, boolean> = {};
+      const rateiosPorDespesa = new Map<string, any[]>();
+
       (rateios.data ?? []).forEach((rateio: any) => {
         if (!rateio.despesa_id) return;
-        if (rateio.categoria_custo) rateioMap[rateio.despesa_id] = rateio.categoria_custo;
-        if (rateio.conferido) conferidoMap[rateio.despesa_id] = true;
-        const subs = [rateio.subcategoria_1, rateio.subcategoria_2, rateio.subcategoria_3, rateio.subcategoria_4]
-          .filter((s: any) => !!s && String(s).trim())
-          .map((s: any) => String(s).trim());
-        const fallback = rateio.categoria_custo ? subcatsConfig[rateio.categoria_custo] ?? [] : [];
-        const final = subs.length ? subs : fallback;
-        if (final.length) subMap[rateio.despesa_id] = final;
+        if (!rateiosPorDespesa.has(rateio.despesa_id)) {
+          rateiosPorDespesa.set(rateio.despesa_id, []);
+        }
+        rateiosPorDespesa.get(rateio.despesa_id)?.push(rateio);
       });
+
+      rateiosPorDespesa.forEach((linhas, despesaId) => {
+        const linhaPrincipal = linhas[linhas.length - 1] ?? linhas[0];
+        if (!linhaPrincipal) return;
+
+        if (linhaPrincipal.categoria_custo) rateioMap[despesaId] = linhaPrincipal.categoria_custo;
+        if (linhaPrincipal.conferido) conferidoMap[despesaId] = true;
+
+        const fallback = linhaPrincipal.categoria_custo ? subcatsConfig[linhaPrincipal.categoria_custo] ?? [] : [];
+        const subcategorias = resolverSubcategoriasAtivas(linhas, fallback);
+        if (subcategorias.length) subMap[despesaId] = subcategorias;
+      });
+
       setCategoriaCustoPorDespesa(rateioMap);
       setSubcatsPorDespesa(subMap);
       setConferidoPorDespesa(conferidoMap);

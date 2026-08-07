@@ -40,6 +40,26 @@ export function agruparCategoriasPorGrupo(
     .sort((a, b) => a.grupo.localeCompare(b.grupo));
 }
 
+export function resolverSubcategoriasAtivas(
+  subcategorias: Array<{ subcategoria_1?: string | null; subcategoria_2?: string | null; subcategoria_3?: string | null; subcategoria_4?: string | null }> = [],
+  fallback: string[] = [],
+) {
+  const explicit = new Set<string>();
+
+  subcategorias.forEach((item) => {
+    [item.subcategoria_1, item.subcategoria_2, item.subcategoria_3, item.subcategoria_4].forEach((valor) => {
+      const valorTrim = String(valor ?? '').trim();
+      if (valorTrim) explicit.add(valorTrim);
+    });
+  });
+
+  if (explicit.size > 0) {
+    return Array.from(explicit);
+  }
+
+  return fallback.filter((item) => String(item ?? '').trim()).map((item) => String(item).trim());
+}
+
 export function formatarCategoriaParaLabel(categoria: { nome?: string | null; grupo_categoria?: string | null }) {
   const nome = String(categoria?.nome || '').trim();
   const grupo = String(categoria?.grupo_categoria || '').trim();
