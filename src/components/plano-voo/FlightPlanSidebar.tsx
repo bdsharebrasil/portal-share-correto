@@ -148,7 +148,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Plane className="w-5 h-5 text-primary" />
-            <h2 className="font-bold text-foreground">Flight Plan</h2>
+            <h2 className="font-bold text-foreground">Plano de Voo</h2>
           </div>
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onLoadPlan} title="Carregar Plano">
@@ -408,14 +408,14 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-[10px] uppercase text-muted-foreground">Legs</div>
+            <div className="text-[10px] uppercase text-muted-foreground">Pernas</div>
             <div className="text-sm font-mono font-bold text-foreground">{calcs.legs.length}</div>
           </div>
         </div>
 
         {calcs.legs.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border/50">
-            <div className="text-[10px] uppercase text-muted-foreground mb-2">Leg Details</div>
+            <div className="text-[10px] uppercase text-muted-foreground mb-2">Pernas Details</div>
             <div className="space-y-1 max-h-24 overflow-y-auto">
               {calcs.legs.map((leg, i) => (
                 <div key={i} className="flex items-center justify-between text-xs">
@@ -436,7 +436,7 @@ export const FlightPlanSidebar: React.FC<FlightPlanSidebarProps> = ({
             disabled={!formData.origin || !formData.destination || isCalculating}
           >
             {isCalculating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
-            Briefing
+            Gerar Plano de Voo
           </Button>
           <Button variant="outline" className="flex-1" onClick={onSavePlan}>
             <Save className="w-4 h-4 mr-1" />
