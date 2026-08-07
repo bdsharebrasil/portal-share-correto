@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
-  Bell,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -13,13 +12,11 @@ import {
   Layers,
   Paperclip,
   Plane,
-  Plus,
   Receipt,
   RefreshCw,
   Scale,
   Search,
   TrendingUp,
-  Wallet,
   X,
   Zap,
 } from "lucide-react";
@@ -83,14 +80,6 @@ interface Rateio {
   recibo_url: string | null;
   nf_url: string | null;
   boleto_url: string | null;
-}
-
-interface VooCotista {
-  cliente_id: string;
-  aeronave_id: string;
-  total_horas: number;
-  total_pousos: number;
-  voos: { data: string; origem: string; destino: string; tempo_voo: number; pousos: number }[];
 }
 
 interface Movimentacao {
@@ -199,7 +188,7 @@ function PortalClienteDashboard() {
   const [fCategoria, setFCategoria] = useState("todas");
   const [fStatus, setFStatus] = useState<"todos" | "pago" | "pendente" | "atrasado">("todos");
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
-  const [voos, setVoos] = useState<VooCotista[]>([]);
+  const [activeFinanceTab, setActiveFinanceTab] = useState<"lancamentos" | "reembolsos">("lancamentos");
   const [movimentacoes, setMovimentacoes] = useState<Movimentacao[]>([]);
 
   /* ── Fetch aeronaves ── */
@@ -311,46 +300,6 @@ function PortalClienteDashboard() {
     })();
   }, [activeAircraftId]);
 
-  /* ── Fetch voos from lancamentos_diario_bordo for active aircraft ── */
-  useEffect(() => {
-    if (!activeAircraftId) return;
-    (async () => {
-      try {
-        const { data, error: err } = await supabase
-          .from("lancamentos_diario_bordo")
-          .select("clientes_id, aeronave_id, data_registro, aerodromo_partida, aerodromo_chegada, tempo_voo, pousos_total")
-          .eq("aeronave_id", activeAircraftId)
-          .order("data_registro", { ascending: false });
-        if (err) throw err;
-        const byCliente = new Map<string, VooCotista>();
-        for (const r of data ?? []) {
-          const cid = r.clientes_id as string | null;
-          if (!cid) continue;
-          const cur: VooCotista = byCliente.get(cid) || {
-            cliente_id: cid,
-            aeronave_id: r.aeronave_id,
-            total_horas: 0,
-            total_pousos: 0,
-            voos: [],
-          };
-          cur.total_horas += Number(r.tempo_voo) || 0;
-          cur.total_pousos += Number(r.pousos_total) || 0;
-          cur.voos.push({
-            data: (r.data_registro || "").slice(0, 10),
-            origem: r.aerodromo_partida || "—",
-            destino: r.aerodromo_chegada || "—",
-            tempo_voo: Number(r.tempo_voo) || 0,
-            pousos: Number(r.pousos_total) || 0,
-          });
-          byCliente.set(cid, cur);
-        }
-        setVoos(Array.from(byCliente.values()));
-      } catch (e: any) {
-        setError(e.message);
-      }
-    })();
-  }, [activeAircraftId]);
-
   // Auto-select first aircraft
   useEffect(() => {
     if (aeronaves.length > 0 && !activeAircraftId) {
@@ -358,7 +307,6 @@ function PortalClienteDashboard() {
     }
   }, [aeronaves, activeAircraftId]);
 
-  const activeAircraft = aeronaves.find((a) => a.id === activeAircraftId) ?? null;
   const catNameOf = useCallback((r: Rateio) => resolveCategoria(r.categoria_custo, catMap), [catMap]);
 
   /* ── Unique despesas (dedupe by despesa_id) ── */
@@ -370,29 +318,6 @@ function PortalClienteDashboard() {
     }
     return Array.from(map.values());
   }, [rateios]);
-
-  /* ── Movimentacoes lookup by despesa_id (rateio.despesa_id → movimentacao) ── */
-  const movByDespesaId = useMemo(() => {
-    const map = new Map<string, Movimentacao>();
-    for (const m of movimentacoes) {
-      if (m.id) map.set(m.id, m);
-    }
-    return map;
-  }, [movimentacoes]);
-
-  /* ── Helper: determine payment source for a rateio ── */
-  const pagoPorShare = useCallback((r: Rateio): boolean => {
-    const mov = movByDespesaId.get(r.despesa_id);
-    if (!mov) return false;
-    return norm(mov.tipo_caixa) === "share";
-  }, [movByDespesaId]);
-
-  /* ── Helper: check if reimbursement is pending for a rateio ── */
-  const reembolsoPendente = useCallback((r: Rateio): boolean => {
-    const mov = movByDespesaId.get(r.despesa_id);
-    if (!mov) return false;
-    return mov.reembolsavel === true && mov.reembolso_quitado !== true;
-  }, [movByDespesaId]);
 
   /* ── Period filter: current month ── */
   const now = new Date();
@@ -433,43 +358,6 @@ function PortalClienteDashboard() {
     }
     return { entradas, saidas, entC, saiC, resultado: entradas - saidas, total: curPeriodDespesas.length, saldo };
   }, [curPeriodDespesas, uniqueDespesas, periodEnd]);
-
-  /* ── Cost buckets ── */
-  const custoAeronaveMes = useMemo(() => {
-    const acc = new Map<string, { total: number; count: number }>();
-    for (const r of curPeriodDespesas) {
-      if (!isSaida(r.fluxo)) continue;
-      const nome = catNameOf(r) || "Sem categoria";
-      const cur = acc.get(nome) || { total: 0, count: 0 };
-      cur.total += Number(r.valor_rateado) || 0;
-      cur.count += 1;
-      acc.set(nome, cur);
-    }
-    const iconFor = (name: string) => {
-      const n = norm(name);
-      if (/combust|avgas|jet|qav/.test(n)) return "⛽";
-      if (/manut|peca|revis|oficina|motor|helice/.test(n)) return "🔧";
-      if (/hangar/.test(n)) return "🏠";
-      if (/tarifa|taxa|infraero|decea|nav/.test(n)) return "🛫";
-      if (/seguro/.test(n)) return "🛡️";
-      if (/imposto|tributo|fistel|darf|das/.test(n)) return "🏛️";
-      if (/viagem|hotel|alim/.test(n)) return "🧳";
-      if (/salar|folha|freela/.test(n)) return "💼";
-      return "💰";
-    };
-    const buckets = Array.from(acc.entries())
-      .map(([nome, v], i) => ({
-        key: nome,
-        label: nome,
-        icon: iconFor(nome),
-        color: PALETTE[i % PALETTE.length],
-        total: v.total,
-        count: v.count,
-      }))
-      .sort((a, b) => b.total - a.total);
-    const totalGeral = buckets.reduce((s, b) => s + b.total, 0);
-    return { buckets, totalGeral };
-  }, [curPeriodDespesas, catNameOf]);
 
   /* ── Filter options ── */
   const categoriasOpts = useMemo(
@@ -596,11 +484,11 @@ function PortalClienteDashboard() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] bg-bg-base text-ink">
+    <div className="portal-client-dashboard flex min-h-[calc(100vh-8rem)] text-ink">
       <div className="flex-1 flex flex-col">
         <Topbar activeMonth={activeMonth} onSelectMonth={setActiveMonth} />
 
-        <main className="flex-1 p-5 lg:p-7 overflow-y-auto">
+        <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {error && (
             <div className="mb-4 p-4 rounded-xl border border-danger/30 bg-danger/10 text-danger text-sm">
               Erro ao carregar dados: {error}
@@ -629,31 +517,40 @@ function PortalClienteDashboard() {
             <AlertsCard alerts={alerts} pendencias={pendencias} loading={isLoading} />
           </div>
 
-          {/* Reembolsos Pendentes */}
-          <ReembolsosSection reembolsos={reembolsosPendentes} loading={isLoading} />
-
-          {/* Transactions */}
-          <TransactionsSection
-            transactions={filteredTx}
-            rateios={rateios}
-            cotistas={cotistas}
-            cotistaColor={cotistaColor}
-            catNameOf={catNameOf}
-            search={search}
-            setSearch={setSearch}
-            fFluxo={fFluxo}
-            setFFluxo={setFFluxo}
-            fCategoria={fCategoria}
-            setFCategoria={setFCategoria}
-            categoriasOpts={categoriasOpts}
-            fStatus={fStatus}
-            setFStatus={setFStatus}
-            expandedTx={expandedTx}
-            setExpandedTx={setExpandedTx}
-            clearFilters={clearFilters}
+          <FinanceActivitySection
+            activeTab={activeFinanceTab}
+            onChangeTab={setActiveFinanceTab}
+            transactionsCount={filteredTx.length}
             totalInPeriod={curPeriodDespesas.length}
-            loading={isLoading}
-          />
+            reembolsosCount={reembolsosPendentes.length}
+            totalReembolsos={reembolsosPendentes.reduce((total, reembolso) => total + reembolso.valor, 0)}
+          >
+            {activeFinanceTab === "lancamentos" ? (
+              <TransactionsSection
+                transactions={filteredTx}
+                rateios={rateios}
+                cotistas={cotistas}
+                cotistaColor={cotistaColor}
+                catNameOf={catNameOf}
+                search={search}
+                setSearch={setSearch}
+                fFluxo={fFluxo}
+                setFFluxo={setFFluxo}
+                fCategoria={fCategoria}
+                setFCategoria={setFCategoria}
+                categoriasOpts={categoriasOpts}
+                fStatus={fStatus}
+                setFStatus={setFStatus}
+                expandedTx={expandedTx}
+                setExpandedTx={setExpandedTx}
+                clearFilters={clearFilters}
+                totalInPeriod={curPeriodDespesas.length}
+                loading={isLoading}
+              />
+            ) : (
+              <ReembolsosSection reembolsos={reembolsosPendentes} loading={isLoading} />
+            )}
+          </FinanceActivitySection>
         </main>
       </div>
     </div>
@@ -1015,6 +912,68 @@ function AlertsCard({
 
 /* ─────────────────────────── Reembolsos Section ─────────────────────────── */
 
+function FinanceActivitySection({
+  activeTab,
+  onChangeTab,
+  transactionsCount,
+  totalInPeriod,
+  reembolsosCount,
+  totalReembolsos,
+  children,
+}: {
+  activeTab: "lancamentos" | "reembolsos";
+  onChangeTab: (tab: "lancamentos" | "reembolsos") => void;
+  transactionsCount: number;
+  totalInPeriod: number;
+  reembolsosCount: number;
+  totalReembolsos: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="card-glow rounded-card mb-5 overflow-hidden">
+      <div className="px-5 pt-5 border-b border-border">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-light" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary-light">Central financeira</span>
+            </div>
+            <h2 className="font-display font-semibold text-base text-ink-bright">Lançamentos recentes</h2>
+            <p className="text-xs text-ink-muted mt-1">Visão organizada da movimentação e dos reembolsos em aberto.</p>
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold mono border border-border text-ink-muted bg-bg-surface">
+            {totalInPeriod} registros no período
+          </span>
+        </div>
+        <div className="flex gap-5 -mb-px overflow-x-auto" role="tablist" aria-label="Atividade financeira">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "lancamentos"}
+            onClick={() => onChangeTab("lancamentos")}
+            className={`portal-finance-tab ${activeTab === "lancamentos" ? "portal-finance-tab-active" : ""}`}
+          >
+            Lançamentos
+            <span>{transactionsCount}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "reembolsos"}
+            onClick={() => onChangeTab("reembolsos")}
+            className={`portal-finance-tab ${activeTab === "reembolsos" ? "portal-finance-tab-active" : ""}`}
+          >
+            Reembolsos pendentes — Share
+            <span className={reembolsosCount > 0 ? "portal-finance-tab-alert" : ""}>{reembolsosCount}</span>
+            {reembolsosCount > 0 && <strong>{formatBRL(totalReembolsos)}</strong>}
+          </button>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function ReembolsosSection({
   reembolsos, loading,
 }: {
@@ -1024,7 +983,7 @@ function ReembolsosSection({
   const totalPendente = reembolsos.reduce((s, r) => s + r.valor, 0);
 
   return (
-    <div className="mb-5">
+    <div className="p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(245,158,11,0.12)" }}>
@@ -1044,45 +1003,46 @@ function ReembolsosSection({
       </div>
 
       {loading ? (
-        <div className="card-glow rounded-card p-4">
+        <div className="rounded-lg border border-border bg-bg-surface p-4">
           <div className="h-8 skeleton rounded mb-2" />
           <div className="h-8 skeleton rounded" />
         </div>
       ) : reembolsos.length === 0 ? (
-        <div className="card-glow rounded-card p-6 text-center">
+        <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/[0.03] p-8 text-center">
           <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
           <div className="text-sm text-ink-bright font-medium">Nenhum reembolso pendente</div>
           <div className="text-[11px] text-ink-muted mt-1">Todas as despesas pagas pela Share já foram reembolsadas.</div>
         </div>
       ) : (
-        <div className="card-glow rounded-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
+        <div className="rounded-xl border border-amber-400/20 overflow-hidden" style={{ background: "rgba(245,158,11,0.025)" }}>
+          <div className="overflow-x-auto table-scroll-visible">
+            <table className="w-full min-w-[720px]">
               <thead>
                 <tr className="border-b border-border" style={{ background: "rgba(245,158,11,0.04)" }}>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Descrição</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Cotista</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Vencimento</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Valor</th>
-                  <th className="px-4 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Status</th>
+                  <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Despesa</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Cotista responsável</th>
+                  <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Vencimento</th>
+                  <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Valor pendente</th>
+                  <th className="px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Situação</th>
                 </tr>
               </thead>
               <tbody>
                 {reembolsos.map((r) => (
-                  <tr key={r.id} className="border-b border-border/50 hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-2.5">
-                      <div className="text-xs text-ink-bright font-medium">{r.descricao}</div>
+                  <tr key={r.id} className="border-b border-amber-100/[0.08] hover:bg-amber-300/[0.035] transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="text-xs text-ink-bright font-semibold">{r.descricao}</div>
+                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-amber-300/80">Antecipado pela Share</div>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-3.5">
                       <div className="text-xs text-ink">{r.cotista}</div>
                     </td>
-                    <td className="px-4 py-2.5">
-                      <div className="text-xs text-ink-muted">{r.dataVencimento ? new Date(r.dataVencimento).toLocaleDateString("pt-BR") : "—"}</div>
+                    <td className="px-4 py-3.5">
+                      <div className="text-xs font-medium text-ink-muted">{formatDate(r.dataVencimento)}</div>
                     </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="font-display font-bold text-xs text-amber-400">{formatBRL(r.valor)}</div>
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="font-display font-bold text-sm text-amber-400">{formatBRL(r.valor)}</div>
                     </td>
-                    <td className="px-4 py-2.5 text-center">
+                    <td className="px-5 py-3.5 text-center">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "rgba(245,158,11,0.12)", color: "#fbbf24" }}>
                         <Clock className="h-2.5 w-2.5" />
                         Pendente
@@ -1108,7 +1068,7 @@ function TransactionsSection({
   if (loading) return <div className="card-glow rounded-card mb-5 h-96 skeleton" />;
 
   return (
-    <div className="card-glow rounded-card mb-5 overflow-hidden">
+    <div className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-border">
         <div className="flex items-center gap-3">
           <h2 className="font-display font-semibold text-sm text-ink-bright">Lançamentos Recentes</h2>
@@ -1169,18 +1129,17 @@ function TransactionsSection({
         {transactions.length === 0 ? (
           <div className="p-10 text-center text-sm text-ink-faint">Nenhum lançamento encontrado com os filtros aplicados.</div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[980px]">
             <thead>
               <tr className="bg-bg-surface">
-                <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-muted w-8"></th>
-                <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Data</th>
-                <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Descrição</th>
+                <th className="px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Data</th>
+                <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Descrição e fornecedor</th>
                 <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Categoria</th>
                 <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Cotista</th>
-                <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Pago Por</th>
+                <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Origem do pagamento</th>
                 <th className="px-3 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Valor</th>
-                <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Status</th>
-                <th className="px-3 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Docs</th>
+                <th className="px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Situação</th>
+                <th className="px-3 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-muted">Anexos</th>
                 <th className="px-3 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-ink-muted"></th>
               </tr>
             </thead>
@@ -1251,8 +1210,6 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
   const [viewer, setViewer] = useState<{ url: string; label: string } | null>(null);
   const isImage = (u: string) => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u);
 
-  const dotColor = status.tone === "danger" || status.tone === "warning" ? "#f59e0b" : "#22c55e";
-
   // Related cotistas for expanded view
   const relacionados = rateios.filter((x: Rateio) => (x.despesa_id || x.id) === (tx.despesa_id || tx.id));
   const linhasCot = relacionados
@@ -1276,10 +1233,7 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
   return (
     <>
       <tr onClick={onToggle} className="border-b border-border-subtle cursor-pointer hover:bg-bg-hover transition-colors">
-        <td className="px-4 py-3 text-center">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ background: dotColor }} />
-        </td>
-        <td className="px-3 py-3">
+        <td className="px-5 py-3">
           <div className="text-xs font-medium text-ink-bright">{date}</div>
         </td>
         <td className="px-3 py-3" style={{ maxWidth: 200 }}>
@@ -1307,7 +1261,7 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
         </td>
       </tr>
       <tr>
-        <td colSpan={10} className="p-0">
+        <td colSpan={9} className="p-0">
           <div className="overflow-hidden transition-all duration-300" style={{ maxHeight: isOpen ? 300 : 0, opacity: isOpen ? 1 : 0 }}>
             {isOpen && (
               <div className="px-6 py-4 border-b border-border bg-bg-surface">
@@ -1396,7 +1350,7 @@ function TxRow({ tx, txId, date, saida, val, catName, catColor, status, docsCoun
       </tr>
       {viewer && (
         <tr>
-          <td colSpan={10} className="p-0">
+          <td colSpan={9} className="p-0">
             <div
               className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
               onClick={() => setViewer(null)}
