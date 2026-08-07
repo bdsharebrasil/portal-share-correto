@@ -20,12 +20,13 @@ import {
   GlassCard, PageHeader, SectionCard, StatTile, MiniBar, EmptyState, brl, brlFull, compact,
   tabsListClass, tabTriggerClass,
 } from "./ui/Premium";
-
+import DetalhamentoCategoriasGrid from "./DetalhamentoCategoriasGrid";
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const val = (m: any) => Number(m.valor_rateado ?? m.valor_original ?? 0);
 const isEntrada = (m: any) => ["entrada", "receita"].includes(String(m.tipo || "").toLowerCase());
 const isPago = (m: any) => m.status === "pago" || Boolean(m.data_pagamento);
+const isShareExpense = (m: any) => !isEntrada(m) && (isPago(m) || Boolean(m.reembolsavel));
 const isReembolso = (m: any) =>
   `${m.descricao ?? ""} ${m.categoria_nome ?? ""}`.toLowerCase().includes("reembols");
 
@@ -71,7 +72,7 @@ export default function MasterRelatorios() {
         supabase
           .from("movimentacoes")
           .select(
-            "id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_custo"
+            `id, descricao, tipo, valor_rateado, valor_original, data_competencia, data_vencimento, data_pagamento, clientes_id, status, tipo_caixa, fornecedor_nome, categoria_nome, grupo_custo, categoria_id, banco_nome, reembolsavel`
           )
           .gte("data_competencia", `${ano}-01-01`)
           .lte("data_competencia", `${ano}-12-31`)
@@ -118,7 +119,7 @@ export default function MasterRelatorios() {
   const resumo = useMemo(() => {
     const soma = (arr: any[], f: (m: any) => boolean) => arr.filter(f).reduce((t, m) => t + val(m), 0);
     const receitaShare = soma(share, (m) => isEntrada(m) && isPago(m));
-    const despesaShare = soma(share, (m) => !isEntrada(m) && isPago(m));
+    const despesaShare = soma(share, (m) => isShareExpense(m));
     const aReceber = soma(share, (m) => isEntrada(m) && !isPago(m));
     const receitaCliente = soma(cliente, (m) => isEntrada(m) && isPago(m));
     const despesaCliente = soma(cliente, (m) => !isEntrada(m) && isPago(m));
@@ -147,7 +148,7 @@ export default function MasterRelatorios() {
       despesaCliente: 0,
     }));
     (data?.movimentacoes || []).forEach((m: any) => {
-      if (!isPago(m)) return;
+      if (!isPago(m) && !Boolean(m.reembolsavel)) return;
       const i = Number(String(m.data_competencia).slice(5, 7)) - 1;
       if (i < 0 || i > 11) return;
       const caixa = m.tipo_caixa === "cliente" ? "Cliente" : "Share";
@@ -167,7 +168,7 @@ export default function MasterRelatorios() {
     const build = (arr: any[]) => {
       const map = new Map<string, { nome: string; total: number; qtd: number; natureza: string }>();
       arr
-        .filter((m) => !isEntrada(m) && isPago(m))
+        .filter((m) => isShareExpense(m))
         .forEach((m) => {
           const nome = (m.categoria_nome || "Sem categoria").trim();
           const row = map.get(nome) || { nome, total: 0, qtd: 0, natureza: naturezaDe(m) };
@@ -183,7 +184,7 @@ export default function MasterRelatorios() {
   const porNatureza = useMemo(() => {
     const map = new Map<string, number>();
     share
-      .filter((m) => !isEntrada(m) && isPago(m))
+      .filter((m) => isShareExpense(m))
       .forEach((m) => {
         const n = naturezaDe(m);
         map.set(n, (map.get(n) || 0) + val(m));
@@ -228,7 +229,7 @@ export default function MasterRelatorios() {
   /* ---------- ponto de equilíbrio ---------- */
   const equilibrio = useMemo(() => {
     const mesesNoPeriodo = Math.max(1, mesLimite - mesInicio + 1);
-    const desp = share.filter((m: any) => !isEntrada(m) && isPago(m));
+    const desp = share.filter((m: any) => isShareExpense(m));
     const fixoCat = desp.filter((m) => ["Fixo", "Pessoal"].includes(naturezaDe(m))).reduce((t, m) => t + val(m), 0);
     const variavel = desp.filter((m) => !["Fixo", "Pessoal"].includes(naturezaDe(m))).reduce((t, m) => t + val(m), 0);
     const fixoMensal = fixoCat / mesesNoPeriodo;
@@ -571,32 +572,7 @@ export default function MasterRelatorios() {
                 </SectionCard>
               </div>
 
-              <SectionCard title="Detalhamento das categorias da empresa" icon={Layers} bodyClassName="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[560px] text-sm">
-                    <thead>
-                      <tr className="border-b border-border/60 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                        <th className="px-4 py-2.5">Categoria</th>
-                        <th className="px-4 py-2.5">Natureza</th>
-                        <th className="px-4 py-2.5 text-right">Lançamentos</th>
-                        <th className="px-4 py-2.5 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {categorias.share.map((c) => (
-                        <tr key={c.nome} className="border-b border-border/40 transition-colors hover:bg-primary/5">
-                          <td className="px-4 py-2.5 text-foreground">{c.nome}</td>
-                          <td className="px-4 py-2.5">
-                            <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground">{c.natureza}</span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-muted-foreground">{c.qtd}</td>
-                          <td className="px-4 py-2.5 text-right font-semibold text-foreground">{brl(c.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </SectionCard>
+              <DetalhamentoCategoriasGrid movimentacoes={share} />
             </TabsContent>
 
             {/* ---------------- EQUILÍBRIO ---------------- */}

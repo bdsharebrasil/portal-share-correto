@@ -107,6 +107,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.56.2
         version: 5.101.4(react@19.2.8)
+      apex-grid:
+        specifier: ^3.4.0
+        version: 3.4.0
       apexmaps:
         specifier: ^0.3.0
         version: 0.3.0
@@ -155,6 +158,9 @@ importers:
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
+      lit:
+        specifier: ^3.3.3
+        version: 3.3.3
       lottie-react:
         specifier: ^2.4.1
         version: 2.4.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1385,6 +1391,18 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lit-labs/ssr-dom-shim@1.6.0':
+    resolution: {integrity: sha512-VHb0ALPMTlgKjM6yIxxoQNnpKyUKLD04VzeQdsiXkMqkvYlAHxq9glGLmgbb889/1GsohSOAjvQYoiBppXFqrQ==}
+
+  '@lit-labs/virtualizer@2.1.1':
+    resolution: {integrity: sha512-JWxMwnlouLdwpw8spLTuax53WMnSP3xt0dCyxAS7GJr5Otda9MGgR/ghAdfwhSY75TmjbE1T2TqChwoGCw3ggw==}
+
+  '@lit/context@1.1.6':
+    resolution: {integrity: sha512-M26qDE6UkQbZA2mQ3RjJ3Gzd8TxP+/0obMgE5HfkfLhEEyYE3Bui4A5XHiGPjy0MUGAyxB3QgVuw2ciS0kHn6A==}
+
+  '@lit/reactive-element@2.1.2':
+    resolution: {integrity: sha512-pbCDiVMnne1lYUIaYNN5wrwQXDtHaYtg7YEFPeW+hws6U47WeFvISGUWekPGKWOP1ygrs0ef0o1VJMk1exos5A==}
 
   '@lottiefiles/dotlottie-react@0.18.10':
     resolution: {integrity: sha512-7ZquvmoH+KrotNw2n65GHgOjP/tirFwqgGOHQWA5Qxt7wkA6gs1Y7j43DrPqcyIm69+kecsoJb+CtOS26UoKlw==}
@@ -2731,6 +2749,10 @@ packages:
   apex-commons@0.2.0:
     resolution: {integrity: sha512-GnAit7Ae5ORnbsFPsLP34ldA1wVaF2aYRAYuwCKiuwIOEA2mI3d+8NGQgzr6HNF7jyJkEtUIf4kxym8ukCY0gA==}
 
+  apex-grid@3.4.0:
+    resolution: {integrity: sha512-nW/EcdguXBB/amEl7Mjg8+BHZEgrnUeCTH3lKNGYvN8/Fwv0PQbTuqt23Xz6uXfeYVN/mWX9Vsm6shSHwrkNxQ==}
+    engines: {node: '>=20'}
+
   apexmaps@0.3.0:
     resolution: {integrity: sha512-oUQX6h/TMhv2GtWr/xfWHpNebLTyNTfwfklqMDwgoq9WlAoIgqKsUaaiKIEytkrJuGXMEE5urhZXyM5Wi+Q2Bw==}
 
@@ -3522,6 +3544,10 @@ packages:
   idb@8.0.3:
     resolution: {integrity: sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg==}
 
+  igniteui-webcomponents@6.1.2:
+    resolution: {integrity: sha512-q3a3Q28xzRwDBmfDprY0PsN9cs5xgqOJigXWWmbWAfcMgPg5dIrPyMDV6Aj6GD7u1RgPeoZmTP/pz9gTWNhHJA==}
+    engines: {node: '>=20'}
+
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
@@ -3783,6 +3809,15 @@ packages:
 
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
+
+  lit-element@4.2.2:
+    resolution: {integrity: sha512-aFKhNToWxoyhkNDmWZwEva2SlQia+jfG0fjIWV//YeTaWrVnOxD89dPKfigCUspXFmjzOEUQpOkejH5Ly6sG0w==}
+
+  lit-html@3.3.3:
+    resolution: {integrity: sha512-el8M6jK2o3RXBnrSHX3ZKrsN8zEV63pSExTO1wYJz7QndGYZ8353e2a5PPX+qHe2aGayfnchQmkAojaWAREOIA==}
+
+  lit@3.3.3:
+    resolution: {integrity: sha512-fycuvZg/hkpozL00lm1pEJH5nN/lr9ZXd6mJI2HSN4+Bzc+LDNdEApJ6HFbPkdFNHLvOplIIuJvxkS4XUxqirw==}
 
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
@@ -5924,6 +5959,21 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@lit-labs/ssr-dom-shim@1.6.0': {}
+
+  '@lit-labs/virtualizer@2.1.1':
+    dependencies:
+      lit: 3.3.3
+      tslib: 2.8.1
+
+  '@lit/context@1.1.6':
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+
+  '@lit/reactive-element@2.1.2':
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+
   '@lottiefiles/dotlottie-react@0.18.10(react@19.2.8)':
     dependencies:
       '@lottiefiles/dotlottie-web': 0.70.0
@@ -7253,6 +7303,13 @@ snapshots:
 
   apex-commons@0.2.0: {}
 
+  apex-grid@3.4.0:
+    dependencies:
+      '@lit-labs/virtualizer': 2.1.1
+      '@lit/context': 1.1.6
+      igniteui-webcomponents: 6.1.2
+      lit: 3.3.3
+
   apexmaps@0.3.0:
     dependencies:
       apex-commons: 0.2.0
@@ -8194,6 +8251,13 @@ snapshots:
 
   idb@8.0.3: {}
 
+  igniteui-webcomponents@6.1.2:
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@lit-labs/virtualizer': 2.1.1
+      '@lit/context': 1.1.6
+      lit: 3.3.3
+
   ignore@5.3.2: {}
 
   ignore@7.0.6: {}
@@ -8436,6 +8500,22 @@ snapshots:
       unicode-trie: 2.0.0
 
   lines-and-columns@1.2.4: {}
+
+  lit-element@4.2.2:
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+      '@lit/reactive-element': 2.1.2
+      lit-html: 3.3.3
+
+  lit-html@3.3.3:
+    dependencies:
+      '@types/trusted-types': 2.0.7
+
+  lit@3.3.3:
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+      lit-element: 4.2.2
+      lit-html: 3.3.3
 
   locate-path@6.0.0:
     dependencies:

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, FileText,
   Lock, Paperclip, ExternalLink, Edit2, X, Save, Loader2, Eye, EyeOff,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -79,16 +80,6 @@ export function FechamentoBalancoTab({
   const columnVisible = (column: string) => !hiddenColumns.has(column);
   const visibleColumnCount = 2 + HIDEABLE_COLUMNS.length - hiddenColumns.size;
 
-  const sortLabels: Record<SortBy, string> = {
-    vencimento: "Vencimento",
-    pagamento: "Pagamento",
-    fornecedor: "Fornecedor",
-    cliente: "Cliente",
-    descricao: "Descrição",
-    total: "Total",
-    rateado: "Rateado",
-  };
-
   const toggleSort = (field: SortBy) => {
     if (sortBy === field) {
       setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -97,6 +88,23 @@ export function FechamentoBalancoTab({
       setSortDir("asc");
     }
   };
+
+  // Ícone de ordenação para o cabeçalho da coluna (estilo grid)
+  const SortIcon = ({ field }: { field: SortBy }) => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="h-2.5 w-2.5 text-slate-600 group-hover:text-teal-400/70 transition-colors" />;
+    }
+    return sortDir === "asc" ? (
+      <ArrowUp className="h-2.5 w-2.5 text-teal-400" />
+    ) : (
+      <ArrowDown className="h-2.5 w-2.5 text-teal-400" />
+    );
+  };
+
+  const thBase =
+    "px-3 py-2.5 font-bold whitespace-nowrap select-none transition-colors";
+  const thSortable = (field: SortBy) =>
+    `group cursor-pointer hover:bg-teal-500/10 ${sortBy === field ? "text-teal-300" : "text-slate-400"}`;
 
   // Drag to scroll refs and state
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -124,7 +132,7 @@ export function FechamentoBalancoTab({
   // Agrupa despesas pelo despesa_id para mostrar uma única linha por despesa
   const despesasAgrupadas = useMemo(() => {
     const grouped = new Map<string, RateioRow[]>();
-    
+
     despesas.forEach((r) => {
       const key = r.despesa_id || `solo-${r.id}`;
       if (!grouped.has(key)) {
@@ -133,12 +141,11 @@ export function FechamentoBalancoTab({
       grouped.get(key)!.push(r);
     });
 
-    // Retorna um array de grupos, cada um com o representante (primeira) e os outros
     return Array.from(grouped.values()).map((grupo) => ({
       representante: grupo[0],
       todos: grupo,
       numCotistas: grupo.length,
-      valorTotal: num(grupo[0].valor_total_despesa), // Pega o total apenas uma vez (mesmo para todos os rateios)
+      valorTotal: num(grupo[0].valor_total_despesa),
       valorRateado: grupo.reduce((s, r) => s + num(r.valor_rateado), 0),
       valorPagoTotal: grupo.reduce((s, r) => s + num(r.valor_pago_real), 0),
       todosConferidos: grupo.every((r) => r.conferido),
@@ -265,7 +272,7 @@ export function FechamentoBalancoTab({
     if (!isDragging || !tableContainerRef.current) return;
     e.preventDefault();
     const x = e.pageX - tableContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5; // Velocidade do scroll
+    const walk = (x - startX) * 1.5;
     tableContainerRef.current.scrollLeft = scrollLeft - walk;
   };
 
@@ -281,10 +288,10 @@ export function FechamentoBalancoTab({
 
   return (
     <div className="space-y-4">
-      {/* Header Premium (Mais Compacto) */}
+      {/* Header Premium */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-700/50 bg-slate-900/60 p-4 shadow-lg backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-500/5 border border-cyan-500/20 text-cyan-400 shadow-inner">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500/20 to-teal-500/5 border border-teal-500/20 text-teal-400 shadow-inner">
             <CheckCircle2 className="h-5 w-5" />
           </div>
           <div>
@@ -301,13 +308,13 @@ export function FechamentoBalancoTab({
               <svg className="h-10 w-10 -rotate-90 drop-shadow-md" viewBox="0 0 48 48">
                 <circle cx="24" cy="24" r="20" fill="none" stroke="#0f172a" strokeWidth="5" />
                 <circle
-                  cx="24" cy="24" r="20" fill="none" stroke="#06b6d4" strokeWidth="5"
+                  cx="24" cy="24" r="20" fill="none" stroke="#2dd4bf" strokeWidth="5"
                   strokeLinecap="round"
                   strokeDasharray={`${totalLancamentos > 0 ? (totalConferido / totalLancamentos) * 125.6 : 0} 125.6`}
                   className="transition-all duration-1000 ease-out"
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-cyan-400">
+              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-teal-400">
                 {totalLancamentos > 0 ? Math.round((totalConferido / totalLancamentos) * 100) : 0}%
               </span>
             </div>
@@ -320,7 +327,7 @@ export function FechamentoBalancoTab({
           <div className="relative overflow-visible">
             <button
               onClick={() => setShowColumnMenu((current) => !current)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
               aria-expanded={showColumnMenu}
               aria-label="Mostrar ou ocultar colunas"
             >
@@ -333,10 +340,10 @@ export function FechamentoBalancoTab({
                   <button
                     key={id}
                     onClick={() => toggleColumn(id)}
-                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-cyan-300"
+                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[10px] font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-teal-300"
                   >
                     {label}
-                    {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-cyan-400" /> : <EyeOff className="h-3.5 w-3.5 text-slate-600" />}
+                    {columnVisible(id) ? <Eye className="h-3.5 w-3.5 text-teal-400" /> : <EyeOff className="h-3.5 w-3.5 text-slate-600" />}
                   </button>
                 ))}
               </div>
@@ -344,28 +351,10 @@ export function FechamentoBalancoTab({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => toggleSort("vencimento")}
-              className={`inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300 ${sortBy === "vencimento" ? "border-cyan-500 text-cyan-300" : ""}`}
-              title="Ordenar por vencimento"
-            >
-              {sortLabels.vencimento}
-              <span className="text-[10px]">{sortBy === "vencimento" ? (sortDir === "asc" ? "↑" : "↓") : ""}</span>
-            </button>
-            <button
-              onClick={() => setSortDir((current) => (current === "asc" ? "desc" : "asc"))}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
-              title="Alternar ordem crescente/decrescente"
-            >
-              {sortDir === "asc" ? "Crescente" : "Decrescente"}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
             {onVerNaTela && (
               <button
                 onClick={onVerNaTela}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
                 title="Ver relatório dos meses fechados na tela"
               >
                 <Eye className="h-3.5 w-3.5" /> VER NA TELA
@@ -374,7 +363,7 @@ export function FechamentoBalancoTab({
             {onExportPDF && (
               <button
                 onClick={onExportPDF}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-300"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2 text-[11px] font-bold text-slate-300 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-300"
                 title="Exportar PDF"
               >
                 <FileText className="h-3.5 w-3.5" /> EXPORTAR PDF
@@ -400,8 +389,8 @@ export function FechamentoBalancoTab({
         </div>
       </div>
 
-      {/* Tabela Premium AA++ (Compacta e Arrastável) */}
-      <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900/40 shadow-2xl backdrop-blur-sm">
+      {/* Tabela estilo grid (teal/dark) */}
+      <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-[#0a1120] shadow-2xl backdrop-blur-sm">
         <div
           ref={tableContainerRef}
           className={`overflow-x-auto custom-scrollbar ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
@@ -412,34 +401,74 @@ export function FechamentoBalancoTab({
         >
           <table className="w-full text-[11px] border-collapse min-w-[1000px]">
             <thead>
-              <tr className="border-b-2 border-slate-700/60 bg-slate-800/80 text-[9px] uppercase tracking-widest text-slate-400 divide-x divide-slate-700/30">
-                <th className="px-3 py-2 text-center font-bold w-10"></th>
-                <th className={`px-3 py-2 text-left font-bold ${columnVisible("fluxo") ? "" : "hidden"}`}>Fluxo</th>
-                <th className={`px-3 py-2 text-left font-bold ${columnVisible("vencimento") ? "" : "hidden"}`}>Vencimento</th>
-                <th className={`px-3 py-2 text-left font-bold ${columnVisible("pagamento") ? "" : "hidden"}`}>Pagamento</th>
-                <th className={`px-3 py-2 text-left font-bold ${columnVisible("documento") ? "" : "hidden"}`}>nº Doc</th>
-                <th className={`px-3 py-2 text-left font-bold min-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>Fornecedor</th>
-                <th className={`px-3 py-2 text-left font-bold ${columnVisible("cliente") ? "" : "hidden"}`}>Cliente</th>
-                <th className={`px-3 py-2 text-left font-bold min-w-[160px] ${columnVisible("descricao") ? "" : "hidden"}`}>Descrição</th>
-                <th className={`px-3 py-2 text-right font-bold ${columnVisible("uso") ? "" : "hidden"}`}>% Uso</th>
+              <tr className="border-b-2 border-teal-500/30 bg-[#0f1b2d] text-[9px] uppercase tracking-widest divide-x divide-slate-800/60">
+                <th className={`${thBase} px-3 py-2.5 text-center w-10 text-slate-500`}></th>
+
+                <th className={`${thBase} text-left ${columnVisible("fluxo") ? "" : "hidden"} text-slate-400`}>
+                  Fluxo
+                </th>
+
+                <th
+                  onClick={() => toggleSort("vencimento")}
+                  className={`${thBase} text-left ${thSortable("vencimento")} ${columnVisible("vencimento") ? "" : "hidden"}`}
+                >
+                  <span className="inline-flex items-center gap-1">Vencimento <SortIcon field="vencimento" /></span>
+                </th>
+
+                <th
+                  onClick={() => toggleSort("pagamento")}
+                  className={`${thBase} text-left ${thSortable("pagamento")} ${columnVisible("pagamento") ? "" : "hidden"}`}
+                >
+                  <span className="inline-flex items-center gap-1">Pagamento <SortIcon field="pagamento" /></span>
+                </th>
+
+                <th className={`${thBase} text-left ${columnVisible("documento") ? "" : "hidden"} text-slate-400`}>
+                  nº Doc
+                </th>
+
+                <th
+                  onClick={() => toggleSort("fornecedor")}
+                  className={`${thBase} text-left min-w-[130px] ${thSortable("fornecedor")} ${columnVisible("fornecedor") ? "" : "hidden"}`}
+                >
+                  <span className="inline-flex items-center gap-1">Fornecedor <SortIcon field="fornecedor" /></span>
+                </th>
+
+                <th
+                  onClick={() => toggleSort("cliente")}
+                  className={`${thBase} text-left ${thSortable("cliente")} ${columnVisible("cliente") ? "" : "hidden"}`}
+                >
+                  <span className="inline-flex items-center gap-1">Cliente <SortIcon field="cliente" /></span>
+                </th>
+
+                <th
+                  onClick={() => toggleSort("descricao")}
+                  className={`${thBase} text-left min-w-[160px] ${thSortable("descricao")} ${columnVisible("descricao") ? "" : "hidden"}`}
+                >
+                  <span className="inline-flex items-center gap-1">Descrição <SortIcon field="descricao" /></span>
+                </th>
+
+                <th className={`${thBase} text-right ${columnVisible("uso") ? "" : "hidden"} text-slate-400`}>
+                  % Uso
+                </th>
+
                 <th
                   onClick={() => toggleSort("total")}
-                  className={`px-3 py-2 text-right font-bold cursor-pointer select-none ${columnVisible("total") ? "" : "hidden"}`}
-                  title="Ordenar por total"
+                  className={`${thBase} text-right ${thSortable("total")} ${columnVisible("total") ? "" : "hidden"}`}
                 >
-                  Vlr. Total {sortBy === "total" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                  <span className="inline-flex items-center justify-end gap-1 w-full">Vlr. Total <SortIcon field="total" /></span>
                 </th>
+
                 <th
                   onClick={() => toggleSort("rateado")}
-                  className={`px-3 py-2 text-right font-bold cursor-pointer select-none ${columnVisible("rateado") ? "" : "hidden"}`}
-                  title="Ordenar por valor rateado"
+                  className={`${thBase} text-right ${thSortable("rateado")} ${columnVisible("rateado") ? "" : "hidden"}`}
                 >
-                  Vlr. Rateado {sortBy === "rateado" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                  <span className="inline-flex items-center justify-end gap-1 w-full">Vlr. Rateado <SortIcon field="rateado" /></span>
                 </th>
-                <th className="px-3 py-2 text-center font-bold">Ações</th>
+
+                <th className={`${thBase} text-center text-slate-400`}>Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/40">
+            <tbody className="divide-y divide-slate-800/50">
               {despesasAgrupadas.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumnCount} className="px-4 py-10 text-center text-xs font-medium text-slate-500">
@@ -465,18 +494,21 @@ export function FechamentoBalancoTab({
                   const docDisplay = r.numero_nf || r.numero_doc || r.numero_recibo || "—";
                   const temMultiplosCotistas = grupo.numCotistas > 1;
 
+                  // zebra: linhas pares recebem um leve tint teal, conferidas mantêm o tom emerald
+                  const rowBg = grupo.todosConferidos
+                    ? "bg-emerald-950/10 hover:bg-emerald-950/20"
+                    : idx % 2 === 0
+                      ? "bg-teal-500/[0.03] hover:bg-teal-500/[0.07]"
+                      : "bg-transparent hover:bg-slate-800/40";
+
                   return (
                     <Fragment key={r.despesa_id || r.id}>
                       {/* Linha Principal da Tabela */}
-                      <tr
-                        className={`group transition-all duration-200 divide-x divide-slate-700/20 ${
-                          grupo.todosConferidos ? "bg-emerald-950/10 hover:bg-emerald-950/20" : "bg-transparent hover:bg-slate-800/40"
-                        }`}
-                      >
+                      <tr className={`group transition-all duration-200 divide-x divide-slate-800/40 ${rowBg}`}>
                         <td className="px-3 py-2 text-center">
                           <button
                             onClick={() => setExpandedRow(isExpanded ? null : (r.despesa_id || r.id))}
-                            className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-400 focus:outline-none"
+                            className="flex h-5 w-5 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-400 focus:outline-none"
                           >
                             {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                           </button>
@@ -489,14 +521,14 @@ export function FechamentoBalancoTab({
                         <td className={`px-3 py-2 text-slate-300 font-medium font-mono ${columnVisible("vencimento") ? "" : "hidden"}`}>
                           {formatDate(r.data_vencimento)}
                         </td>
-                        <td className={`px-3 py-2 font-mono ${r.data_pagamento ? "text-emerald-600 font-bold" : "text-slate-500"} ${columnVisible("pagamento") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 font-mono ${r.data_pagamento ? "text-emerald-500 font-bold" : "text-slate-500"} ${columnVisible("pagamento") ? "" : "hidden"}`}>
                           {r.data_pagamento ? formatDate(r.data_pagamento) : "---"}
                         </td>
-                        <td className={`px-3 py-2 font-mono text-cyan-400/90 text-[10px] ${columnVisible("documento") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 font-mono text-teal-400/90 text-[10px] ${columnVisible("documento") ? "" : "hidden"}`}>
                           {docDisplay}
                         </td>
                         <td className={`px-3 py-2 text-slate-200 font-semibold truncate max-w-[130px] ${columnVisible("fornecedor") ? "" : "hidden"}`}>
-                          {r.fornecedor_nome || "—"} {temMultiplosCotistas && <span className="text-cyan-400 text-[9px]">({grupo.numCotistas})</span>}
+                          {r.fornecedor_nome || "—"} {temMultiplosCotistas && <span className="text-teal-400 text-[9px]">({grupo.numCotistas})</span>}
                         </td>
                         <td className={`px-3 py-2 text-slate-300 font-medium truncate max-w-[110px] ${columnVisible("cliente") ? "" : "hidden"}`}>
                           {temMultiplosCotistas ? `${grupo.numCotistas} sócios` : clienteDisplay}
@@ -510,7 +542,7 @@ export function FechamentoBalancoTab({
                         <td className={`px-3 py-2 text-right tabular-nums font-bold text-slate-200 ${columnVisible("total") ? "" : "hidden"}`}>
                           {formatBRL(grupo.valorTotal)}
                         </td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${grupo.valorRateado > 0 ? "text-cyan-400" : "text-slate-500"} ${columnVisible("rateado") ? "" : "hidden"}`}>
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${grupo.valorRateado > 0 ? "text-teal-400" : "text-slate-500"} ${columnVisible("rateado") ? "" : "hidden"}`}>
                           {formatBRL(grupo.valorRateado)}
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -525,7 +557,7 @@ export function FechamentoBalancoTab({
                             className={`inline-flex min-w-[75px] items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold transition-all shadow-sm ${
                               grupo.todosConferidos
                                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30"
-                                : "bg-slate-800 text-slate-300 border border-slate-600 hover:bg-cyan-500/20 hover:text-cyan-300 hover:border-cyan-500/40"
+                                : "bg-slate-800 text-slate-300 border border-slate-600 hover:bg-teal-500/20 hover:text-teal-300 hover:border-teal-500/40"
                             }`}
                           >
                             {grupo.todosConferidos ? (
@@ -544,7 +576,7 @@ export function FechamentoBalancoTab({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-slate-950/80 border-b border-slate-700/50 shadow-inner"
+                            className="bg-slate-950/80 border-b border-slate-800/60 shadow-inner"
                           >
                             <td colSpan={visibleColumnCount} className="px-4 py-4 cursor-default">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -562,7 +594,7 @@ export function FechamentoBalancoTab({
                                           href={a.url!}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="flex items-center justify-between rounded-md border border-slate-700/50 bg-slate-800/50 px-2.5 py-1.5 text-[10px] font-medium text-slate-300 transition-colors hover:border-cyan-500/40 hover:bg-cyan-500/10 hover:text-cyan-400"
+                                          className="flex items-center justify-between rounded-md border border-slate-700/50 bg-slate-800/50 px-2.5 py-1.5 text-[10px] font-medium text-slate-300 transition-colors hover:border-teal-500/40 hover:bg-teal-500/10 hover:text-teal-400"
                                         >
                                           <div className="flex items-center gap-1.5">
                                             <FileText className="h-3 w-3 text-red-400" />
@@ -602,7 +634,7 @@ export function FechamentoBalancoTab({
                                   </div>
                                   <div className="flex items-center justify-between">
                                     <span className="text-[10px] text-slate-400">Valor Total</span>
-                                    <span className="text-[10px] font-bold text-cyan-400">
+                                    <span className="text-[10px] font-bold text-teal-400">
                                       {formatBRL(grupo.valorTotal)}
                                     </span>
                                   </div>
@@ -669,7 +701,7 @@ export function FechamentoBalancoTab({
                                         <div className="border-t border-slate-700/50 pt-2 space-y-1">
                                           <div className="flex justify-between text-[9px]">
                                             <span className="text-slate-500">Valor Rateado:</span>
-                                            <span className="text-cyan-400 font-semibold">{formatBRL(num(o.valor_rateado))}</span>
+                                            <span className="text-teal-400 font-semibold">{formatBRL(num(o.valor_rateado))}</span>
                                           </div>
                                           {o.valor_pago_real > 0 && (
                                             <div className="flex justify-between text-[9px]">
@@ -701,7 +733,7 @@ export function FechamentoBalancoTab({
             </tbody>
             {despesasAgrupadas.length > 0 && (
               <tfoot>
-                <tr className="border-t-2 border-slate-700 bg-slate-900 shadow-inner">
+                <tr className="border-t-2 border-teal-500/30 bg-[#0f1b2d] shadow-inner">
                   <td colSpan={visibleColumnCount - 1 - (columnVisible("total") ? 1 : 0) - (columnVisible("rateado") ? 1 : 0)} className="px-3 py-3 text-right font-bold tracking-widest text-slate-400 text-[10px]">
                     TOTAL DO MÊS:
                   </td>
@@ -711,7 +743,7 @@ export function FechamentoBalancoTab({
                     </td>
                   )}
                   {columnVisible("rateado") && (
-                    <td className="px-3 py-3 text-right tabular-nums font-black text-cyan-400 text-xs">
+                    <td className="px-3 py-3 text-right tabular-nums font-black text-teal-400 text-xs">
                       {formatBRL(despesasAgrupadas.reduce((s, g) => s + g.valorRateado, 0))}
                     </td>
                   )}
@@ -723,7 +755,7 @@ export function FechamentoBalancoTab({
         </div>
       </div>
 
-      {/* Edit modal (Inalterado, mantido super premium) */}
+      {/* Edit modal (Inalterado) */}
       <AnimatePresence>
         {editingRateio && (
           <EditRateioModal
@@ -794,7 +826,7 @@ function EditRateioModal({
     }
   };
 
-  const inputCls = "w-full rounded-xl bg-slate-950/80 border border-slate-700/60 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all duration-200 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 placeholder:text-slate-600 shadow-inner";
+  const inputCls = "w-full rounded-xl bg-slate-950/80 border border-slate-700/60 px-4 py-2.5 text-sm font-medium text-slate-100 outline-none transition-all duration-200 focus:ring-2 focus:ring-teal-500/50 focus:border-teal-400 placeholder:text-slate-600 shadow-inner";
   const labelCls = "block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2";
 
   return (
@@ -808,12 +840,12 @@ function EditRateioModal({
       >
         <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-5 backdrop-blur-sm">
           <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
               <Edit2 className="h-4 w-4" />
             </div>
             <div>
               <div className="text-base font-bold text-slate-100 tracking-wide">Editar Lançamento</div>
-              <div className="text-[11px] font-medium uppercase tracking-widest text-cyan-500/70">Ajuste Financeiro</div>
+              <div className="text-[11px] font-medium uppercase tracking-widest text-teal-500/70">Ajuste Financeiro</div>
             </div>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-400">
@@ -881,7 +913,7 @@ function EditRateioModal({
           <button onClick={onClose} className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200">
             Cancelar
           </button>
-          <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-500 px-7 py-2.5 text-sm font-bold tracking-wide text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-cyan-500/25 disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 px-7 py-2.5 text-sm font-bold tracking-wide text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-teal-500/25 disabled:opacity-50">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar Alterações
           </button>
         </div>

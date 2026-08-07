@@ -658,6 +658,22 @@ select { color-scheme: dark; }
 select option { background: #0f1628; color: #e2e8f5; }
 input:focus, select:focus, button:focus-visible { outline: none; }
 
+body.dark {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+body.dark h2 {
+  color: #f1f5f9;
+}
+body.dark .panel label {
+  color: #94a3b8;
+}
+body.dark .panel select {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
 .card {
   padding: 2em;
 }
